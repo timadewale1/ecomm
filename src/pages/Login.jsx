@@ -12,7 +12,7 @@ import { GrSecure } from "react-icons/gr";
 import { toast } from "react-toastify";
 import LoginAnimation from "../components/LoginAssets/LoginAnimation";
 import Loading from "../components/Loading/Loading";
-import Typical from "react-typical";
+// import Typical from "react-typical";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -101,14 +101,8 @@ const Login = () => {
               <div className="px-3">
                 {/* animation here */}
                 <LoginAnimation />
-                <div className="flex transform -translate-y-10 mb-2 justify-center">
-                  <Typical
-                    steps={["The real market place", 5000, "", 2000]}
-                    loop={Infinity}
-                    wrapper="h1"
-                    className="font-ubuntu italic text-customOrange text-xs font-light"
-                  />
-                </div>
+                
+                
                 <div className="-translate-y-5">
                   <div className=" ">
                     <h1 className="text-5xl font-semibold font-ubuntu text-black mb-2">

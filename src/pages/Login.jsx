@@ -127,7 +127,7 @@ const Login = () => {
                         type="email"
                         placeholder="Enter your email"
                         value={email}
-                        className={`w-full h-11 ${
+                        className={`w-full h-14 ${
                           emailError ? "border-red-500" : "border-none"
                         } bg-gray-300 px-10 mb-1 font-semibold text- rounded-full`}
                         onChange={handleEmailChange}
@@ -140,7 +140,7 @@ const Login = () => {
                       </div>
                       <input
                         type={showPassword ? "text" : "password"}
-                        className={`w-full h-11 ${
+                        className={`w-full h-14 ${
                           passwordError ? "border-red-500" : "border-none"
                         } bg-gray-300 px-10 font-semibold text- rounded-full`}
                         placeholder="Enter your password"

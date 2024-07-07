@@ -17,11 +17,13 @@ import Payment from "../pages/Payment";
 import Users from "../admin/Users";
 import AllOrders from "../admin/Orders";
 import UserDashboard from "../pages/UserDashboard";
+import NewHome from "../pages/NewHome";
 const Routers = () => {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="home" />} />
       <Route path="home" element={<Home />} />
+      <Route path="newhome" element={<NewHome />} />
       <Route path="shop" element={<Shop />} />
       <Route path="shop/:id" element={<ProductDetails />} />
       <Route path="checkout" element={<Checkout />} />
@@ -38,6 +40,8 @@ const Routers = () => {
       <Route path="login" element={<Login />} />
       <Route path="signup" element={<Signup />} />
       <Route path="admin" element={<AdminLogin />} />
+     
+
       <Route path="payment" element={<Payment />} />
       <Route path="/forgetpassword" element={<ForgetPassword />} />
     </Routes>

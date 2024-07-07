@@ -1,6 +1,12 @@
 /* google fonts */
 @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap");
 
+
+
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 /*  css variables */
 :root {
   --card-bg-01: #fdefe6;
@@ -13,6 +19,9 @@
   --small-text-color: #999;
   --heading-text-color: #0a1d37;
 }
+
+
+
 
 /* reset browser default */
 * {

@@ -36,11 +36,11 @@ const NewHome = () => {
         <PiBell className="text-2xl" />
       </div>
       <div className="flex px-2 justify-center mb-3">
-        <div className="relative w-[22rem]">
+        <div className="relative w-full mx-auto">
           <input
             type="text"
             placeholder="Search"
-            className="w-full rounded-full bg-gray-200 p-3"
+            className="w-full  rounded-full bg-gray-200 p-3"
             onFocus={handleFocus}
             onBlur={handleBlur}
           />

@@ -3,7 +3,7 @@
     bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
-    width: calc(100% - 25px);
+    width: calc(100% - 10px);
     padding: 10px 0;
     background-color: #100f0e;
     border-radius: 50px;
@@ -16,27 +16,41 @@
   }
   
   .bottom-bar.under-keypad {
-    top: 2000px; /*this one na for bottom bar dissapearance */
+    top: 2000px; /* This is for bottom bar disappearance */
   }
   
   .bottom-nav-icon {
     display: flex;
-    justify-content: center;
     align-items: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+    padding: 10px;
+    border-radius: 50px; /* Make the background for icon and text round */
     transition: background-color 0.3s, color 0.3s;
   }
   
   .bottom-nav-icon .react-icons {
-    font-size: 48px;
+    font-size: 24px; /* Adjusted font size for better alignment */
     transition: color 0.3s;
   }
   
   .bottom-nav-icon.active {
     background-color: #f9531e;
     color: white;
-    border: none;
+  }
+  
+  .nav-label {
+    margin-left: 4px; /* Adjust margin to position text correctly */
+    font-size: 14px;
+    margin-top: 2px;
+    font-weight: 500;
+    color: white;
+    transition: opacity 0.2s ease-in-out;
+  }
+  
+  .bottom-nav-icon:not(.active) .nav-label {
+    display: none;
+  }
+  
+  .bottom-nav-icon.active .nav-label {
+    display: inline; /* Make sure the text is displayed inline with the icon */
   }
   

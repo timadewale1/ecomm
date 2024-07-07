@@ -16,57 +16,69 @@ const ForgetPassword = () => {
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
-
+  
     try {
-      // Attempt to send the password reset email
+      
       await sendPasswordResetEmail(auth, email);
-      toast.success("Password reset email sent. Check your inbox!");
-      console.log("success");
+      toast.success("A password reset link has been sent to your email. Please check your inbox.");
+      console.log("Success: Password reset email sent.");
       navigate("/login");
     } catch (error) {
       if (error.code === "auth/user-not-found") {
         // Handle the case where the email doesn't exist
-        toast.error("Email doesn't exist. Please enter a valid email address.");
-        console.log("na me");
+        toast.error("We couldn't find an account with that email. Please try again.");
+        console.log("Error: Email not found.");
       } else {
         // Handle other errors
-        toast.error("Error sending password reset email. Please try again.");
+        toast.error("Something went wrong. Please try again later.");
         console.error(error);
-        console.log("na ma");
+        console.log("Error: Unable to send password reset email.");
       }
     }
   };
+  
 
   return (
     <Helmet title="Login">
       <section>
         <Container>
           <Row>
-            <Col lg="6" className="m-auto text-center">
-              <h3 className="fw-bold mb-4">Forgot Password</h3>
-              <Form className="auth__form" onSubmit={handleResetPassword}>
-                <FormGroup className="form__group">
-                  <label>Email:</label>
+            <div className="p-8 ">
+              <h1 className="font-ubuntu font-semibold mb-4">
+                Reset your password
+              </h1>
+              <h2 className="font-ubuntu text-xl">
+                Enter your email address and we will send you a link to reset
+                your password
+              </h2>
+              <Form className="translate-y-5" onSubmit={handleResetPassword}>
+                <FormGroup className="">
+                  <label className="font-bold mb-1 text-xs">
+                    Your email address
+                  </label>
                   <input
                     type="email"
                     placeholder="Enter your email"
                     value={email}
+                    className="w-full h-14 text-gray-500 p-4 rounded-full bg-gray-300"
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </FormGroup>
-                <motion.button
-                  whileTap={{ scale: 1.2 }}
-                  type="submit"
-                  className="buy__btn auth__btn"
-                >
-                  Reset Password
-                </motion.button>
-                <p>
-                  {" "}
-                  <Link to="/login">Login</Link>
-                </p>
+                <div className="flex  justify-between -translate-y-3">
+                  <motion.button
+                    whileTap={{ scale: 1.2 }}
+                    type="submit"
+                    className="bg-customOrange w-28 h-14  rounded-full text-white mt-4"
+                  >
+                    Reset
+                  </motion.button>
+                  <p className="translate-y-10 underline">
+                    {" "}
+                    <Link to="/login">Back to Login</Link>
+                  </p>
+                </div>
               </Form>
-            </Col>
+            </div>
           </Row>
         </Container>
       </section>

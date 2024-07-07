@@ -9,7 +9,7 @@ import Services from "../services/Services";
 import "../styles/home.css";
 import ProductList from "../components/UI/ProductList";
 import { useEffect, useState } from "react";
-
+import { useNavigate } from "react-router-dom";
 import useGetData from "../custom-hooks/useGetData";
 
 const Home = () => {
@@ -20,7 +20,10 @@ const Home = () => {
   const [mobileProducts, setMobileProducts] = useState([]);
   const [wirelessProducts, setWirelessProducts] = useState([]);
   const [popularProducts, setPopularProducts] = useState([]);
-
+  const navigate = useNavigate();
+  const handleButtonClick = () => {
+    navigate('/newhome');
+  };
   const year = new Date().getFullYear();
 
   useEffect(() => {
@@ -67,6 +70,10 @@ const Home = () => {
                 <motion.button whileTap={{ scale: 1.2 }} className="buy__btn">
                   <Link to="/shop">SHOP NOW</Link>{" "}
                 </motion.button>
+                <div className="md:hidden block">
+                <button onClick={handleButtonClick} className="bg-red-800 w-40 h-10 rounded-lg ">new homepage</button>
+              </div>
+
               </div>
             </Col>
             <Col lg="6" md="6">

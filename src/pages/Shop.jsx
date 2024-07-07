@@ -3,12 +3,14 @@ import CommonSection from "../components/UI/CommonSection";
 import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Col } from "reactstrap";
 import "../styles/shop.css";
+
 import ProductsLists from "../components/UI/ProductList";
 import useGetData from "../custom-hooks/useGetData";
+// import { Link } from "react-router-dom";
 
 const Shop = () => {
   const { data: products, loading } = useGetData("products");
-
+  
   const [productsData, setProductsData] = useState([]);
 
   const handleFilter = (e) => {
@@ -53,6 +55,7 @@ const Shop = () => {
 
     setProductsData(searchedProducts);
   };
+ 
 
   return (
     <Helmet title="Shop">
@@ -71,6 +74,7 @@ const Shop = () => {
                   <option value="wireless">Wireless</option>
                 </select>
               </div>
+             
             </Col>
             {/* <Col lg="3" md="6" className="text-end">
               <div className="filter__widget">

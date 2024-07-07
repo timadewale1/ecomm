@@ -35,7 +35,7 @@ const NewHome = () => {
         {/* notification icon */}
         <PiBell className="text-2xl" />
       </div>
-      <div className="flex px-4 justify-center mb-3">
+      <div className="flex px-2 justify-center mb-3">
         <div className="relative w-[22rem]">
           <input
             type="text"
@@ -49,7 +49,7 @@ const NewHome = () => {
       </div>
 
       {/* Promo cards slider */}
-      <div className="px-4 mb-0">
+      <div className="px-2 mb-0">
         {' '}
         {/* Adjusted margin-bottom */}
         <Swiper
@@ -111,17 +111,17 @@ const NewHome = () => {
       <div className="">
         {' '}
      
-        <div className="flex justify-center mt-3 px-4 gap-2 ">
+        <div className="flex justify-center mt-3 px-2 gap-2 ">
           {' '}
           {/* Adjusted margin-bottom */}
           <div className="w-32 h-28 rounded-lg bg-gray-200"></div>
           <div className="w-32 h-28 rounded-lg bg-gray-200"></div>
           <div className="w-32 h-28 rounded-lg bg-gray-200"></div>
         </div>
-        <div className="flex justify-between px-4 mt-10 text-base">
+        <div className="flex justify-between px-2 mt-10 text-base">
           {' '}
           {/* Adjusted margin-bottom */}
-          <h1 className="font-semibold text-xl">Top Markets</h1>
+          <h1 className="font-semibold text-xl">Explore</h1>
           <p className="font-light text-red-500">Show All</p>
         </div>
       </div>

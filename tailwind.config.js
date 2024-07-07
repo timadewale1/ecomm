@@ -4,8 +4,15 @@ module.exports = {
     "./src/**/*.{js,jsx,ts,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        customOrange: '#f9531e',
+      },
+      fontFamily: {
+        roboto: ['Roboto', 'sans-serif'],
+        ubuntu: ['Ubuntu', 'sans-serif'],
+      },
+    },
   },
   plugins: [],
 }
-

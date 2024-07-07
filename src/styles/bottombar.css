@@ -3,7 +3,7 @@
     bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
-    width: calc(100% - 50px);
+    width: calc(100% - 25px);
     padding: 10px 0;
     background-color: #100f0e;
     border-radius: 50px;

@@ -32,7 +32,7 @@ const Market = () => {
   }, []);
 
   return (
-    <div className='justify-around mt-4 px-4'>
+    <div className='justify-around mt-4 px-2'>
       {[...Array(3)].map((_, index) => (
         <div
           key={index}

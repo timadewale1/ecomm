@@ -1,0 +1,42 @@
+.bottom-bar {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 50px);
+    padding: 10px 0;
+    background-color: #100f0e;
+    border-radius: 50px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    transition: bottom 0.3s;
+  }
+  
+  .bottom-bar.under-keypad {
+    top: 2000px; /*this one na for bottom bar dissapearance */
+  }
+  
+  .bottom-nav-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    transition: background-color 0.3s, color 0.3s;
+  }
+  
+  .bottom-nav-icon .react-icons {
+    font-size: 48px;
+    transition: color 0.3s;
+  }
+  
+  .bottom-nav-icon.active {
+    background-color: #f9531e;
+    color: white;
+    border: none;
+  }
+  

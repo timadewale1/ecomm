@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
-import { RiMenu4Line } from 'react-icons/ri';
-import { PiBell } from 'react-icons/pi';
-import { FiSearch } from 'react-icons/fi';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import Market from '../components/Market/Market';
-import 'swiper/css';
-import 'swiper/css/free-mode';
-import 'swiper/css/autoplay'; 
+import React, { useState } from "react";
+import { RiMenu4Line } from "react-icons/ri";
+import { PiBell } from "react-icons/pi";
+import { FiSearch } from "react-icons/fi";
+import { Swiper, SwiperSlide } from "swiper/react";
+import Market from "../components/Market/Market";
+import "swiper/css";
+import "swiper/css/free-mode";
+import "swiper/css/autoplay";
+import { Cloudinary } from "@cloudinary/url-gen";
+import { auto } from "@cloudinary/url-gen/actions/resize";
+import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
+import { AdvancedImage } from "@cloudinary/react";
 
-import { FreeMode, Autoplay } from 'swiper/modules'; 
-import BottomBar from '../components/BottomBar/BottomBar';
-import '../styles/bottombar.css';
+import { FreeMode, Autoplay } from "swiper/modules";
+import BottomBar from "../components/BottomBar/BottomBar";
+import "../styles/bottombar.css";
 
 const NewHome = () => {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -22,6 +26,33 @@ const NewHome = () => {
   const handleBlur = () => {
     setIsSearchFocused(false);
   };
+
+  // Initialize Cloudinary instance
+  const cld = new Cloudinary({
+    cloud: {
+      cloudName: "dtaqusjav", // Replace with your actual Cloudinary cloud name
+    },
+  });
+
+  // Create image objects for each public ID
+  const maleImg = cld
+    .image("male_kfm4n5")
+    .format("auto")
+    .quality("auto")
+    .resize(auto().gravity(autoGravity()).width(500).height(500));
+
+  const kidImg = cld
+    .image("kid_ec5vky")
+    .format("auto")
+    .quality("auto")
+    .resize(auto().gravity(autoGravity()).width(500).height(500));
+
+  const femaleImg = cld
+    .image("female_s5qaln")
+    .format("auto")
+    .quality("auto")
+    .resize(auto().gravity(autoGravity()).width(500).height(500));
+
 
   return (
     <>
@@ -50,11 +81,11 @@ const NewHome = () => {
 
       {/* Promo cards slider */}
       <div className="px-2 mb-0">
-        {' '}
+        {" "}
         {/* Adjusted margin-bottom */}
         <Swiper
           modules={[FreeMode, Autoplay]}
-          spaceBetween={5} 
+          spaceBetween={5}
           slidesPerView={1}
           freeMode={true}
           loop={true}
@@ -105,21 +136,42 @@ const NewHome = () => {
               <p className="text-white">Free shipping on orders over $50!</p>
             </div>
           </SwiperSlide>
-         
         </Swiper>
       </div>
       <div className="">
-        {' '}
-     
+        {" "}
         <div className="flex justify-center mt-3 px-2 gap-2 ">
-          {' '}
           {/* Adjusted margin-bottom */}
-          <div className="w-32 h-28 rounded-lg bg-gray-200"></div>
-          <div className="w-32 h-28 rounded-lg bg-gray-200"></div>
-          <div className="w-32 h-28 rounded-lg bg-gray-200"></div>
+          <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden">
+            <AdvancedImage
+              cldImg={maleImg}
+              className="w-full h-full object-cover"
+            />
+            <h2 className="absolute bottom-0 w-full text-center text-white font-semibold text-lg bg-transparent ">
+              MEN
+            </h2>
+          </div>
+          <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden">
+            <AdvancedImage
+              cldImg={femaleImg}
+              className="w-full h-full object-cover"
+            />
+            <h2 className="absolute  bottom-0 w-full text-center text-white font-semibold bg-transparent text-lg ">
+              WOMEN
+            </h2>
+          </div>
+          <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden">
+            <AdvancedImage
+              cldImg={kidImg}
+              className="w-full h-full object-cover"
+            />
+            <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-lg">
+              KIDS
+            </h2>
+          </div>
         </div>
         <div className="flex justify-between px-2 mt-10 text-base">
-          {' '}
+          {" "}
           {/* Adjusted margin-bottom */}
           <h1 className="font-semibold text-xl">Explore</h1>
           <p className="font-light text-red-500">Show All</p>

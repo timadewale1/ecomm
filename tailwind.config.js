@@ -11,6 +11,8 @@ module.exports = {
       fontFamily: {
         roboto: ['Roboto', 'sans-serif'],
         ubuntu: ['Ubuntu', 'sans-serif'],
+        bodoni: ['Bodoni Moda SC', 'serif'],
+        lato: ['Lato', 'sans-serif'],
       },
     },
   },

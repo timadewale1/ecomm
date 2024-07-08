@@ -5,14 +5,15 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import "../styles/login.css";
 import { motion } from "framer-motion";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase.config";
+import { auth, db } from "../firebase.config";
+import { getDoc, doc } from "firebase/firestore";
 import { FaRegEyeSlash, FaRegEye } from "react-icons/fa";
 import { MdEmail } from "react-icons/md";
 import { GrSecure } from "react-icons/gr";
 import { toast } from "react-toastify";
 import LoginAnimation from "../components/LoginAssets/LoginAnimation";
 import Loading from "../components/Loading/Loading";
-// import Typical from "react-typical";
+import Typewriter from "typewriter-effect";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -36,21 +37,25 @@ const Login = () => {
     // Validate email field
     if (!email) {
       setEmailError(true);
-      toast.error("Please fill in all fields correctly");
+      toast.error("Please fill in all fields correctly", {
+        className: "custom-toast",
+      });
       return;
     }
 
     // Validate email format
     if (!validateEmail(email)) {
-      toast.error("Invalid email format");
-      setEmailError(true);
+      toast.error("Invalid email format", {
+        className: "custom-toast",
+      });
       return;
     }
 
     // Validate password field
     if (!password) {
-      setPasswordError(true);
-      toast.error("Please fill in all fields correctly");
+      toast.error("Please fill in all fields correctly", {
+        className: "custom-toast",
+      });
       return;
     }
 
@@ -66,17 +71,37 @@ const Login = () => {
         password
       );
       const user = userCredential.user;
+
+      // Check if email is verified
+      if (!user.emailVerified) {
+        setLoading(false);
+        toast.error("Please verify your email before logging in.", {
+          className: "custom-toast",
+        });
+        return;
+      }
+
+      // Retrieve user data from Firestore
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const userData = userDoc.data();
+
+      const Name = userData?.displayName || "User"; // Adjust the field name if necessary
       console.log(user);
       setLoading(false);
-      toast.success("Successfully logged in");
+      toast.success(`Hello ${Name}, welcome!`, {
+        className: "custom-toast",
+      });
       const redirectTo = location.state?.from || "/newhome";
       navigate(redirectTo, { replace: true });
     } catch (error) {
       setLoading(false);
       console.error("Error during sign-in:", error); // Log the error message
       toast.error(
-        "Unable to login. Please check your credentials and try again."
-      ); // Show user-friendly message
+        "Unable to login. Please check your credentials and try again.",
+        {
+          className: "custom-toast",
+        }
+      );
     }
   };
 
@@ -101,9 +126,16 @@ const Login = () => {
               <div className="px-3">
                 {/* animation here */}
                 <LoginAnimation />
-                
-                
-                <div className="-translate-y-5">
+                <div className="flex transform text-customOrange -translate-y-10 mb-2 justify-center">
+                  <Typewriter
+                    options={{
+                      strings: ["The Real Market Place"],
+                      autoStart: true,
+                      loop: true,
+                    }}
+                  />
+                </div>
+                <div className="-translate-y-4">
                   <div className=" ">
                     <h1 className="text-5xl font-semibold font-ubuntu text-black mb-2">
                       Login

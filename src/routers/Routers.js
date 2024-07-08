@@ -7,8 +7,7 @@ import ProductDetails from "../pages/ProductDetails";
 import Checkout from "../pages/Checkout";
 import Login from "../pages/Login";
 import Signup from "../pages/Signup";
-import ForgetPassword from "../pages/forgetPassword";
-import ProtectedRoute from "./ProtectedRoute";
+import ForgetPassword from "../pages/forgetPassword.jsx";
 import AdminLogin from "../pages/AdminLogin";
 import AddProducts from "../admin/AddProducts";
 import AllProducts from "../admin/AllProducts";
@@ -17,34 +16,46 @@ import Payment from "../pages/Payment";
 import Users from "../admin/Users";
 import AllOrders from "../admin/Orders";
 import UserDashboard from "../pages/UserDashboard";
-import NewHome from "../pages/NewHome";
+import Marketpg from "../pages/Marketpg";
+import NewHome from "../pages/Homepage";
+import LatestCart from "../pages/LatestCart";
+import Profile from "../pages/Profile";
+import Explore from "../pages/Explore";
+import ProtectedRoute from "./ProtectedRoute";
+
 const Routers = () => {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="home" />} />
       <Route path="home" element={<Home />} />
-      <Route path="newhome" element={<NewHome />} />
       <Route path="shop" element={<Shop />} />
       <Route path="shop/:id" element={<ProductDetails />} />
       <Route path="checkout" element={<Checkout />} />
-      <Route path="/*" element={<ProtectedRoute />}>
+      <Route path="signup" element={<Signup />} />
+      <Route path="admin" element={<AdminLogin />} />
+      <Route path="login" element={<Login />} />
+      <Route path="payment" element={<Payment />} />
+      <Route path="/forgetpassword" element={<ForgetPassword />} />
+
+      <Route element={<ProtectedRoute />}>
+        <Route path="newhome" element={<NewHome />} />
+        <Route path="latest-cart" element={<LatestCart />} />
+        <Route path="browse-markets" element={<Marketpg />} />
+        <Route path="explore" element={<Explore />} />
+        <Route path="profile" element={<Profile />} />
+        <Route path="cart" element={<Cart />} />
+        <Route path="user-dashboard" element={<UserDashboard />} />
+      </Route>
+
+      <Route element={<ProtectedRoute requireAdmin={true} />}>
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="dashboard/all-products" element={<AllProducts />} />
         <Route path="dashboard/add-product" element={<AddProducts />} />
         <Route path="dashboard/users" element={<Users />} />
         <Route path="dashboard/orders" element={<AllOrders />} />
       </Route>
-
-      <Route path="cart" element={<Cart />} />
-      <Route path="user-dashboard" element={<UserDashboard />} />
-      <Route path="login" element={<Login />} />
-      <Route path="signup" element={<Signup />} />
-      <Route path="admin" element={<AdminLogin />} />
-     
-
-      <Route path="payment" element={<Payment />} />
-      <Route path="/forgetpassword" element={<ForgetPassword />} />
     </Routes>
   );
 };
+
 export default Routers;

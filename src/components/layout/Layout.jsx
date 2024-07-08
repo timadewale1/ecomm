@@ -1,19 +1,23 @@
 import React from "react";
-import Header from "../Header/Header";
-import Footer from "../footer/Footer";
-import Routers from "../../routers/Routers";
-import AdminNav from "../../admin/AdminNav";
 import { useLocation } from "react-router-dom";
+import Routers from "../../routers/Routers";
+import BottomBar from "../BottomBar/BottomBar";
+
 const Layout = () => {
   const location = useLocation();
 
+  // List of paths where BottomBar should not be rendered
+  const noBottomBarPaths = ["/login", "/signup", "/forgetpassword"];
+
+  // Check if the current path is in the list
+  const hideBottomBar = noBottomBarPaths.includes(location.pathname);
+
   return (
     <>
-      {/* {location.pathname.startsWith("/dashboard") ? <AdminNav /> : <Header />}{" "} */}
       <div>
         <Routers />
       </div>
-      {/* <Footer /> */}
+      {!hideBottomBar && <BottomBar />}
     </>
   );
 };

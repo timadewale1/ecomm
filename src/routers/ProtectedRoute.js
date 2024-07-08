@@ -2,8 +2,9 @@ import React, { useEffect, useState } from "react";
 import useAuth from "../custom-hooks/useAuth";
 import { Navigate, Outlet } from "react-router-dom";
 import { getUserRole } from "../admin/getUserRole";
+import Loading from "../components/Loading/Loading";
 
-const ProtectedRoute = () => {
+const ProtectedRoute = ({ requireAdmin }) => {
   const { currentUser } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkedAdminRole, setCheckedAdminRole] = useState(false);
@@ -22,15 +23,26 @@ const ProtectedRoute = () => {
       }
     };
 
-    checkAdminRole();
-  }, [currentUser]);
+    if (requireAdmin) {
+      checkAdminRole();
+    } else {
+      setCheckedAdminRole(true); // If admin check is not required, mark it as checked
+    }
+  }, [currentUser, requireAdmin]);
 
-  // Wait until the admin role check is completed before rendering the content
-  if (!checkedAdminRole) {
-    return <p>Loading...</p>; // You can replace this with a loading spinner or other UI
+  if (!currentUser) {
+    return <Navigate to="/login" />;
   }
 
-  return currentUser && isAdmin ? <Outlet /> : <Navigate to="/dashboard" />;
+  if (requireAdmin && !checkedAdminRole) {
+    return <Loading/> 
+  }
+
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to="/dashboard" />;
+  }
+
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

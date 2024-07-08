@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { RiMenu4Line } from "react-icons/ri";
 import { PiBell } from "react-icons/pi";
 import { FiSearch } from "react-icons/fi";
+
 import { Swiper, SwiperSlide } from "swiper/react";
 import Market from "../components/Market/Market";
 import "swiper/css";
@@ -16,7 +17,7 @@ import { FreeMode, Autoplay } from "swiper/modules";
 import BottomBar from "../components/BottomBar/BottomBar";
 import "../styles/bottombar.css";
 
-const NewHome = () => {
+const Homepage = () => {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   const handleFocus = () => {
@@ -183,4 +184,4 @@ const NewHome = () => {
   );
 };
 
-export default NewHome;
+export default Homepage;

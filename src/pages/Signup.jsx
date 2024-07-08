@@ -1,19 +1,14 @@
 import React, { useState } from "react";
 import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
-import { Link } from "react-router-dom";
-import "../styles/login.css";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { auth } from "../firebase.config";
+import { Link, useNavigate } from "react-router-dom";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
+import { auth, storage, db } from "../firebase.config";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { setDoc, doc, getDoc } from "firebase/firestore";
+import { setDoc, doc } from "firebase/firestore";
 import { motion } from "framer-motion";
-// import Typical from "react-typical";
-// import Typed  from "react-typed";
-import { storage } from "../firebase.config";
+import Typewriter from "typewriter-effect";
 import { toast } from "react-toastify";
-import { db } from "../firebase.config";
-import { useNavigate } from "react-router-dom";
 import SignUpAnimation from "../SignUpAnimation/SignUpAnimation";
 import Loading from "../components/Loading/Loading";
 import { FaRegUser } from "react-icons/fa";
@@ -31,115 +26,111 @@ const Signup = () => {
 
   const navigate = useNavigate();
 
+  const validateEmail = (email) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
   const signup = async (e) => {
     e.preventDefault();
 
-    if (!username || !email || !password || !file) {
-      toast.error("All fields are required. Please fill in all fields.");
+    if (!username || !email || !password ) {
+      toast.error("All fields are required. Please fill in all fields.", {
+        className: "custom-toast",
+      });
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      toast.error("Invalid email format. Please enter a valid email.", {
+        className: "custom-toast",
+      });
       return;
     }
 
     setLoading(true);
     try {
-      const emailExists = await getDoc(doc(db, "users", email));
-      if (emailExists.exists()) {
-        setLoading(false);
-        return toast.error(
-          "Email already exists. Please use a different email."
-        );
-      }
-
-      // Check password strength
-      if (password.length < 8 || !/[A-Z]/.test(password)) {
-        setLoading(false);
-        return toast.error(
-          "Password must be at least 8 characters long and contain at least one uppercase letter."
-        );
-      }
-
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
+      // Create user
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      const storageRef = ref(storage, `images/${Date.now() + username}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
+      // Send email verification
+      await sendEmailVerification(user);
 
-      uploadTask.on(
-        (error) => {
-          toast.error("Error uploading image. Please try again.");
-        },
-        () => {
-          getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
-            // Update user profile
-            await updateProfile(user, {
-              displayName: username,
-              photoURL: downloadURL,
-            }).catch((error) => {
-              console.error("Error updating profile: ", error);
+      // Upload profile picture
+      if (file) {
+        const storageRef = ref(storage, `images/${Date.now() + username}`);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on(
+          "state_changed",
+          null,
+          (error) => {
+            toast.error("Error uploading image. Please try again.", {
+              className: "custom-toast",
             });
+            setLoading(false);
+          },
+          async () => {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
 
-            // Store user data in Firestore
-            const role = isUserAdmin(email) ? "admin" : "user";
-
+            // Save user info in Firestore
             await setDoc(doc(db, "users", user.uid), {
               uid: user.uid,
               displayName: username,
               email,
               photoURL: downloadURL,
-              role,
+              role: "user",
             });
-          });
-        }
-      );
-      setLoading(false);
-
-      toast.success("Account created successfully. Please login.");
-      navigate("/login");
-    } catch (error) {
-      setLoading(false);
-      if (error.code === "auth/email-already-in-use") {
-        return toast.error(
-          "Email already exists. Please use a different email."
+            setLoading(false);
+            toast.success("Account created successfully. Please verify your email.", {
+              className: "custom-toast",
+            });
+            navigate("/login");
+          }
         );
       } else {
-        toast.error("Cannot sign up at the moment. Please try again later.");
-        console.error("Signup error:", error);
+        // Save user info in Firestore
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          displayName: username,
+          email,
+          photoURL: null,
+          role: "user",
+        });
+        setLoading(false);
+        toast.success("Account created successfully. Please verify your email.", {
+          className: "custom-toast",
+        });
+        navigate("/login");
       }
+    } catch (error) {
+      setLoading(false);
+      toast.error("Cannot sign up at the moment. Please try again later.", {
+        className: "custom-toast",
+      });
+      console.error("Signup error:", error);
     }
-  };
-
-  const isUserAdmin = (userEmail) => {
-    const adminEmails = ["admin@adetmart.com", "timmyadewale1@gmail.com"];
-    return adminEmails.includes(userEmail);
   };
 
   return (
     <Helmet className="p-4">
-      <SignUpAnimation />
-      {/* <div className="flex transform -translate-y-2 mb-2 justify-center">
-        <Typed
-          strings={[
-            "Welcome to My Thrift",
-            "Welcome to My Thrift, The real market place",
-          ]}
-          typeSpeed={50}
-          backSpeed={50}
-          backDelay={4000} // Delay before starting to type the next string
-          startDelay={500} // Delay before starting to type the current string
-          loop
-          className="font-ubuntu italic text-customOrange text-xl font-light"
-        />
-      </div> */}
-
-      <section>
-        <Container>
-          <Row>
-            {loading ? (
-              <Loading />
-            ) : (
+      <Container>
+        <Row>
+          {loading ? (
+            <Loading />
+          ) : (
+            <>
+              <SignUpAnimation />
+              <div className="flex transform text-customOrange -translate-y-2 mb-2 justify-center">
+                <Typewriter
+                  options={{
+                    strings: ["Welcome to My Thrift", "The Real Market Place!"],
+                    autoStart: true,
+                    loop: true,
+                  }}
+                />
+              </div>
               <div className="-translate-y-7">
                 <h1 className="text-5xl font-semibold font-ubuntu text-black mb-4">
                   Sign Up
@@ -234,10 +225,10 @@ const Signup = () => {
                   </div>
                 </Form>
               </div>
-            )}
-          </Row>
-        </Container>
-      </section>
+            </>
+          )}
+        </Row>
+      </Container>
     </Helmet>
   );
 };

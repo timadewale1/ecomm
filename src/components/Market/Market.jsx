@@ -5,6 +5,7 @@ import { Cloudinary } from "@cloudinary/url-gen";
 import { fit } from "@cloudinary/url-gen/actions/resize";
 import { AdvancedImage } from "@cloudinary/react";
 import { FaAngleRight } from "react-icons/fa6";
+import Marketpg from '../../pages/Marketpg';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -77,11 +78,13 @@ const Market = () => {
           <AdvancedImage cldImg={img} className="w-full h-full object-contain object-fill " />
           <div className="absolute bottom-4 opacity-100 z-10 -translate-y-2 left-4">
             <p className="text-xs text-white font-light font-lato">{cardTexts[index].subtitle}</p>
-            <p className="text-2xl font-lato mb-1 text-white font-medium">{cardTexts[index].title}</p>
+            <p className="text-2xl font-lato mb-1 text-white font-semiboldf#">{cardTexts[index].title}</p>
             <p className="text-xs font-lato font-light text-white underline underline-offset-4 flex items-center">
               {cardTexts[index].action} <FaAngleRight className="" />
+
             </p>
           </div>
+          {/* <Marketpg/> */}
         </div>
       ))}
     </div>

@@ -21,12 +21,14 @@ import NewHome from "../pages/Homepage";
 import LatestCart from "../pages/LatestCart";
 import Profile from "../pages/Profile";
 import Explore from "../pages/Explore";
+import ConfirmUserState from "../pages/ConfirmUserState.jsx";
 import ProtectedRoute from "./ProtectedRoute";
 
 const Routers = () => {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="home" />} />
+      <Route path="/confirm-user-state" element={<ConfirmUserState />} />
+      <Route path="/" element={<Navigate to="confirm-user-state" />} />
       <Route path="home" element={<Home />} />
       <Route path="shop" element={<Shop />} />
       <Route path="shop/:id" element={<ProductDetails />} />
@@ -45,9 +47,6 @@ const Routers = () => {
         <Route path="profile" element={<Profile />} />
         <Route path="cart" element={<Cart />} />
         <Route path="user-dashboard" element={<UserDashboard />} />
-      </Route>
-
-      <Route element={<ProtectedRoute requireAdmin={true} />}>
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="dashboard/all-products" element={<AllProducts />} />
         <Route path="dashboard/add-product" element={<AddProducts />} />

@@ -82,6 +82,13 @@ section {
 
 
 }
+.text-size{
+  font-size: 16px;
+
+}
+.main-content {
+  padding-bottom: 70px; /* Adjust to the height of the bottom bar */
+}
 
 
 .section__title {

@@ -15,6 +15,7 @@ import { FaRegUser } from "react-icons/fa";
 import { GrSecure } from "react-icons/gr";
 import { MdEmail } from "react-icons/md";
 import { FaRegEyeSlash, FaRegEye } from "react-icons/fa";
+import ProgressBar from "@ramonak/react-progress-bar";
 
 const Signup = () => {
   const [username, setUsername] = useState("");
@@ -23,6 +24,7 @@ const Signup = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const navigate = useNavigate();
 
@@ -31,10 +33,36 @@ const Signup = () => {
     return regex.test(email);
   };
 
+  const handleFileUpload = (file) => {
+    if (!file) return;
+    const storageRef = ref(storage, `images/${Date.now() + username}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on(
+      "state_changed",
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setProgress(progress);
+      },
+      (error) => {
+        toast.error("Error uploading image. Please try again.", {
+          className: "custom-toast",
+        });
+      },
+      async () => {
+        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+        setFile({ url: downloadURL });
+        toast.success("Image uploaded successfully.", {
+          className: "custom-toast",
+        });
+      }
+    );
+  };
+
   const signup = async (e) => {
     e.preventDefault();
 
-    if (!username || !email || !password ) {
+    if (!username || !email || !password) {
       toast.error("All fields are required. Please fill in all fields.", {
         className: "custom-toast",
       });
@@ -57,53 +85,20 @@ const Signup = () => {
       // Send email verification
       await sendEmailVerification(user);
 
-      // Upload profile picture
-      if (file) {
-        const storageRef = ref(storage, `images/${Date.now() + username}`);
-        const uploadTask = uploadBytesResumable(storageRef, file);
+      // Save user info in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        displayName: username,
+        email,
+        photoURL: file ? file.url : null,
+        role: "user",
+      });
 
-        uploadTask.on(
-          "state_changed",
-          null,
-          (error) => {
-            toast.error("Error uploading image. Please try again.", {
-              className: "custom-toast",
-            });
-            setLoading(false);
-          },
-          async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-
-            // Save user info in Firestore
-            await setDoc(doc(db, "users", user.uid), {
-              uid: user.uid,
-              displayName: username,
-              email,
-              photoURL: downloadURL,
-              role: "user",
-            });
-            setLoading(false);
-            toast.success("Account created successfully. Please verify your email.", {
-              className: "custom-toast",
-            });
-            navigate("/login");
-          }
-        );
-      } else {
-        // Save user info in Firestore
-        await setDoc(doc(db, "users", user.uid), {
-          uid: user.uid,
-          displayName: username,
-          email,
-          photoURL: null,
-          role: "user",
-        });
-        setLoading(false);
-        toast.success("Account created successfully. Please verify your email.", {
-          className: "custom-toast",
-        });
-        navigate("/login");
-      }
+      setLoading(false);
+      toast.success("Account created successfully. Please verify your email.", {
+        className: "custom-toast",
+      });
+      navigate("/login");
     } catch (error) {
       setLoading(false);
       toast.error("Cannot sign up at the moment. Please try again later.", {
@@ -131,7 +126,7 @@ const Signup = () => {
                   }}
                 />
               </div>
-              <div className="-translate-y-7">
+              <div className="">
                 <h1 className="text-5xl font-semibold font-ubuntu text-black mb-4">
                   Sign Up
                 </h1>
@@ -203,10 +198,19 @@ const Signup = () => {
                     <input
                       id="file-upload"
                       type="file"
-                      onChange={(e) => setFile(e.target.files[0])}
+                      onChange={(e) => {
+                        setFile(e.target.files[0]);
+                        handleFileUpload(e.target.files[0]);
+                      }}
                       className="hidden"
                     />
                   </FormGroup>
+
+                  {progress > 0 && (
+                    <div className="mb-4 ">
+                      <ProgressBar completed={progress} bgColor="#22C55E" height="5px" width="176px" labelAlignment="center" labelColor="transparent"/>
+                    </div>
+                  )}
 
                   <motion.button
                     whileTap={{ scale: 1.2 }}

@@ -5,12 +5,15 @@ import { Cloudinary } from "@cloudinary/url-gen";
 import { fit } from "@cloudinary/url-gen/actions/resize";
 import { AdvancedImage } from "@cloudinary/react";
 import { FaAngleRight } from "react-icons/fa6";
-import Marketpg from '../../pages/Marketpg';
+import { useNavigate } from 'react-router-dom';
+import { useNavigation } from '../NavigationContext.jsx';
 
 gsap.registerPlugin(ScrollTrigger);
 
 const Market = () => {
   const cardsRef = useRef([]);
+  const navigate = useNavigate();
+  const { setActiveNav } = useNavigation();
 
   useEffect(() => {
     cardsRef.current.forEach((card, index) => {
@@ -67,13 +70,19 @@ const Market = () => {
     { title: "ONLINE STORES", subtitle: "TRENDING", action: "SHOP NOW" }
   ];
 
+  const handleCardClick = (marketName) => {
+    setActiveNav(3); // Set active nav to 'Market'
+    navigate(`/market-card/${marketName}`);
+  };
+
   return (
     <div className='justify-around mt-4 px-2'>
       {[YabaMrkt, SurulereMrkt, onlineMrkt].map((img, index) => (
         <div
           key={index}
           ref={(el) => (cardsRef.current[index] = el)}
-          className='relative w-auto mb-2 rounded-lg h-52 bg-green-700 overflow-hidden'
+          className='relative w-auto mb-2 rounded-lg h-52 bg-green-700 overflow-hidden cursor-pointer'
+          onClick={() => handleCardClick(cardTexts[index].title)}
         >
           <AdvancedImage cldImg={img} className="w-full h-full object-contain object-fill " />
           <div className="absolute bottom-4 opacity-100 z-10 -translate-y-2 left-4">
@@ -81,10 +90,8 @@ const Market = () => {
             <p className="text-2xl font-lato mb-1 text-white font-semiboldf#">{cardTexts[index].title}</p>
             <p className="text-xs font-lato font-light text-white underline underline-offset-4 flex items-center">
               {cardTexts[index].action} <FaAngleRight className="" />
-
             </p>
           </div>
-          {/* <Marketpg/> */}
         </div>
       ))}
     </div>

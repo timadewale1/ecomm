@@ -24,6 +24,7 @@ import NewHome from "../pages/Homepage";
 import LatestCart from "../pages/LatestCart";
 import Profile from "../pages/Profile";
 import Explore from "../pages/Explore";
+import Marketcardpage from "../pages/marketcardpage.jsx";
 import ConfirmUserState from "../pages/ConfirmUserState.jsx";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -46,6 +47,7 @@ const Routers = () => {
         <Route path="newhome" element={<NewHome />} />
         <Route path="latest-cart" element={<LatestCart />} />
         <Route path="browse-markets" element={<Marketpg />} />
+        <Route path="market-card/:marketName" element={<Marketcardpage />} />
         <Route path="explore" element={<Explore />} />
         <Route path="profile" element={<Profile />} />
         <Route path="cart" element={<Cart />} />

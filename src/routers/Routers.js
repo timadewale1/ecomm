@@ -16,8 +16,6 @@ import Payment from "../pages/Payment";
 import VendorSignup from "../pages/VendorSignup";
 import VendorLogin from "../pages/VendorLogin";
 import VendorDashboard from "../vendor/vendordashboard";
-// import Products from "../vendor/AllProducts";
-// import InputProducts from "../vendor/InputProducts";
 import Users from "../admin/Users";
 import AllOrders from "../admin/Orders";
 import UserDashboard from "../pages/UserDashboard";
@@ -58,23 +56,10 @@ const Routers = () => {
         <Route path="dashboard/users" element={<Users />} />
         <Route path="dashboard/orders" element={<AllOrders />} />
       </Route>
-<<<<<<< HEAD
-=======
+
       <Route path="vendorsignup" element={<VendorSignup />} />
       <Route path="vendorlogin" element={<VendorLogin />} />
       <Route path="vendordashboard" element={<VendorDashboard />} />
-      {/* <Route path="vendor/inputproduct" element={<InputProducts />} /> */}
-      {/* <Route path="vendor/allproducts" element={<Products />} /> */}
-
-      <Route path="cart" element={<Cart />} />
-      <Route path="user-dashboard" element={<UserDashboard />} />
-      <Route path="login" element={<Login />} />
-      <Route path="signup" element={<Signup />} />
-      <Route path="admin" element={<AdminLogin />} />
-
-      <Route path="payment" element={<Payment />} />
-      <Route path="/forgetpassword" element={<ForgetPassword />} />
->>>>>>> 7cba363 (commit)
     </Routes>
   );
 };

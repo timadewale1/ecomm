@@ -35,14 +35,18 @@ const ProtectedRoute = ({ requireAdmin }) => {
   }
 
   if (requireAdmin && !checkedAdminRole) {
-    return <Loading/> 
+    return <Loading />;
   }
 
   if (requireAdmin && !isAdmin) {
     return <Navigate to="/dashboard" />;
   }
 
-  return <Outlet />;
+  return (
+    <div className="main-content">
+      <Outlet />
+    </div>
+  );
 };
 
 export default ProtectedRoute;

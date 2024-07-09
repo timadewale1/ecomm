@@ -6,28 +6,28 @@ import { getUserRole } from "./getUserRole";
 import useGetData from "../custom-hooks/useGetData";
 import { useNavigate } from "react-router-dom";
 const Dashboard = () => {
-  const [isAdmin, setIsAdmin] = useState(false);
+  // const [isAdmin, setIsAdmin] = useState(false);
   const [totalSales, setTotalSales] = useState(0); // State to store total sales
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const checkUserRole = async () => {
-      try {
-        const user = auth.currentUser;
-        if (user) {
-          const userRole = await getUserRole(user.uid);
-          setIsAdmin(userRole === "admin");
-        } else {
-          setIsAdmin(false);
-        }
-      } catch (error) {
-        console.error("Error checking user role:", error);
-      }
-    };
+  // useEffect(() => {
+  //   const checkUserRole = async () => {
+  //     try {
+  //       const user = auth.currentUser;
+  //       if (user) {
+  //         const userRole = await getUserRole(user.uid);
+  //         setIsAdmin(userRole === "admin");
+  //       } else {
+  //         setIsAdmin(false);
+  //       }
+  //     } catch (error) {
+  //       console.error("Error checking user role:", error);
+  //     }
+  //   };
 
-    checkUserRole();
-  }, []);
+  //   checkUserRole();
+  // }, []);
 
   const { data: products } = useGetData("products");
   const { data: users } = useGetData("users");
@@ -44,11 +44,11 @@ const Dashboard = () => {
   }, [orders]);
 
   // Render only if the user is an admin
-  if (!isAdmin) {
-    // Redirect to the login page or show a message indicating insufficient privileges
-    navigate("/login"); // Redirect to the login page for non-admin users
-    return null; // Return null to prevent rendering the dashboard content for non-admin users
-  }
+  // if (!isAdmin) {
+  //   // Redirect to the login page or show a message indicating insufficient privileges
+  //   navigate("/login"); // Redirect to the login page for non-admin users
+  //   return null; // Return null to prevent rendering the dashboard content for non-admin users
+  // }
 
   return (
     <section>

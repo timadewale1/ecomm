@@ -14,6 +14,7 @@ import { toast } from "react-toastify";
 import LoginAnimation from "../components/LoginAssets/LoginAnimation";
 import Loading from "../components/Loading/Loading";
 import Typewriter from "typewriter-effect";
+import { FaAngleLeft } from "react-icons/fa6";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -124,6 +125,9 @@ const Login = () => {
               <Loading />
             ) : (
               <div className="px-3">
+                <Link to="/confirm-user-state">
+                  <FaAngleLeft className="text-3xl -translate-y-2 font-normal text-black" />
+                </Link>
                 {/* animation here */}
                 <LoginAnimation />
                 <div className="flex transform text-customOrange -translate-y-10 mb-2 justify-center">

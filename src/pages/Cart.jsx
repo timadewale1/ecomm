@@ -11,7 +11,6 @@ import { auth } from "../firebase.config";
 const Cart = () => {
   const user = auth.currentUser;
   const userId = user ? user.uid : null;
-
   const cartItems = useSelector((state) =>
     userId ? state.cart.userCarts[userId] : []
   );

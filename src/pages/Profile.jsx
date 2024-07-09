@@ -70,14 +70,9 @@ const Profile = () => {
       if (editField === "displayName") {
         await updateProfile(auth.currentUser, { displayName });
         await updateDoc(doc(db, "users", currentUser.uid), { displayName });
-        toast.success("Profile updated successfully", {
-          className: "custom-toast",
-        });
+        toast.success("Profile updated successfully", { className: "custom-toast" });
       } else {
-        const credential = EmailAuthProvider.credential(
-          auth.currentUser.email,
-          currentPassword
-        );
+        const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
         await reauthenticateWithCredential(auth.currentUser, credential);
 
         if (editField === "email") {
@@ -86,23 +81,17 @@ const Profile = () => {
           await updateDoc(doc(db, "users", currentUser.uid), { email });
         } else if (editField === "password") {
           await updatePassword(auth.currentUser, password);
-          toast.success("Password updated successfully", {
-            className: "custom-toast",
-          });
+          toast.success("Password updated successfully", { className: "custom-toast" });
         }
 
-        toast.success("Profile updated successfully", {
-          className: "custom-toast",
-        });
+        toast.success("Profile updated successfully", { className: "custom-toast" });
       }
 
       setIsEditing(false);
       setEditField("");
     } catch (error) {
       console.log(error);
-      toast.error("Error updating profile, try again later", {
-        className: "custom-toast",
-      });
+      toast.error("Error updating profile, try again later", { className: "custom-toast" });
     }
   };
 
@@ -121,12 +110,8 @@ const Profile = () => {
   };
 
   return (
-    <div className="py-4 pb-16">
-      {!showDetails &&
-      !showHistory &&
-      !showMetrics &&
-      !showFAQs &&
-      !showDonations ? (
+    <div className="py-4">
+      {!showDetails && !showHistory && !showMetrics && !showFAQs && !showDonations ? (
         <div className="flex flex-col items-center">
           <div className="flex justify-center mt-4">
             {userData && userData.photoURL ? (
@@ -268,14 +253,14 @@ const Profile = () => {
                 Profile Details
               </h1>
               <div className="w-full translate-y-14 mt-4">
-                <div className="flex flex-col items-center w-full">
+                <div className="flex flex-col bg-gray-300 rounded-lg items-center w-full">
                   <hr className="w-full border-gray-600" />
-                  <h1 className=" text-xl w-full translate-y-3 translate-x-6 font-medium text-gray-500  ">
+                  <h1 className=" text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500  ">
                     User Name
                   </h1>
                   <div className="flex items-center justify-between w-full px-4 py-3">
                     <FaRegCircleUser className="text-black text-xl mr-4" />
-                    <p className="text-lg font-medium text-black capitalize w-full">
+                    <p className="text-size font-medium text-black capitalize w-full">
                       {displayName}
                     </p>
                     <FaPen
@@ -285,25 +270,25 @@ const Profile = () => {
                   </div>
                   <hr className="w-full border-gray-600" />
                 </div>
-                <div className="flex flex-col items-center w-full mt-6">
+                <div className="flex flex-col  bg-gray-300 rounded-lg items-center w-full mt-6">
                   <hr className="w-full border-gray-600" />
-                  <h1 className=" text-xl w-full translate-y-3 translate-x-6 font-medium text-gray-500  ">
+                  <h1 className=" text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500  ">
                     Email
                   </h1>
                   <div className="flex items-center justify-between w-full px-4 py-3">
                     <MdEmail className="text-black text-xl mr-4" />
-                    <p className="text-lg text-black w-full font-medium">
+                    <p className="text-size text-black w-full font-medium">
                       {email}
                     </p>
                   </div>
                   <hr className="w-full border-gray-600" />
                 </div>
-                <div className="flex flex-col items-center w-full mt-6">
+                <div className="flex flex-col  bg-gray-300 rounded-lg items-center w-full mt-6">
                   <hr className="w-full border-gray-600" />
-                  <h1 className=" text-xl w-full translate-y-3 translate-x-6 font-medium text-gray-500  ">
-                    Change Password
+                  <h1 className=" text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500  ">
+                    Password
                   </h1>
-                  <div className="flex items-center justify-between w-full px-4 py-3">
+                  <div className="flex items-center justify-between w-full px-4  py-3">
                     <GrSecure className="text-black text-xl mr-4" />
                     <p className="text-lg text-black w-full font-medium">
                       *******
@@ -314,13 +299,13 @@ const Profile = () => {
                     />
                   </div>
                   <hr className="w-full border-gray-600" />
-                  <button
-                    className="glow-button w-full translate-y-12 h-14 mt-7 bg-customOrange text-white font-semibold rounded-full "
-                    onClick={handleLogout}
-                  >
-                    Sign Out
-                  </button>
                 </div>
+                <button
+                  className="glow-button w-full translate-y-12 h-14 mt-7 bg-customOrange text-white font-semibold rounded-full "
+                  onClick={handleLogout}
+                >
+                  Sign Out
+                </button>
               </div>
             </div>
           )}
@@ -390,7 +375,7 @@ const Profile = () => {
       )}
 
       {isEditing && (
-        <div className="fixed inset-0 bg-white bg-opacity-80 px-14 flex items-center justify-center">
+        <div className="fixed inset-0 bg-white bg-opacity-50 px-14 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative">
             <FaTimes
               className="absolute top-2 right-2 text-black cursor-pointer"

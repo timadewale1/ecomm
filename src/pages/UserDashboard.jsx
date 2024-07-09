@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 const UserDashboard = () => {
   const [isUser, setIsUser] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
+  const [loading, setLoading] = useState(true); // Add loading state
   const navigate = useNavigate();
   const { data: orders } = useGetData("orders");
 
@@ -20,26 +21,32 @@ const UserDashboard = () => {
         if (user) {
           const userRole = await getUserRole(user.uid);
           setIsUser(userRole === "user");
-        } else {
-          setIsUser(false);
         }
       } catch (error) {
         console.error("Error checking user role:", error);
+      } finally {
+        setLoading(false); // Set loading to false after the check is done
       }
     };
 
     checkUserRole();
   }, []);
 
-  if (!isSignedIn) {
-    // Redirect to sign-in page or show a message indicating that the user needs to sign in
-    navigate("/login");
-    return null;
+  useEffect(() => {
+    if (!loading) {
+      if (!isSignedIn) {
+        navigate("/login");
+      } else if (!isUser) {
+        navigate("/newhome"); // Redirect to the home page for non-user users
+      }
+    }
+  }, [isSignedIn, isUser, loading, navigate]);
+
+  if (loading) {
+    return <div>Loading...</div>; // You can replace this with a spinner or any loading indicator
   }
 
-  if (!isUser) {
-    // Redirect to the home page or show a message indicating insufficient privileges
-    navigate("/user-dashboard"); // Redirect to the home page for non-user users
+  if (!isSignedIn || !isUser) {
     return null;
   }
 

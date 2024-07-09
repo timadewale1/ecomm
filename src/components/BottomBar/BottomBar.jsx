@@ -5,11 +5,11 @@ import { PiCompassFill, PiCompass } from 'react-icons/pi';
 import { HiOutlineBuildingStorefront, HiBuildingStorefront } from "react-icons/hi2";
 import { PiShoppingCartFill, PiShoppingCart } from "react-icons/pi";
 import { useNavigate, useLocation } from 'react-router-dom';
-
+import { useNavigation } from '../NavigationContext.jsx';
 import '../../styles/bottombar.css';
 
 const BottomBar = ({ isSearchFocused }) => {
-  const [value, setValue] = React.useState(0);
+  const { activeNav, setActiveNav } = useNavigation();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -18,19 +18,19 @@ const BottomBar = ({ isSearchFocused }) => {
     { icon: PiCompass, activeIcon: PiCompassFill, label: 'Explore', route: '/explore' },
     { icon: PiShoppingCart, activeIcon: PiShoppingCartFill, label: 'Cart', route: '/latest-cart' },
     { icon: HiOutlineBuildingStorefront, activeIcon: HiBuildingStorefront, label: 'Market', route: '/browse-markets' },
-    { icon: FaRegUser, activeIcon: FaUser, label: 'Profile', route: 'profile' },
+    { icon: FaRegUser, activeIcon: FaUser, label: 'Profile', route: '/profile' },
   ];
 
   useEffect(() => {
     const currentPath = location.pathname;
     const activeIndex = navItems.findIndex(item => item.route === currentPath);
     if (activeIndex !== -1) {
-      setValue(activeIndex);
+      setActiveNav(activeIndex);
     }
-  }, [location.pathname]);
+  }, [location.pathname, setActiveNav]);
 
   const handleClick = (index, route) => {
-    setValue(index);
+    setActiveNav(index);
     navigate(route);
   };
 
@@ -39,10 +39,10 @@ const BottomBar = ({ isSearchFocused }) => {
       {navItems.map((item, index) => (
         <div
           key={index}
-          className={`bottom-nav-icon ${value === index ? 'active' : ''}`}
+          className={`bottom-nav-icon ${activeNav === index ? 'active' : ''}`}
           onClick={() => handleClick(index, item.route)}
         >
-          {value === index ? (
+          {activeNav === index ? (
             <>
               <item.activeIcon className='w-8 h-6' />
               <span className="nav-label">{item.label}</span>

@@ -15,7 +15,7 @@ import { FaRegUser } from "react-icons/fa";
 import { GrSecure } from "react-icons/gr";
 import { MdEmail } from "react-icons/md";
 import { FaRegEyeSlash, FaRegEye } from "react-icons/fa";
-import ProgressBar from "@ramonak/react-progress-bar";
+import { RotatingLines } from "react-loader-spinner"; // Importing the loader spinner
 
 const Signup = () => {
   const [username, setUsername] = useState("");
@@ -24,7 +24,7 @@ const Signup = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [uploading, setUploading] = useState(false); // State for file upload spinner
 
   const navigate = useNavigate();
 
@@ -35,16 +35,17 @@ const Signup = () => {
 
   const handleFileUpload = (file) => {
     if (!file) return;
+    setUploading(true); // Show file upload spinner
     const storageRef = ref(storage, `images/${Date.now() + username}`);
     const uploadTask = uploadBytesResumable(storageRef, file);
 
     uploadTask.on(
       "state_changed",
       (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setProgress(progress);
+        // No need to update progress
       },
       (error) => {
+        setUploading(false); // Hide file upload spinner
         toast.error("Error uploading image. Please try again.", {
           className: "custom-toast",
         });
@@ -52,6 +53,7 @@ const Signup = () => {
       async () => {
         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
         setFile({ url: downloadURL });
+        setUploading(false); // Hide file upload spinner
         toast.success("Image uploaded successfully.", {
           className: "custom-toast",
         });
@@ -206,9 +208,15 @@ const Signup = () => {
                     />
                   </FormGroup>
 
-                  {progress > 0 && (
-                    <div className="mb-4 ">
-                      <ProgressBar completed={progress} bgColor="#22C55E" height="5px" width="176px" labelAlignment="center" labelColor="transparent"/>
+                  {uploading && (
+                    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                      <RotatingLines
+                        strokeColor="orange"
+                        strokeWidth="5"
+                        animationDuration="0.75"
+                        width="96"
+                        visible={true}
+                      />
                     </div>
                   )}
 

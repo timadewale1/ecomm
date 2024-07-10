@@ -13,16 +13,16 @@ import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import useAuth from "../custom-hooks/useAuth";
-import { FaPen, FaTimes, FaEye, FaEyeSlash } from "react-icons/fa";
-import { FaRegCircleUser } from "react-icons/fa6";
-import { GiClothes } from "react-icons/gi";
+import { FaPen, FaTimes, FaEye, FaEyeSlash, FaAngleRight, FaAngleLeft } from "react-icons/fa";
 import { GrSecure } from "react-icons/gr";
+import { GiClothes } from "react-icons/gi";
+import { FaRegCircleUser } from "react-icons/fa6";
 import { MdEmail, MdHistory, MdHelpOutline } from "react-icons/md";
 import { CiMoneyBill } from "react-icons/ci";
-import { FaAngleRight, FaAngleLeft } from "react-icons/fa6";
 import { AiOutlineDashboard } from "react-icons/ai";
 import UserDashboard from "./UserDashboard";
-import { RotatingLines } from "react-loader-spinner"; // Importing the loader spinner
+import { RotatingLines } from "react-loader-spinner";
+import AvatarSelectorModal from "../components/Avatars/AvatarSelectorModal";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -41,7 +41,8 @@ const Profile = () => {
   const [showFAQs, setShowFAQs] = useState(false);
   const [showDonations, setShowDonations] = useState(false);
   const [faqModalContent, setFaqModalContent] = useState("");
-  const [isLoading, setIsLoading] = useState(false); // State for loader spinner
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -68,7 +69,12 @@ const Profile = () => {
   };
 
   const handleSave = async () => {
-    setIsLoading(true); // Show loader spinner
+    if (editField === "displayName" && /[^a-zA-Z\s]/.test(displayName)) {
+      toast.error("You cannot use numbers as username!", { className: "custom-toast" });
+      return;
+    }
+
+    setIsLoading(true);
     try {
       if (editField === "displayName") {
         await updateProfile(auth.currentUser, { displayName });
@@ -96,7 +102,7 @@ const Profile = () => {
       console.log(error);
       toast.error("Error updating profile, try again later", { className: "custom-toast" });
     } finally {
-      setIsLoading(false); // Hide loader spinner
+      setIsLoading(false);
     }
   };
 
@@ -114,24 +120,34 @@ const Profile = () => {
     setFaqModalContent(content);
   };
 
+  const handleAvatarChange = (newAvatar) => {
+    setUserData((prev) => ({ ...prev, photoURL: newAvatar }));
+  };
+
   return (
     <div className="py-4">
       {!showDetails && !showHistory && !showMetrics && !showFAQs && !showDonations ? (
         <div className="flex flex-col items-center">
-          <div className="flex justify-center mt-4">
+          <div className="flex justify-center mt-4 relative">
             {userData && userData.photoURL ? (
               <img
                 src={userData.photoURL}
                 alt="profile"
                 className="rounded-full object-cover h-36 w-36"
+                onClick={() => setIsAvatarModalOpen(true)} // this is to Open the avatar selector modal on click
               />
             ) : (
               <img
-                src="https://via.placeholder.com/150"
+                src=""
                 alt="profile"
                 className="rounded-full h-36 w-36"
+                onClick={() => setIsAvatarModalOpen(true)} // Open the avatar selector modal on click
               />
             )}
+            <FaPen
+              className="absolute top-0 right-0 text-black cursor-pointer"
+              onClick={() => setIsAvatarModalOpen(true)}
+            />
           </div>
           <p className="text-lg font-medium text-black capitalize mt-2">
             {displayName}
@@ -510,6 +526,14 @@ const Profile = () => {
             visible={true}
           />
         </div>
+      )}
+
+      {isAvatarModalOpen && (
+        <AvatarSelectorModal
+          userId={currentUser.uid}
+          onClose={() => setIsAvatarModalOpen(false)}
+          onAvatarChange={handleAvatarChange}
+        />
       )}
     </div>
   );

@@ -9,7 +9,7 @@ const Layout = () => {
   const { currentUser } = useAuth(); // Custom hook to get the current user
 
   // List of paths where BottomBar should not be rendered
-  const noBottomBarPaths = ["/login", "/signup", "/forgetpassword", "/admin", "/confirm-user-state"];
+  const noBottomBarPaths = ["/login", "/signup", "/forgetpassword", "/admin", "/confirm-user-state", "/vendorlogin", "/vendor-signup", "/complete-profile", ];
 
   const hideBottomBar = noBottomBarPaths.includes(location.pathname) || !currentUser;
 

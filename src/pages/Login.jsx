@@ -86,6 +86,16 @@ const Login = () => {
       const userDoc = await getDoc(doc(db, "users", user.uid));
       const userData = userDoc.data();
 
+      // Check if the user is a regular user
+      if (userData?.role !== "user") {
+        await auth.signOut();
+        setLoading(false);
+        toast.error("This email is already used for a Vendor account!", {
+          className: "custom-toast",
+        });
+        return;
+      }
+
       const Name = userData?.displayName || "User"; // Adjust the field name if necessary
       console.log(user);
       setLoading(false);

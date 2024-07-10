@@ -71,6 +71,13 @@ const Signup = () => {
       return;
     }
 
+    if (/[^a-zA-Z\s]/.test(username)) {
+      toast.error("You cannot use numbers as username!", {
+        className: "custom-toast",
+      });
+      return;
+    }
+
     if (!validateEmail(email)) {
       toast.error("Invalid email format. Please enter a valid email.", {
         className: "custom-toast",

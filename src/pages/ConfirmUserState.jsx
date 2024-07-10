@@ -9,7 +9,7 @@ const ConfirmUserState = () => {
   };
 
   const handleVendorLogin = () => {
-    navigate('/admin'); 
+    navigate('/vendorlogin'); 
   };
 
   return (

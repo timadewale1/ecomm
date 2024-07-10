@@ -8,7 +8,7 @@ import Checkout from "../pages/Checkout";
 import Login from "../pages/Login";
 import Signup from "../pages/Signup";
 import ForgetPassword from "../pages/forgetPassword.jsx";
-import AdminLogin from "../pages/AdminLogin";
+// import AdminLogin from "../pages/AdminLogin";
 import AddProducts from "../admin/AddProducts";
 import AllProducts from "../admin/AllProducts";
 import Dashboard from "../admin/Dashboard";
@@ -20,6 +20,7 @@ import Users from "../admin/Users";
 import AllOrders from "../admin/Orders";
 import UserDashboard from "../pages/UserDashboard";
 import Marketpg from "../pages/Marketpg";
+import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfile.jsx";
 import NewHome from "../pages/Homepage";
 import LatestCart from "../pages/LatestCart";
 import Profile from "../pages/Profile";
@@ -38,7 +39,9 @@ const Routers = () => {
       <Route path="shop/:id" element={<ProductDetails />} />
       <Route path="checkout" element={<Checkout />} />
       <Route path="signup" element={<Signup />} />
-      <Route path="admin" element={<AdminLogin />} />
+      <Route path="complete-profile" element={<CompleteProfile />} />
+      <Route path="vendor-signup" element={<VendorSignup />} />
+      {/* <Route path="" element={<AdminLogin />} /> */}
       <Route path="login" element={<Login />} />
       <Route path="payment" element={<Payment />} />
       <Route path="/forgetpassword" element={<ForgetPassword />} />
@@ -59,7 +62,7 @@ const Routers = () => {
         <Route path="dashboard/orders" element={<AllOrders />} />
       </Route>
 
-      <Route path="vendorsignup" element={<VendorSignup />} />
+      
       <Route path="vendorlogin" element={<VendorLogin />} />
       <Route path="vendordashboard" element={<VendorDashboard />} />
     </Routes>

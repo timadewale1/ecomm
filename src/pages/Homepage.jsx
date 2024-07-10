@@ -28,6 +28,8 @@ const Homepage = () => {
     setIsSearchFocused(false);
   };
 
+  
+
   // Initialize Cloudinary instance
   const cld = new Cloudinary({
     cloud: {

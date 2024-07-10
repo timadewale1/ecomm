@@ -9,7 +9,7 @@ import store from "./redux/store";
 import { Provider } from "react-redux";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { NavigationProvider } from "./components/NavigationContext.jsx";
+import { NavigationProvider } from "./components/Bottombarcontext.jsx";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
@@ -17,14 +17,14 @@ root.render(
     <BrowserRouter>
       <Provider store={store}>
         <NavigationProvider>
-        <ToastContainer
-          theme="light"
-          position="top-right"
-          autoClose={3000}
-          closeOnClick
-          pauseOnHover={false}
-        />
-        <App />
+          <ToastContainer
+            theme="light"
+            position="top-right"
+            autoClose={3000}
+            closeOnClick
+            pauseOnHover={false}
+          />
+          <App />
         </NavigationProvider>
       </Provider>
     </BrowserRouter>

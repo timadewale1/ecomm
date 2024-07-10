@@ -22,6 +22,7 @@ import { CiMoneyBill } from "react-icons/ci";
 import { FaAngleRight, FaAngleLeft } from "react-icons/fa6";
 import { AiOutlineDashboard } from "react-icons/ai";
 import UserDashboard from "./UserDashboard";
+import { RotatingLines } from "react-loader-spinner"; // Importing the loader spinner
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -40,6 +41,7 @@ const Profile = () => {
   const [showFAQs, setShowFAQs] = useState(false);
   const [showDonations, setShowDonations] = useState(false);
   const [faqModalContent, setFaqModalContent] = useState("");
+  const [isLoading, setIsLoading] = useState(false); // State for loader spinner
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -66,6 +68,7 @@ const Profile = () => {
   };
 
   const handleSave = async () => {
+    setIsLoading(true); // Show loader spinner
     try {
       if (editField === "displayName") {
         await updateProfile(auth.currentUser, { displayName });
@@ -92,6 +95,8 @@ const Profile = () => {
     } catch (error) {
       console.log(error);
       toast.error("Error updating profile, try again later", { className: "custom-toast" });
+    } finally {
+      setIsLoading(false); // Hide loader spinner
     }
   };
 
@@ -492,6 +497,18 @@ const Profile = () => {
               </p>
             )}
           </div>
+        </div>
+      )}
+
+      {isLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <RotatingLines
+            strokeColor="orange"
+            strokeWidth="5"
+            animationDuration="0.75"
+            width="96"
+            visible={true}
+          />
         </div>
       )}
     </div>

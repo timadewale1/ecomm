@@ -1,4 +1,3 @@
-// ForgetPassword.js
 import React, { useState } from "react";
 import { auth } from "../firebase.config";
 import { sendPasswordResetEmail } from "firebase/auth";
@@ -9,9 +8,11 @@ import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import Helmet from "../components/Helmet/Helmet";
 import { Container, Row } from "reactstrap";
+import { RotatingLines } from "react-loader-spinner"; // Importing the loader spinner
 
 const ForgetPassword = () => {
   const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false); // State for the loader spinner
   const navigate = useNavigate();
 
   const validateEmail = (email) => {
@@ -29,6 +30,7 @@ const ForgetPassword = () => {
       return;
     }
 
+    setLoading(true); // Show loader spinner
     try {
       await sendPasswordResetEmail(auth, email);
       toast.success("A password reset link has been sent to your email. Please check your inbox.");
@@ -49,6 +51,8 @@ const ForgetPassword = () => {
         console.error(error);
         console.log("Error: Unable to send password reset email.");
       }
+    } finally {
+      setLoading(false); // Hide loader spinner
     }
   };
 
@@ -90,6 +94,17 @@ const ForgetPassword = () => {
           </Row>
         </Container>
       </section>
+      {loading && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <RotatingLines
+            strokeColor="orange"
+            strokeWidth="5"
+            animationDuration="0.75"
+            width="96"
+            visible={true}
+          />
+        </div>
+      )}
     </Helmet>
   );
 };

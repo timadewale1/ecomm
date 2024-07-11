@@ -30,9 +30,6 @@ const Homepage = () => {
     setIsSearchFocused(false);
   };
 
-<<<<<<< Updated upstream
-  
-=======
   const capitalizeName = (name) => {
     return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
   };
@@ -48,7 +45,6 @@ const Homepage = () => {
       }
     });
   }, []);
->>>>>>> Stashed changes
 
   // Initialize Cloudinary instance
   const cld = new Cloudinary({

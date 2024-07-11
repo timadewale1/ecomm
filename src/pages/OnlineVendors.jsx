@@ -4,7 +4,7 @@ import { GoDotFill, GoChevronLeft } from "react-icons/go";
 import { FiSearch } from "react-icons/fi";
 import ReactStars from "react-rating-stars-component";
 import RoundedStar from "../components/Roundedstar";
-import fuzzysort from 'fuzzysort';
+import * as fuzzySearch from '@m31coding/fuzzy-search';
 import { db } from "../firebase.config"; // Update with your actual Firebase config path
 import { collection, query, where, getDocs, doc, updateDoc, addDoc } from "firebase/firestore";
 
@@ -13,6 +13,7 @@ const OnlineVendors = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState([]);
+  const [searcher, setSearcher] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,6 +25,15 @@ const OnlineVendors = () => {
         vendorsList.push({ id: doc.id, ...doc.data() });
       });
       setVendors(vendorsList);
+
+      // Create fuzzy search index
+      const searcher = fuzzySearch.SearcherFactory.createDefaultSearcher();
+      searcher.indexEntities(
+        vendorsList,
+        (vendor) => vendor.id,
+        (vendor) => [vendor.shopName.toLowerCase(), ...vendor.categories.map(cat => cat.toLowerCase())]
+      );
+      setSearcher(searcher);
     };
     fetchVendors();
   }, []);
@@ -48,7 +58,7 @@ const OnlineVendors = () => {
   };
 
   const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
+    setSearchTerm(e.target.value.toLowerCase());
   };
 
   const handleCategoryClick = (category) => {
@@ -59,15 +69,21 @@ const OnlineVendors = () => {
     }
   };
 
+  const handleRefresh = () => {
+    setSearchTerm("");
+    setSelectedCategories([]);
+    setIsSearching(false);
+  };
+
   const categories = ["Cargos", "Shirts", "Jewelry"];
 
   const filteredVendors = vendors.filter(vendor => {
-    const searchMatches = fuzzysort.go(searchTerm, [vendor.shopName, ...vendor.categories], { threshold: -10000 }).length > 0;
-    const categoryMatches = selectedCategories.length === 0 || selectedCategories.every(cat => vendor.categories.includes(cat));
+    const searchMatches = searchTerm.length < 2 || searcher.getMatches(new fuzzySearch.Query(searchTerm)).matches.map(match => match.entity.id).includes(vendor.id);
+    const categoryMatches = selectedCategories.length === 0 || selectedCategories.every(cat => vendor.categories.map(c => c.toLowerCase()).includes(cat.toLowerCase()));
     return searchMatches && categoryMatches;
   });
 
-  const showNoResultsMessage = searchTerm.length > 0 && filteredVendors.length === 0;
+  const showNoResultsMessage = searchTerm.length >= 2 && filteredVendors.length === 0;
 
   return (
     <div className="p-2">
@@ -75,7 +91,7 @@ const OnlineVendors = () => {
         <div className="flex justify-between items-center w-full">
           {isSearching ? (
             <>
-              <button onClick={() => setIsSearching(false)} className="text-gray-600">
+              <button onClick={handleRefresh} className="text-gray-600">
                 <GoChevronLeft size={28} />
               </button>
               <input
@@ -115,7 +131,7 @@ const OnlineVendors = () => {
         <hr className="bg-gray-200 pb-0.5 w-full" />
         {showNoResultsMessage ? (
           <div className="text-center my-10">
-            <h2 className="text-2xl font-ubuntu  font-medium">Oops, not in our inventory</h2>
+            <h2 className="text-2xl font-ubuntu font-medium">Oops, not in our inventory</h2>
             <p className="text-gray-600">Please try searching for another item.</p>
           </div>
         ) : (

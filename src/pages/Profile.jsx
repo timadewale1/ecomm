@@ -13,9 +13,17 @@ import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import useAuth from "../custom-hooks/useAuth";
-import { FaPen, FaTimes, FaEye, FaEyeSlash, FaAngleRight, FaAngleLeft } from "react-icons/fa";
+import {
+  FaPen,
+  FaTimes,
+  FaEye,
+  FaEyeSlash,
+  FaAngleRight,
+  FaAngleLeft,
+} from "react-icons/fa";
 import { GrSecure } from "react-icons/gr";
 import { GiClothes } from "react-icons/gi";
+import { PiSignOutBold } from "react-icons/pi";
 import { FaRegCircleUser } from "react-icons/fa6";
 import { MdEmail, MdHistory, MdHelpOutline } from "react-icons/md";
 import { CiMoneyBill } from "react-icons/ci";
@@ -70,7 +78,9 @@ const Profile = () => {
 
   const handleSave = async () => {
     if (editField === "displayName" && /[^a-zA-Z\s]/.test(displayName)) {
-      toast.error("You cannot use numbers as username!", { className: "custom-toast" });
+      toast.error("You cannot use numbers as username!", {
+        className: "custom-toast",
+      });
       return;
     }
 
@@ -79,9 +89,14 @@ const Profile = () => {
       if (editField === "displayName") {
         await updateProfile(auth.currentUser, { displayName });
         await updateDoc(doc(db, "users", currentUser.uid), { displayName });
-        toast.success("Profile updated successfully", { className: "custom-toast" });
+        toast.success("Profile updated successfully", {
+          className: "custom-toast",
+        });
       } else {
-        const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
+        const credential = EmailAuthProvider.credential(
+          auth.currentUser.email,
+          currentPassword
+        );
         await reauthenticateWithCredential(auth.currentUser, credential);
 
         if (editField === "email") {
@@ -90,17 +105,23 @@ const Profile = () => {
           await updateDoc(doc(db, "users", currentUser.uid), { email });
         } else if (editField === "password") {
           await updatePassword(auth.currentUser, password);
-          toast.success("Password updated successfully", { className: "custom-toast" });
+          toast.success("Password updated successfully", {
+            className: "custom-toast",
+          });
         }
 
-        toast.success("Profile updated successfully", { className: "custom-toast" });
+        toast.success("Profile updated successfully", {
+          className: "custom-toast",
+        });
       }
 
       setIsEditing(false);
       setEditField("");
     } catch (error) {
       console.log(error);
-      toast.error("Error updating profile, try again later", { className: "custom-toast" });
+      toast.error("Error updating profile, try again later", {
+        className: "custom-toast",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -126,20 +147,24 @@ const Profile = () => {
 
   return (
     <div className="py-4">
-      {!showDetails && !showHistory && !showMetrics && !showFAQs && !showDonations ? (
+      {!showDetails &&
+      !showHistory &&
+      !showMetrics &&
+      !showFAQs &&
+      !showDonations ? (
         <div className="flex flex-col items-center">
           <div className="flex justify-center mt-4 relative">
             {userData && userData.photoURL ? (
               <img
                 src={userData.photoURL}
-                alt="profile"
+                alt=""
                 className="rounded-full object-cover h-36 w-36"
                 onClick={() => setIsAvatarModalOpen(true)} // this is to Open the avatar selector modal on click
               />
             ) : (
               <img
                 src=""
-                alt="profile"
+                alt=""
                 className="rounded-full h-36 w-36"
                 onClick={() => setIsAvatarModalOpen(true)} // Open the avatar selector modal on click
               />
@@ -265,7 +290,7 @@ const Profile = () => {
       ) : (
         <>
           {showDetails && (
-            <div className="flex flex-col p-2 items-center">
+            <div className="flex flex-col p-2 -py-80 items-center">
               <FaAngleLeft
                 className="text-2xl cursor-pointer self-start"
                 onClick={() => setShowDetails(false)}
@@ -273,9 +298,9 @@ const Profile = () => {
               <h1 className="text-xl font-medium font-ubuntu text-black">
                 Profile Details
               </h1>
-              <div className="w-full translate-y-14 mt-4">
-                <div className="flex flex-col bg-gray-300 rounded-lg items-center w-full">
-                  <hr className="w-full border-gray-600" />
+              <div className="w-full translate-y-14  mt-4">
+                <div className="flex flex-col bg-gray-200 rounded-lg items-center w-full">
+                  <hr className="w-full border-gray-400" />
                   <h1 className=" text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500  ">
                     User Name
                   </h1>
@@ -289,9 +314,9 @@ const Profile = () => {
                       onClick={() => handleEdit("displayName")}
                     />
                   </div>
-                  <hr className="w-full border-gray-600" />
+                  <hr className="w-full border-gray-400" />
                 </div>
-                <div className="flex flex-col  bg-gray-300 rounded-lg items-center w-full mt-6">
+                <div className="flex flex-col  bg-gray-200 rounded-lg items-center w-full mt-6">
                   <hr className="w-full border-gray-600" />
                   <h1 className=" text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500  ">
                     Email
@@ -302,14 +327,14 @@ const Profile = () => {
                       {email}
                     </p>
                   </div>
-                  <hr className="w-full border-gray-600" />
+                  <hr className="w-full border-gray-400" />
                 </div>
-                <div className="flex flex-col  bg-gray-300 rounded-lg items-center w-full mt-6">
-                  <hr className="w-full border-gray-600" />
-                  <h1 className=" text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500  ">
+                <div className="flex flex-col bg-gray-200 rounded-lg items-center w-full mt-6">
+                  <hr className="w-full border-gray-400" />
+                  <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
                     Password
                   </h1>
-                  <div className="flex items-center justify-between w-full px-4  py-3">
+                  <div className="flex items-center justify-between w-full px-4 py-3">
                     <GrSecure className="text-black text-xl mr-4" />
                     <p className="text-lg text-black w-full font-medium">
                       *******
@@ -321,12 +346,21 @@ const Profile = () => {
                   </div>
                   <hr className="w-full border-gray-600" />
                 </div>
-                <button
-                  className="glow-button w-full translate-y-12 h-14 mt-7 bg-customOrange text-white font-semibold rounded-full "
+
+                <div
+                  className="flex flex-col bg-gray-200 rounded-lg items-center w-full mt-6 cursor-pointer"
                   onClick={handleLogout}
                 >
-                  Sign Out
-                </button>
+                  <hr className="w-full border-gray-400" />
+                  <div className="flex items-center justify-between w-full px-4 py-3">
+                    <PiSignOutBold className="text-red-600 text-xl mr-4" />
+                    <p className="text-size text-black w-full font-medium">
+                      Sign Out
+                    </p>
+                   <FaAngleRight className="text-black text-xl ml-2"/>
+                  </div>
+                  <hr className="w-full border-gray-400" />
+                </div>
               </div>
             </div>
           )}

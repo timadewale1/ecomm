@@ -72,7 +72,11 @@ const Market = () => {
 
   const handleCardClick = (marketName) => {
     setActiveNav(3); // Set active nav to 'Market'
-    navigate(`/market-card/${marketName}`);
+    if (marketName === "ONLINE STORES") {
+      navigate(`/online-vendors`);
+    } else {
+      navigate(`/market-card/${marketName}`);
+    }
   };
 
   return (

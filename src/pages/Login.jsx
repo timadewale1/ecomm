@@ -62,9 +62,6 @@ const Login = () => {
 
     setLoading(true);
 
-    // Add a delay of 3 seconds before attempting to authenticate
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-
     try {
       const userCredential = await signInWithEmailAndPassword(
         auth,
@@ -96,8 +93,7 @@ const Login = () => {
         return;
       }
 
-      const Name = userData?.displayName || "User"; // Adjust the field name if necessary
-      console.log(user);
+      const Name = userData?.displayName || "User";
       setLoading(false);
       toast.success(`Hello ${Name}, welcome!`, {
         className: "custom-toast",
@@ -107,12 +103,20 @@ const Login = () => {
     } catch (error) {
       setLoading(false);
       console.error("Error during sign-in:", error); // Log the error message
-      toast.error(
-        "Unable to login. Please check your credentials and try again.",
-        {
-          className: "custom-toast",
-        }
-      );
+
+      // Provide user-friendly error messages based on Firebase error codes
+      let errorMessage = "Unable to login. Please check your credentials and try again.";
+      if (error.code === "auth/user-not-found") {
+        errorMessage = "No user found with this email. Please sign up.";
+      } else if (error.code === "auth/wrong-password") {
+        errorMessage = "Incorrect password. Please try again.";
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Invalid email format.";
+      }
+
+      toast.error(errorMessage, {
+        className: "custom-toast",
+      });
     }
   };
 
@@ -127,7 +131,7 @@ const Login = () => {
   };
 
   return (
-    <Helmet title="Login">
+    <Helmet title="User Login">
       <section>
         <Container>
           <Row>
@@ -138,7 +142,6 @@ const Login = () => {
                 <Link to="/confirm-user-state">
                   <FaAngleLeft className="text-3xl -translate-y-2 font-normal text-black" />
                 </Link>
-                {/* animation here */}
                 <LoginAnimation />
                 <div className="flex transform text-customOrange -translate-y-10 mb-2 justify-center">
                   <Typewriter

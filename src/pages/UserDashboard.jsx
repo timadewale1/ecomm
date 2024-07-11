@@ -49,7 +49,7 @@ const UserDashboard = () => {
 
   useEffect(() => {
     if (!loading) {
-      const tl = gsap.timeline({ repeat: 1, repeatDelay: 0.5 });
+      const tl = gsap.timeline({ repeat: 0, repeatDelay: 0.5 });
 
       tl.fromTo(".col1", { x: -200, opacity: 0 }, { duration: 1, x: 0, opacity: 1 })
         .fromTo(".col2", { x: 200, opacity: 0 }, { duration: 1, x: 0, opacity: 1 })
@@ -112,7 +112,7 @@ const UserDashboard = () => {
     (order) => order.userId === auth.currentUser.uid
   );
 
-  //Var to calc and determine the width of the progress bar
+  // Var to calc and determine the width of the progress bar
 
   const progress = (totalAmountSpent / 500000) * 100;
 
@@ -122,7 +122,7 @@ const UserDashboard = () => {
   );
 
   return (
-    <section className="px-1">
+    <section className="flex justify-center flex-col">
       <div className="px-3">
         <div class="mb-6 h-1 w-full bg-neutral-200 dark:bg-neutral-600">
           <div

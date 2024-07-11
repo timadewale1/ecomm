@@ -16,9 +16,16 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { FreeMode, Autoplay } from "swiper/modules";
 import BottomBar from "../components/BottomBar/BottomBar";
 import "../styles/bottombar.css";
+<<<<<<< Updated upstream
 import { db } from "../firebase.config"; 
+=======
+import { useNavigate } from "react-router-dom";
+import { useNavigation } from "../components/Bottombarcontext";
+>>>>>>> Stashed changes
 
 const Homepage = () => {
+  const navigate = useNavigate();
+  const {setActiveNav} = useNavigation()
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [userName, setUserName] = useState("User");
 
@@ -30,6 +37,7 @@ const Homepage = () => {
     setIsSearchFocused(false);
   };
 
+<<<<<<< Updated upstream
   const capitalizeName = (name) => {
     return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
   };
@@ -45,6 +53,14 @@ const Homepage = () => {
       }
     });
   }, []);
+=======
+  const handleShowMore = () => {
+    setActiveNav(2);
+    navigate('/explore')
+  }
+
+  
+>>>>>>> Stashed changes
 
   // Initialize Cloudinary instance
   const cld = new Cloudinary({
@@ -174,7 +190,7 @@ const Homepage = () => {
         </div>
         <div className="flex justify-between px-2 mt-10 text-base">
           <h1 className="font-semibold text-xl">Explore</h1>
-          <p className="font-light text-red-500">Show All</p>
+          <p className="font-light text-red-500 cursor-pointer" onClick={handleShowMore} >Show All</p>
         </div>
       </div>
       <Market />

@@ -26,6 +26,7 @@ import LatestCart from "../pages/LatestCart";
 import Profile from "../pages/Profile";
 import Explore from "../pages/Explore";
 import Marketcardpage from "../pages/marketcardpage.jsx";
+import OnlineVendors from "../pages/OnlineVendors.jsx";
 import ConfirmUserState from "../pages/ConfirmUserState.jsx";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -43,6 +44,8 @@ const Routers = () => {
       <Route path="vendor-signup" element={<VendorSignup />} />
       {/* <Route path="" element={<AdminLogin />} /> */}
       <Route path="login" element={<Login />} />
+      <Route path="online-vendors" element={<OnlineVendors />} />
+
       <Route path="payment" element={<Payment />} />
       <Route path="/forgetpassword" element={<ForgetPassword />} />
 
@@ -62,7 +65,6 @@ const Routers = () => {
         <Route path="dashboard/orders" element={<AllOrders />} />
       </Route>
 
-      
       <Route path="vendorlogin" element={<VendorLogin />} />
       <Route path="vendordashboard" element={<VendorDashboard />} />
     </Routes>

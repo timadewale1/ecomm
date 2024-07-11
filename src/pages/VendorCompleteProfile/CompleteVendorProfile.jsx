@@ -94,13 +94,28 @@ const CompleteProfile = () => {
         async () => {
           // Complete function ...
           const coverImageUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          setVendorData({ ...vendorData, coverImage: file, coverImageUrl });
+          setVendorData((prevState) => ({
+            ...prevState,
+            coverImage: file,
+            coverImageUrl,
+          }));
           setUploadingImage(false);
           toast.success("Image uploaded successfully.", {
             className: "custom-toast",
           });
         }
       );
+    }
+  };
+
+  const handlePhoneNumberChange = (e) => {
+    const { value } = e.target;
+    if (/^\d*$/.test(value)) {
+      setVendorData({ ...vendorData, phoneNumber: value });
+    } else {
+      toast.error("Please enter a valid phone number.", {
+        className: "custom-toast",
+      });
     }
   };
 
@@ -118,12 +133,14 @@ const CompleteProfile = () => {
     const auth = getAuth();
     const user = auth.currentUser;
 
+    const { coverImage, ...dataToStore } = vendorData; // Exclude coverImage
+
     try {
       // Update Firestore document
       await setDoc(
         doc(db, "vendors", user.uid),
         {
-          ...vendorData,
+          ...dataToStore,
           profileComplete: true,
         },
         { merge: true }
@@ -134,6 +151,7 @@ const CompleteProfile = () => {
       });
       navigate("/vendordashboard");
     } catch (error) {
+      console.log(error);
       toast.error("Error completing profile: " + error.message, {
         className: "custom-toast",
       });
@@ -351,7 +369,7 @@ const CompleteProfile = () => {
                       placeholder="Phone Number"
                       value={vendorData.phoneNumber}
                       className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-100"
-                      onChange={handleInputChange}
+                      onChange={handlePhoneNumberChange}
                       required
                     />
                   </FormGroup>
@@ -487,7 +505,7 @@ const CompleteProfile = () => {
                       placeholder="Phone Number"
                       value={vendorData.phoneNumber}
                       className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-100"
-                      onChange={handleInputChange}
+                      onChange={handlePhoneNumberChange}
                       required
                     />
                   </FormGroup>

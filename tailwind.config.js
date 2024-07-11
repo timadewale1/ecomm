@@ -13,6 +13,8 @@ module.exports = {
         ubuntu: ['Ubuntu', 'sans-serif'],
         bodoni: ['Bodoni Moda SC', 'serif'],
         lato: ['Lato', 'sans-serif'],
+        poppins: ['Poppins', 'sans-serif'],
+
       },
     },
   },

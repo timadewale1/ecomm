@@ -22,7 +22,9 @@ const Signup = () => {
   const [file, setFile] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState(""); // State for confirm password
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // State for confirm password visibility
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false); // State for file upload spinner
 
@@ -33,76 +35,82 @@ const Signup = () => {
     return regex.test(email);
   };
 
-  const handleFileUpload = (file) => {
-    if (!file) return;
-    setUploading(true); // Show file upload spinner
-    const storageRef = ref(storage, `images/${Date.now() + username}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+  // const handleFileUpload = (file) => {
+  //   if (!file) return;
+  //   setUploading(true); // Show file upload spinner
+  //   const storageRef = ref(storage, `images/${Date.now() + username}`);
+  //   const uploadTask = uploadBytesResumable(storageRef, file);
 
-    uploadTask.on(
-      "state_changed",
-      (snapshot) => {
-        // No need to update progress
-      },
-      (error) => {
-        setUploading(false); // Hide file upload spinner
-        toast.error("Error uploading image. Please try again.", {
-          className: "custom-toast",
-        });
-      },
-      async () => {
-        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-        setFile({ url: downloadURL });
-        setUploading(false); // Hide file upload spinner
-        toast.success("Image uploaded successfully.", {
-          className: "custom-toast",
-        });
-      }
-    );
-  };
+  //   uploadTask.on(
+  //     "state_changed",
+  //     (snapshot) => {
+  //       // No need to update progress
+  //     },
+  //     (error) => {
+  //       setUploading(false); // Hide file upload spinner
+  //       toast.error("Error uploading image. Please try again.", {
+  //         className: "custom-toast",
+  //       });
+  //     },
+  //     async () => {
+  //       const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+  //       setFile({ url: downloadURL });
+  //       setUploading(false); // Hide file upload spinner
+  //       toast.success("Image uploaded successfully.", {
+  //         className: "custom-toast",
+  //       });
+  //     }
+  //   );
+  // };
 
   const signup = async (e) => {
     e.preventDefault();
-
-    if (!username || !email || !password) {
+  
+    if (!username || !email || !password || !confirmPassword) {
       toast.error("All fields are required. Please fill in all fields.", {
         className: "custom-toast",
       });
       return;
     }
-
+  
     if (/[^a-zA-Z\s]/.test(username)) {
       toast.error("You cannot use numbers as username!", {
         className: "custom-toast",
       });
       return;
     }
-
+  
     if (!validateEmail(email)) {
       toast.error("Invalid email format. Please enter a valid email.", {
         className: "custom-toast",
       });
       return;
     }
-
+  
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match. Please try again.", {
+        className: "custom-toast",
+      });
+      return;
+    }
+  
     setLoading(true);
     try {
       // Create user
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-
+  
       // Send email verification
       await sendEmailVerification(user);
-
+  
       // Save user info in Firestore
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         displayName: username,
         email,
-        photoURL: file ? file.url : null,
         role: "user",
       });
-
+  
       setLoading(false);
       toast.success("Account created successfully. Please verify your email.", {
         className: "custom-toast",
@@ -110,12 +118,26 @@ const Signup = () => {
       navigate("/login");
     } catch (error) {
       setLoading(false);
-      toast.error("Cannot sign up at the moment. Please try again later.", {
+  
+      // Handle Firebase errors with user-friendly messages
+      let errorMessage = "Cannot sign up at the moment. Please try again later.";
+      if (error.code === "auth/email-already-in-use") {
+        errorMessage = "This email is already in use. Please use a different email.";
+      } else if (error.code === "auth/weak-password") {
+        errorMessage = "Password is too weak. Please use a stronger password.";
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Invalid email format. Please enter a valid email.";
+      } else if (error.code === "auth/operation-not-allowed") {
+        errorMessage = "Sign up is currently disabled. Please try again later.";
+      }
+  
+      toast.error(errorMessage, {
         className: "custom-toast",
       });
       console.error("Signup error:", error);
     }
   };
+  
 
   return (
     <Helmet className="p-4">
@@ -190,6 +212,29 @@ const Signup = () => {
                       )}
                     </div>
                   </FormGroup>
+                  <FormGroup className="relative mt-4">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <GrSecure className="text-gray-500 text-xl" />
+                    </div>
+                    <input
+                      required
+                      type={showConfirmPassword ? "text" : "password"}
+                      className="w-full h-14 text-gray-500 pl-10 rounded-full bg-gray-300"
+                      placeholder="Confirm your password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                    <div
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? (
+                        <FaRegEyeSlash className="text-gray-500 text-xl" />
+                      ) : (
+                        <FaRegEye className="text-gray-500 text-xl" />
+                      )}
+                    </div>
+                  </FormGroup>
                   <div className="mb-4">
                     <p className="text-xs text-gray-500">
                       Password must be at least 8 characters long and contain at
@@ -197,7 +242,7 @@ const Signup = () => {
                     </p>
                   </div>
 
-                  <FormGroup className="relative">
+                  {/* <FormGroup className="relative">
                     <label
                       htmlFor="file-upload"
                       className="w-44 rounded-full h-14 text-xs bg-black font-semibold text-white flex items-center justify-center cursor-pointer"
@@ -225,7 +270,7 @@ const Signup = () => {
                         visible={true}
                       />
                     </div>
-                  )}
+                  )} */}
 
                   <motion.button
                     whileTap={{ scale: 1.2 }}
@@ -234,7 +279,7 @@ const Signup = () => {
                   >
                     Create account
                   </motion.button>
-                  <div className="text-center font-light mt-2 flex justify-center">
+                  <div className="text-center font-light mt-2 pb-4 flex justify-center">
                     <p className="text-gray-700">
                       Already have an account?{" "}
                       <span className="underline font-semibold text-black">

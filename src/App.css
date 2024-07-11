@@ -82,6 +82,65 @@ section {
 
 
 }
+/* this is for the market place cards and pages */
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: white;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding-right: 2rem;
+}
+
+.relative {
+  position: relative;
+}
+
+input[type="text"]::placeholder {
+  color: #999;
+}
+
+button:focus {
+  outline: none;
+}
+
+button {
+  transition: background-color 0.3s, color 0.3s;
+}
+
+button.bg-orange-500:hover {
+  background-color: #e65c00;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.mt-4 {
+  margin-top: 1rem;
+}
+
+
+.dot-size{
+  font-size: 6px;
+
+}
+.ratings-text1{
+  font-size: 1px;
+}
+.ratings-text{
+  font-size: 10px;
+
+
+}
+.categories-text{
+  font-size: 12px;
+
+/* this is for the market place cards and pages */
+}
 .text-size{
   font-size: 16px;
 

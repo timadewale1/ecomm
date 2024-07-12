@@ -5,10 +5,10 @@ import { FiSearch } from "react-icons/fi";
 import ReactStars from "react-rating-stars-component";
 import RoundedStar from "../components/Roundedstar";
 import * as fuzzySearch from '@m31coding/fuzzy-search';
-import { db } from "../firebase.config"; 
+import { db } from "../firebase.config";
 import { collection, query, where, getDocs } from "firebase/firestore";
 
-const OnlineVendors = () => {
+const MarketVendors = () => {
   const [vendors, setVendors] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -18,7 +18,7 @@ const OnlineVendors = () => {
 
   useEffect(() => {
     const fetchVendors = async () => {
-      const q = query(collection(db, "vendors"), where("marketPlaceType", "==", "virtual"));
+      const q = query(collection(db, "vendors"), where("marketPlaceType", "==", "marketplace"));
       const querySnapshot = await getDocs(q);
       const vendorsList = [];
       querySnapshot.forEach((doc) => {
@@ -56,7 +56,7 @@ const OnlineVendors = () => {
     setIsSearching(false);
   };
 
-  const categories = ["Cargos", "Shirts", "Jewelry"];
+  const categories = ["Thrifts", "Jewelry", "Skirts"];
 
   const filteredVendors = vendors.filter(vendor => {
     const searchMatches = searchTerm.length < 2 || searcher.getMatches(new fuzzySearch.Query(searchTerm)).matches.map(match => match.entity.id).includes(vendor.id);
@@ -66,13 +66,10 @@ const OnlineVendors = () => {
 
   const showNoResultsMessage = searchTerm.length >= 2 && filteredVendors.length === 0;
 
-  const handleStoreView = (vendor) => {
-    navigate(`/store/${vendor.id}`);
-    console.log (`clicked on store with id ${vendor.id}`)
-  }
+  const defaultImageUrl = "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 
   return (
-    <div className="p-2" >
+    <div className="p-2">
       <div className="sticky-header flex flex-col items-center -mx-2 p-2 bg-white shadow">
         <div className="flex justify-between items-center w-full">
           {isSearching ? (
@@ -93,7 +90,7 @@ const OnlineVendors = () => {
               <button onClick={() => navigate(-1)} className="text-gray-500">
                 <GoChevronLeft size={32} />
               </button>
-              <h1 className="font-ubuntu text-lg font-medium">ONLINE VENDORS</h1>
+              <h1 className="font-ubuntu text-lg font-medium">MARKET VENDORS</h1>
               <button onClick={() => setIsSearching(true)} className="text-gray-500">
                 <FiSearch size={30} />
               </button>
@@ -124,7 +121,7 @@ const OnlineVendors = () => {
           filteredVendors.length > 0 ? (
             filteredVendors.map((vendor) => (
               <div key={vendor.id} className="vendor-item my-">
-                <div className="flex justify-between p-3 mb-1 bg-white shadow" onClick={() => handleStoreView(vendor)}>
+                <div className="flex justify-between p-3 mb-1 bg-white shadow">
                   <div>
                     <h1 className="font-poppins text-black text-2xl font-medium">
                       {vendor.shopName}
@@ -137,7 +134,10 @@ const OnlineVendors = () => {
                         </React.Fragment>
                       ))}
                     </p>
-                    <div className="flex items-center translate-y-4">
+                    <p className="font-sans text-customOrange text-sm mt-1">
+                      {vendor.marketPlace.toUpperCase()}
+                    </p>
+                    <div className="flex items-center translate-y-1">
                       <span className="text-black font-light text-xs mr-2">{(vendor.rating || 0).toFixed(1)}</span>
                       <ReactStars
                         count={5}
@@ -155,7 +155,7 @@ const OnlineVendors = () => {
                   <div>
                     <img
                       className="object-cover h-24 w-24 rounded-lg"
-                      src={vendor.coverImageUrl}
+                      src={vendor.coverImageUrl || defaultImageUrl}
                       alt={vendor.shopName}
                     />
                   </div>
@@ -178,7 +178,10 @@ const OnlineVendors = () => {
                         </React.Fragment>
                       ))}
                     </p>
-                    <div className="flex items-center translate-y-4">
+                    <p className="font-sans text-gray-400 text-sm ">
+                      {vendor.marketPlace.toUpperCase()}
+                    </p>
+                    <div className="flex items-center translate-y-">
                       <span className="text-black font-light text-xs mr-2">{(vendor.rating || 0).toFixed(1)}</span>
                       <ReactStars
                         count={5}
@@ -196,7 +199,7 @@ const OnlineVendors = () => {
                   <div>
                     <img
                       className="object-cover h-24 w-24 rounded-lg"
-                      src={vendor.coverImageUrl}
+                      src={vendor.coverImageUrl || defaultImageUrl}
                       alt={vendor.shopName}
                     />
                   </div>
@@ -211,4 +214,4 @@ const OnlineVendors = () => {
   );
 };
 
-export default OnlineVendors;
+export default MarketVendors;

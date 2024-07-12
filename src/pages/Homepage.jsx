@@ -155,15 +155,15 @@ const Homepage = () => {
         <div className="flex justify-center mt-3 px-2 gap-2">
           <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden">
             <AdvancedImage cldImg={maleImg} className="w-full h-full object-cover" />
-            <h2 className="absolute bottom-0 w-full text-center text-white font-semibold text-lg bg-transparent">MEN</h2>
+            <h2 className="absolute bottom-0 w-full text-center text-white font-semibold text-sm bg-transparent">MEN</h2>
           </div>
           <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden">
             <AdvancedImage cldImg={femaleImg} className="w-full h-full object-cover" />
-            <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-lg">WOMEN</h2>
+            <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">WOMEN</h2>
           </div>
           <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden">
             <AdvancedImage cldImg={kidImg} className="w-full h-full object-cover" />
-            <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-lg">KIDS</h2>
+            <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">KIDS</h2>
           </div>
         </div>
         <div className="flex justify-between px-2 mt-10 text-base">

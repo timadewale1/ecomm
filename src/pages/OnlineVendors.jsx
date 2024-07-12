@@ -85,8 +85,13 @@ const OnlineVendors = () => {
 
   const showNoResultsMessage = searchTerm.length >= 2 && filteredVendors.length === 0;
 
+  const handleStoreView = (vendor) => {
+    navigate(`/store/${vendor.id}`);
+    console.log (`clicked on store with id ${vendor.id}`)
+  }
+
   return (
-    <div className="p-2">
+    <div className="p-2" >
       <div className="sticky-header flex flex-col items-center -mx-2 p-2 bg-white shadow">
         <div className="flex justify-between items-center w-full">
           {isSearching ? (
@@ -138,7 +143,7 @@ const OnlineVendors = () => {
           filteredVendors.length > 0 ? (
             filteredVendors.map((vendor) => (
               <div key={vendor.id} className="vendor-item my-">
-                <div className="flex justify-between p-3 mb-1 bg-white shadow">
+                <div className="flex justify-between p-3 mb-1 bg-white shadow" onClick={() => handleStoreView(vendor)}>
                   <div>
                     <h1 className="font-poppins text-black text-2xl font-medium">
                       {vendor.shopName}

@@ -29,6 +29,7 @@ import Marketcardpage from "../pages/marketcardpage.jsx";
 import OnlineVendors from "../pages/OnlineVendors.jsx";
 import ConfirmUserState from "../pages/ConfirmUserState.jsx";
 import ProtectedRoute from "./ProtectedRoute";
+import StorePage from "../pages/StorePage.jsx";
 
 const Routers = () => {
   return (
@@ -48,6 +49,7 @@ const Routers = () => {
 
       <Route path="payment" element={<Payment />} />
       <Route path="/forgetpassword" element={<ForgetPassword />} />
+      <Route path="/store/:id" element={< StorePage/>} />
 
       <Route element={<ProtectedRoute />}>
         <Route path="newhome" element={<NewHome />} />

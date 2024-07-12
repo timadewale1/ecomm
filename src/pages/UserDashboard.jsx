@@ -49,11 +49,11 @@ const UserDashboard = () => {
 
   useEffect(() => {
     if (!loading) {
-      const tl = gsap.timeline({ repeat: 1, repeatDelay: 0.5 });
+      const tl = gsap.timeline({ repeat: 0 });
 
-      tl.fromTo(".col1", { x: -200, opacity: 0 }, { duration: 1, x: 0, opacity: 1 })
-        .fromTo(".col2", { x: 200, opacity: 0 }, { duration: 1, x: 0, opacity: 1 })
-        .fromTo(".col3", { y: -50, opacity: 0 }, { duration: 1, y: 0, opacity: 1 });
+      tl.fromTo(".col1", { x: -200, opacity: 0 }, { duration: 0.75, x: 0, opacity: 1 })
+        .fromTo(".col2", { x: 200, opacity: 0 }, { duration: 0.75, x: 0, opacity: 1 })
+        .fromTo(".col3", { y: -50, opacity: 0 }, { duration: 0.75, y: 0, opacity: 1 });
 
       // You can also use window.onload if you want to ensure everything is loaded before running the animations
       window.onload = () => tl.play();
@@ -112,7 +112,7 @@ const UserDashboard = () => {
     (order) => order.userId === auth.currentUser.uid
   );
 
-  //Var to calc and determine the width of the progress bar
+  // Var to calc and determine the width of the progress bar
 
   const progress = (totalAmountSpent / 500000) * 100;
 
@@ -122,7 +122,7 @@ const UserDashboard = () => {
   );
 
   return (
-    <section className="px-1">
+    <section className="flex justify-center flex-col">
       <div className="px-3">
         <div class="mb-6 h-1 w-full bg-neutral-200 dark:bg-neutral-600">
           <div
@@ -146,14 +146,14 @@ const UserDashboard = () => {
         <Row className={`gap-2`}>
           <div className="flex p-2">
             <Col className="lg-3 relative top-20 col1">
-              <div className="amountSpent__box order__box flex flex-col content-center justify-center text-center max-w-full">
+              <div className="amountSpent__box order__box flex flex-col content-center justify-center text-center max-w-full border-2 border-white rounded bg-green-900">
                 <div className="text-base">
                   <div className="flex w-full ">
                     <div className="w-2/5"></div>
                     <div className="w-3/5 h-10 rounded-bl border-white bg-white">
                     </div>
                   </div>
-                  <h5 className="mt-2  text-sm">Total Amount Spent</h5>
+                  <h5 className="mt-2  text-sm">Total Ama Spent</h5>
                 </div>
                 <span className="text-green-600 text-5xl">
                   ₦{totalAmountSpent}
@@ -162,7 +162,7 @@ const UserDashboard = () => {
             </Col>
             <div className="h-full w-5"></div>
             <Col className="lg-3 relative top-20 col2">
-              <div className="delivered-orders__box order__box flex flex-col content-center justify-center text-center max-w-full">
+              <div className="delivered-orders__box order__box flex flex-col content-center justify-center text-center max-w-full border-2 border-white rounded bg-green-900">
                 <div className=" text-base">
                   <div className="flex w-full ">
                     <div className="w-3/5 h-10 rounded-br border-white bg-white "></div>
@@ -178,8 +178,8 @@ const UserDashboard = () => {
           </div>
           <Col className="lg-3 absolute w-1/2 translate-x-1/2 col3">
             <div className="bg-white rounded pb-6 px-3">
-              <div className="order__box flex flex-col content-center justify-center text-center">
-                <span className="text-orange-400 text-6xl mt-1">
+              <div className="order__box flex flex-col content-center justify-center text-center bg-green-900 rounded">
+                <span className="text-orange-600 text-6xl mt-1">
                   {" "}
                   {userOrders.length}
                 </span>

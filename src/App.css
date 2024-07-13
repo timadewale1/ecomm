@@ -87,6 +87,7 @@ section {
 }
 /* this is for the market place cards and pages */
 .sticky-header {
+  position: -webkit-sticky;
   position: sticky;
   top: 0;
   z-index: 1000;

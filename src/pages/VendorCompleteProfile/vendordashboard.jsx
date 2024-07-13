@@ -1,16 +1,19 @@
+// VendorDashboard.js
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { toast } from "react-toastify";
+import { FaPlus } from 'react-icons/fa';
+import Modal from '../../components/layout/Modal';
+import AddProduct from "../../vendor/AddProducts";
 
 const VendorDashboard = () => {
   const [vendorId, setVendorId] = useState(null);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalSales, setTotalSales] = useState(0);
   const [totalProducts, setTotalProducts] = useState(0);
-  const navigate = useNavigate();
+  const [isModalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     const auth = getAuth();
@@ -19,7 +22,6 @@ const VendorDashboard = () => {
         setVendorId(user.uid);
         const vendorDoc = await getDoc(doc(db, "vendors", user.uid));
         if (vendorDoc.exists()) {
-          const vendorData = vendorDoc.data();
           await fetchStatistics(user.uid);
         } else {
           toast.error("Vendor data not found");
@@ -47,21 +49,11 @@ const VendorDashboard = () => {
     }
   };
 
-  const handleLogout = async () => {
-    const auth = getAuth();
-    try {
-      await signOut(auth);
-      toast.success("Logged out successfully");
-      navigate("/vendorlogin");
-    } catch (error) {
-      console.error("Error logging out:", error);
-      toast.error("Failed to log out");
-    }
-  };
+  const openModal = () => setModalOpen(true);
+  const closeModal = () => setModalOpen(false);
 
   return (
-    <div>
-      {/* <Navbar /> */}
+    <>
       <div className="dashboard">
         <h2>Dashboard</h2>
         <div>
@@ -69,9 +61,18 @@ const VendorDashboard = () => {
           <p>Total Sales: ${totalSales.toFixed(2)}</p>
           <p>Total Products: {totalProducts}</p>
         </div>
-        <button onClick={handleLogout}>Logout</button>
       </div>
-    </div>
+
+      <div className="sticky">
+        <button onClick={openModal}>
+          <FaPlus />
+        </button>
+      </div>
+
+      <Modal isOpen={isModalOpen} onClose={closeModal}>
+        <AddProduct vendorId={vendorId} />
+      </Modal>
+    </>
   );
 };
 

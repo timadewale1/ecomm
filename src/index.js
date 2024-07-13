@@ -9,7 +9,7 @@ import store from "./redux/store";
 import { Provider } from "react-redux";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { NavigationProvider } from "./components/Bottombarcontext.jsx";
+import { NavigationProvider } from "./components/Context/Bottombarcontext";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(

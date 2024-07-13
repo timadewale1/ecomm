@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
+import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
-import { db } from "../firebase.config";
-import Navbar from "./navbar";
+import { db } from "../../firebase.config";
 import { toast } from "react-toastify";
 
 const VendorDashboard = () => {
@@ -10,6 +10,7 @@ const VendorDashboard = () => {
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalSales, setTotalSales] = useState(0);
   const [totalProducts, setTotalProducts] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const auth = getAuth();
@@ -29,21 +30,13 @@ const VendorDashboard = () => {
 
   const fetchStatistics = async (vendorId) => {
     try {
-      const productsCollection = collection(
-        db,
-        "vendors",
-        vendorId,
-        "products"
-      );
+      const productsCollection = collection(db, "vendors", vendorId, "products");
       const productsSnapshot = await getDocs(productsCollection);
       const products = productsSnapshot.docs.map((doc) => doc.data());
 
       const totalProducts = products.length;
       const totalOrders = 0;
-      const totalSales = products.reduce(
-        (acc, product) => acc + product.price,
-        0
-      );
+      const totalSales = products.reduce((acc, product) => acc + product.price, 0);
 
       setTotalProducts(totalProducts);
       setTotalOrders(totalOrders);
@@ -54,9 +47,21 @@ const VendorDashboard = () => {
     }
   };
 
+  const handleLogout = async () => {
+    const auth = getAuth();
+    try {
+      await signOut(auth);
+      toast.success("Logged out successfully");
+      navigate("/vendorlogin");
+    } catch (error) {
+      console.error("Error logging out:", error);
+      toast.error("Failed to log out");
+    }
+  };
+
   return (
     <div>
-      <Navbar />
+      {/* <Navbar /> */}
       <div className="dashboard">
         <h2>Dashboard</h2>
         <div>
@@ -64,6 +69,7 @@ const VendorDashboard = () => {
           <p>Total Sales: ${totalSales.toFixed(2)}</p>
           <p>Total Products: {totalProducts}</p>
         </div>
+        <button onClick={handleLogout}>Logout</button>
       </div>
     </div>
   );

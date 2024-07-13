@@ -24,7 +24,6 @@ const Login = () => {
   const [passwordError, setPasswordError] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-
   const [loading, setLoading] = useState(false);
 
   const validateEmail = (email) => {

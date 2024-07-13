@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import useAuth from "../custom-hooks/useAuth";
 import { Navigate, Outlet } from "react-router-dom";
+import useAuth from "../custom-hooks/useAuth";
 import { getUserRole } from "../admin/getUserRole";
 import Loading from "../components/Loading/Loading";
 
 const ProtectedRoute = ({ requireAdmin }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, loading } = useAuth(); // Ensure loading state is handled
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkedAdminRole, setCheckedAdminRole] = useState(false);
 
@@ -30,12 +30,12 @@ const ProtectedRoute = ({ requireAdmin }) => {
     }
   }, [currentUser, requireAdmin]);
 
-  if (!currentUser) {
-    return <Navigate to="/login" />;
+  if (loading || (requireAdmin && !checkedAdminRole)) {
+    return <Loading />; // Show loading indicator while auth state or admin role is being determined
   }
 
-  if (requireAdmin && !checkedAdminRole) {
-    return <Loading />;
+  if (!currentUser) {
+    return <Navigate to="/login" />;
   }
 
   if (requireAdmin && !isAdmin) {

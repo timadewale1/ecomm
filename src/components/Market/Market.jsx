@@ -6,7 +6,7 @@ import { fit } from "@cloudinary/url-gen/actions/resize";
 import { AdvancedImage } from "@cloudinary/react";
 import { FaAngleRight } from "react-icons/fa6";
 import { useNavigate } from "react-router-dom";
-import { useNavigation } from "../Bottombarcontext.jsx";
+import { useNavigation } from "../Context/Bottombarcontext";
 
 gsap.registerPlugin(ScrollTrigger);
 

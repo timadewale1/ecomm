@@ -7,6 +7,7 @@ module.exports = {
     extend: {
       colors: {
         customOrange: '#f9531e',
+        customCream: '#FCECD3',
       },
       fontFamily: {
         roboto: ['Roboto', 'sans-serif'],

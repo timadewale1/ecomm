@@ -3,7 +3,6 @@ import { RiMenu4Line } from "react-icons/ri";
 import { PiBell } from "react-icons/pi";
 import { FiSearch } from "react-icons/fi";
 import { Swiper, SwiperSlide } from "swiper/react";
-import Market from "../components/Market/Market";
 import "swiper/css";
 import "swiper/css/free-mode";
 import "swiper/css/autoplay";
@@ -11,17 +10,19 @@ import { Cloudinary } from "@cloudinary/url-gen";
 import { auto } from "@cloudinary/url-gen/actions/resize";
 import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
 import { AdvancedImage } from "@cloudinary/react";
-import { getDoc, doc } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getDoc, doc } from "firebase/firestore";
 import { FreeMode, Autoplay } from "swiper/modules";
 import BottomBar from "../components/BottomBar/BottomBar";
 import "../styles/bottombar.css";
 import { useNavigate } from "react-router-dom";
-import { useNavigation } from "../components/Bottombarcontext";
+import { useNavigation } from "../components/Context/Bottombarcontext";
+import Market from "../components/Market/Market";
+import { db } from "../firebase.config"; // Update with your actual Firebase config path
 
 const Homepage = () => {
   const navigate = useNavigate();
-  const {setActiveNav} = useNavigation()
+  const { setActiveNav } = useNavigation();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [userName, setUserName] = useState("User");
 
@@ -35,15 +36,34 @@ const Homepage = () => {
 
   const handleShowMore = () => {
     setActiveNav(2);
-    navigate('/explore')
-  }
+    navigate("/explore");
+  };
 
-  
+  useEffect(() => {
+    const auth = getAuth();
+    const fetchUserName = async (uid) => {
+      try {
+        const userDoc = await getDoc(doc(db, "users", uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUserName(userData.displayName || "User");
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    };
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchUserName(user.uid);
+      }
+    });
+  }, []);
 
   // Initialize Cloudinary instance
   const cld = new Cloudinary({
     cloud: {
-      cloudName: "dtaqusjav", 
+      cloudName: "dtaqusjav",
     },
   });
 
@@ -155,20 +175,22 @@ const Homepage = () => {
         <div className="flex justify-center mt-3 px-2 gap-2">
           <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden">
             <AdvancedImage cldImg={maleImg} className="w-full h-full object-cover" />
-            <h2 className="absolute bottom-0 w-full text-center text-white font-semibold text-lg bg-transparent">MEN</h2>
+            <h2 className="absolute bottom-0 w-full text-center text-white font-semibold text-sm bg-transparent">MEN</h2>
           </div>
           <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden">
             <AdvancedImage cldImg={femaleImg} className="w-full h-full object-cover" />
-            <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-lg">WOMEN</h2>
+            <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">WOMEN</h2>
           </div>
           <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden">
             <AdvancedImage cldImg={kidImg} className="w-full h-full object-cover" />
-            <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-lg">KIDS</h2>
+            <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">KIDS</h2>
           </div>
         </div>
         <div className="flex justify-between px-2 mt-10 text-base">
           <h1 className="font-semibold text-xl">Explore</h1>
-          <p className="font-light text-red-500 cursor-pointer" onClick={handleShowMore} >Show All</p>
+          <p className="font-light text-red-500 cursor-pointer" onClick={handleShowMore}>
+            Show All
+          </p>
         </div>
       </div>
       <Market />

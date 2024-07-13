@@ -1,46 +1,46 @@
 import React, { useEffect } from "react";
 import { FaUser, FaRegUser } from "react-icons/fa";
-import { GoHome, GoHomeFill } from "react-icons/go";
-import { PiCompassFill, PiCompass } from "react-icons/pi";
 import {
-  HiOutlineBuildingStorefront,
-  HiBuildingStorefront,
-} from "react-icons/hi2";
-import { PiShoppingCartFill, PiShoppingCart } from "react-icons/pi";
+  MdDashboardCustomize,
+  MdOutlineDashboardCustomize,
+} from "react-icons/md";
+import { MdReorder } from "react-icons/md";
+import { AiFillProduct } from "react-icons/ai";
+import { AiOutlineProduct } from "react-icons/ai";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useNavigation } from "../Context/Bottombarcontext.jsx";
+import { useVendorNavigation } from "../Context/VendorBottomBarCtxt"; // Updated import
 import "../../styles/bottombar.css";
 
-const BottomBar = ({ isSearchFocused }) => {
-  const { activeNav, setActiveNav } = useNavigation();
+const VendorBottomBar = ({ isSearchFocused }) => {
+  const { activeNav, setActiveNav } = useVendorNavigation();
   const navigate = useNavigate();
   const location = useLocation();
 
   const navItems = [
-    { icon: GoHome, activeIcon: GoHomeFill, label: "Home", route: "/newhome" },
     {
-      icon: PiCompass,
-      activeIcon: PiCompassFill,
-      label: "Explore",
-      route: "/explore",
+      icon: MdOutlineDashboardCustomize,
+      activeIcon: MdDashboardCustomize,
+      label: "Dashboard",
+      route: "/vendordashboard",
     },
     {
-      icon: PiShoppingCart,
-      activeIcon: PiShoppingCartFill,
-      label: "Cart",
-      route: "/latest-cart",
+      icon: MdReorder,
+      activeIcon: MdReorder,
+      label: "Orders",
+      route: "/vendor-orders",
     },
     {
-      icon: HiOutlineBuildingStorefront,
-      activeIcon: HiBuildingStorefront,
-      label: "Market",
-      route: "/browse-markets",
+      icon: AiOutlineProduct,
+      activeIcon: AiFillProduct,
+      label: "Products",
+      route: "/vendor-products",
     },
+
     {
       icon: FaRegUser,
       activeIcon: FaUser,
       label: "Profile",
-      route: "/profile",
+      route: "/vendor-profile",
     },
   ];
 
@@ -81,4 +81,4 @@ const BottomBar = ({ isSearchFocused }) => {
   );
 };
 
-export default BottomBar;
+export default VendorBottomBar;

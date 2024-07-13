@@ -47,7 +47,7 @@ const CompleteProfile = () => {
     "Y2K",
     "Jewelry",
     "Kids",
-    "Traditional Wears",
+    "Trads",
     "Dresses",
     "Gowns",
     "Shoes",
@@ -57,6 +57,7 @@ const CompleteProfile = () => {
     "Formal",
     "Casual",
     "Vintage",
+    "Brands",
   ];
 
   const handleInputChange = (e) => {
@@ -86,7 +87,7 @@ const CompleteProfile = () => {
         },
         (error) => {
           // Error function ...
-          toast.error("Error uploading image: " + error.message, {
+          toast.error("Error uploading image: ", {
             className: "custom-toast",
           });
           setUploadingImage(false);

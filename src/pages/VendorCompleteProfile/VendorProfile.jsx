@@ -375,8 +375,6 @@ const VendorProfile = () => {
             </div>
           )}
 
-          {showMetrics && <UserDashboard />}
-
           {showFAQs && (
             <div className="flex p-2 flex-col items-center">
               <FaAngleLeft

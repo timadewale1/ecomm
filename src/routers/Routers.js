@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import ProductDetailPage from "../pages/UserSide/ProductDetail";
-import Checkout from "../pages/Checkout";
+// import Checkout from "../pages/Checkout";
 import Login from "../pages/Login";
 import Signup from "../pages/Signup";
 import ForgetPassword from "../pages/forgetPassword.jsx";
@@ -34,8 +34,8 @@ const Routers = () => {
       <Route path="/confirm-user-state" element={<ConfirmUserState />} />
       <Route path="/" element={<Navigate to="confirm-user-state" />} />
 
-      <Route path="checkout" element={<Checkout />} />
-      <Route path="/product/:id" element={<ProductDetailPage />} />
+      {/* <Route path="checkout" element={<Checkout />} /> */}
+      <Route path="product/:id" element={<ProductDetailPage />} />
       <Route path="signup" element={<Signup />} />
       <Route path="complete-profile" element={<CompleteProfile />} />
       <Route path="vendor-signup" element={<VendorSignup />} />

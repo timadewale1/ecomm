@@ -10,7 +10,7 @@ import VendorSignup from "../pages/VendorSignup";
 import VendorOrders from "../pages/VendorCompleteProfile/VendorOrders.jsx";
 import VendorLogin from "../pages/VendorLogin";
 import VendorDashboard from "../pages/VendorCompleteProfile/vendordashboard.jsx";
-import FavouritesPage from "../pages/UserSide/FavouritesProducts.jsx";
+import FavoritesPage from "../pages/UserSide/FavoritesProducts.jsx";
 import VendorProducts from "../pages/VendorCompleteProfile/VendorProducts.jsx";
 import VendorProfile from "../pages/VendorCompleteProfile/VendorProfile.jsx";
 
@@ -50,7 +50,7 @@ const Routers = () => {
       <Route element={<ProtectedRoute />}>
         <Route path="newhome" element={<NewHome />} />
         <Route path="latest-cart" element={<LatestCart />} />
-        <Route path="favorites" element={<FavouritesPage />} />
+        <Route path="favorites" element={<FavoritesPage />} />
         <Route path="browse-markets" element={<Marketpg />} />
         <Route path="market-card/:marketName" element={<Marketcardpage />} />
         <Route path="explore" element={<Explore />} />

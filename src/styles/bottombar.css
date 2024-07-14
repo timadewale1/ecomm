@@ -1,9 +1,9 @@
 .bottom-bar {
     position: fixed;
-    bottom: 10px;
+    bottom: 0px;
     left: 50%;
     transform: translateX(-50%);
-    width: calc(100% - 10px);
+    width: calc(100% - 5px);
     padding: 10px 0;
     background-color: #100f0e;
     border-radius: 50px;

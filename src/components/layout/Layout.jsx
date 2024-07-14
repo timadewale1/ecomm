@@ -16,7 +16,7 @@ const Layout = () => {
     "/signup", 
     "/forgetpassword", 
     "/admin", 
-    "/confirm-userstate", 
+    "/confirm-user-state", 
     "/vendorlogin", 
     "/vendor-signup", 
     "/complete-profile",

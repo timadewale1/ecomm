@@ -162,11 +162,11 @@ const StorePage = () => {
           ))}
         </div>
       </div>
-      <div className="flex justify-center mt-4">
+      {/* <div className="flex justify-center mt-4">
         <button className="bg-customCream text-black py-2 px-4 rounded" onClick={handleGoToCart}>
           Go to Cart
         </button>
-      </div>
+      </div> */}
       {showContact && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end z-50 modal" onClick={() => setShowContact(false)}>
           <div className="bg-white w-full md:w-1/3 h-2/5 p-4 rounded-t-lg relative z-50" onClick={(e) => e.stopPropagation()}>

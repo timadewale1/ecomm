@@ -8,7 +8,7 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider,
 } from "firebase/auth";
-import { auth, db} from "../../firebase.config"
+import { auth, db } from "../../firebase.config";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
@@ -21,6 +21,7 @@ import {
   FaAngleRight,
   FaAngleLeft,
 } from "react-icons/fa";
+import { TbHomeStar } from "react-icons/tb";
 import { GrSecure } from "react-icons/gr";
 import { GiClothes } from "react-icons/gi";
 import { PiSignOutBold } from "react-icons/pi";
@@ -29,7 +30,7 @@ import { MdEmail, MdHistory, MdHelpOutline } from "react-icons/md";
 import { CiMoneyBill } from "react-icons/ci";
 import { AiOutlineDashboard } from "react-icons/ai";
 import { RotatingLines } from "react-loader-spinner";
-import AvatarSelectorModal from './../../components/Avatars/AvatarSelectorModal';
+import AvatarSelectorModal from "../vendor/VendorAvatarSelect.jsx";
 
 const VendorProfile = () => {
   const navigate = useNavigate();
@@ -85,34 +86,29 @@ const VendorProfile = () => {
 
     setIsLoading(true);
     try {
+      // Other profile updates...
       if (editField === "displayName") {
         await updateProfile(auth.currentUser, { displayName });
-        await updateDoc(doc(db, "users", currentUser.uid), { displayName });
-        toast.success("Profile updated successfully", {
-          className: "custom-toast",
-        });
-      } else {
-        const credential = EmailAuthProvider.credential(
-          auth.currentUser.email,
-          currentPassword
-        );
-        await reauthenticateWithCredential(auth.currentUser, credential);
-
-        if (editField === "email") {
-          await updateEmail(auth.currentUser, email);
-          await sendEmailVerification(auth.currentUser);
-          await updateDoc(doc(db, "users", currentUser.uid), { email });
-        } else if (editField === "password") {
-          await updatePassword(auth.currentUser, password);
-          toast.success("Password updated successfully", {
-            className: "custom-toast",
-          });
-        }
-
-        toast.success("Profile updated successfully", {
+        await updateDoc(doc(db, "vendors", currentUser.uid), { displayName });
+      } else if (editField === "email") {
+        await updateEmail(auth.currentUser, email);
+        await sendEmailVerification(auth.currentUser);
+        await updateDoc(doc(db, "vendors", currentUser.uid), { email });
+      } else if (editField === "password") {
+        await updatePassword(auth.currentUser, password);
+        toast.success("Password updated successfully", {
           className: "custom-toast",
         });
       }
+
+      // Update photoURL
+      await updateDoc(doc(db, "vendors", currentUser.uid), {
+        photoURL: userData.photoURL,
+      });
+
+      toast.success("Profile updated successfully", {
+        className: "custom-toast",
+      });
 
       setIsEditing(false);
       setEditField("");
@@ -126,11 +122,62 @@ const VendorProfile = () => {
     }
   };
 
+  // const handleSave = async () => {
+  //   if (editField === "displayName" && /[^a-zA-Z\s]/.test(displayName)) {
+  //     toast.error("You cannot use numbers as username!", {
+  //       className: "custom-toast",
+  //     });
+  //     return;
+  //   }
+
+  //   setIsLoading(true);
+  //   try {
+  //     if (editField === "displayName") {
+  //       await updateProfile(auth.currentUser, { displayName });
+  //       await updateDoc(doc(db, "users", currentUser.uid), { displayName });
+  //       toast.success("Profile updated successfully", {
+  //         className: "custom-toast",
+  //       });
+  //     } else {
+  //       const credential = EmailAuthProvider.credential(
+  //         auth.currentUser.email,
+  //         currentPassword
+  //       );
+  //       await reauthenticateWithCredential(auth.currentUser, credential);
+
+  //       if (editField === "email") {
+  //         await updateEmail(auth.currentUser, email);
+  //         await sendEmailVerification(auth.currentUser);
+  //         await updateDoc(doc(db, "users", currentUser.uid), { email });
+  //       } else if (editField === "password") {
+  //         await updatePassword(auth.currentUser, password);
+  //         toast.success("Password updated successfully", {
+  //           className: "custom-toast",
+  //         });
+  //       }
+
+  //       toast.success("Profile updated successfully", {
+  //         className: "custom-toast",
+  //       });
+  //     }
+
+  //     setIsEditing(false);
+  //     setEditField("");
+  //   } catch (error) {
+  //     console.log(error);
+  //     toast.error("Error updating profile, try again later", {
+  //       className: "custom-toast",
+  //     });
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
       toast.success("Successfully logged out", { className: "custom-toast" });
-      navigate("/login");
+      navigate("/vendorlogin");
     } catch (error) {
       toast.error("Error logging out", { className: "custom-toast" });
     }
@@ -207,7 +254,7 @@ const VendorProfile = () => {
                 <div className="flex items-center">
                   <MdHistory className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-black capitalize">
-                    History
+                    Recent Activities
                   </h2>
                 </div>
                 <FaAngleRight className="text-black" />
@@ -223,12 +270,12 @@ const VendorProfile = () => {
               <hr className="w-full border-gray-600" />
               <div
                 className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
-                onClick={() => navigate("/user-dashboard")}
+                onClick={() => navigate("")}
               >
                 <div className="flex items-center">
-                  <AiOutlineDashboard className="text-black text-xl mr-4" />
+                  <TbHomeStar className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-black capitalize">
-                    Metrics
+                    View Ratings
                   </h2>
                 </div>
                 <FaAngleRight className="text-black" />
@@ -356,7 +403,7 @@ const VendorProfile = () => {
                     <p className="text-size text-black w-full font-medium">
                       Sign Out
                     </p>
-                   <FaAngleRight className="text-black text-xl ml-2"/>
+                    <FaAngleRight className="text-black text-xl ml-2" />
                   </div>
                   <hr className="w-full border-gray-400" />
                 </div>
@@ -370,7 +417,7 @@ const VendorProfile = () => {
                 className="text-2xl text-black cursor-pointer self-start"
                 onClick={() => setShowHistory(false)}
               />
-              <h2 className="text-xl font-ubuntu mt-4">History</h2>
+              <h2 className="text-xl font-ubuntu mt-4">Recent Activities</h2>
               {/* Render History content here */}
             </div>
           )}

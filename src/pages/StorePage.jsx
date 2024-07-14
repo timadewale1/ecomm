@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { db } from "../firebase.config"; // Adjust the import path based on your project structure
-import { doc, getDoc, collection, getDocs } from "firebase/firestore";
+import { db } from "../firebase.config";
+import { doc, getDoc, collection, getDocs, updateDoc, increment } from "firebase/firestore";
 import ReactStars from "react-rating-stars-component";
 import { GoDotFill } from "react-icons/go";
 import { IoMdContact } from "react-icons/io";
@@ -16,7 +16,6 @@ const StorePage = () => {
   const { id } = useParams();
   const [vendor, setVendor] = useState(null);
   const [products, setProducts] = useState([]);
-  const [cart, setCart] = useState({});
   const [favorites, setFavorites] = useState({});
   const [loading, setLoading] = useState(true);
   const [showContact, setShowContact] = useState(false);
@@ -68,24 +67,36 @@ const StorePage = () => {
     });
   };
 
-  const handleAddToCart = (productId) => {
-    setCart((prevCart) => {
-      const isInCart = prevCart[productId];
-      if (isInCart) {
-        const { [productId]: removed, ...rest } = prevCart;
-        return rest;
-      } else {
-        return { ...prevCart, [productId]: true };
-      }
-    });
-  };
-
   const handleGoToCart = () => {
     navigate('/cart');
   };
 
+  const handleRating = async (rating) => {
+    try {
+      const userId = "currentUser"; // Replace with the actual user ID
+      const vendorRef = doc(db, "vendors", id);
+      
+      if (vendor.ratedBy && vendor.ratedBy[userId] >= 5) {
+        toast.error("You have reached the maximum rating limit.");
+        return;
+      }
+      
+      await updateDoc(vendorRef, {
+        ratingCount: increment(1),
+        rating: increment(rating),
+        [`ratedBy.${userId}`]: increment(1),
+      });
+
+      const vendorDoc = await getDoc(vendorRef);
+      setVendor(vendorDoc.data());
+      toast.success("Thank you for your rating!");
+    } catch (error) {
+      toast.error("Error submitting rating: " + error.message);
+    }
+  };
+
   if (loading) {
-    return <div><Loading/></div>;
+    return <div><Loading /></div>;
   }
 
   if (!vendor) {
@@ -109,7 +120,7 @@ const StorePage = () => {
         </div>
       </div>
       <div className="flex justify-center mt-2">
-        <ReactStars count={5} value={vendor.rating || 0} size={24} activeColor="#ffd700" emptyIcon={<RoundedStar filled={false} />} filledIcon={<RoundedStar filled={true} />} edit={false} />
+        <ReactStars count={5} value={vendor.rating / vendor.ratingCount || 0} size={24} activeColor="#ffd700" emptyIcon={<RoundedStar filled={false} />} filledIcon={<RoundedStar filled={true} />} edit={true} onChange={handleRating} />
         <span className="flex items-center ml-2">({vendor.ratingCount || 0})</span>
       </div>
       <div className="w-full h-auto bg-customCream p-2 flex flex-col justify-self-center rounded-lg mt-4">
@@ -140,25 +151,14 @@ const StorePage = () => {
       </div>
       <div className="p-2">
         <h1 className="font-ubuntu text-lg mt-4 font-medium">Products</h1>
-        <div>
-          {['Men', 'Women', 'Kids'].map((category) => (
-            <div key={category}>
-              <h2 className="mt-4 font-ubuntu text-3xl">{category}</h2>
-              <div className="grid mt-2 grid-cols-2 gap-3">
-                {products
-                  .filter((product) => product.category === category)
-                  .map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      isFavorite={!!favorites[product.id]}
-                      isAddedToCart={!!cart[product.id]}
-                      onFavoriteToggle={handleFavoriteToggle}
-                      onAddToCart={handleAddToCart}
-                    />
-                  ))}
-              </div>
-            </div>
+        <div className="grid mt-2 grid-cols-2 gap-3">
+          {products.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              isFavorite={!!favorites[product.id]}
+              onFavoriteToggle={handleFavoriteToggle}
+            />
           ))}
         </div>
       </div>

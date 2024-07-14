@@ -22,11 +22,18 @@ const Cart = () => {
         <div>
           {Object.values(cart).map((product) => (
             <div key={product.id} className="flex justify-between items-center border-b py-2">
-              <div>
-                <h3 className="text-md">{product.name}</h3>
-                <p className="text-gray-600">₦{product.price}</p>
-                <p className="text-gray-600">Size: {product.size}</p>
-                <p className="text-gray-600">Quantity: {product.quantity}</p> {/* Display quantity */}
+              <div className="flex items-center">
+                <img 
+                  src={product.selectedImageUrl} 
+                  alt={product.name} 
+                  className="w-16 h-16 object-cover mr-4"
+                />
+                <div>
+                  <h3 className="text-md">{product.name}</h3>
+                  <p className="text-gray-600">₦{product.price}</p>
+                  <p className="text-gray-600">Size: {product.size}</p>
+                  <p className="text-gray-600">Quantity: {product.quantity}</p> {/* Display quantity */}
+                </div>
               </div>
               <button onClick={() => handleRemoveFromCart(product.id)} className="text-red-500">
                 <FaTrash />

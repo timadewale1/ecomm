@@ -4,7 +4,7 @@ import { GoDotFill, GoChevronLeft } from "react-icons/go";
 import { FiSearch } from "react-icons/fi";
 import ReactStars from "react-rating-stars-component";
 import RoundedStar from "../components/Roundedstar";
-import { db } from "../firebase.config"; // Adjust the import path based on your project structure
+import { db } from "../firebase.config";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { toast } from "react-toastify";
 

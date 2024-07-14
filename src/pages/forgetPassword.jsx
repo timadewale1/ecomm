@@ -3,7 +3,7 @@ import { auth } from "../firebase.config";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { toast } from "react-toastify";
 import { Form, FormGroup } from "reactstrap";
-import "../styles/login.css";
+
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import Helmet from "../components/Helmet/Helmet";

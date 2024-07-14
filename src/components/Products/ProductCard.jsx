@@ -1,13 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaHeart, FaPlus, FaCheck } from 'react-icons/fa';
+import { FaHeart, FaCheck } from 'react-icons/fa';
 import { CiCircleInfo } from 'react-icons/ci';
 import { toast } from 'react-toastify';
 
-const ProductCard = ({ product, isFavorite, isAddedToCart, onFavoriteToggle, onAddToCart }) => {
+const ProductCard = ({ product, isFavorite, onFavoriteToggle }) => {
   const navigate = useNavigate();
 
   const handleCardClick = () => {
+    console.log(`Navigating to product/${product.id}`);
     navigate(`/product/${product.id}`);
   };
 
@@ -21,21 +22,13 @@ const ProductCard = ({ product, isFavorite, isAddedToCart, onFavoriteToggle, onA
     }
   };
 
-  const handleAddToCart = (e) => {
-    e.stopPropagation();
-    onAddToCart(product.id);
-    if (isAddedToCart) {
-      toast.info(`Removed ${product.name} from cart!`);
-    } else {
-      toast.success(`Added ${product.name} to cart!`);
-    }
-  };
+  const mainImage = product.coverImageUrl || "https://via.placeholder.com/150";
 
   return (
-    <div className="product-card border rounded-lg shadow relative" onClick={handleCardClick}>
+    <div className="product-card border rounded-lg shadow relative cursor-pointer" onClick={handleCardClick}>
       <div className="relative">
         <img
-          src={product.imageUrls[0] || "https://via.placeholder.com/150"}
+          src={mainImage}
           alt={product.name}
           className="h-40 w-full object-cover rounded-lg"
         />
@@ -43,29 +36,26 @@ const ProductCard = ({ product, isFavorite, isAddedToCart, onFavoriteToggle, onA
           className={`absolute top-2 right-2 cursor-pointer ${isFavorite ? 'text-red-500' : 'text-gray-500'}`}
           onClick={handleFavoriteToggle}
         />
-        <div
-          className="absolute bottom-2 right-2 bg-customCream w-7 text-sm h-7 p-2 rounded-full text-black cursor-pointer"
-          onClick={handleAddToCart}
-        >
-          {isAddedToCart ? <FaCheck /> : <FaPlus />}
-        </div>
       </div>
       <div className="p-2 flex justify-between items-center">
         <div>
           <h3 className="text-xs font-medium mt-2">{product.name}</h3>
-          <p className="text-gray-600 font-semibold">₦{product.price}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-gray-600 font-semibold">₦{product.price}</p>
+            <span className="text-xs font-medium ml-2">({product.size})</span>
+          </div>
           <div className="flex items-center mt-2">
-            {product.condition === "defect" ? (
+            {product.condition && product.condition.includes("Defect") ? (
               <>
                 <CiCircleInfo className="text-red-500" />
-                <p className="ml-2 text-xs text-red-500">{product.defectDescription}</p>
+                <p className="ml-2 text-xs text-red-500">{product.condition}</p>
               </>
-            ) : product.condition === "brand new" ? (
+            ) : product.condition && product.condition.includes("brand new") ? (
               <>
                 <FaCheck className="text-green-500" />
                 <p className="ml-2 text-xs text-green-500">Brand New</p>
               </>
-            ) : product.condition === "thrift" ? (
+            ) : product.condition && product.condition.includes("thrift") ? (
               <>
                 <FaCheck className="text-yellow-500" />
                 <p className="ml-2 text-xs text-yellow-500">Thrift</p>
@@ -73,7 +63,6 @@ const ProductCard = ({ product, isFavorite, isAddedToCart, onFavoriteToggle, onA
             ) : null}
           </div>
         </div>
-        <span className="text-xs font-medium">{product.size}</span>
       </div>
     </div>
   );

@@ -18,7 +18,7 @@ import UserDashboard from "../pages/UserDashboard";
 import Marketpg from "../pages/Marketpg";
 import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfile.jsx";
 import NewHome from "../pages/Homepage";
-import LatestCart from "../pages/LatestCart";
+import LatestCart from "../pages/Cart.jsx";
 import MarketVendors from "../pages/MarketVendors.jsx";
 import Profile from "../pages/Profile";
 import Explore from "../pages/Explore";

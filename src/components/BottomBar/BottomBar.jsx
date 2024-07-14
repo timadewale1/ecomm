@@ -2,10 +2,7 @@ import React, { useEffect } from "react";
 import { FaUser, FaRegUser } from "react-icons/fa";
 import { GoHome, GoHomeFill } from "react-icons/go";
 import { PiCompassFill, PiCompass } from "react-icons/pi";
-import {
-  HiOutlineBuildingStorefront,
-  HiBuildingStorefront,
-} from "react-icons/hi2";
+import { HiOutlineBuildingStorefront, HiBuildingStorefront } from "react-icons/hi2";
 import { PiShoppingCartFill, PiShoppingCart } from "react-icons/pi";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useNavigation } from "../Context/Bottombarcontext.jsx";
@@ -18,41 +15,19 @@ const BottomBar = ({ isSearchFocused }) => {
 
   const navItems = [
     { icon: GoHome, activeIcon: GoHomeFill, label: "Home", route: "/newhome" },
-    {
-      icon: PiCompass,
-      activeIcon: PiCompassFill,
-      label: "Explore",
-      route: "/explore",
-    },
-    {
-      icon: PiShoppingCart,
-      activeIcon: PiShoppingCartFill,
-      label: "Cart",
-      route: "/latest-cart",
-    },
-    {
-      icon: HiOutlineBuildingStorefront,
-      activeIcon: HiBuildingStorefront,
-      label: "Market",
-      route: "/browse-markets",
-    },
-    {
-      icon: FaRegUser,
-      activeIcon: FaUser,
-      label: "Profile",
-      route: "/profile",
-    },
+    { icon: PiCompass, activeIcon: PiCompassFill, label: "Explore", route: "/explore" },
+    { icon: PiShoppingCart, activeIcon: PiShoppingCartFill, label: "Cart", route: "/latest-cart" },
+    { icon: HiOutlineBuildingStorefront, activeIcon: HiBuildingStorefront, label: "Market", route: "/browse-markets" },
+    { icon: FaRegUser, activeIcon: FaUser, label: "Profile", route: "/profile" },
   ];
 
   useEffect(() => {
     const currentPath = location.pathname;
-    const activeIndex = navItems.findIndex(
-      (item) => item.route === currentPath
-    );
+    const activeIndex = navItems.findIndex((item) => item.route === currentPath);
     if (activeIndex !== -1) {
       setActiveNav(activeIndex);
     }
-  }, [location.pathname, setActiveNav]);
+  }, [location.pathname, setActiveNav, navItems]);
 
   const handleClick = (index, route) => {
     setActiveNav(index);

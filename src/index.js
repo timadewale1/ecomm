@@ -7,7 +7,7 @@ import App from "./App";
 import { BrowserRouter } from "react-router-dom";
 import store from "./redux/store";
 import { Provider } from "react-redux";
-import { ToastContainer } from "react-toastify";
+import { Slide, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { NavigationProvider } from "./components/Context/Bottombarcontext";
 
@@ -20,8 +20,10 @@ root.render(
           <ToastContainer
             theme="light"
             position="top-right"
-            autoClose={3000}
-            closeOnClick
+            autoClose={2000}
+            limit={4}
+            transition={Slide}
+            draggable={true}
             pauseOnHover={false}
           />
           <App />

@@ -37,7 +37,7 @@ const Login = () => {
     // Validate email field
     if (!email) {
       setEmailError(true);
-      toast.error("Please fill in all fields correctly", {
+      toast.error("Please fill in all fields correctly.", {
         className: "custom-toast",
       });
       return;
@@ -45,7 +45,7 @@ const Login = () => {
 
     // Validate email format
     if (!validateEmail(email)) {
-      toast.error("Invalid email format", {
+      toast.error("Invalid email format.", {
         className: "custom-toast",
       });
       return;
@@ -53,7 +53,7 @@ const Login = () => {
 
     // Validate password field
     if (!password) {
-      toast.error("Please fill in all fields correctly", {
+      toast.error("Please fill in all fields correctly.", {
         className: "custom-toast",
       });
       return;
@@ -145,7 +145,7 @@ const Login = () => {
                 <div className="flex transform text-customOrange -translate-y-10 mb-2 justify-center">
                   <Typewriter
                     options={{
-                      strings: ["The Real Market Place"],
+                      strings: ["The Real Marketplace"],
                       autoStart: true,
                       loop: true,
                     }}

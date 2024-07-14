@@ -3,30 +3,25 @@ import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
 import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
-import { auth, storage, db } from "../firebase.config";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { auth, db } from "../firebase.config";
 import { setDoc, doc } from "firebase/firestore";
 import { motion } from "framer-motion";
 import Typewriter from "typewriter-effect";
 import { toast } from "react-toastify";
 import SignUpAnimation from "../SignUpAnimation/SignUpAnimation";
 import Loading from "../components/Loading/Loading";
-import { FaRegUser } from "react-icons/fa";
+import { FaRegUser, FaRegEyeSlash, FaRegEye } from "react-icons/fa";
 import { GrSecure } from "react-icons/gr";
 import { MdEmail } from "react-icons/md";
-import { FaRegEyeSlash, FaRegEye } from "react-icons/fa";
-import { RotatingLines } from "react-loader-spinner"; // Importing the loader spinner
 
 const Signup = () => {
   const [username, setUsername] = useState("");
-  const [file, setFile] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState(""); // State for confirm password
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false); // State for confirm password visibility
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false); // State for file upload spinner
 
   const navigate = useNavigate();
 
@@ -35,82 +30,61 @@ const Signup = () => {
     return regex.test(email);
   };
 
-  // const handleFileUpload = (file) => {
-  //   if (!file) return;
-  //   setUploading(true); // Show file upload spinner
-  //   const storageRef = ref(storage, `images/${Date.now() + username}`);
-  //   const uploadTask = uploadBytesResumable(storageRef, file);
-
-  //   uploadTask.on(
-  //     "state_changed",
-  //     (snapshot) => {
-  //       // No need to update progress
-  //     },
-  //     (error) => {
-  //       setUploading(false); // Hide file upload spinner
-  //       toast.error("Error uploading image. Please try again.", {
-  //         className: "custom-toast",
-  //       });
-  //     },
-  //     async () => {
-  //       const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-  //       setFile({ url: downloadURL });
-  //       setUploading(false); // Hide file upload spinner
-  //       toast.success("Image uploaded successfully.", {
-  //         className: "custom-toast",
-  //       });
-  //     }
-  //   );
-  // };
+  const formatUsername = (name) => {
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  };
 
   const signup = async (e) => {
     e.preventDefault();
-  
+
     if (!username || !email || !password || !confirmPassword) {
       toast.error("All fields are required. Please fill in all fields.", {
         className: "custom-toast",
       });
       return;
     }
-  
+
     if (/[^a-zA-Z\s]/.test(username)) {
       toast.error("You cannot use numbers as username!", {
         className: "custom-toast",
       });
       return;
     }
-  
+
     if (!validateEmail(email)) {
       toast.error("Invalid email format. Please enter a valid email.", {
         className: "custom-toast",
       });
       return;
     }
-  
+
     if (password !== confirmPassword) {
       toast.error("Passwords do not match. Please try again.", {
         className: "custom-toast",
       });
       return;
     }
-  
+
     setLoading(true);
     try {
+      // Format username to capitalize only the first letter
+      const formattedUsername = formatUsername(username);
+
       // Create user
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-  
+
       // Send email verification
       await sendEmailVerification(user);
-  
+
       // Save user info in Firestore
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
-        displayName: username,
+        displayName: formattedUsername,
         email,
         role: "user",
       });
-  
+
       setLoading(false);
       toast.success("Account created successfully. Please verify your email.", {
         className: "custom-toast",
@@ -118,7 +92,7 @@ const Signup = () => {
       navigate("/login");
     } catch (error) {
       setLoading(false);
-  
+
       // Handle Firebase errors with user-friendly messages
       let errorMessage = "Cannot sign up at the moment. Please try again later.";
       if (error.code === "auth/email-already-in-use") {
@@ -130,14 +104,13 @@ const Signup = () => {
       } else if (error.code === "auth/operation-not-allowed") {
         errorMessage = "Sign up is currently disabled. Please try again later.";
       }
-  
+
       toast.error(errorMessage, {
         className: "custom-toast",
       });
       console.error("Signup error:", error);
     }
   };
-  
 
   return (
     <Helmet className="p-4">
@@ -241,36 +214,6 @@ const Signup = () => {
                       least one uppercase letter
                     </p>
                   </div>
-
-                  {/* <FormGroup className="relative">
-                    <label
-                      htmlFor="file-upload"
-                      className="w-44 rounded-full h-14 text-xs bg-black font-semibold text-white flex items-center justify-center cursor-pointer"
-                    >
-                      Select Profile Picture
-                    </label>
-                    <input
-                      id="file-upload"
-                      type="file"
-                      onChange={(e) => {
-                        setFile(e.target.files[0]);
-                        handleFileUpload(e.target.files[0]);
-                      }}
-                      className="hidden"
-                    />
-                  </FormGroup>
-
-                  {uploading && (
-                    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-                      <RotatingLines
-                        strokeColor="orange"
-                        strokeWidth="5"
-                        animationDuration="0.75"
-                        width="96"
-                        visible={true}
-                      />
-                    </div>
-                  )} */}
 
                   <motion.button
                     whileTap={{ scale: 1.2 }}

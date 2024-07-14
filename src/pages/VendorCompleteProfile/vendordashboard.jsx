@@ -1,4 +1,3 @@
-// VendorDashboard.js
 import React, { useEffect, useState } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
@@ -6,7 +5,7 @@ import { db } from "../../firebase.config";
 import { toast } from "react-toastify";
 import { FaPlus } from 'react-icons/fa';
 import Modal from '../../components/layout/Modal';
-import AddProduct from "../../vendor/AddProducts";
+import AddProduct from '../../vendor/AddProducts';
 
 const VendorDashboard = () => {
   const [vendorId, setVendorId] = useState(null);
@@ -70,7 +69,7 @@ const VendorDashboard = () => {
       </div>
 
       <Modal isOpen={isModalOpen} onClose={closeModal}>
-        <AddProduct vendorId={vendorId} />
+        <AddProduct vendorId={vendorId} closeModal={closeModal} />
       </Modal>
     </>
   );

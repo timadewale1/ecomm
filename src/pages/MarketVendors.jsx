@@ -7,6 +7,7 @@ import RoundedStar from "../components/Roundedstar";
 import * as fuzzySearch from '@m31coding/fuzzy-search';
 import { db } from "../firebase.config";
 import { collection, query, where, getDocs } from "firebase/firestore";
+import { toast } from "react-toastify";
 
 const MarketVendors = () => {
   const [vendors, setVendors] = useState([]);
@@ -18,22 +19,26 @@ const MarketVendors = () => {
 
   useEffect(() => {
     const fetchVendors = async () => {
-      const q = query(collection(db, "vendors"), where("marketPlaceType", "==", "marketplace"));
-      const querySnapshot = await getDocs(q);
-      const vendorsList = [];
-      querySnapshot.forEach((doc) => {
-        vendorsList.push({ id: doc.id, ...doc.data() });
-      });
-      setVendors(vendorsList);
+      try {
+        const q = query(collection(db, "vendors"), where("marketPlaceType", "==", "marketplace"));
+        const querySnapshot = await getDocs(q);
+        const vendorsList = [];
+        querySnapshot.forEach((doc) => {
+          vendorsList.push({ id: doc.id, ...doc.data() });
+        });
+        setVendors(vendorsList);
 
-      // Create fuzzy search index
-      const searcher = fuzzySearch.SearcherFactory.createDefaultSearcher();
-      searcher.indexEntities(
-        vendorsList,
-        (vendor) => vendor.id,
-        (vendor) => [vendor.shopName.toLowerCase(), ...vendor.categories.map(cat => cat.toLowerCase())]
-      );
-      setSearcher(searcher);
+        // Create fuzzy search index
+        const searcher = fuzzySearch.SearcherFactory.createDefaultSearcher();
+        searcher.indexEntities(
+          vendorsList,
+          (vendor) => vendor.id,
+          (vendor) => [vendor.shopName.toLowerCase(), ...vendor.categories.map(cat => cat.toLowerCase())]
+        );
+        setSearcher(searcher);
+      } catch (error) {
+        toast.error("Error fetching vendors: " + error.message);
+      }
     };
     fetchVendors();
   }, []);

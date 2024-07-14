@@ -1,51 +1,68 @@
-// ProductCard.jsx
-import React from "react";
-import { useNavigate } from "react-router-dom";
-import { CiCircleInfo } from "react-icons/ci";
-import { FaHeart, FaPlus, FaCheckCircle } from "react-icons/fa";
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FaHeart, FaCheck } from 'react-icons/fa';
+import { CiCircleInfo } from 'react-icons/ci';
+import { toast } from 'react-toastify';
+import { useFavorites } from '../../components/Context/FavoritesContext';
 
-const ProductCard = ({ product, onFavoriteToggle }) => {
+const ProductCard = ({ product }) => {
   const navigate = useNavigate();
+  const { addFavorite, removeFavorite, isFavorite } = useFavorites();
+  const favorite = isFavorite(product.id);
 
   const handleCardClick = () => {
+    console.log(`Navigating to product/${product.id}`);
     navigate(`/product/${product.id}`);
   };
 
+  const handleFavoriteToggle = (e) => {
+    e.stopPropagation();
+    if (favorite) {
+      removeFavorite(product.id);
+      toast.info(`Removed ${product.name} from favorites!`);
+    } else {
+      addFavorite(product);
+      toast.success(`Added ${product.name} to favorites!`);
+    }
+  };
+
+  const mainImage = product.coverImageUrl || "https://via.placeholder.com/150";
+
+  console.log('ProductCard product:', product);
+
   return (
-    <div className="product-card border rounded-lg shadow relative" onClick={handleCardClick}>
+    <div className="product-card border rounded-lg shadow relative cursor-pointer" onClick={handleCardClick}>
       <div className="relative">
         <img
-          src={product.imageUrl}
+          src={mainImage}
           alt={product.name}
           className="h-40 w-full object-cover rounded-lg"
         />
         <FaHeart
-          className={`absolute top-2 right-2 cursor-pointer ${product.isFavorite ? 'text-red-500' : 'text-gray-500'}`}
-          onClick={(e) => {
-            e.stopPropagation(); // Prevent card click event
-            // onFavoriteToggle(product);
-          }}
+          className={`absolute top-2 right-2 cursor-pointer ${favorite ? 'text-red-500' : 'text-gray-500'}`}
+          onClick={handleFavoriteToggle}
         />
-        <FaPlus className="absolute bottom-2 right-2 bg-customCream w-7 text-sm h-7 p-2 rounded-full text-black cursor-pointer" />
       </div>
       <div className="p-2">
         <h3 className="text-xs font-medium mt-2">{product.name}</h3>
-        <p className="text-gray-600 font-semibold">₦{product.price}</p>
+        <div className="flex items-center justify-between mt-2">
+          <p className="text-gray-600 font-semibold">₦{product.price}</p>
+          <span className="text-xs font-medium">({product.size})</span>
+        </div>
         <div className="flex items-center mt-2">
-          
-          {product.condition === "defect" ? (
+          {product.condition && product.condition.includes("Defect") ? (
             <>
               <CiCircleInfo className="text-red-500" />
-              <p className="ml-2 text-xs text-red-500">{product.defectDescription}</p>
+              <p className="ml-2 text-xs text-red-500">{product.condition}</p>
             </>
-          ) : product.condition === "brand new" ? (
+          ) : product.condition && product.condition.includes("brand new") ? (
             <>
-              <FaCheckCircle className="text-green-500" />
+              <FaCheck className="text-green-500" />
               <p className="ml-2 text-xs text-green-500">Brand New</p>
             </>
-          ) : product.condition === "thrift" ? (
+          ) : product.condition && product.condition.includes("thrift") ? (
             <>
-              <FaCheckCircle className="text-yellow-500" />
+              <FaCheck className="text-yellow-500" />
               <p className="ml-2 text-xs text-yellow-500">Thrift</p>
             </>
           ) : null}

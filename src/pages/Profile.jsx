@@ -17,6 +17,7 @@ import {
   FaPen,
   FaTimes,
   FaEye,
+  FaHeart,
   FaEyeSlash,
   FaAngleRight,
   FaAngleLeft,
@@ -199,6 +200,23 @@ const Profile = () => {
               </div>
               <hr className="w-full border-gray-600" />
             </div>
+
+            <div className="flex flex-col items-center w-full">
+              <hr className="w-full border-gray-600" />
+              <div
+                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+                onClick={() => navigate("/favorites")}
+              >
+                <div className="flex items-center">
+                  <FaHeart className="text-black text-xl mr-4" />
+                  <h2 className="text-size font-normal text-black capitalize">
+                    Favorites
+                  </h2>
+                </div>
+                <FaAngleRight className="text-black" />
+              </div>
+              <hr className="w-full border-gray-600" />
+            </div>
             <div className="flex flex-col items-center w-full">
               <hr className="w-full border-gray-600" />
               <div
@@ -357,7 +375,7 @@ const Profile = () => {
                     <p className="text-size text-black w-full font-medium">
                       Sign Out
                     </p>
-                   <FaAngleRight className="text-black text-xl ml-2"/>
+                    <FaAngleRight className="text-black text-xl ml-2" />
                   </div>
                   <hr className="w-full border-gray-400" />
                 </div>

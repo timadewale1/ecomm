@@ -112,45 +112,6 @@ const VendorDashboard = () => {
               <li key={activity.id} className="text-gray-700">{activity.activity}</li>
             ))}
           </ul>
-      <div className="p-4 bg-gray-100 min-h-screen">
-        <h2 className="text-2xl font-bold text-green-700 mb-4">Vendor Dashboard</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between" onClick={handleSwitch2Orders}>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700">Total Orders</h3>
-              <p className="text-2xl font-bold text-green-700">{totalOrders}</p> {/* Actual data */}
-            </div>
-            <FaShoppingCart className="h-8 w-8 text-green-700" />
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700">Total Sales</h3>
-              <p className="text-2xl font-bold text-green-700">${totalSales.toFixed(2)}</p> {/* Actual data */}
-            </div>
-            <FaDollarSign className="h-8 w-8 text-green-700" />
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between" onClick={handleSwitch2Products}>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700">Total Products</h3>
-              <p className="text-2xl font-bold text-green-700">{totalProducts}</p> {/* Actual data */}
-            </div>
-            <FaBox className="h-8 w-8 text-green-700" />
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700">Recent Activities</h3>
-              <FaListAlt className="h-8 w-8 text-green-700" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg shadow-md mb-6">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">Recent Activities</h3>
-          <ul className="space-y-2">
-            {recentActivities.map((activity) => (
-              <li key={activity.id} className="text-gray-700">{activity.activity}</li>
-            ))}
-          </ul>
         </div>
       </div>
 
@@ -164,9 +125,8 @@ const VendorDashboard = () => {
       <Modal isOpen={isModalOpen} onClose={closeModal}>
         <AddProduct vendorId={vendorId} closeModal={closeModal} />
       </Modal>
-      </div>
     </>
   );
-  }
+};
 
 export default VendorDashboard;

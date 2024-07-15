@@ -1,4 +1,5 @@
-import { ADD_TO_CART, REMOVE_FROM_CART } from "../actions/action";
+// reducers/cartReducer.js
+import { ADD_TO_CART, REMOVE_FROM_CART } from '../actions/action';
 
 const initialState = {};
 

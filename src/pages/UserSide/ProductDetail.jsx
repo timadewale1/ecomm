@@ -17,6 +17,7 @@ const ProductDetailPage = () => {
   const [quantity, setQuantity] = useState(1);
   const [mainImage, setMainImage] = useState("");
   const [isSticky, setIsSticky] = useState(false);
+  const [selectedSize, setSelectedSize] = useState("");
 
   useEffect(() => {
     dispatch(fetchProduct(id));
@@ -44,10 +45,15 @@ const ProductDetailPage = () => {
   }, []);
 
   const handleAddToCart = () => {
+    if (product.size.toLowerCase().includes("all sizes") && !selectedSize) {
+      toast.error("Please select a size before adding to cart!");
+      return;
+    }
+
     if (quantity > product.stockQuantity) {
       toast.error("Selected quantity exceeds stock availability!");
     } else {
-      const productToAdd = { ...product, quantity, selectedImageUrl: mainImage };
+      const productToAdd = { ...product, quantity, selectedSize, selectedImageUrl: mainImage };
       dispatch(addToCart(productToAdd));
       toast.success(`Added ${product.name} to cart!`);
     }
@@ -133,8 +139,27 @@ const ProductDetailPage = () => {
               <FaCheck className="text-yellow-500" />
               <p className="ml-2 text-xs text-yellow-500">Thrift</p>
             </div>
+          ) : product.condition.toLowerCase() === "second hand" ? (
+            <div className="flex items-center mt-2">
+              <CiCircleInfo className="text-green-500" />
+              <p className="ml-2 text-xs text-green-500">Second Hand</p>
+            </div>
           ) : null}
         </div>
+        {product.size.toLowerCase().includes("all sizes") && (
+        <div className="mt-4">
+        <label htmlFor="size-textarea" className="text-sm font-medium text-gray-700">Enter Size:</label>
+        <textarea
+          id="size-textarea"
+          className="mt-1 block w-24 h-8 py-1 px-1 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none"
+          value={selectedSize}
+          onChange={(e) => setSelectedSize(e.target.value)}
+          placeholder="Size"
+        />
+      </div>
+      
+        )}
+        
         <div className="flex justify-center items-center mt-4">
           <button
             onClick={handleDecreaseQuantity}

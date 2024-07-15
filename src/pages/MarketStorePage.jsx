@@ -9,13 +9,12 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { GoDotFill } from "react-icons/go";
 import { IoMdContact } from "react-icons/io";
 import { FaAngleLeft, FaPhoneAlt, FaTimes, FaPlus, FaCheck } from "react-icons/fa";
-import { TiSocialAtCircular } from "react-icons/ti";
 import { toast } from "react-toastify";
 import RoundedStar from "../components/Roundedstar";
 import ProductCard from "../components/Products/ProductCard";
 import Loading from "../components/Loading/Loading";
 
-const StorePage = () => {
+const MarketStorePage = () => {
   const { id } = useParams();
   const [vendor, setVendor] = useState(null);
   const [products, setProducts] = useState([]);
@@ -269,10 +268,6 @@ const StorePage = () => {
                 <p className="font-ubuntu text-lg">{vendor.phoneNumber}</p>
               </a>
             </div>
-            <div className="flex items-center">
-              <TiSocialAtCircular className="mr-4 h-6 w-6" />
-              <p className="font-ubuntu text-lg">{vendor.socialMediaHandle}</p>
-            </div>
           </div>
         </div>
       )}
@@ -280,4 +275,4 @@ const StorePage = () => {
   );
 };
 
-export default StorePage;
+export default MarketStorePage;

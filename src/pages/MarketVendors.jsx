@@ -15,6 +15,7 @@ const MarketVendors = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [searcher, setSearcher] = useState(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -38,6 +39,8 @@ const MarketVendors = () => {
         setSearcher(searcher);
       } catch (error) {
         toast.error("Error fetching vendors: " + error.message);
+      } finally {
+        setLoading(false);
       }
     };
     fetchVendors();
@@ -61,7 +64,7 @@ const MarketVendors = () => {
     setIsSearching(false);
   };
 
-  const categories = ["Thrifts", "Jewelry", "Skirts"];
+  const categories = ["Thrifts", "Bags", "Coperate"];
 
   const filteredVendors = vendors.filter(vendor => {
     const searchMatches = searchTerm.length < 2 || searcher.getMatches(new fuzzySearch.Query(searchTerm)).matches.map(match => match.entity.id).includes(vendor.id);
@@ -70,6 +73,10 @@ const MarketVendors = () => {
   });
 
   const showNoResultsMessage = searchTerm.length >= 2 && filteredVendors.length === 0;
+
+  const handleStoreView = (vendor) => {
+    navigate(`/marketstorepage/${vendor.id}`);
+  };
 
   const defaultImageUrl = "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 
@@ -126,7 +133,7 @@ const MarketVendors = () => {
           filteredVendors.length > 0 ? (
             filteredVendors.map((vendor) => (
               <div key={vendor.id} className="vendor-item my-">
-                <div className="flex justify-between p-3 mb-1 bg-white shadow">
+                <div className="flex justify-between p-3 mb-1 bg-white shadow" onClick={() => handleStoreView(vendor)}>
                   <div>
                     <h1 className="font-poppins text-black text-2xl font-medium">
                       {vendor.shopName}
@@ -170,7 +177,7 @@ const MarketVendors = () => {
           ) : (
             vendors.map((vendor) => (
               <div key={vendor.id} className="vendor-item my-">
-                <div className="flex justify-between p-3 mb-1 bg-white shadow">
+                <div className="flex justify-between p-3 mb-1 bg-white shadow" onClick={() => handleStoreView(vendor)}>
                   <div>
                     <h1 className="font-poppins text-black text-2xl font-medium">
                       {vendor.shopName}

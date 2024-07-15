@@ -1,10 +1,11 @@
+/* eslint-disable jsx-a11y/img-redundant-alt */
 import React, { useState } from "react";
 import { getAuth } from "firebase/auth";
 import { doc, collection, setDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from "../../firebase.config";
 import { toast } from "react-toastify";
-import { FaImage, FaMinusCircle } from "react-icons/fa";
+import { FaEdit, FaImage, FaMinusCircle } from "react-icons/fa";
 import { RotatingLines } from "react-loader-spinner";
 
 const AddProduct = ({ vendorId }) => {
@@ -55,11 +56,19 @@ const AddProduct = ({ vendorId }) => {
     if (!user || user.uid !== vendorId) {
       console.log("Unauthorized access or no user is signed in.");
       toast.error("Unauthorized access or no user is signed in.");
+      setLoading(false);
       return;
     }
-
+  
+    // Validation for required fields
+    if (!productName || !productDescription || selectedCategories.length === 0 || !productPrice || !productCoverImageFile) {
+      toast.error("Please fill the required fields");
+      setLoading(false);
+      return;
+    }
+  
     let coverImageUrl = "";
-
+  
     if (productCoverImageFile) {
       const storageRef = ref(
         storage,
@@ -68,7 +77,7 @@ const AddProduct = ({ vendorId }) => {
       await uploadBytes(storageRef, productCoverImageFile);
       coverImageUrl = await getDownloadURL(storageRef);
     }
-
+  
     const productImageUrls = await Promise.all(
       productImageFiles.map(async (file) => {
         const storageRef = ref(storage, `${vendorId}/my-products/${file.name}`);
@@ -76,7 +85,7 @@ const AddProduct = ({ vendorId }) => {
         return getDownloadURL(storageRef);
       })
     );
-
+  
     const product = {
       name: productName,
       description: productDescription,
@@ -88,14 +97,14 @@ const AddProduct = ({ vendorId }) => {
       defaults: productDefaults ? productDefaultsDescription : "",
       categories: selectedCategories,
     };
-
+  
     try {
       const vendorRef = doc(db, "vendors", vendorId);
       const productsCollectionRef = collection(vendorRef, "products");
       const newProductRef = doc(productsCollectionRef);
-
+  
       await setDoc(newProductRef, product);
-
+  
       console.log("Product added successfully");
       toast.success("Product added successfully");
       // Clear form
@@ -117,10 +126,11 @@ const AddProduct = ({ vendorId }) => {
     }
     setLoading(false);
   };
+  
 
   return (
     <>
-      <div className="w-full mx-2 p-6 bg-white rounded-lg shadow-md">
+      <div className="w-full px-3 pb-6 bg-white rounded-lg shadow-md">
         {!loading ? (
           <>
             {" "}
@@ -225,12 +235,18 @@ const AddProduct = ({ vendorId }) => {
               <div className="flex flex-col items-center">
                 <button
                   type="button"
-                  className="inline-flex items-center px-3 py-2 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-green-700 hover:bg-green-800 focus:ring focus:ring-green-700 focus:outline-none"
+                  className={`inline-flex items-center ${productCoverImageFile ? "pr-3 pl-4" : "px-3"} py-2 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-green-700 hover:bg-green-800 focus:ring focus:ring-green-700 focus:outline-none`}
                   onClick={() =>
                     document.getElementById("coverFileInput").click()
                   }
                 >
-                  <FaImage className="h-5 w-5" />
+                  {productCoverImageFile ? (
+                    <FaEdit className="h-5 w-5" />
+                  ) : (
+                    <FaImage className="h-5 w-5" />                    
+                  )}
+                   
+                  {/* // Change to FaEdit for edit icon */}
                 </button>
                 <input
                   id="coverFileInput"
@@ -241,10 +257,18 @@ const AddProduct = ({ vendorId }) => {
                   }
                   className="hidden"
                 />
+                {productCoverImageFile && (
+                  <img
+                    src={URL.createObjectURL(productCoverImageFile)}
+                    alt="Cover Preview"
+                    className="mt-2 h-24 w-24 object-cover rounded-md"
+                  />
+                )}
               </div>
             </div>
+
             <div className="mb-4">
-              <label className="block text-gray-700">Product Images</label>
+              <label className="block text-gray-700">More Images<span className="text-xs text-gray-500">{`(Optional)(Recommended)`}</span></label>
               <div className="flex flex-col items-center">
                 <button
                   type="button"
@@ -291,7 +315,7 @@ const AddProduct = ({ vendorId }) => {
               />
             </div>
             <div className="mb-4">
-              <label className="block text-gray-700">Product Defaults</label>
+              <label className="block text-gray-700">Product Defects<span className="text-xs text-gray-500">{` (Optional)`}</span></label>
               <div className="flex items-center">
                 <input
                   type="checkbox"
@@ -300,7 +324,7 @@ const AddProduct = ({ vendorId }) => {
                   className="h-4 w-4 text-green-700 focus:ring focus:ring-green-700 focus:outline-none"
                 />
                 <span className="ml-2 text-gray-700">
-                  Include Defaults Description
+                  Include Defects Description
                 </span>
               </div>
               {productDefaults && (

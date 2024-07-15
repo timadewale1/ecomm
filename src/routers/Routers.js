@@ -27,7 +27,7 @@ import OnlineVendors from "../pages/OnlineVendors.jsx";
 import ConfirmUserState from "../pages/ConfirmUserState.jsx";
 import ProtectedRoute from "./ProtectedRoute";
 import StorePage from "../pages/StorePage.jsx";
-
+import CategoryPage from "../pages/UserSide/CategoryPage.jsx";
 const Routers = () => {
   return (
     <Routes>
@@ -44,6 +44,7 @@ const Routers = () => {
       <Route path="online-vendors" element={<OnlineVendors />} />
       <Route path="/forgetpassword" element={<ForgetPassword />} />
       <Route path="/store/:id" element={<StorePage />} />
+      <Route path="/category/:category" element={<CategoryPage />} />
       <Route path="marketstorepage/:id" element={<MarketStorePage />} />
       <Route path="vendorlogin" element={<VendorLogin />} />
 

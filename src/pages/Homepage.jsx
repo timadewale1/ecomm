@@ -42,6 +42,10 @@ const Homepage = () => {
     navigate("/explore");
   };
 
+  const handleCategoryClick = (category) => {
+    navigate(`/category/${category}`);
+  };
+
   useEffect(() => {
     const auth = getAuth();
     const fetchUserName = async (uid) => {
@@ -200,15 +204,15 @@ const Homepage = () => {
             ))
           ) : (
             <>
-              <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden">
+              <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer" onClick={() => handleCategoryClick('Mens')}>
                 <AdvancedImage cldImg={maleImg} className="w-full h-full object-cover" />
                 <h2 className="absolute bottom-0 w-full text-center text-white font-semibold text-sm bg-transparent">MEN</h2>
               </div>
-              <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden">
+              <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer" onClick={() => handleCategoryClick('Women')}>
                 <AdvancedImage cldImg={femaleImg} className="w-full h-full object-cover" />
                 <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">WOMEN</h2>
               </div>
-              <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden">
+              <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer" onClick={() => handleCategoryClick('Kids')}>
                 <AdvancedImage cldImg={kidImg} className="w-full h-full object-cover" />
                 <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">KIDS</h2>
               </div>

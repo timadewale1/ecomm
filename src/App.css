@@ -78,6 +78,10 @@ section {
   z-index: 2000;
 }
 
+.confirmation {
+  z-index: 4000;
+}
+
 .custom-toast {
   font-size: 11px;
   font-family: "Ubuntu", sans-serif;

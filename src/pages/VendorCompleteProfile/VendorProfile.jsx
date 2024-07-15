@@ -60,7 +60,7 @@ const VendorProfile = () => {
           if (vendorDoc.exists()) {
             const data = vendorDoc.data();
             setUserData(data);
-            setDisplayName(data.firstName || "");
+            setDisplayName(data.firstName + " " + data.lastName);
             setEmail(data.email || "");
           }
         } catch (error) {

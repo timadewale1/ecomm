@@ -3,7 +3,8 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { toast } from "react-toastify";
-import { FaPlus, FaBox, FaShoppingCart, FaDollarSign, FaListAlt } from 'react-icons/fa';
+import { FaPlus, FaBox, FaShoppingCart, FaListAlt } from 'react-icons/fa';
+import { TbCurrencyNaira } from 'react-icons/tb';
 import Modal from '../../components/layout/Modal';
 import AddProduct from '../vendor/AddProducts';
 import { useNavigate } from 'react-router-dom';
@@ -48,7 +49,8 @@ const VendorDashboard = () => {
 
       const totalProducts = products.length;
       const totalOrders = 0;
-      const totalSales = products.reduce((acc, product) => acc + product.price, 0);
+      const totalSales = 40000;
+      // const totalSales = products.reduce((acc, product) => acc + product.price, 0);
 
       setTotalProducts(totalProducts);
       setTotalOrders(totalOrders);
@@ -83,12 +85,12 @@ const VendorDashboard = () => {
             </div>
             <FaShoppingCart className="h-8 w-8 text-green-700" />
           </div>
-          <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between">
+          <div className="bg-white pt-4 pr-4 pb-4 pl-5 rounded-lg shadow-md flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-700">Total Sales</h3>
-              <p className="text-2xl font-bold text-green-700">${totalSales.toFixed(2)}</p> {/* Actual data */}
+              <p className="text-2xl font-bold text-green-700">NGN{totalSales.toFixed(2)}</p> {/* Actual data */}
             </div>
-            <FaDollarSign className="h-8 w-8 text-green-700" />
+            <TbCurrencyNaira className="h-12 w-12 text-green-700" />
           </div>
           <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between" onClick={handleSwitch2Products}>
             <div>
@@ -100,8 +102,8 @@ const VendorDashboard = () => {
           <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-700">Recent Activities</h3>
-              <FaListAlt className="h-8 w-8 text-green-700" />
             </div>
+              <FaListAlt className="h-8 w-8 text-green-700" />
           </div>
         </div>
 

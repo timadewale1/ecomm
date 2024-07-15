@@ -31,6 +31,8 @@ import { CiMoneyBill } from "react-icons/ci";
 import { AiOutlineDashboard } from "react-icons/ai";
 import UserDashboard from "./UserDashboard";
 import { RotatingLines } from "react-loader-spinner";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 import AvatarSelectorModal from "../components/Avatars/AvatarSelectorModal";
 
 const Profile = () => {
@@ -52,6 +54,7 @@ const Profile = () => {
   const [faqModalContent, setFaqModalContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -66,6 +69,8 @@ const Profile = () => {
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
+        } finally {
+          setLoading(false);
         }
       }
     };
@@ -155,7 +160,9 @@ const Profile = () => {
       !showDonations ? (
         <div className="flex flex-col items-center">
           <div className="flex justify-center mt-4 relative">
-            {userData && userData.photoURL ? (
+            {loading ? (
+              <Skeleton circle={true} height={144} width={144} />
+            ) : userData && userData.photoURL ? (
               <img
                 src={userData.photoURL}
                 alt=""
@@ -176,7 +183,7 @@ const Profile = () => {
             />
           </div>
           <p className="text-lg font-medium text-black capitalize mt-2">
-            {displayName}
+            {loading ? <Skeleton width={100} /> : displayName}
           </p>
           <div className="w-full mt-12">
             <div className="w-full h-14 flex bg-gray-200">

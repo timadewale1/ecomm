@@ -13,7 +13,7 @@ import VendorDashboard from "../pages/VendorCompleteProfile/vendordashboard.jsx"
 import FavoritesPage from "../pages/UserSide/FavoritesProducts.jsx";
 import VendorProducts from "../pages/VendorCompleteProfile/VendorProducts.jsx";
 import VendorProfile from "../pages/VendorCompleteProfile/VendorProfile.jsx";
-
+import MarketStorePage from "../pages/MarketStorePage.jsx"
 import UserDashboard from "../pages/UserDashboard";
 import Marketpg from "../pages/Marketpg";
 import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfile.jsx";
@@ -27,7 +27,7 @@ import OnlineVendors from "../pages/OnlineVendors.jsx";
 import ConfirmUserState from "../pages/ConfirmUserState.jsx";
 import ProtectedRoute from "./ProtectedRoute";
 import StorePage from "../pages/StorePage.jsx";
-
+import CategoryPage from "../pages/UserSide/CategoryPage.jsx";
 const Routers = () => {
   return (
     <Routes>
@@ -44,6 +44,8 @@ const Routers = () => {
       <Route path="online-vendors" element={<OnlineVendors />} />
       <Route path="/forgetpassword" element={<ForgetPassword />} />
       <Route path="/store/:id" element={<StorePage />} />
+      <Route path="/category/:category" element={<CategoryPage />} />
+      <Route path="marketstorepage/:id" element={<MarketStorePage />} />
       <Route path="vendorlogin" element={<VendorLogin />} />
 
       {/* Protected Routes */}

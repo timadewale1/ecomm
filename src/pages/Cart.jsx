@@ -3,39 +3,46 @@ import { useSelector, useDispatch } from 'react-redux';
 import { removeFromCart } from '../redux/actions/action';
 import { FaTrash } from 'react-icons/fa';
 import { toast } from 'react-toastify';
+import EmptyCart from '../components/Loading/EmptyCart';
 
 const Cart = () => {
   const cart = useSelector((state) => state.cart);
   const dispatch = useDispatch();
 
   const handleRemoveFromCart = (productId) => {
-    dispatch(removeFromCart(productId));
-    toast.info('Removed product from cart!');
+    const confirmRemove = window.confirm('Are you sure you want to remove this product from the cart?');
+    if (confirmRemove) {
+      dispatch(removeFromCart(productId));
+      toast.info('Removed product from cart!');
+    }
   };
 
   return (
-    <div className="p-3">
-      <h1 className="font-ubuntu text-lg font-medium">Your Cart</h1>
+    <div className="p-3 bg-gray-200 h-screen">
+      <h1 className='text-center font-ubuntu mb-2 text-black text-2xl'>CART</h1>
       {Object.keys(cart).length === 0 ? (
-        <p>Your cart is empty</p>
-      ) : (
         <div>
+          <EmptyCart />
+          <h1 className="font-ubuntu text-lg text-center text-customOrange mt-20 font-medium">Oops! Can't find anything in your Cart</h1> 
+        </div>
+      ) : (
+        <div className='bg-white rounded-lg p-1'>
           {Object.values(cart).map((product) => (
-            <div key={product.id} className="flex justify-between items-center border-b py-2">
+            <div key={product.id} className="flex justify-between items-center border-b py-2 mb-2"> 
               <div className="flex items-center">
                 <img 
                   src={product.selectedImageUrl} 
                   alt={product.name} 
-                  className="w-16 h-16 object-cover mr-4"
+                  className="w-16 h-16 object-cover rounded-lg mr-4"
                 />
                 <div>
-                  <h3 className="text-md">{product.name}</h3>
-                  <p className="text-gray-600">₦{product.price}</p>
-                  <p className="text-gray-600">Size: {product.size}</p>
-                  <p className="text-gray-600">Quantity: {product.quantity}</p> {/* Display quantity */}
+                  <h3 className="text-md font-semibold font-poppins">{product.name}</h3>
+                  <p className="text-green-600 font-lato text-lg">₦{product.price}</p>
+                  <p className="text-gray-600 font-medium text-xs">Size: {product.selectedSize || product.size}</p> 
+                  <p className="text-gray-600 font-medium text-xs">Quantity: {product.quantity}</p>
                 </div>
               </div>
-              <button onClick={() => handleRemoveFromCart(product.id)} className="text-red-500">
+              <button onClick={() => handleRemoveFromCart(product.id)} className="text-red-400">
                 <FaTrash />
               </button>
             </div>

@@ -4,15 +4,19 @@ import { FaHeart, FaCheck } from 'react-icons/fa';
 import { CiCircleInfo } from 'react-icons/ci';
 import { toast } from 'react-toastify';
 import { useFavorites } from '../../components/Context/FavoritesContext';
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
 
-const ProductCard = ({ product }) => {
+const ProductCard = ({ product, isLoading, vendorName }) => {
   const navigate = useNavigate();
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
-  const favorite = isFavorite(product.id);
+  const favorite = isFavorite(product?.id);
 
   const handleCardClick = () => {
-    console.log(`Navigating to product/${product.id}`);
-    navigate(`/product/${product.id}`);
+    if (!isLoading) {
+      console.log(`Navigating to product/${product.id}`);
+      navigate(`/product/${product.id}`);
+    }
   };
 
   const handleFavoriteToggle = (e) => {
@@ -26,31 +30,38 @@ const ProductCard = ({ product }) => {
     }
   };
 
-  const mainImage = product.coverImageUrl || "https://via.placeholder.com/150";
+  const mainImage = product?.coverImageUrl || "https://via.placeholder.com/150";
 
   console.log('ProductCard product:', product);
 
   return (
     <div className="product-card border rounded-lg shadow relative cursor-pointer" onClick={handleCardClick}>
       <div className="relative">
-        <img
-          src={mainImage}
-          alt={product.name}
-          className="h-40 w-full object-cover rounded-lg"
-        />
+        {isLoading ? (
+          <Skeleton height={160} />
+        ) : (
+          <img
+            src={mainImage}
+            alt={product.name}
+            className="h-40 w-full object-cover rounded-lg"
+          />
+        )}
         <FaHeart
           className={`absolute top-2 right-2 cursor-pointer ${favorite ? 'text-red-500' : 'text-gray-500'}`}
           onClick={handleFavoriteToggle}
         />
       </div>
       <div className="p-2">
-        <h3 className="text-xs font-medium mt-2">{product.name}</h3>
+        <h3 className="text-xs font-medium mt-2">{isLoading ? <Skeleton width={100} /> : product.name}</h3>
+        {vendorName && <p className="text-xs text-gray-500">{vendorName}</p>}
         <div className="flex items-center justify-between mt-2">
-          <p className="text-gray-600 font-semibold">₦{product.price}</p>
-          <span className="text-xs font-medium">({product.size})</span>
+          <p className="text-gray-600 font-semibold">{isLoading ? <Skeleton width={50} /> : `₦${product.price}`}</p>
+          <span className="text-xs font-medium">{isLoading ? <Skeleton width={30} /> : `(${product.size})`}</span>
         </div>
         <div className="flex items-center mt-2">
-          {product.condition && product.condition.includes("Defect") ? (
+          {isLoading ? (
+            <Skeleton width={100} />
+          ) : product.condition && product.condition.includes("Defect") ? (
             <>
               <CiCircleInfo className="text-red-500" />
               <p className="ml-2 text-xs text-red-500">{product.condition}</p>
@@ -64,6 +75,11 @@ const ProductCard = ({ product }) => {
             <>
               <FaCheck className="text-yellow-500" />
               <p className="ml-2 text-xs text-yellow-500">Thrift</p>
+            </>
+          ) : product.condition && product.condition.includes("Second hand") ? (
+            <>
+              <CiCircleInfo className="text-green-500" />
+              <p className="ml-2 text-xs text-green-500">Second Hand</p>
             </>
           ) : null}
         </div>

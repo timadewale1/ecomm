@@ -53,7 +53,12 @@ const ProductDetailPage = () => {
     if (quantity > product.stockQuantity) {
       toast.error("Selected quantity exceeds stock availability!");
     } else {
-      const productToAdd = { ...product, quantity, selectedSize, selectedImageUrl: mainImage };
+      const productToAdd = {
+        ...product,
+        quantity,
+        selectedSize,
+        selectedImageUrl: mainImage,
+      };
       dispatch(addToCart(productToAdd));
       toast.success(`Added ${product.name} to cart!`);
     }
@@ -82,12 +87,23 @@ const ProductDetailPage = () => {
   }
 
   if (!product) {
-    return <div>No product found</div>;
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-4">
+        <h1 className="text-2xl font-bold text-red-600 mb-2">Product Not Found</h1>
+        <p className="text-lg text-gray-700 mb-4">
+          It looks like this product has been removed from the inventory by the vendor.
+        </p>
+        <p className="text-md font-poppins text-gray-500">Please continue shopping for other great deals!</p>
+      </div>
+    );
   }
-
   return (
     <div className="relative pb-40">
-      <div className={`fixed top-0 left-0 h-20 w-full z-20 ${isSticky ? "bg-transparent shadow-md" : ""}`}>
+      <div
+        className={`fixed top-0 left-0 h-20 w-full z-20 ${
+          isSticky ? "bg-transparent shadow-md" : ""
+        }`}
+      >
         <FaAngleLeft
           onClick={() => navigate(-1)}
           className="text-4xl cursor-pointer bg-white p-2 rounded-full m-4"
@@ -114,17 +130,24 @@ const ProductDetailPage = () => {
         ))}
       </div>
       <div className="mt-1 flex justify-center">
-        <p className="text-xs font-medium text-gray-600">Available in: {product.color}</p>
+        <p className="text-xs font-medium text-gray-600">
+          Available in: {product.color}
+        </p>
       </div>
       <div className="p-2">
         <p className="text-center mt-1">{product.description}</p>
-        <h1 className="text-2xl font-ubuntu text-black font-bold mt-4">{product.name}</h1>
+        <h1 className="text-2xl font-ubuntu text-black font-bold mt-4">
+          {product.name}
+        </h1>
         <div className="flex items-center justify-between mt-2">
-          <p className="text-xl font-roboto font-bold text-gray-700">₦{product.price}</p>
+          <p className="text-xl font-roboto font-bold text-gray-700">
+            ₦{product.price}
+          </p>
           <span className="text-xs font-medium">({product.size})</span>
         </div>
         <div>
-          {product.condition && product.condition.toLowerCase().includes("defect") ? (
+          {product.condition &&
+          product.condition.toLowerCase().includes("defect") ? (
             <div className="flex items-center mt-2">
               <CiCircleInfo className="text-red-500" />
               <p className="ml-2 text-xs text-red-500">{product.condition}</p>
@@ -147,19 +170,23 @@ const ProductDetailPage = () => {
           ) : null}
         </div>
         {product.size.toLowerCase().includes("all sizes") && (
-        <div className="mt-4">
-        <label htmlFor="size-textarea" className="text-sm font-medium text-gray-700">Enter Size:</label>
-        <textarea
-          id="size-textarea"
-          className="mt-1 block w-24 h-8 py-1 px-1 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none"
-          value={selectedSize}
-          onChange={(e) => setSelectedSize(e.target.value)}
-          placeholder="Size"
-        />
-      </div>
-      
+          <div className="mt-4">
+            <label
+              htmlFor="size-textarea"
+              className="text-sm font-medium text-gray-700"
+            >
+              Enter Size:
+            </label>
+            <textarea
+              id="size-textarea"
+              className="mt-1 block w-24 h-8 py-1 px-1 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none"
+              value={selectedSize}
+              onChange={(e) => setSelectedSize(e.target.value)}
+              placeholder="Size"
+            />
+          </div>
         )}
-        
+
         <div className="flex justify-center items-center mt-4">
           <button
             onClick={handleDecreaseQuantity}
@@ -167,7 +194,9 @@ const ProductDetailPage = () => {
           >
             <FaMinus />
           </button>
-          <span className="px-4 py-1 border-t border-b border-customOrange text-black">{quantity}</span>
+          <span className="px-4 py-1 border-t border-b border-customOrange text-black">
+            {quantity}
+          </span>
           <button
             onClick={handleIncreaseQuantity}
             className="px-3 py-1 border border-customOrange text-black rounded-r-md hover:bg-customOrange hover:text-white"

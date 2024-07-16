@@ -1,5 +1,5 @@
 // reducers/cartReducer.js
-import { ADD_TO_CART, REMOVE_FROM_CART } from '../actions/action';
+import { ADD_TO_CART, REMOVE_FROM_CART, CLEAR_CART } from '../actions/action';
 
 const initialState = {};
 
@@ -11,6 +11,8 @@ export const cartReducer = (state = initialState, action) => {
       const newState = { ...state };
       delete newState[action.payload];
       return newState;
+    case CLEAR_CART:
+      return {};
     default:
       return state;
   }

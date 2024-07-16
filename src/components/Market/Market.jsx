@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Cloudinary } from "@cloudinary/url-gen";
@@ -7,6 +7,8 @@ import { AdvancedImage } from "@cloudinary/react";
 import { FaAngleRight } from "react-icons/fa6";
 import { useNavigate } from "react-router-dom";
 import { useNavigation } from "../Context/Bottombarcontext";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -14,30 +16,37 @@ const Market = () => {
   const cardsRef = useRef([]);
   const navigate = useNavigate();
   const { setActiveNav } = useNavigation();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    cardsRef.current.forEach((card, index) => {
-      gsap.fromTo(
-        card,
-        {
-          opacity: 0,
-          x: index % 2 === 0 ? -100 : 100, // Alternate between left and right
-        },
-        {
-          opacity: 1,
-          x: 0,
-          duration: 1,
-          scrollTrigger: {
-            trigger: card,
-            start: "top 80%",
-            end: "top 30%",
-            toggleActions: "play none none none",
-            once: true,
+    setTimeout(() => {
+      setLoading(false);
+    }, 500); // Simulating loading time
+
+    if (!loading) {
+      cardsRef.current.forEach((card, index) => {
+        gsap.fromTo(
+          card,
+          {
+            opacity: 0,
+            x: index % 2 === 0 ? -100 : 100, // Alternate between left and right
           },
-        }
-      );
-    });
-  }, []);
+          {
+            opacity: 1,
+            x: 0,
+            duration: 1,
+            scrollTrigger: {
+              trigger: card,
+              start: "top 80%",
+              end: "top 30%",
+              toggleActions: "play none none none",
+              once: true,
+            },
+          }
+        );
+      });
+    }
+  }, [loading]);
 
   // Initialize Cloudinary instance
   const cld = new Cloudinary({
@@ -50,13 +59,13 @@ const Market = () => {
     .image("balguno_jwm4u4")
     .format("auto")
     .quality("auto")
-    .resize(fit().width(500).height(1000));
+    .resize(fit().width(2000).height(1000));
 
   const onlineMrkt = cld
     .image("woman-shopping-thrift-store_1_nolq7q")
     .format("auto")
     .quality("auto")
-    .resize(fit().width(500).height(1000));
+    .resize(fit().width(2000).height(1000));
 
   const cardTexts = [
     { title: "POPULAR MARKETS", subtitle: "BROWSE", action: "SHOP NOW" },
@@ -74,31 +83,40 @@ const Market = () => {
 
   return (
     <div className="justify-around mt-4 px-2">
-      {[YabaMrkt, onlineMrkt].map((img, index) => (
-        <div
-          key={index}
-          ref={(el) => (cardsRef.current[index] = el)}
-          className="relative w-auto mb-2 rounded-lg h-52 overflow-hidden cursor-pointer"
-          onClick={() => handleCardClick(cardTexts[index].title)}
-        >
-          <AdvancedImage
-            cldImg={img}
-            className="w-full h-full object-contain object-fill"
-          />
-          <div className="absolute inset-0 bg-black bg-opacity-50"></div> {/* Semi-transparent overlay */}
-          <div className="absolute bottom-4 z-10 left-4">
-            <p className="text-xs text-white font-semibold font-lato">
-              {cardTexts[index].subtitle}
-            </p>
-            <p className="text-xl font-lato mb-1 text-white font-semibold">
-              {cardTexts[index].title}
-            </p>
-            <p className="text-xs font-lato font-light text-white underline underline-offset-4 flex items-center">
-              {cardTexts[index].action} <FaAngleRight className="ml-1" />
-            </p>
-          </div>
-        </div>
-      ))}
+      {loading
+        ? Array.from({ length: 2 }).map((_, index) => (
+            <div
+              key={index}
+              className="relative w-auto mb-2 rounded-lg h-52 overflow-hidden cursor-pointer"
+            >
+              <Skeleton height="100%" width="100%" />
+            </div>
+          ))
+        : [YabaMrkt, onlineMrkt].map((img, index) => (
+            <div
+              key={index}
+              ref={(el) => (cardsRef.current[index] = el)}
+              className="relative w-auto mb-2 rounded-lg h-52 overflow-hidden cursor-pointer"
+              onClick={() => handleCardClick(cardTexts[index].title)}
+            >
+              <AdvancedImage
+                cldImg={img}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black bg-opacity-50"></div> {/* Semi-transparent overlay */}
+              <div className="absolute bottom-4 z-10 left-4">
+                <p className="text-xs text-white font-semibold font-lato">
+                  {cardTexts[index].subtitle}
+                </p>
+                <p className="text-xl font-lato mb-1 text-white font-semibold">
+                  {cardTexts[index].title}
+                </p>
+                <p className="text-xs font-lato font-light text-white underline underline-offset-4 flex items-center">
+                  {cardTexts[index].action} <FaAngleRight className="ml-1" />
+                </p>
+              </div>
+            </div>
+          ))}
     </div>
   );
 };

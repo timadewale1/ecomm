@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaHeart, FaCheck } from 'react-icons/fa';
+import { GoHeartFill } from 'react-icons/go';
+import { FaCheck } from 'react-icons/fa';
 import { CiCircleInfo } from 'react-icons/ci';
 import { toast } from 'react-toastify';
 import { useFavorites } from '../../components/Context/FavoritesContext';
@@ -32,8 +33,6 @@ const ProductCard = ({ product, isLoading, vendorName }) => {
 
   const mainImage = product?.coverImageUrl || "https://via.placeholder.com/150";
 
-  console.log('ProductCard product:', product);
-
   return (
     <div className="product-card border rounded-lg shadow relative cursor-pointer" onClick={handleCardClick}>
       <div className="relative">
@@ -46,10 +45,12 @@ const ProductCard = ({ product, isLoading, vendorName }) => {
             className="h-40 w-full object-cover rounded-lg"
           />
         )}
-        <FaHeart
-          className={`absolute top-2 right-2 cursor-pointer ${favorite ? 'text-red-500' : 'text-gray-500'}`}
+        <div
+          className={`absolute top-2 right-2 cursor-pointer rounded-full p-1 bg-white ${favorite ? 'text-red-500' : 'text-gray-500'}`}
           onClick={handleFavoriteToggle}
-        />
+        >
+          <GoHeartFill />
+        </div>
       </div>
       <div className="p-2">
         <h3 className="text-xs font-medium mt-2">{isLoading ? <Skeleton width={100} /> : product.name}</h3>

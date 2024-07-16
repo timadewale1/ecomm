@@ -8,6 +8,8 @@ import * as fuzzySearch from '@m31coding/fuzzy-search';
 import { db } from "../firebase.config";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { toast } from "react-toastify";
+import Skeleton from "react-loading-skeleton";
+import 'react-loading-skeleton/dist/skeleton.css';
 
 const MarketVendors = () => {
   const [vendors, setVendors] = useState([]);
@@ -175,49 +177,71 @@ const MarketVendors = () => {
               </div>
             ))
           ) : (
-            vendors.map((vendor) => (
-              <div key={vendor.id} className="vendor-item my-">
-                <div className="flex justify-between p-3 mb-1 bg-white shadow" onClick={() => handleStoreView(vendor)}>
-                  <div>
-                    <h1 className="font-poppins text-black text-2xl font-medium">
-                      {vendor.shopName}
-                    </h1>
-                    <p className="font-sans text-gray-300 categories-text flex items-center -translate-y-1">
-                      {vendor.categories.slice(0, 4).map((category, index) => (
-                        <React.Fragment key={index}>
-                          {index > 0 && <GoDotFill className="mx-1 dot-size text-gray-300" />}
-                          {category}
-                        </React.Fragment>
-                      ))}
-                    </p>
-                    <p className="font-sans text-gray-400 text-sm ">
-                      {vendor.marketPlace.toUpperCase()}
-                    </p>
-                    <div className="flex items-center translate-y-">
-                      <span className="text-black font-light text-xs mr-2">{(vendor.rating || 0).toFixed(1)}</span>
-                      <ReactStars
-                        count={5}
-                        value={vendor.rating || 0}
-                        size={24}
-                        activeColor="#ffd700"
-                        emptyIcon={<RoundedStar filled={false} />}
-                        filledIcon={<RoundedStar filled={true} />}
-                        edit={false} // Make the stars display-only
-                      />
-                      <span className="text-black font-light ratings-text ml-2">({vendor.ratingCount || 0})</span>
+            loading ? (
+              Array.from({ length: 5 }).map((_, index) => (
+                <div key={index} className="vendor-item my-">
+                  <div className="flex justify-between p-3 mb-1 bg-white shadow">
+                    <div>
+                      <h1 className="font-poppins text-black text-2xl font-medium"><Skeleton width={150} /></h1>
+                      <p className="font-sans text-gray-300 categories-text flex items-center -translate-y-1">
+                        <Skeleton width={100} />
+                      </p>
+                      <div className="flex items-center translate-y-4">
+                        <Skeleton width={50} height={24} />
+                        <Skeleton width={100} height={24} className="ml-2" />
+                      </div>
+                    </div>
+                    <div>
+                      <Skeleton height={96} width={96} />
                     </div>
                   </div>
+                </div>
+              ))
+            ) : (
+              vendors.map((vendor) => (
+                <div key={vendor.id} className="vendor-item my-">
+                  <div className="flex justify-between p-3 mb-1 bg-white shadow" onClick={() => handleStoreView(vendor)}>
+                    <div>
+                      <h1 className="font-poppins text-black text-2xl font-medium">
+                        {vendor.shopName}
+                      </h1>
+                      <p className="font-sans text-gray-300 categories-text flex items-center -translate-y-1">
+                        {vendor.categories.slice(0, 4).map((category, index) => (
+                          <React.Fragment key={index}>
+                            {index > 0 && <GoDotFill className="mx-1 dot-size text-gray-300" />}
+                            {category}
+                          </React.Fragment>
+                        ))}
+                      </p>
+                      <p className="font-sans text-gray-400 text-sm ">
+                        {vendor.marketPlace.toUpperCase()}
+                      </p>
+                      <div className="flex items-center translate-y-">
+                        <span className="text-black font-light text-xs mr-2">{(vendor.rating || 0).toFixed(1)}</span>
+                        <ReactStars
+                          count={5}
+                          value={vendor.rating || 0}
+                          size={24}
+                          activeColor="#ffd700"
+                          emptyIcon={<RoundedStar filled={false} />}
+                          filledIcon={<RoundedStar filled={true} />}
+                          edit={false} // Make the stars display-only
+                        />
+                        <span className="text-black font-light ratings-text ml-2">({vendor.ratingCount || 0})</span>
+                      </div>
+                    </div>
 
-                  <div>
-                    <img
-                      className="object-cover h-24 w-24 rounded-lg"
-                      src={vendor.coverImageUrl || defaultImageUrl}
-                      alt={vendor.shopName}
-                    />
+                    <div>
+                      <img
+                        className="object-cover h-24 w-24 rounded-lg"
+                        src={vendor.coverImageUrl || defaultImageUrl}
+                        alt={vendor.shopName}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))
+            )
           )
         )}
         <hr className="bg-gray-100 pb-0.5 w-full" />

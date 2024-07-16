@@ -1,7 +1,9 @@
+// Homepage.js
 import React, { useState, useEffect } from "react";
 import { RiMenu4Line } from "react-icons/ri";
 import { PiBell } from "react-icons/pi";
 import { FiSearch } from "react-icons/fi";
+import { IoArrowBack } from "react-icons/io5"; // Import back icon
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import "swiper/css/free-mode";
@@ -11,7 +13,7 @@ import { auto } from "@cloudinary/url-gen/actions/resize";
 import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
 import { AdvancedImage } from "@cloudinary/react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { getDoc, doc } from "firebase/firestore";
+import { collection, query, getDocs, getDoc, doc } from "firebase/firestore";
 import { FreeMode, Autoplay } from "swiper/modules";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -21,6 +23,7 @@ import { useNavigate } from "react-router-dom";
 import { useNavigation } from "../components/Context/Bottombarcontext";
 import Market from "../components/Market/Market";
 import { db } from "../firebase.config"; // Update with your actual Firebase config path
+import ProductCard from "../components/Products/ProductCard";
 
 const Homepage = () => {
   const navigate = useNavigate();
@@ -28,6 +31,9 @@ const Homepage = () => {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [userName, setUserName] = useState("User");
   const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredProducts, setFilteredProducts] = useState([]);
 
   const handleFocus = () => {
     setIsSearchFocused(true);
@@ -44,6 +50,25 @@ const Homepage = () => {
 
   const handleCategoryClick = (category) => {
     navigate(`/category/${category}`);
+  };
+
+  const handleSearchChange = (e) => {
+    const term = e.target.value.toLowerCase();
+    setSearchTerm(term);
+
+    if (term.length < 2) {
+      setFilteredProducts(products);
+    } else {
+      const filtered = products.filter((product) =>
+        product.name.toLowerCase().includes(term)
+      );
+      setFilteredProducts(filtered);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchTerm("");
+    setFilteredProducts(products);
   };
 
   useEffect(() => {
@@ -69,6 +94,34 @@ const Homepage = () => {
         setLoading(false);
       }
     });
+  }, []);
+
+  // Fetch products from Firestore
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const q = query(collection(db, "vendors"));
+        const querySnapshot = await getDocs(q);
+        const productsList = [];
+
+        for (const docSnapshot of querySnapshot.docs) {
+          const productsRef = collection(db, `vendors/${docSnapshot.id}/products`);
+          const productsSnapshot = await getDocs(productsRef);
+          productsSnapshot.forEach((productDoc) => {
+            productsList.push({ id: productDoc.id, ...productDoc.data() });
+          });
+        }
+
+        setProducts(productsList);
+        setFilteredProducts(productsList);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
   }, []);
 
   // Initialize Cloudinary instance
@@ -108,6 +161,12 @@ const Homepage = () => {
         {/* <PiBell className="text-2xl " /> */}
       </div>
       <div className="flex px-2 justify-center mb-3">
+        {searchTerm && (
+          <IoArrowBack
+            className="mr-2 text-3xl text-gray-500 cursor-pointer mt-3 bg-white rounded-full p-1"
+            onClick={clearSearch}
+          />
+        )}
         <div className="relative w-full mx-auto">
           <input
             type="text"
@@ -115,118 +174,136 @@ const Homepage = () => {
             className="w-full rounded-full bg-gray-200 p-3"
             onFocus={handleFocus}
             onBlur={handleBlur}
+            value={searchTerm}
+            onChange={handleSearchChange}
           />
           <FiSearch className="absolute top-1/2 right-3 transform text-xl -translate-y-1/2 text-gray-500" />
         </div>
       </div>
       {/* Promo cards slider */}
-      <div className="px-2 mb-0">
-        <Swiper
-          modules={[FreeMode, Autoplay]}
-          spaceBetween={5}
-          slidesPerView={1}
-          freeMode={true}
-          loop={true}
-          autoplay={{
-            delay: 2500,
-            disableOnInteraction: false,
-          }}
-          breakpoints={{
-            640: {
-              slidesPerView: 2,
-              spaceBetween: 10,
-            },
-            768: {
-              slidesPerView: 3,
-              spaceBetween: 30,
-            },
-            1024: {
-              slidesPerView: 4,
-              spaceBetween: 40,
-            },
-          }}
-        >
-          {loading ? (
-            Array.from({ length: 5 }).map((_, index) => (
-              <SwiperSlide key={index}>
-                <div className="p-4 w-auto h-44 shadow-md rounded-lg">
-                  <Skeleton height="100%" />
-                </div>
-              </SwiperSlide>
-            ))
-          ) : (
-            <>
-              <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
-                <div className="p-4 w-auto h-44 bg-orange-500 shadow-md rounded-lg">
-                  <h2 className="text-lg text-white font-bold">Hello, {userName}</h2>
-                  <p className="text-white">Click to see the deals we have today!</p>
-                </div>
-              </SwiperSlide>
-              <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
-                <div className="p-4 w-auto h-44 bg-green-400 shadow-md rounded-lg">
-                  <h2 className="text-lg text-white font-bold">DEALS!!!</h2>
-                  <h1 className="text-white">₦1,500</h1>
-                  <p className="text-white">5TH-7TH JULY</p>
-                </div>
-              </SwiperSlide>
-              <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
-                <div className="w-auto h-44 p-4 bg-blue-900 shadow-md rounded-lg">
-                  <h2 className="text-lg font-bold text-white">UP TO</h2>
-                  <h1 className="text-white">50% OFF</h1>
-                  <p className="text-white">Buy one get one free!</p>
-                </div>
-              </SwiperSlide>
-              <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
-                <div className="w-auto h-44 p-4 bg-red-500 shadow-md rounded-lg">
-                  <h2 className="text-white">CHECKOUT</h2>
-                  <h2 className="text-lg font-bold text-white">KANTAGUA DEALS</h2>
-                  <p className="text-white">Free shipping on orders over $50!</p>
-                </div>
-              </SwiperSlide>
-              <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
-                <div className="w-auto h-44 p-4 bg-yellow-500 shadow-md rounded-lg">
-                  <h2 className="text-white">CHECKOUT</h2>
-                  <h2 className="text-lg font-bold text-white">KANTAGUA DEALS</h2>
-                  <p className="text-white">Free shipping on orders over $50!</p>
-                </div>
-              </SwiperSlide>
-            </>
-          )}
-        </Swiper>
-      </div>
-      <div className="">
-        <div className="flex justify-center mt-3 px-2 gap-2">
-          {loading ? (
-            Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden">
-                <Skeleton height="100%" width="100%" />
-              </div>
-            ))
-          ) : (
-            <>
-              <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer" onClick={() => handleCategoryClick('Mens')}>
-                <AdvancedImage cldImg={maleImg} className="w-full h-full object-cover" />
-                <h2 className="absolute bottom-0 w-full text-center text-white font-semibold text-sm bg-transparent">MEN</h2>
-              </div>
-              <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer" onClick={() => handleCategoryClick('Women')}>
-                <AdvancedImage cldImg={femaleImg} className="w-full h-full object-cover" />
-                <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">WOMEN</h2>
-              </div>
-              <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer" onClick={() => handleCategoryClick('Kids')}>
-                <AdvancedImage cldImg={kidImg} className="w-full h-full object-cover" />
-                <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">KIDS</h2>
-              </div>
-            </>
-          )}
+      {!searchTerm && (
+        <>
+          <div className="px-2 mb-0">
+            <Swiper
+              modules={[FreeMode, Autoplay]}
+              spaceBetween={5}
+              slidesPerView={1}
+              freeMode={true}
+              loop={true}
+              autoplay={{
+                delay: 2500,
+                disableOnInteraction: false,
+              }}
+              breakpoints={{
+                640: {
+                  slidesPerView: 2,
+                  spaceBetween: 10,
+                },
+                768: {
+                  slidesPerView: 3,
+                  spaceBetween: 30,
+                },
+                1024: {
+                  slidesPerView: 4,
+                  spaceBetween: 40,
+                },
+              }}
+            >
+              {loading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <SwiperSlide key={index}>
+                    <div className="p-4 w-auto h-44 shadow-md rounded-lg">
+                      <Skeleton height="100%" />
+                    </div>
+                  </SwiperSlide>
+                ))
+              ) : (
+                <>
+                  <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
+                    <div className="p-4 w-auto h-44 bg-orange-500 shadow-md rounded-lg">
+                      <h2 className="text-lg text-white font-bold">Hello, {userName}</h2>
+                      <p className="text-white">Click to see the deals we have today!</p>
+                    </div>
+                  </SwiperSlide>
+                  <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
+                    <div className="p-4 w-auto h-44 bg-green-400 shadow-md rounded-lg">
+                      <h2 className="text-lg text-white font-bold">DEALS!!!</h2>
+                      <h1 className="text-white">₦1,500</h1>
+                      <p className="text-white">5TH-7TH JULY</p>
+                    </div>
+                  </SwiperSlide>
+                  <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
+                    <div className="w-auto h-44 p-4 bg-blue-900 shadow-md rounded-lg">
+                      <h2 className="text-lg font-bold text-white">UP TO</h2>
+                      <h1 className="text-white">50% OFF</h1>
+                      <p className="text-white">Buy one get one free!</p>
+                    </div>
+                  </SwiperSlide>
+                  <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
+                    <div className="w-auto h-44 p-4 bg-red-500 shadow-md rounded-lg">
+                      <h2 className="text-white">CHECKOUT</h2>
+                      <h2 className="text-lg font-bold text-white">KANTAGUA DEALS</h2>
+                      <p className="text-white">Free shipping on orders over $50!</p>
+                    </div>
+                  </SwiperSlide>
+                  <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
+                    <div className="w-auto h-44 p-4 bg-yellow-500 shadow-md rounded-lg">
+                      <h2 className="text-white">CHECKOUT</h2>
+                      <h2 className="text-lg font-bold text-white">KANTAGUA DEALS</h2>
+                      <p className="text-white">Free shipping on orders over $50!</p>
+                    </div>
+                  </SwiperSlide>
+                </>
+              )}
+            </Swiper>
+          </div>
+          <div className="">
+            <div className="flex justify-center mt-3 px-2 gap-2">
+              {loading ? (
+                Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden">
+                    <Skeleton height="100%" width="100%" />
+                  </div>
+                ))
+              ) : (
+                <>
+                  <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer" onClick={() => handleCategoryClick('Mens')}>
+                    <AdvancedImage cldImg={maleImg} className="w-full h-full object-cover" />
+                    <h2 className="absolute bottom-0 w-full text-center text-white font-semibold text-sm bg-transparent">MEN</h2>
+                  </div>
+                  <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer" onClick={() => handleCategoryClick('Women')}>
+                    <AdvancedImage cldImg={femaleImg} className="w-full h-full object-cover" />
+                    <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">WOMEN</h2>
+                  </div>
+                  <div className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer" onClick={() => handleCategoryClick('Kids')}>
+                    <AdvancedImage cldImg={kidImg} className="w-full h-full object-cover" />
+                    <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">KIDS</h2>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex justify-between px-2 mt-10 text-base">
+              <h1 className="font-semibold text-xl">Explore</h1>
+              <p className="font-light text-red-500 cursor-pointer" onClick={handleShowMore}>
+                Show All
+              </p>
+            </div>
+          </div>
+          <Market />
+        </>
+      )}
+      <div className="p-2">
+        <h1 className="text-left mt-2 font-medium text-xl translate-y-2 font-ubuntu mb-4">Featured Products</h1>
+        <div className="grid grid-cols-2 gap-4">
+          {loading
+            ? Array.from({ length: 6 }).map((_, index) => (
+                <Skeleton key={index} height={200} width="100%" />
+              ))
+            : filteredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
         </div>
-        <div className="flex justify-between px-2 mt-10 text-base">
-          <h1 className="font-semibold text-xl">Explore</h1>
-          <p className="font-light text-red-500 cursor-pointer" onClick={handleShowMore}>
-            Show All
-          </p>
-        </div>
       </div>
-      <Market />
       <BottomBar isSearchFocused={isSearchFocused} />
     </>
   );

@@ -170,7 +170,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
   const getSizeOptions = () => {
     switch (productType) {
       case "cloth":
-        return ["XS", "S", "M", "L", "XL", "XXL", "Available in all sizes"];
+        return ["XS", "S", "M", "L", "XL", "XXL", "in all sizes"];
       case "dress":
         return [
           "32",
@@ -180,10 +180,10 @@ const AddProduct = ({ vendorId, closeModal }) => {
           "40",
           "42",
           "44",
-          "Available in all sizes",
+          "all sizes",
         ];
       case "jewelry":
-        return ["5", "6", "7", "8", "9", "10", "Available in all sizes"];
+        return ["5", "6", "7", "8", "9", "10", "all sizes"];
       case "footwear":
         return [
           "35",
@@ -196,7 +196,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           "42",
           "43",
           "44",
-          "Available in all sizes",
+          " all sizes",
         ];
       default:
         return [];

@@ -1,0 +1,66 @@
+/* category.css */
+.category-page {
+    min-height: 100vh;
+  }
+  
+  .mens-header,
+  .women-header,
+  .kids-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px; /* Adjust the height as needed */
+    color: white;
+    position: relative;
+    padding-top: 1rem; /* Add padding to the top to move the text down */
+    text-align: center;
+  }
+  
+  .mens-header {
+    background-color: black;
+  }
+  
+  .women-header {
+    background-color: pink;
+  }
+  
+  .kids-header {
+    background: url('https://miro.medium.com/v2/resize:fit:1400/1*pzbYin_gqDNVjOSLQs06NQ.jpeg') no-repeat center center;
+    background-size: cover;
+  }
+  
+  .sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0.5rem; /* Reduced padding for the header */
+    transition: background-color 0.3s;
+  }
+  
+  .transparent-bg {
+    background-color: rgba(0, 0, 0, 0.5); /* Adjust the transparency as needed */
+  }
+  
+  .header-text {
+    font-size: 1.5rem;
+    font-weight: bold;
+    flex-grow: 1;
+    text-align: center;
+  }
+  
+  .header-icon {
+    padding: 0.25rem; /* Reduced padding for the icon */
+    background-color: white;
+    border-radius: 50%;
+  }
+  
+  .header-content {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  

@@ -47,7 +47,7 @@ const Market = () => {
   });
 
   const YabaMrkt = cld
-    .image("yaba_lhc52r")
+    .image("balguno_jwm4u4")
     .format("auto")
     .quality("auto")
     .resize(fit().width(500).height(1000));
@@ -78,22 +78,23 @@ const Market = () => {
         <div
           key={index}
           ref={(el) => (cardsRef.current[index] = el)}
-          className="relative w-auto mb-2 rounded-lg h-52 bg-green-700 overflow-hidden cursor-pointer"
+          className="relative w-auto mb-2 rounded-lg h-52 overflow-hidden cursor-pointer"
           onClick={() => handleCardClick(cardTexts[index].title)}
         >
           <AdvancedImage
             cldImg={img}
-            className="w-full h-full object-contain object-fill "
+            className="w-full h-full object-contain object-fill"
           />
-          <div className="absolute bottom-4 opacity-100 z-10 -translate-y-2 left-4">
-            <p className="text-xs text-white font-light font-lato">
+          <div className="absolute inset-0 bg-black bg-opacity-50"></div> {/* Semi-transparent overlay */}
+          <div className="absolute bottom-4 z-10 left-4">
+            <p className="text-xs text-white font-semibold font-lato">
               {cardTexts[index].subtitle}
             </p>
-            <p className="text-xl font-lato mb-1 text-white font-semiboldf#">
+            <p className="text-xl font-lato mb-1 text-white font-semibold">
               {cardTexts[index].title}
             </p>
             <p className="text-xs font-lato font-light text-white underline underline-offset-4 flex items-center">
-              {cardTexts[index].action} <FaAngleRight className="" />
+              {cardTexts[index].action} <FaAngleRight className="ml-1" />
             </p>
           </div>
         </div>

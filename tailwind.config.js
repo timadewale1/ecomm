@@ -15,6 +15,7 @@ module.exports = {
         bodoni: ['Bodoni Moda SC', 'serif'],
         lato: ['Lato', 'sans-serif'],
         poppins: ['Poppins', 'sans-serif'],
+        playwrite: ['playwrite CU', 'cursive'],
 
       },
     },

@@ -49,7 +49,7 @@ const VendorDashboard = () => {
 
       const totalProducts = products.length;
       const totalOrders = 0;
-      const totalSales = 40000;
+      const totalSales = 0;
       // const totalSales = products.reduce((acc, product) => acc + product.price, 0);
 
       setTotalProducts(totalProducts);

@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { collection, query, where, getDocs, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase.config';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../../components/layout/Modal';
 import ConfirmationDialog from '../../components/layout/ConfirmationDialog'; // Import your confirmation dialog component
-import { FaTrashAlt, FaEdit, FaPlus } from 'react-icons/fa';
+import { FaTrashAlt, FaPlus, FaBoxOpen } from 'react-icons/fa'; // Import FaBoxOpen icon
 import { RotatingLines } from 'react-loader-spinner';
 import AddProduct from '../vendor/AddProducts';
 
@@ -18,6 +18,9 @@ const VendorProducts = () => {
   const [isViewProductModalOpen, setIsViewProductModalOpen] = useState(false);
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false); // State for confirmation dialog
+  const [showRestockInput, setShowRestockInput] = useState(false); // State to show restock input
+  const [restockQuantity, setRestockQuantity] = useState(0); // State for restock quantity
+  const [buttonLoading, setButtonLoading] = useState(false); // State for button loading
   const auth = getAuth();
   const navigate = useNavigate();
 
@@ -64,9 +67,12 @@ const VendorProducts = () => {
     setIsViewProductModalOpen(false);
     setIsAddProductModalOpen(false);
     setSelectedProduct(null);
+    setRestockQuantity(0); // Reset restock quantity
+    setShowRestockInput(false); // Hide restock input
   };
 
   const confirmDeleteProduct = async () => {
+    setButtonLoading(true);
     try {
       await deleteDoc(doc(db, 'vendors', vendorId, 'products', selectedProduct.id));
       toast.success('Product deleted successfully.');
@@ -76,12 +82,31 @@ const VendorProducts = () => {
       console.error('Error deleting product: ', error);
       toast.error('Error deleting product: ' + error.message);
     } finally {
+      setButtonLoading(false);
       setShowConfirmation(false); // Close confirmation dialog
     }
   };
 
   const handleDeleteProduct = () => {
     setShowConfirmation(true); // Show confirmation dialog before deleting
+  };
+
+  const handleRestockProduct = async () => {
+    setButtonLoading(true);
+    try {
+      const productRef = doc(db, 'vendors', vendorId, 'products', selectedProduct.id);
+      await updateDoc(productRef, {
+        stockQuantity: selectedProduct.stockQuantity + parseInt(restockQuantity, 10),
+      });
+      toast.success('Product restocked successfully.');
+      fetchVendorProducts(vendorId); // Refresh product list
+      closeModals();
+    } catch (error) {
+      console.error('Error restocking product: ', error);
+      toast.error('Error restocking product: ' + error.message);
+    } finally {
+      setButtonLoading(false);
+    }
   };
 
   return (
@@ -100,11 +125,11 @@ const VendorProducts = () => {
       ) : products.length === 0 ? (
         <p>No products found.</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {products.map((product) => (
             <div
               key={product.id}
-              className="border border-gray-300 rounded-lg p-4 shadow-sm cursor-pointer"
+              className="border border-gray-300 rounded-lg p-2 shadow-sm cursor-pointer"
               onClick={() => handleProductClick(product)}
             >
               {product.coverImageUrl && (
@@ -114,7 +139,7 @@ const VendorProducts = () => {
                   className="h-32 w-full object-cover rounded-md"
                 />
               )}
-              <h3 className="text-lg font-bold text-gray-900 mt-2">{product.name}</h3>
+              <h3 className="text-xs font-bold text-gray-900 mt-2">{product.name}</h3>
               <div className="mt-2">
                 {product.categories && (
                   <div className="flex space-x-2">
@@ -136,20 +161,20 @@ const VendorProducts = () => {
 
       {selectedProduct && (
         <Modal isOpen={isViewProductModalOpen} onClose={closeModals}>
-          <div className="p-4">
-            <h2 className="text-2xl font-bold text-green-700 mb-4">{selectedProduct.name}</h2>
+          <div className="p-4 space-y-4">
+            <h2 className="text-2xl font-bold text-green-700">{selectedProduct.name}</h2>
             {selectedProduct.coverImageUrl && (
               <img
                 src={selectedProduct.coverImageUrl}
                 alt={selectedProduct.name}
-                className="w-full h-64 object-cover rounded-md mb-4"
+                className="w-full h-64 object-cover rounded-md"
               />
             )}
-            <p className="mb-4"><strong>Description:</strong> {selectedProduct.description || 'None'}</p>
-            <p className="mb-4"><strong>Price:</strong> ${selectedProduct.price.toFixed(2)}</p>
-            <p className="mb-4"><strong>Stock Quantity:</strong> {selectedProduct.stockQuantity}</p>
+            <p><strong>Description:</strong> {selectedProduct.description || 'None'}</p>
+            <p><strong>Price:</strong> ${selectedProduct.price.toFixed(2)}</p>
+            <p><strong>Stock Quantity:</strong> {selectedProduct.stockQuantity}</p>
             {selectedProduct.categories && (
-              <div className="mb-4">
+              <div>
                 <strong>Categories:</strong>
                 {Array.isArray(selectedProduct.categories) ? (
                   <ul className="list-disc pl-5">
@@ -163,42 +188,76 @@ const VendorProducts = () => {
               </div>
             )}
             {selectedProduct.imageUrls && selectedProduct.imageUrls.length > 0 && (
-              <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className="grid grid-cols-2 gap-2">
                 {selectedProduct.imageUrls.map((url, index) => (
                   <img key={index} src={url} alt={`Product ${index}`} className="h-16 w-full object-cover rounded-md" />
                 ))}
               </div>
             )}
-            <p className="text-green-700 mb-2"><strong>Date Added:</strong> {new Date(selectedProduct.dateAdded).toLocaleDateString()}</p>
+            <p className="text-green-700"><strong>Date Added:</strong> {new Date(selectedProduct.dateAdded).toLocaleDateString()}</p>
             <div className="flex items-center justify-end space-x-2 mt-4">
               <button
-                className="px-3 py-2 bg-red-600 text-white rounded-md shadow-sm hover:bg-red-700 focus:ring focus:ring-red-600 focus:outline-none"
-                onClick={() => setShowConfirmation(true)} // Show confirmation dialog
+                className={`px-3 py-2 bg-red-600 text-white rounded-md shadow-sm hover:bg-red-700 focus:ring focus:ring-red-600 focus:outline-none ${buttonLoading ? 'cursor-not-allowed' : ''}`}
+                onClick={handleDeleteProduct}
+                disabled={buttonLoading}
               >
-                <FaTrashAlt />
+                {buttonLoading ? (
+                  <RotatingLines width="20" strokeColor="white" />
+                ) : (
+                  <FaTrashAlt />
+                )}
               </button>
-              <button
-                className="px-3 py-2 bg-orange-600 text-white rounded-md shadow-sm hover:bg-orange-700 focus:ring focus:ring-orange-600 focus:outline-none"
-                // onClick={() => handleEditProduct(selectedProduct.id)}
-              >
-                <FaEdit />
-              </button>
+              {showRestockInput ? (
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    className="w-20 p-2 border border-gray-300 rounded-md"
+                    value={restockQuantity}
+                    onChange={(e) => setRestockQuantity(e.target.value)}
+                    placeholder="Qty"
+                  />
+                  <button
+                    className={`px-3 py-2 bg-green-700 text-white rounded-md shadow-sm hover:bg-green-800 focus:ring focus:ring-green-700 focus:outline-none ${buttonLoading ? 'cursor-not-allowed' : ''}`}
+                    onClick={handleRestockProduct}
+                    disabled={buttonLoading}
+                  >
+                    {buttonLoading ? (
+                      <RotatingLines width="20" strokeColor="white" />
+                    ) : (
+                      <FaBoxOpen />
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className={`px-3 py-2 bg-green-700 text-white rounded-md shadow-sm hover:bg-green-800 focus:ring focus:ring-green-700 focus:outline-none ${buttonLoading ? 'cursor-not-allowed' : ''}`}
+                  onClick={() => setShowRestockInput(true)}
+                  disabled={buttonLoading}
+                >
+                  {buttonLoading ? (
+                    <RotatingLines width="20" strokeColor="white" />
+                  ) : (
+                    'Restock'
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </Modal>
       )}
 
-      <Modal isOpen={isAddProductModalOpen} onClose={() => setIsAddProductModalOpen(false)}>
-        <AddProduct vendorId={vendorId} closeModal={() => setIsAddProductModalOpen(false)} />
-      </Modal>
+      {showConfirmation && (
+        <ConfirmationDialog
+          isOpen={showConfirmation}
+          onClose={() => setShowConfirmation(false)}
+          onConfirm={confirmDeleteProduct}
+          message="Are you sure you want to delete this product?"
+        />
+      )}
 
-      <ConfirmationDialog
-        isOpen={showConfirmation}
-        title="Confirm Delete"
-        message="Are you sure you want to delete this product?"
-        onCancel={() => setShowConfirmation(false)} // Close confirmation dialog on cancel
-        onConfirm={confirmDeleteProduct} // Delete product on confirm
-      />
+      <Modal isOpen={isAddProductModalOpen} onClose={closeModals}>
+        <AddProduct onClose={closeModals} />
+      </Modal>
     </div>
   );
 };

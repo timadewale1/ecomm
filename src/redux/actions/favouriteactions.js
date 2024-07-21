@@ -1,5 +1,5 @@
 import { db } from "../../firebase.config";
-import { doc, setDoc, deleteDoc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
 
 export const TOGGLE_FAVORITE = 'TOGGLE_FAVORITE';

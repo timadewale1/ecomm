@@ -4,7 +4,8 @@ import Routers from "../../routers/Routers";
 import BottomBar from "../BottomBar/BottomBar";
 import VendorBottomBar from "../BottomBar/VendorBottomBar";
 import useAuth from "../../custom-hooks/useAuth";
-import { VendorNavigationProvider } from "../Context/VendorBottomBarCtxt"; // Import the provider
+import { NavigationProvider } from "../Context/Bottombarcontext";
+import { VendorNavigationProvider } from "../Context/VendorBottomBarCtxt";
 
 const Layout = () => {
   const location = useLocation();
@@ -12,13 +13,13 @@ const Layout = () => {
 
   // List of paths where BottomBar should not be rendered
   const noBottomBarPaths = [
-    "/login", 
-    "/signup", 
-    "/forgetpassword", 
-    "/admin", 
-    "/confirm-user-state", 
-    "/vendorlogin", 
-    "/vendor-signup", 
+    "/login",
+    "/signup",
+    "/forgetpassword",
+    "/admin",
+    "/confirm-user-state",
+    "/vendorlogin",
+    "/vendor-signup",
     "/complete-profile",
   ];
 
@@ -34,17 +35,15 @@ const Layout = () => {
 
   const isVendorPath = vendorPaths.includes(location.pathname);
 
-  console.log("Current path:", location.pathname);
-  console.log("Hide BottomBar:", hideBottomBar);
-  console.log("Is Vendor Path:", isVendorPath);
-
   return (
-    <VendorNavigationProvider>
-      <div>
-        <Routers />
-      </div>
-      {!hideBottomBar && (isVendorPath ? <VendorBottomBar /> : <BottomBar />)}
-    </VendorNavigationProvider>
+    <NavigationProvider>
+      <VendorNavigationProvider>
+        <div>
+          <Routers />
+        </div>
+        {!hideBottomBar && (isVendorPath ? <VendorBottomBar /> : <BottomBar />)}
+      </VendorNavigationProvider>
+    </NavigationProvider>
   );
 };
 

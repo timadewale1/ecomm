@@ -74,8 +74,8 @@ const ProductCard = ({ product, isLoading, vendorName, vendorId }) => {
       default:
         return (
           <>
-            <CiCircleInfo className="text-gray-500" />
-            <p className="ml-2 text-xs text-gray-500">{condition}</p>
+            <CiCircleInfo className="text-red-500" />
+            <p className="ml-2 text-xs text-red-500">{condition}</p>
           </>
         );
     }
@@ -101,14 +101,14 @@ const ProductCard = ({ product, isLoading, vendorName, vendorId }) => {
         </div>
       </div>
       <div className="p-2">
-        <h3 className="text-xs font-medium mt-2">{isLoading ? <Skeleton width={100} /> : product.name}</h3>
+        <h3 className="text-xs font-bold mt-2">{isLoading ? <Skeleton width={100} /> : product.name}</h3>
         {vendorName && (
-          <p className="text-xs text-gray-500 underline cursor-pointer" onClick={handleVendorClick}>
+          <p className="text-xs font-semibold text-gray-500 underline cursor-pointer" onClick={handleVendorClick}>
             {vendorName}
           </p>
         )}
         <div className="flex items-center justify-between mt-2">
-          <p className="text-gray-600 font-semibold">{isLoading ? <Skeleton width={50} /> : `₦${product.price}`}</p>
+          <p className="text-black font-roboto font-bold ">{isLoading ? <Skeleton width={50} /> : `₦${product.price}`}</p>
           <span className="text-xs font-medium">{isLoading ? <Skeleton width={30} /> : `(${product.size})`}</span>
         </div>
         <div className="flex items-center mt-2">

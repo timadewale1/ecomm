@@ -25,7 +25,7 @@ import { useNavigation } from "../components/Context/Bottombarcontext";
 import Market from "../components/Market/Market";
 import { db } from "../firebase.config";
 import ProductCard from "../components/Products/ProductCard";
-
+import Logo from "../styles/THRIFT-LOGO-SMALL-TRANSPARENT.png";
 gsap.registerPlugin(ScrollTrigger);
 
 const Homepage = () => {
@@ -233,8 +233,10 @@ const Homepage = () => {
 
   return (
     <>
-      <div className="flex my-7 justify-center px-3">
-        <div className="text-xl font-semibold text-orange-500">LOGO</div>
+      <div className="flex justify-center ">
+        <div className="text-xl font-semibold text-orange-500">
+          <img src={Logo} alt="logo" className="w-30 h-20" />
+        </div>
       </div>
       <div className="flex px-2 justify-center mb-3">
         {searchTerm && (

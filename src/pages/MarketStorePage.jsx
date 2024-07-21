@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { db, auth } from "../firebase.config";
-import { doc, getDoc, collection, getDocs, updateDoc, increment } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, updateDoc, setDoc, increment } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import ReactStars from "react-rating-stars-component";
 import Skeleton from "react-loading-skeleton";
@@ -58,24 +58,47 @@ const MarketStorePage = () => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser(user);
+        checkIfFollowing(user.uid, id);
       } else {
         setCurrentUser(null);
       }
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [id]);
 
-  const handleFollowClick = () => {
-    setIsFollowing(!isFollowing);
-    toast(
-      isFollowing
-        ? "Unfollowed"
-        : "You will be notified of new products and promos.",
-      {
-        className: "custom-toast",
+  const checkIfFollowing = async (userId, vendorId) => {
+    const followRef = doc(db, "follows", userId);
+    const followDoc = await getDoc(followRef);
+    if (followDoc.exists() && followDoc.data()[vendorId]) {
+      setIsFollowing(true);
+    }
+  };
+
+  const handleFollowClick = async () => {
+    if (!currentUser) {
+      toast.error("You must be logged in to follow a vendor.");
+      return;
+    }
+
+    const userId = currentUser.uid;
+    const followRef = doc(db, "follows", userId);
+
+    try {
+      if (isFollowing) {
+        await updateDoc(followRef, {
+          [id]: false,
+        });
+        setIsFollowing(false);
+        toast.success("Unfollowed");
+      } else {
+        await setDoc(followRef, { [id]: true }, { merge: true });
+        setIsFollowing(true);
+        toast.success("You will be notified of new products and promos.");
       }
-    );
+    } catch (error) {
+      toast.error("Error updating follow status: " + error.message);
+    }
   };
 
   const handleFavoriteToggle = (productId) => {
@@ -265,8 +288,12 @@ const MarketStorePage = () => {
                 className="flex items-center"
               >
                 <FaPhoneAlt className="mr-4 w-6 h-6 " />
-                <p className="font-ubuntu text-lg">{vendor.phoneNumber}</p>
+                <p className="font-ubuntu text-black text-lg">{vendor.phoneNumber}</p>
               </a>
+            </div>
+            <div className="flex items-center mb-4">
+              <IoMdContact className="mr-4 w-6 h-6 " />
+              <p className="font-ubuntu text-black text-lg">{vendor.complexName}</p>
             </div>
           </div>
         </div>

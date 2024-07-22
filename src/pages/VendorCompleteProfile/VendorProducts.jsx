@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { collection, query, where, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, deleteDoc, updateDoc, addDoc } from 'firebase/firestore';
 import { db } from '../../firebase.config';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../../components/layout/Modal';
-import ConfirmationDialog from '../../components/layout/ConfirmationDialog'; // Import your confirmation dialog component
-import { FaTrashAlt, FaPlus, FaBoxOpen } from 'react-icons/fa'; // Import FaBoxOpen icon
+import ConfirmationDialog from '../../components/layout/ConfirmationDialog';
+import { FaTrashAlt, FaPlus, FaBoxOpen, FaEdit } from 'react-icons/fa';
 import { RotatingLines } from 'react-loader-spinner';
 import AddProduct from '../vendor/AddProducts';
+import { BsBox2Fill } from 'react-icons/bs';
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
@@ -17,10 +18,10 @@ const VendorProducts = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isViewProductModalOpen, setIsViewProductModalOpen] = useState(false);
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false); // State for confirmation dialog
-  const [showRestockInput, setShowRestockInput] = useState(false); // State to show restock input
-  const [restockQuantity, setRestockQuantity] = useState(0); // State for restock quantity
-  const [buttonLoading, setButtonLoading] = useState(false); // State for button loading
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showRestockInput, setShowRestockInput] = useState(false);
+  const [restockQuantity, setRestockQuantity] = useState(0);
+  const [buttonLoading, setButtonLoading] = useState(false);
   const auth = getAuth();
   const navigate = useNavigate();
 
@@ -32,7 +33,7 @@ const VendorProducts = () => {
       } else {
         toast.error('Unauthorized access or no user is signed in.');
         setLoading(false);
-        navigate('/login'); // Redirect to login if unauthorized
+        navigate('/login');
       }
     });
 
@@ -45,7 +46,20 @@ const VendorProducts = () => {
       const q = query(vendorRef, where('vendorId', '==', uid));
       const querySnapshot = await getDocs(q);
       const productsData = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setProducts(productsData);
+
+      const currentTime = new Date().getTime();
+      const productsWithTimers = productsData.map((product) => {
+        if (product.dateAdded && product.dateAdded.toDate) {
+          const dateAddedTime = product.dateAdded.toDate().getTime();
+          const timeDiff = currentTime - dateAddedTime;
+          const remainingTime = Math.max(0, 600000 - timeDiff); // 10 minutes in milliseconds
+          return { ...product, remainingEditTime: remainingTime };
+        } else {
+          return { ...product, remainingEditTime: 0 };
+        }
+      });
+
+      setProducts(productsWithTimers);
     } catch (error) {
       console.error('Error fetching products: ', error);
       toast.error('Error fetching products: ' + error.message);
@@ -67,8 +81,21 @@ const VendorProducts = () => {
     setIsViewProductModalOpen(false);
     setIsAddProductModalOpen(false);
     setSelectedProduct(null);
-    setRestockQuantity(0); // Reset restock quantity
-    setShowRestockInput(false); // Hide restock input
+    setRestockQuantity(0);
+    setShowRestockInput(false);
+  };
+
+  const addActivityNote = async (note) => {
+    try {
+      const activityNotesRef = collection(db, 'vendors', vendorId, 'activityNotes');
+      await addDoc(activityNotesRef, {
+        note,
+        timestamp: new Date()
+      });
+    } catch (error) {
+      console.error('Error adding activity note: ', error);
+      toast.error('Error adding activity note: ' + error.message);
+    }
   };
 
   const confirmDeleteProduct = async () => {
@@ -77,18 +104,19 @@ const VendorProducts = () => {
       await deleteDoc(doc(db, 'vendors', vendorId, 'products', selectedProduct.id));
       toast.success('Product deleted successfully.');
       setProducts(products.filter((product) => product.id !== selectedProduct.id));
+      await addActivityNote(`Deleted product: ${selectedProduct.name}`);
       closeModals();
     } catch (error) {
       console.error('Error deleting product: ', error);
       toast.error('Error deleting product: ' + error.message);
     } finally {
       setButtonLoading(false);
-      setShowConfirmation(false); // Close confirmation dialog
+      setShowConfirmation(false);
     }
   };
 
   const handleDeleteProduct = () => {
-    setShowConfirmation(true); // Show confirmation dialog before deleting
+    setShowConfirmation(true);
   };
 
   const handleRestockProduct = async () => {
@@ -98,8 +126,9 @@ const VendorProducts = () => {
       await updateDoc(productRef, {
         stockQuantity: selectedProduct.stockQuantity + parseInt(restockQuantity, 10),
       });
+      await addActivityNote(`Restocked ${selectedProduct.name}`)
       toast.success('Product restocked successfully.');
-      fetchVendorProducts(vendorId); // Refresh product list
+      fetchVendorProducts(vendorId);
       closeModals();
     } catch (error) {
       console.error('Error restocking product: ', error);
@@ -107,6 +136,12 @@ const VendorProducts = () => {
     } finally {
       setButtonLoading(false);
     }
+  };
+
+  const handleEditProduct = async () => {
+    // Logic to open the edit modal or handle product edit functionality
+    console.log("Edit product:", selectedProduct);
+    await addActivityNote(`Edited product: ${selectedProduct.name}`);
   };
 
   return (
@@ -154,6 +189,7 @@ const VendorProducts = () => {
                   </div>
                 )}
               </div>
+              
             </div>
           ))}
         </div>
@@ -170,56 +206,57 @@ const VendorProducts = () => {
                 className="w-full h-64 object-cover rounded-md"
               />
             )}
-            <p><strong>Description:</strong> {selectedProduct.description || 'None'}</p>
+            <p><strong>Description:</strong> {selectedProduct.description || 'N/A'}</p>
             <p><strong>Price:</strong> ${selectedProduct.price.toFixed(2)}</p>
             <p><strong>Stock Quantity:</strong> {selectedProduct.stockQuantity}</p>
-            {selectedProduct.categories && (
-              <div>
-                <strong>Categories:</strong>
-                {Array.isArray(selectedProduct.categories) ? (
-                  <ul className="list-disc pl-5">
-                    {selectedProduct.categories.map((category, index) => (
-                      <li key={index}>{category}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>No categories available</p>
-                )}
-              </div>
-            )}
-            {selectedProduct.imageUrls && selectedProduct.imageUrls.length > 0 && (
-              <div className="grid grid-cols-2 gap-2">
-                {selectedProduct.imageUrls.map((url, index) => (
-                  <img key={index} src={url} alt={`Product ${index}`} className="h-16 w-full object-cover rounded-md" />
+            <p><strong>Categories:</strong> {selectedProduct.categories?.join(', ') || 'N/A'}</p>
+            {selectedProduct.productImages && (
+              <div className="flex space-x-2 overflow-x-scroll">
+                {selectedProduct.productImages.map((url, index) => (
+                  <img key={index} src={url} alt={`Product ${index + 1}`} className="w-full h-32 object-cover rounded-md" />
                 ))}
               </div>
             )}
-            <p className="text-green-700"><strong>Date Added:</strong> {new Date(selectedProduct.dateAdded).toLocaleDateString()}</p>
-            <div className="flex items-center justify-end space-x-2 mt-4">
+            
+            <div className="flex items-center justify-between space-x-2">
+              
               <button
-                className={`px-3 py-2 bg-red-600 text-white rounded-md shadow-sm hover:bg-red-700 focus:ring focus:ring-red-600 focus:outline-none ${buttonLoading ? 'cursor-not-allowed' : ''}`}
+                className="px-4 py-2 bg-red-600 text-white rounded-md shadow-sm hover:bg-red-700 focus:ring focus:ring-red-600 focus:outline-none"
                 onClick={handleDeleteProduct}
-                disabled={buttonLoading}
               >
-                {buttonLoading ? (
-                  <RotatingLines width="20" strokeColor="white" />
-                ) : (
-                  <FaTrashAlt />
-                )}
+                <FaTrashAlt />
               </button>
+              {selectedProduct.remainingEditTime = 0 && (
+                <div className="flex items-center justify-end space-x-2 mt-4">
+                  <button
+                    className={`px-3 py-2 bg-blue-700 text-white rounded-md shadow-sm hover:bg-blue-800 focus:ring focus:ring-blue-700 focus:outline-none ${buttonLoading ? 'cursor-not-allowed' : ''}`}
+                    onClick={handleEditProduct}
+                    disabled={buttonLoading}
+                  >
+                    {buttonLoading ? (
+                      <RotatingLines width="20" strokeColor="white" />
+                    ) : (
+                      <FaEdit />
+                    )}
+                  </button>
+                  <span className="text-sm text-red-500">
+                    Available for {Math.floor(selectedProduct.remainingEditTime / 60000)}:{(selectedProduct.remainingEditTime % 60000 / 1000).toFixed(0).padStart(2, '0')} minutes
+                  </span>
+                </div>
+              )}
+              <div className='w-fit h-fit flex items-center justify-center'>
               {showRestockInput ? (
-                <div className="flex items-center space-x-2">
+                <>
                   <input
                     type="number"
-                    className="w-20 p-2 border border-gray-300 rounded-md"
                     value={restockQuantity}
                     onChange={(e) => setRestockQuantity(e.target.value)}
-                    placeholder="Qty"
+                    className="border border-gray-300 rounded-md px-2 py-1 w-16"
                   />
                   <button
-                    className={`px-3 py-2 bg-green-700 text-white rounded-md shadow-sm hover:bg-green-800 focus:ring focus:ring-green-700 focus:outline-none ${buttonLoading ? 'cursor-not-allowed' : ''}`}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md shadow-sm hover:bg-green-700 focus:ring focus:ring-green-600 focus:outline-none"
+
                     onClick={handleRestockProduct}
-                    disabled={buttonLoading}
                   >
                     {buttonLoading ? (
                       <RotatingLines width="20" strokeColor="white" />
@@ -227,22 +264,24 @@ const VendorProducts = () => {
                       <FaBoxOpen />
                     )}
                   </button>
-                </div>
+                </> 
               ) : (
                 <button
-                  className={`px-3 py-2 bg-green-700 text-white rounded-md shadow-sm hover:bg-green-800 focus:ring focus:ring-green-700 focus:outline-none ${buttonLoading ? 'cursor-not-allowed' : ''}`}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-md shadow-sm hover:bg-yellow-700 focus:ring focus:ring-yellow-600 focus:outline-none h-8"
                   onClick={() => setShowRestockInput(true)}
-                  disabled={buttonLoading}
                 >
-                  {buttonLoading ? (
-                    <RotatingLines width="20" strokeColor="white" />
-                  ) : (
-                    'Restock'
-                  )}
+                  <BsBox2Fill/>
                 </button>
               )}
+              </div>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {isAddProductModalOpen && (
+        <Modal isOpen={isAddProductModalOpen} onClose={closeModals}>
+          <AddProduct onClose={closeModals} onProductAdded={() => fetchVendorProducts(vendorId)} />
         </Modal>
       )}
 
@@ -254,10 +293,6 @@ const VendorProducts = () => {
           message="Are you sure you want to delete this product?"
         />
       )}
-
-      <Modal isOpen={isAddProductModalOpen} onClose={closeModals}>
-        <AddProduct onClose={closeModals} />
-      </Modal>
     </div>
   );
 };

@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { getAuth } from "firebase/auth";
-import { doc, collection, setDoc } from "firebase/firestore";
+import { doc, collection, setDoc, addDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db } from "../../firebase.config"
-  import { toast } from "react-toastify";
+import { db } from "../../firebase.config";
+import { toast } from "react-toastify";
 import { FaImage, FaMinusCircle } from "react-icons/fa";
 import { RotatingLines } from "react-loader-spinner";
 
@@ -51,6 +51,20 @@ const AddProduct = ({ vendorId, closeModal }) => {
 
   const handleRemoveImage = (index) => {
     setProductImageFiles(productImageFiles.filter((_, i) => i !== index));
+  };
+
+  const logActivity = async (note) => {
+    const activityRef = collection(db, "vendors", vendorId, "activityNotes");
+    const activityNote = {
+      timestamp: new Date(),
+      note: note,
+    };
+
+    try {
+      await addDoc(activityRef, activityNote);
+    } catch (error) {
+      console.error("Error logging activity: ", error);
+    }
   };
 
   const handleAddProduct = async () => {
@@ -117,6 +131,9 @@ const AddProduct = ({ vendorId, closeModal }) => {
       const newProductRef = doc(productsCollectionRef);
 
       await setDoc(newProductRef, product);
+
+      // Log activity
+      await logActivity(`Added ${productName} to your store`);
 
       toast.success("Product added successfully");
       // Clear form

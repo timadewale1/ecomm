@@ -4,7 +4,7 @@ import Layout from './components/layout/Layout';
 import "./App.css";
 
 function App() {
-  // useAuth(); // Initialize the auth state
+  useAuth(); // Initialize the auth state
 
   return <Layout />;
 }

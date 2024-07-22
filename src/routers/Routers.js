@@ -35,7 +35,7 @@ const Routers = () => {
   return (
     <Routes>
       <Route path="/confirm-user-state" element={<ConfirmUserState />} />
-      <Route path="/" element={<Navigate to="confirm-user-state" />} />
+      <Route path="/" element={<Navigate to="login" />} />
 
       {/* <Route path="checkout" element={<Checkout />} /> */}
       <Route path="product/:id" element={<ProductDetailPage />} />

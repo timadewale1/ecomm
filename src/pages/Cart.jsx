@@ -11,12 +11,13 @@ import { toast } from "react-toastify";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.config";
 import EmptyCart from "../components/Loading/EmptyCart";
-import { createDummyOrder } from "../admin/Orders";
 import useAuth from "../custom-hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 const Cart = () => {
   const cart = useSelector((state) => state.cart);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { currentUser, loading } = useAuth();
   const [validCart, setValidCart] = useState({});
   const [toastShown, setToastShown] = useState({
@@ -24,7 +25,6 @@ const Cart = () => {
     clear: false,
     increase: false,
     decrease: false,
-    checkout: false,
   });
 
   const checkCartProducts = async () => {
@@ -115,32 +115,6 @@ const Cart = () => {
     },
     [dispatch]
   );
-
-  const handleCheckout = async () => {
-    if (loading) {
-      if (!toastShown.checkout) {
-        toast.info("Checking authentication status...");
-        setToastShown((prev) => ({ ...prev, checkout: true }));
-      }
-      return;
-    }
-
-    if (!currentUser) {
-      if (!toastShown.checkout) {
-        toast.error("User is not logged in");
-        setToastShown((prev) => ({ ...prev, checkout: true }));
-      }
-      return;
-    }
-
-    try {
-      const orderId = await createDummyOrder(validCart, currentUser.uid);
-      toast.success(`Order ${orderId} created successfully!`);
-      dispatch(clearCart());
-    } catch (error) {
-      toast.error("Failed to create order!");
-    }
-  };
 
   useEffect(() => {
     setValidCart(cart);
@@ -233,7 +207,7 @@ const Cart = () => {
             Clear Your Cart
           </button>
           <button
-            onClick={handleCheckout}
+            onClick={() => navigate("/newcheckout")}
             className="px-4 py-2 bg-green-500 text-white rounded-md shadow-sm hover:bg-green-600 transition-colors duration-300 font-ubuntu"
           >
             Checkout

@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { clearCart } from "../redux/actions/action";
+import useAuth from "../custom-hooks/useAuth";
+import { createDummyOrder } from "../admin/Orders";
 
 const Checkout = () => {
   const cart = useSelector((state) => state.cart);
   const [totalPrice, setTotalPrice] = useState(0);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { currentUser, loading } = useAuth();
   const [deliveryInfo, setDeliveryInfo] = useState({
     name: "",
     email: "",
@@ -33,18 +38,62 @@ const Checkout = () => {
     setDeliveryInfo({ ...deliveryInfo, [name]: value });
   };
 
-  const handleBookingFeePayment = (e) => {
+  const handleBookingFeePayment = async (e) => {
     e.preventDefault();
-    navigate("/newcheckout/bookingfee", {
-      state: { totalPrice, deliveryInfo },
-    });
+
+    if (loading) {
+      toast.info("Checking authentication status...");
+      return;
+    }
+
+    if (!currentUser) {
+      toast.error("User is not logged in");
+      return;
+    }
+
+    try {
+      const userId = currentUser.uid; // Ensure the userId is defined
+      const orderId = await createDummyOrder(cart, userId);
+      dispatch(clearCart());
+      navigate("/newcheckout/bookingfee", {
+        state: { totalPrice, deliveryInfo },
+      });
+      toast.success(`Order ${orderId} placed successfully!`);
+    } catch (error) {
+      console.error("Error placing order:", error);
+      toast.error(
+        "An error occurred while placing the order. Please try again."
+      );
+    }
   };
 
-  const handleFullDeliveryPayment = (e) => {
+  const handleFullDeliveryPayment = async (e) => {
     e.preventDefault();
-    navigate("/newcheckout/fulldelivery", {
-      state: { totalPrice, deliveryInfo },
-    });
+
+    if (loading) {
+      toast.info("Checking authentication status...");
+      return;
+    }
+
+    if (!currentUser) {
+      toast.error("User is not logged in");
+      return;
+    }
+
+    try {
+      const userId = currentUser.uid; // Ensure the userId is defined
+      const orderId = await createDummyOrder(cart, userId);
+      dispatch(clearCart());
+      navigate("/newcheckout/fulldelivery", {
+        state: { totalPrice, deliveryInfo },
+      });
+      toast.success(`Order ${orderId} placed successfully!`);
+    } catch (error) {
+      console.error("Error placing order:", error);
+      toast.error(
+        "An error occurred while placing the order. Please try again."
+      );
+    }
   };
 
   return (
@@ -152,7 +201,6 @@ const Checkout = () => {
             </div>
           </div>
         ))}
-
         <button
           onClick={handleBookingFeePayment}
           className="w-full px-4 py-2 mb-4 bg-blue-500 text-white rounded-md shadow-sm hover:bg-blue-600 transition-colors duration-300 font-ubuntu"

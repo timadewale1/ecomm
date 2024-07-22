@@ -13,12 +13,15 @@ import VendorDashboard from "../pages/VendorCompleteProfile/vendordashboard.jsx"
 import FavoritesPage from "../pages/UserSide/FavoritesProducts.jsx";
 import VendorProducts from "../pages/VendorCompleteProfile/VendorProducts.jsx";
 import VendorProfile from "../pages/VendorCompleteProfile/VendorProfile.jsx";
-import MarketStorePage from "../pages/MarketStorePage.jsx"
+import MarketStorePage from "../pages/MarketStorePage.jsx";
 import UserDashboard from "../pages/UserDashboard";
 import Marketpg from "../pages/Marketpg";
 import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfile.jsx";
 import NewHome from "../pages/Homepage";
 import LatestCart from "../pages/Cart.jsx";
+import BookingFee from "../pages/BookingFee.jsx";
+import FullDelivery from "../pages/FullDelivery.jsx";
+import Checkout from "../pages/NewCheckout.jsx";
 import MarketVendors from "../pages/MarketVendors.jsx";
 import Profile from "../pages/Profile";
 import Explore from "../pages/Explore";
@@ -52,6 +55,9 @@ const Routers = () => {
       <Route element={<ProtectedRoute />}>
         <Route path="newhome" element={<NewHome />} />
         <Route path="latest-cart" element={<LatestCart />} />
+        <Route path="newcheckout" element={<Checkout />} />
+        <Route path="newcheckout/bookingfee" element={<BookingFee />} />
+        <Route path="newcheckout/fulldelivery" element={<FullDelivery />} />
         <Route path="favorites" element={<FavoritesPage />} />
         <Route path="browse-markets" element={<Marketpg />} />
         <Route path="market-card/:marketName" element={<Marketcardpage />} />

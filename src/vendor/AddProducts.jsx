@@ -82,14 +82,20 @@ const AddProduct = ({ vendorId, closeModal }) => {
       let coverImageUrl = "";
 
       if (productCoverImageFile) {
-        const storageRef = ref(storage, `${vendorId}/my-products/cover-${productCoverImageFile.name}`);
+        const storageRef = ref(
+          storage,
+          `${vendorId}/my-products/cover-${productCoverImageFile.name}`
+        );
         await uploadBytes(storageRef, productCoverImageFile);
         coverImageUrl = await getDownloadURL(storageRef);
       }
 
       const productImageUrls = await Promise.all(
         productImageFiles.map(async (file) => {
-          const storageRef = ref(storage, `${vendorId}/my-products/${file.name}`);
+          const storageRef = ref(
+            storage,
+            `${vendorId}/my-products/${file.name}`
+          );
           await uploadBytes(storageRef, file);
           return getDownloadURL(storageRef);
         })
@@ -97,17 +103,28 @@ const AddProduct = ({ vendorId, closeModal }) => {
 
       const product = {
         name: productName.toUpperCase(),
-        description: productDescription.charAt(0).toUpperCase() + productDescription.slice(1).toLowerCase(),
+        description:
+          productDescription.charAt(0).toUpperCase() +
+          productDescription.slice(1).toLowerCase(),
         price: parseFloat(productPrice),
         coverImageUrl: coverImageUrl,
         imageUrls: productImageUrls,
         vendorId: user.uid,
         stockQuantity: parseInt(stockQuantity, 10),
-        condition: productCondition === "defect"
-          ? `Defect: ${productDefectDescription.charAt(0).toUpperCase() + productDefectDescription.slice(1).toLowerCase()}`
-          : productCondition.charAt(0).toUpperCase() + productCondition.slice(1).toLowerCase(),
-        category: category.map(cat => cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase()),
-        productType: productType.charAt(0).toUpperCase() + productType.slice(1).toLowerCase(),
+        condition:
+          productCondition === "defect"
+            ? `Defect: ${
+                productDefectDescription.charAt(0).toUpperCase() +
+                productDefectDescription.slice(1).toLowerCase()
+              }`
+            : productCondition.charAt(0).toUpperCase() +
+              productCondition.slice(1).toLowerCase(),
+        category: category.map(
+          (cat) => cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase()
+        ),
+        productType:
+          productType.charAt(0).toUpperCase() +
+          productType.slice(1).toLowerCase(),
         size: size.charAt(0).toUpperCase() + size.slice(1).toLowerCase(),
         color: color.charAt(0).toUpperCase() + color.slice(1).toLowerCase(),
       };
@@ -153,9 +170,8 @@ const AddProduct = ({ vendorId, closeModal }) => {
   const getSizeOptions = () => {
     switch (productType) {
       case "cloth":
-        return ["XS", "S", "M", "L", "XL", "XXL", "in all sizes"];
+        return ["XS", "S", "M", "L", "XL", "XXL", " all sizes"];
       case "dress":
-
         return [
           "32",
           "34",
@@ -166,11 +182,9 @@ const AddProduct = ({ vendorId, closeModal }) => {
           "44",
           "all sizes",
         ];
-
       case "jewelry":
         return ["5", "6", "7", "8", "9", "10", "all sizes"];
       case "footwear":
-
         return [
           "35",
           "36",
@@ -184,7 +198,6 @@ const AddProduct = ({ vendorId, closeModal }) => {
           "44",
           " all sizes",
         ];
-
       default:
         return [];
     }
@@ -196,20 +209,30 @@ const AddProduct = ({ vendorId, closeModal }) => {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-green-700 mb-6 font-ubuntu">Add Product</h2>
+      <h2 className="text-2xl font-bold text-green-700 mb-6 font-ubuntu">
+        Add Product
+      </h2>
       <div className="mb-4">
-        <label className="block font-ubuntu text-sm font-medium text-gray-700">Product Name</label>
+        <label className="block font-ubuntu text-sm font-medium text-gray-700">
+          Product Name
+        </label>
         <input
           type="text"
           value={productName}
           onChange={(e) => setProductName(e.target.value.toUpperCase())}
-          className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(productName)}`}
+          className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
+            productName
+          )}`}
           required
         />
       </div>
       <div className="mb-4">
-        <label className="block text-gray-700 text-sm font-ubuntu font-medium">Category</label>
-        <div className={`flex space-x-2 border ${highlightField(category.length)}`}>
+        <label className="block text-gray-700 text-sm font-ubuntu font-medium">
+          Category
+        </label>
+        <div
+          className={`flex space-x-2 border ${highlightField(category.length)}`}
+        >
           {["Men", "Women", "Kids"].map((cat) => (
             <div key={cat}>
               <input
@@ -220,17 +243,23 @@ const AddProduct = ({ vendorId, closeModal }) => {
                 onChange={handleCategoryChange}
                 className="mr-1"
               />
-              <label htmlFor={cat} className="text-sm text-gray-700">{cat}</label>
+              <label htmlFor={cat} className="text-sm text-gray-700">
+                {cat}
+              </label>
             </div>
           ))}
         </div>
       </div>
       <div className="mb-4">
-        <label className="block text-gray-700 text-sm font-ubuntu font-medium">Product Type</label>
+        <label className="block text-gray-700 text-sm font-ubuntu font-medium">
+          Product Type
+        </label>
         <select
           value={productType}
           onChange={(e) => setProductType(e.target.value)}
-          className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(productType)}`}
+          className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
+            productType
+          )}`}
           required
         >
           <option value="">Select Product Type</option>
@@ -242,156 +271,242 @@ const AddProduct = ({ vendorId, closeModal }) => {
       </div>
       {productType && (
         <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-ubuntu font-medium">Size</label>
+          <label className="block text-gray-700 text-sm font-ubuntu font-medium">
+            Size
+          </label>
           <select
             value={size}
             onChange={(e) => setSize(e.target.value)}
-            className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(size)}`}
+            className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
+              size
+            )}`}
             required
           >
             <option value="">Select Size</option>
-            {getSizeOptions().map((option) => (
-              <option key={option} value={option}>
-                {option}
+            {getSizeOptions().map((sizeOption) => (
+              <option key={sizeOption} value={sizeOption}>
+                {sizeOption}
               </option>
             ))}
           </select>
         </div>
       )}
       <div className="mb-4">
-        <label className="block text-gray-700 text-sm font-ubuntu font-medium">Color</label>
+        <label className="block text-gray-700 text-sm font-ubuntu font-medium">
+          Color
+        </label>
         <input
           type="text"
           value={color}
           onChange={(e) => setColor(e.target.value)}
-          className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(color)}`}
+          className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
+            color
+          )}`}
           required
         />
       </div>
       <div className="mb-4">
-        <label className="block text-gray-700 text-sm font-ubuntu font-medium">Product Description</label>
-        <textarea
+        <label className="block text-gray-700 font-ubuntu text-sm font-medium">
+          Product Description
+        </label>
+        <p className="text-xs text-red-500">Should not exceed 25 characters!</p>
+        <input
+          type="text"
           value={productDescription}
-          onChange={(e) =>
-            setProductDescription(
-              e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1).toLowerCase()
-            )
-          }
-          className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(productDescription)}`}
-          required
-        ></textarea>
+          onChange={(e) => setProductDescription(e.target.value)}
+          className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none"
+          maxLength="25"
+        />
       </div>
       <div className="mb-4">
-        <label className="block text-gray-700 text-sm font-ubuntu font-medium">Price</label>
+        <label className="block text-gray-700 font-ubuntu text-sm font-medium">
+          Product Price
+        </label>
         <input
           type="number"
           value={productPrice}
           onChange={(e) => setProductPrice(e.target.value)}
-          className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(productPrice)}`}
+          className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
+            productPrice
+          )}`}
           required
         />
       </div>
       <div className="mb-4">
-        <label className="block text-gray-700 text-sm font-ubuntu font-medium">Cover Image</label>
-        <input
-          type="file"
-          onChange={(e) => handleFileChange(e, setProductCoverImageFile)}
-          accept="image/*"
-          className={`mt-1 block w-full ${highlightField(productCoverImageFile)}`}
+        <label className="block text-black font-ubuntu text-sm font-medium">
+          Product Cover Image
+        </label>
+        <div className="flex flex-col items-center">
+          <div
+            className={`w-full h-64 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer relative ${highlightField(
+              productCoverImageFile
+            )}`}
+            onClick={() => document.getElementById("coverFileInput").click()}
+          >
+            {productCoverImageFile ? (
+              <>
+                <img
+                  src={URL.createObjectURL(productCoverImageFile)}
+                  alt="Cover"
+                  className="w-full h-full rounded-md object-cover"
+                />
+                <button
+                  type="button"
+                  className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setProductCoverImageFile(null);
+                  }}
+                >
+                  <FaMinusCircle className="h-4 w-4" />
+                </button>
+              </>
+            ) : (
+              <FaImage className="h-16 w-16 text-gray-400" />
+            )}
+          </div>
+          <input
+            id="coverFileInput"
+            type="file"
+            accept="image/*"
+            onChange={(e) => handleFileChange(e, setProductCoverImageFile)}
+            className="hidden"
+            required
+          />
+        </div>
+      </div>
+      <div className="mb-4">
+        <label className="block text-gray-700 text-sm font-ubuntu font-medium">
+          Product Images
+        </label>
+        <p className="text-xs text-gray-400">
+          Provide additional images to give buyers a better view of the product.
+          If you have variations of the same product at the same price but with
+          different designs, add those images here.{" "}
+        </p>
+        <div className="flex flex-col mt-1 items-center">
+          <div className=" grid grid-cols-2">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div
+                key={index}
+                className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer relative"
+                onClick={() =>
+                  document.getElementById(`productFileInput-${index}`).click()
+                }
+              >
+                {productImageFiles[index] ? (
+                  <>
+                    <img
+                      src={URL.createObjectURL(productImageFiles[index])}
+                      alt={`Product Image ${index + 1}`}
+                      className="w-full h-full rounded-md object-cover"
+                    />
+                    <button
+                      type="button"
+                      className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveImage(index);
+                      }}
+                    >
+                      <FaMinusCircle className="h-4 w-4" />
+                    </button>
+                  </>
+                ) : (
+                  <FaImage className="h-8 w-8 text-gray-400" />
+                )}
+                <input
+                  id={`productFileInput-${index}`}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const newFiles = [...productImageFiles];
+                    newFiles[index] = e.target.files[0];
+                    setProductImageFiles(newFiles);
+                  }}
+                  className="hidden"
+                />
+              </div>
+            ))}
+          </div>
+          <input
+            id="multipleFileInput"
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleMultipleFileChange}
+            className="hidden"
+          />
+        </div>
+      </div>
+      <div className="mb-4">
+        <label className="block text-gray-700 text-xs font-ubuntu font-medium">
+          Product Condition
+        </label>
+        <p className="text-xs font-light font-ubuntu">
+          This does not affect the sales of your product. Integrity is important
+          to our brand.
+        </p>
+        <select
+          value={productCondition}
+          onChange={(e) => setProductCondition(e.target.value)}
+          className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
+            productCondition
+          )}`}
           required
-        />
-        {productCoverImageFile && (
-          <div className="mt-2 flex items-center space-x-2">
-            <img
-              src={URL.createObjectURL(productCoverImageFile)}
-              alt="Cover"
-              className="w-16 h-16 object-cover rounded"
-            />
-            <FaMinusCircle
-              className="text-red-500 cursor-pointer"
-              onClick={() => setProductCoverImageFile(null)}
+        >
+          <option value="">Select Condition</option>
+          <option value="brand new">Brand New</option>
+          <option value="thrift">Thrift</option>
+          <option value="second hand">Second Hand</option>
+          <option value="defect">Defect</option>
+        </select>
+        {productCondition === "defect" && (
+          <div className="mt-4">
+            <label className="block text-gray-700">Defect Description</label>
+            <input
+              type="text"
+              value={productDefectDescription}
+              onChange={(e) => setProductDefectDescription(e.target.value)}
+              className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
+                productDefectDescription
+              )}`}
+              required
             />
           </div>
         )}
       </div>
       <div className="mb-4">
-        <label className="block text-gray-700 text-sm font-ubuntu font-medium">Product Images</label>
-        <input
-          type="file"
-          onChange={handleMultipleFileChange}
-          accept="image/*"
-          multiple
-          className="mt-1 block w-full"
-        />
-        <div className="mt-2 flex flex-wrap space-x-2">
-          {productImageFiles.map((file, index) => (
-            <div key={index} className="relative">
-              <img
-                src={URL.createObjectURL(file)}
-                alt={`Product ${index + 1}`}
-                className="w-16 h-16 object-cover rounded"
-              />
-              <FaMinusCircle
-                className="text-red-500 cursor-pointer absolute top-0 right-0"
-                onClick={() => handleRemoveImage(index)}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="mb-4">
-        <label className="block text-gray-700 text-sm font-ubuntu font-medium">Stock Quantity</label>
+        <label className="block text-gray-700 font-ubuntu text-xs font-medium">
+          Stock Quantity
+        </label>
         <input
           type="number"
           value={stockQuantity}
           onChange={(e) => setStockQuantity(e.target.value)}
-          className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(stockQuantity)}`}
+          className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
+            stockQuantity
+          )}`}
           required
         />
       </div>
-      <div className="mb-4">
-        <label className="block text-gray-700 text-sm font-ubuntu font-medium">Product Condition</label>
-        <select
-          value={productCondition}
-          onChange={(e) => setProductCondition(e.target.value)}
-          className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(productCondition)}`}
-          required
-        >
-          <option value="">Select Condition</option>
-          <option value="new">New</option>
-          <option value="used">Used</option>
-          <option value="defect">Defect</option>
-        </select>
-      </div>
-      {productCondition === "defect" && (
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-ubuntu font-medium">Defect Description</label>
-          <textarea
-            value={productDefectDescription}
-            onChange={(e) =>
-              setProductDefectDescription(
-                e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1).toLowerCase()
-              )
-            }
-            className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(productDefectDescription)}`}
-            required
-          ></textarea>
-        </div>
-      )}
-      <div className="flex justify-end">
+      <div className="text-sm font-poppins">
         <button
+          type="button"
           onClick={handleAddProduct}
-          disabled={isLoading}
-          className="px-6 py-2 bg-green-700 text-white rounded-md shadow-sm hover:bg-green-800 transition-colors duration-300 font-ubuntu"
+          className="w-full px-4 py-2 bg-orange-600 text-white rounded-md shadow-sm hover:bg-orange-700 focus:ring focus:ring-orange-600 focus:outline-none"
+          disabled={isLoading} // Disable button when loading
         >
           {isLoading ? (
-            <RotatingLines
-              width="30"
-              strokeColor="#fff"
-              strokeWidth="5"
-              animationDuration="0.75"
-              visible={true}
-            />
+            <div className="flex items-center justify-center">
+              <RotatingLines
+                strokeColor="white"
+                strokeWidth="5"
+                animationDuration="0.75"
+                width="24"
+                visible={true}
+              />
+            </div>
           ) : (
             "Add Product"
           )}

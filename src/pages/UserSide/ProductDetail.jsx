@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart } from "../../redux/actions/action";
 import { fetchProduct } from "../../redux/actions/productaction";
 import Loading from "../../components/Loading/Loading";
 import { PiShoppingCartThin } from "react-icons/pi";
-import { FaAngleLeft, FaCheck, FaTimes, FaPlus, FaMinus } from "react-icons/fa";
+import { FaAngleLeft, FaCheck, FaPlus, FaMinus } from "react-icons/fa";
 import { CiCircleInfo } from "react-icons/ci";
 import { toast } from "react-toastify";
 
@@ -18,10 +18,23 @@ const ProductDetailPage = () => {
   const [mainImage, setMainImage] = useState("");
   const [isSticky, setIsSticky] = useState(false);
   const [selectedSize, setSelectedSize] = useState("");
+  const [toastShown, setToastShown] = useState({
+    sizeError: false,
+    stockError: false,
+    success: false,
+    fetchError: false,
+    productNotFound: false,
+  });
 
   useEffect(() => {
-    dispatch(fetchProduct(id));
-  }, [dispatch, id]);
+    dispatch(fetchProduct(id)).catch((err) => {
+      console.error("Failed to fetch product:", err);
+      if (!toastShown.fetchError) {
+        toast.error("Failed to load product details. Please try again.");
+        setToastShown((prev) => ({ ...prev, fetchError: true }));
+      }
+    });
+  }, [dispatch, id, toastShown.fetchError]);
 
   useEffect(() => {
     if (product) {
@@ -44,14 +57,20 @@ const ProductDetailPage = () => {
     };
   }, []);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = useCallback(() => {
     if (product.size.toLowerCase().includes("all sizes") && !selectedSize) {
-      toast.error("Please select a size before adding to cart!");
+      if (!toastShown.sizeError) {
+        toast.error("Please select a size before adding to cart!");
+        setToastShown((prev) => ({ ...prev, sizeError: true }));
+      }
       return;
     }
 
     if (quantity > product.stockQuantity) {
-      toast.error("Selected quantity exceeds stock availability!");
+      if (!toastShown.stockError) {
+        toast.error("Selected quantity exceeds stock availability!");
+        setToastShown((prev) => ({ ...prev, stockError: true }));
+      }
     } else {
       const productToAdd = {
         ...product,
@@ -60,23 +79,29 @@ const ProductDetailPage = () => {
         selectedImageUrl: mainImage,
       };
       dispatch(addToCart(productToAdd));
-      toast.success(`Added ${product.name} to cart!`);
+      if (!toastShown.success) {
+        toast.success(`Added ${product.name} to cart!`);
+        setToastShown((prev) => ({ ...prev, success: true }));
+      }
     }
-  };
+  }, [dispatch, product, quantity, selectedSize, mainImage, toastShown]);
 
-  const handleIncreaseQuantity = () => {
+  const handleIncreaseQuantity = useCallback(() => {
     if (quantity < product.stockQuantity) {
       setQuantity(quantity + 1);
     } else {
-      toast.error("Cannot exceed available stock!");
+      if (!toastShown.stockError) {
+        toast.error("Cannot exceed available stock!");
+        setToastShown((prev) => ({ ...prev, stockError: true }));
+      }
     }
-  };
+  }, [quantity, product, toastShown]);
 
-  const handleDecreaseQuantity = () => {
+  const handleDecreaseQuantity = useCallback(() => {
     if (quantity > 1) {
       setQuantity(quantity - 1);
     }
-  };
+  }, [quantity]);
 
   if (loading) {
     return <Loading />;
@@ -87,6 +112,10 @@ const ProductDetailPage = () => {
   }
 
   if (!product) {
+    if (!toastShown.productNotFound) {
+      toast.error("Product not found. It may have been removed by the vendor.");
+      setToastShown((prev) => ({ ...prev, productNotFound: true }));
+    }
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
         <h1 className="text-2xl font-bold text-red-600 mb-2">Product Not Found</h1>
@@ -97,6 +126,7 @@ const ProductDetailPage = () => {
       </div>
     );
   }
+
   return (
     <div className="relative pb-40">
       <div

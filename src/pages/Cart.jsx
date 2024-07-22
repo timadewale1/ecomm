@@ -120,6 +120,14 @@ const Cart = () => {
     setValidCart(cart);
   }, [cart]);
 
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!currentUser) {
+    return <div>Please log in to view your cart.</div>;
+  }
+
   return (
     <div className="flex flex-col h-screen justify-between p-3 bg-gray-200">
       <div className="flex-grow overflow-y-auto">

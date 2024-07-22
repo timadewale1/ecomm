@@ -377,7 +377,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
                   <>
                     <img
                       src={URL.createObjectURL(productImageFiles[index])}
-                      alt={`Product Image ${index + 1}`}
+                      alt={`Product ${index + 1}`}
                       className="w-full h-full rounded-md object-cover"
                     />
                     <button

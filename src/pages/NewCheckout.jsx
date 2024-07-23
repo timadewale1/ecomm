@@ -5,6 +5,11 @@ import { toast } from "react-toastify";
 import { clearCart } from "../redux/actions/action";
 import useAuth from "../custom-hooks/useAuth";
 import { createDummyOrder } from "../admin/Orders";
+import { IoLocation } from "react-icons/io5";
+import GooglePlacesAutocomplete from "../components/Google";
+import { FaInfoCircle } from "react-icons/fa";
+import BookingFeeModal from "../components/BookingFee";
+import { calculateServiceFee } from "./VendorCompleteProfile/utilis";
 
 const Checkout = () => {
   const cart = useSelector((state) => state.cart);
@@ -13,13 +18,9 @@ const Checkout = () => {
   const dispatch = useDispatch();
   const { currentUser, loading } = useAuth();
   const [deliveryInfo, setDeliveryInfo] = useState({
-    name: "",
-    email: "",
     address: "",
-    city: "",
-    postalCode: "",
-    country: "",
   });
+  const [showBookingFeeModal, setShowBookingFeeModal] = useState(false);
 
   useEffect(() => {
     const calculateTotalPrice = () => {
@@ -33,9 +34,12 @@ const Checkout = () => {
     calculateTotalPrice();
   }, [cart]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setDeliveryInfo({ ...deliveryInfo, [name]: value });
+  const bookingFee = (totalPrice * 0.2).toFixed(2);
+  const serviceFee = calculateServiceFee(totalPrice);
+  const total = (parseFloat(totalPrice) + parseFloat(bookingFee) + parseFloat(serviceFee)).toFixed(2);
+
+  const handleSelectPlace = (place) => {
+    setDeliveryInfo({ ...deliveryInfo, address: place });
   };
 
   const handleBookingFeePayment = async (e) => {
@@ -96,102 +100,59 @@ const Checkout = () => {
     }
   };
 
+  const handleGetCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          // Use reverse geocoding to get the address from latitude and longitude
+          fetch(
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=YOUR_GOOGLE_MAPS_API_KEY`
+          )
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.results && data.results.length > 0) {
+                const address = data.results[0].formatted_address;
+                setDeliveryInfo({ ...deliveryInfo, address });
+              }
+            })
+            .catch((error) => {
+              console.error("Error fetching address:", error);
+            });
+        },
+        (error) => {
+          console.error("Error getting current location:", error);
+        }
+      );
+    } else {
+      console.error("Geolocation is not supported by this browser.");
+    }
+  };
+
   return (
-    <div className="checkout-container">
-      <h1 className="text-center font-ubuntu mb-4 text-black text-2xl">
-        Checkout
-      </h1>
-      <form className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-lg font-semibold mb-4">Delivery Information</h2>
-        <div className="mb-4">
-          <label className="block mb-2 font-semibold">Name</label>
-          <input
-            type="text"
-            name="name"
-            value={deliveryInfo.name}
-            onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded-md"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block mb-2 font-semibold">Email</label>
-          <input
-            type="email"
-            name="email"
-            value={deliveryInfo.email}
-            onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded-md"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block mb-2 font-semibold">Address</label>
-          <input
-            type="text"
-            name="address"
-            value={deliveryInfo.address}
-            onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded-md"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block mb-2 font-semibold">City</label>
-          <input
-            type="text"
-            name="city"
-            value={deliveryInfo.city}
-            onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded-md"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block mb-2 font-semibold">Postal Code</label>
-          <input
-            type="text"
-            name="postalCode"
-            value={deliveryInfo.postalCode}
-            onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded-md"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block mb-2 font-semibold">Country</label>
-          <input
-            type="text"
-            name="country"
-            value={deliveryInfo.country}
-            onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded-md"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block mb-2 font-semibold">Total Price</label>
-          <p className="text-lg font-semibold text-green-600">₦{totalPrice}</p>
-        </div>
+    <div className="p-4">
+      <h1 className="font-ubuntumb-4 text-black text-2xl">Checkout</h1>
+      <form className="bg-white mt-8">
+        <h2 className="text-lg font-semibold font-ubuntu mb-2">Order summary</h2>
         {Object.values(cart).map((product) => (
           <div
             key={product.id}
-            className="flex justify-between items-center border-b py-2 mb-2"
+            className="flex justify-between items-center bg-gray-100 w-full border-b py-3 rounded-lg mb-2"
           >
             <div className="flex items-center">
               <img
                 src={product.selectedImageUrl}
                 alt={product.name}
-                className="w-16 h-16 object-cover rounded-lg mr-4"
+                className="w-20 h-20 object-cover rounded-lg mr-4"
               />
               <div>
-                <h3 className="text-md font-semibold font-poppins">
+                <h3 className="text-lg font-semibold font-poppins">
                   {product.name}
                 </h3>
-                <p className="text-green-600 font-lato text-lg">
-                  ₦{product.price}
+                <p className="text-green-600 font-poppins font-medium text-md">
+                  ₦{product.price.toFixed(2)}
                 </p>
-                <p className="text-gray-600 font-medium text-xs">
+                <p className="text-gray-600 font-poppins font-medium text-xs">
                   Size: {product.selectedSize || product.size}
                 </p>
                 <p className="text-gray-600 font-medium text-xs">
@@ -201,6 +162,36 @@ const Checkout = () => {
             </div>
           </div>
         ))}
+        <div className="mt-4 relative">
+          <label className="block mb-2 font-semibold">Address</label>
+          <GooglePlacesAutocomplete onPlaceSelected={handleSelectPlace} />
+          <IoLocation
+            className="absolute right-3 text-gray-400 top-10 text-xl cursor-pointer"
+            onClick={handleGetCurrentLocation}
+          />
+        </div>
+        <div className="mt-4 flex justify-between">
+          <label className="block mb-2 font-poppins font-semibold">Sub-Total</label>
+          <p className="text-lg font-poppins text-green-600">₦{totalPrice.toFixed(2)}</p>
+        </div>
+        <div className="mt-1 flex justify-between">
+          <label className="block mb-2 font-poppins font-semibold">
+            Booking Fee
+            <FaInfoCircle
+              className="inline ml-2 text-gray-400 cursor-pointer"
+              onClick={() => setShowBookingFeeModal(true)}
+            />
+          </label>
+          <p className="text-lg font-poppins text-green-600">₦{bookingFee}</p>
+        </div>
+        <div className="mt-1 flex justify-between">
+          <label className="block mb-2 font-poppins font-semibold">Service Fee</label>
+          <p className="text-lg font-poppins text-green-600">₦{serviceFee}</p>
+        </div>
+        <div className="mt-1 flex justify-between">
+          <label className="block mb-2 font-poppins font-semibold">Total</label>
+          <p className="text-lg font-poppins text-green-600">₦{total}</p>
+        </div>
         <button
           onClick={handleBookingFeePayment}
           className="w-full px-4 py-2 mb-4 bg-blue-500 text-white rounded-md shadow-sm hover:bg-blue-600 transition-colors duration-300 font-ubuntu"
@@ -214,6 +205,10 @@ const Checkout = () => {
           Pay for Full Delivery
         </button>
       </form>
+
+      {showBookingFeeModal && (
+        <BookingFeeModal onClose={() => setShowBookingFeeModal(false)} />
+      )}
     </div>
   );
 };

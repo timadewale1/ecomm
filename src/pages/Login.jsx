@@ -92,7 +92,7 @@ const Login = () => {
         return;
       }
 
-      const Name = userData?.displayName || "User";
+      const Name = userData?.username || "User";
       setLoading(false);
       toast.success(`Hello ${Name}, welcome!`, {
         className: "custom-toast",

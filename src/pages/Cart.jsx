@@ -20,6 +20,7 @@ const Cart = () => {
   const navigate = useNavigate();
   const { currentUser, loading } = useAuth();
   const [validCart, setValidCart] = useState({});
+  const [userProfileComplete, setUserProfileComplete] = useState(false);
   const [toastShown, setToastShown] = useState({
     remove: false,
     clear: false,
@@ -63,6 +64,29 @@ const Cart = () => {
       checkCartProducts();
     }
   }, [cart, dispatch]);
+
+  const checkUserProfile = async () => {
+    if (currentUser) {
+      try {
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          console.log("User data:", data); // Log user data
+          if (data.displayName && data.birthday) {
+            setUserProfileComplete(true);
+          } else {
+            setUserProfileComplete(false);
+          }
+        }
+      } catch (error) {
+        console.error("Error checking user profile:", error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    checkUserProfile();
+  }, [currentUser]);
 
   const handleRemoveFromCart = useCallback(
     (productKey) => {
@@ -119,6 +143,15 @@ const Cart = () => {
   useEffect(() => {
     setValidCart(cart);
   }, [cart]);
+
+  const handleCheckout = () => {
+    console.log("Profile complete:", userProfileComplete); // Log profile status
+    if (userProfileComplete) {
+      navigate("/newcheckout");
+    } else {
+      toast.error("Please complete your profile before checking out.");
+    }
+  };
 
   if (loading) {
     return <div>Loading...</div>;
@@ -215,7 +248,7 @@ const Cart = () => {
             Clear Your Cart
           </button>
           <button
-            onClick={() => navigate("/newcheckout")}
+            onClick={handleCheckout}
             className="px-4 py-2 bg-green-500 text-white rounded-md shadow-sm hover:bg-green-600 transition-colors duration-300 font-ubuntu"
           >
             Checkout

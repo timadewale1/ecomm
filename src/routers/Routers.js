@@ -23,7 +23,7 @@ import BookingFee from "../pages/BookingFee.jsx";
 import FullDelivery from "../pages/FullDelivery.jsx";
 import Checkout from "../pages/NewCheckout.jsx";
 import MarketVendors from "../pages/MarketVendors.jsx";
-import Profile from "../pages/Profile";
+import Profile from "../pages/Profile.jsx";
 import Explore from "../pages/Explore";
 import Marketcardpage from "../pages/marketcardpage.jsx";
 import OnlineVendors from "../pages/OnlineVendors.jsx";
@@ -62,7 +62,7 @@ const Routers = () => {
         <Route path="browse-markets" element={<Marketpg />} />
         <Route path="market-card/:marketName" element={<Marketcardpage />} />
         <Route path="explore" element={<Explore />} />
-        <Route path="profile" element={<Profile />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="user-dashboard" element={<UserDashboard />} />
         <Route path="vendordashboard" element={<VendorDashboard />} />
         <Route path="vendor-profile" element={<VendorProfile />} />

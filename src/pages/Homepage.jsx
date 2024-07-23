@@ -89,7 +89,7 @@ const Homepage = () => {
         const userDoc = await getDoc(doc(db, "users", uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          setUserName(userData.displayName || "User");
+          setUserName(userData.username || "User");
         }
       } catch (error) {
         console.error("Error fetching user data:", error);

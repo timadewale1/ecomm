@@ -35,8 +35,6 @@ const CompleteProfile = () => {
     personalAddress: "",
     coverImage: null,
     coverImageUrl: "",
-    bankName: "",
-    accountNumber: "",
   });
   const [loading, setLoading] = useState(false);
 
@@ -89,7 +87,7 @@ const CompleteProfile = () => {
         },
         (error) => {
           // Error function ...
-          toast.error("Error uploading image: ", {
+          toast.error("Error uploading image: " + error.message, {
             className: "custom-toast",
           });
           setUploadingImage(false);
@@ -123,6 +121,20 @@ const CompleteProfile = () => {
   };
 
   const handleNextStep = () => {
+    const missingFields = [];
+
+    if (!vendorData.shopName) missingFields.push("Shop Name");
+    if (!vendorData.categories.length) missingFields.push("Categories");
+    if (!vendorData.description) missingFields.push("Description");
+    if (!vendorData.marketPlaceType) missingFields.push("Marketplace Type");
+
+    if (missingFields.length) {
+      toast.error(`Please complete the following fields: ${missingFields.join(", ")}`, {
+        className: "custom-toast",
+      });
+      return;
+    }
+
     setStep(step + 1);
   };
 
@@ -132,6 +144,32 @@ const CompleteProfile = () => {
 
   const handleProfileCompletion = async (e) => {
     e.preventDefault();
+
+    const missingFields = [];
+
+    if (!vendorData.shopName) missingFields.push("Shop Name");
+    if (!vendorData.categories.length) missingFields.push("Categories");
+    if (!vendorData.description) missingFields.push("Description");
+    if (!vendorData.marketPlaceType) missingFields.push("Marketplace Type");
+
+    if (vendorData.marketPlaceType === "marketplace") {
+      if (!vendorData.marketPlace) missingFields.push("Market Place");
+      if (!vendorData.complexName) missingFields.push("Complex Name");
+      if (!vendorData.phoneNumber) missingFields.push("Phone Number");
+    } else if (vendorData.marketPlaceType === "virtual") {
+      if (!vendorData.socialMediaHandle) missingFields.push("Social Media Handle");
+      if (!vendorData.personalAddress) missingFields.push("Personal Address");
+      if (!vendorData.phoneNumber) missingFields.push("Phone Number");
+      if (!vendorData.coverImage) missingFields.push("Cover Image");
+    }
+
+    if (missingFields.length) {
+      toast.error(`Please complete the following fields: ${missingFields.join(", ")}`, {
+        className: "custom-toast",
+      });
+      return;
+    }
+
     setLoading(true);
     const auth = getAuth();
     const user = auth.currentUser;
@@ -244,9 +282,8 @@ const CompleteProfile = () => {
                                     if (e.target.checked) {
                                       newCategories.push(category);
                                     } else {
-                                      const index = newCategories.indexOf(
-                                        category
-                                      );
+                                      const index =
+                                        newCategories.indexOf(category);
                                       if (index > -1) {
                                         newCategories.splice(index, 1);
                                       }
@@ -307,75 +344,59 @@ const CompleteProfile = () => {
                   <motion.button
                     whileTap={{ scale: 1.2 }}
                     onClick={handleNextStep}
-                    className="w-full h-14 bg-green-300 text-gray-800 font-ubuntu text-lg rounded-lg"
+                    className="w-full h-12 bg-customOrange text-white font-semibold rounded-lg mt-4"
                   >
                     Next
                   </motion.button>
                 </>
               )}
-
-              {step === 2 && (
+              {step === 2 && vendorData.marketPlaceType === "marketplace" && (
                 <>
                   <FormGroup className="relative mb-2">
                     <label
                       className="block text-black font-ubuntu text-sm font-bold mb-2"
                       htmlFor="marketPlace"
                     >
-                      Where is your store located?
+                      What market do you sell in?
                     </label>
-                    <input
-                      type="text"
+                    <select
                       name="marketPlace"
-                      placeholder="Enter marketplace name"
                       value={vendorData.marketPlace}
                       className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-100"
                       onChange={handleInputChange}
                       required
-                    />
+                    >
+                      <option value="">Choose Marketplace</option>
+                      <option value="yaba">Yaba</option>
+                      <option value="balogun">Balogun</option>
+                    </select>
                   </FormGroup>
-
                   <FormGroup className="relative mb-2">
                     <label
                       className="block text-black font-ubuntu text-sm font-bold mb-2"
                       htmlFor="complexName"
                     >
-                      Enter the name of the complex
+                      What is your shop number?
+                      <p className="text-xs">
+                        or complex name (add a notable landmark)
+                      </p>
                     </label>
                     <input
                       type="text"
                       name="complexName"
-                      placeholder="Complex Name"
+                      placeholder="Complex Name/Shop Number"
                       value={vendorData.complexName}
                       className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-100"
                       onChange={handleInputChange}
                       required
                     />
                   </FormGroup>
-
-                  <FormGroup className="relative mb-2">
-                    <label
-                      className="block text-black font-ubuntu text-sm font-bold mb-2"
-                      htmlFor="shopNumber"
-                    >
-                      Enter your shop number
-                    </label>
-                    <input
-                      type="text"
-                      name="shopNumber"
-                      placeholder="Shop Number"
-                      value={vendorData.shopNumber}
-                      className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-100"
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </FormGroup>
-
                   <FormGroup className="relative mb-2">
                     <label
                       className="block text-black font-ubuntu text-sm font-bold mb-2"
                       htmlFor="phoneNumber"
                     >
-                      Enter your contact phone number
+                      Enter your phone number
                     </label>
                     <input
                       type="text"
@@ -387,66 +408,51 @@ const CompleteProfile = () => {
                       required
                     />
                   </FormGroup>
-
+                  <div className="flex justify-between">
+                    <Button
+                      onClick={handlePreviousStep}
+                      className="w-1/4 h-12 bg-gray-400 text-white font-semibold rounded-lg mt-4 mr-2"
+                    >
+                      Prev.
+                    </Button>
+                    <motion.button
+                      whileTap={{ scale: 1.2 }}
+                      type="submit"
+                      className="w-1/2 h-12 bg-customOrange text-white font-semibold rounded-lg mt-4 ml-2"
+                    >
+                      Complete Profile
+                    </motion.button>
+                  </div>
+                </>
+              )}
+              {step === 2 && vendorData.marketPlaceType === "virtual" && (
+                <>
                   <FormGroup className="relative mb-2">
                     <label
                       className="block text-black font-ubuntu text-sm font-bold mb-2"
                       htmlFor="socialMediaHandle"
                     >
-                      Enter your social media handle(s)
+                      Enter your social media handle
+                      <p className="text-xs">
+                        preferably Instagram, Twitter, or Facebook.
+                      </p>
                     </label>
                     <input
                       type="text"
                       name="socialMediaHandle"
-                      placeholder="Social Media Handle(s)"
+                      placeholder="Social Media Handle"
                       value={vendorData.socialMediaHandle}
                       className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-100"
                       onChange={handleInputChange}
-                    />
-                  </FormGroup>
-
-                  <FormGroup className="relative mb-2">
-                    <label
-                      className="block text-black font-ubuntu text-sm font-bold mb-2"
-                      htmlFor="bankName"
-                    >
-                      Enter your bank name
-                    </label>
-                    <input
-                      type="text"
-                      name="bankName"
-                      placeholder="Bank Name"
-                      value={vendorData.bankName}
-                      className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-100"
-                      onChange={handleInputChange}
                       required
                     />
                   </FormGroup>
-
-                  <FormGroup className="relative mb-2">
-                    <label
-                      className="block text-black font-ubuntu text-sm font-bold mb-2"
-                      htmlFor="accountNumber"
-                    >
-                      Enter your account number
-                    </label>
-                    <input
-                      type="text"
-                      name="accountNumber"
-                      placeholder="Account Number"
-                      value={vendorData.accountNumber}
-                      className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-100"
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </FormGroup>
-
                   <FormGroup className="relative mb-2">
                     <label
                       className="block text-black font-ubuntu text-sm font-bold mb-2"
                       htmlFor="personalAddress"
                     >
-                      Enter your personal address
+                      Enter your address
                     </label>
                     <PlacesAutocomplete
                       value={vendorData.personalAddress}
@@ -456,13 +462,14 @@ const CompleteProfile = () => {
                           personalAddress: address,
                         })
                       }
-                      onSelect={async (address) => {
-                        const results = await geocodeByAddress(address);
-                        const latLng = await getLatLng(results[0]);
+                      onSelect={(address) => {
+                        geocodeByAddress(address)
+                          .then((results) => getLatLng(results[0]))
+                          .then((latLng) => console.log("Success", latLng))
+                          .catch((error) => console.error("Error", error));
                         setVendorData({
                           ...vendorData,
                           personalAddress: address,
-                          coordinates: latLng,
                         });
                       }}
                     >
@@ -475,12 +482,12 @@ const CompleteProfile = () => {
                         <div>
                           <input
                             {...getInputProps({
-                              placeholder: "Search Places ...",
+                              placeholder: "Type address",
                               className:
                                 "w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-100",
                             })}
                           />
-                          <div className="autocomplete-dropdown-container">
+                          <div>
                             {loading && <div>Loading...</div>}
                             {suggestions.map((suggestion) => {
                               const className = suggestion.active
@@ -511,47 +518,81 @@ const CompleteProfile = () => {
                       )}
                     </PlacesAutocomplete>
                   </FormGroup>
-
                   <FormGroup className="relative mb-2">
                     <label
                       className="block text-black font-ubuntu text-sm font-bold mb-2"
-                      htmlFor="coverImage"
+                      htmlFor="phoneNumber"
                     >
-                      Upload your store cover image
+                      Enter your phone number
                     </label>
-                    <div className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-100 flex items-center">
-                      <FcAddImage className="mr-2" />
-                      <input
-                        type="file"
-                        name="coverImage"
-                        className="hidden"
-                        onChange={handleFileChange}
-                        accept="image/*"
-                      />
-                      <span className="text-sm">
-                        {uploadingImage
-                          ? "Uploading..."
-                          : vendorData.coverImage
-                          ? vendorData.coverImage.name
-                          : "Choose File"}
-                      </span>
+                    <input
+                      type="text"
+                      name="phoneNumber"
+                      placeholder="Phone Number"
+                      value={vendorData.phoneNumber}
+                      className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-100"
+                      onChange={handlePhoneNumberChange}
+                      required
+                    />
+                  </FormGroup>
+                  <label
+                    className="block text-black font-ubuntu text-sm font-bold mb-2"
+                    htmlFor="coverImage"
+                  >
+                    Upload cover image
+                    <p className="text-xs">
+                      (use high-quality images to attract customers)
+                    </p>
+                  </label>
+                  <FormGroup className="relative mb-2">
+                    <input
+                      type="file"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      required
+                    />
+                    <div className="w-full h-48 text-gray-800 rounded-lg bg-green-100 flex items-center justify-center">
+                      {uploadingImage && (
+                        <div className="fixed inset-0 translate-x-24 translate-y-28 rounded-lg flex items-center w-40 h-20 justify-center bg-black bg-opacity-40 z-50">
+                          <RotatingLines
+                            strokeColor="orange"
+                            strokeWidth="5"
+                            animationDuration="0.75"
+                            width="50"
+                            visible={true}
+                          />
+                        </div>
+                      )}
+                      {vendorData.coverImageUrl ? (
+                        <img
+                          src={vendorData.coverImageUrl}
+                          alt="Cover"
+                          className="h-full w-full object-cover rounded-lg"
+                        />
+                      ) : (
+                        <>
+                          <FcAddImage className="w-16 h-20" />{" "}
+                          <span className="text-gray-600">Upload Image</span>
+                        </>
+                      )}
                     </div>
                   </FormGroup>
 
-                  <motion.button
-                    whileTap={{ scale: 1.2 }}
-                    onClick={handlePreviousStep}
-                    className="w-full h-14 bg-gray-200 text-gray-800 font-ubuntu text-lg rounded-lg"
-                  >
-                    Previous
-                  </motion.button>
-                  <motion.button
-                    whileTap={{ scale: 1.2 }}
-                    type="submit"
-                    className="w-full h-14 bg-green-300 text-gray-800 font-ubuntu text-lg rounded-lg"
-                  >
-                    Submit
-                  </motion.button>
+                  <div className="flex justify-between">
+                    <Button
+                      onClick={handlePreviousStep}
+                      className="w-1/4 h-12 bg-gray-400 text-white font-semibold rounded-lg mt-4 mr-2"
+                    >
+                      Prev.
+                    </Button>
+                    <motion.button
+                      whileTap={{ scale: 1.2 }}
+                      type="submit"
+                      className="w-1/2 h-12 bg-customOrange text-white font-semibold rounded-lg mt-4 ml-2"
+                    >
+                      Complete Profile
+                    </motion.button>
+                  </div>
                 </>
               )}
             </Form>

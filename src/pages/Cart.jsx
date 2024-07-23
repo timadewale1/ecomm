@@ -71,7 +71,8 @@ const Cart = () => {
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
-          if (data.firstName && data.lastName && data.birthday) {
+          console.log("User data:", data); // Log user data
+          if (data.displayName && data.birthday) {
             setUserProfileComplete(true);
           } else {
             setUserProfileComplete(false);
@@ -87,16 +88,21 @@ const Cart = () => {
     checkUserProfile();
   }, [currentUser]);
 
-  const handleRemoveFromCart = useCallback((productKey) => {
-    const confirmRemove = window.confirm('Are you sure you want to remove this product from the cart?');
-    if (confirmRemove) {
-      dispatch(removeFromCart(productKey));
-      if (!toastShown.remove) {
-        toast.info('Removed product from cart!');
-        setToastShown((prev) => ({ ...prev, remove: true }));
+  const handleRemoveFromCart = useCallback(
+    (productKey) => {
+      const confirmRemove = window.confirm(
+        "Are you sure you want to remove this product from the cart?"
+      );
+      if (confirmRemove) {
+        dispatch(removeFromCart(productKey));
+        if (!toastShown.remove) {
+          toast.info("Removed product from cart!");
+          setToastShown((prev) => ({ ...prev, remove: true }));
+        }
       }
-    }
-  }, [dispatch, toastShown]);
+    },
+    [dispatch, toastShown]
+  );
 
   const handleClearCart = useCallback(() => {
     const confirmClear = window.confirm(
@@ -137,6 +143,15 @@ const Cart = () => {
   useEffect(() => {
     setValidCart(cart);
   }, [cart]);
+
+  const handleCheckout = () => {
+    console.log("Profile complete:", userProfileComplete); // Log profile status
+    if (userProfileComplete) {
+      navigate("/newcheckout");
+    } else {
+      toast.error("Please complete your profile before checking out.");
+    }
+  };
 
   if (loading) {
     return <div>Loading...</div>;
@@ -233,7 +248,7 @@ const Cart = () => {
             Clear Your Cart
           </button>
           <button
-            onClick={() => navigate("/newcheckout")}
+            onClick={handleCheckout}
             className="px-4 py-2 bg-green-500 text-white rounded-md shadow-sm hover:bg-green-600 transition-colors duration-300 font-ubuntu"
           >
             Checkout

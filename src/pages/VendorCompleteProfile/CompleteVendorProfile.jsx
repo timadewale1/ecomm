@@ -87,7 +87,7 @@ const CompleteProfile = () => {
         },
         (error) => {
           // Error function ...
-          toast.error("Error uploading image: ", {
+          toast.error("Error uploading image: " + error.message, {
             className: "custom-toast",
           });
           setUploadingImage(false);
@@ -121,6 +121,20 @@ const CompleteProfile = () => {
   };
 
   const handleNextStep = () => {
+    const missingFields = [];
+
+    if (!vendorData.shopName) missingFields.push("Shop Name");
+    if (!vendorData.categories.length) missingFields.push("Categories");
+    if (!vendorData.description) missingFields.push("Description");
+    if (!vendorData.marketPlaceType) missingFields.push("Marketplace Type");
+
+    if (missingFields.length) {
+      toast.error(`Please complete the following fields: ${missingFields.join(", ")}`, {
+        className: "custom-toast",
+      });
+      return;
+    }
+
     setStep(step + 1);
   };
 
@@ -130,6 +144,32 @@ const CompleteProfile = () => {
 
   const handleProfileCompletion = async (e) => {
     e.preventDefault();
+
+    const missingFields = [];
+
+    if (!vendorData.shopName) missingFields.push("Shop Name");
+    if (!vendorData.categories.length) missingFields.push("Categories");
+    if (!vendorData.description) missingFields.push("Description");
+    if (!vendorData.marketPlaceType) missingFields.push("Marketplace Type");
+
+    if (vendorData.marketPlaceType === "marketplace") {
+      if (!vendorData.marketPlace) missingFields.push("Market Place");
+      if (!vendorData.complexName) missingFields.push("Complex Name");
+      if (!vendorData.phoneNumber) missingFields.push("Phone Number");
+    } else if (vendorData.marketPlaceType === "virtual") {
+      if (!vendorData.socialMediaHandle) missingFields.push("Social Media Handle");
+      if (!vendorData.personalAddress) missingFields.push("Personal Address");
+      if (!vendorData.phoneNumber) missingFields.push("Phone Number");
+      if (!vendorData.coverImage) missingFields.push("Cover Image");
+    }
+
+    if (missingFields.length) {
+      toast.error(`Please complete the following fields: ${missingFields.join(", ")}`, {
+        className: "custom-toast",
+      });
+      return;
+    }
+
     setLoading(true);
     const auth = getAuth();
     const user = auth.currentUser;
@@ -305,12 +345,6 @@ const CompleteProfile = () => {
                     whileTap={{ scale: 1.2 }}
                     onClick={handleNextStep}
                     className="w-full h-12 bg-customOrange text-white font-semibold rounded-lg mt-4"
-                    disabled={
-                      !vendorData.shopName ||
-                      !vendorData.categories.length ||
-                      !vendorData.description ||
-                      !vendorData.marketPlaceType
-                    }
                   >
                     Next
                   </motion.button>
@@ -385,15 +419,6 @@ const CompleteProfile = () => {
                       whileTap={{ scale: 1.2 }}
                       type="submit"
                       className="w-1/2 h-12 bg-customOrange text-white font-semibold rounded-lg mt-4 ml-2"
-                      disabled={
-                        !vendorData.shopName ||
-                        !vendorData.categories.length ||
-                        !vendorData.description ||
-                        !vendorData.marketPlaceType ||
-                        !vendorData.marketPlace ||
-                        !vendorData.complexName ||
-                        !vendorData.phoneNumber
-                      }
                     >
                       Complete Profile
                     </motion.button>
@@ -564,16 +589,6 @@ const CompleteProfile = () => {
                       whileTap={{ scale: 1.2 }}
                       type="submit"
                       className="w-1/2 h-12 bg-customOrange text-white font-semibold rounded-lg mt-4 ml-2"
-                      disabled={
-                        !vendorData.shopName ||
-                        !vendorData.categories.length ||
-                        !vendorData.description ||
-                        !vendorData.marketPlaceType ||
-                        !vendorData.socialMediaHandle ||
-                        !vendorData.personalAddress ||
-                        !vendorData.phoneNumber ||
-                        !vendorData.coverImage
-                      }
                     >
                       Complete Profile
                     </motion.button>

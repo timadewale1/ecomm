@@ -197,7 +197,7 @@ const VendorProducts = () => {
 
       {selectedProduct && (
         <Modal isOpen={isViewProductModalOpen} onClose={closeModals}>
-          <div className="p-4 space-y-4">
+          <div className="pb-24 pt-10 space-y-4">
             <h2 className="text-2xl font-bold text-green-700">{selectedProduct.name}</h2>
             {selectedProduct.coverImageUrl && (
               <img

@@ -21,7 +21,7 @@ import NewHome from "../pages/Homepage";
 import LatestCart from "../pages/Cart.jsx";
 import MarketVendors from "../pages/MarketVendors.jsx";
 import Profile from "../pages/Profile";
-import Explore from "../pages/Explore";
+// import Explore from "../pages/Explore";
 import Marketcardpage from "../pages/marketcardpage.jsx";
 import OnlineVendors from "../pages/OnlineVendors.jsx";
 import ConfirmUserState from "../pages/ConfirmUserState.jsx";
@@ -55,7 +55,7 @@ const Routers = () => {
         <Route path="favorites" element={<FavoritesPage />} />
         <Route path="browse-markets" element={<Marketpg />} />
         <Route path="market-card/:marketName" element={<Marketcardpage />} />
-        <Route path="explore" element={<Explore />} />
+        {/* <Route path="explore" element={<Explore />} /> */}
         <Route path="profile" element={<Profile />} />
         <Route path="user-dashboard" element={<UserDashboard />} />
         <Route path="vendordashboard" element={<VendorDashboard />} />

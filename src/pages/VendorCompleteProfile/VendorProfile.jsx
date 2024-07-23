@@ -228,14 +228,14 @@ const VendorProfile = () => {
         <div className="flex flex-col items-center">
           <div className="relative flex justify-center w-full h-full">
             {/* Store Image */}
-            <div className="relative w-full h-72 bg-gray-400">
+            <div className="relative w-full h-72">
             {isLoading ? (
                 <Skeleton height={288} />
               ) : userData && userData.coverImageUrl ? (
                 <img
                   src={userData.coverImageUrl}
                   alt="Store"
-                  className="w-full h-full object-cover rounded-b-lg"
+                  className="w-full h-full object-cover rounded-b-lg bg-gray-400"
                 />
               ) : (
                 <div className="w-full h-full bg-gray-300 rounded-b-lg" />

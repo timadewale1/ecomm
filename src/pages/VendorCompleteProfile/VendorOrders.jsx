@@ -5,7 +5,6 @@ import Modal from '../../components/layout/Modal';
 import { getDoc, doc, query, collection, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase.config';
 import useAuth from '../../custom-hooks/useAuth';
-import { RotatingLines } from 'react-loader-spinner';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 
@@ -128,7 +127,7 @@ const VendorOrders = () => {
 
     return (
       <div className="space-y-4">
-        <div className="text-lg font-bold">{user?.displayName || 'Unknown User'}</div>
+        <div className="text-lg font-bold">Ordered By: {user?.displayName || 'Unknown User'}</div>
         {user && (
           <>
             <div className="text-sm text-gray-700">Email: {user.email || 'Not Available'}</div>
@@ -142,8 +141,11 @@ const VendorOrders = () => {
         <ul className="list-disc list-inside">
           {products && products.length > 0 ? (
             products.map((product, index) => (
-              <li key={index} className="text-sm text-gray-700">
-                {product.name} (Quantity: {product.quantity})
+              <li key={index} className="text-sm text-gray-700 flex items-center space-x-2">
+                {product.selectedImageUrl && (
+                  <img src={product.selectedImageUrl} alt={product.name} className="w-16 h-16 object-cover rounded" />
+                )}
+                <span>{product.name} (Quantity: {product.quantity})</span>
               </li>
             ))
           ) : (

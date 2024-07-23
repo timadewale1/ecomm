@@ -14,6 +14,7 @@ const Cart = () => {
   const dispatch = useDispatch();
   const { currentUser, loading } = useAuth(); 
   const [validCart, setValidCart] = useState({});
+  const [userProfileComplete, setUserProfileComplete] = useState(false);
   const [toastShown, setToastShown] = useState({
     remove: false,
     clear: false,
@@ -52,6 +53,28 @@ const Cart = () => {
       checkCartProducts();
     }
   }, [cart, dispatch]);
+
+  const checkUserProfile = async () => {
+    if (currentUser) {
+      try {
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          if (data.firstName && data.lastName && data.birthday) {
+            setUserProfileComplete(true);
+          } else {
+            setUserProfileComplete(false);
+          }
+        }
+      } catch (error) {
+        console.error("Error checking user profile:", error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    checkUserProfile();
+  }, [currentUser]);
 
   const handleRemoveFromCart = useCallback((productKey) => {
     const confirmRemove = window.confirm('Are you sure you want to remove this product from the cart?');
@@ -104,6 +127,11 @@ const Cart = () => {
         toast.error('User is not logged in');
         setToastShown((prev) => ({ ...prev, checkout: true }));
       }
+      return;
+    }
+
+    if (!userProfileComplete) {
+      toast.error('Please complete your profile before proceeding with checkout.');
       return;
     }
 

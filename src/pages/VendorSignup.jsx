@@ -73,6 +73,8 @@ const VendorSignup = () => {
 
       await sendEmailVerification(user);
 
+      const timestamp = new Date();
+
       await setDoc(doc(db, "vendors", user.uid), {
         uid: user.uid,
         firstName: vendorData.firstName,
@@ -80,6 +82,8 @@ const VendorSignup = () => {
         email: vendorData.email,
         role: "vendor",
         profileComplete: false,
+        createdSince: timestamp,
+        lastUpdate: timestamp
       });
 
       toast.success("Account created successfully. Please check your email for verification.", { className: "custom-toast" });
@@ -158,6 +162,9 @@ const VendorSignup = () => {
                   <p className="text-black font-semibold">
                     Please sign up to continue
                   </p>
+                  <h4 className="text-xs text-red-500">
+                        Note that you can't change these details more than once within 30days
+                      </h4>
                   <Form className="mt-4" onSubmit={handleSignup}>
                     <FormGroup className="relative mb-2">
                       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -249,6 +256,18 @@ const VendorSignup = () => {
                         )}
                       </div>
                     </FormGroup>
+                    <div className="">
+                      {/* <h4>
+                        By signing up, you agree to our{" "}
+                        <span className="text-customOrange font-semibold">
+                          <Link to="/terms-and-conditions">Terms and Conditions</Link>
+                        </span>{" "}
+                        and{" "}
+                        <span className="text-customOrange font-semibold">
+                          <Link to="/privacy-policy">Privacy Policy</Link>
+                        </span>
+                      </h4> */}
+                    </div>
                     <motion.button
                       whileTap={{ scale: 1.2 }}
                       type="submit"

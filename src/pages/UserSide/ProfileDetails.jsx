@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   updateProfile,
   updateEmail,
@@ -34,15 +34,20 @@ const ProfileDetails = ({
   setUserData,
   setShowDetails,
 }) => {
+  useEffect(() => {
+    console.log("currentUser:", currentUser);
+    console.log("userData:", userData);
+  }, [currentUser, userData]);
+
   const [isEditing, setIsEditing] = useState(false);
   const [editField, setEditField] = useState("");
-  const [username, setUsername] = useState(userData.username || "");
-  const [displayName, setDisplayName] = useState(userData.displayName || "");
+  const [username, setUsername] = useState(userData?.username || "");
+  const [displayName, setDisplayName] = useState(userData?.displayName || "");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState(userData.email || "");
-  const [phoneNumber, setPhoneNumber] = useState(userData.phoneNumber || "");
-  const [birthday, setBirthday] = useState(userData.birthday || "");
+  const [email, setEmail] = useState(userData?.email || "");
+  const [phoneNumber, setPhoneNumber] = useState(userData?.phoneNumber || "");
+  const [birthday, setBirthday] = useState(userData?.birthday || "");
   const [password, setPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);

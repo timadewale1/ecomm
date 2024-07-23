@@ -80,7 +80,7 @@ const Signup = () => {
       // Save user info in Firestore
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
-        displayName: formattedUsername,
+        username: formattedUsername,
         email,
         role: "user",
       });

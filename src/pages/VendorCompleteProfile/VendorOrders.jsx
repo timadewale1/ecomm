@@ -2,84 +2,109 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { FaRegClock, FaCheck, FaTimes } from 'react-icons/fa';
 import Modal from '../../components/layout/Modal';
+import { getDoc, doc, query, collection, getDocs, updateDoc } from 'firebase/firestore';
+import { db } from '../../firebase.config';
+import useAuth from '../../custom-hooks/useAuth';
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
 
 const VendorOrders = () => {
+  const { currentUser } = useAuth();
   const [orders, setOrders] = useState([]);
-  const [activeTab, setActiveTab] = useState('pending');
+  const [activeTab, setActiveTab] = useState('Paid');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch orders from your database here
     const fetchOrders = async () => {
-      // Replace with actual API call
-      const fetchedOrders = [
-        { id: 1, status: 'pending', timestamp: new Date(), customerName: 'John Doe', products: [{ name: 'Product 1', quantity: 2 }] },
-        { id: 2, status: 'completed', timestamp: new Date(), deliveryTime: new Date(), customerName: 'Jane Smith', products: [{ name: 'Product 2', quantity: 1 }] },
-        { id: 3, status: 'canceled', timestamp: new Date(), cancelTime: new Date(), customerName: 'Bob Johnson', products: [{ name: 'Product 3', quantity: 3 }] },
-      ];
-      setOrders(fetchedOrders);
+      if (currentUser) {
+        try {
+          const q = query(collection(db, 'orders'));
+          const querySnapshot = await getDocs(q);
+
+          if (querySnapshot.empty) {
+            console.log('No orders found.');
+          }
+
+          const fetchedOrders = [];
+          for (const orderDoc of querySnapshot.docs) {
+            const orderData = orderDoc.data();
+
+            // Check if any product in the order has the matching vendorId
+            const hasVendor = orderData.products.some(product => product.vendorId === currentUser.uid);
+            if (hasVendor) {
+              const userDoc = await getDoc(doc(db, 'users', orderData.userId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                fetchedOrders.push({
+                  id: orderDoc.id,
+                  ...orderData,
+                  user: {
+                    displayName: userData.displayName,
+                    email: userData.email,
+                    phoneNumber: userData.phoneNumber,
+                  },
+                });
+              } else {
+                fetchedOrders.push({ id: orderDoc.id, ...orderData, user: null });
+              }
+            }
+          }
+          console.log('Fetched orders:', fetchedOrders);
+          setOrders(fetchedOrders);
+        } catch (error) {
+          console.error('Error fetching orders: ', error);
+          toast.error('Error fetching orders. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      }
     };
 
     fetchOrders();
-  }, []);
+  }, [currentUser]);
 
-  const filterOrders = (status, timePeriod) => {
-    const now = new Date();
-    return orders.filter(order => {
-      if (order.status !== status) return false;
-
-      switch (timePeriod) {
-        case 'today':
-          return order.timestamp.toDateString() === now.toDateString();
-        case 'yesterday':
-          const yesterday = new Date(now);
-          yesterday.setDate(yesterday.getDate() - 1);
-          return order.timestamp.toDateString() === yesterday.toDateString();
-        case 'thisWeek':
-          const startOfWeek = new Date(now);
-          startOfWeek.setDate(now.getDate() - now.getDay());
-          return order.timestamp >= startOfWeek;
-        case 'thisMonth':
-          return order.timestamp.getMonth() === now.getMonth() &&
-                 order.timestamp.getFullYear() === now.getFullYear();
-        case 'lastMonth':
-          const lastMonth = new Date(now);
-          lastMonth.setMonth(lastMonth.getMonth() - 1);
-          return order.timestamp.getMonth() === lastMonth.getMonth() &&
-                 order.timestamp.getFullYear() === lastMonth.getFullYear();
-        default:
-          return true;
-      }
-    });
+  const filterOrders = (status) => {
+    return orders.filter(order => order.paymentStatus === status);
   };
 
-  const renderOrders = (status) => {
-    const timePeriods = ['today', 'yesterday', 'thisWeek', 'thisMonth', 'lastMonth'];
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      const orderRef = doc(db, 'orders', orderId);
+      await updateDoc(orderRef, { paymentStatus: newStatus });
+      // Update the local state to reflect changes
+      setOrders(orders.map(order => 
+        order.id === orderId ? { ...order, paymentStatus: newStatus } : order
+      ));
+      toast.success(`Order status updated to ${newStatus}`);
+    } catch (error) {
+      console.error('Error updating order status: ', error);
+      toast.error('Error updating order status. Please try again.');
+    }
+  };
+
+  const renderOrders = () => {
+    const filteredOrders = filterOrders(activeTab);
     return (
-      <>
-        {timePeriods.map(timePeriod => (
-          <div key={timePeriod}>
-            <h3 className="text-lg font-semibold text-gray-700 my-2">{timePeriod.charAt(0).toUpperCase() + timePeriod.slice(1)}</h3>
-            <ul className="space-y-2">
-              {filterOrders(status, timePeriod).map(order => (
-                <li
-                  key={order.id}
-                  className="p-4 bg-white rounded-lg shadow-md cursor-pointer hover:bg-gray-100 transition"
-                  onClick={() => openModal(order)}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700">{order.customerName}</span>
-                    <span className={`text-gray-500 ${status === 'completed' ? 'text-green-500' : status === 'pending' ? 'text-orange-500' : 'text-red-500'}`}>
-                      {order.timestamp.toLocaleTimeString()}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+      <ul className="space-y-2">
+        {filteredOrders.map(order => (
+          <li
+            key={order.id}
+            className="p-4 bg-white rounded-lg shadow-md cursor-pointer hover:bg-gray-100 transition"
+            onClick={() => openModal(order)}
+          >
+            {order.products.map((product, index) => (
+              <div key={index} className="flex justify-between items-center">
+                <span className="text-gray-700">{product.name} (Quantity: {product.quantity})</span>
+                <span className={`text-gray-500 ${activeTab === 'completed' ? 'text-green-500' : activeTab === 'Paid' ? 'text-orange-500' : 'text-red-500'}`}>
+                  {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
+                </span>
+              </div>
+            ))}
+          </li>
         ))}
-      </>
+      </ul>
     );
   };
 
@@ -94,25 +119,52 @@ const VendorOrders = () => {
   };
 
   const renderModalContent = () => {
-    if (!selectedOrder) return null;
+    if (!selectedOrder) {
+      return <p>No order details available.</p>;
+    }
 
-    const { customerName, timestamp, deliveryTime, cancelTime, products, status } = selectedOrder;
+    const { id, user, products, paymentStatus } = selectedOrder;
 
     return (
       <div className="space-y-4">
-        <div className="text-lg font-bold">{customerName}</div>
-        <div className={`text-sm ${status === 'completed' ? 'text-green-500' : status === 'pending' ? 'text-orange-500' : 'text-red-500'}`}>
-          Order Time: {timestamp.toLocaleString()}
+        <div className="text-lg font-bold">Ordered By: {user?.displayName || 'Unknown User'}</div>
+        {user && (
+          <>
+            <div className="text-sm text-gray-700">Email: {user.email || 'Not Available'}</div>
+            <div className="text-sm text-gray-700">Phone: {user.phoneNumber || 'Not Available'}</div>
+          </>
+        )}
+        <div className={`text-sm ${paymentStatus === 'completed' ? 'text-green-500' : paymentStatus === 'Paid' ? 'text-orange-500' : 'text-red-500'}`}>
+          Status: {paymentStatus ? paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1) : 'Unknown'}
         </div>
-        {status === 'completed' && <div className="text-sm text-green-500">Delivery Time: {deliveryTime.toLocaleString()}</div>}
-        {status === 'canceled' && <div className="text-sm text-red-500">Cancel Time: {cancelTime.toLocaleString()}</div>}
         <div className="text-sm text-gray-500">Products:</div>
         <ul className="list-disc list-inside">
-          {products.map((product, index) => (
-            <li key={index} className="text-sm text-gray-700">{product.name} (Quantity: {product.quantity})</li>
-          ))}
+          {products && products.length > 0 ? (
+            products.map((product, index) => (
+              <li key={index} className="text-sm text-gray-700 flex items-center space-x-2">
+                {product.selectedImageUrl && (
+                  <img src={product.selectedImageUrl} alt={product.name} className="w-16 h-16 object-cover rounded" />
+                )}
+                <span>{product.name} (Quantity: {product.quantity})</span>
+              </li>
+            ))
+          ) : (
+            <li className="text-sm text-gray-700">No products available.</li>
+          )}
         </ul>
-        {status === 'pending' && <div className="text-sm text-blue-500">This order is still pending.</div>}
+        <div className="mt-4">
+          <select
+            value={paymentStatus}
+            onChange={(e) => updateOrderStatus(id, e.target.value)}
+            className="p-2 border rounded"
+          >
+            <option value="pending">Pending</option>
+            <option value="in progress">In Progress</option>
+            <option value="in transit">In Transit</option>
+            <option value="completed">Completed</option>
+            <option value="canceled">Canceled</option>
+          </select>
+        </div>
       </div>
     );
   };
@@ -120,25 +172,32 @@ const VendorOrders = () => {
   return (
     <div className="p-4 bg-gray-100 min-h-screen">
       <h1 className="text-2xl font-bold text-green-700 mb-4">Vendor Orders</h1>
-      <div className="mb-4 text-lg font-bold text-gray-700">Total All-Time Completed Orders: {orders.filter(order => order.status === 'completed').length}</div>
+      <div className="mb-4 text-lg font-bold text-gray-700">
+        Total All-Time Completed Orders: {orders.filter(order => order.paymentStatus === 'completed').length}
+      </div>
 
       <div className="tabs flex space-x-1 mb-4 align-items-center justify-center">
-        {['pending', 'completed', 'canceled'].map(tab => (
+        {['Paid', 'completed', 'canceled'].map(tab => (
           <button
             key={tab}
             className={`px-2 py-1 text-sm md:text-sm rounded-lg flex items-center ${activeTab === tab ? 'bg-green-700 text-white' : 'bg-white text-gray-700'} shadow-md hover:bg-green-800 transition`}
             onClick={() => setActiveTab(tab)}
           >
-            {tab === 'pending' && <FaRegClock className="mr-1" />}
+            {tab === 'Paid' && <FaRegClock className="mr-1" />}
             {tab === 'completed' && <FaCheck className="mr-1" />}
             {tab === 'canceled' && <FaTimes className="mr-1" />}
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
       </div>
-
       <div className="orders-list space-y-4">
-        {renderOrders(activeTab)}
+        {loading ? (
+          <>
+            <Skeleton count={2} height={60} className="mb-4" />
+            <Skeleton count={2} height={60} className="mb-4" />
+            <Skeleton count={2} height={60} className="mb-4" />
+          </>
+        ) : renderOrders()}
       </div>
 
       <Modal isOpen={isModalOpen} onClose={closeModal}>

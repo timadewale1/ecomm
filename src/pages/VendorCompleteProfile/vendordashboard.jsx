@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, collection, getDocs } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { toast } from "react-toastify";
 import { FaPlus, FaBox, FaShoppingCart, FaListAlt } from 'react-icons/fa';
@@ -11,20 +11,12 @@ import { useNavigate } from 'react-router-dom';
 
 const VendorDashboard = () => {
   const [vendorId, setVendorId] = useState(null);
-  const [totalOrders, setTotalOrders] = useState(0); // Actual data
-  const [totalSales, setTotalSales] = useState(0); // Actual data
-  const [totalProducts, setTotalProducts] = useState(0); // Actual data
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [totalSales, setTotalSales] = useState(0);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [recentActivities, setRecentActivities] = useState([]);
   const [isModalOpen, setModalOpen] = useState(false);
-
-  // Dummy data for recent activities
-  const recentActivities = [
-    { id: 1, activity: 'New order placed by John Doe' },
-    { id: 2, activity: 'Product "Smartphone" added to inventory' },
-    { id: 3, activity: 'Order #1234 shipped to Jane Smith' },
-    { id: 4, activity: 'Product "Headphones" out of stock' },
-  ];
-
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   useEffect(() => {
     const auth = getAuth();
@@ -34,6 +26,7 @@ const VendorDashboard = () => {
         const vendorDoc = await getDoc(doc(db, "vendors", user.uid));
         if (vendorDoc.exists()) {
           await fetchStatistics(user.uid);
+          await fetchRecentActivities(user.uid);
         } else {
           toast.error("Vendor data not found");
         }
@@ -49,27 +42,43 @@ const VendorDashboard = () => {
 
       const totalProducts = products.length;
       const totalOrders = 0;
-      const totalSales = 40000;
-      // const totalSales = products.reduce((acc, product) => acc + product.price, 0);
+      const totalSales = 0;
 
       setTotalProducts(totalProducts);
       setTotalOrders(totalOrders);
       setTotalSales(totalSales);
     } catch (error) {
       console.error("Error fetching data:", error);
-      toast.error("Failed to fetch data please refresh");
+      toast.error("Failed to fetch data, please refresh.");
+    }
+  };
+
+  const fetchRecentActivities = async (vendorId) => {
+    try {
+      const activityRef = collection(db, "vendors", vendorId, "activityNotes");
+      const recentActivityQuery = query(activityRef, orderBy("timestamp", "desc"), limit(4));
+      const querySnapshot = await getDocs(recentActivityQuery);
+
+      const activities = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      setRecentActivities(activities);
+    } catch (error) {
+      console.error("Error fetching recent activities:", error);
+      toast.error("Failed to fetch recent activities.");
     }
   };
 
   const handleSwitch2Products = () => {
-    // Add code to switch to products
-    navigate('/vendor-products')
-  }
-  
+    navigate('/vendor-products');
+  };
+
   const handleSwitch2Orders = () => {
-    // Add code to switch to products
-    navigate('/vendor-orders')
-  }
+    navigate('/vendor-orders');
+  };
+
   const openModal = () => setModalOpen(true);
   const closeModal = () => setModalOpen(false);
 
@@ -81,21 +90,21 @@ const VendorDashboard = () => {
           <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between" onClick={handleSwitch2Orders}>
             <div>
               <h3 className="text-lg font-semibold text-gray-700">Total Orders</h3>
-              <p className="text-2xl font-bold text-green-700">{totalOrders}</p> {/* Actual data */}
+              <p className="text-2xl font-bold text-green-700">{totalOrders}</p>
             </div>
             <FaShoppingCart className="h-8 w-8 text-green-700" />
           </div>
           <div className="bg-white pt-4 pr-4 pb-4 pl-5 rounded-lg shadow-md flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-700">Total Sales</h3>
-              <p className="text-2xl font-bold text-green-700">NGN{totalSales.toFixed(2)}</p> {/* Actual data */}
+              <p className="text-2xl font-bold text-green-700">NGN{totalSales.toFixed(2)}</p>
             </div>
             <TbCurrencyNaira className="h-12 w-12 text-green-700" />
           </div>
           <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between" onClick={handleSwitch2Products}>
             <div>
               <h3 className="text-lg font-semibold text-gray-700">Total Products</h3>
-              <p className="text-2xl font-bold text-green-700">{totalProducts}</p> {/* Actual data */}
+              <p className="text-2xl font-bold text-green-700">{totalProducts}</p>
             </div>
             <FaBox className="h-8 w-8 text-green-700" />
           </div>
@@ -103,7 +112,7 @@ const VendorDashboard = () => {
             <div>
               <h3 className="text-lg font-semibold text-gray-700">Recent Activities</h3>
             </div>
-              <FaListAlt className="h-8 w-8 text-green-700" />
+            <FaListAlt className="h-8 w-8 text-green-700" />
           </div>
         </div>
 
@@ -111,7 +120,9 @@ const VendorDashboard = () => {
           <h3 className="text-lg font-semibold text-gray-700 mb-4">Recent Activities</h3>
           <ul className="space-y-2">
             {recentActivities.map((activity) => (
-              <li key={activity.id} className="text-gray-700">{activity.activity}</li>
+              <li key={activity.id} className="text-gray-700">
+                {activity.note} - <span className="text-gray-500 text-sm">{new Date(activity.timestamp.toDate()).toLocaleString()}</span>
+              </li>
             ))}
           </ul>
         </div>

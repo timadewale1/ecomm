@@ -170,7 +170,7 @@ const UserDashboard = () => {
   const deliveryProgress = (deliveredOrders.length / userOrders.length) * 100;
 
   return (
-    <div className={`min-h-screen ${darkMode ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-gray-900"}`}>
+    <div className={`min-h-screen flex flex-col ${darkMode ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-gray-900"} pb-10`}>
       <div className={`sticky top-0 ${darkMode ? "bg-gray-900" : "bg-white"} z-10 p-2 h-20 flex justify-between items-center shadow-md w-full`}>
         <FaAngleLeft
           onClick={() => navigate("/profile")}
@@ -199,7 +199,7 @@ const UserDashboard = () => {
           </button>
         </div>
       </div>
-      <div className="p-3">
+      <div className="flex-grow p-3">
         <div className="mt-2">
           <h1 className="font-ubuntu text-2xl font-semibold">
             {getCurrentGreeting()}, {username}

@@ -7,7 +7,7 @@ import useAuth from "../custom-hooks/useAuth";
 import { createDummyOrder } from "../admin/Orders";
 import { IoLocation } from "react-icons/io5";
 import GooglePlacesAutocomplete from "../components/Google";
-import { FaInfoCircle } from "react-icons/fa";
+import { FaInfoCircle, FaAngleLeft } from "react-icons/fa";
 import BookingFeeModal from "../components/BookingFee";
 import { calculateServiceFee } from "./VendorCompleteProfile/utilis";
 
@@ -131,7 +131,13 @@ const Checkout = () => {
 
   return (
     <div className="p-4">
-      <h1 className="font-ubuntumb-4 text-black text-2xl">Checkout</h1>
+      <div className="flex items-center mb-4">
+        <FaAngleLeft
+          className="text-2xl cursor-pointer mr-4"
+          onClick={() => navigate(-1)}
+        />
+        <h1 className="font-ubuntumb-4 text-black text-2xl">Checkout</h1>
+      </div>
       <form className="bg-white mt-8">
         <h2 className="text-lg font-semibold font-ubuntu mb-2">Order summary</h2>
         {Object.values(cart).map((product) => (

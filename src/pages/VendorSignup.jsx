@@ -175,7 +175,7 @@ const VendorSignup = () => {
                         name="firstName"
                         placeholder="First Name"
                         value={vendorData.firstName}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-full bg-gray-300"
+                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
                         onChange={handleInputChange}
                         required
                       />
@@ -189,7 +189,7 @@ const VendorSignup = () => {
                         name="lastName"
                         placeholder="Last Name"
                         value={vendorData.lastName}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-full bg-gray-300"
+                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
                         onChange={handleInputChange}
                         required
                       />
@@ -203,7 +203,7 @@ const VendorSignup = () => {
                         name="email"
                         placeholder="Email"
                         value={vendorData.email}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-full bg-gray-300"
+                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
                         onChange={handleInputChange}
                         required
                       />
@@ -217,7 +217,7 @@ const VendorSignup = () => {
                         name="password"
                         placeholder="Password"
                         value={vendorData.password}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-full bg-gray-300"
+                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
                         onChange={handleInputChange}
                         required
                       />
@@ -241,7 +241,7 @@ const VendorSignup = () => {
                         name="confirmPassword"
                         placeholder="Confirm Password"
                         value={vendorData.confirmPassword}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-full bg-gray-300"
+                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
                         onChange={handleInputChange}
                         required
                       />

@@ -145,7 +145,7 @@ const Signup = () => {
                       type="text"
                       placeholder="Username"
                       value={username}
-                      className="w-full h-14 text-gray-500 pl-10 rounded-full bg-gray-300"
+                      className="w-full h-14 text-gray-500 pl-10 rounded-lg bg-gray-300"
                       onChange={(e) => setUsername(e.target.value)}
                     />
                   </FormGroup>
@@ -158,7 +158,7 @@ const Signup = () => {
                       type="email"
                       placeholder="Enter your email"
                       value={email}
-                      className="w-full h-14 text-gray-500 pl-10 rounded-full bg-gray-300"
+                      className="w-full h-14 text-gray-500 pl-10 rounded-lg bg-gray-300"
                       onChange={(e) => setEmail(e.target.value)}
                     />
                   </FormGroup>
@@ -169,7 +169,7 @@ const Signup = () => {
                     <input
                       required
                       type={showPassword ? "text" : "password"}
-                      className="w-full h-14 text-gray-500 pl-10 rounded-full bg-gray-300"
+                      className="w-full h-14 text-gray-500 pl-10 rounded-lg bg-gray-300"
                       placeholder="Enter your password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -192,7 +192,7 @@ const Signup = () => {
                     <input
                       required
                       type={showConfirmPassword ? "text" : "password"}
-                      className="w-full h-14 text-gray-500 pl-10 rounded-full bg-gray-300"
+                      className="w-full h-14 text-gray-500 pl-10 rounded-lg bg-gray-300"
                       placeholder="Confirm your password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}

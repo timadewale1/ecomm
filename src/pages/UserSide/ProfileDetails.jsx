@@ -27,7 +27,8 @@ import { GrSecure } from "react-icons/gr";
 import { RiEditFill } from "react-icons/ri";
 import { RotatingLines } from "react-loader-spinner";
 import { useNavigate } from "react-router-dom";
-
+import { FaRegTimesCircle } from "react-icons/fa";
+import { IoMdContact } from "react-icons/io";
 const ProfileDetails = ({
   currentUser,
   userData,
@@ -97,7 +98,7 @@ const ProfileDetails = ({
       (editField === "email" || editField === "password") &&
       !currentPassword
     ) {
-      toast.error("Please enter your current password.");
+      toast.error("Please enter your current password to reset your email.");
       return false;
     }
     return true;
@@ -167,20 +168,22 @@ const ProfileDetails = ({
 
   return (
     <div className="flex flex-col p-2 items-center">
-      <div className="cursor-pointer self-start flex">
-        <FaAngleLeft
-          className="text-2xl "
-          onClick={() => {
-            console.log("Closing Profile Details");
-            setShowDetails(false);
-          }}
-        />
-        <h1 className="text-xl font-medium  font-ubuntu text-black ">
-          Profile Details
-        </h1>
+      <div className="sticky top-0 bg-white z-10 flex items-center -translate-y-4 justify-between h-24 w-full">
+        <div className="flex items-center space-x-2">
+          <FaAngleLeft
+            className="text-2xl text-black cursor-pointer"
+            onClick={() => {
+              console.log("Closing Profile Details");
+              setShowDetails(false);
+            }}
+          />
+          <h1 className="text-xl font-medium font-ubuntu text-black">
+            Profile Details
+          </h1>
+        </div>
       </div>
 
-      <div className="w-full mt-4">
+      <div className="w-full ">
         <div className="flex flex-col bg-gray-200 rounded-lg mb-6 items-center w-full">
           <hr className="w-full border-gray-400" />
           <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
@@ -320,8 +323,8 @@ const ProfileDetails = ({
       {isEditing && (
         <div className="fixed inset-0 bg-white bg-opacity-50 px-14 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative">
-            <FaTimes
-              className="absolute top-2 right-2 text-black cursor-pointer"
+            <FaRegTimesCircle
+              className="absolute top-2 right-2 font-bold text-lg rounded-md text-black cursor-pointer"
               onClick={() => setIsEditing(false)}
             />
             <h2 className="text-xl font-semibold mb-4">

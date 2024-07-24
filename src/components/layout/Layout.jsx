@@ -1,5 +1,5 @@
 import React from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, matchPath } from "react-router-dom";
 import Routers from "../../routers/Routers";
 import BottomBar from "../BottomBar/BottomBar";
 import VendorBottomBar from "../BottomBar/VendorBottomBar";
@@ -21,9 +21,28 @@ const Layout = () => {
     "/vendorlogin",
     "/vendor-signup",
     "/complete-profile",
+    "/newcheckout",
+    "/newcheckout/bookingfee",
+    "/newcheckout/fulldelivery",
+    "/user-dashboard",
   ];
 
-  const hideBottomBar = noBottomBarPaths.includes(location.pathname) || !currentUser;
+  // Paths with dynamic segments
+  const dynamicPaths = [
+    "/product/:id",
+    "/store/:id",
+    "/marketstorepage/:id",
+  ];
+
+  // Function to check if the current path matches any dynamic paths
+  const isDynamicPath = (pathname) => {
+    return dynamicPaths.some((path) => matchPath(path, pathname));
+  };
+
+  const hideBottomBar =
+    noBottomBarPaths.includes(location.pathname) ||
+    isDynamicPath(location.pathname) ||
+    !currentUser;
 
   // List of vendor paths
   const vendorPaths = [

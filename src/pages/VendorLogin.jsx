@@ -153,7 +153,7 @@ const VendorLogin = () => {
                         value={email}
                         className={`w-full h-14 ${
                           emailError ? "border-red-500" : "border-none"
-                        } bg-gray-300 px-10 mb-1 font-semibold text-gray-800 rounded-full`}
+                        } bg-gray-300 px-10 mb-1 font-semibold text-gray-800 rounded-lg`}
                         onChange={handleEmailChange}
                       />
                     </FormGroup>
@@ -165,7 +165,7 @@ const VendorLogin = () => {
                         type={showPassword ? "text" : "password"}
                         className={`w-full h-14 ${
                           passwordError ? "border-red-500" : "border-none"
-                        } bg-gray-300 px-10 font-semibold text-gray-800 rounded-full`}
+                        } bg-gray-300 px-10 font-semibold text-gray-800 rounded-lg`}
                         placeholder="Enter your password"
                         value={password}
                         onChange={handlePasswordChange}

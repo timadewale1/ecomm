@@ -21,6 +21,10 @@ const Layout = () => {
     "/vendorlogin",
     "/vendor-signup",
     "/complete-profile",
+    "/newcheckout",
+    "/newcheckout/bookingfee",
+    "/newcheckout/fulldelivery",
+    "/user-dashboard",
   ];
 
   // Paths with dynamic segments

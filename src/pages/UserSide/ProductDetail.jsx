@@ -14,10 +14,12 @@ const ProductDetailPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { product, loading, error } = useSelector((state) => state.product);
+  const cart = useSelector((state) => state.cart);
   const [quantity, setQuantity] = useState(1);
   const [mainImage, setMainImage] = useState("");
   const [isSticky, setIsSticky] = useState(false);
   const [selectedSize, setSelectedSize] = useState("");
+  const [showCheckoutButton, setShowCheckoutButton] = useState(false);
   const [toastShown, setToastShown] = useState({
     sizeError: false,
     stockError: false,
@@ -83,6 +85,7 @@ const ProductDetailPage = () => {
         toast.success(`Added ${product.name} to cart!`);
         setToastShown((prev) => ({ ...prev, success: true }));
       }
+      setShowCheckoutButton(true); // Show the "Proceed to Checkout" button
     }
   }, [dispatch, product, quantity, selectedSize, mainImage, toastShown]);
 
@@ -102,6 +105,20 @@ const ProductDetailPage = () => {
       setQuantity(quantity - 1);
     }
   }, [quantity]);
+
+  const handleProceedToCheckout = () => {
+    navigate("/newcheckout");
+  };
+
+  const totalCartItems = Object.values(cart).reduce(
+    (total, item) => total + item.quantity,
+    0
+  );
+
+  const totalCartPrice = Object.values(cart).reduce(
+    (total, item) => total + item.price * item.quantity,
+    0
+  );
 
   if (loading) {
     return <Loading />;
@@ -128,7 +145,7 @@ const ProductDetailPage = () => {
   }
 
   return (
-    <div className="relative pb-40">
+    <div className="relative pb-20">
       <div
         className={`fixed top-0 left-0 h-20 w-full z-20 ${
           isSticky ? "bg-transparent shadow-md" : ""
@@ -234,7 +251,7 @@ const ProductDetailPage = () => {
             <FaPlus />
           </button>
         </div>
-        <div className="flex font-poppins font-medium justify-center translate-y-16">
+        <div className="flex font-poppins font-medium justify-center translate-y-4">
           <button
             onClick={handleAddToCart}
             className="mt-4 border border-customOrange text-black py-2 px-4 rounded-md hover:bg-customOrange hover:text-white flex items-center"
@@ -243,6 +260,17 @@ const ProductDetailPage = () => {
             Add to Cart
           </button>
         </div>
+        {showCheckoutButton && (
+          <div className="flex font-poppins font-medium justify-center translate-y-20">
+            <button
+              onClick={handleProceedToCheckout}
+              className="bg-customOrange w-full flex h-14 items-center justify-between font-poppins text-black py-2 px-4 rounded-md"
+            >
+              <span className="text-sm font-ubuntu">Proceed to Order ({totalCartItems})</span>
+              <span className="text-sm">₦{totalCartPrice.toFixed(2)}</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

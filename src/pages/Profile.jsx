@@ -3,13 +3,13 @@ import { signOut } from "firebase/auth";
 import { auth, db } from "../firebase.config";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import useAuth from "../custom-hooks/useAuth";
-import { FaPen, FaHeart, FaAngleRight, FaAngleLeft } from "react-icons/fa";
+import { FaPen, FaHeart, FaAngleRight, FaAngleLeft,  } from "react-icons/fa";
+import { FaRegCircleUser } from "react-icons/fa6"; 
 import { GiClothes } from "react-icons/gi";
 import { PiSignOutBold } from "react-icons/pi";
 import OrderHistory from "./UserSide/History";
-import { FaRegCircleUser } from "react-icons/fa6";
 import { MdHistory, MdHelpOutline } from "react-icons/md";
 import { CiMoneyBill } from "react-icons/ci";
 import { AiOutlineDashboard } from "react-icons/ai";
@@ -19,6 +19,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 import AvatarSelectorModal from "../components/Avatars/AvatarSelectorModal";
 import ProfileDetails from "./UserSide/ProfileDetails";
 import FAQs from "./UserSide/FAQs";
+import { IoMdContact, IoMdImage } from "react-icons/io";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -55,6 +56,18 @@ const Profile = () => {
     setUserData((prev) => ({ ...prev, photoURL: newAvatar }));
   };
 
+  const handleRemoveAvatar = async () => {
+    try {
+      await updateDoc(doc(db, "users", currentUser.uid), {
+        photoURL: "",
+      });
+      setUserData((prev) => ({ ...prev, photoURL: "" }));
+      toast.success("Avatar removed successfully", { className: "custom-toast" });
+    } catch (error) {
+      toast.error("Error removing avatar. Please try again.", { className: "custom-toast" });
+    }
+  };
+
   return (
     <div className="py-4">
       {!showDetails &&
@@ -74,12 +87,12 @@ const Profile = () => {
                 onClick={() => setIsAvatarModalOpen(true)}
               />
             ) : (
-              <img
-                src=""
-                alt=""
-                className="rounded-full h-36 w-36"
+              <div
+                className="rounded-full h-36 w-36 flex items-center justify-center bg-gray-200"
                 onClick={() => setIsAvatarModalOpen(true)}
-              />
+              >
+                <IoMdContact className="text-gray-500 text-7xl" />
+              </div>
             )}
             <FaPen
               className="absolute top-0 right-0 text-black cursor-pointer"
@@ -139,7 +152,6 @@ const Profile = () => {
                   <h2 className="text-size font-normal text-black capitalize">
                     History
                   </h2>
-
                 </div>
                 <FaAngleRight className="text-black" />
               </div>
@@ -229,12 +241,7 @@ const Profile = () => {
           )}
           {showHistory && (
             <div className="flex flex-col items-center">
-              <FaAngleLeft
-                className="text-2xl text-black cursor-pointer self-start"
-                onClick={() => setShowHistory(false)}
-              />
-              <h2 className="text-xl font-ubuntu mt-4">History</h2>
-              <OrderHistory />
+              <OrderHistory setShowHistory={setShowHistory} />
             </div>
           )}
           {showMetrics && <UserDashboard />}
@@ -257,6 +264,7 @@ const Profile = () => {
           userId={currentUser.uid}
           onClose={() => setIsAvatarModalOpen(false)}
           onAvatarChange={handleAvatarChange}
+          onRemoveAvatar={handleRemoveAvatar} 
         />
       )}
     </div>

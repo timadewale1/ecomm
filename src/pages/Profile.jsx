@@ -8,6 +8,7 @@ import useAuth from "../custom-hooks/useAuth";
 import { FaPen, FaHeart, FaAngleRight, FaAngleLeft } from "react-icons/fa";
 import { GiClothes } from "react-icons/gi";
 import { PiSignOutBold } from "react-icons/pi";
+import OrderHistory from "./UserSide/History";
 import { FaRegCircleUser } from "react-icons/fa6";
 import { MdHistory, MdHelpOutline } from "react-icons/md";
 import { CiMoneyBill } from "react-icons/ci";
@@ -138,6 +139,7 @@ const Profile = () => {
                   <h2 className="text-size font-normal text-black capitalize">
                     History
                   </h2>
+
                 </div>
                 <FaAngleRight className="text-black" />
               </div>
@@ -232,7 +234,7 @@ const Profile = () => {
                 onClick={() => setShowHistory(false)}
               />
               <h2 className="text-xl font-ubuntu mt-4">History</h2>
-              {/* Render History content here */}
+              <OrderHistory />
             </div>
           )}
           {showMetrics && <UserDashboard />}

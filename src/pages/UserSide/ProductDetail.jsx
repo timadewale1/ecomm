@@ -113,7 +113,7 @@ const ProductDetailPage = () => {
 
   if (!product) {
     if (!toastShown.productNotFound) {
-      toast.error("Product not found. It may have been removed by the vendor.");
+      // toast.error("Product not found. It may have been removed by the vendor.");
       setToastShown((prev) => ({ ...prev, productNotFound: true }));
     }
     return (

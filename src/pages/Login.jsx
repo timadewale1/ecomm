@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-
 import { motion } from "framer-motion";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase.config";
@@ -111,6 +110,8 @@ const Login = () => {
         errorMessage = "Incorrect password. Please try again.";
       } else if (error.code === "auth/invalid-email") {
         errorMessage = "Invalid email format.";
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage = "Network error. Please check your internet connection and try again.";
       }
 
       toast.error(errorMessage, {
@@ -171,7 +172,7 @@ const Login = () => {
                         value={email}
                         className={`w-full h-14 ${
                           emailError ? "border-red-500" : "border-none"
-                        } bg-gray-300 px-10 mb-1 font-semibold text- rounded-full`}
+                        } bg-gray-300 px-10 mb-1 font-semibold text- rounded-lg`}
                         onChange={handleEmailChange}
                       />
                     </FormGroup>
@@ -184,7 +185,7 @@ const Login = () => {
                         type={showPassword ? "text" : "password"}
                         className={`w-full h-14 ${
                           passwordError ? "border-red-500" : "border-none"
-                        } bg-gray-300 px-10 font-semibold text- rounded-full`}
+                        } bg-gray-300 px-10 font-semibold text- rounded-lg`}
                         placeholder="Enter your password"
                         value={password}
                         onChange={handlePasswordChange}

@@ -142,7 +142,7 @@ const StorePage = () => {
 
   return (
     <div className="p-3 mb-20">
-      <div className="flex justify-between items-center mb-4">
+      <div className="sticky top-0 bg-white h-24  -translate-y-4 z-10 flex justify-between items-center">
         <FaAngleLeft onClick={() => navigate(-1)} className="cursor-pointer" />
         <h1 className="font-ubuntu text-lg font-medium">{vendor.shopName}</h1>
         <IoMdContact
@@ -150,7 +150,7 @@ const StorePage = () => {
           onClick={() => setShowContact(true)}
         />
       </div>
-      <div className="flex justify-center mt-2">
+      <div className="flex justify-center -translate-y-3">
         <div className="relative w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
           {loading ? (
             <Skeleton circle={true} height={128} width={128} />

@@ -14,7 +14,7 @@ const ProductCard = ({ product, isLoading, vendorName, vendorId }) => {
   const favorite = isFavorite(product?.id);
 
   const handleCardClick = () => {
-    if (!isLoading) {
+    if (!isLoading && product?.stockQuantity > 0) {
       console.log(`Navigating to product/${product.id}`);
       navigate(`/product/${product.id}`);
     }
@@ -81,8 +81,14 @@ const ProductCard = ({ product, isLoading, vendorName, vendorId }) => {
     }
   };
 
+  const isOutOfStock = product?.stockQuantity === 0;
+
   return (
-    <div className="product-card border rounded-lg shadow relative cursor-pointer" onClick={handleCardClick}>
+    <div
+      className={`product-card border rounded-lg shadow relative cursor-pointer ${isOutOfStock ? 'bg-gray-300 opacity-70' : ''}`}
+      onClick={handleCardClick}
+      style={isOutOfStock ? { pointerEvents: 'none' } : {}}
+    >
       <div className="relative">
         {isLoading ? (
           <Skeleton height={160} />
@@ -90,7 +96,7 @@ const ProductCard = ({ product, isLoading, vendorName, vendorId }) => {
           <img
             src={mainImage}
             alt={product.name}
-            className="h-40 w-full object-cover rounded-lg"
+            className={`h-40 w-full object-cover rounded-lg ${isOutOfStock ? 'opacity-50' : ''}`}
           />
         )}
         <div
@@ -115,7 +121,14 @@ const ProductCard = ({ product, isLoading, vendorName, vendorId }) => {
           {isLoading ? (
             <Skeleton width={100} />
           ) : (
-            renderCondition(product.condition)
+            isOutOfStock ? (
+              <>
+                <CiCircleInfo className="text-red-500" />
+                <p className="ml-2 text-xs text-red-500">Out of Stock</p>
+              </>
+            ) : (
+              renderCondition(product.condition)
+            )
           )}
         </div>
       </div>

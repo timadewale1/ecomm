@@ -83,7 +83,7 @@ const MarketVendors = () => {
   const defaultImageUrl = "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 
   return (
-    <div className="p-2">
+    <div className="p-2 mb-20">
       <div className="sticky-header flex flex-col items-center -mx-2 p-2 bg-white shadow">
         <div className="flex justify-between items-center w-full">
           {isSearching ? (

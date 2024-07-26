@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import useAuth from "../custom-hooks/useAuth";
 import { getUserRole } from "../admin/getUserRole";
 import Loading from "../components/Loading/Loading";
-
+import UserDashboard from "../pages/UserDashboard";
 const ProtectedRoute = ({ requireAdmin }) => {
-  const { currentUser, loading } = useAuth(); // Ensure loading state is handled
+  const { currentUser, loading } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkedAdminRole, setCheckedAdminRole] = useState(false);
+  const location = useLocation(); // Get the current location
 
   useEffect(() => {
     const checkAdminRole = async () => {
@@ -40,6 +41,15 @@ const ProtectedRoute = ({ requireAdmin }) => {
 
   if (requireAdmin && !isAdmin) {
     return <Navigate to="/dashboard" />;
+  }
+
+  // Conditionally render Outlet or a specific component based on the current route
+  if (location.pathname === "/user-dashboard") {
+    return (
+      <div>
+        <UserDashboard />
+      </div>
+    ); // Or navigate to a different route
   }
 
   return (

@@ -29,6 +29,7 @@ const VendorProducts = () => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setVendorId(user.uid);
+        console.log("Vendor ID set:", user.uid);
         fetchVendorProducts(user.uid);
       } else {
         toast.error('Unauthorized access or no user is signed in.');
@@ -235,7 +236,9 @@ const VendorProducts = () => {
                 "Delete"
                     )}
               </button>
+
               {/* {selectedProduct.remainingEditTime = 0 && (
+
                 <div className="flex items-center justify-end space-x-2 mt-4">
                   <button
                     className={`px-3 py-2 bg-blue-700 text-white rounded-md shadow-sm hover:bg-blue-800 focus:ring focus:ring-blue-700 focus:outline-none ${buttonLoading ? 'cursor-not-allowed' : ''}`}
@@ -289,8 +292,10 @@ const VendorProducts = () => {
       )}
 
       {isAddProductModalOpen && (
+
         <Modal isOpen={isAddProductModalOpen} onClose={closeModal}>
           <AddProduct vendorId={vendorId} onClose={closeModal} onProductAdded={() => fetchVendorProducts(vendorId)} />
+
         </Modal>
       )}
 

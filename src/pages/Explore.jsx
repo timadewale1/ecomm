@@ -1,75 +1,72 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import TinderCard from "react-tinder-card";
-// import { fetchProducts, addToCart } from "../redux/actions/action";
-// import { toggleFavorite } from "../redux/actions/favouriteactions";
-import Explorer from "../components/Loading/Explorer";
-import "../styles/explore.css";
+import { fetchProducts } from "../redux/actions/productaction";
+import Loading from "../components/Loading/Loading";
+import { addToCart } from "../redux/actions/action";
+import { toggleFavorite } from "../redux/actions/favouriteactions";
+import { FaHeart, FaCartPlus } from "react-icons/fa";
 
 const Explore = () => {
-//   const dispatch = useDispatch();
-//   const products = useSelector((state) => state.cart.products || []); // Ensure products is an array
-//   const loading = useSelector((state) => state.cart.loading);
-//   const [currentIndex, setCurrentIndex] = useState(products.length - 1);
+  const dispatch = useDispatch();
+  const products = useSelector((state) => state.product.products);
+  const loading = useSelector((state) => state.product.loading);
 
-//   useEffect(() => {
-//     dispatch(fetchProducts());
-//   }, [dispatch]);
+  useEffect(() => {
+    console.log("Dispatching fetchProducts");
+    dispatch(fetchProducts());
+  }, [dispatch]);
 
-//   useEffect(() => {
-//     setCurrentIndex(products.length - 1);
-//   }, [products]);
+  const handleAddToCart = (product) => {
+    dispatch(addToCart(product));
+    console.log(`Added ${product.name} to cart`);
+  };
 
-//   const swiped = (direction, product) => {
-//     console.log(`Swiped ${direction} on ${product.name}`);
-//     if (direction === "right") {
-//       dispatch(addToCart(product));
-//       console.log(`Added ${product.name} to cart`);
-//     } else if (direction === "left") {
-//       dispatch(toggleFavorite(product.id));
-//       console.log(`Added ${product.name} to favorites`);
-//     }
-//     setCurrentIndex((prev) => prev - 1);
-//   };
+  const handleToggleFavorite = (productId) => {
+    dispatch(toggleFavorite(productId));
+    console.log(`Toggled favorite for product ID: ${productId}`);
+  };
 
-//   const outOfFrame = (name) => {
-//     console.log(`${name} left the screen!`);
-//   };
-
-//   if (loading) {
-    return <Explorer />;
-//   }
+  if (loading) {
+    return <Loading />;
+  }
 
   return (
-    <div className="explore-container">
-      {/* <div className="card-container">
+    <div className="p-4">
+      <h1 className="text-2xl font-bold text-center mb-4">Explore Products</h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {products.length === 0 ? (
-          <p>No products available</p>
+          <p className="text-red-700 text-center col-span-full">No products available</p>
         ) : (
-          products.map((product, index) => (
-            <TinderCard
-              key={product.id}
-              onSwipe={(dir) => swiped(dir, product)}
-              onCardLeftScreen={() => outOfFrame(product.name)}
-              preventSwipe={["up", "down"]}
-            >
-              <div
-                className={`card ${index === currentIndex ? "current-card" : ""}`}
-                style={{ height: '100vh' }}
-              >
-                <img
-                  src={product.coverImageUrl}
-                  alt={product.name}
-                  className="card-image"
-                />
-                <h3 className="card-title">{product.name}</h3>
-                <p className="card-description">{product.description}</p>
-                <p className="card-price">₦{product.price}</p>
+          products.map((product) => (
+            <div key={product.id} className="bg-white rounded-lg shadow-md p-4">
+              <img
+                src={product.coverImageUrl}
+                alt={product.name}
+                className="w-full h-48 object-cover rounded-md"
+              />
+              <h3 className="text-xl font-semibold mt-2">{product.name}</h3>
+              <p className="text-gray-700 mt-1">{product.description}</p>
+              <p className="text-green-600 font-bold mt-2">₦{product.price}</p>
+              <div className="flex justify-between mt-4">
+                <button
+                  onClick={() => handleAddToCart(product)}
+                  className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+                >
+                  <FaCartPlus className="mr-2" />
+                  Add to Cart
+                </button>
+                <button
+                  onClick={() => handleToggleFavorite(product.id)}
+                  className="flex items-center bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600"
+                >
+                  <FaHeart className="mr-2" />
+                  Favorite
+                </button>
               </div>
-            </TinderCard>
+            </div>
           ))
         )}
-      </div> */}
+      </div>
     </div>
   );
 };

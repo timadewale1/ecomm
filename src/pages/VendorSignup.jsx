@@ -162,9 +162,9 @@ const VendorSignup = () => {
                   <p className="text-black font-semibold">
                     Please sign up to continue
                   </p>
-                  <h4 className="text-xs text-red-500">
+                  {/* <h4 className="text-xs text-red-500">
                         Note that you can't change these details more than once within 30days
-                      </h4>
+                      </h4> */}
                   <Form className="mt-4" onSubmit={handleSignup}>
                     <FormGroup className="relative mb-2">
                       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -175,7 +175,7 @@ const VendorSignup = () => {
                         name="firstName"
                         placeholder="First Name"
                         value={vendorData.firstName}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-full bg-gray-300"
+                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
                         onChange={handleInputChange}
                         required
                       />
@@ -189,7 +189,7 @@ const VendorSignup = () => {
                         name="lastName"
                         placeholder="Last Name"
                         value={vendorData.lastName}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-full bg-gray-300"
+                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
                         onChange={handleInputChange}
                         required
                       />
@@ -203,7 +203,7 @@ const VendorSignup = () => {
                         name="email"
                         placeholder="Email"
                         value={vendorData.email}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-full bg-gray-300"
+                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
                         onChange={handleInputChange}
                         required
                       />
@@ -217,7 +217,7 @@ const VendorSignup = () => {
                         name="password"
                         placeholder="Password"
                         value={vendorData.password}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-full bg-gray-300"
+                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
                         onChange={handleInputChange}
                         required
                       />
@@ -241,7 +241,7 @@ const VendorSignup = () => {
                         name="confirmPassword"
                         placeholder="Confirm Password"
                         value={vendorData.confirmPassword}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-full bg-gray-300"
+                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
                         onChange={handleInputChange}
                         required
                       />

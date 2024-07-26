@@ -7,6 +7,7 @@ import Loading from "../../components/Loading/Loading";
 import { PiShoppingCartThin } from "react-icons/pi";
 import { FaAngleLeft, FaCheck, FaPlus, FaMinus } from "react-icons/fa";
 import { CiCircleInfo } from "react-icons/ci";
+import { LiaOpencart } from "react-icons/lia";
 import { toast } from "react-toastify";
 
 const ProductDetailPage = () => {
@@ -19,7 +20,7 @@ const ProductDetailPage = () => {
   const [mainImage, setMainImage] = useState("");
   const [isSticky, setIsSticky] = useState(false);
   const [selectedSize, setSelectedSize] = useState("");
-  const [showCheckoutButton, setShowCheckoutButton] = useState(false);
+  const [animateCart, setAnimateCart] = useState(false);
   const [toastShown, setToastShown] = useState({
     sizeError: false,
     stockError: false,
@@ -60,7 +61,9 @@ const ProductDetailPage = () => {
   }, []);
 
   const handleAddToCart = useCallback(() => {
+    console.log("Add to Cart clicked");
     if (product.size.toLowerCase().includes("all sizes") && !selectedSize) {
+      console.log("Size error");
       if (!toastShown.sizeError) {
         toast.error("Please select a size before adding to cart!");
         setToastShown((prev) => ({ ...prev, sizeError: true }));
@@ -69,6 +72,7 @@ const ProductDetailPage = () => {
     }
 
     if (quantity > product.stockQuantity) {
+      console.log("Stock error");
       if (!toastShown.stockError) {
         toast.error("Selected quantity exceeds stock availability!");
         setToastShown((prev) => ({ ...prev, stockError: true }));
@@ -80,12 +84,14 @@ const ProductDetailPage = () => {
         selectedSize,
         selectedImageUrl: mainImage,
       };
+      console.log("Adding product to cart:", productToAdd);
       dispatch(addToCart(productToAdd));
       if (!toastShown.success) {
         toast.success(`Added ${product.name} to cart!`);
         setToastShown((prev) => ({ ...prev, success: true }));
       }
-      setShowCheckoutButton(true); // Show the "Proceed to Checkout" button
+      setAnimateCart(true); // Trigger animation
+      setTimeout(() => setAnimateCart(false), 500); // Reset animation class after 0.5 seconds
     }
   }, [dispatch, product, quantity, selectedSize, mainImage, toastShown]);
 
@@ -93,6 +99,7 @@ const ProductDetailPage = () => {
     if (quantity < product.stockQuantity) {
       setQuantity(quantity + 1);
     } else {
+      console.log("Cannot exceed available stock");
       if (!toastShown.stockError) {
         toast.error("Cannot exceed available stock!");
         setToastShown((prev) => ({ ...prev, stockError: true }));
@@ -105,10 +112,6 @@ const ProductDetailPage = () => {
       setQuantity(quantity - 1);
     }
   }, [quantity]);
-
-  const handleProceedToCheckout = () => {
-    navigate("/newcheckout");
-  };
 
   const totalCartItems = Object.values(cart).reduce(
     (total, item) => total + item.quantity,
@@ -130,19 +133,26 @@ const ProductDetailPage = () => {
 
   if (!product) {
     if (!toastShown.productNotFound) {
-      // toast.error("Product not found. It may have been removed by the vendor.");
       setToastShown((prev) => ({ ...prev, productNotFound: true }));
     }
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
-        <h1 className="text-2xl font-bold text-red-600 mb-2">Product Not Found</h1>
+        <h1 className="text-2xl font-bold text-red-600 mb-2">
+          Product Not Found
+        </h1>
         <p className="text-lg text-gray-700 mb-4">
-          It looks like this product has been removed from the inventory by the vendor.
+          It looks like this product has been removed from the inventory by the
+          vendor.
         </p>
-        <p className="text-md font-poppins text-gray-500">Please continue shopping for other great deals!</p>
+        <p className="text-md font-poppins text-gray-500">
+          Please continue shopping for other great deals!
+        </p>
       </div>
     );
   }
+
+  // Split the size string into an array
+  const sizes = product.size ? product.size.split(',').map(size => size.trim()) : [];
 
   return (
     <div className="relative pb-20">
@@ -178,11 +188,11 @@ const ProductDetailPage = () => {
       </div>
       <div className="mt-1 flex justify-center">
         <p className="text-xs font-medium text-gray-600">
-          Available in: {product.color}
+          Colors: {product.color}
         </p>
       </div>
       <div className="p-2">
-        <p className="text-center mt-1">{product.description}</p>
+        <p className="text-center font-lato mt-1">{product.description}</p>
         <h1 className="text-2xl font-ubuntu text-black font-bold mt-4">
           {product.name}
         </h1>
@@ -216,23 +226,32 @@ const ProductDetailPage = () => {
             </div>
           ) : null}
         </div>
-        {product.size.toLowerCase().includes("all sizes") && (
-          <div className="mt-4">
-            <label
-              htmlFor="size-textarea"
-              className="text-sm font-medium text-gray-700"
+        {sizes.length > 1 ? (
+          <div className="mt-4 flex justify-center flex-col items-center">
+            <select
+              className="mt-1 block w-24 py-1 px-1 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              value={selectedSize}
+              onChange={(e) => setSelectedSize(e.target.value)}
             >
-              Enter Size:
-            </label>
+              <option value="" disabled>Select size</option>
+              {sizes.map((size, index) => (
+                <option key={index} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : typeof product.size === "string" && product.size.toLowerCase().includes("all sizes") ? (
+          <div className="mt-4 flex justify-center flex-col items-center">
             <textarea
               id="size-textarea"
               className="mt-1 block w-24 h-8 py-1 px-1 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none"
               value={selectedSize}
               onChange={(e) => setSelectedSize(e.target.value)}
-              placeholder="Size"
+              placeholder="Your size"
             />
           </div>
-        )}
+        ) : null}
 
         <div className="flex justify-center items-center mt-4">
           <button
@@ -251,26 +270,20 @@ const ProductDetailPage = () => {
             <FaPlus />
           </button>
         </div>
-        <div className="flex font-poppins font-medium justify-center translate-y-4">
+        <div className="flex font-poppins font-medium justify-center translate-y-4 relative">
           <button
             onClick={handleAddToCart}
-            className="mt-4 border border-customOrange text-black py-2 px-4 rounded-md hover:bg-customOrange hover:text-white flex items-center"
+            className={`mt-4 border border-customOrange text-black py-2 px-4 rounded-md hover:bg-customOrange hover:text-white flex items-center relative ${
+              animateCart ? "animate-cart" : ""
+            }`}
           >
             <PiShoppingCartThin className="mr-2" />
             Add to Cart
+            {animateCart && (
+              <LiaOpencart className="text-3xl text-customOrange absolute left-1/2 transform -translate-x-1/2 -translate-y-2/3" />
+            )}
           </button>
         </div>
-        {showCheckoutButton && (
-          <div className="flex font-poppins font-medium justify-center translate-y-20">
-            <button
-              onClick={handleProceedToCheckout}
-              className="bg-customOrange w-full flex h-14 items-center justify-between font-poppins text-black py-2 px-4 rounded-md"
-            >
-              <span className="text-sm font-ubuntu">Proceed to Order ({totalCartItems})</span>
-              <span className="text-sm">₦{totalCartPrice.toFixed(2)}</span>
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -4,12 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { clearCart } from "../redux/actions/action";
 import useAuth from "../custom-hooks/useAuth";
-import { createDummyOrder } from "../admin/Orders";
 import { IoLocation } from "react-icons/io5";
 import GooglePlacesAutocomplete from "../components/Google";
 import { FaInfoCircle, FaAngleLeft } from "react-icons/fa";
 import BookingFeeModal from "../components/BookingFee";
 import { calculateServiceFee } from "./VendorCompleteProfile/utilis";
+import { createOrderAndReduceStock } from "../services/Services"; // Import the function
 
 const Checkout = () => {
   const cart = useSelector((state) => state.cart);
@@ -57,17 +57,17 @@ const Checkout = () => {
 
     try {
       const userId = currentUser.uid; // Ensure the userId is defined
-      const orderId = await createDummyOrder(cart, userId);
+      console.log("Placing order for user:", userId);
+      console.log("Cart:", cart);
+      await createOrderAndReduceStock(userId, cart);
       dispatch(clearCart());
-      navigate("/newcheckout/bookingfee", {
+      navigate("/payment-approve", {
         state: { totalPrice, deliveryInfo },
       });
-      toast.success(`Order ${orderId} placed successfully!`);
+      toast.success(`Order placed successfully!`);
     } catch (error) {
       console.error("Error placing order:", error);
-      toast.error(
-        "An error occurred while placing the order. Please try again."
-      );
+      toast.error("An error occurred while placing the order. Please try again.");
     }
   };
 
@@ -86,17 +86,17 @@ const Checkout = () => {
 
     try {
       const userId = currentUser.uid; // Ensure the userId is defined
-      const orderId = await createDummyOrder(cart, userId);
+      console.log("Placing order for user:", userId);
+      console.log("Cart:", cart);
+      await createOrderAndReduceStock(userId, cart);
       dispatch(clearCart());
       navigate("/newcheckout/fulldelivery", {
         state: { totalPrice, deliveryInfo },
       });
-      toast.success(`Order ${orderId} placed successfully!`);
+      toast.success(`Order placed successfully!`);
     } catch (error) {
       console.error("Error placing order:", error);
-      toast.error(
-        "An error occurred while placing the order. Please try again."
-      );
+      toast.error("An error occurred while placing the order. Please try again.");
     }
   };
 
@@ -136,7 +136,7 @@ const Checkout = () => {
           className="text-2xl cursor-pointer mr-4"
           onClick={() => navigate(-1)}
         />
-        <h1 className="font-ubuntumb-4 text-black text-2xl">Checkout</h1>
+        <h1 className="font-ubuntu text-black text-2xl">Checkout</h1>
       </div>
       <form className="bg-white mt-8">
         <h2 className="text-lg font-semibold font-ubuntu mb-2">Order summary</h2>
@@ -178,7 +178,7 @@ const Checkout = () => {
         </div>
         <div className="mt-4 flex justify-between">
           <label className="block mb-2 font-poppins font-semibold">Sub-Total</label>
-          <p className="text-lg font-poppins text-green-600">₦{totalPrice.toFixed(2)}</p>
+          <p className="text-lg font-poppins text-black font-medium">₦{totalPrice.toFixed(2)}</p>
         </div>
         <div className="mt-1 flex justify-between">
           <label className="block mb-2 font-poppins font-semibold">
@@ -188,15 +188,15 @@ const Checkout = () => {
               onClick={() => setShowBookingFeeModal(true)}
             />
           </label>
-          <p className="text-lg font-poppins text-green-600">₦{bookingFee}</p>
+          <p className="text-lg font-poppins text-black font-medium">₦{bookingFee}</p>
         </div>
         <div className="mt-1 flex justify-between">
           <label className="block mb-2 font-poppins font-semibold">Service Fee</label>
-          <p className="text-lg font-poppins text-green-600">₦{serviceFee}</p>
+          <p className="text-lg font-poppins text-black font-medium">₦{serviceFee}</p>
         </div>
         <div className="mt-1 flex justify-between">
           <label className="block mb-2 font-poppins font-semibold">Total</label>
-          <p className="text-lg font-poppins text-green-600">₦{total}</p>
+          <p className="text-lg font-poppins text-black font-medium">₦{total}</p>
         </div>
         <button
           onClick={handleBookingFeePayment}

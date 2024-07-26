@@ -21,7 +21,7 @@ const Market = () => {
   useEffect(() => {
     setTimeout(() => {
       setLoading(false);
-    }, 500); // Simulating loading time
+    }, 50); // Simulating loading time
 
     if (!loading) {
       cardsRef.current.forEach((card, index) => {

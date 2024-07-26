@@ -1,12 +1,17 @@
-import React, { useState } from "react";
-import { getAuth } from "firebase/auth";
+import React, { useState, useEffect } from "react";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, collection, setDoc, addDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from "../../firebase.config";
 import { toast } from "react-toastify";
 import { FaImage, FaMinusCircle } from "react-icons/fa";
 import { RotatingLines } from "react-loader-spinner";
+import axios from "axios";
+import Select from "react-select";
+import makeAnimated from "react-select/animated";
+import { GiRegeneration } from "react-icons/gi";
 
+const animatedComponents = makeAnimated();
 const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
 
 const AddProduct = ({ vendorId, closeModal }) => {
@@ -18,26 +23,51 @@ const AddProduct = ({ vendorId, closeModal }) => {
   const [stockQuantity, setStockQuantity] = useState("");
   const [productCondition, setProductCondition] = useState("");
   const [productDefectDescription, setProductDefectDescription] = useState("");
-  const [category, setCategory] = useState([]);
+  const [category, setCategory] = useState("");
   const [productType, setProductType] = useState("");
-  const [size, setSize] = useState("");
+  const [size, setSize] = useState([]);
   const [color, setColor] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
-  const auth = getAuth();
-  const user = auth.currentUser;
-  const storage = getStorage();
+  const [currentUser, setCurrentUser] = useState(null);
+ const storage = getStorage();
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setCurrentUser(user);
+      } else {
+        setCurrentUser(null);
+        toast.error("No user is signed in.");
+      }
+    });
 
-  const handleFileChange = (e, setFile) => {
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (productName && category && productType && size.length && color) {
+      generateDescription();
+    }
+  }, [productName, category, productType, size, color]);
+
+  const handleFileChange = async (e, setFile) => {
     const file = e.target.files[0];
     if (file.size > MAX_FILE_SIZE) {
       toast.error("File size exceeds the maximum limit of 3MB.");
       return;
     }
-    setFile(file);
+    setIsUploadingImage(true);
+    try {
+      setFile(file);
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
-  const handleMultipleFileChange = (e) => {
+  const handleMultipleFileChange = async (e) => {
     const files = Array.from(e.target.files);
     const validFiles = files.filter((file) => {
       if (file.size > MAX_FILE_SIZE) {
@@ -46,7 +76,12 @@ const AddProduct = ({ vendorId, closeModal }) => {
       }
       return true;
     });
-    setProductImageFiles([...productImageFiles, ...validFiles]);
+    setIsUploadingImage(true);
+    try {
+      setProductImageFiles([...productImageFiles, ...validFiles]);
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   const handleRemoveImage = (index) => {
@@ -68,7 +103,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
   };
 
   const handleAddProduct = async () => {
-    if (!user || user.uid !== vendorId) {
+    if (!currentUser || currentUser.uid !== vendorId) {
       toast.error("Unauthorized access or no user is signed in.");
       return;
     }
@@ -80,9 +115,9 @@ const AddProduct = ({ vendorId, closeModal }) => {
       !productCoverImageFile ||
       !stockQuantity ||
       !productCondition ||
-      !category.length ||
+      !category ||
       !productType ||
-      !size ||
+      !size.length ||
       !color ||
       (productCondition === "defect" && !productDefectDescription)
     ) {
@@ -96,14 +131,20 @@ const AddProduct = ({ vendorId, closeModal }) => {
       let coverImageUrl = "";
 
       if (productCoverImageFile) {
-        const storageRef = ref(storage, `${vendorId}/my-products/cover-${productCoverImageFile.name}`);
+        const storageRef = ref(
+          storage,
+          `${vendorId}/my-products/cover-${productCoverImageFile.name}`
+        );
         await uploadBytes(storageRef, productCoverImageFile);
         coverImageUrl = await getDownloadURL(storageRef);
       }
 
       const productImageUrls = await Promise.all(
         productImageFiles.map(async (file) => {
-          const storageRef = ref(storage, `${vendorId}/my-products/${file.name}`);
+          const storageRef = ref(
+            storage,
+            `${vendorId}/my-products/${file.name}`
+          );
           await uploadBytes(storageRef, file);
           return getDownloadURL(storageRef);
         })
@@ -111,18 +152,28 @@ const AddProduct = ({ vendorId, closeModal }) => {
 
       const product = {
         name: productName.toUpperCase(),
-        description: productDescription.charAt(0).toUpperCase() + productDescription.slice(1).toLowerCase(),
+        description:
+          productDescription.charAt(0).toUpperCase() +
+          productDescription.slice(1).toLowerCase(),
         price: parseFloat(productPrice),
         coverImageUrl: coverImageUrl,
         imageUrls: productImageUrls,
-        vendorId: user.uid,
+        vendorId: currentUser.uid,
         stockQuantity: parseInt(stockQuantity, 10),
-        condition: productCondition === "defect"
-          ? `Defect: ${productDefectDescription.charAt(0).toUpperCase() + productDefectDescription.slice(1).toLowerCase()}`
-          : productCondition.charAt(0).toUpperCase() + productCondition.slice(1).toLowerCase(),
-        category: category.map(cat => cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase()),
-        productType: productType.charAt(0).toUpperCase() + productType.slice(1).toLowerCase(),
-        size: size.charAt(0).toUpperCase() + size.slice(1).toLowerCase(),
+        condition:
+          productCondition === "defect"
+            ? `Defect: ${
+                productDefectDescription.charAt(0).toUpperCase() +
+                productDefectDescription.slice(1).toLowerCase()
+              }`
+            : productCondition.charAt(0).toUpperCase() +
+              productCondition.slice(1).toLowerCase(),
+        category:
+          category.charAt(0).toUpperCase() + category.slice(1).toLowerCase(),
+        productType:
+          productType.charAt(0).toUpperCase() +
+          productType.slice(1).toLowerCase(),
+        size: size.map((s) => s.value).join(", "), // Convert array of size objects to comma-separated string
         color: color.charAt(0).toUpperCase() + color.slice(1).toLowerCase(),
       };
 
@@ -145,9 +196,9 @@ const AddProduct = ({ vendorId, closeModal }) => {
       setStockQuantity("");
       setProductCondition("");
       setProductDefectDescription("");
-      setCategory([]);
+      setCategory("");
       setProductType("");
-      setSize("");
+      setSize([]);
       setColor("");
       closeModal();
     } catch (error) {
@@ -158,28 +209,61 @@ const AddProduct = ({ vendorId, closeModal }) => {
     }
   };
 
+  const generateDescription = async () => {
+    setIsGeneratingDescription(true);
+    try {
+      const response = await axios.post(
+        "https://mythrift.fly.dev/api/v1/description",
+        {
+          name: productName,
+          category,
+          productType,
+          size: size.map((s) => s.value).join(", "),
+          color,
+        }
+      );
+      setProductDescription(response.data.description);
+    } catch (error) {
+      console.error("Error generating description:", error);
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
   const handleCategoryChange = (e) => {
-    const value = e.target.value;
-    setCategory((prevCategories) =>
-      prevCategories.includes(value)
-        ? prevCategories.filter((category) => category !== value)
-        : [...prevCategories, value]
-    );
+    setCategory(e.target.value);
+  };
+
+  const handleSizeChange = (selectedOptions) => {
+    setSize(selectedOptions);
   };
 
   const getSizeOptions = () => {
-    switch (productType) {
-      case "cloth":
-        return ["XS", "S", "M", "L", "XL", "XXL", "All sizes"];
-      case "dress":
-        return ["32", "34", "36", "38", "40", "42", "44", "All sizes"];
-      case "jewelry":
-        return ["5", "6", "7", "8", "9", "10", "All sizes"];
-      case "footwear":
-        return ["35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "All sizes"];
-      default:
-        return [];
-    }
+    const options = {
+      cloth: ["XS", "S", "M", "L", "XL", "XXL", "All sizes"],
+      dress: ["32", "34", "36", "38", "40", "42", "44", "All sizes"],
+      jewelry: ["5", "6", "7", "8", "9", "10", "All sizes"],
+      footwear: [
+        "35",
+        "36",
+        "37",
+        "38",
+        "39",
+        "40",
+        "41",
+        "42",
+        "43",
+        "44",
+        "All sizes",
+      ],
+      pants: ["28", "30", "32", "34", "36", "38", "40", "42", "All sizes"],
+      shirts: ["14", "15", "16", "17", "18", "All sizes"],
+      suits: ["38", "40", "42", "44", "46", "All sizes"],
+      hats: ["S", "M", "L", "XL", "All sizes"],
+      belts: ["S", "M", "L", "XL", "All sizes"],
+    };
+
+    return options[productType] || [];
   };
 
   const highlightField = (field) => {
@@ -187,7 +271,18 @@ const AddProduct = ({ vendorId, closeModal }) => {
   };
 
   return (
-    <div>
+    <div className="relative">
+      {isUploadingImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
+          <RotatingLines
+            strokeColor="white"
+            strokeWidth="5"
+            animationDuration="0.75"
+            width="96"
+            visible={true}
+          />
+        </div>
+      )}
       <h2 className="text-2xl font-bold text-green-700 mb-6 font-ubuntu">
         Add Product
       </h2>
@@ -209,25 +304,20 @@ const AddProduct = ({ vendorId, closeModal }) => {
         <label className="block text-gray-700 text-sm font-ubuntu font-medium">
           Category
         </label>
-        <div
-          className={`flex space-x-2 border ${highlightField(category.length)}`}
+        <select
+          value={category}
+          onChange={handleCategoryChange}
+          className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
+            category
+          )}`}
+          required
         >
-          {["Men", "Women", "Kids"].map((cat) => (
-            <div key={cat}>
-              <input
-                type="checkbox"
-                id={cat}
-                value={cat}
-                checked={category.includes(cat)}
-                onChange={handleCategoryChange}
-                className="mr-1"
-              />
-              <label htmlFor={cat} className="text-sm text-gray-700">
-                {cat}
-              </label>
-            </div>
-          ))}
-        </div>
+          <option value="">Select Category</option>
+          <option value="men">Men</option>
+          <option value="women">Women</option>
+          <option value="kids">Kids</option>
+          <option value="all">All</option>
+        </select>
       </div>
       <div className="mb-4">
         <label className="block text-gray-700 text-sm font-ubuntu font-medium">
@@ -246,6 +336,11 @@ const AddProduct = ({ vendorId, closeModal }) => {
           <option value="dress">Dress</option>
           <option value="jewelry">Jewelry</option>
           <option value="footwear">Footwear</option>
+          <option value="pants">Pants</option>
+          <option value="shirts">Shirts</option>
+          <option value="suits">Suits</option>
+          <option value="hats">Hats</option>
+          <option value="belts">Belts</option>
         </select>
       </div>
       {productType && (
@@ -253,21 +348,19 @@ const AddProduct = ({ vendorId, closeModal }) => {
           <label className="block text-gray-700 text-sm font-ubuntu font-medium">
             Size
           </label>
-          <select
-            value={size}
-            onChange={(e) => setSize(e.target.value)}
+          <Select
+            isMulti
+            options={getSizeOptions().map((size) => ({
+              value: size,
+              label: size,
+            }))}
+            components={animatedComponents}
+            onChange={handleSizeChange}
             className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
-              size
+              size.length
             )}`}
             required
-          >
-            <option value="">Select Size</option>
-            {getSizeOptions().map((sizeOption) => (
-              <option key={sizeOption} value={sizeOption}>
-                {sizeOption}
-              </option>
-            ))}
-          </select>
+          />
         </div>
       )}
       <div className="mb-4">
@@ -288,17 +381,32 @@ const AddProduct = ({ vendorId, closeModal }) => {
         <label className="block text-gray-700 font-ubuntu text-sm font-medium">
           Product Description
         </label>
-        <p className="text-xs text-red-500">Should not exceed 25 characters!</p>
-        <input
-          type="text"
+        <textarea
           value={productDescription}
           onChange={(e) => setProductDescription(e.target.value)}
-          className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none"
-          maxLength="25"
+          className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none h-24 resize-none flex-grow"
         />
+        <button
+          type="button"
+          onClick={generateDescription}
+          className="mt-2 px-2 py-1 bg-customOrange text-white rounded-md shadow-sm hover:bg-customOrange focus:ring focus:ring-customOrange focus:outline-none flex items-center justify-end"
+          disabled={isGeneratingDescription}
+        >
+          {isGeneratingDescription ? (
+            <RotatingLines
+              strokeColor="white"
+              strokeWidth="5"
+              animationDuration="0.75"
+              width="24"
+              visible={true}
+            />
+          ) : (
+            <GiRegeneration />
+          )}
+        </button>
       </div>
       <div className="mb-4">
-      <label className="block text-gray-700 font-ubuntu text-sm font-medium">
+        <label className="block text-gray-700 font-ubuntu text-xs font-medium">
           Product Price
         </label>
         <input
@@ -364,8 +472,8 @@ const AddProduct = ({ vendorId, closeModal }) => {
           different designs, add those images here.{" "}
         </p>
         <div className="flex flex-col mt-1 items-center">
-          <div className=" grid grid-cols-2">
-            {Array.from({ length: 6 }).map((_, index) => (
+          <div className="grid grid-cols-2 gap-4">
+            {productImageFiles.map((file, index) => (
               <div
                 key={index}
                 className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer relative"
@@ -373,49 +481,48 @@ const AddProduct = ({ vendorId, closeModal }) => {
                   document.getElementById(`productFileInput-${index}`).click()
                 }
               >
-                {productImageFiles[index] ? (
-                  <>
-                    <img
-                      src={URL.createObjectURL(productImageFiles[index])}
-                      alt={`Product ${index + 1}`}
-                      className="w-full h-full rounded-md object-cover"
-                    />
-                    <button
-                      type="button"
-                      className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveImage(index);
-                      }}
-                    >
-                      <FaMinusCircle className="h-4 w-4" />
-                    </button>
-                  </>
-                ) : (
-                  <FaImage className="h-8 w-8 text-gray-400" />
-                )}
+                <img
+                  src={URL.createObjectURL(file)}
+                  alt={`Product ${index + 1}`}
+                  className="w-full h-full rounded-md object-cover"
+                />
+                <button
+                  type="button"
+                  className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveImage(index);
+                  }}
+                >
+                  <FaMinusCircle className="h-4 w-4" />
+                </button>
                 <input
                   id={`productFileInput-${index}`}
                   type="file"
                   accept="image/*"
-                  onChange={(e) => {
-                    const newFiles = [...productImageFiles];
-                    newFiles[index] = e.target.files[0];
-                    setProductImageFiles(newFiles);
-                  }}
+                  onChange={(e) => handleMultipleFileChange(e)}
                   className="hidden"
                 />
               </div>
             ))}
+            {productImageFiles.length < 6 && (
+              <div
+                className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer"
+                onClick={() =>
+                  document.getElementById(`productFileInput-${productImageFiles.length}`).click()
+                }
+              >
+                <FaImage className="h-8 w-8 text-gray-400" />
+                <input
+                  id={`productFileInput-${productImageFiles.length}`}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleMultipleFileChange(e)}
+                  className="hidden"
+                />
+              </div>
+            )}
           </div>
-          <input
-            id="multipleFileInput"
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleMultipleFileChange}
-            className="hidden"
-          />
         </div>
       </div>
       <div className="mb-4">

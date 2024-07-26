@@ -5,7 +5,7 @@ import ProductDetailPage from "../pages/UserSide/ProductDetail";
 import Login from "../pages/Login";
 import Signup from "../pages/Signup";
 import ForgetPassword from "../pages/forgetPassword.jsx";
-
+import Donate from "../pages/Donate.jsx";
 import VendorSignup from "../pages/VendorSignup";
 import VendorOrders from "../pages/VendorCompleteProfile/VendorOrders.jsx";
 import VendorLogin from "../pages/VendorLogin";
@@ -16,6 +16,7 @@ import VendorProfile from "../pages/VendorCompleteProfile/VendorProfile.jsx";
 import MarketStorePage from "../pages/MarketStorePage.jsx";
 import UserDashboard from "../pages/UserDashboard";
 import Marketpg from "../pages/Marketpg";
+import PaymentApprove from "../pages/PaymentApprove.jsx";
 import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfile.jsx";
 import NewHome from "../pages/Homepage";
 import LatestCart from "../pages/Cart.jsx";
@@ -62,6 +63,8 @@ const Routers = () => {
         <Route path="browse-markets" element={<Marketpg />} />
         <Route path="market-card/:marketName" element={<Marketcardpage />} />
         <Route path="explore" element={<Explore />} />
+        <Route path="donate" element={<Donate />} />
+        <Route path="payment-approve" element={<PaymentApprove />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="user-dashboard" element={<UserDashboard />} />
         <Route path="vendordashboard" element={<VendorDashboard />} />

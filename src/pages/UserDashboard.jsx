@@ -154,7 +154,10 @@ const UserDashboard = () => {
   const userOrders = orders.filter((order) => order.userId === auth.currentUser.uid);
 
   const totalAmountSpent = userOrders.reduce(
-    (total, order) => total + order.totalAmount,
+    (total, order) => {
+      const amount = order.totalAmount || 0;
+      return total + amount;
+    },
     0
   );
 
@@ -164,10 +167,14 @@ const UserDashboard = () => {
 
   const graphData = userOrders.map((order, index) => ({
     name: `Order ${index + 1}`,
-    amount: order.totalAmount,
+    amount: order.totalAmount || 0,
   }));
 
-  const deliveryProgress = (deliveredOrders.length / userOrders.length) * 100;
+  const deliveryProgress = userOrders.length > 0 ? (deliveredOrders.length / userOrders.length) * 100 : 0;
+
+  console.log("User Orders:", userOrders);
+  console.log("Total Amount Spent:", totalAmountSpent);
+  console.log("Graph Data:", graphData);
 
   return (
     <div className={`min-h-screen flex flex-col ${darkMode ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-gray-900"} pb-10`}>

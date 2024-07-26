@@ -37,11 +37,19 @@ const OrderHistory = ({ setShowHistory }) => {
 
         const vendorIds = new Set();
         userOrders.forEach((order) => {
-          order.products.forEach((product) => {
-            if (product.vendorId) {
-              vendorIds.add(product.vendorId);
+          if (order.products) {
+            if (Array.isArray(order.products)) {
+              order.products.forEach((product) => {
+                if (product.vendorId) {
+                  vendorIds.add(product.vendorId);
+                }
+              });
+            } else {
+              console.log("order.products is not an array:", order.products);
             }
-          });
+          } else {
+            console.log("order.products is undefined for order:", order);
+          }
         });
 
         if (vendorIds.size === 0) {
@@ -69,9 +77,9 @@ const OrderHistory = ({ setShowHistory }) => {
 
         const ordersWithVendors = userOrders.map((order) => ({
           ...order,
-          vendorNames: order.products.map(
+          vendorNames: Array.isArray(order.products) ? order.products.map(
             (product) => vendors[product.vendorId] || "Unknown Vendor"
-          ),
+          ) : [],
         }));
 
         setOrders(ordersWithVendors);
@@ -148,7 +156,7 @@ const OrderHistory = ({ setShowHistory }) => {
               <div className="mt-2">
                 <h3 className="text-md mb-2 font-semibold">Items ordered:</h3>
                 <ul className="list-disc list-inside">
-                  {order.products.map((product, index) => (
+                  {Array.isArray(order.products) ? order.products.map((product, index) => (
                     <li key={index} className="flex items-center justify-between">
                       <div className="flex mb-2 items-center">
                         <img
@@ -172,7 +180,7 @@ const OrderHistory = ({ setShowHistory }) => {
                         {product.quantity > 1 && `(${product.quantity})`}
                       </p>
                     </li>
-                  ))}
+                  )) : <p>Products not available</p>}
                   <h2 className="text-xs font-poppins font-semibold text-black mt-2">
                     Order ID: {order.id}
                   </h2>

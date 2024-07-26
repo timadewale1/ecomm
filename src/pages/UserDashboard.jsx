@@ -222,7 +222,7 @@ const UserDashboard = () => {
               Expenses Graph
             </h2>
           </div>
-          <p className="text-gray-600 dark:text-white translate-x-6 -translate-y-7 text-xs font-poppins font-normal">
+          <p className="text-gray-400 dark:text-orange-700 translate-x-6 -translate-y-7 text-xs font-poppins font-normal">
             ₦{totalAmountSpent.toLocaleString()}
           </p>
           <div>
@@ -249,7 +249,7 @@ const UserDashboard = () => {
               🏡
             </span>
           </div>
-          <p className="text-gray-600 dark:text-white text-xs font-poppins font-normal">
+          <p className="text-gray-400 dark:text-white text-xs font-poppins font-normal">
             Delivered Orders: {deliveredOrders.length} / {userOrders.length}
           </p>
         </div>
@@ -270,7 +270,7 @@ const UserDashboard = () => {
               filledIcon={<RoundedStar filled={true} />}
               edit={false}
             />
-            <span className="ml-2 text-gray-600 dark:text-white text-sm font-poppins font-bold">
+            <span className="ml-2 text-gray-400 dark:text-white text-sm font-poppins font-bold">
               ({averageRating.toFixed(2)})
             </span>
           </div>

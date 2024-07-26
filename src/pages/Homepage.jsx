@@ -450,7 +450,10 @@ const Homepage = () => {
       </div>
       {!searchTerm && (
         <div className="px-2 mt-6 mb-4">
-          <div className="relative w-auto rounded-lg h-52 bg-green-700 overflow-hidden">
+          <div
+            className="relative w-auto rounded-lg h-52 bg-green-700 overflow-hidden cursor-pointer"
+            onClick={() => navigate("/donate")}
+          >
             <AdvancedImage
               cldImg={donationImg}
               className="w-full h-full object-cover"

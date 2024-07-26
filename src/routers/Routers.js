@@ -31,6 +31,7 @@ import ConfirmUserState from "../pages/ConfirmUserState.jsx";
 import ProtectedRoute from "./ProtectedRoute";
 import StorePage from "../pages/StorePage.jsx";
 import CategoryPage from "../pages/UserSide/CategoryPage.jsx";
+import VendorWallet from "../pages/VendorCompleteProfile/VendorWallet.jsx";
 const Routers = () => {
   return (
     <Routes>
@@ -68,6 +69,7 @@ const Routers = () => {
         <Route path="vendor-profile" element={<VendorProfile />} />
         <Route path="vendor-products" element={<VendorProducts />} />
         <Route path="vendor-orders" element={<VendorOrders />} />
+        <Route path="wallet" element={<VendorWallet />} />
       </Route>
     </Routes>
   );

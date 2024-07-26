@@ -7,7 +7,6 @@ import {
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
-  
 } from "firebase/auth";
 import { auth, db } from "../../firebase.config";
 import { toast } from "react-toastify";
@@ -26,14 +25,20 @@ import { TbHomeStar } from "react-icons/tb";
 import { GrSecure } from "react-icons/gr";
 import { GiClothes } from "react-icons/gi";
 import { PiSignOutBold } from "react-icons/pi";
-import { FaRegCircleUser, FaShop } from "react-icons/fa6";
+import { FaRegCircleUser, FaShop, FaWallet } from "react-icons/fa6";
 import { MdEmail, MdHistory, MdHelpOutline } from "react-icons/md";
 import { CiMoneyBill } from "react-icons/ci";
 
 import { RotatingLines } from "react-loader-spinner";
 import AvatarSelectorModal from "../vendor/VendorAvatarSelect.jsx";
 import Skeleton from "react-loading-skeleton";
-
+import VendorWallet from "./VendorWallet.jsx";
+import VendorHistory from "../vendor/VendorHistory.jsx";
+import FAQs from "../vendor/FAQs.jsx";
+import Donations from "../vendor/Donations.jsx";
+import ProfileDetails from "../vendor/ProfileDetails.jsx";
+import ReactStars from "react-rating-stars-component";
+import RoundedStar from "../../components/Roundedstar.js";
 
 const VendorProfile = () => {
   const navigate = useNavigate();
@@ -41,16 +46,19 @@ const VendorProfile = () => {
   const [userData, setUserData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editField, setEditField] = useState("");
-  const [displayName, setDisplayName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [showRatings, setShowRatings] = useState();
   const [editD, setEditD] = useState("");
   const [email, setEmail] = useState("");
-  const [editE, setEditE] = useState("")
+  const [editE, setEditE] = useState("");
   const [shopName, setShopName] = useState("");
   const [editS, setEditS] = useState("");
   const [password, setPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [showWallet, setShowWallet] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showMetrics, setShowMetrics] = useState(false);
   const [showFAQs, setShowFAQs] = useState(false);
@@ -68,9 +76,11 @@ const VendorProfile = () => {
           if (vendorDoc.exists()) {
             const data = vendorDoc.data();
             setUserData(data);
-            setDisplayName(data.firstName + " " + data.lastName);
+            setFirstName(data.firstName);
+            setLastName(data.lastName);
             setEmail(data.email || "");
             setShopName(data.shopName || "");
+            setShowRatings(data.ratings || "");
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
@@ -88,7 +98,7 @@ const VendorProfile = () => {
   };
 
   const handleSave = async () => {
-    if (editField === "displayName" && /[^a-zA-Z\s]/.test(displayName)) {
+    if (editField === "displayName" && /[^a-zA-Z\s]/.test(editD)) {
       toast.error("You cannot use numbers as username!", {
         className: "custom-toast",
       });
@@ -99,19 +109,21 @@ const VendorProfile = () => {
     try {
       // Other profile updates...
       if (editField === "displayName") {
-        await updateProfile(auth.currentUser, { displayName });
-        await updateDoc(doc(db, "vendors", currentUser.uid), { displayName });
+        await updateProfile(auth.currentUser, { displayName: editD });
+        await updateDoc(doc(db, "vendors", currentUser.uid), {
+          displayName: editD,
+        });
       } else if (editField === "email") {
         await updateEmail(auth.currentUser, email);
         await sendEmailVerification(auth.currentUser);
-        await updateDoc(doc(db, "vendors", currentUser.uid), { email : editE });
+        await updateDoc(doc(db, "vendors", currentUser.uid), { email: editE });
       } else if (editField === "password") {
         await updatePassword(auth.currentUser, password);
         toast.success("Password updated successfully", {
           className: "custom-toast",
         });
       } else if (editField === "shopName") {
-        if(shopName === "") {
+        if (shopName === "") {
           toast.error("Store Name cannot be empty", {
             className: "custom-toast",
           });
@@ -122,7 +134,9 @@ const VendorProfile = () => {
           });
           return;
         }
-        await updateDoc(doc(db, "vendors", currentUser.uid), { shopName : editS});
+        await updateDoc(doc(db, "vendors", currentUser.uid), {
+          shopName: editS,
+        });
         toast.success("Store Name has been changed", {
           className: "custom-toast",
         });
@@ -136,9 +150,6 @@ const VendorProfile = () => {
       toast.success("Profile updated successfully", {
         className: "custom-toast",
       });
-
-      setIsEditing(false);
-      setEditField("");
     } catch (error) {
       console.log(error);
       toast.error("Error updating profile, try again later", {
@@ -148,57 +159,6 @@ const VendorProfile = () => {
       setIsLoading(false);
     }
   };
-
-  // const handleSave = async () => {
-  //   if (editField === "displayName" && /[^a-zA-Z\s]/.test(displayName)) {
-  //     toast.error("You cannot use numbers as username!", {
-  //       className: "custom-toast",
-  //     });
-  //     return;
-  //   }
-
-  //   setIsLoading(true);
-  //   try {
-  //     if (editField === "displayName") {
-  //       await updateProfile(auth.currentUser, { displayName });
-  //       await updateDoc(doc(db, "users", currentUser.uid), { displayName });
-  //       toast.success("Profile updated successfully", {
-  //         className: "custom-toast",
-  //       });
-  //     } else {
-  //       const credential = EmailAuthProvider.credential(
-  //         auth.currentUser.email,
-  //         currentPassword
-  //       );
-  //       await reauthenticateWithCredential(auth.currentUser, credential);
-
-  //       if (editField === "email") {
-  //         await updateEmail(auth.currentUser, email);
-  //         await sendEmailVerification(auth.currentUser);
-  //         await updateDoc(doc(db, "users", currentUser.uid), { email });
-  //       } else if (editField === "password") {
-  //         await updatePassword(auth.currentUser, password);
-  //         toast.success("Password updated successfully", {
-  //           className: "custom-toast",
-  //         });
-  //       }
-
-  //       toast.success("Profile updated successfully", {
-  //         className: "custom-toast",
-  //       });
-  //     }
-
-  //     setIsEditing(false);
-  //     setEditField("");
-  //   } catch (error) {
-  //     console.log(error);
-  //     toast.error("Error updating profile, try again later", {
-  //       className: "custom-toast",
-  //     });
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
 
   const handleLogout = async () => {
     try {
@@ -219,9 +179,12 @@ const VendorProfile = () => {
   };
 
   return (
-    <div className="pb-4">
-      {!showDetails &&
+    <div className="pb-4 font-ubuntu">
+      {
+      
+      // !showDetails &&
       !showHistory &&
+      !showWallet &&
       !showMetrics &&
       !showFAQs &&
       !showDonations ? (
@@ -229,7 +192,7 @@ const VendorProfile = () => {
           <div className="relative flex justify-center w-full h-full">
             {/* Store Image */}
             <div className="relative w-full h-72">
-            {isLoading ? (
+              {isLoading ? (
                 <Skeleton height={288} />
               ) : userData && userData.coverImageUrl ? (
                 <img
@@ -243,7 +206,7 @@ const VendorProfile = () => {
 
               {/* User Image */}
               <div className="absolute top-52 left-0">
-              {isLoading ? (
+                {isLoading ? (
                   <Skeleton circle height={144} width={144} />
                 ) : userData && userData.photoURL ? (
                   <img
@@ -251,34 +214,62 @@ const VendorProfile = () => {
                     alt="User"
                     className="rounded-full object-cover h-36 w-36 border-2 border-white bg-gray-400"
                   />
-                
                 ) : (
                   <img
-                    src="" // You might want to provide a placeholder or default image here
+                    src="https://www.bing.com/images/search?view=detailV2&ccid=aiDGdmdU&id=6417D69A7F5743CAD85D939EA1B36916DDDEC0D3&thid=OIP.aiDGdmdUAX_iNgRMERipyQHaHF&mediaurl=https%3a%2f%2fwww.pngitem.com%2fpimgs%2fm%2f421-4212617_person-placeholder-image-transparent-hd-png-download.png&cdnurl=https%3a%2f%2fth.bing.com%2fth%2fid%2fR.6a20c6766754017fe236044c1118a9c9%3frik%3d08De3RZps6Gekw%26pid%3dImgRaw%26r%3d0&exph=822&expw=860&q=placeholder+user+image&simid=608005849113568560&FORM=IRPRST&ck=95210D0525A5F9999897DB0ACDE234C7&selectedIndex=0&itb=0" // You might want to provide a placeholder or default image here
                     alt="User"
                     className="rounded-full h-36 w-36 border-4 border-white"
                   />
                 )}
                 <div className="absolute top-1 right-1 bg-white p-2 rounded-full">
-                <FaPen
-                  className=" text-black cursor-pointer"
-                  onClick={() => setIsAvatarModalOpen(true)}
-                />
+                  <FaPen
+                    className=" text-black cursor-pointer"
+                    onClick={() => setIsAvatarModalOpen(true)}
+                  />
                 </div>
               </div>
             </div>
           </div>
-          
+
           <div className="mt-10">
-          {isLoading ? (
-            <Skeleton width={150} height={24} />
-          ) : userData && userData.shopName ? (
-            <p className="text-md font-medium text-black capitalize">
-              {shopName}
-            </p>
-          ) : (
-            <div className="h-6 bg-gray-300 w-40 mt-10" />
-          )}
+            {isLoading ? (
+              <Skeleton width={150} height={24} />
+            ) : userData && userData.shopName ? (
+              <p className="text-md text-center font-medium text-black capitalize">
+                
+                {shopName}
+              </p>
+            ) : (
+              <div className="h-6 bg-gray-300 w-40 mt-10" />
+            )}
+            <div className="flex flex-col items-center translate-y-4">
+              {userData && userData.rating && userData.ratingCount ? (
+                <>
+                  <span>
+                    <p>Your Average Rating:</p>
+                  </span>
+
+                  <div className="flex justify-center items-center ">
+                    <ReactStars
+                      count={5}
+                      value={userData.rating / userData.ratingCount || 0}
+                      size={24}
+                      activeColor="#ffd700"
+                      emptyIcon={<RoundedStar filled={false} />}
+                      filledIcon={<RoundedStar filled={true} />}
+                      edit={false} // Make the stars display-only
+                    />
+
+                    <span className="text-black font-light text-xs mx-2">
+                      {(userData.rating / userData.ratingCount || 0).toFixed(1)}
+                    </span>
+                  </div>
+                  {/* <span className="text-black font-light ratings-text ml-2">({userData.ratingCount || 0})({userData.rating || 0})</span> */}
+                </>
+              ) : (
+                <></>
+              )}
+            </div>
           </div>
           <div className="w-full mt-12">
             <div className="w-full h-14 flex bg-gray-200">
@@ -306,7 +297,29 @@ const VendorProfile = () => {
               <hr className="w-full border-gray-600" />
               <div
                 className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
-                onClick={() => setShowHistory(!showHistory)}
+                onClick={() => {
+                  setShowWallet(!showWallet);
+                  console.log(showWallet);
+                }}
+              >
+                <div className="flex items-center">
+                  <FaWallet className="text-black text-xl mr-4" />
+                  <h2 className="text-size font-normal text-black capitalize">
+                    Your Wallet
+                  </h2>
+                </div>
+                <FaAngleRight className="text-black" />
+              </div>
+              <hr className="w-full border-gray-600" />
+            </div>
+            <div className="flex flex-col items-center w-full">
+              <hr className="w-full border-gray-600" />
+              <div
+                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+                onClick={() => {
+                  setShowHistory(!showHistory);
+                  console.log(showHistory);
+                }}
               >
                 <div className="flex items-center">
                   <MdHistory className="text-black text-xl mr-4" />
@@ -360,290 +373,45 @@ const VendorProfile = () => {
               </div>
               <hr className="w-full border-gray-600" />
             </div>
-            <div className="flex flex-col items-center w-full">
+            <div className="flex flex-col items-center bg-red-300 mx-2 rounded-sm">
               <hr className="w-full border-gray-600" />
               <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
-                onClick={() => setShowDonations(true)}
+                className="flex items-center py-3 cursor-pointer"
+                onClick={() => handleLogout()}
               >
-                <div className="flex items-center">
-                  <CiMoneyBill className="text-black text-xl mr-4" />
+                <div className="flex justify-between items-center">
+                  <PiSignOutBold className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-black capitalize">
-                    Donations
+                    Sign Out
                   </h2>
                 </div>
-                <FaAngleRight className="text-black" />
               </div>
               <hr className="w-full border-gray-600" />
-            </div>
-            <div
-              className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
-              onClick={() => navigate("/explore")}
-            >
-              <div className="flex items-center">
-                <GiClothes className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal text-black capitalize">
-                  Declutter
-                </h2>
-              </div>
-              <FaAngleRight className="text-black" />
             </div>
           </div>
         </div>
       ) : (
         <>
           {showDetails && (
-            <div className="flex flex-col p-2 -py-80 items-center">
-              <FaAngleLeft
-                className="text-2xl cursor-pointer self-start"
-                onClick={() => setShowDetails(false)}
-              />
-              <h1 className="text-xl font-medium font-ubuntu text-black">
-                Profile Details
-              </h1>
-              <div className="w-full translate-y-14  mt-4">
-                <div className="flex flex-col bg-gray-200 rounded-lg items-center w-full">
-                  <hr className="w-full border-gray-400" />
-                  <h1 className=" text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500  ">
-                    User Name
-                  </h1>
-                  <div className="flex items-center justify-between w-full px-4 py-3">
-                    <FaRegCircleUser className="text-black text-xl mr-4" />
-                    <p className="text-size font-medium text-black capitalize w-full">
-                      {displayName}
-                    </p>
-                    <FaPen
-                      className="text-black cursor-pointer ml-2"
-                      onClick={() => handleEdit("displayName")}
-                    />
-                  </div>
-                  <hr className="w-full border-gray-400" />
-                </div>
-                <div className="flex flex-col bg-gray-200 rounded-lg items-center w-full mt-6">
-                  <hr className="w-full border-gray-400" />
-                  <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-                    Store Name
-                  </h1>
-                  <div className="flex items-center justify-between w-full px-4 py-3">
-                    <FaShop className="text-black text-xl mr-4" />
-                    <p className="text-lg text-black w-full font-medium">
-                      {shopName}
-                    </p>
-                    <FaPen
-                      className="text-black cursor-pointer ml-2"
-                      onClick={() => handleEdit("shopName")}
-                    />
-                  </div>
-                  <hr className="w-full border-gray-600" />
-                </div>
-                <div className="flex flex-col  bg-gray-200 rounded-lg items-center w-full mt-6">
-                  <hr className="w-full border-gray-600" />
-                  <h1 className=" text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500  ">
-                    Email
-                  </h1>
-                  <div className="flex items-center justify-between w-full px-4 py-3">
-                    <MdEmail className="text-black text-xl mr-4" />
-                    <p className="text-size text-black w-full font-medium overflow-x-auto">
-                      {email}
-                    </p>
-                    <FaPen
-                      className="text-black cursor-pointer ml-2"
-                      onClick={() => handleEdit("email")}
-                    />
-                  </div>
-                  <hr className="w-full border-gray-400" />
-                </div>
-                <div className="flex flex-col bg-gray-200 rounded-lg items-center w-full mt-6">
-                  <hr className="w-full border-gray-400" />
-                  <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-                    Password
-                  </h1>
-                  <div className="flex items-center justify-between w-full px-4 py-3">
-                    <GrSecure className="text-black text-xl mr-4" />
-                    <p className="text-lg text-black w-full font-medium">
-                      *******
-                    </p>
-                    <FaPen
-                      className="text-black cursor-pointer ml-2"
-                      onClick={() => handleEdit("password")}
-                    />
-                  </div>
-                  <hr className="w-full border-gray-600" />
-                </div>
-
-                <div
-                  className="flex flex-col bg-gray-200 rounded-lg items-center w-full mt-6 cursor-pointer"
-                  onClick={handleLogout}
-                >
-                  <hr className="w-full border-gray-400" />
-                  <div className="flex items-center justify-between w-full px-4 py-3">
-                    <PiSignOutBold className="text-red-600 text-xl mr-4" />
-                    <p className="text-size text-black w-full font-medium">
-                      Sign Out
-                    </p>
-                    <FaAngleRight className="text-black text-xl ml-2" />
-                  </div>
-                  <hr className="w-full border-gray-400" />
-                </div>
-              </div>
-            </div>
+            <ProfileDetails
+              userData={{ firstName, lastName, email, shopName }}
+              setShowDetails={setShowDetails}
+            />
           )}
 
-          {showHistory && (
-            <div className="flex flex-col items-center">
-              <FaAngleLeft
-                className="text-2xl text-black cursor-pointer self-start"
-                onClick={() => setShowHistory(false)}
-              />
-              <h2 className="text-xl font-ubuntu mt-4">Recent Activities</h2>
-              {/* Render History content here */}
-            </div>
-          )}
+          {showWallet && <VendorWallet setShowWallet={setShowWallet} />}
+
+          {showHistory && <VendorHistory setShowHistory={setShowHistory} />}
 
           {showFAQs && (
-            <div className="flex p-2 flex-col items-center">
-              <FaAngleLeft
-                className="text-2xl text-black cursor-pointer self-start"
-                onClick={() => setShowFAQs(false)}
-              />
-              <h2 className="text-xl text-black font-ubuntu">FAQs</h2>
-              <div className="w-full mt-4">
-                <div className="flex flex-col items-center w-full">
-                  <hr className="w-full border-gray-600" />
-                  <div
-                    className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
-                    onClick={() => handleFaqClick("What is Booking Fee?")}
-                  >
-                    <p className="text-lg font-semibold text-black capitalize w-full">
-                      What is Booking Fee?
-                    </p>
-                    <FaAngleRight className="text-black" />
-                  </div>
-                  <hr className="w-full border-gray-600" />
-                </div>
-                <div className="flex flex-col items-center w-full mt-2">
-                  <hr className="w-full border-gray-600" />
-                  <div
-                    className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
-                    onClick={() => handleFaqClick("How do I become a vendor?")}
-                  >
-                    <p className="text-lg font-semibold text-black capitalize w-full">
-                      How do I become a vendor?
-                    </p>
-                    <FaAngleRight className="text-black" />
-                  </div>
-                  <hr className="w-full border-gray-600" />
-                </div>
-              </div>
-            </div>
+            <FAQs setShowFAQs={setShowFAQs} handleFaqClick={handleFaqClick} />
           )}
 
-          {showDonations && (
-            <div className="flex flex-col items-center">
-              <FaAngleLeft
-                className="text-2xl text-black cursor-pointer self-start"
-                onClick={() => setShowDonations(false)}
-              />
-              <h2 className="text-xl font-ubuntu">Donations</h2>
-              {/* Render Donations content here */}
-            </div>
-          )}
+          {showDonations && <Donations setShowDonations={setShowDonations} />}
         </>
       )}
 
-      {isEditing && (
-        <div className="fixed inset-0 bg-white bg-opacity-50 px-14 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative">
-            <FaTimes
-              className="absolute top-2 right-2 text-black cursor-pointer"
-              onClick={() => setIsEditing(false)}
-            />
-            <h2 className="text-xl font-semibold mb-4">
-              Edit{" "}
-              {editField === "displayName"
-                ? "Name"
-                : editField === "email"
-                ? "Email"
-                : editField === "shopName" 
-                ? "Store Name"
-                : "Password"}
-            </h2>
-            {editField === "displayName" && (
-              <input
-                type="text"
-                place={displayName}
-                onChange={(e) => setEditD(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded"
-              />
-            )}
-            {editField === "email" && (
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEditE(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded"
-              />
-            )}
-            {editField === "shopName" && (
-              <input
-                type="text"
-                value={shopName}
-                onChange={(e) => setEditS(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded"
-              />
-            )}
-            {editField === "password" && (
-              <div className="relative w-full">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  placeholder="New Password"
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded"
-                />
-                <span
-                  className="absolute right-3 top-3 cursor-pointer"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <FaEyeSlash /> : <FaEye />}
-                </span>
-                <small className="text-gray-500">
-                  Password must be at least 8 characters long and include at
-                  least one uppercase letter.
-                </small>
-              </div>
-            )}
-            {(editField === "email" || editField === "password") && (
-              <div className="relative w-full mt-4">
-                <input
-                  type="password"
-                  placeholder="Current Password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded"
-                />
-                <span
-                  className="absolute right-3 top-3 cursor-pointer"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <FaEyeSlash /> : <FaEye />}
-                </span>
-              </div>
-            )}
-
-            <div className="flex justify-end mt-4">
-              <button
-                className="bg-customOrange text-white font-semibold px-4 py-2 rounded"
-                onClick={handleSave}
-              >
-                Update
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {faqModalContent && (
+      {/* {faqModalContent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative">
             <FaTimes
@@ -680,9 +448,9 @@ const VendorProfile = () => {
             )}
           </div>
         </div>
-      )}
+      )} */}
 
-      {isLoading && (
+      {/* {isLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <RotatingLines
             strokeColor="orange"
@@ -692,7 +460,7 @@ const VendorProfile = () => {
             visible={true}
           />
         </div>
-      )}
+      )} */}
 
       {isAvatarModalOpen && (
         <AvatarSelectorModal

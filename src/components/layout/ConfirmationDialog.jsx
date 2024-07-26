@@ -1,6 +1,7 @@
 import React from 'react';
+import { RotatingLines } from 'react-loader-spinner';
 
-const ConfirmationDialog = ({ isOpen, title, message, onClose, onConfirm }) => {
+const ConfirmationDialog = ({ isOpen, title, message, onClose, onConfirm, state }) => {
   if (!isOpen) return null;
 
   return (
@@ -19,7 +20,9 @@ const ConfirmationDialog = ({ isOpen, title, message, onClose, onConfirm }) => {
             className="px-4 py-2 bg-red-600 text-white rounded-md shadow-sm hover:bg-red-700 focus:outline-none"
             onClick={onConfirm}
           >
-            Confirm
+            {!state ? ('confirm') : (
+              <RotatingLines width="20" strokeColor="white"/>
+            )}
           </button>
         </div>
       </div>

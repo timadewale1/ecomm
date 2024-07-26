@@ -12,6 +12,7 @@ import { GrSecure } from "react-icons/gr";
 import { motion } from "framer-motion";
 import Typewriter from "typewriter-effect";
 import VendorLoginAnimation from "../SignUpAnimation/SignUpAnimation";
+// eslint-disable-next-line no-unused-vars
 import { RotatingLines } from "react-loader-spinner";
 import Loading from "../components/Loading/Loading";
 

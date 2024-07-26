@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from "react";
 import {
   signOut,
@@ -5,6 +6,7 @@ import {
   updateEmail,
   sendEmailVerification,
   updatePassword,
+  // eslint-disable-next-line no-unused-vars
   reauthenticateWithCredential,
   EmailAuthProvider,
   
@@ -42,6 +44,7 @@ const VendorProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editField, setEditField] = useState("");
   const [displayName, setDisplayName] = useState("");
+  // eslint-disable-next-line no-unused-vars
   const [editD, setEditD] = useState("");
   const [email, setEmail] = useState("");
   const [editE, setEditE] = useState("")
@@ -52,6 +55,7 @@ const VendorProfile = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [showMetrics, setShowMetrics] = useState(false);
   const [showFAQs, setShowFAQs] = useState(false);
   const [showDonations, setShowDonations] = useState(false);

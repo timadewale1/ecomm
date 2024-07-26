@@ -1,7 +1,7 @@
 import React from "react";
 import Lottie from "lottie-react";
-import Explorers from "../../Animations/explore.json";
-import Typewriter from "typewriter-effect";
+import Explorers from "../../Animations/loadingexplore.json";
+// import Typewriter from "typewriter-effect";
 const Explorer = () => {
   return (
     <div className="flex justify-center items-center h-screen w-screen">
@@ -11,7 +11,7 @@ const Explorer = () => {
         loop={true}
         autoplay={true}
       />
-    <div className="flex transform text-customOrange -translate-y-15  justify-center">
+    {/* <div className="flex transform text-customOrange -translate-y-15  justify-center">
         <Typewriter
           options={{
             strings: ["We are cooking! Breatheee"],
@@ -20,7 +20,7 @@ const Explorer = () => {
           }}
         />
       </div>
-      
+       */}
     </div>
   );
 };

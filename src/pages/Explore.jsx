@@ -1,29 +1,107 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchProducts } from "../redux/actions/productaction";
-import Loading from "../components/Loading/Loading";
+import Loading from "../components/Loading/Explorer";
 import { addToCart } from "../redux/actions/action";
-import { toggleFavorite } from "../redux/actions/favouriteactions";
-import { FaHeart, FaCartPlus } from "react-icons/fa";
+import { useFavorites } from "../components/Context/FavoritesContext"; // Ensure this path is correct
+import TinderCard from "react-tinder-card";
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { AiFillHeart, AiOutlineHeart } from "react-icons/ai";
+import { Link } from "react-router-dom";
+import "../styles/explore.css";
+import { toast } from "react-toastify";
 
 const Explore = () => {
   const dispatch = useDispatch();
   const products = useSelector((state) => state.product.products);
   const loading = useSelector((state) => state.product.loading);
+  const [currentIndex, setCurrentIndex] = useState(products.length - 1);
+  const { addFavorite, removeFavorite, isFavorite } = useFavorites();
+  const [toastShown, setToastShown] = useState({
+    cartError: false,
+  });
+  const [swipeDirection, setSwipeDirection] = useState(null);
 
   useEffect(() => {
-    console.log("Dispatching fetchProducts");
-    dispatch(fetchProducts());
-  }, [dispatch]);
+    dispatch(fetchProducts()).catch((err) => {
+      console.error("Failed to fetch products:", err);
+      if (!toastShown.cartError) {
+        toast.error("Failed to load products. Please try again.");
+        setToastShown((prev) => ({ ...prev, cartError: true }));
+      }
+    });
+  }, [dispatch, toastShown.cartError]);
 
-  const handleAddToCart = (product) => {
-    dispatch(addToCart(product));
-    console.log(`Added ${product.name} to cart`);
+  useEffect(() => {
+    setCurrentIndex(products.length - 1);
+  }, [products]);
+
+  const swiped = (direction, product) => {
+    setSwipeDirection(direction);
+    if (direction === "right") {
+      handleAddToCart(product);
+    } else if (direction === "left") {
+      setCurrentIndex((prev) => prev - 1);
+    }
   };
 
-  const handleToggleFavorite = (productId) => {
-    dispatch(toggleFavorite(productId));
-    console.log(`Toggled favorite for product ID: ${productId}`);
+  const outOfFrame = (name) => {
+    console.log(`${name} left the screen!`);
+    setSwipeDirection(null);
+  };
+
+  const onDragEnd = (result) => {
+    if (!result.destination) return;
+    const { source, destination } = result;
+
+    // Check for valid source and destination
+    if (source.droppableId === "products" && destination.droppableId === "cart") {
+      handleAddToCart(products[source.index]);
+    } else if (source.droppableId === "products" && destination.droppableId === "favorites") {
+      const product = products[source.index];
+      if (isFavorite(product.id)) {
+        removeFavorite(product.id);
+        toast.info(`Removed ${product.name} from favorites!`);
+      } else {
+        addFavorite(product);
+        toast.success(`Added ${product.name} to favorites!`);
+      }
+    }
+  };
+
+  const handleAddToCart = useCallback((product) => {
+    try {
+      if (!product) {
+        throw new Error("Product is undefined");
+      }
+      const productToAdd = {
+        ...product,
+        quantity: 1, // Default quantity
+        mainImage: product.coverImageUrl // Ensure the mainImage is included
+      };
+      dispatch(addToCart(productToAdd));
+      if (!toastShown.success) {
+        toast.success(`Added ${product.name} to cart!`);
+        setToastShown((prev) => ({ ...prev, success: true }));
+      }
+    } catch (err) {
+      console.error("Failed to add to cart:", err);
+      if (!toastShown.cartError) {
+        toast.error("Failed to add product to cart. Please try again.");
+        setToastShown((prev) => ({ ...prev, cartError: true }));
+      }
+    }
+  }, [dispatch, toastShown]);
+
+  const handleFavoriteToggle = (product, e) => {
+    e.stopPropagation();
+    if (isFavorite(product.id)) {
+      removeFavorite(product.id);
+      toast.info(`Removed ${product.name} from favorites!`);
+    } else {
+      addFavorite(product);
+      toast.success(`Added ${product.name} to favorites!`);
+    }
   };
 
   if (loading) {
@@ -33,40 +111,80 @@ const Explore = () => {
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold text-center mb-4">Explore Products</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {products.length === 0 ? (
-          <p className="text-red-700 text-center col-span-full">No products available</p>
-        ) : (
-          products.map((product) => (
-            <div key={product.id} className="bg-white rounded-lg shadow-md p-4">
-              <img
-                src={product.coverImageUrl}
-                alt={product.name}
-                className="w-full h-48 object-cover rounded-md"
-              />
-              <h3 className="text-xl font-semibold mt-2">{product.name}</h3>
-              <p className="text-gray-700 mt-1">{product.description}</p>
-              <p className="text-green-600 font-bold mt-2">₦{product.price}</p>
-              <div className="flex justify-between mt-4">
-                <button
-                  onClick={() => handleAddToCart(product)}
-                  className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-                >
-                  <FaCartPlus className="mr-2" />
-                  Add to Cart
-                </button>
-                <button
-                  onClick={() => handleToggleFavorite(product.id)}
-                  className="flex items-center bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600"
-                >
-                  <FaHeart className="mr-2" />
-                  Favorite
-                </button>
-              </div>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <Droppable droppableId="products" direction="horizontal">
+          {(provided) => (
+            <div
+              className="card-container"
+              {...provided.droppableProps}
+              ref={provided.innerRef}
+            >
+              {products.length === 0 ? (
+                <p className="text-red-700 text-center col-span-full">No products available</p>
+              ) : (
+                products.map((product, index) => (
+                  <Draggable
+                    key={product.id}
+                    draggableId={product.id.toString()}
+                    index={index}
+                  >
+                    {(provided) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        className="relative"
+                      >
+                        <TinderCard
+                          onSwipe={(dir) => swiped(dir, product)}
+                          onCardLeftScreen={() => outOfFrame(product.name)}
+                          preventSwipe={["up", "down"]}
+                        >
+                          <div
+                            className={`card ${
+                              index === currentIndex && swipeDirection
+                                ? swipeDirection === "right"
+                                  ? "swiping-right"
+                                  : "swiping-left"
+                                : ""
+                            }`}
+                            style={{ height: "100vh" }}
+                          >
+                            <div className="relative">
+                              <img
+                                src={product.coverImageUrl}
+                                alt={product.name}
+                                className="w-full h-48 object-cover rounded-md"
+                              />
+                              <button
+                                onClick={(event) => handleFavoriteToggle(product, event)}
+                                className="absolute top-4 right-4 p-2 rounded-full bg-white shadow-md"
+                              >
+                                {isFavorite(product.id) ? (
+                                  <AiFillHeart className="text-red-500 text-2xl" />
+                                ) : (
+                                  <AiOutlineHeart className="text-gray-500 text-2xl" />
+                                )}
+                              </button>
+                            </div>
+                            <Link to={`/product/${product.id}`} className="product-link">
+                              <h3 className="text-xl font-semibold mt-7 cursor-pointer">
+                                {product.name}
+                              </h3>
+                            </Link>
+                            <p className="text-green-600 font-bold mt-2">₦{product.price}</p>
+                          </div>
+                        </TinderCard>
+                      </div>
+                    )}
+                  </Draggable>
+                ))
+              )}
+              {provided.placeholder}
             </div>
-          ))
-        )}
-      </div>
+          )}
+        </Droppable>
+      </DragDropContext>
     </div>
   );
 };

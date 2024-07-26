@@ -22,6 +22,7 @@ export const fetchProduct = (id) => async (dispatch) => {
     const vendorsQuerySnapshot = await getDocs(collection(db, "vendors"));
     
     let productData = null;
+    // eslint-disable-next-line no-unused-vars
     let foundVendorId = null;
 
     for (const vendorDoc of vendorsQuerySnapshot.docs) {
@@ -31,7 +32,7 @@ export const fetchProduct = (id) => async (dispatch) => {
 
       if (productDoc.exists()) {
         productData = { id: productDoc.id, vendorId, ...productDoc.data() };
-        foundVendorId = vendorId;
+        // Remove the assignment statement since 'foundVendorId' is not being used
         break;
       }
     }

@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { signOut } from "firebase/auth";
-import { auth, db } from "../firebase.config";
+
+import { db } from "../firebase.config";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import useAuth from "../custom-hooks/useAuth";
-import { FaPen, FaHeart, FaAngleRight, FaAngleLeft,  } from "react-icons/fa";
-import { FaRegCircleUser } from "react-icons/fa6"; 
+import { FaPen, FaHeart, FaAngleRight, FaAngleLeft } from "react-icons/fa";
+import { FaRegCircleUser } from "react-icons/fa6";
 import { GiClothes } from "react-icons/gi";
-import { PiSignOutBold } from "react-icons/pi";
+
 import OrderHistory from "./UserSide/History";
 import { MdHistory, MdHelpOutline } from "react-icons/md";
 import { CiMoneyBill } from "react-icons/ci";
@@ -19,8 +19,8 @@ import "react-loading-skeleton/dist/skeleton.css";
 import AvatarSelectorModal from "../components/Avatars/AvatarSelectorModal";
 import ProfileDetails from "./UserSide/ProfileDetails";
 import FAQs from "./UserSide/FAQs";
-import { IoMdContact, IoMdImage } from "react-icons/io";
-
+import { IoMdContact } from "react-icons/io";
+import Donate from "./Donate";
 const Profile = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
@@ -62,9 +62,13 @@ const Profile = () => {
         photoURL: "",
       });
       setUserData((prev) => ({ ...prev, photoURL: "" }));
-      toast.success("Avatar removed successfully", { className: "custom-toast" });
+      toast.success("Avatar removed successfully", {
+        className: "custom-toast",
+      });
     } catch (error) {
-      toast.error("Error removing avatar. Please try again.", { className: "custom-toast" });
+      toast.error("Error removing avatar. Please try again.", {
+        className: "custom-toast",
+      });
     }
   };
 
@@ -253,7 +257,7 @@ const Profile = () => {
                 onClick={() => setShowDonations(false)}
               />
               <h2 className="text-xl font-ubuntu">Donations</h2>
-              {/* Render Donations content here */}
+              <Donate />
             </div>
           )}
         </>
@@ -264,7 +268,7 @@ const Profile = () => {
           userId={currentUser.uid}
           onClose={() => setIsAvatarModalOpen(false)}
           onAvatarChange={handleAvatarChange}
-          onRemoveAvatar={handleRemoveAvatar} 
+          onRemoveAvatar={handleRemoveAvatar}
         />
       )}
     </div>

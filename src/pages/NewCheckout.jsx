@@ -90,7 +90,7 @@ const Checkout = () => {
       console.log("Cart:", cart);
       await createOrderAndReduceStock(userId, cart);
       dispatch(clearCart());
-      navigate("/newcheckout/fulldelivery", {
+      navigate("/payment-approve", {
         state: { totalPrice, deliveryInfo },
       });
       toast.success(`Order placed successfully!`);

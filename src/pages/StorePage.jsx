@@ -10,7 +10,7 @@ import { GoDotFill } from "react-icons/go";
 import { IoMdContact } from "react-icons/io";
 import { FaAngleLeft, FaPhoneAlt, FaTimes, FaPlus, FaCheck } from "react-icons/fa";
 import { TiSocialAtCircular } from "react-icons/ti";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import RoundedStar from "../components/Roundedstar";
 import ProductCard from "../components/Products/ProductCard";
 import Loading from "../components/Loading/Loading";
@@ -72,10 +72,7 @@ const StorePage = () => {
     toast(
       isFollowing
         ? "Unfollowed"
-        : "You will be notified of new products and promos.",
-      {
-        className: "custom-toast",
-      }
+        : "You will be notified of new products and promos."
     );
   };
 

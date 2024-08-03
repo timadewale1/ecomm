@@ -30,7 +30,6 @@ const Layout = () => {
   // Paths with dynamic segments
   const dynamicPaths = [
     "/product/:id",
-    
   ];
 
   // Function to check if the current path matches any dynamic paths
@@ -59,7 +58,11 @@ const Layout = () => {
         <div>
           <Routers />
         </div>
-        {!hideBottomBar && (isVendorPath ? <VendorBottomBar /> : <BottomBar />)}
+        {!hideBottomBar && (isVendorPath ? (
+          <VendorBottomBar />
+        ) : (
+          <BottomBar isSearchFocused={false} />
+        ))}
       </VendorNavigationProvider>
     </NavigationProvider>
   );

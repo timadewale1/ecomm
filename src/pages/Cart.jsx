@@ -7,7 +7,7 @@ import {
   decreaseQuantity,
 } from "../redux/actions/action";
 import { FaTrash, FaPlus, FaMinus } from "react-icons/fa";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.config";
 import EmptyCart from "../components/Loading/EmptyCart";
@@ -42,9 +42,7 @@ const Cart = () => {
           delete updatedCart[productKey];
           dispatch(removeFromCart(productKey));
           if (!toastShown.remove) {
-            toast.info(
-              `Product ${cart[productKey].name} has been removed as it is no longer available.`
-            );
+            toast(`Product ${cart[productKey].name} has been removed as it is no longer available.`, { icon: 'ℹ️' });
             setToastShown((prev) => ({ ...prev, remove: true }));
           }
         }
@@ -96,7 +94,7 @@ const Cart = () => {
       if (confirmRemove) {
         dispatch(removeFromCart(productKey));
         if (!toastShown.remove) {
-          toast.info("Removed product from cart!");
+          toast("Removed product from cart!", { icon: 'ℹ️' });
           setToastShown((prev) => ({ ...prev, remove: true }));
         }
       }
@@ -111,7 +109,7 @@ const Cart = () => {
     if (confirmClear) {
       dispatch(clearCart());
       if (!toastShown.clear) {
-        toast.info("Cleared all products from cart!");
+        toast("Cleared all products from cart!", { icon: 'ℹ️' });
         setToastShown((prev) => ({ ...prev, clear: true }));
       }
     }

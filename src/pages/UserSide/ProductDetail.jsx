@@ -8,7 +8,7 @@ import { PiShoppingCartThin } from "react-icons/pi";
 import { FaAngleLeft, FaCheck, FaPlus, FaMinus } from "react-icons/fa";
 import { CiCircleInfo } from "react-icons/ci";
 import { LiaOpencart } from "react-icons/lia";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 
 const ProductDetailPage = () => {
   const { id } = useParams();

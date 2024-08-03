@@ -1,10 +1,10 @@
-import React, { useEffect, useCallback, useMemo } from "react";
+import React, { useEffect, useMemo, useCallback } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { FaUser, FaRegUser } from "react-icons/fa";
 import { GoHome, GoHomeFill } from "react-icons/go";
 import { PiCompassFill, PiCompass } from "react-icons/pi";
 import { HiOutlineBuildingStorefront, HiBuildingStorefront } from "react-icons/hi2";
 import { PiShoppingCartFill, PiShoppingCart } from "react-icons/pi";
-import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useNavigation } from "../Context/Bottombarcontext";
 import Badge from "../Badge/Badge";
@@ -12,7 +12,6 @@ import "../../styles/bottombar.css";
 
 const BottomBar = React.memo(({ isSearchFocused }) => {
   const { activeNav, setActiveNav } = useNavigation();
-  const navigate = useNavigate();
   const location = useLocation();
   const cart = useSelector((state) => state.cart);
   const cartItemCount = useMemo(() => Object.values(cart).reduce((acc, item) => acc + item.quantity, 0), [cart]);
@@ -33,21 +32,18 @@ const BottomBar = React.memo(({ isSearchFocused }) => {
     }
   }, [location.pathname, setActiveNav, navItems]);
 
-  const handleClick = useCallback((index, route) => {
-    if (location.pathname === route) {
-      return; // Prevent re-navigation if already on the same route
-    }
+  const handleClick = useCallback((index) => {
     setActiveNav(index);
-    navigate(route);
-  }, [navigate, location.pathname, setActiveNav]);
+  }, [setActiveNav]);
 
   return (
     <div className={`bottom-bar ${isSearchFocused ? "under-keypad" : ""}`}>
       {navItems.map((item, index) => (
-        <div
+        <Link
           key={index}
+          to={item.route}
           className={`bottom-nav-icon ${activeNav === index ? "active" : ""}`}
-          onClick={() => handleClick(index, item.route)}
+          onClick={() => handleClick(index)}
         >
           <div className="relative flex items-center">
             {activeNav === index ? (
@@ -62,7 +58,7 @@ const BottomBar = React.memo(({ isSearchFocused }) => {
               </>
             )}
           </div>
-        </div>
+        </Link>
       ))}
     </div>
   );

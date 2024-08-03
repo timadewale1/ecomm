@@ -1,7 +1,6 @@
+import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-
 import ProductDetailPage from "../pages/UserSide/ProductDetail";
-// import Checkout from "../pages/Checkout";
 import Login from "../pages/Login";
 import Signup from "../pages/Signup";
 import ForgetPassword from "../pages/forgetPassword.jsx";
@@ -32,13 +31,12 @@ import ConfirmUserState from "../pages/ConfirmUserState.jsx";
 import ProtectedRoute from "./ProtectedRoute";
 import StorePage from "../pages/StorePage.jsx";
 import CategoryPage from "../pages/UserSide/CategoryPage.jsx";
+
 const Routers = () => {
   return (
     <Routes>
       <Route path="/confirm-user-state" element={<ConfirmUserState />} />
       <Route path="/" element={<Navigate to="login" />} />
-
-      {/* <Route path="checkout" element={<Checkout />} /> */}
       <Route path="product/:id" element={<ProductDetailPage />} />
       <Route path="signup" element={<Signup />} />
       <Route path="complete-profile" element={<CompleteProfile />} />

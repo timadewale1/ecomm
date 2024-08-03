@@ -7,9 +7,9 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase.config";
 import { getDoc, doc } from "firebase/firestore";
 import { FaRegEyeSlash, FaRegEye } from "react-icons/fa";
-import { MdEmail } from "react-icons/md";
-import { GrSecure } from "react-icons/gr";
-import { toast } from "react-toastify";
+import { MdOutlineEmail } from "react-icons/md";
+import { MdOutlineLock } from "react-icons/md";
+import toast from "react-hot-toast";
 import LoginAnimation from "../components/LoginAssets/LoginAnimation";
 import Loading from "../components/Loading/Loading";
 import Typewriter from "typewriter-effect";
@@ -36,25 +36,19 @@ const Login = () => {
     // Validate email field
     if (!email) {
       setEmailError(true);
-      toast.error("Please fill in all fields correctly.", {
-        className: "custom-toast",
-      });
+      toast.error("Please fill in all fields correctly.");
       return;
     }
 
     // Validate email format
     if (!validateEmail(email)) {
-      toast.error("Invalid email format.", {
-        className: "custom-toast",
-      });
+      toast.error("Invalid email format.");
       return;
     }
 
     // Validate password field
     if (!password) {
-      toast.error("Please fill in all fields correctly.", {
-        className: "custom-toast",
-      });
+      toast.error("Please fill in all fields correctly.");
       return;
     }
 
@@ -71,9 +65,7 @@ const Login = () => {
       // Check if email is verified
       if (!user.emailVerified) {
         setLoading(false);
-        toast.error("Please verify your email before logging in.", {
-          className: "custom-toast",
-        });
+        toast.error("Please verify your email before logging in.");
         return;
       }
 
@@ -85,17 +77,13 @@ const Login = () => {
       if (userData?.role !== "user") {
         await auth.signOut();
         setLoading(false);
-        toast.error("This email is already used for a Vendor account!", {
-          className: "custom-toast",
-        });
+        toast.error("This email is already used for a Vendor account!");
         return;
       }
 
       const Name = userData?.username || "User";
       setLoading(false);
-      toast.success(`Hello ${Name}, welcome!`, {
-        className: "custom-toast",
-      });
+      toast.success(`Hello ${Name}, welcome!`);
       const redirectTo = location.state?.from || "/newhome";
       navigate(redirectTo, { replace: true });
     } catch (error) {
@@ -114,9 +102,7 @@ const Login = () => {
         errorMessage = "Network error. Please check your internet connection and try again.";
       }
 
-      toast.error(errorMessage, {
-        className: "custom-toast",
-      });
+      toast.error(errorMessage);
     }
   };
 
@@ -154,17 +140,17 @@ const Login = () => {
                 </div>
                 <div className="-translate-y-4">
                   <div className=" ">
-                    <h1 className="text-5xl font-semibold font-ubuntu text-black mb-2">
-                      Login
+                    <h1 className="text-3xl font-bold font-lato text-black mb-1">
+                      Welcome Back!
                     </h1>
-                    <p className="text-black font-semibold">
-                      Please sign in to continue
+                    <p className="text-gray-400 mb-1 font-lato ">
+                      Get thrifted items at amazing deals
                     </p>
                   </div>
                   <Form className=" " onSubmit={signIn}>
                     <FormGroup className="relative w-full mt-4">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <MdEmail className="text-gray-500 text-xl" />
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
+                        <MdOutlineEmail className="text-gray-500 text-xl" />
                       </div>
                       <input
                         type="email"
@@ -172,20 +158,20 @@ const Login = () => {
                         value={email}
                         className={`w-full h-14 ${
                           emailError ? "border-red-500" : "border-none"
-                        } bg-gray-300 px-10 mb-1 font-semibold text- rounded-lg`}
+                        } bg-gray-300 px-14  font-semibold text- rounded-full`}
                         onChange={handleEmailChange}
                       />
                     </FormGroup>
 
                     <FormGroup className="relative w-full">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <GrSecure className="text-gray-500 text-xl" />
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
+                        <MdOutlineLock className="text-gray-500 text-xl" />
                       </div>
                       <input
                         type={showPassword ? "text" : "password"}
                         className={`w-full h-14 ${
                           passwordError ? "border-red-500" : "border-none"
-                        } bg-gray-300 px-10 font-semibold text- rounded-lg`}
+                        } bg-gray-300 px-14 font-semibold text- rounded-full`}
                         placeholder="Enter your password"
                         value={password}
                         onChange={handlePasswordChange}
@@ -201,25 +187,25 @@ const Login = () => {
                         )}
                       </div>
                     </FormGroup>
-                    <div className="flex justify-end font-semibold">
-                      <p className="text-black underline text-xs">
+                    <div className="flex justify-end font-normal">
+                      <p className="text-customOrange font-lato text-xs">
                         <Link to="/forgetpassword">Forgot password?</Link>
                       </p>
                     </div>
 
                     <motion.button
-                      whileTap={{ scale: 1.2 }}
+                      // whileTap={{ scale: 1.1 }}
                       type="submit"
-                      className="glow-button w-full h-14 mt-7 bg-customOrange text-white font-semibold rounded-full"
+                      className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-medium rounded-full"
                       disabled={!email || !password}
                     >
-                      Login
+                    Sign In
                     </motion.button>
-                    <div className="text-center font-light mt-2 flex justify-center">
-                      <p className="text-gray-700">
+                    <div className="text-center font-light font-lato mt-2 flex justify-center">
+                      <p className="text-gray-900 text-sm">
                         Don't have an account?{" "}
-                        <span className="font-semibold underline text-black">
-                          <Link to="/signup">Sign Up</Link>
+                        <span className="font-normal  text-customOrange">
+                          <Link to="/signup">Sign up</Link>
                         </span>
                       </p>
                     </div>

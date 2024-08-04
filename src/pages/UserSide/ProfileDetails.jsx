@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from "react";
 import {
   updateProfile,
-  updateEmail,
-  sendEmailVerification,
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
   signOut,
 } from "firebase/auth";
 import { auth, db } from "../../firebase.config";
-import { toast } from "react-toastify";
-import { doc, updateDoc } from "firebase/firestore";
+import toast from "react-hot-toast";
+import { doc, updateDoc, setDoc } from "firebase/firestore";
 import {
   FaTimes,
   FaEye,
@@ -28,7 +26,9 @@ import { RiEditFill } from "react-icons/ri";
 import { RotatingLines } from "react-loader-spinner";
 import { useNavigate } from "react-router-dom";
 import { FaRegTimesCircle } from "react-icons/fa";
-import { IoMdContact } from "react-icons/io";
+import { clearCart } from "../../redux/actions/action";
+import { useDispatch, useSelector } from "react-redux";
+
 const ProfileDetails = ({
   currentUser,
   userData,
@@ -40,13 +40,15 @@ const ProfileDetails = ({
     console.log("userData:", userData);
   }, [currentUser, userData]);
 
+  const dispatch = useDispatch();
+  const cart = useSelector((state) => state.cart);
+
   const [isEditing, setIsEditing] = useState(false);
   const [editField, setEditField] = useState("");
   const [username, setUsername] = useState(userData?.username || "");
   const [displayName, setDisplayName] = useState(userData?.displayName || "");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState(userData?.email || "");
   const [phoneNumber, setPhoneNumber] = useState(userData?.phoneNumber || "");
   const [birthday, setBirthday] = useState(userData?.birthday || "");
   const [password, setPassword] = useState("");
@@ -83,10 +85,6 @@ const ProfileDetails = ({
       toast.error("First and Last name must contain only letters.");
       return false;
     }
-    if (editField === "email" && (!email || !/\S+@\S+\.\S+/.test(email))) {
-      toast.error("Please enter a valid email address.");
-      return false;
-    }
     if (
       editField === "phoneNumber" &&
       (!phoneNumber || !/^\d{11,}$/.test(phoneNumber))
@@ -94,44 +92,39 @@ const ProfileDetails = ({
       toast.error("Phone number must be at least 11 digits.");
       return false;
     }
-    if (
-      (editField === "email" || editField === "password") &&
-      !currentPassword
-    ) {
-      toast.error("Please enter your current password to reset your email.");
+    if (editField === "password" && !currentPassword) {
+      toast.error("Please enter your current password to reset your password.");
       return false;
     }
     return true;
   };
 
+  const formatName = (name) => {
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  };
+
   const handleSave = async () => {
     if (!validateFields()) return;
 
-    setIsEditing(false);
     setIsLoading(true);
 
     try {
       if (editField === "username") {
-        await updateProfile(auth.currentUser, { displayName: username });
-        await updateDoc(doc(db, "users", currentUser.uid), { username });
-        setUserData((prev) => ({ ...prev, username }));
+        const formattedUsername = formatName(username);
+        await updateProfile(auth.currentUser, { displayName: formattedUsername });
+        await updateDoc(doc(db, "users", currentUser.uid), { username: formattedUsername });
+        setUserData((prev) => ({ ...prev, username: formattedUsername }));
+        setUsername(formattedUsername);
       } else if (editField === "displayName") {
-        const fullName = `${firstName} ${lastName}`.trim();
+        const formattedFirstName = formatName(firstName);
+        const formattedLastName = formatName(lastName);
+        const fullName = `${formattedFirstName} ${formattedLastName}`.trim();
         await updateProfile(auth.currentUser, { displayName: fullName });
         await updateDoc(doc(db, "users", currentUser.uid), {
           displayName: fullName,
         });
         setUserData((prev) => ({ ...prev, displayName: fullName }));
-      } else if (editField === "email") {
-        const credential = EmailAuthProvider.credential(
-          auth.currentUser.email,
-          currentPassword
-        );
-        await reauthenticateWithCredential(auth.currentUser, credential);
-        await updateEmail(auth.currentUser, email);
-        await sendEmailVerification(auth.currentUser);
-        await updateDoc(doc(db, "users", currentUser.uid), { email });
-        setUserData((prev) => ({ ...prev, email }));
+        setDisplayName(fullName);
       } else if (editField === "password") {
         const credential = EmailAuthProvider.credential(
           auth.currentUser.email,
@@ -142,12 +135,15 @@ const ProfileDetails = ({
       } else if (editField === "phoneNumber") {
         await updateDoc(doc(db, "users", currentUser.uid), { phoneNumber });
         setUserData((prev) => ({ ...prev, phoneNumber }));
+        setPhoneNumber(phoneNumber);
       } else if (editField === "birthday") {
         await updateDoc(doc(db, "users", currentUser.uid), { birthday });
         setUserData((prev) => ({ ...prev, birthday }));
+        setBirthday(birthday);
       }
 
       toast.success("Profile updated successfully");
+      setIsEditing(false);
     } catch (error) {
       console.error("Error updating profile:", error);
       toast.error("Error updating profile. Please try again later.");
@@ -158,10 +154,19 @@ const ProfileDetails = ({
 
   const handleLogout = async () => {
     try {
+      console.log("Logging out, cart:", cart); // Log the cart data
+      await setDoc(doc(db, "carts", currentUser.uid), { cart });
+      console.log("Cart saved to Firestore:", { cart }); // Log after saving to Firestore
+
       await signOut(auth);
+      localStorage.removeItem("cart");
+      dispatch(clearCart()); // Clear Redux cart state
+      console.log("Cart cleared in Redux and localStorage");
+
       toast.success("Successfully logged out", { className: "custom-toast" });
       navigate("/login");
     } catch (error) {
+      console.error("Error logging out:", error);
       toast.error("Error logging out", { className: "custom-toast" });
     }
   };
@@ -236,16 +241,12 @@ const ProfileDetails = ({
           <div className="flex items-center justify-between w-full px-4 py-3">
             <MdEmail className="text-black text-xl mr-4" />
             <p className="text-size font-medium font-poppins text-black w-full">
-              {email}
+              {currentUser.email}
             </p>
             <MdVerified
               className={`${
-                email ? "text-green-500" : "text-yellow-500"
+                currentUser.email ? "text-green-500" : "text-yellow-500"
               } text-2xl ml-2`}
-            />
-            <RiEditFill
-              className="text-black cursor-pointer ml-2 text-2xl"
-              onClick={() => handleEdit("email")}
             />
           </div>
         </div>
@@ -333,8 +334,6 @@ const ProfileDetails = ({
                 ? "Username"
                 : editField === "displayName"
                 ? "Account Name"
-                : editField === "email"
-                ? "Email"
                 : editField === "password"
                 ? "Password"
                 : editField === "phoneNumber"
@@ -345,7 +344,7 @@ const ProfileDetails = ({
               <input
                 type="text"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => setUsername(formatName(e.target.value))}
                 className="w-full p-2 border border-gray-300 rounded mb-4"
               />
             )}
@@ -354,26 +353,18 @@ const ProfileDetails = ({
                 <input
                   type="text"
                   value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
+                  onChange={(e) => setFirstName(formatName(e.target.value))}
                   placeholder="First Name"
                   className="w-full p-2 border border-gray-300 rounded mb-4"
                 />
                 <input
                   type="text"
                   value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
+                  onChange={(e) => setLastName(formatName(e.target.value))}
                   placeholder="Last Name"
                   className="w-full p-2 border border-gray-300 rounded"
                 />
               </>
-            )}
-            {editField === "email" && (
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded"
-              />
             )}
             {editField === "password" && (
               <div className="relative w-full">
@@ -412,7 +403,7 @@ const ProfileDetails = ({
                 className="w-full p-2 border border-gray-300 rounded"
               />
             )}
-            {(editField === "email" || editField === "password") && (
+            {editField === "password" && (
               <div className="relative w-full mt-4">
                 <input
                   type="password"
@@ -430,27 +421,26 @@ const ProfileDetails = ({
               </div>
             )}
 
-            <div className="flex justify-end mt-4">
+            <div className="flex justify-end mt-4 relative">
               <button
                 className="bg-customOrange text-white font-semibold px-4 py-2 rounded"
                 onClick={handleSave}
+                disabled={isLoading}
               >
-                Update
+                {isLoading ? (
+                  <RotatingLines
+                    strokeColor="white"
+                    strokeWidth="5"
+                    animationDuration="0.75"
+                    width="24"
+                    visible={true}
+                  />
+                ) : (
+                  "Update"
+                )}
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <RotatingLines
-            strokeColor="orange"
-            strokeWidth="5"
-            animationDuration="0.75"
-            width="96"
-            visible={true}
-          />
         </div>
       )}
     </div>

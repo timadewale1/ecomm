@@ -21,9 +21,9 @@ const Signup = () => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState(""); // State for confirm password
+  const [confirmPassword, setConfirmPassword] = useState(""); 
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // State for confirm password visibility
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false); 
   const [loading, setLoading] = useState(false);
   const [showPasswordCriteria, setShowPasswordCriteria] = useState(false);
 

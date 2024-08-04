@@ -5,7 +5,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase.config";
-import { getDoc, doc } from "firebase/firestore";
+import { getDoc, doc, setDoc } from "firebase/firestore";
 import { FaRegEyeSlash, FaRegEye } from "react-icons/fa";
 import { MdOutlineEmail } from "react-icons/md";
 import { MdOutlineLock } from "react-icons/md";
@@ -14,6 +14,8 @@ import LoginAnimation from "../components/LoginAssets/LoginAnimation";
 import Loading from "../components/Loading/Loading";
 import Typewriter from "typewriter-effect";
 import { FaAngleLeft } from "react-icons/fa6";
+import { useDispatch } from "react-redux";
+import { setCart } from "../redux/actions/action";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -24,10 +26,37 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
+  const dispatch = useDispatch();
 
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
+  };
+
+  const syncCartWithFirestore = async (userId) => {
+    try {
+      const localCart = JSON.parse(localStorage.getItem("cart")) || {};
+      console.log("Syncing local cart to Firestore: ", localCart);
+      await setDoc(doc(db, "carts", userId), { cart: localCart });
+    } catch (error) {
+      console.error("Error syncing cart with Firestore: ", error);
+    }
+  };
+
+  const fetchCartFromFirestore = async (userId) => {
+    try {
+      const cartDoc = await getDoc(doc(db, "carts", userId));
+      if (cartDoc.exists()) {
+        const cart = cartDoc.data().cart;
+        console.log("Fetched cart from Firestore: ", cart);
+        dispatch(setCart(cart));
+      } else {
+        console.log("No cart found in Firestore, initializing empty cart");
+        dispatch(setCart({}));
+      }
+    } catch (error) {
+      console.error("Error fetching cart from Firestore: ", error);
+    }
   };
 
   const signIn = async (e) => {
@@ -55,11 +84,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
       // Check if email is verified
@@ -80,6 +105,9 @@ const Login = () => {
         toast.error("This email is already used for a Vendor account!");
         return;
       }
+
+      // Fetch the cart from Firestore
+      await fetchCartFromFirestore(user.uid);
 
       const Name = userData?.username || "User";
       setLoading(false);
@@ -194,12 +222,11 @@ const Login = () => {
                     </div>
 
                     <motion.button
-                      // whileTap={{ scale: 1.1 }}
                       type="submit"
                       className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-medium rounded-full"
                       disabled={!email || !password}
                     >
-                    Sign In
+                      Sign In
                     </motion.button>
                     <div className="text-center font-light font-lato mt-2 flex justify-center">
                       <p className="text-gray-900 text-sm">

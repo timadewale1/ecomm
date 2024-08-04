@@ -6,19 +6,35 @@ import {
   increaseQuantity,
   decreaseQuantity,
 } from "../redux/actions/action";
-import { FaTrash, FaPlus, FaMinus } from "react-icons/fa";
+import { FaPlus, FaMinus } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.config";
 import EmptyCart from "../components/Loading/EmptyCart";
 import useAuth from "../custom-hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { GoChevronLeft } from "react-icons/go";
+import { useFavorites } from "../components/Context/FavoritesContext";
+
+// To prevent number scrambling when selecting quickly
+const debounce = (func, delay) => {
+  let timeoutId;
+  return (...args) => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    timeoutId = setTimeout(() => {
+      func.apply(null, args);
+    }, delay);
+  };
+};
 
 const Cart = () => {
   const cart = useSelector((state) => state.cart);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { currentUser, loading } = useAuth();
+  const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const [validCart, setValidCart] = useState({});
   const [userProfileComplete, setUserProfileComplete] = useState(false);
   const [toastShown, setToastShown] = useState({
@@ -28,7 +44,11 @@ const Cart = () => {
     decrease: false,
   });
 
-  const checkCartProducts = async () => {
+  const formatPrice = (price) => {
+    return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
+  const checkCartProducts = useCallback(async () => {
     try {
       const updatedCart = { ...cart };
       const productKeys = Object.keys(cart);
@@ -42,7 +62,10 @@ const Cart = () => {
           delete updatedCart[productKey];
           dispatch(removeFromCart(productKey));
           if (!toastShown.remove) {
-            toast(`Product ${cart[productKey].name} has been removed as it is no longer available.`, { icon: 'ℹ️' });
+            toast(
+              `Product ${cart[productKey].name} has been removed as it is no longer available.`,
+              { icon: "ℹ️" }
+            );
             setToastShown((prev) => ({ ...prev, remove: true }));
           }
         }
@@ -55,21 +78,20 @@ const Cart = () => {
         "An error occurred while validating your cart. Please try again."
       );
     }
-  };
+  }, [cart, dispatch, toastShown.remove]);
 
   useEffect(() => {
     if (cart && Object.keys(cart).length > 0) {
       checkCartProducts();
     }
-  }, [cart, dispatch]);
+  }, [cart, dispatch, checkCartProducts]);
 
-  const checkUserProfile = async () => {
+  const checkUserProfile = useCallback(async () => {
     if (currentUser) {
       try {
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
-          console.log("User data:", data); // Log user data
           if (data.displayName && data.birthday) {
             setUserProfileComplete(true);
           } else {
@@ -80,61 +102,40 @@ const Cart = () => {
         console.error("Error checking user profile:", error);
       }
     }
-  };
+  }, [currentUser]);
 
   useEffect(() => {
     checkUserProfile();
-  }, [currentUser]);
+  }, [currentUser, checkUserProfile]);
 
   const handleRemoveFromCart = useCallback(
     (productKey) => {
+      const product = cart[productKey]; // Get the product details from the cart
       const confirmRemove = window.confirm(
-        "Are you sure you want to remove this product from the cart?"
+        `Are you sure you want to remove ${product.name} from the cart?`
       );
       if (confirmRemove) {
         dispatch(removeFromCart(productKey));
         if (!toastShown.remove) {
-          toast("Removed product from cart!", { icon: 'ℹ️' });
+          toast(`Removed ${product.name} from cart!`, { icon: "ℹ️" });
           setToastShown((prev) => ({ ...prev, remove: true }));
         }
       }
     },
-    [dispatch, toastShown]
+    [cart, dispatch, toastShown]
   );
 
-  const handleClearCart = useCallback(() => {
-    const confirmClear = window.confirm(
-      "Are you sure you want to clear your cart?"
-    );
-    if (confirmClear) {
-      dispatch(clearCart());
-      if (!toastShown.clear) {
-        toast("Cleared all products from cart!", { icon: 'ℹ️' });
-        setToastShown((prev) => ({ ...prev, clear: true }));
-      }
-    }
-  }, [dispatch, toastShown]);
-
-  const handleIncreaseQuantity = useCallback(
-    (productKey) => {
-      if (
-        validCart[productKey].quantity < validCart[productKey].stockQuantity
-      ) {
-        dispatch(increaseQuantity(productKey));
-      } else {
-        if (!toastShown.increase) {
-          toast.error("Cannot exceed available stock!");
-          setToastShown((prev) => ({ ...prev, increase: true }));
-        }
-      }
-    },
-    [dispatch, validCart, toastShown]
+  const debouncedIncreaseQuantity = useCallback(
+    debounce((productKey) => {
+      dispatch(increaseQuantity(productKey));
+    }, 200), 
+    [dispatch]
   );
 
-  const handleDecreaseQuantity = useCallback(
-    (productKey) => {
+  const debouncedDecreaseQuantity = useCallback(
+    debounce((productKey) => {
       dispatch(decreaseQuantity(productKey));
-    },
+    }, 200), 
     [dispatch]
   );
 
@@ -143,12 +144,28 @@ const Cart = () => {
   }, [cart]);
 
   const handleCheckout = () => {
-    console.log("Profile complete:", userProfileComplete); // Log profile status
     if (userProfileComplete) {
       navigate("/newcheckout");
     } else {
       toast.error("Please complete your profile before checking out.");
     }
+  };
+
+  const handleFavoriteToggle = (product) => {
+    if (isFavorite(product.id)) {
+      removeFavorite(product.id);
+      toast.info(`Removed ${product.name} from favorites!`);
+    } else {
+      addFavorite(product);
+      toast.success(`Added ${product.name} to favorites!`);
+    }
+  };
+
+  const calculateTotal = () => {
+    return Object.values(validCart).reduce(
+      (total, product) => total + product.price * product.quantity,
+      0
+    );
   };
 
   if (loading) {
@@ -160,11 +177,17 @@ const Cart = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen justify-between p-3 bg-gray-200">
-      <div className="flex-grow overflow-y-auto">
-        <h1 className="text-center font-ubuntu mb-2 text-black text-2xl">
-          CART
+    <div className="flex flex-col h-screen justify-between bg-gray-200">
+      <div className="sticky top-0 bg-white w-full h-24 flex items-center p-3 shadow-md z-10">
+        <GoChevronLeft
+          className="text-3xl cursor-pointer"
+          onClick={() => navigate(-1)}
+        />
+        <h1 className="font-opensans font-semibold text-xl ml-5 text-black">
+          My Cart
         </h1>
+      </div>
+      <div className="p-2 overflow-y-auto flex-grow">
         {Object.keys(validCart).length === 0 ? (
           <div>
             <EmptyCart />
@@ -173,83 +196,108 @@ const Cart = () => {
             </h1>
           </div>
         ) : (
-          <div className="bg-white rounded-lg p-1">
-            {Object.values(validCart).map((product) => (
-              <div
-                key={`${product.id}-${product.selectedSize}`}
-                className="flex justify-between items-center border-b py-2 mb-2"
-              >
-                <div className="flex items-center">
-                  <img
-                    src={product.selectedImageUrl}
-                    alt={product.name}
-                    className="w-16 h-16 object-cover rounded-lg mr-4"
-                  />
-                  <div>
-                    <h3 className="text-lg font-semibold font-poppins">
-                      {product.name}
-                    </h3>
-                    <p className="text-green-600 font-medium font-poppins text-md">
-                      ₦{product.price}
-                    </p>
-                    <p className="text-black font-poppins font-medium text-xs">
-                      Size: ({product.selectedSize || product.size})
-                    </p>
-                    <div className="flex items-center mt-2">
+          <>
+            <div className="bg-white rounded-lg p-3 shadow-md flex justify-between items-center mb-2">
+              <h2 className="font-ubuntu totaltext text-gray-600 font-medium">
+                Total
+              </h2>
+              <p className="font-opensans text-black text-lg font-bold">
+                ₦{formatPrice(calculateTotal())}
+              </p>
+            </div>
+            <div className="space-y-2 pb-20">
+              {Object.values(validCart).map((product) => (
+                <div
+                  key={`${product.id}-${product.selectedSize}`}
+                  className="bg-white rounded-lg p-3 shadow-md relative"
+                >
+                  <div
+                    className="absolute top-2 right-2 cursor-pointer rounded-full p-1"
+                    onClick={() => handleFavoriteToggle(product)}
+                  >
+                    <img
+                      src={
+                        isFavorite(product.id)
+                          ? "/favorites-filled.png"
+                          : "/favorites.png"
+                      }
+                      alt="Favorite"
+                      className="w-6 h-6"
+                    />
+                  </div>
+                  <div className="flex flex-col justify-between">
+                    <div className="flex items-center">
+                      <img
+                        src={product.selectedImageUrl}
+                        alt={product.name}
+                        className="w-16 h-16 object-cover rounded-lg mr-4"
+                      />
+                      <div className="flex flex-col">
+                        <h3 className="text-xs font-roboto font-normal">
+                          {product.name}
+                        </h3>
+                        <p className="text-black font-bold font-opensans text-lg">
+                          ₦{formatPrice(product.price)}
+                        </p>
+                        <p className="text-gray-600 font-opensans font-normal text-sm">
+                          Size:{" "}
+                          <span className="font-semibold text-black">
+                            {product.selectedSize || product.size}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex mt-1 justify-between">
                       <button
                         onClick={() =>
-                          handleDecreaseQuantity(
+                          handleRemoveFromCart(
                             `${product.id}-${product.selectedSize}`
                           )
                         }
-                        className="px-2 py-1 bg-customCream text-black text-xs rounded-l-md"
+                        className="text-customOrange font-semibold font-lato text-sm mt-2"
                       >
-                        <FaMinus />
+                        Remove
                       </button>
-                      <span className="px-3 font-ubuntu py-1 bg-gray-100">
-                        {product.quantity}
-                      </span>
-                      <button
-                        onClick={() =>
-                          handleIncreaseQuantity(
-                            `${product.id}-${product.selectedSize}`
-                          )
-                        }
-                        className="px-2 py-1 bg-customCream text-black text-xs rounded-r-md"
-                      >
-                        <FaPlus />
-                      </button>
+                      <div className="flex space-x-5">
+                        <button
+                          onClick={() =>
+                            debouncedDecreaseQuantity(
+                              `${product.id}-${product.selectedSize}`
+                            )
+                          }
+                          className="flex items-center justify-center w-9 h-9 bg-customOrange text-white text-lg opacity-40 rounded-full"
+                        >
+                          <FaMinus />
+                        </button>
+                        <span className="font-opensans font-semibold translate-y-1 text-lg">
+                          {product.quantity}
+                        </span>
+                        <button
+                          onClick={() =>
+                            debouncedIncreaseQuantity(
+                              `${product.id}-${product.selectedSize}`
+                            )
+                          }
+                          className="flex items-center justify-center w-9 h-9 bg-customOrange text-white text-lg rounded-full"
+                        >
+                          <FaPlus />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={() =>
-                    handleRemoveFromCart(
-                      `${product.id}-${product.selectedSize}`
-                    )
-                  }
-                  className="text-red-400"
-                >
-                  <FaTrash />
-                </button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
       {Object.keys(validCart).length > 0 && (
-        <div className="p-3 flex flex-col justify-between">
-          <button
-            onClick={handleClearCart}
-            className="px-4 py-2 mb-2 bg-black text-white rounded-md shadow-sm hover:bg-red-600 transition-colors duration-300 font-ubuntu"
-          >
-            Clear Your Cart
-          </button>
+        <div className="p-3 fixed bottom-0 w-full bg-white shadow-md">
           <button
             onClick={handleCheckout}
-            className="px-4 py-2 bg-green-500 text-white rounded-md shadow-sm hover:bg-green-600 transition-colors duration-300 font-ubuntu"
+            className="px-4 py-2 h-12 bg-customOrange rounded-full font-opensans font-medium w-full text-white shadow-sm"
           >
-            Checkout
+            Checkout (₦{formatPrice(calculateTotal())})
           </button>
         </div>
       )}

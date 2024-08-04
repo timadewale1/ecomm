@@ -16,6 +16,7 @@ module.exports = {
         lato: ['Lato', 'sans-serif'],
         poppins: ['Poppins', 'sans-serif'],
         playwrite: ['playwrite CU', 'cursive'],
+        opensans: ['Open Sans', 'sans-serif'],
 
       },
     },

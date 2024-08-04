@@ -25,6 +25,7 @@ const Layout = () => {
     "/newcheckout/bookingfee",
     "/newcheckout/fulldelivery",
     "/user-dashboard",
+    "/latest-cart",
   ];
 
   // Paths with dynamic segments

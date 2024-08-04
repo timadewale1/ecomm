@@ -147,7 +147,11 @@ button.bg-orange-500:hover {
 .categories-text{
   font-size: 12px;
 
+  
 /* this is for the market place cards and pages */
+}
+.categories-con{
+  border: 1px solid #e7e4e4;
 }
 .text-size{
   font-size: 16px;

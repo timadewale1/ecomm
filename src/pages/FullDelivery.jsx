@@ -1,23 +1,44 @@
 import React from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import useAuth from "../custom-hooks/useAuth";
+import { clearCart } from "../redux/actions/action";
+import { useDispatch } from "react-redux";
+import { createOrderAndReduceStock } from "../services/Services";
 import PaystackPop from "@paystack/inline-js";
+import { calculateServiceFee } from "./VendorCompleteProfile/utilis";
 
 const FullDelivery = () => {
-  const location = useLocation();
-  const { totalPrice, deliveryInfo } = location.state;
+  const navigate = useNavigate();
+  const { state } = useLocation();
+  const { totalPrice, deliveryInfo, cart } = state;
+  const dispatch = useDispatch();
+  const { currentUser, loading } = useAuth();
 
-  const handlePaystackPayment = () => {
+  const serviceFee = calculateServiceFee(totalPrice);
+  const total = (parseFloat(totalPrice) + parseFloat(serviceFee)).toFixed(2);
+
+  const handlePaystackPayment = (amount, onSuccessCallback) => {
+    if (loading) {
+      toast.info("Checking authentication status...");
+      return;
+    }
+
+    if (!currentUser) {
+      toast.error("User is not logged in");
+      return;
+    }
+
     const paystack = new PaystackPop();
     paystack.newTransaction({
-      key: "public-key",
-      email: deliveryInfo.email,
-      amount: totalPrice * 100, // Paystack amount is in Kobo
+      key: "pk_test_ef25df4be5b88982094e41cd6ae97f59c13bb2d0",
+      email: currentUser.email,
+      amount: amount * 100, // Paystack amount is in Kobo
       onSuccess: (transaction) => {
         toast.success(
           `Payment successful! Reference: ${transaction.reference}`
         );
-        // Handle post-payment logic here
+        onSuccessCallback();
       },
       onCancel: () => {
         toast.error("Payment cancelled");
@@ -25,17 +46,86 @@ const FullDelivery = () => {
     });
   };
 
+  const handleFullDeliveryPayment = async () => {
+    handlePaystackPayment(parseFloat(total), async () => {
+      try {
+        const userId = currentUser.uid;
+        await createOrderAndReduceStock(userId, cart);
+        dispatch(clearCart());
+        navigate("/payment-approve", {
+          state: { totalPrice, deliveryInfo },
+        });
+        setTimeout(() => {
+          navigate("/newhome");
+        }, 3000);
+      } catch (error) {
+        console.error("Error placing order:", error);
+        toast.error(
+          "An error occurred while placing the order. Please try again."
+        );
+      }
+    });
+  };
+
   return (
-    <div className="full-delivery-container">
-      <h1 className="text-center font-ubuntu mb-4 text-black text-2xl">
-        Full Delivery Payment
-      </h1>
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <p className="text-lg font-semibold text-green-600 mb-4">
-          Total Price: ₦{totalPrice}
-        </p>
+    <div className="p-4">
+      <h1 className="font-ubuntu text-black text-2xl">Full Delivery Payment</h1>
+      <div className="bg-white mt-8">
+        <h2 className="text-lg font-semibold font-ubuntu mb-2">
+          Order summary
+        </h2>
+        {Object.values(cart).map((product) => (
+          <div
+            key={product.id}
+            className="flex justify-between items-center bg-gray-100 w-full border-b py-3 rounded-lg mb-2"
+          >
+            <div className="flex items-center">
+              <img
+                src={product.selectedImageUrl}
+                alt={product.name}
+                className="w-20 h-20 object-cover rounded-lg mr-4"
+              />
+              <div>
+                <h3 className="text-lg font-semibold font-poppins">
+                  {product.name}
+                </h3>
+                <p className="text-green-600 font-poppins font-medium text-md">
+                  ₦{product.price.toFixed(2)}
+                </p>
+                <p className="text-gray-600 font-poppins font-medium text-xs">
+                  Size: {product.selectedSize || product.size}
+                </p>
+                <p className="text-gray-600 font-medium text-xs">
+                  Quantity: {product.quantity}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+        <div className="mt-4 flex justify-between">
+          <label className="block mb-2 font-poppins font-semibold">
+            Sub-Total
+          </label>
+          <p className="text-lg font-poppins text-black font-medium">
+            ₦{totalPrice.toFixed(2)}
+          </p>
+        </div>
+        <div className="mt-1 flex justify-between">
+          <label className="block mb-2 font-poppins font-semibold">
+            Service Fee
+          </label>
+          <p className="text-lg font-poppins text-black font-medium">
+            ₦{serviceFee}
+          </p>
+        </div>
+        <div className="mt-1 flex justify-between">
+          <label className="block mb-2 font-poppins font-semibold">Total</label>
+          <p className="text-lg font-poppins text-black font-medium">
+            ₦{total}
+          </p>
+        </div>
         <button
-          onClick={handlePaystackPayment}
+          onClick={handleFullDeliveryPayment}
           className="w-full px-4 py-2 bg-green-500 text-white rounded-md shadow-sm hover:bg-green-600 transition-colors duration-300 font-ubuntu"
         >
           Pay for Full Delivery

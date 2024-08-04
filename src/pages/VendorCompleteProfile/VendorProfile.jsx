@@ -7,7 +7,6 @@ import {
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
-  
 } from "firebase/auth";
 import { auth, db } from "../../firebase.config";
 import { toast } from "react-toastify";
@@ -34,7 +33,6 @@ import { RotatingLines } from "react-loader-spinner";
 import AvatarSelectorModal from "../vendor/VendorAvatarSelect.jsx";
 import Skeleton from "react-loading-skeleton";
 
-
 const VendorProfile = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
@@ -44,7 +42,7 @@ const VendorProfile = () => {
   const [displayName, setDisplayName] = useState("");
   const [editD, setEditD] = useState("");
   const [email, setEmail] = useState("");
-  const [editE, setEditE] = useState("")
+  const [editE, setEditE] = useState("");
   const [shopName, setShopName] = useState("");
   const [editS, setEditS] = useState("");
   const [password, setPassword] = useState("");
@@ -104,14 +102,14 @@ const VendorProfile = () => {
       } else if (editField === "email") {
         await updateEmail(auth.currentUser, email);
         await sendEmailVerification(auth.currentUser);
-        await updateDoc(doc(db, "vendors", currentUser.uid), { email : editE });
+        await updateDoc(doc(db, "vendors", currentUser.uid), { email: editE });
       } else if (editField === "password") {
         await updatePassword(auth.currentUser, password);
         toast.success("Password updated successfully", {
           className: "custom-toast",
         });
       } else if (editField === "shopName") {
-        if(shopName === "") {
+        if (shopName === "") {
           toast.error("Store Name cannot be empty", {
             className: "custom-toast",
           });
@@ -122,7 +120,9 @@ const VendorProfile = () => {
           });
           return;
         }
-        await updateDoc(doc(db, "vendors", currentUser.uid), { shopName : editS});
+        await updateDoc(doc(db, "vendors", currentUser.uid), {
+          shopName: editS,
+        });
         toast.success("Store Name has been changed", {
           className: "custom-toast",
         });
@@ -229,7 +229,7 @@ const VendorProfile = () => {
           <div className="relative flex justify-center w-full h-full">
             {/* Store Image */}
             <div className="relative w-full h-72">
-            {isLoading ? (
+              {isLoading ? (
                 <Skeleton height={288} />
               ) : userData && userData.coverImageUrl ? (
                 <img
@@ -243,7 +243,7 @@ const VendorProfile = () => {
 
               {/* User Image */}
               <div className="absolute top-52 left-0">
-              {isLoading ? (
+                {isLoading ? (
                   <Skeleton circle height={144} width={144} />
                 ) : userData && userData.photoURL ? (
                   <img
@@ -251,7 +251,6 @@ const VendorProfile = () => {
                     alt="User"
                     className="rounded-full object-cover h-36 w-36 border-2 border-white bg-gray-400"
                   />
-                
                 ) : (
                   <img
                     src="" // You might want to provide a placeholder or default image here
@@ -260,25 +259,25 @@ const VendorProfile = () => {
                   />
                 )}
                 <div className="absolute top-1 right-1 bg-white p-2 rounded-full">
-                <FaPen
-                  className=" text-black cursor-pointer"
-                  onClick={() => setIsAvatarModalOpen(true)}
-                />
+                  <FaPen
+                    className=" text-black cursor-pointer"
+                    onClick={() => setIsAvatarModalOpen(true)}
+                  />
                 </div>
               </div>
             </div>
           </div>
-          
+
           <div className="mt-10">
-          {isLoading ? (
-            <Skeleton width={150} height={24} />
-          ) : userData && userData.shopName ? (
-            <p className="text-md font-medium text-black capitalize">
-              {shopName}
-            </p>
-          ) : (
-            <div className="h-6 bg-gray-300 w-40 mt-10" />
-          )}
+            {isLoading ? (
+              <Skeleton width={150} height={24} />
+            ) : userData && userData.shopName ? (
+              <p className="text-md font-medium text-black capitalize">
+                {shopName}
+              </p>
+            ) : (
+              <div className="h-6 bg-gray-300 w-40 mt-10" />
+            )}
           </div>
           <div className="w-full mt-12">
             <div className="w-full h-14 flex bg-gray-200">
@@ -564,7 +563,7 @@ const VendorProfile = () => {
                 ? "Name"
                 : editField === "email"
                 ? "Email"
-                : editField === "shopName" 
+                : editField === "shopName"
                 ? "Store Name"
                 : "Password"}
             </h2>

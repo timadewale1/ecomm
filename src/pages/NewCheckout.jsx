@@ -9,7 +9,8 @@ import GooglePlacesAutocomplete from "../components/Google";
 import { FaInfoCircle, FaAngleLeft } from "react-icons/fa";
 import BookingFeeModal from "../components/BookingFee";
 import { calculateServiceFee } from "./VendorCompleteProfile/utilis";
-import { createOrderAndReduceStock } from "../services/Services"; // Import the function
+import { createOrderAndReduceStock } from "../services/Services";
+import PaystackPop from "@paystack/inline-js";
 
 const Checkout = () => {
   const cart = useSelector((state) => state.cart);
@@ -17,9 +18,7 @@ const Checkout = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { currentUser, loading } = useAuth();
-  const [deliveryInfo, setDeliveryInfo] = useState({
-    address: "",
-  });
+  const [deliveryInfo, setDeliveryInfo] = useState({ address: "" });
   const [showBookingFeeModal, setShowBookingFeeModal] = useState(false);
 
   useEffect(() => {
@@ -36,15 +35,17 @@ const Checkout = () => {
 
   const bookingFee = (totalPrice * 0.2).toFixed(2);
   const serviceFee = calculateServiceFee(totalPrice);
-  const total = (parseFloat(totalPrice) + parseFloat(bookingFee) + parseFloat(serviceFee)).toFixed(2);
+  const total = (
+    parseFloat(totalPrice) +
+    parseFloat(bookingFee) +
+    parseFloat(serviceFee)
+  ).toFixed(2);
 
   const handleSelectPlace = (place) => {
     setDeliveryInfo({ ...deliveryInfo, address: place });
   };
 
-  const handleBookingFeePayment = async (e) => {
-    e.preventDefault();
-
+  const handlePaystackPayment = (amount, onSuccessCallback) => {
     if (loading) {
       toast.info("Checking authentication status...");
       return;
@@ -55,49 +56,55 @@ const Checkout = () => {
       return;
     }
 
-    try {
-      const userId = currentUser.uid; // Ensure the userId is defined
-      console.log("Placing order for user:", userId);
-      console.log("Cart:", cart);
-      await createOrderAndReduceStock(userId, cart);
-      dispatch(clearCart());
-      navigate("/payment-approve", {
-        state: { totalPrice, deliveryInfo },
-      });
-      toast.success(`Order placed successfully!`);
-    } catch (error) {
-      console.error("Error placing order:", error);
-      toast.error("An error occurred while placing the order. Please try again.");
-    }
+    const paystack = new PaystackPop();
+    paystack.newTransaction({
+      key: "pk_test_ef25df4be5b88982094e41cd6ae97f59c13bb2d0",
+      email: currentUser.email,
+      amount: amount * 100, // Paystack amount is in Kobo
+      onSuccess: (transaction) => {
+        toast.success(
+          `Payment successful! Reference: ${transaction.reference}`
+        );
+        onSuccessCallback();
+      },
+      onCancel: () => {
+        toast.error("Payment cancelled");
+      },
+    });
   };
 
-  const handleFullDeliveryPayment = async (e) => {
+  const handleBookingFeePayment = (e) => {
     e.preventDefault();
 
-    if (loading) {
-      toast.info("Checking authentication status...");
-      return;
-    }
+    handlePaystackPayment(
+      parseFloat(bookingFee) + parseFloat(serviceFee),
+      async () => {
+        try {
+          const userId = currentUser.uid;
+          await createOrderAndReduceStock(userId, cart);
+          dispatch(clearCart());
+          navigate("/payment-approve", {
+            state: { totalPrice, deliveryInfo },
+          });
+          setTimeout(() => {
+            navigate("/newhome");
+          }, 3000);
+        } catch (error) {
+          console.error("Error placing order:", error);
+          toast.error(
+            "An error occurred while placing the order. Please try again."
+          );
+        }
+      }
+    );
+  };
 
-    if (!currentUser) {
-      toast.error("User is not logged in");
-      return;
-    }
+  const handleFullDeliveryPayment = (e) => {
+    e.preventDefault();
 
-    try {
-      const userId = currentUser.uid; // Ensure the userId is defined
-      console.log("Placing order for user:", userId);
-      console.log("Cart:", cart);
-      await createOrderAndReduceStock(userId, cart);
-      dispatch(clearCart());
-      navigate("/payment-approve", {
-        state: { totalPrice, deliveryInfo },
-      });
-      toast.success(`Order placed successfully!`);
-    } catch (error) {
-      console.error("Error placing order:", error);
-      toast.error("An error occurred while placing the order. Please try again.");
-    }
+    navigate("/newcheckout/fulldelivery", {
+      state: { totalPrice, deliveryInfo, cart }, // Passing cart state
+    });
   };
 
   const handleGetCurrentLocation = () => {
@@ -105,7 +112,6 @@ const Checkout = () => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          // Use reverse geocoding to get the address from latitude and longitude
           fetch(
             `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=YOUR_GOOGLE_MAPS_API_KEY`
           )
@@ -139,7 +145,9 @@ const Checkout = () => {
         <h1 className="font-ubuntu text-black text-2xl">Checkout</h1>
       </div>
       <form className="bg-white mt-8">
-        <h2 className="text-lg font-semibold font-ubuntu mb-2">Order summary</h2>
+        <h2 className="text-lg font-semibold font-ubuntu mb-2">
+          Order summary
+        </h2>
         {Object.values(cart).map((product) => (
           <div
             key={product.id}
@@ -177,8 +185,12 @@ const Checkout = () => {
           />
         </div>
         <div className="mt-4 flex justify-between">
-          <label className="block mb-2 font-poppins font-semibold">Sub-Total</label>
-          <p className="text-lg font-poppins text-black font-medium">₦{totalPrice.toFixed(2)}</p>
+          <label className="block mb-2 font-poppins font-semibold">
+            Sub-Total
+          </label>
+          <p className="text-lg font-poppins text-black font-medium">
+            ₦{totalPrice.toFixed(2)}
+          </p>
         </div>
         <div className="mt-1 flex justify-between">
           <label className="block mb-2 font-poppins font-semibold">
@@ -188,15 +200,23 @@ const Checkout = () => {
               onClick={() => setShowBookingFeeModal(true)}
             />
           </label>
-          <p className="text-lg font-poppins text-black font-medium">₦{bookingFee}</p>
+          <p className="text-lg font-poppins text-black font-medium">
+            ₦{bookingFee}
+          </p>
         </div>
         <div className="mt-1 flex justify-between">
-          <label className="block mb-2 font-poppins font-semibold">Service Fee</label>
-          <p className="text-lg font-poppins text-black font-medium">₦{serviceFee}</p>
+          <label className="block mb-2 font-poppins font-semibold">
+            Service Fee
+          </label>
+          <p className="text-lg font-poppins text-black font-medium">
+            ₦{serviceFee}
+          </p>
         </div>
         <div className="mt-1 flex justify-between">
           <label className="block mb-2 font-poppins font-semibold">Total</label>
-          <p className="text-lg font-poppins text-black font-medium">₦{total}</p>
+          <p className="text-lg font-poppins text-black font-medium">
+            ₦{total}
+          </p>
         </div>
         <button
           onClick={handleBookingFeePayment}

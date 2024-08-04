@@ -28,6 +28,7 @@ import { useNavigate } from "react-router-dom";
 import { FaRegTimesCircle } from "react-icons/fa";
 import { clearCart } from "../../redux/actions/action";
 import { useDispatch, useSelector } from "react-redux";
+import { resetUserData } from "../../redux/actions/authactions";
 
 const ProfileDetails = ({
   currentUser,
@@ -111,8 +112,12 @@ const ProfileDetails = ({
     try {
       if (editField === "username") {
         const formattedUsername = formatName(username);
-        await updateProfile(auth.currentUser, { displayName: formattedUsername });
-        await updateDoc(doc(db, "users", currentUser.uid), { username: formattedUsername });
+        await updateProfile(auth.currentUser, {
+          displayName: formattedUsername,
+        });
+        await updateDoc(doc(db, "users", currentUser.uid), {
+          username: formattedUsername,
+        });
         setUserData((prev) => ({ ...prev, username: formattedUsername }));
         setUsername(formattedUsername);
       } else if (editField === "displayName") {
@@ -161,6 +166,7 @@ const ProfileDetails = ({
       await signOut(auth);
       localStorage.removeItem("cart");
       dispatch(clearCart()); // Clear Redux cart state
+      dispatch(resetUserData()); // Reset user data
       console.log("Cart cleared in Redux and localStorage");
 
       toast.success("Successfully logged out", { className: "custom-toast" });
@@ -170,7 +176,6 @@ const ProfileDetails = ({
       toast.error("Error logging out", { className: "custom-toast" });
     }
   };
-
   return (
     <div className="flex flex-col p-2 items-center">
       <div className="sticky top-0 bg-white z-10 flex items-center -translate-y-4 justify-between h-24 w-full">

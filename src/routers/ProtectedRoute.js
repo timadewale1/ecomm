@@ -45,7 +45,12 @@ const ProtectedRoute = ({ requireAdmin }) => {
 
   // Determine if padding should be excluded based on the current route
   const excludePaddingRoutes = ["/user-dashboard", "/latest-cart"];
-  const shouldExcludePadding = excludePaddingRoutes.includes(location.pathname);
+  const dynamicRoutes = ["/reviews/"]; // Add dynamic base routes here
+
+  // Check if the current route matches any of the static or dynamic routes
+  const shouldExcludePadding =
+    excludePaddingRoutes.includes(location.pathname) ||
+    dynamicRoutes.some((route) => location.pathname.startsWith(route));
 
   return (
     <div className={shouldExcludePadding ? "" : "main-content"}>

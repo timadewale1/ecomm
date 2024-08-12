@@ -12,7 +12,6 @@ import toast from "react-hot-toast";
 import ProductCard from "../components/Products/ProductCard";
 import Loading from "../components/Loading/Loading";
 import { FaStar } from "react-icons/fa6";
-import { TiSocialAtCircular } from "react-icons/ti";
 import { CiSearch } from "react-icons/ci";
 
 const StorePage = () => {
@@ -23,7 +22,7 @@ const StorePage = () => {
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedType, setSelectedType] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
@@ -98,8 +97,8 @@ const StorePage = () => {
     navigate(`/reviews/${id}`);
   };
 
-  const handleCategorySelect = (category) => {
-    setSelectedCategory(category);
+  const handleTypeSelect = (type) => {
+    setSelectedType(type);
   };
 
   const handleSearchChange = (event) => {
@@ -109,7 +108,7 @@ const StorePage = () => {
   const filteredProducts = products.filter(
     (product) =>
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (selectedCategory === "All" || product.category === selectedCategory)
+      (selectedType === "All" || product.productType === selectedType)
   );
 
   if (loading) {
@@ -183,7 +182,7 @@ const StorePage = () => {
           {vendor.socialMediaHandle}
         </div>
       </div>
-      <div className="flex justify-center mt-2" style={{ cursor: "pointer" }}>
+      <div className="flex justify-center mt-2" style={{ cursor: "pointer" }} onClick={handleRatingClick}>
         {loading ? (
           <Skeleton width={100} height={24} />
         ) : (
@@ -245,19 +244,19 @@ const StorePage = () => {
       </p>
       <div className="p-2 mt-7">
         <h1 className="font-opensans text-lg mb-3  font-semibold ">Products</h1>
-        <div className="flex justify-between  mb-4 w-full  overflow-x-auto  space-x-2">
-          {["All", "Tops", "Bottoms", "Shoes", "Dresses", "Accessories"].map(
-            (category) => (
+        <div className="flex justify-between mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
+          {["All", "Cloth", "Dress", "Jewelry", "Footwear", "Pants", "Shirts", "Suits", "Hats", "Belts"].map(
+            (type) => (
               <button
-                key={category}
-                onClick={() => handleCategorySelect(category)}
+                key={type}
+                onClick={() => handleTypeSelect(type)}
                 className={`flex-shrink-0 h-12 px-4 py-2 text-xs font-semibold font-opensans text-black border border-gray-400 rounded-full ${
-                  selectedCategory === category
+                  selectedType === type
                     ? "bg-customOrange text-white"
                     : "bg-transparent"
                 }`}
               >
-                {category}
+                {type}
               </button>
             )
           )}
@@ -274,6 +273,7 @@ const StorePage = () => {
                   product={product}
                   isFavorite={!!favorites[product.id]}
                   onFavoriteToggle={handleFavoriteToggle}
+                  onClick={() => navigate(`/product/${product.id}`)}
                 />
               ))}
         </div>

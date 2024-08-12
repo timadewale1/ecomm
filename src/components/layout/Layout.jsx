@@ -26,11 +26,14 @@ const Layout = () => {
     "/newcheckout/fulldelivery",
     "/user-dashboard",
     "/latest-cart",
+    
   ];
 
   // Paths with dynamic segments
   const dynamicPaths = [
     "/product/:id",
+    "/reviews/:id",
+    "/store/:id",
   ];
 
   // Function to check if the current path matches any dynamic paths

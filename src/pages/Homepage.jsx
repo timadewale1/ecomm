@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { RiMenu4Line } from "react-icons/ri";
-import { PiBell } from "react-icons/pi";
+import { PiBell, PiBellLight } from "react-icons/pi";
 import { FiSearch } from "react-icons/fi";
 import { IoArrowBack } from "react-icons/io5";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -24,6 +24,7 @@ import { useNavigate } from "react-router-dom";
 import { useNavigation } from "../components/Context/Bottombarcontext";
 import Market from "../components/Market/Market";
 import { db } from "../firebase.config";
+import { BiMenuAltLeft } from "react-icons/bi";
 import ProductCard from "../components/Products/ProductCard";
 import Logo from "../styles/THRIFT-LOGO-SMALL-TRANSPARENT.png";
 gsap.registerPlugin(ScrollTrigger);
@@ -233,11 +234,14 @@ const Homepage = () => {
 
   return (
     <>
-      <div className="flex justify-center ">
-        <div className="text-xl font-semibold text-orange-500">
-          <img src={Logo} alt="logo" className="w-30 h-20" />
+      <div className="flex translate-y-1 justify-between items-center px-2 ">
+        <BiMenuAltLeft className="text-3xl text-gray-600 cursor-pointer" />
+        <div className="flex justify-center items-center">
+          <img src={Logo} alt="logo" className="w-30 h-auto" />
         </div>
+        <PiBellLight className="text-3xl text-gray-600 cursor-pointer" />
       </div>
+
       <div className="flex px-2 justify-center mb-3">
         {searchTerm && (
           <IoArrowBack
@@ -317,14 +321,16 @@ const Homepage = () => {
                     <div className="w-auto h-44 p-4 bg-blue-900 shadow-md rounded-lg">
                       <h2 className="text-lg font-bold text-white">UP TO</h2>
                       <h1 className="text-white">50% OFF</h1>
-                      <p className="text-white">Buy one get one free from Guccineal Stores!!</p>
+                      <p className="text-white">
+                        Buy one get one free from Guccineal Stores!!
+                      </p>
                     </div>
                   </SwiperSlide>
                   <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
                     <div className="w-auto h-44 p-4 bg-red-500 shadow-md rounded-lg">
                       <h2 className="text-white">CHECKOUT</h2>
                       <h2 className="text-lg font-bold text-white">
-                       YABA DEALS
+                        YABA DEALS
                       </h2>
                       <p className="text-white">
                         Free shipping on orders over ₦5000!
@@ -335,7 +341,7 @@ const Homepage = () => {
                     <div className="w-auto h-44 p-4 bg-yellow-500 shadow-md rounded-lg">
                       <h2 className="text-white">WELCOME</h2>
                       <h2 className="text-lg font-bold text-white">
-                       TO THE REAL MARKETPLACE
+                        TO THE REAL MARKETPLACE
                       </h2>
                       <p className="text-white">
                         Grab coupons worth ₦20000 by inviting a friend!

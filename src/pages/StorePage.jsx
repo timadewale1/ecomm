@@ -182,7 +182,11 @@ const StorePage = () => {
           {vendor.socialMediaHandle}
         </div>
       </div>
-      <div className="flex justify-center mt-2" style={{ cursor: "pointer" }} onClick={handleRatingClick}>
+      <div
+        className="flex justify-center mt-2"
+        style={{ cursor: "pointer" }}
+        onClick={handleRatingClick}
+      >
         {loading ? (
           <Skeleton width={100} height={24} />
         ) : (
@@ -245,24 +249,33 @@ const StorePage = () => {
       <div className="p-2 mt-7">
         <h1 className="font-opensans text-lg mb-3  font-semibold ">Products</h1>
         <div className="flex justify-between mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
-          {["All", "Cloth", "Dress", "Jewelry", "Footwear", "Pants", "Shirts", "Suits", "Hats", "Belts"].map(
-            (type) => (
-              <button
-                key={type}
-                onClick={() => handleTypeSelect(type)}
-                className={`flex-shrink-0 h-12 px-4 py-2 text-xs font-semibold font-opensans text-black border border-gray-400 rounded-full ${
-                  selectedType === type
-                    ? "bg-customOrange text-white"
-                    : "bg-transparent"
-                }`}
-              >
-                {type}
-              </button>
-            )
-          )}
+          {[
+            "All",
+            "Cloth",
+            "Dress",
+            "Jewelry",
+            "Footwear",
+            "Pants",
+            "Shirts",
+            "Suits",
+            "Hats",
+            "Belts",
+          ].map((type) => (
+            <button
+              key={type}
+              onClick={() => handleTypeSelect(type)}
+              className={`flex-shrink-0 h-12 px-4 py-2 text-xs font-semibold font-opensans text-black border border-gray-400 rounded-full ${
+                selectedType === type
+                  ? "bg-customOrange text-white"
+                  : "bg-transparent"
+              }`}
+            >
+              {type}
+            </button>
+          ))}
         </div>
 
-        <div className="grid mt-2 grid-cols-2 gap-3">
+        <div className="grid mt-2 grid-cols-2 gap-2">
           {loading
             ? Array.from({ length: 6 }).map((_, index) => (
                 <Skeleton key={index} height={200} width="100%" />
@@ -273,7 +286,10 @@ const StorePage = () => {
                   product={product}
                   isFavorite={!!favorites[product.id]}
                   onFavoriteToggle={handleFavoriteToggle}
-                  onClick={() => navigate(`/product/${product.id}`)}
+                  onClick={() => {
+                    console.log("Navigating to product detail:", product.id); // Add console log
+                    navigate(`/product/${product.id}`);
+                  }}
                 />
               ))}
         </div>

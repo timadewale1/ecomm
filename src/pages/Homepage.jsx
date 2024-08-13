@@ -234,15 +234,7 @@ const Homepage = () => {
 
   return (
     <>
-      <div className="flex translate-y-1 justify-between items-center px-2 ">
-        <BiMenuAltLeft className="text-3xl text-gray-600 cursor-pointer" />
-        <div className="flex justify-center items-center">
-          <img src={Logo} alt="logo" className="w-30 h-auto" />
-        </div>
-        <PiBellLight className="text-3xl text-gray-600 cursor-pointer" />
-      </div>
-
-      <div className="flex px-2 justify-center mb-3">
+      <div className="flex p-2 mt-3 justify-center mb-3">
         {searchTerm && (
           <IoArrowBack
             className="mr-2 text-3xl text-gray-500 cursor-pointer mt-3 bg-white rounded-full p-1"
@@ -421,7 +413,7 @@ const Homepage = () => {
         <h1 className="text-left mt-2 font-medium text-xl translate-y-2 font-ubuntu mb-4">
           Featured Products
         </h1>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2">
           {loading ? (
             Array.from({ length: 6 }).map((_, index) => (
               <Skeleton key={index} height={200} width="100%" />

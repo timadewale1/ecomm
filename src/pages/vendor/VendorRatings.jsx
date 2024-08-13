@@ -37,12 +37,21 @@ const VendorRatings = () => {
   const [newRating, setNewRating] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProfileComplete, setIsProfileComplete] = useState(false);
 
   useEffect(() => {
     const fetchCurrentUser = async (uid) => {
       try {
         const userDoc = await getDoc(doc(db, "users", uid));
-        setCurrentUser(userDoc.data());
+        const userData = userDoc.data();
+        setCurrentUser(userData);
+
+        // Check if the user's profile is complete
+        if (userData.displayName && userData.birthday) {
+          setIsProfileComplete(true);
+        } else {
+          setIsProfileComplete(false);
+        }
       } catch (error) {
         console.error("Error fetching user data:", error);
       }
@@ -53,6 +62,7 @@ const VendorRatings = () => {
         fetchCurrentUser(user.uid);
       } else {
         setCurrentUser(null);
+        setIsProfileComplete(false);
       }
     });
   }, []);
@@ -90,10 +100,13 @@ const VendorRatings = () => {
       }
 
       const reviewsSnapshot = await getDocs(q);
-      const reviewsList = reviewsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const reviewsList = reviewsSnapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .filter((review) => review.reviewText); // Only include reviews with text
+
       setReviews(reviewsList);
     } catch (error) {
       console.error("Error fetching reviews:", error);
@@ -167,6 +180,11 @@ const VendorRatings = () => {
       return;
     }
 
+    if (!isProfileComplete) {
+      toast.error("Please complete your profile before submitting a review.");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       if (!id || !currentUser) {
@@ -182,14 +200,19 @@ const VendorRatings = () => {
       }
 
       const reviewsRef = collection(db, "vendors", id, "reviews");
-      await addDoc(reviewsRef, {
-        reviewText: newReview,
-        rating: newRating,
-        userName: currentUser.username,
-        userPhotoURL: currentUser.photoURL,
-        createdAt: new Date(),
-      });
 
+      // Save the review only if text is provided
+      if (newReview.trim() !== "") {
+        await addDoc(reviewsRef, {
+          reviewText: newReview,
+          rating: newRating,
+          userName: currentUser.username,
+          userPhotoURL: currentUser.photoURL,
+          createdAt: new Date(),
+        });
+      }
+
+      // Update vendor rating even if no text review is provided
       const vendorRef = doc(db, "vendors", id);
       await updateDoc(vendorRef, {
         ratingCount: increment(1),
@@ -207,6 +230,9 @@ const VendorRatings = () => {
       setIsSubmitting(false);
     }
   };
+
+  const DefaultImageUrl =
+    "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 
   const averageRating =
     vendor && vendor.ratingCount > 0 ? vendor.rating / vendor.ratingCount : 0;
@@ -328,9 +354,11 @@ const VendorRatings = () => {
                     alt={vendor.shopName}
                   />
                 ) : (
-                  <span className="text-center font-bold">
-                    {vendor.shopName}
-                  </span>
+                  <img
+                    className="w-32 h-32 rounded-full bg-slate-700 object-cover"
+                    src={DefaultImageUrl}
+                    alt=""
+                  />
                 )}
               </div>
             </div>
@@ -386,7 +414,7 @@ const VendorRatings = () => {
                 input.scrollIntoView({ behavior: "smooth" });
               }}
               onChange={handleReviewChange}
-              placeholder="Describe your experience with this shop"
+              placeholder="Describe your experience with this shop (Optional)"
               className={`w-full p-2 border h-20 text-xs text-gray-900 rounded mb-4 ${
                 inputValid ? "border-gray-300" : "border-red-500"
               }`}

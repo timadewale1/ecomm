@@ -56,6 +56,8 @@ const ProfileDetails = ({
   const [currentPassword, setCurrentPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const [isLoggingOut, setIsLoggingOut] = useState(false); // Add this state
   const navigate = useNavigate();
 
   const handleEdit = (field) => {
@@ -159,6 +161,8 @@ const ProfileDetails = ({
 
   const handleLogout = async () => {
     try {
+      setIsLoggingOut(true); // Start the loading spinner
+
       console.log("Logging out, cart:", cart); // Log the cart data
       await setDoc(doc(db, "carts", currentUser.uid), { cart });
       console.log("Cart saved to Firestore:", { cart }); // Log after saving to Firestore
@@ -174,6 +178,8 @@ const ProfileDetails = ({
     } catch (error) {
       console.error("Error logging out:", error);
       toast.error("Error logging out", { className: "custom-toast" });
+    } finally {
+      setIsLoggingOut(false); // Stop the loading spinner
     }
   };
   return (
@@ -446,6 +452,17 @@ const ProfileDetails = ({
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {isLoggingOut && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <RotatingLines
+            strokeColor="#f9531e"
+            strokeWidth="5"
+            animationDuration="0.75"
+            width="96"
+            visible={true}
+          />
         </div>
       )}
     </div>

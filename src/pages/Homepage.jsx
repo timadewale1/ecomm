@@ -27,6 +27,7 @@ import { db } from "../firebase.config";
 import { BiMenuAltLeft } from "react-icons/bi";
 import ProductCard from "../components/Products/ProductCard";
 import Logo from "../styles/THRIFT-LOGO-SMALL-TRANSPARENT.png";
+import SearchDropdown from "../components/Search/SearchDropdown";
 gsap.registerPlugin(ScrollTrigger);
 
 const Homepage = () => {
@@ -36,7 +37,7 @@ const Homepage = () => {
   const [userName, setUserName] = useState("User");
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
-  const [vendors, setVendors] = useState({});
+  const [vendors, setVendors] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
   const productCardsRef = useRef([]);
@@ -108,41 +109,42 @@ const Homepage = () => {
     });
   }, []);
 
-  useEffect(() => {
-    const fetchProductsAndVendors = async () => {
-      try {
-        const vendorsSnapshot = await getDocs(collection(db, "vendors"));
-        const vendorsData = {};
-        const productsList = [];
+  const fetchProductsAndVendors = async () => {
+    try {
+      const vendorsSnapshot = await getDocs(collection(db, "vendors"));
+      const vendorList = [];
+      const productsList = [];
 
-        for (const vendorDoc of vendorsSnapshot.docs) {
-          const vendorData = vendorDoc.data();
-          vendorsData[vendorDoc.id] = vendorData.shopName;
+      for (const vendorDoc of vendorsSnapshot.docs) {
+        const vendorData = vendorDoc.data();
+        vendorList.push({ id: vendorDoc.id, ...vendorData });
 
-          const productsSnapshot = await getDocs(
-            collection(db, `vendors/${vendorDoc.id}/products`)
-          );
-          productsSnapshot.forEach((productDoc) => {
-            productsList.push({
-              id: productDoc.id,
-              ...productDoc.data(),
-              vendorName: vendorData.shopName,
-              vendorId: vendorDoc.id,
-            });
+        const productsSnapshot = await getDocs(
+          collection(db, `vendors/${vendorDoc.id}/products`)
+        );
+
+        productsSnapshot.forEach((productDoc) => {
+          productsList.push({
+            id: productDoc.id,
+            ...productDoc.data(),
+            coverImageUrl: productDoc.data().coverImageUrl,
+            name: productDoc.data().name,
           });
-        }
-
-        setVendors(vendorsData);
-        setProducts(productsList);
-        setFilteredProducts(productsList);
-      } catch (error) {
-        console.error("Error fetching products and vendors:", error);
-      } finally {
-        setLoading(false);
-        setInitialLoad(false);
+        });
       }
-    };
 
+      setVendors(vendorList); // Ensure vendorList is an array
+      setProducts(productsList);
+      setFilteredProducts(productsList);
+    } catch (error) {
+      console.error("Error fetching products and vendors:", error);
+    } finally {
+      setLoading(false);
+      setInitialLoad(false);
+    }
+  };
+
+  useEffect(() => {
     fetchProductsAndVendors();
   }, []);
 
@@ -241,18 +243,7 @@ const Homepage = () => {
             onClick={clearSearch}
           />
         )}
-        <div className="relative w-full mx-auto">
-          <input
-            type="text"
-            placeholder="Search"
-            className="w-full rounded-full bg-gray-200 p-3"
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            value={searchTerm}
-            onChange={handleSearchChange}
-          />
-          <FiSearch className="absolute top-1/2 right-3 transform text-xl -translate-y-1/2 text-gray-500" />
-        </div>
+        <SearchDropdown products={products} vendors={vendors} />
       </div>
       {!searchTerm && (
         <>

@@ -280,7 +280,7 @@ const MarketStorePage = () => {
           )}
         </div>
 
-        <div className="grid mt-2 grid-cols-2 gap-3">
+        <div className="grid mt-2 grid-cols-2 gap-2">
           {loading
             ? Array.from({ length: 6 }).map((_, index) => (
                 <Skeleton key={index} height={200} width="100%" />

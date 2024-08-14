@@ -1,7 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { RiMenu4Line } from "react-icons/ri";
-import { PiBell, PiBellLight } from "react-icons/pi";
-import { FiSearch } from "react-icons/fi";
 import { IoArrowBack } from "react-icons/io5";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
@@ -24,9 +21,8 @@ import { useNavigate } from "react-router-dom";
 import { useNavigation } from "../components/Context/Bottombarcontext";
 import Market from "../components/Market/Market";
 import { db } from "../firebase.config";
-import { BiMenuAltLeft } from "react-icons/bi";
 import ProductCard from "../components/Products/ProductCard";
-import Logo from "../styles/THRIFT-LOGO-SMALL-TRANSPARENT.png";
+
 import SearchDropdown from "../components/Search/SearchDropdown";
 gsap.registerPlugin(ScrollTrigger);
 
@@ -43,13 +39,13 @@ const Homepage = () => {
   const productCardsRef = useRef([]);
   const [initialLoad, setInitialLoad] = useState(true);
 
-  const handleFocus = () => {
-    setIsSearchFocused(true);
-  };
+  // const handleFocus = () => {
+  //   setIsSearchFocused(true);
+  // };
 
-  const handleBlur = () => {
-    setIsSearchFocused(false);
-  };
+  // const handleBlur = () => {
+  //   setIsSearchFocused(false);
+  // };
 
   const handleShowMore = () => {
     setActiveNav(2);
@@ -60,19 +56,19 @@ const Homepage = () => {
     navigate(`/category/${category}`);
   };
 
-  const handleSearchChange = (e) => {
-    const term = e.target.value.toLowerCase();
-    setSearchTerm(term);
+  // const handleSearchChange = (e) => {
+  //   const term = e.target.value.toLowerCase();
+  //   setSearchTerm(term);
 
-    if (term.length < 2) {
-      setFilteredProducts(products);
-    } else {
-      const filtered = products.filter((product) =>
-        product.name.toLowerCase().includes(term)
-      );
-      setFilteredProducts(filtered);
-    }
-  };
+  //   if (term.length < 2) {
+  //     setFilteredProducts(products);
+  //   } else {
+  //     const filtered = products.filter((product) =>
+  //       product.name.toLowerCase().includes(term)
+  //     );
+  //     setFilteredProducts(filtered);
+  //   }
+  // };
 
   const clearSearch = () => {
     setSearchTerm("");
@@ -127,8 +123,8 @@ const Homepage = () => {
           productsList.push({
             id: productDoc.id,
             ...productDoc.data(),
-            coverImageUrl: productDoc.data().coverImageUrl,
-            name: productDoc.data().name,
+            vendorName: vendorData.shopName, // Include vendorName in product
+            vendorId: vendorDoc.id, // Include vendorId in product
           });
         });
       }
@@ -418,7 +414,7 @@ const Homepage = () => {
                 <ProductCard
                   product={product}
                   vendorId={product.vendorId}
-                  vendorName={product.vendorName}
+                  vendorName={product.vendorName} // Pass vendorName to ProductCard
                 />
               </div>
             ))

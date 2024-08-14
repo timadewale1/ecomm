@@ -152,7 +152,7 @@ const OnlineVendors = () => {
               className="flex-1 border border-gray-300 rounded-full px-3 py-2 text-black focus:outline-none"
               value={searchTerm}
               onChange={handleSearchChange}
-              placeholder="Search vendors or products..."
+              placeholder="Search vendors..."
             />
           </div>
         )}

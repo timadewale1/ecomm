@@ -230,6 +230,14 @@ const Homepage = () => {
     .quality("auto")
     .resize(auto().gravity(autoGravity()).width(5000).height(3000));
 
+  // New promo images
+  const promoImages = [
+    "black-friday-composition-with-post-its_1_clwua4",
+    "4929101_na7pyp",
+    "4991116_bwrxkh",
+    "4395311_hcqoss",
+  ];
+
   return (
     <>
       <div className="flex p-2 mt-3 justify-center mb-3">
@@ -279,7 +287,7 @@ const Homepage = () => {
                 ))
               ) : (
                 <>
-                  <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
+                  {/* <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
                     <div className="p-4 w-auto h-44 bg-orange-500 shadow-md rounded-lg">
                       <h2 className="text-lg text-white font-bold">
                         Hello, {userName}
@@ -327,6 +335,24 @@ const Homepage = () => {
                       </p>
                     </div>
                   </SwiperSlide>
+                  Promo Images */}
+                  {promoImages.map((publicId, index) => (
+                    <SwiperSlide
+                      key={index}
+                      className="transition-transform duration-500 ease-in-out rounded-lg transform hover:scale-105"
+                    >
+                      <div className="p-1 w-auto h-44 shadow-md rounded-lg overflow-hidden">
+                        <AdvancedImage
+                          cldImg={cld
+                            .image(publicId)
+                            .format("auto")
+                            .quality("auto")
+                            .resize(auto().gravity(autoGravity()).width(5000).height(3000))}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      </div>
+                    </SwiperSlide>
+                  ))}
                 </>
               )}
             </Swiper>

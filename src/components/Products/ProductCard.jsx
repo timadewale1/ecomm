@@ -72,7 +72,7 @@ const ProductCard = ({ product, isLoading, vendorName, vendorId }) => {
   return (
     <div
       className={`product-card relative mb-2 cursor-pointer ${
-        isOutOfStock ? "bg-gray-300 opacity-70" : ""
+        isOutOfStock ? "bg-gray-300 opacity-60 rounded-lg" : ""
       }`}
       onClick={handleCardClick}
       style={{

@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from "react";
 import Downshift from "downshift";
 import { useNavigate } from "react-router-dom";
-import { IoChevronBackOutline, IoLocationOutline } from "react-icons/io5";
+import { IoChevronBackOutline } from "react-icons/io5";
 import { FaTimes } from "react-icons/fa";
 import { CiSearch } from "react-icons/ci";
 import { MdMyLocation } from "react-icons/md";
+import { GoDotFill } from "react-icons/go";
+import { PiGenderMaleBold, PiGenderFemaleBold } from "react-icons/pi";
+import { FaGenderless, FaChildren } from "react-icons/fa6";
+import { AiFillProduct } from "react-icons/ai";
 
 const SearchDropdown = ({ products, vendors }) => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,15 +30,20 @@ const SearchDropdown = ({ products, vendors }) => {
       const updatedHistory = [
         selectedItem,
         ...searchHistory.filter((item) => item.id !== selectedItem.id),
-      ].slice(0, 8); 
+      ].slice(0, 8);
 
       setSearchHistory(updatedHistory);
       localStorage.setItem("searchHistory", JSON.stringify(updatedHistory));
 
+      // Conditionally navigate based on vendor type
       if (selectedItem.type === "product") {
         navigate(`/product/${selectedItem.id}`);
       } else if (selectedItem.type === "vendor") {
-        navigate(`/store/${selectedItem.id}`);
+        if (selectedItem.marketPlaceType === "Online") {
+          navigate(`/store/${selectedItem.id}`);
+        } else {
+          navigate(`/marketstorepage/${selectedItem.id}`);
+        }
       }
     }
   };
@@ -64,6 +73,21 @@ const SearchDropdown = ({ products, vendors }) => {
       }));
 
     return [...filteredProducts, ...filteredVendors];
+  };
+
+  const getCategoryIcon = (category) => {
+    switch (category?.toLowerCase()) {
+      case "men":
+        return <PiGenderMaleBold className="mr-1" />;
+      case "women":
+        return <PiGenderFemaleBold className="mr-1" />;
+      case "kids":
+        return <FaChildren className="mr-1" />;
+      case "all":
+        return <FaGenderless className="mr-1" />;
+      default:
+        return null;
+    }
   };
 
   const clearSearch = () => {
@@ -105,7 +129,7 @@ const SearchDropdown = ({ products, vendors }) => {
             <div className="relative flex-1">
               <input
                 {...getInputProps({
-                  placeholder: "Search for products or vendors...",
+                  placeholder: "Search My Thrift",
                   onChange: (e) => setSearchTerm(e.target.value),
                   onFocus: () => {
                     if (!searchTerm) openMenu();
@@ -146,7 +170,7 @@ const SearchDropdown = ({ products, vendors }) => {
                 >
                   <div className="flex items-center">
                     <img
-                      src={item.coverImageUrl || defaultImageUrl} // Use default image if no coverImageUrl
+                      src={item.coverImageUrl || defaultImageUrl}
                       alt={item.name || item.shopName}
                       style={{
                         width: "40px",
@@ -157,12 +181,21 @@ const SearchDropdown = ({ products, vendors }) => {
                       }}
                     />
                     <div className="flex flex-col">
-                      <span className="font-opensans  font-medium">
+                      <span className="font-opensans mb-1 font-medium">
                         {item.name || item.shopName}
                       </span>
+                      {item.type === "product" && (
+                        <span className="text-gray-600 text-xs flex items-center">
+                          {getCategoryIcon(item.category)}
+                          {item.category}
+                          <GoDotFill className="mx-1 dot-size" />
+                          <AiFillProduct className="mr-1" />
+                          {item.productType}
+                        </span>
+                      )}
                       {item.type === "vendor" && (
-                        <span className="text-gray-500 text-xs flex items-center">
-                          <MdMyLocation className="mr-1" />
+                        <span className="text-black text-xs flex items-center">
+                          <MdMyLocation className="mr-1 ratings-text" />
                           {item.marketPlaceType || "Online"}
                         </span>
                       )}
@@ -209,12 +242,21 @@ const SearchDropdown = ({ products, vendors }) => {
                         }}
                       />
                       <div className="flex flex-col">
-                        <span className="font-opensans font-medium">
+                        <span className="font-opensans mb-1 font-medium">
                           {item.name || item.shopName}
                         </span>
+                        {item.type === "product" && (
+                          <span className="text-gray-600 text-xs flex items-center">
+                            {getCategoryIcon(item.category)}
+                            {item.category}
+                            <GoDotFill className="mx-1 dot-size" />
+                            <AiFillProduct className="mr-1" />
+                            {item.productType}
+                          </span>
+                        )}
                         {item.type === "vendor" && (
-                          <span className="text-gray-500 flex items-center">
-                            <IoLocationOutline className="mr-1" />
+                          <span className="text-black text-xs flex items-center">
+                            <MdMyLocation className="mr-1  ratings-text" />
                             {item.marketPlaceType || "Online"}
                           </span>
                         )}

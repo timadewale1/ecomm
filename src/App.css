@@ -116,6 +116,18 @@ input[type="text"] {
   width: 100%;
   padding-right: 2rem;
 }
+:root {
+  --vh: 100%;
+}
+body.scroll-lock {
+  overflow: hidden;
+}
+
+
+body {
+  height: var(--vh);
+  overflow-x: hidden;
+}
 
 .relative {
   position: relative;

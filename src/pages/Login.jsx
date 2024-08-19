@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -23,10 +23,34 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState(false);
   const [passwordError, setPasswordError] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    const handleFocus = () => {
+      document.body.classList.add("scroll-lock");
+    };
+
+    const handleBlur = () => {
+      document.body.classList.remove("scroll-lock");
+    };
+
+    const inputs = document.querySelectorAll("input");
+
+    inputs.forEach((input) => {
+      input.addEventListener("focus", handleFocus);
+      input.addEventListener("blur", handleBlur);
+    });
+
+    return () => {
+      inputs.forEach((input) => {
+        input.removeEventListener("focus", handleFocus);
+        input.removeEventListener("blur", handleBlur);
+      });
+    };
+  }, []);
 
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -62,20 +86,17 @@ const Login = () => {
   const signIn = async (e) => {
     e.preventDefault();
 
-    // Validate email field
     if (!email) {
       setEmailError(true);
       toast.error("Please fill in all fields correctly.");
       return;
     }
 
-    // Validate email format
     if (!validateEmail(email)) {
       toast.error("Invalid email format.");
       return;
     }
 
-    // Validate password field
     if (!password) {
       toast.error("Please fill in all fields correctly.");
       return;
@@ -87,18 +108,15 @@ const Login = () => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Check if email is verified
       if (!user.emailVerified) {
         setLoading(false);
         toast.error("Please verify your email before logging in.");
         return;
       }
 
-      // Retrieve user data from Firestore
       const userDoc = await getDoc(doc(db, "users", user.uid));
       const userData = userDoc.data();
 
-      // Check if the user is a regular user
       if (userData?.role !== "user") {
         await auth.signOut();
         setLoading(false);
@@ -106,7 +124,6 @@ const Login = () => {
         return;
       }
 
-      // Fetch the cart from Firestore
       await fetchCartFromFirestore(user.uid);
 
       const Name = userData?.username || "User";
@@ -116,9 +133,8 @@ const Login = () => {
       navigate(redirectTo, { replace: true });
     } catch (error) {
       setLoading(false);
-      console.error("Error during sign-in:", error); // Log the error message
+      console.error("Error during sign-in:", error);
 
-      // Provide user-friendly error messages based on Firebase error codes
       let errorMessage = "Unable to login. Please check your credentials and try again.";
       if (error.code === "auth/user-not-found") {
         errorMessage = "No user found with this email. Please sign up.";

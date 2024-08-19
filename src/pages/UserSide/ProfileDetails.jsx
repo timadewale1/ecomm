@@ -29,6 +29,8 @@ import { FaRegTimesCircle } from "react-icons/fa";
 import { clearCart } from "../../redux/actions/action";
 import { useDispatch, useSelector } from "react-redux";
 import { resetUserData } from "../../redux/actions/authactions";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 const ProfileDetails = ({
   currentUser,
@@ -56,9 +58,25 @@ const ProfileDetails = ({
   const [currentPassword, setCurrentPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingUserInfo, setLoadingUserInfo] = useState(true); // New loading state
 
-  const [isLoggingOut, setIsLoggingOut] = useState(false); // Add this state
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        // Simulate fetching user data
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate loading time
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      } finally {
+        setLoadingUserInfo(false); // Set loading to false once data is fetched
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   const handleEdit = (field) => {
     setEditField(field);
@@ -182,6 +200,7 @@ const ProfileDetails = ({
       setIsLoggingOut(false); // Stop the loading spinner
     }
   };
+
   return (
     <div className="flex flex-col p-2 items-center">
       <div className="sticky top-0 bg-white z-10 flex items-center -translate-y-4 justify-between h-24 w-full">
@@ -207,18 +226,24 @@ const ProfileDetails = ({
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <PiAtThin className="text-black text-xl mr-4" />
-            <p className="text-size font-medium font-poppins text-black w-full">
-              {username || "Username"}
-            </p>
-            <MdVerified
-              className={`${
-                username ? "text-green-500" : "text-yellow-500"
-              } text-2xl ml-2`}
-            />
-            <RiEditFill
-              className="text-black cursor-pointer ml-2 text-2xl"
-              onClick={() => handleEdit("username")}
-            />
+            {loadingUserInfo ? (
+              <Skeleton width="100%" />
+            ) : (
+              <>
+                <p className="text-size font-medium font-poppins text-black w-full">
+                  {username || "Username"}
+                </p>
+                <MdVerified
+                  className={`${
+                    username ? "text-green-500" : "text-yellow-500"
+                  } text-2xl ml-2`}
+                />
+                <RiEditFill
+                  className="text-black cursor-pointer ml-2 text-2xl"
+                  onClick={() => handleEdit("username")}
+                />
+              </>
+            )}
           </div>
         </div>
 
@@ -229,18 +254,24 @@ const ProfileDetails = ({
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <FaRegCircleUser className="text-black text-xl mr-4" />
-            <p className="text-size font-medium font-poppins text-black w-full">
-              {displayName || "Add Account Name"}
-            </p>
-            <MdVerified
-              className={`${
-                displayName ? "text-green-500" : "text-yellow-500"
-              } text-2xl ml-2`}
-            />
-            <RiEditFill
-              className="text-black cursor-pointer ml-2 text-2xl"
-              onClick={() => handleEdit("displayName")}
-            />
+            {loadingUserInfo ? (
+              <Skeleton width="100%" />
+            ) : (
+              <>
+                <p className="text-size font-medium font-poppins text-black w-full">
+                  {displayName || "Add Account Name"}
+                </p>
+                <MdVerified
+                  className={`${
+                    displayName ? "text-green-500" : "text-yellow-500"
+                  } text-2xl ml-2`}
+                />
+                <RiEditFill
+                  className="text-black cursor-pointer ml-2 text-2xl"
+                  onClick={() => handleEdit("displayName")}
+                />
+              </>
+            )}
           </div>
         </div>
 
@@ -251,14 +282,20 @@ const ProfileDetails = ({
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <MdEmail className="text-black text-xl mr-4" />
-            <p className="text-size font-medium font-poppins text-black w-full">
-              {currentUser.email}
-            </p>
-            <MdVerified
-              className={`${
-                currentUser.email ? "text-green-500" : "text-yellow-500"
-              } text-2xl ml-2`}
-            />
+            {loadingUserInfo ? (
+              <Skeleton width="100%" />
+            ) : (
+              <>
+                <p className="text-size font-medium font-poppins text-black w-full">
+                  {currentUser.email}
+                </p>
+                <MdVerified
+                  className={`${
+                    currentUser.email ? "text-green-500" : "text-yellow-500"
+                  } text-2xl ml-2`}
+                />
+              </>
+            )}
           </div>
         </div>
 
@@ -269,18 +306,24 @@ const ProfileDetails = ({
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <FaPhone className="text-black text-xl mr-4" />
-            <p className="text-size font-poppins font-medium text-black w-full">
-              {phoneNumber || "Add Phone Number"}
-            </p>
-            <MdVerified
-              className={`${
-                phoneNumber ? "text-green-500" : "text-yellow-500"
-              } text-2xl ml-2`}
-            />
-            <RiEditFill
-              className="text-black cursor-pointer ml-2 text-2xl"
-              onClick={() => handleEdit("phoneNumber")}
-            />
+            {loadingUserInfo ? (
+              <Skeleton width="100%" />
+            ) : (
+              <>
+                <p className="text-size font-poppins font-medium text-black w-full">
+                  {phoneNumber || "Add Phone Number"}
+                </p>
+                <MdVerified
+                  className={`${
+                    phoneNumber ? "text-green-500" : "text-yellow-500"
+                  } text-2xl ml-2`}
+                />
+                <RiEditFill
+                  className="text-black cursor-pointer ml-2 text-2xl"
+                  onClick={() => handleEdit("phoneNumber")}
+                />
+              </>
+            )}
           </div>
         </div>
 
@@ -291,13 +334,19 @@ const ProfileDetails = ({
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <FaCalendarAlt className="text-black text-xl mr-4" />
-            <p className="text-size font-medium font-poppins text-black w-full">
-              {birthday}
-            </p>
-            <RiEditFill
-              className="text-black cursor-pointer ml-2 text-2xl"
-              onClick={() => handleEdit("birthday")}
-            />
+            {loadingUserInfo ? (
+              <Skeleton width="100%" />
+            ) : (
+              <>
+                <p className="text-size font-medium font-poppins text-black w-full">
+                  {birthday}
+                </p>
+                <RiEditFill
+                  className="text-black cursor-pointer ml-2 text-2xl"
+                  onClick={() => handleEdit("birthday")}
+                />
+              </>
+            )}
           </div>
         </div>
 
@@ -308,13 +357,19 @@ const ProfileDetails = ({
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <GrSecure className="text-black text-xl mr-4" />
-            <p className="text-lg text-black w-full font-poppins font-medium">
-              *******
-            </p>
-            <RiEditFill
-              className="text-black cursor-pointer ml-2 text-2xl"
-              onClick={() => handleEdit("password")}
-            />
+            {loadingUserInfo ? (
+              <Skeleton width="100%" />
+            ) : (
+              <>
+                <p className="text-lg text-black w-full font-poppins font-medium">
+                  *******
+                </p>
+                <RiEditFill
+                  className="text-black cursor-pointer ml-2 text-2xl"
+                  onClick={() => handleEdit("password")}
+                />
+              </>
+            )}
           </div>
         </div>
 

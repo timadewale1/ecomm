@@ -20,7 +20,7 @@ const BottomBar = React.memo(({ isSearchFocused }) => {
     { icon: GoHome, activeIcon: GoHomeFill, label: "Home", route: "/newhome" },
     { icon: PiCompass, activeIcon: PiCompassFill, label: "Explore", route: "/explore" },
     { icon: PiShoppingCart, activeIcon: PiShoppingCartFill, label: "Cart", route: "/latest-cart" },
-    { icon: HiOutlineBuildingStorefront, activeIcon: HiBuildingStorefront, label: "Marketplace", route: "/browse-markets" },
+    { icon: HiOutlineBuildingStorefront, activeIcon: HiBuildingStorefront, label: "Markets", route: "/browse-markets" },
     { icon: FaRegUser, activeIcon: FaUser, label: "Profile", route: "/profile" },
   ], []);
 

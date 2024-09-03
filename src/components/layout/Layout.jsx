@@ -26,6 +26,7 @@ const Layout = () => {
     "/newcheckout/fulldelivery",
     "/user-dashboard",
     "/latest-cart",
+    "/search",
     "/market-vendors",
     "/online-vendors",
   ];

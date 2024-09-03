@@ -32,9 +32,11 @@ import ProtectedRoute from "./ProtectedRoute";
 import StorePage from "../pages/StorePage.jsx";
 import CategoryPage from "../pages/UserSide/CategoryPage.jsx";
 import VendorRatings from "../pages/vendor/VendorRatings.jsx";
+import SearchPage from "../pages/UserSide/Searchpage.jsx";
 const Routers = () => {
   return (
     <Routes>
+      <Route path="/search" element={<SearchPage />} />
       <Route path="/confirm-user-state" element={<ConfirmUserState />} />
       <Route path="/" element={<Navigate to="login" />} />
       <Route path="product/:id" element={<ProductDetailPage />} />

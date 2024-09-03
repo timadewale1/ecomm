@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { IoArrowBack } from "react-icons/io5";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
@@ -9,7 +10,7 @@ import { auto } from "@cloudinary/url-gen/actions/resize";
 import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
 import { AdvancedImage } from "@cloudinary/react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { collection, query, getDocs, getDoc, doc } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { FreeMode, Autoplay } from "swiper/modules";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -17,13 +18,12 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import BottomBar from "../components/BottomBar/BottomBar";
 import "../styles/bottombar.css";
-import { useNavigate } from "react-router-dom";
 import { useNavigation } from "../components/Context/Bottombarcontext";
 import Market from "../components/Market/Market";
 import { db } from "../firebase.config";
 import ProductCard from "../components/Products/ProductCard";
-
 import SearchDropdown from "../components/Search/SearchDropdown";
+
 gsap.registerPlugin(ScrollTrigger);
 
 const Homepage = () => {
@@ -39,14 +39,6 @@ const Homepage = () => {
   const productCardsRef = useRef([]);
   const [initialLoad, setInitialLoad] = useState(true);
 
-  // const handleFocus = () => {
-  //   setIsSearchFocused(true);
-  // };
-
-  // const handleBlur = () => {
-  //   setIsSearchFocused(false);
-  // };
-
   const handleShowMore = () => {
     setActiveNav(2);
     navigate("/explore");
@@ -55,20 +47,6 @@ const Homepage = () => {
   const handleCategoryClick = (category) => {
     navigate(`/category/${category}`);
   };
-
-  // const handleSearchChange = (e) => {
-  //   const term = e.target.value.toLowerCase();
-  //   setSearchTerm(term);
-
-  //   if (term.length < 2) {
-  //     setFilteredProducts(products);
-  //   } else {
-  //     const filtered = products.filter((product) =>
-  //       product.name.toLowerCase().includes(term)
-  //     );
-  //     setFilteredProducts(filtered);
-  //   }
-  // };
 
   const clearSearch = () => {
     setSearchTerm("");
@@ -123,13 +101,13 @@ const Homepage = () => {
           productsList.push({
             id: productDoc.id,
             ...productDoc.data(),
-            vendorName: vendorData.shopName, // Include vendorName in product
-            vendorId: vendorDoc.id, // Include vendorId in product
+            vendorName: vendorData.shopName,
+            vendorId: vendorDoc.id,
           });
         });
       }
 
-      setVendors(vendorList); // Ensure vendorList is an array
+      setVendors(vendorList);
       setProducts(productsList);
       setFilteredProducts(productsList);
     } catch (error) {
@@ -230,7 +208,6 @@ const Homepage = () => {
     .quality("auto")
     .resize(auto().gravity(autoGravity()).width(5000).height(3000));
 
-  // New promo images
   const promoImages = [
     "black-friday-composition-with-post-its_1_clwua4",
     "4929101_na7pyp",
@@ -247,7 +224,14 @@ const Homepage = () => {
             onClick={clearSearch}
           />
         )}
-        <SearchDropdown products={products} vendors={vendors} />
+        <input
+          type="text"
+          value={searchTerm}
+          onFocus={() => navigate("/search")}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search My Thrift"
+          className="w-full rounded-full bg-gray-200 p-3"
+        />
       </div>
       {!searchTerm && (
         <>
@@ -287,55 +271,6 @@ const Homepage = () => {
                 ))
               ) : (
                 <>
-                  {/* <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
-                    <div className="p-4 w-auto h-44 bg-orange-500 shadow-md rounded-lg">
-                      <h2 className="text-lg text-white font-bold">
-                        Hello, {userName}
-                      </h2>
-                      <p className="text-white">
-                        Explore our marketplaces to see the deals we have today!
-                      </p>
-                    </div>
-                  </SwiperSlide>
-                  <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
-                    <div className="p-4 w-auto h-44 bg-green-400 shadow-md rounded-lg">
-                      <h2 className="text-lg text-white font-bold">DEALS!!!</h2>
-                      <h1 className="text-white">₦1,500</h1>
-                      <p className="text-white">5TH-7TH JULY</p>
-                    </div>
-                  </SwiperSlide>
-                  <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
-                    <div className="w-auto h-44 p-4 bg-blue-900 shadow-md rounded-lg">
-                      <h2 className="text-lg font-bold text-white">UP TO</h2>
-                      <h1 className="text-white">50% OFF</h1>
-                      <p className="text-white">
-                        Buy one get one free from Guccineal Stores!!
-                      </p>
-                    </div>
-                  </SwiperSlide>
-                  <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
-                    <div className="w-auto h-44 p-4 bg-red-500 shadow-md rounded-lg">
-                      <h2 className="text-white">CHECKOUT</h2>
-                      <h2 className="text-lg font-bold text-white">
-                        YABA DEALS
-                      </h2>
-                      <p className="text-white">
-                        Free shipping on orders over ₦5000!
-                      </p>
-                    </div>
-                  </SwiperSlide>
-                  <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
-                    <div className="w-auto h-44 p-4 bg-yellow-500 shadow-md rounded-lg">
-                      <h2 className="text-white">WELCOME</h2>
-                      <h2 className="text-lg font-bold text-white">
-                        TO THE REAL MARKETPLACE
-                      </h2>
-                      <p className="text-white">
-                        Grab coupons worth ₦20000 by inviting a friend!
-                      </p>
-                    </div>
-                  </SwiperSlide>
-                  Promo Images */}
                   {promoImages.map((publicId, index) => (
                     <SwiperSlide
                       key={index}
@@ -347,7 +282,12 @@ const Homepage = () => {
                             .image(publicId)
                             .format("auto")
                             .quality("auto")
-                            .resize(auto().gravity(autoGravity()).width(5000).height(3000))}
+                            .resize(
+                              auto()
+                                .gravity(autoGravity())
+                                .width(5000)
+                                .height(3000)
+                            )}
                           className="w-full h-full object-cover rounded-lg"
                         />
                       </div>
@@ -440,7 +380,7 @@ const Homepage = () => {
                 <ProductCard
                   product={product}
                   vendorId={product.vendorId}
-                  vendorName={product.vendorName} // Pass vendorName to ProductCard
+                  vendorName={product.vendorName}
                 />
               </div>
             ))

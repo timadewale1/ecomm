@@ -5,20 +5,28 @@ import { addToCart } from "../../redux/actions/action";
 import { fetchProduct } from "../../redux/actions/productaction";
 import Loading from "../../components/Loading/Loading";
 import { PiShoppingCartThin } from "react-icons/pi";
-import { FaAngleLeft, FaCheck, FaPlus, FaMinus } from "react-icons/fa";
+import { FaAngleLeft, FaCheck, FaPlus, FaMinus, FaStar } from "react-icons/fa"; // FaStar for ratings
 import { CiCircleInfo } from "react-icons/ci";
-import { LiaOpencart } from "react-icons/lia";
+import { GoChevronLeft, GoChevronRight } from "react-icons/go";
 import toast from "react-hot-toast";
+import Modal from "react-modal";
+import { TbSquareRoundedCheck } from "react-icons/tb";
+import { MdOutlineCancel } from "react-icons/md";
+// Firestore imports to fetch vendor data
+import { getDoc, doc, getFirestore } from "firebase/firestore";
+
+Modal.setAppElement("#root");
 
 const ProductDetailPage = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { product, loading, error } = useSelector((state) => state.product);
-  const cart = useSelector((state) => state.cart);
   const [quantity, setQuantity] = useState(1);
   const [mainImage, setMainImage] = useState("");
   const [isSticky, setIsSticky] = useState(false);
+
+  const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
   const [animateCart, setAnimateCart] = useState(false);
   const [toastShown, setToastShown] = useState({
@@ -29,6 +37,12 @@ const ProductDetailPage = () => {
     productNotFound: false,
   });
 
+  const [vendor, setVendor] = useState(null); // State for vendor data
+  const db = getFirestore(); // Firestore instance
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Fetch product and vendor data
   useEffect(() => {
     dispatch(fetchProduct(id)).catch((err) => {
       console.error("Failed to fetch product:", err);
@@ -38,6 +52,36 @@ const ProductDetailPage = () => {
       }
     });
   }, [dispatch, id, toastShown.fetchError]);
+
+  // Use product.vendorId to fetch the vendor's information
+  useEffect(() => {
+    if (product && product.vendorId) {
+      // Ensure the product exists and has a vendorId
+      console.log("Vendor ID from product:", product.vendorId); // Log vendorId from product
+      fetchVendorData(product.vendorId); // Fetch vendor data using product.vendorId
+    } else {
+      if (product && !product.vendorId) {
+        console.error("No Vendor ID in product");
+      }
+    }
+  }, [product]); // Run this effect whenever the product changes
+
+  // Fetch vendor data using vendorId
+  const fetchVendorData = async (vendorId) => {
+    try {
+      console.log("Fetching vendor data for vendorId:", vendorId);
+      const vendorRef = doc(db, "vendors", vendorId); // Firestore reference to vendor document
+      const vendorSnap = await getDoc(vendorRef);
+      if (vendorSnap.exists()) {
+        console.log("Vendor Data:", vendorSnap.data()); // Log the vendor data
+        setVendor(vendorSnap.data()); // Store vendor data in state
+      } else {
+        console.error("Vendor not found");
+      }
+    } catch (err) {
+      console.error("Error fetching vendor data:", err);
+    }
+  };
 
   useEffect(() => {
     if (product) {
@@ -61,9 +105,7 @@ const ProductDetailPage = () => {
   }, []);
 
   const handleAddToCart = useCallback(() => {
-    console.log("Add to Cart clicked");
     if (product.size.toLowerCase().includes("all sizes") && !selectedSize) {
-      console.log("Size error");
       if (!toastShown.sizeError) {
         toast.error("Please select a size before adding to cart!");
         setToastShown((prev) => ({ ...prev, sizeError: true }));
@@ -72,7 +114,6 @@ const ProductDetailPage = () => {
     }
 
     if (quantity > product.stockQuantity) {
-      console.log("Stock error");
       if (!toastShown.stockError) {
         toast.error("Selected quantity exceeds stock availability!");
         setToastShown((prev) => ({ ...prev, stockError: true }));
@@ -84,14 +125,13 @@ const ProductDetailPage = () => {
         selectedSize,
         selectedImageUrl: mainImage,
       };
-      console.log("Adding product to cart:", productToAdd);
       dispatch(addToCart(productToAdd));
       if (!toastShown.success) {
         toast.success(`Added ${product.name} to cart!`);
         setToastShown((prev) => ({ ...prev, success: true }));
       }
-      setAnimateCart(true); // Trigger animation
-      setTimeout(() => setAnimateCart(false), 500); // Reset animation class after 0.5 seconds
+      setAnimateCart(true);
+      setTimeout(() => setAnimateCart(false), 500);
     }
   }, [dispatch, product, quantity, selectedSize, mainImage, toastShown]);
 
@@ -99,7 +139,6 @@ const ProductDetailPage = () => {
     if (quantity < product.stockQuantity) {
       setQuantity(quantity + 1);
     } else {
-      console.log("Cannot exceed available stock");
       if (!toastShown.stockError) {
         toast.error("Cannot exceed available stock!");
         setToastShown((prev) => ({ ...prev, stockError: true }));
@@ -113,28 +152,42 @@ const ProductDetailPage = () => {
     }
   }, [quantity]);
 
-  const totalCartItems = Object.values(cart).reduce(
-    (total, item) => total + item.quantity,
-    0
-  );
-
-  const totalCartPrice = Object.values(cart).reduce(
-    (total, item) => total + item.price * item.quantity,
-    0
-  );
+  const formatPrice = (price) => {
+    return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
 
   if (loading) {
     return <Loading />;
   }
 
   if (error) {
-    return <div>{error}</div>;
+    return (
+      <div>
+        <div className="flex flex-col items-center justify-center h-full text-center p-4">
+          <h1 className="text-2xl font-bold text-red-600 mb-2">
+            Product Not Found
+          </h1>
+          <p className="text-sm text-gray-700 mb-4">
+            Oops it looks like this product has been removed from the inventory
+            by the vendor.
+          </p>
+          <p className="text-xs font-poppins text-gray-500">
+            Please continue shopping for other great deals!
+          </p>
+
+          {/* Button to navigate back to the vendor profile */}
+          <button
+            onClick={() => navigate(`/newhome`)} // Assuming vendorId is part of the product data
+            className="mt-4 px-4 py-2 bg-customOrange text-xs text-white rounded-md font-semibold transition"
+          >
+            Home
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!product) {
-    if (!toastShown.productNotFound) {
-      setToastShown((prev) => ({ ...prev, productNotFound: true }));
-    }
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
         <h1 className="text-2xl font-bold text-red-600 mb-2">
@@ -150,113 +203,170 @@ const ProductDetailPage = () => {
       </div>
     );
   }
+  const capitalizeFirstLetter = (color) => {
+    return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
+  };
 
-  // Split the size string into an array
-  const sizes = product.size ? product.size.split(',').map(size => size.trim()) : [];
+  const sizes = product.size
+    ? product.size.split(",").map((size) => size.trim())
+    : [];
+
+  // Fetch and split colors if multiple colors are comma-separated
+  const colors = product.color
+    ? product.color.split(",").map((color) => color.trim())
+    : [];
+  const handleColorClick = (color) => {
+    setSelectedColor(color); // Set the selected color
+  };
+  const averageRating =
+    vendor && vendor.ratingCount > 0
+      ? (vendor.rating / vendor.ratingCount).toFixed(1)
+      : "No ratings";
 
   return (
     <div className="relative pb-20">
       <div
-        className={`fixed top-0 left-0 h-20 w-full z-20 ${
-          isSticky ? "bg-transparent shadow-md" : ""
+        className={`fixed top-0 px-2 py-4 bg-white left-0 h-20 w-full z-20 ${
+          isSticky ? "bg-white" : ""
         }`}
       >
-        <FaAngleLeft
-          onClick={() => navigate(-1)}
-          className="text-4xl cursor-pointer bg-white p-2 rounded-full m-4"
-        />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <GoChevronLeft
+              onClick={() => navigate(-1)}
+              className="text-3xl cursor-pointer"
+            />
+            <span className="ml-4 text-lg font-opensans font-semibold">
+              Details
+            </span>
+          </div>
+          <PiShoppingCartThin
+            onClick={() => navigate("/latest-cart")}
+            className="text-2xl cursor-pointer"
+          />
+        </div>
       </div>
-      <div className="flex justify-center h-96">
+
+      <div className="flex justify-center mt-20 h-96">
         <img
           src={mainImage}
           alt={product.name}
-          className="w-full h-full object-cover rounded-b-lg mb-2"
+          className="w-full h-full object-cover rounded-b-lg "
         />
       </div>
-      <div className="flex h-20 rounded-full items-center justify-center gap-2 mt-2">
-        {[product.coverImageUrl, ...product.imageUrls].map((url, index) => (
-          <img
-            key={index}
-            src={url}
-            alt={`Product ${index + 1}`}
-            className={`w-12 h-12 object-cover border border-gray-300 rounded cursor-pointer ${
-              mainImage === url ? "border-2 border-blue-500" : ""
-            }`}
-            onClick={() => setMainImage(url)}
-          />
-        ))}
-      </div>
-      <div className="mt-1 flex justify-center">
-        <p className="text-xs font-medium text-gray-600">
-          Colors: {product.color}
-        </p>
-      </div>
-      <div className="p-2">
-        <p className="text-center font-lato mt-1">{product.description}</p>
-        <h1 className="text-2xl font-ubuntu text-black font-bold mt-4">
-          {product.name}
-        </h1>
-        <div className="flex items-center justify-between mt-2">
-          <p className="text-xl font-roboto font-bold text-gray-700">
-            ₦{product.price}
-          </p>
-          <span className="text-xs font-medium">({product.size})</span>
-        </div>
-        <div>
-          {product.condition &&
-          product.condition.toLowerCase().includes("defect") ? (
-            <div className="flex items-center mt-2">
-              <CiCircleInfo className="text-red-500" />
-              <p className="ml-2 text-xs text-red-500">{product.condition}</p>
-            </div>
-          ) : product.condition.toLowerCase() === "brand new" ? (
-            <div className="flex items-center mt-2">
-              <FaCheck className="text-green-500" />
-              <p className="ml-2 text-xs text-green-500">Brand New</p>
-            </div>
-          ) : product.condition.toLowerCase() === "thrift" ? (
-            <div className="flex items-center mt-2">
-              <FaCheck className="text-yellow-500" />
-              <p className="ml-2 text-xs text-yellow-500">Thrift</p>
-            </div>
-          ) : product.condition.toLowerCase() === "second hand" ? (
-            <div className="flex items-center mt-2">
-              <CiCircleInfo className="text-green-500" />
-              <p className="ml-2 text-xs text-green-500">Second Hand</p>
-            </div>
-          ) : null}
-        </div>
-        {sizes.length > 1 ? (
-          <div className="mt-4 flex justify-center flex-col items-center">
-            <select
-              className="mt-1 block w-24 py-1 px-1 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              value={selectedSize}
-              onChange={(e) => setSelectedSize(e.target.value)}
-            >
-              <option value="" disabled>Select size</option>
-              {sizes.map((size, index) => (
-                <option key={index} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : typeof product.size === "string" && product.size.toLowerCase().includes("all sizes") ? (
-          <div className="mt-4 flex justify-center flex-col items-center">
-            <textarea
-              id="size-textarea"
-              className="mt-1 block w-24 h-8 py-1 px-1 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none"
-              value={selectedSize}
-              onChange={(e) => setSelectedSize(e.target.value)}
-              placeholder="Your size"
-            />
-          </div>
-        ) : null}
 
-        <div className="flex justify-center items-center mt-4">
+      <div className="px-3 mt-2">
+        <div className="flex items-center justify-between">
+          <h1 className="text-sm font-opensans text-black font-normal ">
+            {product.name}
+          </h1>
+          <div className="">
+            {product.condition &&
+            product.condition.toLowerCase().includes("defect") ? (
+              <div className="flex items-center mt-2">
+                <CiCircleInfo className="text-red-500" />
+                <p className="ml-2 text-xs text-red-500">{product.condition}</p>
+              </div>
+            ) : product.condition.toLowerCase() === "brand new" ? (
+              <div className="flex items-center mt-2">
+                <TbSquareRoundedCheck className="text-green-700" />
+                <p className="ml-2 text-xs text-green-700">Brand New</p>
+              </div>
+            ) : product.condition.toLowerCase() === "thrift" ? (
+              <div className="flex items-center mt-2">
+                <TbSquareRoundedCheck className="text-yellow-500" />
+                <p className="ml-2 text-xs text-yellow-500">Thrift</p>
+              </div>
+            ) : (
+              <div className="flex items-center mt-2">
+                <CiCircleInfo className="text-green-500" />
+                <p className="ml-2 text-xs text-green-500">Second Hand</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <p className="text-2xl font-opensans font-semibold text-black">
+          ₦{formatPrice(product.price)}
+        </p>
+
+        {/* Vendor Shop Name and Rating */}
+        {vendor ? (
+          <div className="flex  items-center mt-1">
+            <p className="text-sm text-red-600 mr-2"> {vendor.shopName}</p>
+            <div className="flex items-center">
+              <span className="mr-1 text-black font-medium ratings-text">
+                {averageRating}
+              </span>
+              <FaStar className="text-yellow-500 ratings-text" />
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500">
+            Vendor information not available
+          </p>
+        )}
+
+        {/* Color Options */}
+        {colors.length > 0 && (
+          <div className="mt-4">
+            <p className="text-sm font-semibold text-black font-opensans mb-2">
+              {selectedColor ? capitalizeFirstLetter(selectedColor) : "Colors"}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {colors.map((color, index) => (
+                <div
+                  key={index}
+                  onClick={() => handleColorClick(color)}
+                  className={`w-8 h-8 flex items-center justify-center rounded-full cursor-pointer ${
+                    selectedColor === color ? "border-2" : ""
+                  }`}
+                  style={{
+                    padding: "3px",
+                    borderColor:
+                      selectedColor === color ? color : "transparent", // Border matches the color when selected
+                    backgroundColor: "#f0f0f0", // Light gray background for visibility
+                  }}
+                  title={color} // Show color name/hex on hover
+                >
+                  <div
+                    style={{ backgroundColor: color }}
+                    className="w-6 h-6 rounded-full"
+                  ></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4">
+          <p className="text-sm font-semibold text-black font-opensans mb-2">
+            Size
+          </p>
+
+          {sizes.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {sizes.map((size, index) => (
+                <div
+                  key={index}
+                  onClick={() => setSelectedSize(size)}
+                  className={`py-2 px-4 border rounded-lg cursor-pointer ${
+                    selectedSize === size
+                      ? "bg-customOrange text-white" // Highlight selected size
+                      : "bg-transparent text-black" // Default style for other sizes
+                  }`}
+                >
+                  <span className="text-xs font-semibold">{size}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* <div className="flex justify-center items-center mt-4">
           <button
             onClick={handleDecreaseQuantity}
-            className="px-3 py-1 border border-customOrange text-black rounded-l-md hover:bg-customOrange hover:text-white"
+            className="px-3 py-1 border border-customOrange text-black rounded-l-md"
           >
             <FaMinus />
           </button>
@@ -265,25 +375,49 @@ const ProductDetailPage = () => {
           </span>
           <button
             onClick={handleIncreaseQuantity}
-            className="px-3 py-1 border border-customOrange text-black rounded-r-md hover:bg-customOrange hover:text-white"
+            className="px-3 py-1 border border-customOrange text-black rounded-r-md"
           >
             <FaPlus />
           </button>
         </div>
-        <div className="flex font-poppins font-medium justify-center translate-y-4 relative">
+
+        <div className="flex justify-center mt-4">
           <button
             onClick={handleAddToCart}
-            className={`mt-4 border border-customOrange text-black py-2 px-4 rounded-md hover:bg-customOrange hover:text-white flex items-center relative ${
+            className={`border border-customOrange text-black py-2 px-4 rounded-md flex items-center ${
               animateCart ? "animate-cart" : ""
             }`}
           >
             <PiShoppingCartThin className="mr-2" />
             Add to Cart
-            {animateCart && (
-              <LiaOpencart className="text-3xl text-customOrange absolute left-1/2 transform -translate-x-1/2 -translate-y-2/3" />
-            )}
           </button>
+        </div> */}
+
+        <div
+          className="flex justify-between items-center mt-4 cursor-pointer"
+          onClick={() => setIsModalOpen(true)}
+        >
+          <p className="text-black text-md font-semibold">Product Details</p>
+          <GoChevronRight className="text-3xl" />
         </div>
+
+        <Modal
+          isOpen={isModalOpen}
+          onRequestClose={() => setIsModalOpen(false)}
+          className="modal-content"
+          overlayClassName="modal-overlay"
+        >
+          <div className="p-2 relative">
+            <MdOutlineCancel
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-2 right-2 text-gray-600 cursor-pointer text-2xl"
+            />
+            <h2 className="text-lg mt-3 font-bold">Product Description</h2>
+            <p className="text-gray-600 mt-2 font-poppins text-sm">
+              {product.description}
+            </p>
+          </div>
+        </Modal>
       </div>
     </div>
   );

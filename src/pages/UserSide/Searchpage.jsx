@@ -25,36 +25,33 @@ const SearchPage = () => {
   const db = getFirestore();
 
   useEffect(() => {
+    const history = JSON.parse(localStorage.getItem("searchHistory")) || [];
+    setSearchHistory(history);
+
     const fetchData = async () => {
       try {
-       
         const vendorsSnapshot = await getDocs(collection(db, "vendors"));
         const vendorsData = vendorsSnapshot.docs.map((doc) => ({
           ...doc.data(),
-          id: doc.id, 
+          id: doc.id,
         }));
         setVendors(vendorsData);
 
-       
         let allProducts = [];
         for (const vendor of vendorsData) {
-          console.log("Fetching products for vendor ID:", vendor.id); 
-
           const productsSnapshot = await getDocs(
             collection(db, `vendors/${vendor.id}/products`)
           );
           const productsData = productsSnapshot.docs.map((doc) => ({
             ...doc.data(),
             id: doc.id,
-            vendorId: vendor.id, 
+            vendorId: vendor.id,
           }));
 
-          console.log(`Products for vendor ${vendor.id}:`, productsData);
           allProducts = [...allProducts, ...productsData];
         }
 
         setProducts(allProducts);
-        console.log("All Products:", allProducts);
       } catch (error) {
         console.error("Error fetching data:", error);
       }
@@ -143,7 +140,7 @@ const SearchPage = () => {
       animate={{ x: 0 }}
       exit={{ x: "100%" }}
       transition={{ type: "spring", stiffness: 100, damping: 20 }}
-      className="w-full h-screen p-4 bg-white"
+      className="w-full h-screen p-2 mt-3 bg-white"
     >
       <Downshift
         onChange={handleChange}
@@ -160,7 +157,7 @@ const SearchPage = () => {
           closeMenu,
         }) => (
           <div className="relative w-full">
-            <div className="flex items-center -mx-4 mb-4">
+            <div className="flex items-center  mb-4">
               <IoChevronBackOutline
                 className="text-2xl text-gray-500 cursor-pointer mr-2"
                 onClick={() => {
@@ -172,7 +169,7 @@ const SearchPage = () => {
               <div className="relative flex-1">
                 <input
                   {...getInputProps({
-                    placeholder: "Search My Thrift",
+                    placeholder: "Search my thrift",
                     onChange: (e) => {
                       setSearchTerm(e.target.value);
                       openMenu();
@@ -182,7 +179,7 @@ const SearchPage = () => {
                     },
                   })}
                   value={searchTerm}
-                  className="w-full rounded-full bg-gray-200 p-3"
+                  className="w-full rounded-full bg-gray-200 p-2.5"
                 />
                 <CiSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-2xl text-gray-400" />
               </div>

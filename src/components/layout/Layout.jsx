@@ -29,6 +29,7 @@ const Layout = () => {
     "/search",
     "/market-vendors",
     "/online-vendors",
+    "market-vendors",
   ];
 
   // Paths with dynamic segments
@@ -36,6 +37,7 @@ const Layout = () => {
     "/product/:id",
     "/reviews/:id",
     "/store/:id",
+    "marketstorepage/:id",
   ];
 
   // Function to check if the current path matches any dynamic paths

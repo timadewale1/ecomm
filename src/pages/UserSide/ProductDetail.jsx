@@ -5,15 +5,16 @@ import { addToCart } from "../../redux/actions/action";
 import { fetchProduct } from "../../redux/actions/productaction";
 import Loading from "../../components/Loading/Loading";
 import { PiShoppingCartThin } from "react-icons/pi";
-import { FaAngleLeft, FaCheck, FaPlus, FaMinus, FaStar } from "react-icons/fa"; // FaStar for ratings
+import { FaAngleLeft, FaCheck, FaPlus, FaMinus, FaStar } from "react-icons/fa";
 import { CiCircleInfo } from "react-icons/ci";
 import { GoChevronLeft, GoChevronRight } from "react-icons/go";
+import { LuCopyCheck, LuCopy } from "react-icons/lu"; // Share copy icons
 import toast from "react-hot-toast";
 import Modal from "react-modal";
 import { TbSquareRoundedCheck } from "react-icons/tb";
 import { MdOutlineCancel } from "react-icons/md";
-// Firestore imports to fetch vendor data
 import { getDoc, doc, getFirestore } from "firebase/firestore";
+import RelatedProducts from "./SimilarProducts";
 
 Modal.setAppElement("#root");
 
@@ -24,6 +25,7 @@ const ProductDetailPage = () => {
   const { product, loading, error } = useSelector((state) => state.product);
   const [quantity, setQuantity] = useState(1);
   const [mainImage, setMainImage] = useState("");
+  const [initialImage, setInitialImage] = useState("");
   const [isSticky, setIsSticky] = useState(false);
 
   const [selectedColor, setSelectedColor] = useState("");
@@ -37,12 +39,14 @@ const ProductDetailPage = () => {
     productNotFound: false,
   });
 
-  const [vendor, setVendor] = useState(null); // State for vendor data
-  const db = getFirestore(); // Firestore instance
+  const [vendor, setVendor] = useState(null);
+  const db = getFirestore();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false); // Info modal for Similar Products
 
-  // Fetch product and vendor data
+  const [isLinkCopied, setIsLinkCopied] = useState(false); // Link copy state
+
   useEffect(() => {
     dispatch(fetchProduct(id)).catch((err) => {
       console.error("Failed to fetch product:", err);
@@ -53,28 +57,18 @@ const ProductDetailPage = () => {
     });
   }, [dispatch, id, toastShown.fetchError]);
 
-  // Use product.vendorId to fetch the vendor's information
   useEffect(() => {
     if (product && product.vendorId) {
-      // Ensure the product exists and has a vendorId
-      console.log("Vendor ID from product:", product.vendorId); // Log vendorId from product
-      fetchVendorData(product.vendorId); // Fetch vendor data using product.vendorId
-    } else {
-      if (product && !product.vendorId) {
-        console.error("No Vendor ID in product");
-      }
+      fetchVendorData(product.vendorId);
     }
-  }, [product]); // Run this effect whenever the product changes
+  }, [product]);
 
-  // Fetch vendor data using vendorId
   const fetchVendorData = async (vendorId) => {
     try {
-      console.log("Fetching vendor data for vendorId:", vendorId);
-      const vendorRef = doc(db, "vendors", vendorId); // Firestore reference to vendor document
+      const vendorRef = doc(db, "vendors", vendorId);
       const vendorSnap = await getDoc(vendorRef);
       if (vendorSnap.exists()) {
-        console.log("Vendor Data:", vendorSnap.data()); // Log the vendor data
-        setVendor(vendorSnap.data()); // Store vendor data in state
+        setVendor(vendorSnap.data());
       } else {
         console.error("Vendor not found");
       }
@@ -86,6 +80,7 @@ const ProductDetailPage = () => {
   useEffect(() => {
     if (product) {
       setMainImage(product.coverImageUrl);
+      setInitialImage(product.coverImageUrl);
     }
   }, [product]);
 
@@ -156,38 +151,52 @@ const ProductDetailPage = () => {
     return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
 
+  const capitalizeFirstLetter = (color) => {
+    return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
+  };
+
+  const sizes =
+    product && product.size
+      ? product.size.split(",").map((size) => size.trim())
+      : [];
+
+  const colors =
+    product && product.color
+      ? product.color.split(",").map((color) => color.trim())
+      : [];
+
+  const handleColorClick = (color) => {
+    setSelectedColor(color);
+  };
+
+  const handleSizeClick = (size) => {
+    if (selectedSize === size) {
+      setSelectedSize(""); // Unselect if clicked again
+    } else {
+      setSelectedSize(size);
+    }
+  };
+
+  const copyProductLink = async () => {
+    try {
+      const shareableLink = `${window.location.origin}/product/${id}`;
+      await navigator.clipboard.writeText(
+        `Hey, check out this item I saw on ${vendor.shopName}'s store on My Thrift: ${shareableLink}`
+      );
+      setIsLinkCopied(true);
+      toast.success("Link copied!");
+      setTimeout(() => setIsLinkCopied(false), 2000); // Reset after 2 seconds
+    } catch (err) {
+      console.error("Failed to copy the link", err);
+      toast.error("Failed to copy the link. Please try again.");
+    }
+  };
+
   if (loading) {
     return <Loading />;
   }
 
-  if (error) {
-    return (
-      <div>
-        <div className="flex flex-col items-center justify-center h-full text-center p-4">
-          <h1 className="text-2xl font-bold text-red-600 mb-2">
-            Product Not Found
-          </h1>
-          <p className="text-sm text-gray-700 mb-4">
-            Oops it looks like this product has been removed from the inventory
-            by the vendor.
-          </p>
-          <p className="text-xs font-poppins text-gray-500">
-            Please continue shopping for other great deals!
-          </p>
-
-          {/* Button to navigate back to the vendor profile */}
-          <button
-            onClick={() => navigate(`/newhome`)} // Assuming vendorId is part of the product data
-            className="mt-4 px-4 py-2 bg-customOrange text-xs text-white rounded-md font-semibold transition"
-          >
-            Home
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!product) {
+  if (error || !product) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
         <h1 className="text-2xl font-bold text-red-600 mb-2">
@@ -203,32 +212,106 @@ const ProductDetailPage = () => {
       </div>
     );
   }
-  const capitalizeFirstLetter = (color) => {
-    return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
-  };
 
-  const sizes = product.size
-    ? product.size.split(",").map((size) => size.trim())
-    : [];
-
-  // Fetch and split colors if multiple colors are comma-separated
-  const colors = product.color
-    ? product.color.split(",").map((color) => color.trim())
-    : [];
-  const handleColorClick = (color) => {
-    setSelectedColor(color); // Set the selected color
-  };
   const averageRating =
     vendor && vendor.ratingCount > 0
       ? (vendor.rating / vendor.ratingCount).toFixed(1)
       : "No ratings";
 
+  const shouldShowAlikeProducts =
+    product.imageUrls && product.imageUrls.length > 0;
+
+  const AlikeProducts = () => {
+    const handleAlikeProductClick = (imageUrl) => {
+      setMainImage(imageUrl);
+    };
+
+    return (
+      <div className="alike-products p-3 mt-1">
+        <div className="flex items-center">
+          <h2 className="text-lg font-semibold font-opensans mb-2">
+            Similar Products
+          </h2>
+          <CiCircleInfo
+            onClick={() => setIsInfoModalOpen(true)}
+            className="text-gray-600 ml-2 cursor-pointer"
+            title="Click to learn more about similar products"
+          />
+        </div>
+        <Modal
+          isOpen={isInfoModalOpen}
+          onRequestClose={() => setIsInfoModalOpen(false)}
+          className="modal-content"
+          overlayClassName="modal-overlay"
+        >
+          <div
+            className="p-2 relative"
+            style={{ maxHeight: "100vh", overflowY: "auto" }}
+          >
+            <MdOutlineCancel
+              onClick={() => setIsInfoModalOpen(false)}
+              className="absolute top-2 right-2  text-gray-600 cursor-pointer text-2xl"
+            />
+            <h2 className="text-lg mt-3 font-bold">Why Similar Products?</h2>
+            <p className="text-gray-600 mt-2 font-poppins text-sm">
+              The vendor has curated these similar products as part of a
+              sub-collection under this item. Whether they share the same
+              category, fall within a similar price range, or are from the same
+              brand, these selections are thoughtfully grouped to offer you
+              relevant alternatives within this product line.
+            </p>
+          </div>
+        </Modal>
+
+        <div className="flex gap-4 overflow-x-scroll">
+          <div
+            className="w-48 min-w-48 cursor-pointer"
+            onClick={() => setMainImage(initialImage)}
+          >
+            <div className="relative mb-2">
+              <img
+                src={initialImage}
+                alt={`Initial image`}
+                className="h-52 w-full object-cover rounded-lg"
+              />
+            </div>
+            <p className="text-sm font-opensans text-black font-normal">
+              Original
+            </p>
+            <p className="text-lg font-opensans font-bold text-black">
+              ₦{formatPrice(product.price)}
+            </p>
+          </div>
+          {product.imageUrls?.map((imageUrl, index) => (
+            <div
+              key={index}
+              className="w-48 min-w-48 cursor-pointer"
+              onClick={() => handleAlikeProductClick(imageUrl)}
+            >
+              <div className="relative mb-2">
+                <img
+                  src={imageUrl}
+                  alt={`Alike product ${index + 1}`}
+                  className="h-52 w-full object-cover rounded-lg"
+                />
+              </div>
+              <p className="text-sm font-opensans text-black font-normal">
+                {product.name}
+              </p>
+              <p className="text-lg font-opensans font-bold text-black">
+                ₦{formatPrice(product.price)}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="relative pb-20">
       <div
-        className={`fixed top-0 px-2 py-4 bg-white left-0 h-20 w-full z-20 ${
-          isSticky ? "bg-white" : ""
-        }`}
+        className={`fixed top-0 px-2 py-4 bg-white left-0 h-20 w-full z-20 shadow-md`} // Added shadow here
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center">
@@ -240,13 +323,22 @@ const ProductDetailPage = () => {
               Details
             </span>
           </div>
-          <PiShoppingCartThin
-            onClick={() => navigate("/latest-cart")}
-            className="text-2xl cursor-pointer"
-          />
+          <div className="flex items-center">
+            {isLinkCopied ? (
+              <LuCopyCheck className="text-2xl mr-4 cursor-pointer" />
+            ) : (
+              <LuCopy
+                onClick={copyProductLink}
+                className="text-2xl mr-4 cursor-pointer"
+              />
+            )}
+            <PiShoppingCartThin
+              onClick={() => navigate("/latest-cart")}
+              className="text-2xl cursor-pointer "
+            />
+          </div>
         </div>
       </div>
-
       <div className="flex justify-center mt-20 h-96">
         <img
           src={mainImage}
@@ -254,7 +346,6 @@ const ProductDetailPage = () => {
           className="w-full h-full object-cover rounded-b-lg "
         />
       </div>
-
       <div className="px-3 mt-2">
         <div className="flex items-center justify-between">
           <h1 className="text-sm font-opensans text-black font-normal ">
@@ -290,7 +381,6 @@ const ProductDetailPage = () => {
           ₦{formatPrice(product.price)}
         </p>
 
-        {/* Vendor Shop Name and Rating */}
         {vendor ? (
           <div className="flex  items-center mt-1">
             <p className="text-sm text-red-600 mr-2"> {vendor.shopName}</p>
@@ -309,7 +399,7 @@ const ProductDetailPage = () => {
 
         {/* Color Options */}
         {colors.length > 0 && (
-          <div className="mt-4">
+          <div className="mt-3">
             <p className="text-sm font-semibold text-black font-opensans mb-2">
               {selectedColor ? capitalizeFirstLetter(selectedColor) : "Colors"}
             </p>
@@ -339,7 +429,7 @@ const ProductDetailPage = () => {
           </div>
         )}
 
-        <div className="mt-4">
+        <div className="mt-3">
           <p className="text-sm font-semibold text-black font-opensans mb-2">
             Size
           </p>
@@ -349,7 +439,7 @@ const ProductDetailPage = () => {
               {sizes.map((size, index) => (
                 <div
                   key={index}
-                  onClick={() => setSelectedSize(size)}
+                  onClick={() => handleSizeClick(size)}
                   className={`py-2 px-4 border rounded-lg cursor-pointer ${
                     selectedSize === size
                       ? "bg-customOrange text-white" // Highlight selected size
@@ -363,42 +453,12 @@ const ProductDetailPage = () => {
           )}
         </div>
 
-        {/* <div className="flex justify-center items-center mt-4">
-          <button
-            onClick={handleDecreaseQuantity}
-            className="px-3 py-1 border border-customOrange text-black rounded-l-md"
-          >
-            <FaMinus />
-          </button>
-          <span className="px-4 py-1 border-t border-b border-customOrange text-black">
-            {quantity}
-          </span>
-          <button
-            onClick={handleIncreaseQuantity}
-            className="px-3 py-1 border border-customOrange text-black rounded-r-md"
-          >
-            <FaPlus />
-          </button>
-        </div>
-
-        <div className="flex justify-center mt-4">
-          <button
-            onClick={handleAddToCart}
-            className={`border border-customOrange text-black py-2 px-4 rounded-md flex items-center ${
-              animateCart ? "animate-cart" : ""
-            }`}
-          >
-            <PiShoppingCartThin className="mr-2" />
-            Add to Cart
-          </button>
-        </div> */}
-
         <div
-          className="flex justify-between items-center mt-4 cursor-pointer"
+          className="flex justify-between items-center mt-4 mb-4 cursor-pointer"
           onClick={() => setIsModalOpen(true)}
         >
           <p className="text-black text-md font-semibold">Product Details</p>
-          <GoChevronRight className="text-3xl" />
+          <GoChevronRight className="text-3xl -mx-2" />
         </div>
 
         <Modal
@@ -419,6 +479,17 @@ const ProductDetailPage = () => {
           </div>
         </Modal>
       </div>
+
+      {shouldShowAlikeProducts && (
+        <>
+          <div className="border-t-8 border-gray-100 mt-4"></div>
+          <AlikeProducts />
+        </>
+      )}
+
+      <div className="border-t-8 border-gray-100 mt-4"></div>
+
+      <RelatedProducts product={product} />
     </div>
   );
 };

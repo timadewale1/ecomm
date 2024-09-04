@@ -95,7 +95,7 @@ section {
   left: 50%;
   transform: translate(-50%, -50%);
   width: 90%;
-  height: 50%;
+  height: 35%;
   background-color: white;
   border-radius: 10px 10px 10px 10px; /* Rounded corners at the top */
   padding: 10px;

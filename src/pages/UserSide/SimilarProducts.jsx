@@ -1,30 +1,40 @@
 import React, { useEffect, useState } from "react";
-import { collection, getDocs, query, where, or, limit } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  or,
+  limit,
+} from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../firebase.config"; // Firestore instance
 import ProductCard from "../../components/Products/ProductCard";
 
 const RelatedProducts = ({ product }) => {
-  const [relatedProductsFromVendor, setRelatedProductsFromVendor] = useState([]);
-  const [relatedProductsFromOtherVendors, setRelatedProductsFromOtherVendors] = useState([]);
+  const [relatedProductsFromVendor, setRelatedProductsFromVendor] = useState(
+    []
+  );
+  const [relatedProductsFromOtherVendors, setRelatedProductsFromOtherVendors] =
+    useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchProductsAcrossVendors = async () => {
+    const fetchRelatedProducts = async () => {
       try {
         let productsFromVendor = [];
         let productsFromOtherVendors = [];
 
-        // Fetch products from the same vendor
-        const vendorProductsRef = collection(db, "vendors", product.vendorId, "products");
-        let vendorProductsQuery = query(
-          vendorProductsRef,
-          or(
-            where("category", "==", product.category),
-            where("productType", "==", product.productType)
-          ),
-          limit(2) // Fetch only 2 products from this vendor
+        // Fetch products from the centralized 'products' collection
+        const productsRef = collection(db, "products");
+
+        // Query for products from the same vendor and matching category or productType
+        const vendorProductsQuery = query(
+          productsRef,
+          where("vendorId", "==", product.vendorId),
+          where("category", "==", product.category), // Combine these in separate queries
+          limit(2)
         );
 
         const vendorSnapshot = await getDocs(vendorProductsQuery);
@@ -32,58 +42,35 @@ const RelatedProducts = ({ product }) => {
           .map((doc) => ({
             id: doc.id,
             ...doc.data(),
-            vendorName: product.vendorName,
-            vendorId: product.vendorId, // Pass the vendorId here for navigation
           }))
-          .filter((item) => item.id !== product.id); // Exclude current product
+          .filter((item) => item.id !== product.id); // Exclude the current product
 
-        // Fetch products from other vendors
-        const vendorsRef = collection(db, "vendors");
-        const vendorsSnapshot = await getDocs(vendorsRef);
-
-        // Loop through each vendor and query their products subcollection
-        await Promise.all(
-          vendorsSnapshot.docs.map(async (vendorDoc) => {
-            const vendorId = vendorDoc.id;
-
-            // Exclude the current vendor
-            if (vendorId !== product.vendorId) {
-              const productsRef = collection(db, "vendors", vendorId, "products");
-              const productsQuery = query(
-                productsRef,
-                or(
-                  where("category", "==", product.category),
-                  where("productType", "==", product.productType)
-                ),
-                limit(6) // Fetch up to 6 products
-              );
-
-              const productsSnapshot = await getDocs(productsQuery);
-              const products = productsSnapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-                vendorName: vendorDoc.data().shopName, // Fetch vendor's shop name
-                vendorId: vendorDoc.id, // Pass vendorId for navigation
-              }));
-
-              // Add the fetched products to the list of products from other vendors
-              productsFromOtherVendors.push(...products);
-            }
-          })
+        // Query for products from other vendors matching category or productType
+        const otherVendorsQuery = query(
+          productsRef,
+          where("vendorId", "!=", product.vendorId),
+          where("category", "==", product.category), // Combine these in separate queries
+          limit(6)
         );
+
+        const otherVendorsSnapshot = await getDocs(otherVendorsQuery);
+        productsFromOtherVendors = otherVendorsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
 
         // Update state with the fetched products
         setRelatedProductsFromVendor(productsFromVendor);
         setRelatedProductsFromOtherVendors(productsFromOtherVendors);
       } catch (error) {
-        console.error("Error fetching products across vendors:", error);
+        console.error("Error fetching related products:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    if (product && product.vendorId) {
-      fetchProductsAcrossVendors();
+    if (product) {
+      fetchRelatedProducts();
     }
   }, [product]);
 
@@ -92,7 +79,10 @@ const RelatedProducts = ({ product }) => {
   }
 
   // Hide the section if no related products are found
-  if (relatedProductsFromVendor.length === 0 && relatedProductsFromOtherVendors.length === 0) {
+  if (
+    relatedProductsFromVendor.length === 0 &&
+    relatedProductsFromOtherVendors.length === 0
+  ) {
     return null;
   }
 
@@ -103,8 +93,13 @@ const RelatedProducts = ({ product }) => {
   return (
     <div className="related-products p-3">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold font-opensans">You might also like</h2>
-        <button onClick={handleShowAll} className="text-xs font-normal text-customOrange">
+        <h2 className="text-lg font-semibold font-opensans">
+          You might also like
+        </h2>
+        <button
+          onClick={handleShowAll}
+          className="text-xs font-normal text-customOrange"
+        >
           Show All
         </button>
       </div>

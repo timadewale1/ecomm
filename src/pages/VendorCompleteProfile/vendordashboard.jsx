@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, query, orderBy, limit, where } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { toast } from "react-toastify";
 import { FaPlus, FaBox, FaShoppingCart, FaListAlt } from 'react-icons/fa';
@@ -25,8 +25,8 @@ const VendorDashboard = () => {
         setVendorId(user.uid);
         const vendorDoc = await getDoc(doc(db, "vendors", user.uid));
         if (vendorDoc.exists()) {
-          await fetchStatistics(user.uid);
-          await fetchRecentActivities(user.uid);
+          await fetchStatistics(user.uid); // Fetch statistics from the centralized products collection
+          await fetchRecentActivities(user.uid); // Fetch recent activities
         } else {
           toast.error("Vendor data not found");
         }
@@ -34,15 +34,19 @@ const VendorDashboard = () => {
     });
   }, []);
 
+  // Fetch vendor's products, orders, and sales statistics
   const fetchStatistics = async (vendorId) => {
     try {
-      const productsCollection = collection(db, "vendors", vendorId, "products");
-      const productsSnapshot = await getDocs(productsCollection);
-      const products = productsSnapshot.docs.map((doc) => doc.data());
+      // Fetch products from the centralized 'products' collection where vendorId matches
+      const productsRef = collection(db, "products");
+      const productsQuery = query(productsRef, where("vendorId", "==", vendorId));
+      const productsSnapshot = await getDocs(productsQuery);
 
-      const totalProducts = products.length;
-      const totalOrders = 0;
-      const totalSales = 0;
+      const totalProducts = productsSnapshot.docs.length;
+
+      // Placeholder for orders and sales: Update this with real data once available
+      const totalOrders = 0; // You would fetch and calculate orders here
+      const totalSales = 0;  // You would fetch and calculate total sales here
 
       setTotalProducts(totalProducts);
       setTotalOrders(totalOrders);
@@ -53,6 +57,7 @@ const VendorDashboard = () => {
     }
   };
 
+  // Fetch vendor's recent activities
   const fetchRecentActivities = async (vendorId) => {
     try {
       const activityRef = collection(db, "vendors", vendorId, "activityNotes");

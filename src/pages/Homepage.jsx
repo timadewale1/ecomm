@@ -85,31 +85,25 @@ const Homepage = () => {
 
   const fetchProductsAndVendors = async () => {
     try {
-      const vendorsSnapshot = await getDocs(collection(db, "vendors"));
-      const vendorList = [];
+      // Fetch all products from the centralized "products" collection
+      const productsSnapshot = await getDocs(collection(db, "products"));
       const productsList = [];
-
-      for (const vendorDoc of vendorsSnapshot.docs) {
-        const vendorData = vendorDoc.data();
-        vendorList.push({ id: vendorDoc.id, ...vendorData });
-
-        const productsSnapshot = await getDocs(
-          collection(db, `vendors/${vendorDoc.id}/products`)
-        );
-
-        productsSnapshot.forEach((productDoc) => {
-          productsList.push({
-            id: productDoc.id,
-            ...productDoc.data(),
-            vendorName: vendorData.shopName,
-            vendorId: vendorDoc.id,
-          });
+      const vendorList = new Set(); // To collect unique vendor names
+  
+      productsSnapshot.forEach((productDoc) => {
+        const productData = productDoc.data();
+        productsList.push({
+          id: productDoc.id,
+          ...productData,
         });
-      }
-
-      setVendors(vendorList);
+  
+        // Collect unique vendor names from products
+        vendorList.add(productData.vendorName);
+      });
+  
       setProducts(productsList);
       setFilteredProducts(productsList);
+      setVendors(Array.from(vendorList)); // Convert the Set back to an array for vendors
     } catch (error) {
       console.error("Error fetching products and vendors:", error);
     } finally {
@@ -117,6 +111,7 @@ const Homepage = () => {
       setInitialLoad(false);
     }
   };
+  
 
   useEffect(() => {
     fetchProductsAndVendors();

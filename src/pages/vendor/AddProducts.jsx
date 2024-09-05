@@ -107,7 +107,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       toast.error("Unauthorized access or no user is signed in.");
       return;
     }
-
+  
     // Validate required fields
     if (
       !productName ||
@@ -124,32 +124,32 @@ const AddProduct = ({ vendorId, closeModal }) => {
       toast.error("Please fill in all required fields!");
       return;
     }
-
+  
     setIsLoading(true);
-
+  
     try {
       let coverImageUrl = "";
-
+  
+      // Upload cover image
       if (productCoverImageFile) {
         const storageRef = ref(
           storage,
-          `${vendorId}/my-products/cover-${productCoverImageFile.name}`
+          `${vendorId}/products/cover-${productCoverImageFile.name}`
         );
         await uploadBytes(storageRef, productCoverImageFile);
         coverImageUrl = await getDownloadURL(storageRef);
       }
-
+  
+      // Upload additional product images
       const productImageUrls = await Promise.all(
         productImageFiles.map(async (file) => {
-          const storageRef = ref(
-            storage,
-            `${vendorId}/my-products/${file.name}`
-          );
+          const storageRef = ref(storage, `${vendorId}/products/${file.name}`);
           await uploadBytes(storageRef, file);
           return getDownloadURL(storageRef);
         })
       );
-
+  
+      // Create the product object
       const product = {
         name: productName.toUpperCase(),
         description:
@@ -158,7 +158,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         price: parseFloat(productPrice),
         coverImageUrl: coverImageUrl,
         imageUrls: productImageUrls,
-        vendorId: currentUser.uid,
+        vendorId: currentUser.uid,  // Ensure vendorId is part of the product document
         stockQuantity: parseInt(stockQuantity, 10),
         condition:
           productCondition === "defect"
@@ -168,26 +168,22 @@ const AddProduct = ({ vendorId, closeModal }) => {
               }`
             : productCondition.charAt(0).toUpperCase() +
               productCondition.slice(1).toLowerCase(),
-        category:
-          category.charAt(0).toUpperCase() + category.slice(1).toLowerCase(),
-        productType:
-          productType.charAt(0).toUpperCase() +
-          productType.slice(1).toLowerCase(),
-        size: size.map((s) => s.value).join(", "), // Convert array of size objects to comma-separated string
+        category: category.charAt(0).toUpperCase() + category.slice(1).toLowerCase(),
+        productType: productType.charAt(0).toUpperCase() + productType.slice(1).toLowerCase(),
+        size: size.map((s) => s.value).join(", "),
         color: color.charAt(0).toUpperCase() + color.slice(1).toLowerCase(),
       };
-
-      const vendorRef = doc(db, "vendors", vendorId);
-      const productsCollectionRef = collection(vendorRef, "products");
-      const newProductRef = doc(productsCollectionRef);
-
+  
+      // Add the product to the centralized 'products' collection
+      const productsCollectionRef = collection(db, "products");
+      const newProductRef = doc(productsCollectionRef);  // Generate new product document reference
       await setDoc(newProductRef, product);
-
-      // Log activity
+  
+      // Log activity in the vendor's activityNotes collection
       await logActivity(`Added ${productName} to your store`);
-
+  
+      // Show success message and reset form
       toast.success("Product added successfully");
-      // Clear form
       setProductName("");
       setProductDescription("");
       setProductPrice("");
@@ -200,7 +196,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       setProductType("");
       setSize([]);
       setColor("");
-      closeModal();
+      closeModal();  // Close the modal after successful product addition
     } catch (error) {
       console.error("Error adding product: ", error);
       toast.error("Error adding product: " + error.message);
@@ -208,6 +204,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       setIsLoading(false);
     }
   };
+  
 
   const generateDescription = async () => {
     setIsGeneratingDescription(true);

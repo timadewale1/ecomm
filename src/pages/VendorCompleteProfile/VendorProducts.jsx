@@ -41,10 +41,12 @@ const VendorProducts = () => {
     return () => unsubscribe();
   }, [auth, navigate]);
 
+  // Fetch products from the centralized 'products' collection
   const fetchVendorProducts = async (uid) => {
     try {
-      const vendorRef = collection(db, 'vendors', uid, 'products');
-      const q = query(vendorRef, where('vendorId', '==', uid));
+      // Query the centralized 'products' collection where 'vendorId' matches the current vendor's ID
+      const productsRef = collection(db, 'products');
+      const q = query(productsRef, where('vendorId', '==', uid));
       const querySnapshot = await getDocs(q);
       const productsData = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
@@ -102,7 +104,8 @@ const VendorProducts = () => {
   const confirmDeleteProduct = async () => {
     setButtonLoading(true);
     try {
-      await deleteDoc(doc(db, 'vendors', vendorId, 'products', selectedProduct.id));
+      // Deleting product from the centralized 'products' collection
+      await deleteDoc(doc(db, 'products', selectedProduct.id));
       toast.success('Product deleted successfully.');
       setProducts(products.filter((product) => product.id !== selectedProduct.id));
       await addActivityNote(`Deleted product: ${selectedProduct.name}`);
@@ -123,11 +126,12 @@ const VendorProducts = () => {
   const handleRestockProduct = async () => {
     setButtonLoading(true);
     try {
-      const productRef = doc(db, 'vendors', vendorId, 'products', selectedProduct.id);
+      // Restocking product in the centralized 'products' collection
+      const productRef = doc(db, 'products', selectedProduct.id);
       await updateDoc(productRef, {
         stockQuantity: selectedProduct.stockQuantity + parseInt(restockQuantity, 10),
       });
-      await addActivityNote(`Restocked ${selectedProduct.name}`)
+      await addActivityNote(`Restocked ${selectedProduct.name}`);
       toast.success('Product restocked successfully.');
       fetchVendorProducts(vendorId);
       closeModals();

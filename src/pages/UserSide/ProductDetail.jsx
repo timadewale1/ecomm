@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart } from "../../redux/actions/action";
-import { fetchProduct } from "../../redux/actions/productaction";
+import { fetchProduct } from "../../redux/actions/productaction"; // Redux action
 import Loading from "../../components/Loading/Loading";
 import { PiShoppingCartThin } from "react-icons/pi";
 import { FaAngleLeft, FaCheck, FaPlus, FaMinus, FaStar } from "react-icons/fa";
@@ -13,7 +13,7 @@ import toast from "react-hot-toast";
 import Modal from "react-modal";
 import { TbSquareRoundedCheck } from "react-icons/tb";
 import { MdOutlineCancel } from "react-icons/md";
-import { getDoc, doc, getFirestore } from "firebase/firestore";
+import { doc, getDoc, getFirestore } from "firebase/firestore"; // Vendor fetching
 import RelatedProducts from "./SimilarProducts";
 
 Modal.setAppElement("#root");
@@ -22,12 +22,14 @@ const ProductDetailPage = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  // Fetch product from Redux store
   const { product, loading, error } = useSelector((state) => state.product);
+  const [initialImage, setInitialImage] = useState(""); // Already defined
+
   const [quantity, setQuantity] = useState(1);
   const [mainImage, setMainImage] = useState("");
-  const [initialImage, setInitialImage] = useState("");
   const [isSticky, setIsSticky] = useState(false);
-
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
   const [animateCart, setAnimateCart] = useState(false);
@@ -39,27 +41,29 @@ const ProductDetailPage = () => {
     productNotFound: false,
   });
 
-  const [vendor, setVendor] = useState(null);
-  const db = getFirestore();
-
+  const [vendor, setVendor] = useState(null); // Vendor details
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false); // Info modal for Similar Products
-
   const [isLinkCopied, setIsLinkCopied] = useState(false); // Link copy state
+  const db = getFirestore();
 
   useEffect(() => {
     dispatch(fetchProduct(id)).catch((err) => {
       console.error("Failed to fetch product:", err);
-      if (!toastShown.fetchError) {
-        toast.error("Failed to load product details. Please try again.");
-        setToastShown((prev) => ({ ...prev, fetchError: true }));
-      }
+      toast.error("Failed to load product details. Please try again.");
     });
-  }, [dispatch, id, toastShown.fetchError]);
+  }, [dispatch, id]);
+
+  useEffect(() => {
+    if (product) {
+      setMainImage(product.coverImageUrl); // Set main image after product fetch
+      setInitialImage(product.coverImageUrl); // Set initial image
+    }
+  }, [product]);
 
   useEffect(() => {
     if (product && product.vendorId) {
-      fetchVendorData(product.vendorId);
+      fetchVendorData(product.vendorId); // Fetch vendor details
     }
   }, [product]);
 
@@ -76,13 +80,6 @@ const ProductDetailPage = () => {
       console.error("Error fetching vendor data:", err);
     }
   };
-
-  useEffect(() => {
-    if (product) {
-      setMainImage(product.coverImageUrl);
-      setInitialImage(product.coverImageUrl);
-    }
-  }, [product]);
 
   const handleScroll = () => {
     if (window.scrollY > 50) {

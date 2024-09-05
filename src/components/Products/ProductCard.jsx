@@ -5,7 +5,7 @@ import { useFavorites } from "../../components/Context/FavoritesContext";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 
-const ProductCard = ({ product, isLoading, vendorName, vendorId }) => {
+const ProductCard = ({ product, isLoading }) => {
   const navigate = useNavigate();
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const favorite = isFavorite(product?.id);
@@ -19,8 +19,8 @@ const ProductCard = ({ product, isLoading, vendorName, vendorId }) => {
 
   const handleVendorClick = (e) => {
     e.stopPropagation();
-    console.log(`Navigating to vendor/${vendorId} with name ${vendorName}`);
-    navigate(`/store/${vendorId}`);
+    console.log(`Navigating to vendor/${product.vendorId} with name ${product.vendorName}`);
+    navigate(`/store/${product.vendorId}`);
   };
 
   const handleFavoriteToggle = (e) => {
@@ -45,25 +45,15 @@ const ProductCard = ({ product, isLoading, vendorName, vendorId }) => {
 
     switch (condition.toLowerCase()) {
       case "defect":
-        return (
-          <p className="text-xs text-red-500">{condition}</p>
-        );
+        return <p className="text-xs text-red-500">{condition}</p>;
       case "brand new":
-        return (
-          <p className="text-xs text-green-500">Brand New</p>
-        );
+        return <p className="text-xs text-green-500">Brand New</p>;
       case "thrift":
-        return (
-          <p className="text-xs text-yellow-500">Thrift</p>
-        );
+        return <p className="text-xs text-yellow-500">Thrift</p>;
       case "second hand":
-        return (
-          <p className="text-xs text-green-500">Second Hand</p>
-        );
+        return <p className="text-xs text-green-500">Second Hand</p>;
       default:
-        return (
-          <p className="text-xs text-red-500">{condition}</p>
-        );
+        return <p className="text-xs text-red-500">{condition}</p>;
     }
   };
 
@@ -76,8 +66,8 @@ const ProductCard = ({ product, isLoading, vendorName, vendorId }) => {
       }`}
       onClick={handleCardClick}
       style={{
-        width: "100%", 
-        margin: "0", 
+        width: "100%",
+        margin: "0",
         pointerEvents: isOutOfStock ? "none" : "auto",
       }}
     >
@@ -122,18 +112,17 @@ const ProductCard = ({ product, isLoading, vendorName, vendorId }) => {
             {isLoading ? <Skeleton width={50} /> : `₦${formatPrice(product.price)}`}
           </p>
         </div>
-        {vendorName && (
+        {product.vendorName && (
           <p
             className="text-xs font-light text-gray-600 underline cursor-pointer"
             onClick={handleVendorClick}
           >
-            {vendorName}
+            {product.vendorName}
           </p>
         )}
       </div>
     </div>
   );
-  
 };
 
 export default ProductCard;

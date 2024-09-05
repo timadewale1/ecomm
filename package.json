@@ -26,6 +26,7 @@
     "bootstrap": "^5.2.1",
     "downshift": "^9.0.8",
     "firebase": "^10.7.0",
+    "firebase-admin": "^12.4.0",
     "framer-motion": "^7.3.2",
     "googleapis": "^140.0.1",
     "gsap": "^3.12.5",

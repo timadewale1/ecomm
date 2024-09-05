@@ -9,6 +9,8 @@ import {
   updateDoc,
   setDoc,
   increment,
+  query,
+  where,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import Skeleton from "react-loading-skeleton";
@@ -38,14 +40,19 @@ const MarketStorePage = () => {
   useEffect(() => {
     const fetchVendorData = async () => {
       try {
+        // Fetch vendor data
         const vendorRef = doc(db, "vendors", id);
         const vendorDoc = await getDoc(vendorRef);
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
           setVendor(vendorData);
 
-          const productsRef = collection(vendorRef, "products");
-          const productsSnapshot = await getDocs(productsRef);
+          // Fetch products from the centralized 'products' collection
+          const productsRef = collection(db, "products");
+          const productsSnapshot = await getDocs(
+            query(productsRef, where("vendorId", "==", id))
+          );
+
           const productsList = productsSnapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),

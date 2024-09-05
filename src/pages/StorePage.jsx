@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { db, auth } from "../firebase.config";
-import { doc, getDoc, collection, getDocs } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, query, where, } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -30,14 +30,19 @@ const StorePage = () => {
   useEffect(() => {
     const fetchVendorData = async () => {
       try {
+        // Fetch vendor data
         const vendorRef = doc(db, "vendors", id);
         const vendorDoc = await getDoc(vendorRef);
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
           setVendor(vendorData);
-
-          const productsRef = collection(vendorRef, "products");
-          const productsSnapshot = await getDocs(productsRef);
+  
+          // Fetch products from the centralized 'products' collection
+          const productsRef = collection(db, "products");
+          const productsSnapshot = await getDocs(
+            query(productsRef, where("vendorId", "==", id))
+          );
+  
           const productsList = productsSnapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
@@ -52,9 +57,10 @@ const StorePage = () => {
         setLoading(false);
       }
     };
-
+  
     fetchVendorData();
   }, [id]);
+  
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {

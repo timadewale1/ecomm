@@ -1,22 +1,35 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { addToCart } from "../../redux/actions/action";
-import { fetchProduct } from "../../redux/actions/productaction"; // Redux action
+import { addToCart, removeFromCart } from "../../redux/actions/action";
+import { fetchProduct } from "../../redux/actions/productaction";
 import Loading from "../../components/Loading/Loading";
-import { PiShoppingCartThin } from "react-icons/pi";
-import { FaAngleLeft, FaCheck, FaPlus, FaMinus, FaStar } from "react-icons/fa";
+import { PiShoppingCartBold } from "react-icons/pi";
+import { FaStar } from "react-icons/fa";
 import { CiCircleInfo } from "react-icons/ci";
 import { GoChevronLeft, GoChevronRight } from "react-icons/go";
-import { LuCopyCheck, LuCopy } from "react-icons/lu"; // Share copy icons
+import { LuCopyCheck, LuCopy } from "react-icons/lu";
 import toast from "react-hot-toast";
 import Modal from "react-modal";
+import { FiPlus } from "react-icons/fi";
+import { FiMinus } from "react-icons/fi";
 import { TbSquareRoundedCheck } from "react-icons/tb";
 import { MdOutlineCancel } from "react-icons/md";
-import { doc, getDoc, getFirestore } from "firebase/firestore"; // Vendor fetching
+import { doc, getDoc, getFirestore } from "firebase/firestore";
 import RelatedProducts from "./SimilarProducts";
 
 Modal.setAppElement("#root");
+const debounce = (func, delay) => {
+  let timeoutId;
+  return (...args) => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    timeoutId = setTimeout(() => {
+      func.apply(null, args);
+    }, delay);
+  };
+};
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -33,27 +46,49 @@ const ProductDetailPage = () => {
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
   const [animateCart, setAnimateCart] = useState(false);
+  const [isAddedToCart, setIsAddedToCart] = useState(false);
   const [toastShown, setToastShown] = useState({
-    sizeError: false,
+    
     stockError: false,
     success: false,
     fetchError: false,
     productNotFound: false,
   });
-
+  const [toastCount, setToastCount] = useState(0);
   const [vendor, setVendor] = useState(null); // Vendor details
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false); // Info modal for Similar Products
   const [isLinkCopied, setIsLinkCopied] = useState(false); // Link copy state
   const db = getFirestore();
+  // Import selector for cart items at the top
+
+  const { cartItems = {} } = useSelector((state) => state.cart);
+
+  // To get all items as an array:
+
+  const cartItemsArray = Object.values(cartItems);
+
+  // Check if the product is already in the cart on component load
+  useEffect(() => {
+    if (product && Object.keys(cartItems).length > 0) {
+      const itemInCart = Object.values(cartItems).find(
+        (item) => item.id === product.id
+      );
+      if (itemInCart) {
+        setIsAddedToCart(true);
+        setQuantity(itemInCart.quantity); // Set initial quantity from cart
+        setSelectedColor(itemInCart.selectedColor);
+        setSelectedSize(itemInCart.selectedSize);
+      }
+    }
+  }, [cartItems, product]);
 
   useEffect(() => {
     dispatch(fetchProduct(id)).catch((err) => {
       console.error("Failed to fetch product:", err);
-      toast.error("Failed to load product details. Please try again.");
+      toast.error("Failed to load product details.");
     });
   }, [dispatch, id]);
-
   useEffect(() => {
     if (product) {
       setMainImage(product.coverImageUrl); // Set main image after product fetch
@@ -95,54 +130,114 @@ const ProductDetailPage = () => {
       window.removeEventListener("scroll", handleScroll);
     };
   }, []);
-
   const handleAddToCart = useCallback(() => {
-    if (product.size.toLowerCase().includes("all sizes") && !selectedSize) {
-      if (!toastShown.sizeError) {
-        toast.error("Please select a size before adding to cart!");
-        setToastShown((prev) => ({ ...prev, sizeError: true }));
-      }
+    console.log("Add to Cart Triggered");
+    if (!product) return; // Ensure product exists
+
+    if (!selectedSize) {
+      toast.error("Please select a size before adding to cart!");
+      return;
+    }
+
+    if (!selectedColor) {
+      toast.error("Please select a color before adding to cart!");
       return;
     }
 
     if (quantity > product.stockQuantity) {
-      if (!toastShown.stockError) {
-        toast.error("Selected quantity exceeds stock availability!");
-        setToastShown((prev) => ({ ...prev, stockError: true }));
-      }
+      toast.error("Selected quantity exceeds stock availability!");
     } else {
       const productToAdd = {
         ...product,
-        quantity,
+        quantity, // This should now be the selected quantity
         selectedSize,
-        selectedImageUrl: mainImage,
+        selectedColor,
+        selectedImageUrl: mainImage, // Ensure selected image is passed
       };
-      dispatch(addToCart(productToAdd));
-      if (!toastShown.success) {
-        toast.success(`Added ${product.name} to cart!`);
-        setToastShown((prev) => ({ ...prev, success: true }));
+
+      const existingCartItem = cartItems[product.id];
+
+      if (existingCartItem) {
+        // Instead of adding the quantities, override the existing quantity with the new one
+        const updatedProduct = {
+          ...existingCartItem,
+          quantity: quantity, // This ensures the selected quantity is set directly
+        };
+        dispatch(addToCart(updatedProduct));
+        console.log(
+          "Updated product in cart with new quantity:",
+          updatedProduct
+        );
+      } else {
+        dispatch(addToCart(productToAdd));
+        console.log("Added product to cart:", productToAdd);
       }
-      setAnimateCart(true);
-      setTimeout(() => setAnimateCart(false), 500);
+
+      setIsAddedToCart(true);
+      toast.success(`Added ${product.name} to cart!`);
     }
-  }, [dispatch, product, quantity, selectedSize, mainImage, toastShown]);
+  }, [
+    product,
+    quantity,
+    selectedSize,
+    selectedColor,
+    cartItems,
+    dispatch,
+    mainImage,
+  ]);
 
   const handleIncreaseQuantity = useCallback(() => {
+    if (!product) return; // Ensure product exists
+
     if (quantity < product.stockQuantity) {
-      setQuantity(quantity + 1);
+      const updatedQuantity = quantity + 1;
+      setQuantity(updatedQuantity);
+
+      const updatedProduct = {
+        ...product,
+        quantity: updatedQuantity, // Set the quantity directly
+        selectedSize,
+        selectedColor,
+        selectedImageUrl: mainImage,
+      };
+
+      dispatch(addToCart(updatedProduct)); // Update quantity in cart
+      console.log("Increased quantity:", updatedQuantity);
     } else {
       if (!toastShown.stockError) {
         toast.error("Cannot exceed available stock!");
         setToastShown((prev) => ({ ...prev, stockError: true }));
       }
     }
-  }, [quantity, product, toastShown]);
+  }, [
+    product,
+    quantity,
+    selectedSize,
+    selectedColor,
+    mainImage,
+    dispatch,
+    toastShown,
+  ]);
 
   const handleDecreaseQuantity = useCallback(() => {
+    if (!product) return; // Ensure product exists
+
     if (quantity > 1) {
-      setQuantity(quantity - 1);
+      const updatedQuantity = quantity - 1;
+      setQuantity(updatedQuantity);
+
+      const updatedProduct = {
+        ...product,
+        quantity: updatedQuantity, // Set the quantity directly
+        selectedSize,
+        selectedColor,
+        selectedImageUrl: mainImage,
+      };
+
+      dispatch(addToCart(updatedProduct)); // Update quantity in cart
+      console.log("Decreased quantity:", updatedQuantity);
     }
-  }, [quantity]);
+  }, [product, quantity, selectedSize, selectedColor, mainImage, dispatch]);
 
   const formatPrice = (price) => {
     return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -151,6 +246,16 @@ const ProductDetailPage = () => {
   const capitalizeFirstLetter = (color) => {
     return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
   };
+  const handleRemoveFromCart = useCallback(() => {
+    if (!product || !product.id || !selectedSize) return; // Ensure product exists and size is selected
+
+    const productKey = `${product.id}-${selectedSize}`; // Combine id and selectedSize to form the key
+
+    dispatch(removeFromCart(productKey)); // Dispatch action to remove the product from the cart
+    setIsAddedToCart(false); // Reset state when removed from the cart
+    setQuantity(1); // Reset the quantity to 1 after removal
+    toast.success(`${product.name} removed from cart!`);
+  }, [dispatch, product, selectedSize]);
 
   const sizes =
     product && product.size
@@ -329,7 +434,7 @@ const ProductDetailPage = () => {
                 className="text-2xl mr-4 cursor-pointer"
               />
             )}
-            <PiShoppingCartThin
+            <PiShoppingCartBold
               onClick={() => navigate("/latest-cart")}
               className="text-2xl cursor-pointer "
             />
@@ -487,6 +592,60 @@ const ProductDetailPage = () => {
       <div className="border-t-8 border-gray-100 mt-4"></div>
 
       <RelatedProducts product={product} />
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 p-3 flex justify-between items-center"
+        style={{
+          background:
+            "linear-gradient(to top, white, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0) 97%)",
+          zIndex: 9999,
+        }}
+      >
+        {!isAddedToCart ? (
+          // The "Add to Cart" button initially
+          <button
+            onClick={() => {
+              handleAddToCart();
+              setAnimateCart(true); // Trigger the animation
+            }}
+            className={`bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out`}
+          >
+            Add to cart
+          </button>
+        ) : (
+          // The Remove and Quantity controls that animate in
+          <div
+            className={`flex w-full justify-between transition-all duration-500 ease-in-out transform ${
+              animateCart
+                ? "translate-x-0 opacity-100"
+                : "translate-x-full opacity-0"
+            }`}
+          >
+            <button
+              onClick={handleRemoveFromCart}
+              className="text-black open-sans mr-4 bg-gray-100 rounded-full h-14 w-52 text-md font-bold"
+            >
+              Remove
+            </button>
+            <div className="flex space-x-4 items-center">
+              <button
+                onClick={handleDecreaseQuantity}
+                className="flex items-center justify-center w-12 h-12 opacity-40 bg-customOrange text-white text-3xl rounded-full"
+              >
+                <FiMinus />
+              </button>
+              <span className="font-opensans font-semibold text-lg">
+                {quantity}
+              </span>
+              <button
+                onClick={handleIncreaseQuantity}
+                className="flex items-center justify-center w-12 h-12 bg-customOrange text-white text-3xl rounded-full"
+              >
+                <FiPlus />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

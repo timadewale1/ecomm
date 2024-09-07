@@ -101,6 +101,20 @@ section {
   padding: 10px;
   outline: none;
 }
+.transition-transform {
+  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+.transform-translate-x-full {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+.transform-translate-x-0 {
+  transform: translateX(0);
+  opacity: 1;
+}
+
 
 .modal-overlay {
   position: fixed;

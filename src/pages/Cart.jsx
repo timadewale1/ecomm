@@ -16,7 +16,6 @@ import { useNavigate } from "react-router-dom";
 import { GoChevronLeft } from "react-icons/go";
 import { useFavorites } from "../components/Context/FavoritesContext";
 
-// To prevent number scrambling when selecting quickly
 const debounce = (func, delay) => {
   let timeoutId;
   return (...args) => {
@@ -30,7 +29,7 @@ const debounce = (func, delay) => {
 };
 
 const Cart = () => {
-  const cart = useSelector((state) => state.cart);
+  const cart = useSelector((state) => state.cart || {}); // Initialize cart as an empty object
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { currentUser, loading } = useAuth();
@@ -48,16 +47,16 @@ const Cart = () => {
     return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
 
+  // Centralized collection fetching
   const checkCartProducts = useCallback(async () => {
     try {
       const updatedCart = { ...cart };
       const productKeys = Object.keys(cart);
 
       for (const productKey of productKeys) {
-        const { id, vendorId } = cart[productKey];
-        const productDoc = await getDoc(
-          doc(db, `vendors/${vendorId}/products`, id)
-        );
+        const { id } = cart[productKey];
+        // Fetch from centralized products collection
+        const productDoc = await getDoc(doc(db, `products`, id));
         if (!productDoc.exists()) {
           delete updatedCart[productKey];
           dispatch(removeFromCart(productKey));
@@ -70,7 +69,6 @@ const Cart = () => {
           }
         }
       }
-
       setValidCart(updatedCart);
     } catch (error) {
       console.error("Error checking cart products:", error);
@@ -128,14 +126,14 @@ const Cart = () => {
   const debouncedIncreaseQuantity = useCallback(
     debounce((productKey) => {
       dispatch(increaseQuantity(productKey));
-    }, 200), 
+    }, 200),
     [dispatch]
   );
 
   const debouncedDecreaseQuantity = useCallback(
     debounce((productKey) => {
       dispatch(decreaseQuantity(productKey));
-    }, 200), 
+    }, 200),
     [dispatch]
   );
 
@@ -209,7 +207,7 @@ const Cart = () => {
               {Object.values(validCart).map((product) => (
                 <div
                   key={`${product.id}-${product.selectedSize}`}
-                  className="bg-white rounded-lg p-3 shadow-md relative"
+                  className="bg-white rounded-lg p-3  shadow-md relative"
                 >
                   <div
                     className="absolute top-2 right-2 cursor-pointer rounded-full p-1"
@@ -226,7 +224,7 @@ const Cart = () => {
                     />
                   </div>
                   <div className="flex flex-col justify-between">
-                    <div className="flex items-center">
+                    <div className="flex items-center mb-2">
                       <img
                         src={product.selectedImageUrl}
                         alt={product.name}
@@ -239,12 +237,24 @@ const Cart = () => {
                         <p className="text-black font-bold font-opensans text-lg">
                           ₦{formatPrice(product.price)}
                         </p>
-                        <p className="text-gray-600 font-opensans font-normal text-sm">
+                        <div className="flex">
+                        <p className="text-gray-600 font-opensans font-normal text-md">
                           Size:{" "}
                           <span className="font-semibold text-black">
                             {product.selectedSize || product.size}
                           </span>
                         </p>
+
+                        {product.selectedColor && (
+                          <p className="text-gray-600 font-opensans ml-4 font-normal text-md">
+                            Color:{" "}
+                            <span className="font-semibold text-black">
+                              {product.selectedColor}
+                            </span>
+                          </p>
+                        )}
+                        </div>
+                        
                       </div>
                     </div>
                     <div className="flex mt-1 justify-between">

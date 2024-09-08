@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchProducts } from "../redux/actions/productaction";
-import Loading from "../components/Loading/Loading";
+import Loading from "../components/Loading/Explorer";
 import { addToCart } from "../redux/actions/action";
 import { toggleFavorite } from "../redux/actions/favouriteactions";
 import { FaHeart, FaCartPlus } from "react-icons/fa";

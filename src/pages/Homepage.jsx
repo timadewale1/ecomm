@@ -387,7 +387,7 @@ const Homepage = () => {
         </div>
         {!searchTerm && filteredProducts.length > 0 && (
           <button
-            className="w-full mt-4 py-2 font-medium bg-customOrange text-white rounded-full"
+            className="w-full mt-4 py-2 font-opensans font-medium bg-customOrange text-white rounded-full"
             onClick={handleLoadMore}
           >
             Load More

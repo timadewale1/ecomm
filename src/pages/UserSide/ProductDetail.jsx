@@ -17,6 +17,7 @@ import { TbSquareRoundedCheck } from "react-icons/tb";
 import { MdOutlineCancel } from "react-icons/md";
 import { doc, getDoc, getFirestore } from "firebase/firestore";
 import RelatedProducts from "./SimilarProducts";
+import Productnotofund from "../../components/Loading/Productnotofund";
 
 Modal.setAppElement("#root");
 const debounce = (func, delay) => {
@@ -48,7 +49,6 @@ const ProductDetailPage = () => {
   const [animateCart, setAnimateCart] = useState(false);
   const [isAddedToCart, setIsAddedToCart] = useState(false);
   const [toastShown, setToastShown] = useState({
-    
     stockError: false,
     success: false,
     fetchError: false,
@@ -301,16 +301,31 @@ const ProductDetailPage = () => {
   if (error || !product) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
-        <h1 className="text-2xl font-bold text-red-600 mb-2">
-          Product Not Found
-        </h1>
-        <p className="text-lg text-gray-700 mb-4">
-          It looks like this product has been removed from the inventory by the
-          vendor.
-        </p>
-        <p className="text-md font-poppins text-gray-500">
-          Please continue shopping for other great deals!
-        </p>
+        <Productnotofund />
+        <div className="relative w-full bg-customOrange bg-opacity-40 border-2 border-customOrange rounded-lg p-4">
+          
+          <div className="absolute top-2 left-4 w-4 h-4 bg-black rounded-full"></div>
+          <div className="absolute top-2 right-4 w-4 h-4 bg-black rounded-full"></div>
+
+          {/* Text content */}
+          <h1 className="text-2xl font-opensans mt-2 font-bold text-red-600 mb-2">
+            Product Not Found
+          </h1>
+          <p className="text-lg text-gray-700 font-opensans mb-4">
+            It looks like this product has been removed from the inventory by
+            the vendor.
+          </p>
+          <p className="text-md font-opensans text-gray-500">
+            Please continue shopping for other great deals!
+          </p>
+        </div>
+
+        <button
+          className="w-32 bg-customOrange font-opensans text-xs px-2 h-10 text-white rounded-lg mt-12"
+          onClick={() => navigate("/newhome")} // Navigate to /newhome on click
+        >
+          Back Home
+        </button>
       </div>
     );
   }

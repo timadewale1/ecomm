@@ -10,6 +10,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { db } from "../../firebase.config"; // Firestore instance
 import ProductCard from "../../components/Products/ProductCard";
+import LoadProducts from "../../components/Loading/LoadProducts";
 
 const RelatedProducts = ({ product }) => {
   const [relatedProductsFromVendor, setRelatedProductsFromVendor] = useState(
@@ -75,7 +76,11 @@ const RelatedProducts = ({ product }) => {
   }, [product]);
 
   if (loading) {
-    return <div>Loading related products...</div>;
+    return (
+      <div>
+        <LoadProducts />
+      </div>
+    );
   }
 
   // Hide the section if no related products are found

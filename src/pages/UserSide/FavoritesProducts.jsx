@@ -19,23 +19,20 @@ const FavoritesPage = () => {
       try {
         console.log("Fetching favorite products...");
 
-        const favoriteProductIds = favorites.map((favorite) => ({
-          productId: favorite.id,
-          vendorId: favorite.vendorId,
-        }));
-        console.log("Favorite product IDs and vendor IDs:", favoriteProductIds);
+        // Collect all product IDs from favorites
+        const favoriteProductIds = favorites.map((favorite) => favorite.id);
+        console.log("Favorite product IDs:", favoriteProductIds);
 
-        const productPromises = favoriteProductIds.map(
-          ({ productId, vendorId }) => {
-            console.log(
-              `Fetching product with ID: ${productId} from vendor: ${vendorId}`
-            );
-            return getDoc(doc(db, "vendors", vendorId, "products", productId));
-          }
-        );
+        // Fetch products from the centralized 'products' collection
+        const productPromises = favoriteProductIds.map((productId) => {
+          console.log(`Fetching product with ID: ${productId} from 'products' collection`);
+          return getDoc(doc(db, "products", productId));
+        });
 
+        // Await all product fetching promises
         const productSnapshots = await Promise.all(productPromises);
 
+        // Extract product data and filter out null/undefined products
         const products = productSnapshots
           .map((productDoc) => {
             if (productDoc.exists()) {

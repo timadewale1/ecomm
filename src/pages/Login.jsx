@@ -173,7 +173,7 @@ const Login = () => {
       <section>
         <Container>
           <Row>
-            <div className="px-3">
+            <div className="px-3 md:hidden">
               <Link to="/confirm-user-state">
                 <FaAngleLeft className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>
@@ -263,7 +263,7 @@ const Login = () => {
                     <p className="text-gray-900 text-sm">
                       Don't have an account?{" "}
                       <span className="font-normal  text-customOrange">
-                        <Link to="/sign">Sign up</Link>
+                        <Link to="/signup">Sign up</Link>
                       </span>
                     </p>
                   </div>

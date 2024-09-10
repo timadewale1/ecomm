@@ -80,7 +80,7 @@ const AvatarSelectorModal = ({
         <h2 className="text-2xl text-center font-opensans mt-4 font-semibold mb-4">
           Select Your Avatar
         </h2>
-        <div className="grid grid-cols-3 mt-20  items-center  gap-4">
+        <div className="grid grid-cols-2 mt-20 justify-center items-center  gap-4">
           {Object.entries(avatars).map(([name, src]) => (
             <div
               key={name}
@@ -94,7 +94,7 @@ const AvatarSelectorModal = ({
               <img
                 src={src}
                 alt={name}
-                className="w-16 h-16 object-cover rounded-full"
+                className="w-28 h-28 object-cover rounded-full"
               />
             </div>
           ))}

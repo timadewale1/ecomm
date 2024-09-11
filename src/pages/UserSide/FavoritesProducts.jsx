@@ -7,6 +7,7 @@ import Faves from "../../components/Loading/Faves";
 import Loading from "../../components/Loading/Loading";
 import { FaAngleLeft } from "react-icons/fa6";
 import { useNavigate } from "react-router-dom";
+import { GoChevronLeft } from "react-icons/go";
 
 const FavoritesPage = () => {
   const { favorites } = useFavorites();
@@ -62,9 +63,9 @@ const FavoritesPage = () => {
     <div className="p-2">
       <div className="sticky top-0 bg-white z-10 flex items-center justify-between h-24">
         <div className="flex items-center space-x-2">
-          <FaAngleLeft
+          <GoChevronLeft
             className="text-2xl text-black cursor-pointer"
-            onClick={() => navigate("/profile")}
+            onClick={() => navigate(-1)}
           />
           <h1 className="text-xl font-bold">Favorites</h1>
         </div>

@@ -27,6 +27,7 @@ const Layout = () => {
     "/user-dashboard",
     "/latest-cart",
     "/search",
+    "/favorites",
     "/market-vendors",
     "/online-vendors",
     "market-vendors",

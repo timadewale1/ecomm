@@ -3,7 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { IoArrowBack } from "react-icons/io5";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
+import logo from "../Images/logo.png"
 import "swiper/css/free-mode";
+import { CiSearch } from "react-icons/ci";
+import { BsHeart } from "react-icons/bs";
 import "swiper/css/autoplay";
 import { Cloudinary } from "@cloudinary/url-gen";
 import { auto } from "@cloudinary/url-gen/actions/resize";
@@ -212,21 +215,20 @@ const Homepage = () => {
 
   return (
     <>
-      <div className="flex p-2 mt-3 justify-center mb-3">
+      <div className="flex p-3 mt-3 justify-between mb-3">
+        <BsHeart className="text-2xl" onClick={() => navigate ("/favorites")}/>
+        
+        <img src={logo}>
+        
+        </img>
         {searchTerm && (
           <IoArrowBack
             className="mr-2 text-3xl text-gray-500 cursor-pointer mt-3 bg-white rounded-full p-1"
             onClick={clearSearch}
           />
         )}
-        <input
-          type="text"
-          value={searchTerm}
-          onFocus={() => navigate("/search")}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search My Thrift"
-          className="w-full rounded-full bg-gray-200 p-3"
-        />
+        
+        <CiSearch className="text-3xl" onClick={() => navigate("/search")}/>
       </div>
       {!searchTerm && (
         <>
@@ -387,7 +389,7 @@ const Homepage = () => {
         </div>
         {!searchTerm && filteredProducts.length > 0 && (
           <button
-            className="w-full mt-4 py-2 font-opensans font-medium bg-customOrange text-white rounded-full"
+            className="w-full mt-4 py-2 h-12 font-opensans font-medium bg-customOrange text-white rounded-full"
             onClick={handleLoadMore}
           >
             Load More

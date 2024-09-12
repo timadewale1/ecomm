@@ -215,7 +215,7 @@ const Homepage = () => {
 
   return (
     <>
-      <div className="flex p-3 mt-3 justify-between mb-3">
+      <div className="flex px-3 py-2 mt-3 justify-between mb-3">
         <BsHeart className="text-2xl" onClick={() => navigate ("/favorites")}/>
         
         <img src={logo}>

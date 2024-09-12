@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { db, auth } from "../firebase.config";
-import { doc, getDoc, collection, getDocs, query, where, } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -31,23 +40,12 @@ const StorePage = () => {
     const fetchVendorData = async () => {
       try {
         // Fetch vendor data
-        const vendorRef = doc(db, "vendors", id);
+        const vendorRef = doc(db, "vendors", id); // 'id' from useParams
         const vendorDoc = await getDoc(vendorRef);
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
-          setVendor(vendorData);
-  
-          // Fetch products from the centralized 'products' collection
-          const productsRef = collection(db, "products");
-          const productsSnapshot = await getDocs(
-            query(productsRef, where("vendorId", "==", id))
-          );
-  
-          const productsList = productsSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          setProducts(productsList);
+          vendorData.id = vendorDoc.id; // Assign the document ID to the vendor data
+          setVendor(vendorData); // Set vendor with ID
         } else {
           toast.error("Vendor not found!");
         }
@@ -74,14 +72,46 @@ const StorePage = () => {
     return () => unsubscribe();
   }, []);
 
-  const handleFollowClick = () => {
-    setIsFollowing(!isFollowing);
-    toast(
-      isFollowing
-        ? "Unfollowed"
-        : "You will be notified of new products and promos."
-    );
+  const handleFollowClick = async () => {
+    try {
+      console.log("Current User:", currentUser); // Check if currentUser is defined
+      console.log("Vendor ID:", vendor?.id); // Check if vendor ID is defined
+  
+      if (!vendor?.id) {
+        throw new Error("Vendor ID is undefined");
+      }
+  
+      const followRef = collection(db, "follows");
+      const followDoc = doc(followRef, `${currentUser.uid}_${vendor.id}`);
+  
+      if (!isFollowing) {
+        // Add follow entry
+        await setDoc(followDoc, {
+          userId: currentUser.uid,
+          vendorId: vendor.id,
+          createdAt: new Date(),
+        });
+  
+        console.log("Follow document successfully created", followDoc.id); // Log success
+  
+        toast.success("You will be notified of new products and promos.");
+      } else {
+        // Unfollow
+        await deleteDoc(followDoc);
+        console.log("Follow document successfully deleted", followDoc.id); // Log deletion
+  
+        toast.success("Unfollowed");
+      }
+  
+      setIsFollowing(!isFollowing);
+    } catch (error) {
+      console.error("Error following/unfollowing:", error.message);
+      toast.error(`Error following/unfollowing: ${error.message}`);
+    }
   };
+  
+  
+  
 
   const handleFavoriteToggle = (productId) => {
     setFavorites((prevFavorites) => {

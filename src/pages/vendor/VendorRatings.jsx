@@ -38,6 +38,14 @@ const VendorRatings = () => {
   const [newRating, setNewRating] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [ratingBreakdown, setRatingBreakdown] = useState({
+    5: 0,
+    4: 0,
+    3: 0,
+    2: 0,
+    1: 0,
+  });
+
   const [isProfileComplete, setIsProfileComplete] = useState(false);
 
   useEffect(() => {
@@ -92,27 +100,42 @@ const VendorRatings = () => {
   const fetchReviews = async () => {
     try {
       const reviewsRef = collection(db, "vendors", id, "reviews");
-      let q;
+      const reviewsSnapshot = await getDocs(reviewsRef);
+      const reviewsList = reviewsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
-      if (selectedRating && selectedRating !== "All") {
-        q = query(reviewsRef, where("rating", "==", selectedRating));
-      } else {
-        q = reviewsRef;
-      }
+      // Separate text and non-text reviews
+      const textReviews = reviewsList.filter((review) => review.reviewText);
+      setReviews(textReviews);
 
-      const reviewsSnapshot = await getDocs(q);
-      const reviewsList = reviewsSnapshot.docs
-        .map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-        .filter((review) => review.reviewText); // Only include reviews with text
+      // Calculate rating breakdown including all reviews (with and without text)
+      const allReviews = reviewsList;
+      // Calculate rating breakdown using **all reviews**, both text and non-text
+      const breakdown = {
+        5: reviewsList.filter((r) => r.rating === 5).length,
+        4: reviewsList.filter((r) => r.rating === 4).length,
+        3: reviewsList.filter((r) => r.rating === 3).length,
+        2: reviewsList.filter((r) => r.rating === 2).length,
+        1: reviewsList.filter((r) => r.rating === 1).length,
+      };
 
-      setReviews(reviewsList);
+      setRatingBreakdown(breakdown); // Update the rating breakdown
+
+      setRatingBreakdown(breakdown); // Update the rating breakdown
     } catch (error) {
       console.error("Error fetching reviews:", error);
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (id) {
+      fetchReviews();
+    }
+  }, [id]);
 
   useEffect(() => {
     if (id) {
@@ -203,15 +226,14 @@ const VendorRatings = () => {
       const reviewsRef = collection(db, "vendors", id, "reviews");
 
       // Save the review only if text is provided
-      if (newReview.trim() !== "") {
-        await addDoc(reviewsRef, {
-          reviewText: newReview,
-          rating: newRating,
-          userName: currentUser.username,
-          userPhotoURL: currentUser.photoURL,
-          createdAt: new Date(),
-        });
-      }
+      // Save review even without text
+      await addDoc(reviewsRef, {
+        reviewText: newReview.trim() !== "" ? newReview : null, // Add text if provided
+        rating: newRating,
+        userName: currentUser.username,
+        userPhotoURL: currentUser.photoURL,
+        createdAt: new Date(),
+      });
 
       // Update vendor rating even if no text review is provided
       const vendorRef = doc(db, "vendors", id);
@@ -223,7 +245,7 @@ const VendorRatings = () => {
       setShowModal(false);
       setNewReview("");
       setNewRating(0);
-      fetchReviews();
+      fetchReviews(); // Refresh the reviews and progress bar
       toast.success("Review added successfully!");
     } catch (error) {
       toast.error("Error adding review");
@@ -237,13 +259,13 @@ const VendorRatings = () => {
 
   const averageRating =
     vendor?.ratingCount > 0 ? vendor.rating / vendor.ratingCount : 0;
-  const ratingBreakdown = {
-    5: reviews.filter((r) => r.rating === 5).length,
-    4: reviews.filter((r) => r.rating === 4).length,
-    3: reviews.filter((r) => r.rating === 3).length,
-    2: reviews.filter((r) => r.rating === 2).length,
-    1: reviews.filter((r) => r.rating === 1).length,
-  };
+  // const ratingBreakdown = {
+  //   5: reviews.filter((r) => r.rating === 5).length,
+  //   4: reviews.filter((r) => r.rating === 4).length,
+  //   3: reviews.filter((r) => r.rating === 3).length,
+  //   2: reviews.filter((r) => r.rating === 2).length,
+  //   1: reviews.filter((r) => r.rating === 1).length,
+  // };
 
   const totalRatings = Object.values(ratingBreakdown).reduce(
     (acc, value) => acc + value,
@@ -318,27 +340,28 @@ const VendorRatings = () => {
         <div className="my-4  w-full">
           {[5, 4, 3, 2, 1].map((star) => (
             <div key={star} className="flex items-center mb-2">
-              <span className="w-6 text-xs  font-opensans font-light">{star}</span>
+              <span className="w-6 text-xs  font-opensans font-light">
+                {star}
+              </span>
               <ProgressBar
                 now={calculatePercentage(ratingBreakdown[star])}
                 className="flex-1 mx-2"
                 style={{
-                  height: "14px", 
-                  backgroundColor: "#f5f3f2",  
+                  height: "14px",
+                  backgroundColor: "#f5f3f2",
                   borderRadius: "10px",
-                  overflow: "hidden", 
+                  overflow: "hidden",
                 }}
               >
                 <div
                   style={{
-                    backgroundColor: "#f9531e", 
+                    backgroundColor: "#f9531e",
                     height: "100%",
                     width: `${calculatePercentage(ratingBreakdown[star])}%`,
-                    borderRadius: "10px", 
+                    borderRadius: "10px",
                   }}
                 />
               </ProgressBar>
-            
             </div>
           ))}
         </div>

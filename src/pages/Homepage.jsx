@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { IoArrowBack } from "react-icons/io5";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
-import logo from "../Images/logo.png"
+import logo from "../Images/logo.png";
 import "swiper/css/free-mode";
 import { CiSearch } from "react-icons/ci";
 import { BsHeart } from "react-icons/bs";
@@ -13,10 +13,18 @@ import { auto } from "@cloudinary/url-gen/actions/resize";
 import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
 import { AdvancedImage } from "@cloudinary/react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  query,
+  where,
+} from "firebase/firestore";
 import { FreeMode, Autoplay } from "swiper/modules";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import { IoIosNotificationsOutline } from "react-icons/io";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import BottomBar from "../components/BottomBar/BottomBar";
@@ -41,6 +49,37 @@ const Homepage = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const productCardsRef = useRef([]);
   const [initialLoad, setInitialLoad] = useState(true);
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+
+  // Fetch unread notifications
+  useEffect(() => {
+    const fetchUnreadNotifications = async (userId) => {
+      try {
+        const notificationsRef = collection(db, "notifications");
+        const q = query(
+          notificationsRef,
+          where("userId", "==", userId),
+          where("seen", "==", false)
+        );
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          setHasUnreadNotifications(true);
+        } else {
+          setHasUnreadNotifications(false);
+        }
+      } catch (error) {
+        console.error("Error fetching notifications:", error);
+      }
+    };
+
+    const auth = getAuth();
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchUnreadNotifications(user.uid);
+      }
+    });
+  }, []);
 
   const handleShowMore = () => {
     setActiveNav(2);
@@ -92,18 +131,18 @@ const Homepage = () => {
       const productsSnapshot = await getDocs(collection(db, "products"));
       const productsList = [];
       const vendorList = new Set(); // To collect unique vendor names
-  
+
       productsSnapshot.forEach((productDoc) => {
         const productData = productDoc.data();
         productsList.push({
           id: productDoc.id,
           ...productData,
         });
-  
+
         // Collect unique vendor names from products
         vendorList.add(productData.vendorName);
       });
-  
+
       setProducts(productsList);
       setFilteredProducts(productsList);
       setVendors(Array.from(vendorList)); // Convert the Set back to an array for vendors
@@ -114,7 +153,6 @@ const Homepage = () => {
       setInitialLoad(false);
     }
   };
-  
 
   useEffect(() => {
     fetchProductsAndVendors();
@@ -215,20 +253,25 @@ const Homepage = () => {
 
   return (
     <>
-      <div className="flex px-3 py-2 mt-3 justify-between mb-3">
-        <BsHeart className="text-2xl" onClick={() => navigate ("/favorites")}/>
-        
-        <img src={logo}>
-        
-        </img>
+      <div className="flex px-3 py-2 mt-3 justify-between mb-2">
         {searchTerm && (
           <IoArrowBack
             className="mr-2 text-3xl text-gray-500 cursor-pointer mt-3 bg-white rounded-full p-1"
             onClick={clearSearch}
           />
         )}
-        
-        <CiSearch className="text-3xl" onClick={() => navigate("/search")}/>
+
+        <CiSearch className="text-3xl" onClick={() => navigate("/search")} />
+        <img src={logo}></img>
+        <div className="relative">
+          <IoIosNotificationsOutline
+            onClick={() => navigate("/notifications")}
+            className="text-3xl cursor-pointer"
+          />
+          {hasUnreadNotifications && (
+            <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500"></span>
+          )}
+        </div>
       </div>
       {!searchTerm && (
         <>

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import ProductDetailPage from "../pages/UserSide/ProductDetail";
 import Login from "../pages/Login";
 import Signup from "../pages/Signup";
+import NotificationsPage from "../pages/UserSide/Notifications.jsx";
 import ForgetPassword from "../pages/forgetPassword.jsx";
 import Donate from "../pages/Donate.jsx";
 import VendorSignup from "../pages/VendorSignup";
@@ -49,6 +50,7 @@ const Routers = () => {
       <Route path="/forgetpassword" element={<ForgetPassword />} />
       <Route path="/store/:id" element={<StorePage />} />
       <Route path="/category/:category" element={<CategoryPage />} />
+      <Route path="notifications" element={<NotificationsPage />} />
       <Route path="marketstorepage/:id" element={<MarketStorePage />} />
       <Route path="vendorlogin" element={<VendorLogin />} />
 

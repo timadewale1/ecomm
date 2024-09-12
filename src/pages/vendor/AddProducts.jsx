@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { doc, collection, setDoc, addDoc } from "firebase/firestore";
+import { doc, collection, setDoc, addDoc, getDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from "../../firebase.config";
 import { toast } from "react-toastify";
@@ -10,6 +10,7 @@ import axios from "axios";
 import Select from "react-select";
 import makeAnimated from "react-select/animated";
 import { GiRegeneration } from "react-icons/gi";
+import notifyFollowers from "../../services/notifyfollowers";
 
 const animatedComponents = makeAnimated();
 const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
@@ -27,12 +28,33 @@ const AddProduct = ({ vendorId, closeModal }) => {
   const [productType, setProductType] = useState("");
   const [size, setSize] = useState([]);
   const [color, setColor] = useState("");
+  const [vendorName, setVendorName] = useState("");
+
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const [currentUser, setCurrentUser] = useState(null);
- const storage = getStorage();
+  const storage = getStorage();
+  useEffect(() => {
+    const fetchVendorName = async () => {
+      if (currentUser) {
+        const vendorDocRef = doc(db, "vendors", vendorId);
+        const vendorDoc = await getDoc(vendorDocRef);
+
+        if (vendorDoc.exists()) {
+          const vendorData = vendorDoc.data();
+          setVendorName(vendorData.shopName || "Unknown Vendor");
+          console.log("Vendor Name:", vendorData.shopName);
+        } else {
+          setVendorName("Unknown Vendor");
+        }
+      }
+    };
+
+    fetchVendorName();
+  }, [currentUser, vendorId]);
+
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -107,7 +129,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       toast.error("Unauthorized access or no user is signed in.");
       return;
     }
-  
+
     // Validate required fields
     if (
       !productName ||
@@ -124,12 +146,12 @@ const AddProduct = ({ vendorId, closeModal }) => {
       toast.error("Please fill in all required fields!");
       return;
     }
-  
+
     setIsLoading(true);
-  
+
     try {
       let coverImageUrl = "";
-  
+
       // Upload cover image
       if (productCoverImageFile) {
         const storageRef = ref(
@@ -139,7 +161,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         await uploadBytes(storageRef, productCoverImageFile);
         coverImageUrl = await getDownloadURL(storageRef);
       }
-  
+
       // Upload additional product images
       const productImageUrls = await Promise.all(
         productImageFiles.map(async (file) => {
@@ -148,7 +170,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           return getDownloadURL(storageRef);
         })
       );
-  
+
       // Create the product object
       const product = {
         name: productName.toUpperCase(),
@@ -158,7 +180,8 @@ const AddProduct = ({ vendorId, closeModal }) => {
         price: parseFloat(productPrice),
         coverImageUrl: coverImageUrl,
         imageUrls: productImageUrls,
-        vendorId: currentUser.uid,  // Ensure vendorId is part of the product document
+        vendorId: currentUser.uid,
+        vendorName: vendorName, // Ensure vendorName is part of the product document
         stockQuantity: parseInt(stockQuantity, 10),
         condition:
           productCondition === "defect"
@@ -168,20 +191,31 @@ const AddProduct = ({ vendorId, closeModal }) => {
               }`
             : productCondition.charAt(0).toUpperCase() +
               productCondition.slice(1).toLowerCase(),
-        category: category.charAt(0).toUpperCase() + category.slice(1).toLowerCase(),
-        productType: productType.charAt(0).toUpperCase() + productType.slice(1).toLowerCase(),
+        category:
+          category.charAt(0).toUpperCase() + category.slice(1).toLowerCase(),
+        productType:
+          productType.charAt(0).toUpperCase() +
+          productType.slice(1).toLowerCase(),
         size: size.map((s) => s.value).join(", "),
         color: color.charAt(0).toUpperCase() + color.slice(1).toLowerCase(),
       };
-  
+
       // Add the product to the centralized 'products' collection
       const productsCollectionRef = collection(db, "products");
-      const newProductRef = doc(productsCollectionRef);  // Generate new product document reference
+      const newProductRef = doc(productsCollectionRef); // Generate new product document reference
       await setDoc(newProductRef, product);
-  
+
       // Log activity in the vendor's activityNotes collection
       await logActivity(`Added ${productName} to your store`);
-  
+
+      // Notify followers after product has been successfully added
+      await notifyFollowers(vendorId, {
+        name: productName,
+        shopName: vendorName, // Use vendorName here
+        id: newProductRef.id,
+        coverImageUrl: coverImageUrl, // Pass the cover image URL here
+      });
+
       // Show success message and reset form
       toast.success("Product added successfully");
       setProductName("");
@@ -196,7 +230,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       setProductType("");
       setSize([]);
       setColor("");
-      closeModal();  // Close the modal after successful product addition
+      closeModal(); // Close the modal after successful product addition
     } catch (error) {
       console.error("Error adding product: ", error);
       toast.error("Error adding product: " + error.message);
@@ -204,7 +238,6 @@ const AddProduct = ({ vendorId, closeModal }) => {
       setIsLoading(false);
     }
   };
-  
 
   const generateDescription = async () => {
     setIsGeneratingDescription(true);
@@ -506,7 +539,11 @@ const AddProduct = ({ vendorId, closeModal }) => {
               <div
                 className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer"
                 onClick={() =>
-                  document.getElementById(`productFileInput-${productImageFiles.length}`).click()
+                  document
+                    .getElementById(
+                      `productFileInput-${productImageFiles.length}`
+                    )
+                    .click()
                 }
               >
                 <FaImage className="h-8 w-8 text-gray-400" />

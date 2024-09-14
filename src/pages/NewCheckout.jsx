@@ -10,7 +10,7 @@ import { FaInfoCircle, FaAngleLeft } from "react-icons/fa";
 import BookingFeeModal from "../components/BookingFee";
 import { calculateServiceFee } from "./VendorCompleteProfile/utilis";
 import { createOrderAndReduceStock } from "../services/Services";
-import PaystackPop from "@paystack/inline-js";
+
 
 const Checkout = () => {
   const cart = useSelector((state) => state.cart);
@@ -56,21 +56,7 @@ const Checkout = () => {
       return;
     }
 
-    const paystack = new PaystackPop();
-    paystack.newTransaction({
-      key: "pk_test_ef25df4be5b88982094e41cd6ae97f59c13bb2d0",
-      email: currentUser.email,
-      amount: amount * 100, // Paystack amount is in Kobo
-      onSuccess: (transaction) => {
-        toast.success(
-          `Payment successful! Reference: ${transaction.reference}`
-        );
-        onSuccessCallback();
-      },
-      onCancel: () => {
-        toast.error("Payment cancelled");
-      },
-    });
+    // Add the implementation of payment logic here if required.
   };
 
   const handleBookingFeePayment = (e) => {

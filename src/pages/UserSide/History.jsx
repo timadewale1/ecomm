@@ -26,6 +26,7 @@ const OrderHistory = ({ setShowHistory }) => {
         const ordersSnapshot = await getDocs(ordersRef);
         const userOrders = [];
 
+        // Fetch user orders
         for (const orderDoc of ordersSnapshot.docs) {
           const orderData = orderDoc.data();
           if (orderData.userId === userId) {
@@ -35,54 +36,50 @@ const OrderHistory = ({ setShowHistory }) => {
 
         console.log("Fetched User Orders:", userOrders);
 
-        const vendorIds = new Set();
+        const productIds = [];
         userOrders.forEach((order) => {
-          if (order.products) {
-            if (Array.isArray(order.products)) {
-              order.products.forEach((product) => {
-                if (product.vendorId) {
-                  vendorIds.add(product.vendorId);
-                }
-              });
-            } else {
-              console.log("order.products is not an array:", order.products);
-            }
+          if (order.products && typeof order.products === "object") {
+            Object.values(order.products).forEach((product) => {
+              productIds.push(product.productId); // Collect all product IDs
+            });
           } else {
-            console.log("order.products is undefined for order:", order);
+            console.log(
+              "order.products is not an object or undefined:",
+              order.products
+            );
           }
         });
 
-        if (vendorIds.size === 0) {
-          console.log("No valid vendor IDs found.");
+        if (productIds.length === 0) {
+          console.log("No valid product IDs found.");
           setOrders(userOrders);
           setLoading(false);
           return;
         }
 
-        console.log("Vendor IDs:", Array.from(vendorIds));
+        // Fetch all products by their productIds
+        const productsCollectionRef = collection(db, "products");
+        const productDocs = await getDocs(productsCollectionRef);
 
-        const vendorPromises = Array.from(vendorIds).map((vendorId) =>
-          getDoc(doc(db, "vendors", vendorId))
-        );
-
-        const vendorDocs = await Promise.all(vendorPromises);
-        const vendors = vendorDocs.reduce((acc, vendorDoc) => {
-          if (vendorDoc.exists()) {
-            acc[vendorDoc.id] = vendorDoc.data().shopName;
+        const fetchedProducts = productDocs.docs.reduce((acc, productDoc) => {
+          if (productIds.includes(productDoc.id)) {
+            acc[productDoc.id] = { ...productDoc.data(), id: productDoc.id };
           }
           return acc;
         }, {});
 
-        console.log("Fetched Vendor Data:", vendors);
+        console.log("Fetched Products Data:", fetchedProducts);
 
-        const ordersWithVendors = userOrders.map((order) => ({
+        // Update the userOrders with detailed product info
+        const ordersWithProducts = userOrders.map((order) => ({
           ...order,
-          vendorNames: Array.isArray(order.products) ? order.products.map(
-            (product) => vendors[product.vendorId] || "Unknown Vendor"
-          ) : [],
+          products: Object.values(order.products).map((product) => ({
+            ...fetchedProducts[product.productId], // fetched product data
+            ...product, // order-specific product details like quantity
+          })),
         }));
 
-        setOrders(ordersWithVendors);
+        setOrders(ordersWithProducts);
       } catch (error) {
         console.error("Error fetching orders:", error);
         toast.error("Error fetching orders: " + error.message);
@@ -150,40 +147,53 @@ const OrderHistory = ({ setShowHistory }) => {
           {orders.map((order) => (
             <div key={order.id} className="border p-4 rounded-lg shadow">
               <p className="text-sm font-ubuntu font-bold">
-                Vendor(s): {order.vendorNames.join(", ")}
+                Vendor(s):{" "}
+                {Array.from(
+                  new Set(order.products.map((p) => p.vendorName))
+                ).join(", ")}
               </p>
-              <p className="text-sm font-medium">Status: {order.paymentStatus}</p>
+              <p className="text-sm font-medium">
+                Status: {order.paymentStatus}
+              </p>
               <div className="mt-2">
                 <h3 className="text-md mb-2 font-semibold">Items ordered:</h3>
                 <ul className="list-disc list-inside">
-                  {Array.isArray(order.products) ? order.products.map((product, index) => (
-                    <li key={index} className="flex items-center justify-between">
-                      <div className="flex mb-2 items-center">
-                        <img
-                          src={product.selectedImageUrl}
-                          alt={product.name}
-                          className="w-16 h-16 object-cover rounded-lg mr-4"
-                        />
-                        <div>
-                          <p className="text-sm font-bold text-black">
-                            {product.name} - ₦{product.price}
-                          </p>
-                          <p className="text-sm font-poppins text-black translate-y-2">
-                            Date:{" "}
-                            {new Date(
-                              order.orderDate.seconds * 1000
-                            ).toLocaleDateString()}
-                          </p>
+                  {order.products && typeof order.products === "object" ? (
+                    Object.values(order.products).map((product, index) => (
+                      <li
+                        key={index}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex mb-2 items-center">
+                          <img
+                            src={
+                              product.selectedImageUrl || product.coverImageUrl
+                            }
+                            alt={product.name}
+                            className="w-16 h-16 object-cover rounded-lg mr-4"
+                          />
+                          <div>
+                            <p className="text-sm font-bold text-black">
+                              {product.name} - ₦{product.price}
+                            </p>
+                            <p className="text-sm font-poppins text-black translate-y-2">
+                              Date:{" "}
+                              {order.createdAt && order.createdAt.seconds
+                                ? new Date(
+                                    order.createdAt.seconds * 1000
+                                  ).toLocaleDateString()
+                                : "Date not available"}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <p className="text-sm font-bold text-black">
-                        {product.quantity > 1 && `(${product.quantity})`}
-                      </p>
-                    </li>
-                  )) : <p>Products not available</p>}
-                  <h2 className="text-xs font-poppins font-semibold text-black mt-2">
-                    Order ID: {order.id}
-                  </h2>
+                        <p className="text-sm font-bold text-black">
+                          {product.quantity > 1 && `(${product.quantity})`}
+                        </p>
+                      </li>
+                    ))
+                  ) : (
+                    <p>No products available for this order</p>
+                  )}
                 </ul>
               </div>
             </div>

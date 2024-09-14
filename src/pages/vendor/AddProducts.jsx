@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { doc, collection, setDoc, addDoc, getDoc } from "firebase/firestore";
+import { doc, collection, setDoc, addDoc, updateDoc, arrayUnion, getDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from "../../firebase.config";
 import { toast } from "react-toastify";
@@ -204,6 +204,14 @@ const AddProduct = ({ vendorId, closeModal }) => {
       const productsCollectionRef = collection(db, "products");
       const newProductRef = doc(productsCollectionRef); // Generate new product document reference
       await setDoc(newProductRef, product);
+      // After adding the product to the products collection
+      await setDoc(newProductRef, product);
+
+      // Add the product ID to the vendor's 'productIds' array
+      const vendorDocRef = doc(db, "vendors", vendorId);
+      await updateDoc(vendorDocRef, {
+        productIds: arrayUnion(newProductRef.id), // Add the new product ID to the array
+      });
 
       // Log activity in the vendor's activityNotes collection
       await logActivity(`Added ${productName} to your store`);

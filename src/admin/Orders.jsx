@@ -1,13 +1,14 @@
-import { db } from '../firebase.config';
-import { doc, setDoc } from 'firebase/firestore';
-import { v4 as uuidv4 } from 'uuid';
-
 export const createDummyOrder = async (cart, userId) => {
   const orderId = uuidv4(); // Generate a unique ID for the order
   const orderDate = new Date();
+
+  // Assuming all products belong to the same vendor
+  const vendorId = Object.values(cart)[0]?.vendorId || "unknownVendor"; // Extract the vendorId from the first product
+
   const order = {
     orderId,
     userId,
+    vendorId, // Add vendorId here at the top level
     products: Object.values(cart),
     totalAmount: Object.values(cart).reduce((sum, product) => sum + product.price * product.quantity, 0),
     paymentStatus: 'Paid', // Mark the order as paid

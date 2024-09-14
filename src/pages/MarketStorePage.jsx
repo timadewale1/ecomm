@@ -40,23 +40,19 @@ const MarketStorePage = () => {
   useEffect(() => {
     const fetchVendorData = async () => {
       try {
-        const vendorRef = doc(db, "vendors", id);
+        const vendorRef = doc(db, "vendors", id); // Fetch vendor data using the vendor ID
         const vendorDoc = await getDoc(vendorRef);
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
           vendorData.id = vendorDoc.id; // Ensure we have the vendor's document ID
           setVendor(vendorData);
 
-          const productsRef = collection(db, "products");
-          const productsSnapshot = await getDocs(
-            query(productsRef, where("vendorId", "==", id))
-          );
-
-          const productsList = productsSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          setProducts(productsList);
+          // If the vendor has productIds, use them to fetch products
+          if (vendorData.productIds && vendorData.productIds.length > 0) {
+            fetchVendorProducts(vendorData.productIds); // Fetch the vendor's products
+          } else {
+            setProducts([]); // No products if the vendor has no productIds
+          }
         } else {
           toast.error("Vendor not found!");
         }
@@ -69,6 +65,7 @@ const MarketStorePage = () => {
 
     fetchVendorData();
   }, [id]);
+
   useEffect(() => {
     const checkIfFollowing = async () => {
       if (currentUser && vendor) {
@@ -103,6 +100,35 @@ const MarketStorePage = () => {
 
     return () => unsubscribe();
   }, []);
+  const fetchVendorProducts = async (productIds) => {
+    try {
+      const productsRef = collection(db, "products");
+      const q = query(productsRef, where("__name__", "in", productIds)); // Query the products collection by ID
+
+      const productsSnapshot = await getDocs(q);
+      const productsList = productsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      setProducts(productsList); // Set the products in state
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast.error("Error fetching products.");
+    }
+  };
+  const filteredProducts = products.filter((product) => {
+    console.log("Product:", product.name, "Product Type:", product.productType); // Log product's name and productType
+    console.log("Search Term:", searchTerm.toLowerCase(), "Selected Category (Product Type):", selectedCategory);
+  
+    const matchesSearchTerm = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === "All" || product.productType.toLowerCase() === selectedCategory.toLowerCase();
+  
+    console.log("Matches Search Term:", matchesSearchTerm, "Matches Product Type:", matchesCategory);
+  
+    return matchesSearchTerm && matchesCategory;
+  });
+  
 
   // Handle follow/unfollow vendor
   const handleFollowClick = async () => {
@@ -188,12 +214,6 @@ const MarketStorePage = () => {
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
   };
-
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (selectedCategory === "All" || product.category === selectedCategory)
-  );
 
   if (loading) {
     return (

@@ -1,29 +1,13 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
-import PaystackPop from "@paystack/inline-js";
+
 
 const FullDelivery = () => {
   const location = useLocation();
   const { totalPrice, deliveryInfo } = location.state;
 
-  const handlePaystackPayment = () => {
-    const paystack = new PaystackPop();
-    paystack.newTransaction({
-      key: "public-key",
-      email: deliveryInfo.email,
-      amount: totalPrice * 100, // Paystack amount is in Kobo
-      onSuccess: (transaction) => {
-        toast.success(
-          `Payment successful! Reference: ${transaction.reference}`
-        );
-        // Handle post-payment logic here
-      },
-      onCancel: () => {
-        toast.error("Payment cancelled");
-      },
-    });
-  };
+ 
 
   return (
     <div className="full-delivery-container">
@@ -35,7 +19,7 @@ const FullDelivery = () => {
           Total Price: ₦{totalPrice}
         </p>
         <button
-          onClick={handlePaystackPayment}
+         
           className="w-full px-4 py-2 bg-green-500 text-white rounded-md shadow-sm hover:bg-green-600 transition-colors duration-300 font-ubuntu"
         >
           Pay for Full Delivery

@@ -46,6 +46,13 @@ const StorePage = () => {
           const vendorData = vendorDoc.data();
           vendorData.id = vendorDoc.id; // Assign the document ID to the vendor data
           setVendor(vendorData); // Set vendor with ID
+          
+          // Now fetch the products for this vendor using the stored productIds
+          if (vendorData.productIds && vendorData.productIds.length > 0) {
+            fetchVendorProducts(vendorData.productIds); // Call the function to fetch products
+          } else {
+            setProducts([]); // No products if productIds array is empty
+          }
         } else {
           toast.error("Vendor not found!");
         }
@@ -58,6 +65,7 @@ const StorePage = () => {
   
     fetchVendorData();
   }, [id]);
+  
   
 
   useEffect(() => {
@@ -136,6 +144,24 @@ const StorePage = () => {
   const handleTypeSelect = (type) => {
     setSelectedType(type);
   };
+  const fetchVendorProducts = async (productIds) => {
+    try {
+      const productsRef = collection(db, "products");
+      const q = query(productsRef, where("__name__", "in", productIds)); // Query the products collection by ID
+      
+      const querySnapshot = await getDocs(q);
+      const fetchedProducts = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+  
+      setProducts(fetchedProducts); // Set the fetched products to state
+    } catch (error) {
+      console.error("Error fetching vendor products:", error);
+      toast.error("Error fetching products.");
+    }
+  };
+  
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);

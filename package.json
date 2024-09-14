@@ -15,7 +15,6 @@
     "@m31coding/fuzzy-search": "^1.0.1",
     "@mui/icons-material": "^5.16.0",
     "@mui/material": "^5.16.0",
-    "@paystack/inline-js": "^2.19.2",
     "@react-google-maps/api": "^2.19.3",
     "@react-spring/web": "^9.5.5",
     "@reduxjs/toolkit": "^1.8.5",

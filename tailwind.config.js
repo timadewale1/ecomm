@@ -8,6 +8,9 @@ module.exports = {
       colors: {
         customOrange: '#f9531e',
         customCream: '#FCECD3',
+        customGreen: '#def2eb',
+        textGreen: '#388f6e',
+        dotGreen: '#9cd8c2',
       },
       fontFamily: {
         roboto: ['Roboto', 'sans-serif'],
@@ -16,6 +19,7 @@ module.exports = {
         lato: ['Lato', 'sans-serif'],
         poppins: ['Poppins', 'sans-serif'],
         playwrite: ['playwrite CU', 'cursive'],
+        opensans: ['Open Sans', 'sans-serif'],
 
       },
     },

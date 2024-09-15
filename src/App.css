@@ -89,6 +89,73 @@ section {
 
 
 }
+.modal-content2 {
+  min-width: 90%; /* Ensure the modal doesn't take too much width */
+  margin: auto;
+  padding: 10px;
+  z-index: 3000;
+  background-color: white;
+  border-radius: 10px;
+
+  min-height: 36%; /* Ensure the modal doesn't take the entire viewport */
+  overflow-y: auto; /* Add scroll when the content overflows vertically */
+  word-wrap: break-word; /* Ensure long words or text break into the next line */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.modal-content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  height: 35%;
+  background-color: white;
+  border-radius: 10px 10px 10px 10px; /* Rounded corners at the top */
+  padding: 10px;
+  outline: none;
+}
+.transition-transform {
+  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+.transform-translate-x-full {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+.transform-translate-x-0 {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.logo-container {
+
+  top: 10px; /* Adjust this to position the logo vertically */
+  left: 50%;
+  transform: translateY(-24%);
+  z-index: 10; /* Ensure the logo stays above other elements */
+}
+
+.logo-container img {
+  width: 150px; /* Adjust this size as needed */
+  height: auto;
+  max-width: 100%; /* Ensures the logo remains responsive */
+}
+
 /* this is for the market place cards and pages */
 .sticky-header {
   position: -webkit-sticky;
@@ -101,6 +168,21 @@ section {
 input[type="text"] {
   width: 100%;
   padding-right: 2rem;
+}
+:root {
+  --vh: 100%;
+}
+body.scroll-lock {
+  overflow: hidden;
+}
+.scroll-lock {
+  overflow: hidden;
+}
+
+
+body {
+  height: var(--vh);
+  overflow-x: hidden;
 }
 
 .relative {
@@ -146,18 +228,48 @@ button.bg-orange-500:hover {
 }
 .categories-text{
   font-size: 12px;
+/* Hide scrollbar for Chrome, Safari and Opera */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
 
+/* Hide scrollbar for IE, Edge and Firefox */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+  
 /* this is for the market place cards and pages */
+}
+.categories-con{
+  border: 1px solid #e7e4e4;
 }
 .text-size{
   font-size: 16px;
 
 }
 .main-content {
-  padding-bottom: 70px; /* Adjust to the height of the bottom bar */
+  padding-bottom: 50px; /* Adjust to the height of the bottom bar */
   
 }
 
+/* Add this to your CSS file */
+@keyframes cart-animation {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-cart {
+  animation: cart-animation 0.5s ease-in-out;
+}
 
 .section__title {
   color: var(--primary-color);
@@ -169,3 +281,7 @@ button.bg-orange-500:hover {
     padding: 40px 0px;
   }
 }
+.totaltext{
+  font-size: 17px;
+}
+

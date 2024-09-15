@@ -11,6 +11,7 @@ const initialState = {
   loading: false,
   currentUser: null,
   error: null,
+  userData: null,
 };
 
 const authReducer = (state = initialState, action) => {
@@ -41,6 +42,12 @@ const authReducer = (state = initialState, action) => {
         loading: false,
         currentUser: null,
         error: null,
+      };
+    case "RESET_USER_DATA":
+      return {
+        ...state,
+        userData: null,
+       
       };
     default:
       return state;

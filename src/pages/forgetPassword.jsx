@@ -1,18 +1,20 @@
 import React, { useState } from "react";
-import { auth } from "../firebase.config";
+import { auth, db } from "../firebase.config";
+import { FaAngleLeft } from "react-icons/fa6";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import { Form, FormGroup } from "reactstrap";
-
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import Helmet from "../components/Helmet/Helmet";
 import { Container, Row } from "reactstrap";
-import { RotatingLines } from "react-loader-spinner"; // Importing the loader spinner
+import { MdOutlineEmail } from "react-icons/md";
+import { getDocs, collection, query, where } from "firebase/firestore";
+import { RotatingLines } from "react-loader-spinner";
 
 const ForgetPassword = () => {
   const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false); // State for the loader spinner
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const validateEmail = (email) => {
@@ -24,35 +26,28 @@ const ForgetPassword = () => {
     e.preventDefault();
 
     if (!validateEmail(email)) {
-      toast.error("Invalid email format. Please enter a valid email.", {
-        className: "custom-toast",
-      });
+      toast.error("Invalid email format. Please enter a valid email.");
       return;
     }
 
-    setLoading(true); // Show loader spinner
+    setLoading(true);
+
     try {
-      await sendPasswordResetEmail(auth, email);
-      toast.success("A password reset link has been sent to your email. Please check your inbox.");
-      console.log("Success: Password reset email sent.");
-      navigate("/login");
-    } catch (error) {
-      if (error.code === "auth/user-not-found") {
-        // Handle the case where the email doesn't exist
-        toast.error("We couldn't find an account with that email. Please try again.", {
-          className: "custom-toast",
-        });
-        console.log("Error: Email not found.");
+      const q = query(collection(db, "users"), where("email", "==", email));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        toast.error("We couldn't find an account with that email. Please try again.");
       } else {
-        // Handle other errors
-        toast.error("Something went wrong. Please try again later.", {
-          className: "custom-toast",
-        });
-        console.error(error);
-        console.log("Error: Unable to send password reset email.");
+        await sendPasswordResetEmail(auth, email);
+        toast.success("A password reset link has been sent to your email. Please check your inbox.");
+        navigate("/login");
       }
+    } catch (error) {
+      console.error("Error during password reset:", error);
+      toast.error("Something went wrong. Please try again later.");
     } finally {
-      setLoading(false); // Hide loader spinner
+      setLoading(false);
     }
   };
 
@@ -61,32 +56,53 @@ const ForgetPassword = () => {
       <section>
         <Container>
           <Row>
-            <div className="p-4 ">
-              <h1 className="font-ubuntu font-semibold mb-4">Reset your password</h1>
-              <h2 className="font-ubuntu text-xl">
-                Enter your email address and we will send you a link to reset your password
+            <div className="px-3 ">
+              <FaAngleLeft
+                className="text-2xl cursor-pointer mb-2"
+                onClick={() => navigate(-1)}
+              />
+              <h1 className="font-ubuntu text-3xl mt-9 font-semibold mb-1">
+                Reset your password
+              </h1>
+              <h2 className="font-ubuntu font-thin text-sm text-gray-400">
+                Enter your email address and we will send you a link
               </h2>
               <Form className="translate-y-5" onSubmit={handleResetPassword}>
-                <FormGroup className="">
-                  <label className="font-bold mb-1 text-xs">Your email address</label>
+                <FormGroup className="relative w-full">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-5 pointer-events-none">
+                    <MdOutlineEmail className="text-2xl text-black" />
+                  </div>
                   <input
                     type="email"
                     placeholder="Enter your email"
                     value={email}
-                    className="w-full h-14 text-gray-500 p-4 rounded-full bg-gray-300"
+                    className="w-full h-14 bg-gray-200 pl-14 text-black font-normal rounded-full"
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </FormGroup>
-                <div className="flex justify-between -translate-y-3">
+                <div className="flex text-center flex-col -translate-y-3">
                   <motion.button
                     whileTap={{ scale: 1.2 }}
                     type="submit"
-                    className="bg-customOrange w-28 h-14 rounded-full text-white mt-4"
+                    className="bg-customOrange w-full mb-2 h-12 font-poppins font-medium rounded-full text-white mt-4 relative"
+                    disabled={loading}
                   >
-                    Reset
+                    {loading ? (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <RotatingLines
+                          strokeColor="white"
+                          strokeWidth="5"
+                          animationDuration="0.75"
+                          width="24"
+                          visible={true}
+                        />
+                      </div>
+                    ) : (
+                      "Reset"
+                    )}
                   </motion.button>
-                  <p className="translate-y-10 underline">
-                    <Link to="/login">Back to Login</Link>
+                  <p className="text-customOrange text-sm">
+                    <Link to="/login">Back to Sign In</Link>
                   </p>
                 </div>
               </Form>
@@ -94,17 +110,6 @@ const ForgetPassword = () => {
           </Row>
         </Container>
       </section>
-      {loading && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <RotatingLines
-            strokeColor="orange"
-            strokeWidth="5"
-            animationDuration="0.75"
-            width="96"
-            visible={true}
-          />
-        </div>
-      )}
     </Helmet>
   );
 };

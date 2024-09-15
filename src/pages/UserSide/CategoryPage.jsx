@@ -63,7 +63,7 @@ const CategoryPage = () => {
 
   const getCategoryStyles = (category) => {
     switch (category) {
-      case 'Mens':
+      case 'Men':
         return { header: 'bg-black text-white', text: 'Discover the Latest Men\'s Fashion', font: 'font-sans' };
       case 'Women':
         return { header: 'bg-pink-500 text-white', text: 'Explore the Latest Women\'s Fashion', font: 'font-playfair' };

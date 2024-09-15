@@ -71,3 +71,8 @@ export const logoutUser = () => async (dispatch) => {
     toast.error("Error logging out", { className: "custom-toast" });
   }
 };
+export const resetUserData = () => {
+  return {
+    type: 'RESET_USER_DATA',
+  };
+};

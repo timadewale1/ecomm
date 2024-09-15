@@ -1,83 +1,60 @@
-import React, { useState, useEffect } from "react";
-import { Container, Row, Col } from "reactstrap";
-// import "../styles/dashboard.css";
-import { auth } from "../firebase.config";
+import React, { useState, useEffect, useRef } from "react";
+import { Progress } from "reactstrap";
+import { auth, db } from "../firebase.config";
+import { doc, getDoc } from "firebase/firestore";
 import { getUserRole } from "../admin/getUserRole";
 import useGetData from "../custom-hooks/useGetData";
 import { useNavigate } from "react-router-dom";
-import gsap from "gsap";
-import Loading from './../components/Loading/Loading';
+import Loading from "./../components/Loading/Loading";
+import CircularProgress from "../components/CircularProgress/CircularBar";
+import AmountSpentGraph from "../components/CircularProgress/Graph";
+import { GoDotFill } from "react-icons/go";
+import { FaAngleLeft, FaMoon, FaSun } from "react-icons/fa";
+import { gsap } from "gsap";
+import { IoMdContact } from "react-icons/io";
+import { collection, getDocs } from "firebase/firestore";
+import ReactStars from "react-rating-stars-component";
+import RoundedStar from "../components/Roundedstar";
 
 const UserDashboard = () => {
   const [isUser, setIsUser] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
-  const [loading, setLoading] = useState(true); // Add loading state
+  const [loading, setLoading] = useState(true);
+  const [averageRating, setAverageRating] = useState(0);
+  const [profilePicture, setProfilePicture] = useState(null);
+  const [username, setUsername] = useState(null);
+  const [darkMode, setDarkMode] = useState(false);
   const navigate = useNavigate();
   const { data: orders } = useGetData("orders");
-  // let tl = gsap.timeline();
 
-  // tl.fromTo("col1", { x: -200 }, { duration: 1, x: 200 });
-  // tl.fromTo("col2", { x: 100 }, { duration: 1, x: -100 });
-  // tl.fromTo("col3", { y: -100 }, { duration: 1, y: 100 });
+  const circleRef = useRef(null);
+  const graphRef = useRef(null);
+  const progressBarRef = useRef(null);
 
-  // useEffect(() => {
-  //   if (!loading) {
-  //     const handleLoad = () => {
-  //       const tl = gsap.timeline({ repeat: -1, repeatDelay: 0.5, yoyo: true })
-  //       tl.fromTo("col1", { x: -200 }, {
-  //         duration: 2,
-  //         x: 200
-  //       })
-  //         .fromTo("col2", { x: 100 }, {
-  //           duration: 2,
-  //           x: -100
-  //         })
-  //         .fromTo("col3", { y: -100 }, {
-  //           duration: 2,
-  //           y: 100
-  //         });
-  //     };
-
-  //     window.addEventListener("load", handleLoad);
-
-  //     return () => {
-  //       window.removeEventListener("load", handleLoad);
-  //     }
-  //   }
-
-  // }, [loading]);
-
-  useEffect(() => {
-    if (!loading) {
-      const tl = gsap.timeline({ repeat: 0 });
-
-      tl.fromTo(".col1", { x: -200, opacity: 0 }, { duration: 0.75, x: 0, opacity: 1 })
-        .fromTo(".col2", { x: 200, opacity: 0 }, { duration: 0.75, x: 0, opacity: 1 })
-        .fromTo(".col3", { y: -50, opacity: 0 }, { duration: 0.75, y: 0, opacity: 1 });
-
-      // You can also use window.onload if you want to ensure everything is loaded before running the animations
-      window.onload = () => tl.play();
-
-      return () => {
-        // Clean up the timeline if the component unmounts
-        tl.kill();
-      };
-    }
-  }, [loading]);
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+  };
 
   useEffect(() => {
     const checkUserRole = async () => {
       try {
         const user = auth.currentUser;
-        setIsSignedIn(!!user); // Check if the user is signed in
+        setIsSignedIn(!!user);
         if (user) {
           const userRole = await getUserRole(user.uid);
           setIsUser(userRole === "user");
+
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setProfilePicture(userData.photoURL);
+            setUsername(userData.username);
+          }
         }
       } catch (error) {
         console.error("Error checking user role:", error);
       } finally {
-        setLoading(false); // Set loading to false after the check is done
+        setLoading(false);
       }
     };
 
@@ -89,114 +66,224 @@ const UserDashboard = () => {
       if (!isSignedIn) {
         navigate("/login");
       } else if (!isUser) {
-        navigate("/newhome"); // Redirect to the home page for non-user users
+        navigate("/newhome");
       }
     }
   }, [isSignedIn, isUser, loading, navigate]);
 
+  useEffect(() => {
+    if (!loading) {
+      gsap.from(circleRef.current, {
+        duration: 1.5,
+        x: -200,
+        opacity: 0,
+        ease: "power3.out",
+      });
+
+      gsap.from(graphRef.current, {
+        duration: 1.5,
+        opacity: 0,
+        y: 100,
+        ease: "power3.out",
+      });
+
+      gsap.from(progressBarRef.current, {
+        duration: 1.5,
+        x: -200,
+        opacity: 0,
+        ease: "power3.out",
+      });
+    }
+  }, [loading]);
+
+  useEffect(() => {
+    const fetchAverageRating = async () => {
+      try {
+        const user = auth.currentUser;
+        if (user) {
+          const vendorsSnapshot = await getDocs(collection(db, "vendors"));
+          let totalRatings = 0;
+          let ratingsCount = 0;
+
+          vendorsSnapshot.forEach((doc) => {
+            const vendorData = doc.data();
+            if (vendorData.ratedBy && vendorData.ratedBy[user.uid]) {
+              totalRatings += vendorData.ratedBy[user.uid];
+              ratingsCount += 1;
+            }
+          });
+
+          const average = ratingsCount > 0 ? totalRatings / ratingsCount : 0;
+          setAverageRating(average);
+        }
+      } catch (error) {
+        console.error("Error fetching ratings:", error);
+      }
+    };
+
+    fetchAverageRating();
+  }, [loading]);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
+
+  const getCurrentGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) {
+      return "Good Morning";
+    } else if (hour < 18) {
+      return "Good Afternoon";
+    } else {
+      return "Good Evening";
+    }
+  };
+
   if (loading) {
-    return <Loading /> // You can replace this with a spinner or any loading indicator
+    return <Loading />;
   }
 
   if (!isSignedIn || !isUser) {
     return null;
   }
 
-  // Calculate total amount spent by the user
-  const totalAmountSpent = orders
-  .filter((order) => order.userId === auth.currentUser.uid)
-  .reduce((total, order) => total + order.totalAmount, 0);
+  const userOrders = orders.filter((order) => order.userId === auth.currentUser.uid);
 
-  // Get orders made by the user
-  const userOrders = orders.filter(
-    (order) => order.userId === auth.currentUser.uid
+  const totalAmountSpent = userOrders.reduce(
+    (total, order) => {
+      const amount = order.totalAmount || 0;
+      return total + amount;
+    },
+    0
   );
 
-  // Var to calc and determine the width of the progress bar
-
-  const progress = (totalAmountSpent / 500000) * 100;
-
-  // Get delivered orders to the user
   const deliveredOrders = userOrders.filter(
     (order) => order.status === "Delivered"
   );
 
-  return (
-    <section className="flex justify-center flex-col">
-      <div className="px-3">
-        <div class="mb-6 h-1 w-full bg-neutral-200 dark:bg-neutral-600">
-          <div
-            className="h-1 bg-green-500 transition-all duration-300 ease-in-out max-w-full"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-        <div className="flex justify-between">
-          <span>{progress > 10 && progress <= 25
-    ? "Idan"
-    : progress > 25 && progress < 50
-    ? "Agba Saver"
-    : progress >= 50 && progress < 75
-    ? "Thrift Chief"
-    : ""}</span>
+  const graphData = userOrders.map((order, index) => ({
+    name: `Order ${index + 1}`,
+    amount: order.totalAmount || 0,
+  }));
 
-          <span>Legend</span>
+  const deliveryProgress = userOrders.length > 0 ? (deliveredOrders.length / userOrders.length) * 100 : 0;
+
+  console.log("User Orders:", userOrders);
+  console.log("Total Amount Spent:", totalAmountSpent);
+  console.log("Graph Data:", graphData);
+
+  return (
+    <div className={`min-h-screen flex flex-col ${darkMode ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-gray-900"} pb-10`}>
+      <div className={`sticky top-0 ${darkMode ? "bg-gray-900" : "bg-white"} z-10 p-2 h-20 flex justify-between items-center shadow-md w-full`}>
+        <FaAngleLeft
+          onClick={() => navigate("/profile")}
+          className={`text-2xl cursor-pointer ${darkMode ? "text-white" : ""}`}
+        />
+        <h1 className={`text-xl font-bold ${darkMode ? "text-white" : ""}`}>Metrics</h1>
+        <div className="flex items-center">
+          <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden">
+            {profilePicture ? (
+              <img
+                src={profilePicture}
+                alt="Profile"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-gray-300">
+                <IoMdContact className="text-3xl" />
+              </div>
+            )}
+          </div>
+          <button
+            onClick={toggleDarkMode}
+            className={`ml-4 text-xl cursor-pointer ${darkMode ? "text-white" : ""}`}
+          >
+            {darkMode ? <FaSun /> : <FaMoon />}
+          </button>
         </div>
       </div>
-      <Container className={`content-center`}>
-        <Row className={`gap-2`}>
-          <div className="flex p-2">
-            <Col className="lg-3 relative top-20 col1">
-              <div className="amountSpent__box order__box flex flex-col content-center justify-center text-center max-w-full border-2 border-white rounded bg-green-900">
-                <div className="text-base">
-                  <div className="flex w-full ">
-                    <div className="w-2/5"></div>
-                    <div className="w-3/5 h-10 rounded-bl border-white bg-white">
-                    </div>
-                  </div>
-                  <h5 className="mt-2  text-sm">Total Ama Spent</h5>
-                </div>
-                <span className="text-green-600 text-5xl">
-                  ₦{totalAmountSpent}
-                </span>
-              </div>
-            </Col>
-            <div className="h-full w-5"></div>
-            <Col className="lg-3 relative top-20 col2">
-              <div className="delivered-orders__box order__box flex flex-col content-center justify-center text-center max-w-full border-2 border-white rounded bg-green-900">
-                <div className=" text-base">
-                  <div className="flex w-full ">
-                    <div className="w-3/5 h-10 rounded-br border-white bg-white "></div>
-                    <div></div>
-                  </div>
-                  <h5 className="mt-2  text-sm">Delivered Orders</h5>
-                </div>
-                <span className="text-blue-600 text-5xl">
-                  {deliveredOrders.length}
-                </span>
-              </div>
-            </Col>
+      <div className="flex-grow p-3">
+        <div className="mt-2">
+          <h1 className="font-ubuntu text-2xl font-semibold">
+            {getCurrentGreeting()}, {username}
+          </h1>
+        </div>
+        <div className="flex justify-center mt-4 items-center flex-col">
+          <div ref={circleRef}>
+            <CircularProgress value={userOrders.length} maxValue={60} />
           </div>
-          <Col className="lg-3 absolute w-1/2 translate-x-1/2 col3">
-            <div className="bg-white rounded pb-6 px-3">
-              <div className="order__box flex flex-col content-center justify-center text-center bg-green-900 rounded">
-                <span className="text-orange-600 text-6xl mt-1">
-                  {" "}
-                  {userOrders.length}
-                </span>
-                <h5 className="mt-2 text-lg">Orders Made</h5>
-              </div>
-            </div>
-          </Col>
-        </Row>
-        <Container className={`mt-24`}>
-        <Col className={`top-80 w-full`}>
-          <div className="flex flex-col content-center justify-center text-center order__box">
-            <h5 className="mt-2 text-lg">Pending Orders</h5>
+          <div className="flex text-center font-lato items-center mt-2">
+            <p className="text-customOrange dark:text-customYellow">
+              *Reach higher order milestones to unlock coupons and badges.😊
+            </p>
           </div>
-        </Col>
-        </Container>
-      </Container>
-    </section>
+        </div>
+        <div className="mt-8" ref={graphRef}>
+          <div className="flex items-center mb-4">
+            <GoDotFill className="text-blue-500 mr-2" />
+            <h2 className="text-xl text-start font-ubuntu font-bold">
+              Expenses Graph
+            </h2>
+          </div>
+          <p className="text-gray-400 dark:text-orange-700 translate-x-6 -translate-y-7 text-xs font-poppins font-normal">
+            ₦{totalAmountSpent.toLocaleString()}
+          </p>
+          <div>
+            <AmountSpentGraph data={graphData} />
+          </div>
+        </div>
+        <div className="mt-8 relative" ref={progressBarRef}>
+          <div className="flex items-center mb-4">
+            <GoDotFill className="text-blue-500 mr-2" />
+            <h2 className="text-xl text-start font-ubuntu font-bold">
+              Orders Completed
+            </h2>
+          </div>
+          <div className="relative w-full">
+            <Progress value={deliveryProgress} className="mb-4" />
+            <span
+              className="absolute"
+              style={{
+                top: "-35px",
+                left: `calc(${deliveryProgress}% - 5px)`,
+                fontSize: "24px",
+              }}
+            >
+              🏡
+            </span>
+          </div>
+          <p className="text-gray-400 dark:text-white text-xs font-poppins font-normal">
+            Delivered Orders: {deliveredOrders.length} / {userOrders.length}
+          </p>
+        </div>
+        <div className="mt-8">
+          <div className="flex items-center mb-4">
+            <GoDotFill className="text-blue-500 mr-2" />
+            <h2 className="text-xl text-start font-ubuntu font-bold">
+              Average Rating
+            </h2>
+          </div>
+          <div className="flex justify-center items-center">
+            <ReactStars
+              count={5}
+              value={averageRating}
+              size={50}
+              activeColor="#ffd700"
+              emptyIcon={<RoundedStar filled={false} />}
+              filledIcon={<RoundedStar filled={true} />}
+              edit={false}
+            />
+            <span className="ml-2 text-gray-400 dark:text-white text-sm font-poppins font-bold">
+              ({averageRating.toFixed(2)})
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

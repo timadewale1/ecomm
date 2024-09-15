@@ -25,12 +25,13 @@ import { TbHomeStar } from "react-icons/tb";
 import { GrSecure } from "react-icons/gr";
 import { GiClothes } from "react-icons/gi";
 import { PiSignOutBold } from "react-icons/pi";
-import { FaRegCircleUser } from "react-icons/fa6";
+import { FaRegCircleUser, FaShop } from "react-icons/fa6";
 import { MdEmail, MdHistory, MdHelpOutline } from "react-icons/md";
 import { CiMoneyBill } from "react-icons/ci";
-import { AiOutlineDashboard } from "react-icons/ai";
+
 import { RotatingLines } from "react-loader-spinner";
 import AvatarSelectorModal from "../vendor/VendorAvatarSelect.jsx";
+import Skeleton from "react-loading-skeleton";
 
 const VendorProfile = () => {
   const navigate = useNavigate();
@@ -39,7 +40,11 @@ const VendorProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editField, setEditField] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [editD, setEditD] = useState("");
   const [email, setEmail] = useState("");
+  const [editE, setEditE] = useState("");
+  const [shopName, setShopName] = useState("");
+  const [editS, setEditS] = useState("");
   const [password, setPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -53,6 +58,7 @@ const VendorProfile = () => {
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
 
   useEffect(() => {
+    setIsLoading(true);
     const fetchUserData = async () => {
       if (currentUser) {
         try {
@@ -62,9 +68,12 @@ const VendorProfile = () => {
             setUserData(data);
             setDisplayName(data.firstName + " " + data.lastName);
             setEmail(data.email || "");
+            setShopName(data.shopName || "");
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
+        } finally {
+          setIsLoading(false);
         }
       }
     };
@@ -93,10 +102,28 @@ const VendorProfile = () => {
       } else if (editField === "email") {
         await updateEmail(auth.currentUser, email);
         await sendEmailVerification(auth.currentUser);
-        await updateDoc(doc(db, "vendors", currentUser.uid), { email });
+        await updateDoc(doc(db, "vendors", currentUser.uid), { email: editE });
       } else if (editField === "password") {
         await updatePassword(auth.currentUser, password);
         toast.success("Password updated successfully", {
+          className: "custom-toast",
+        });
+      } else if (editField === "shopName") {
+        if (shopName === "") {
+          toast.error("Store Name cannot be empty", {
+            className: "custom-toast",
+          });
+          return;
+        } else if (shopName.length <= 3) {
+          toast.error("Store Name must be more than 3 characters", {
+            className: "custom-toast",
+          });
+          return;
+        }
+        await updateDoc(doc(db, "vendors", currentUser.uid), {
+          shopName: editS,
+        });
+        toast.success("Store Name has been changed", {
           className: "custom-toast",
         });
       }
@@ -192,37 +219,66 @@ const VendorProfile = () => {
   };
 
   return (
-    <div className="py-4">
+    <div className="pb-4">
       {!showDetails &&
       !showHistory &&
       !showMetrics &&
       !showFAQs &&
       !showDonations ? (
         <div className="flex flex-col items-center">
-          <div className="flex justify-center mt-4 relative">
-            {userData && userData.photoURL ? (
-              <img
-                src={userData.photoURL}
-                alt=""
-                className="rounded-full object-cover h-36 w-36"
-                onClick={() => setIsAvatarModalOpen(true)} // this is to Open the avatar selector modal on click
-              />
-            ) : (
-              <img
-                src=""
-                alt=""
-                className="rounded-full h-36 w-36"
-                onClick={() => setIsAvatarModalOpen(true)} // Open the avatar selector modal on click
-              />
-            )}
-            <FaPen
-              className="absolute top-0 right-0 text-black cursor-pointer"
-              onClick={() => setIsAvatarModalOpen(true)}
-            />
+          <div className="relative flex justify-center w-full h-full">
+            {/* Store Image */}
+            <div className="relative w-full h-72">
+              {isLoading ? (
+                <Skeleton height={288} />
+              ) : userData && userData.coverImageUrl ? (
+                <img
+                  src={userData.coverImageUrl}
+                  alt="Store"
+                  className="w-full h-full object-cover rounded-b-lg bg-gray-400"
+                />
+              ) : (
+                <div className="w-full h-full bg-gray-300 rounded-b-lg" />
+              )}
+
+              {/* User Image */}
+              <div className="absolute top-52 left-0">
+                {isLoading ? (
+                  <Skeleton circle height={144} width={144} />
+                ) : userData && userData.photoURL ? (
+                  <img
+                    src={userData.photoURL}
+                    alt="User"
+                    className="rounded-full object-cover h-36 w-36 border-2 border-white bg-gray-400"
+                  />
+                ) : (
+                  <img
+                    src="" // You might want to provide a placeholder or default image here
+                    alt="User"
+                    className="rounded-full h-36 w-36 border-4 border-white"
+                  />
+                )}
+                <div className="absolute top-1 right-1 bg-white p-2 rounded-full">
+                  <FaPen
+                    className=" text-black cursor-pointer"
+                    onClick={() => setIsAvatarModalOpen(true)}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-          <p className="text-lg font-medium text-black capitalize mt-2">
-            {displayName}
-          </p>
+
+          <div className="mt-10">
+            {isLoading ? (
+              <Skeleton width={150} height={24} />
+            ) : userData && userData.shopName ? (
+              <p className="text-md font-medium text-black capitalize">
+                {shopName}
+              </p>
+            ) : (
+              <div className="h-6 bg-gray-300 w-40 mt-10" />
+            )}
+          </div>
           <div className="w-full mt-12">
             <div className="w-full h-14 flex bg-gray-200">
               <h1 className="text-xl font-ubuntu font-medium mx-4 translate-y-3 text-black">
@@ -362,6 +418,23 @@ const VendorProfile = () => {
                   </div>
                   <hr className="w-full border-gray-400" />
                 </div>
+                <div className="flex flex-col bg-gray-200 rounded-lg items-center w-full mt-6">
+                  <hr className="w-full border-gray-400" />
+                  <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
+                    Store Name
+                  </h1>
+                  <div className="flex items-center justify-between w-full px-4 py-3">
+                    <FaShop className="text-black text-xl mr-4" />
+                    <p className="text-lg text-black w-full font-medium">
+                      {shopName}
+                    </p>
+                    <FaPen
+                      className="text-black cursor-pointer ml-2"
+                      onClick={() => handleEdit("shopName")}
+                    />
+                  </div>
+                  <hr className="w-full border-gray-600" />
+                </div>
                 <div className="flex flex-col  bg-gray-200 rounded-lg items-center w-full mt-6">
                   <hr className="w-full border-gray-600" />
                   <h1 className=" text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500  ">
@@ -369,9 +442,13 @@ const VendorProfile = () => {
                   </h1>
                   <div className="flex items-center justify-between w-full px-4 py-3">
                     <MdEmail className="text-black text-xl mr-4" />
-                    <p className="text-size text-black w-full font-medium">
+                    <p className="text-size text-black w-full font-medium overflow-x-auto">
                       {email}
                     </p>
+                    <FaPen
+                      className="text-black cursor-pointer ml-2"
+                      onClick={() => handleEdit("email")}
+                    />
                   </div>
                   <hr className="w-full border-gray-400" />
                 </div>
@@ -486,13 +563,15 @@ const VendorProfile = () => {
                 ? "Name"
                 : editField === "email"
                 ? "Email"
+                : editField === "shopName"
+                ? "Store Name"
                 : "Password"}
             </h2>
             {editField === "displayName" && (
               <input
                 type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
+                place={displayName}
+                onChange={(e) => setEditD(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded"
               />
             )}
@@ -500,7 +579,15 @@ const VendorProfile = () => {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setEditE(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            )}
+            {editField === "shopName" && (
+              <input
+                type="text"
+                value={shopName}
+                onChange={(e) => setEditS(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded"
               />
             )}

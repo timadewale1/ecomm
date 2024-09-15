@@ -18,7 +18,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
   const [stockQuantity, setStockQuantity] = useState("");
   const [productCondition, setProductCondition] = useState("");
   const [productDefectDescription, setProductDefectDescription] = useState("");
-  const [category, setCategory] = useState([]);
+  const [category, setCategory] = useState("");
   const [productType, setProductType] = useState("");
   const [size, setSize] = useState("");
   const [color, setColor] = useState("");
@@ -66,7 +66,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       !productCoverImageFile ||
       !stockQuantity ||
       !productCondition ||
-      !category.length ||
+      !category ||
       !productType ||
       !size ||
       !color ||
@@ -119,9 +119,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
               }`
             : productCondition.charAt(0).toUpperCase() +
               productCondition.slice(1).toLowerCase(),
-        category: category.map(
-          (cat) => cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase()
-        ),
+        category: category.charAt(0).toUpperCase() + category.slice(1).toLowerCase(),
         productType:
           productType.charAt(0).toUpperCase() +
           productType.slice(1).toLowerCase(),
@@ -145,7 +143,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       setStockQuantity("");
       setProductCondition("");
       setProductDefectDescription("");
-      setCategory([]);
+      setCategory("");
       setProductType("");
       setSize("");
       setColor("");
@@ -158,46 +156,16 @@ const AddProduct = ({ vendorId, closeModal }) => {
     }
   };
 
-  const handleCategoryChange = (e) => {
-    const value = e.target.value;
-    setCategory((prevCategories) =>
-      prevCategories.includes(value)
-        ? prevCategories.filter((category) => category !== value)
-        : [...prevCategories, value]
-    );
-  };
-
   const getSizeOptions = () => {
     switch (productType) {
       case "cloth":
-        return ["XS", "S", "M", "L", "XL", "XXL", " all sizes"];
+        return ["XS", "S", "M", "L", "XL", "XXL", "all sizes"];
       case "dress":
-        return [
-          "32",
-          "34",
-          "36",
-          "38",
-          "40",
-          "42",
-          "44",
-          "all sizes",
-        ];
+        return ["32", "34", "36", "38", "40", "42", "44", "all sizes"];
       case "jewelry":
         return ["5", "6", "7", "8", "9", "10", "all sizes"];
       case "footwear":
-        return [
-          "35",
-          "36",
-          "37",
-          "38",
-          "39",
-          "40",
-          "41",
-          "42",
-          "43",
-          "44",
-          " all sizes",
-        ];
+        return ["35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "all sizes"];
       default:
         return [];
     }
@@ -230,25 +198,20 @@ const AddProduct = ({ vendorId, closeModal }) => {
         <label className="block text-gray-700 text-sm font-ubuntu font-medium">
           Category
         </label>
-        <div
-          className={`flex space-x-2 border ${highlightField(category.length)}`}
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
+            category
+          )}`}
+          required
         >
-          {["Men", "Women", "Kids"].map((cat) => (
-            <div key={cat}>
-              <input
-                type="checkbox"
-                id={cat}
-                value={cat}
-                checked={category.includes(cat)}
-                onChange={handleCategoryChange}
-                className="mr-1"
-              />
-              <label htmlFor={cat} className="text-sm text-gray-700">
-                {cat}
-              </label>
-            </div>
-          ))}
-        </div>
+          <option value="">Select Category</option>
+          <option value="Men">Men</option>
+          <option value="Women">Women</option>
+          <option value="Kids">Kids</option>
+          <option value="All">All</option>
+        </select>
       </div>
       <div className="mb-4">
         <label className="block text-gray-700 text-sm font-ubuntu font-medium">
@@ -306,7 +269,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         />
       </div>
       <div className="mb-4">
-        <label className="block text-gray-700 font-ubuntu text-sm font-medium">
+        <label className="block text-black font-ubuntu text-sm font-medium">
           Product Description
         </label>
         <p className="text-xs text-red-500">Should not exceed 25 characters!</p>
@@ -385,7 +348,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           different designs, add those images here.{" "}
         </p>
         <div className="flex flex-col mt-1 items-center">
-          <div className=" grid grid-cols-2">
+          <div className="grid grid-cols-2 gap-2">
             {Array.from({ length: 6 }).map((_, index) => (
               <div
                 key={index}

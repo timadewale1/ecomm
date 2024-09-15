@@ -9,7 +9,7 @@ const Modal = ({ isOpen, onClose, children }) => {
     if (isOpen) {
       gsap.fromTo(
         modalRef.current,
-        { opacity: 0, y: 50 },
+        { opacity: 0, y: 810 },
         { opacity: 1, y: 0, duration: 1, ease: 'power2.out' }
       );
     }
@@ -19,7 +19,7 @@ const Modal = ({ isOpen, onClose, children }) => {
 
   return (
     <div className="fixed inset-0 flex flex-col items-center justify-center w-full bg-gray-300 bg-opacity-70 modal">
-      <div ref={modalRef} className="bg-white rounded-lg mx-1 my-auto p-4 flex flex-col items-center w-full md:w-3/4 lg:w-1/2 max-h-screen overflow-y-auto">
+      <div ref={modalRef} className="bg-white rounded-lg mx-1 p-4 flex flex-col items-center w-full md:w-3/4 lg:w-1/2 max-h-screen overflow-y-auto">
         <button onClick={onClose} className="w-fit h-fit">
           <BsChevronCompactDown className='h-16 w-16 p-1 text-gray-400 hover:text-gray-600 transition' />
         </button>

@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import useAuth from "../custom-hooks/useAuth";
 import { getUserRole } from "../admin/getUserRole";
 import Loading from "../components/Loading/Loading";
 
 const ProtectedRoute = ({ requireAdmin }) => {
-  const { currentUser, loading } = useAuth(); // Ensure loading state is handled
+  const { currentUser, loading } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkedAdminRole, setCheckedAdminRole] = useState(false);
+  const location = useLocation(); // Get the current location
 
   useEffect(() => {
     const checkAdminRole = async () => {
@@ -42,8 +43,17 @@ const ProtectedRoute = ({ requireAdmin }) => {
     return <Navigate to="/dashboard" />;
   }
 
+  // Determine if padding should be excluded based on the current route
+  const excludePaddingRoutes = ["/user-dashboard", "/latest-cart", "/online-vendors", "/market-vendors"];
+  const dynamicRoutes = ["/reviews/"]; // Add dynamic base routes here
+
+  // Check if the current route matches any of the static or dynamic routes
+  const shouldExcludePadding =
+    excludePaddingRoutes.includes(location.pathname) ||
+    dynamicRoutes.some((route) => location.pathname.startsWith(route));
+
   return (
-    <div className="main-content">
+    <div className={shouldExcludePadding ? "" : "main-content"}>
       <Outlet />
     </div>
   );

@@ -1,18 +1,27 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { db, auth } from "../firebase.config";
-import { doc, getDoc, collection, getDocs, updateDoc, setDoc, increment } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-import ReactStars from "react-rating-stars-component";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import { GoDotFill } from "react-icons/go";
-import { IoMdContact } from "react-icons/io";
-import { FaAngleLeft, FaPhoneAlt, FaTimes, FaPlus, FaCheck } from "react-icons/fa";
-import { toast } from "react-toastify";
-import RoundedStar from "../components/Roundedstar";
+import { GoDotFill, GoChevronLeft } from "react-icons/go";
+import { FiSearch } from "react-icons/fi";
+import { FaAngleLeft, FaPlus, FaCheck } from "react-icons/fa";
+import toast from "react-hot-toast";
 import ProductCard from "../components/Products/ProductCard";
 import Loading from "../components/Loading/Loading";
+import { FaStar } from "react-icons/fa6";
+import { CiSearch } from "react-icons/ci";
 
 const MarketStorePage = () => {
   const { id } = useParams();
@@ -20,27 +29,30 @@ const MarketStorePage = () => {
   const [products, setProducts] = useState([]);
   const [favorites, setFavorites] = useState({});
   const [loading, setLoading] = useState(true);
-  const [showContact, setShowContact] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
 
+  // Fetch vendor data
   useEffect(() => {
     const fetchVendorData = async () => {
       try {
-        const vendorRef = doc(db, "vendors", id);
+        const vendorRef = doc(db, "vendors", id); // Fetch vendor data using the vendor ID
         const vendorDoc = await getDoc(vendorRef);
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
+          vendorData.id = vendorDoc.id; // Ensure we have the vendor's document ID
           setVendor(vendorData);
 
-          const productsRef = collection(vendorRef, "products");
-          const productsSnapshot = await getDocs(productsRef);
-          const productsList = productsSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          setProducts(productsList);
+          // If the vendor has productIds, use them to fetch products
+          if (vendorData.productIds && vendorData.productIds.length > 0) {
+            fetchVendorProducts(vendorData.productIds); // Fetch the vendor's products
+          } else {
+            setProducts([]); // No products if the vendor has no productIds
+          }
         } else {
           toast.error("Vendor not found!");
         }
@@ -55,49 +67,123 @@ const MarketStorePage = () => {
   }, [id]);
 
   useEffect(() => {
+    const checkIfFollowing = async () => {
+      if (currentUser && vendor) {
+        try {
+          const followRef = collection(db, "follows");
+          const followDoc = doc(followRef, `${currentUser.uid}_${vendor.id}`);
+          const followSnapshot = await getDoc(followDoc);
+
+          if (followSnapshot.exists()) {
+            setIsFollowing(true); // User is following the vendor
+          } else {
+            setIsFollowing(false); // User is not following the vendor
+          }
+        } catch (error) {
+          console.error("Error checking follow status:", error);
+        }
+      }
+    };
+
+    checkIfFollowing();
+  }, [currentUser, vendor]); // Runs whenever the currentUser or vendor data changes
+
+  // Check if user is logged in and load current user
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser(user);
-        checkIfFollowing(user.uid, id);
       } else {
         setCurrentUser(null);
       }
     });
 
     return () => unsubscribe();
-  }, [id]);
+  }, []);
+  const fetchVendorProducts = async (productIds) => {
+    try {
+      const productsRef = collection(db, "products");
+      const q = query(productsRef, where("__name__", "in", productIds)); // Query the products collection by ID
 
-  const checkIfFollowing = async (userId, vendorId) => {
-    const followRef = doc(db, "follows", userId);
-    const followDoc = await getDoc(followRef);
-    if (followDoc.exists() && followDoc.data()[vendorId]) {
-      setIsFollowing(true);
+      const productsSnapshot = await getDocs(q);
+      const productsList = productsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      setProducts(productsList); // Set the products in state
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast.error("Error fetching products.");
+    }
+  };
+  const filteredProducts = products.filter((product) => {
+    console.log("Product:", product.name, "Product Type:", product.productType); // Log product's name and productType
+    console.log("Search Term:", searchTerm.toLowerCase(), "Selected Category (Product Type):", selectedCategory);
+  
+    const matchesSearchTerm = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === "All" || product.productType.toLowerCase() === selectedCategory.toLowerCase();
+  
+    console.log("Matches Search Term:", matchesSearchTerm, "Matches Product Type:", matchesCategory);
+  
+    return matchesSearchTerm && matchesCategory;
+  });
+  
+
+  // Handle follow/unfollow vendor
+  const handleFollowClick = async () => {
+    try {
+      if (!vendor?.id) {
+        throw new Error("Vendor ID is undefined");
+      }
+
+      const followRef = collection(db, "follows");
+      const followDoc = doc(followRef, `${currentUser.uid}_${vendor.id}`);
+
+      if (!isFollowing) {
+        // Add follow entry
+        await setDoc(followDoc, {
+          userId: currentUser.uid,
+          vendorId: vendor.id,
+          createdAt: new Date(),
+        });
+        toast.success("You will be notified of new products and promos.");
+      } else {
+        // Unfollow
+        await deleteDoc(followDoc);
+        toast.success("Unfollowed");
+      }
+
+      setIsFollowing(!isFollowing);
+    } catch (error) {
+      console.error("Error following/unfollowing:", error.message);
+      toast.error(`Error following/unfollowing: ${error.message}`);
     }
   };
 
-  const handleFollowClick = async () => {
-    if (!currentUser) {
-      toast.error("You must be logged in to follow a vendor.");
-      return;
-    }
-
-    const userId = currentUser.uid;
-    const followRef = doc(db, "follows", userId);
-
+  // Fetch all notifications for the current user
+  const notifyFollowers = async (productOrPromoDetails) => {
     try {
-      if (isFollowing) {
-        await updateDoc(followRef, {
-          [id]: false,
+      const followRef = collection(db, "follows");
+      const q = query(followRef, where("vendorId", "==", vendor.id));
+      const followersSnapshot = await getDocs(q);
+
+      const followerPromises = followersSnapshot.docs.map(async (doc) => {
+        const userId = doc.data().userId;
+
+        // Send notification to the user (storing it in the 'notifications' collection)
+        await setDoc(collection(db, "notifications"), {
+          userId,
+          message: `New product or promo from ${vendor.shopName}: ${productOrPromoDetails}`,
+          createdAt: new Date(),
+          seen: false,
         });
-        setIsFollowing(false);
-        toast.success("Unfollowed");
-      } else {
-        await setDoc(followRef, { [id]: true }, { merge: true });
-        setIsFollowing(true);
-        toast.success("You will be notified of new products and promos.");
-      }
+      });
+
+      await Promise.all(followerPromises);
+      toast.success("Followers have been notified.");
     } catch (error) {
-      toast.error("Error updating follow status: " + error.message);
+      console.error("Error notifying followers:", error);
     }
   };
 
@@ -117,34 +203,16 @@ const MarketStorePage = () => {
     navigate("/cart");
   };
 
-  const handleRating = async (rating) => {
-    try {
-      if (!currentUser) {
-        toast.error("You must be logged in to submit a rating.");
-        return;
-      }
-      const userId = currentUser.uid;
-      const vendorRef = doc(db, "vendors", id);
+  const handleRatingClick = () => {
+    navigate(`/reviews/${id}`);
+  };
 
-      // Check if the user has already rated and has not exceeded the limit
-      if (vendor.ratedBy && vendor.ratedBy[userId] >= 5) {
-        toast.error("You have reached the maximum rating for this vendor!");
-        return;
-      }
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
+  };
 
-      await updateDoc(vendorRef, {
-        ratingCount: increment(1),
-        rating: increment(rating),
-        [`ratedBy.${userId}`]: increment(1),
-      });
-
-      // Fetch the updated vendor data
-      const vendorDoc = await getDoc(vendorRef);
-      setVendor(vendorDoc.data());
-      toast.success("Thank you for your rating!");
-    } catch (error) {
-      toast.error("Error submitting rating: " + error.message);
-    }
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value);
   };
 
   if (loading) {
@@ -159,20 +227,49 @@ const MarketStorePage = () => {
     return <div>No vendor found</div>;
   }
 
+  const DefaultImageUrl =
+    "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
+
   // Calculate the average rating
-  const averageRating = vendor.ratingCount > 0 ? vendor.rating / vendor.ratingCount : 0;
+  const averageRating =
+    vendor.ratingCount > 0 ? vendor.rating / vendor.ratingCount : 0;
 
   return (
-    <div className="p-3 mb-20">
-      <div className="flex justify-between items-center mb-4">
-        <FaAngleLeft onClick={() => navigate(-1)} className="cursor-pointer" />
-        <h1 className="font-ubuntu text-lg font-medium">{vendor.shopName}</h1>
-        <IoMdContact
-          className="text-customCream text-4xl cursor-pointer"
-          onClick={() => setShowContact(true)}
-        />
+    <div className="p-3 mb-24">
+      <div className="sticky top-0 bg-white h-20 z-10 flex justify-between items-center border-b border-gray-300 w-full">
+        {isSearching ? (
+          <>
+            <FaAngleLeft
+              onClick={() => setIsSearching(false)}
+              className="cursor-pointer"
+            />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={handleSearchChange}
+              placeholder="Search products..."
+              className="border rounded-lg px-3 py-2 flex-1 mx-2"
+            />
+            <div style={{ width: "24px" }} />
+          </>
+        ) : (
+          <>
+            <GoChevronLeft
+              onClick={() => navigate(-1)}
+              className="cursor-pointer text-3xl"
+            />
+            <h1 className="font-opensans text-lg font-semibold">
+              {vendor.shopName}
+            </h1>
+            <CiSearch
+              className="text-black text-3xl cursor-pointer"
+              onClick={() => setIsSearching(true)}
+            />
+          </>
+        )}
       </div>
-      <div className="flex justify-center mt-2">
+
+      <div className="flex justify-center mt-6">
         <div className="relative w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
           {loading ? (
             <Skeleton circle={true} height={128} width={128} />
@@ -183,55 +280,63 @@ const MarketStorePage = () => {
               alt={vendor.shopName}
             />
           ) : (
-            <span className="text-center font-bold">{vendor.shopName}</span>
+            <img
+              className="w-32 h-32 rounded-full bg-slate-700 object-cover"
+              src={DefaultImageUrl}
+              alt="Default Image"
+            />
           )}
         </div>
       </div>
-      <div className="flex justify-center mt-2">
+      <div className="flex justify-center mt-3 mb-2">
+        <div className="flex items-center text-black text-lg font-medium">
+          {vendor.socialMediaHandle}
+        </div>
+      </div>
+      <div
+        className="flex justify-center mt-2"
+        style={{ cursor: "pointer" }}
+        onClick={handleRatingClick}
+      >
         {loading ? (
           <Skeleton width={100} height={24} />
         ) : (
           <>
-            <ReactStars
-              count={5}
-              value={averageRating}
-              size={24}
-              activeColor="#ffd700"
-              emptyIcon={<RoundedStar filled={false} />}
-              filledIcon={<RoundedStar filled={true} />}
-              edit={true}
-              onChange={handleRating}
-            />
-            <span className="flex items-center ml-2">
-              ({vendor.ratingCount || 0})
+            <FaStar className="text-yellow-400" size={16} />
+            <span className="flex text-xs font-opensans items-center ml-2">
+              {averageRating.toFixed(1)}
+              <GoDotFill className="mx-1 text-gray-300 font-opensans dot-size" />
+              {vendor.ratingCount || 0} ratings
             </span>
           </>
         )}
       </div>
-      <div className="w-full h-auto bg-customCream p-2 flex flex-col justify-self-center rounded-lg mt-4">
-        <p className="font-ubuntu text-black text-xs text-center">
-          {loading ? <Skeleton count={2} /> : vendor.description}
-        </p>
-        <div className="mt-2 flex flex-wrap items-center justify-center text-gray-700 text-sm space-x-2">
+
+      <div className="w-fit text-center bg-customGreen p-2 flex items-center justify-center rounded-full mt-3 mx-auto">
+        <div className="mt-2 flex flex-wrap items-center -translate-y-1 justify-center text-textGreen text-xs space-x-1">
           {loading ? (
             <Skeleton width={80} height={24} count={4} inline={true} />
           ) : (
             vendor.categories.map((category, index) => (
               <React.Fragment key={index}>
-                {index > 0 && <GoDotFill className="mx-1" />}
+                {index > 0 && (
+                  <GoDotFill className="mx-1 dot-size text-dotGreen" />
+                )}
                 <span>{category}</span>
               </React.Fragment>
             ))
           )}
         </div>
       </div>
-      <div className="flex items-center justify-center mt-4">
+      <div className="flex items-center justify-center mt-3">
         {loading ? (
           <Skeleton width={128} height={40} />
         ) : (
           <button
-            className={`w-32 h-10 rounded-lg border flex items-center justify-center transition-colors duration-200 ${
-              isFollowing ? "bg-customOrange text-white" : "bg-transparent"
+            className={`w-full h-12 rounded-full border font-medium flex items-center justify-center transition-colors duration-200 ${
+              isFollowing
+                ? "bg-customOrange text-white"
+                : "bg-customOrange text-white"
             }`}
             onClick={handleFollowClick}
           >
@@ -249,55 +354,57 @@ const MarketStorePage = () => {
           </button>
         )}
       </div>
-      <div className="p-2">
-        <h1 className="font-ubuntu text-lg mt-4 font-medium">Products</h1>
-        <div className="grid mt-2 grid-cols-2 gap-3">
+      <p className=" text-gray-700 mt-3 text-sm font-opensans text-center">
+        {loading ? <Skeleton count={2} /> : vendor.description}
+      </p>
+      <div className="p-2 mt-7">
+        <h1 className="font-opensans text-lg mb-3  font-semibold ">Products</h1>
+        <div className="flex justify-between mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
+          {[
+            "All",
+            "Cloth",
+            "Dress",
+            "Jewelry",
+            "Footwear",
+            "Pants",
+            "Shirts",
+            "Suits",
+            "Hats",
+            "Belts",
+          ].map((category) => (
+            <button
+              key={category}
+              onClick={() => handleCategorySelect(category)}
+              className={`flex-shrink-0 h-12 px-4 py-2 text-xs font-semibold font-opensans text-black border border-gray-400 rounded-full ${
+                selectedCategory === category
+                  ? "bg-customOrange text-white"
+                  : "bg-transparent"
+              }`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid mt-2 grid-cols-2 gap-2">
           {loading
             ? Array.from({ length: 6 }).map((_, index) => (
                 <Skeleton key={index} height={200} width="100%" />
               ))
-            : products.map((product) => (
+            : filteredProducts.map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
                   isFavorite={!!favorites[product.id]}
                   onFavoriteToggle={handleFavoriteToggle}
+                  onClick={() => {
+                    console.log("Navigating to product detail:", product.id); // Add console log
+                    navigate(`/product/${product.id}`);
+                  }}
                 />
               ))}
         </div>
       </div>
-      {showContact && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-end z-50 modal"
-          onClick={() => setShowContact(false)}
-        >
-          <div
-            className="bg-white w-full md:w-1/3 h-2/5 p-4 rounded-t-lg relative z-50"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <FaTimes
-              className="absolute top-2 right-2 text-white text-lg bg-black h-4 w-4 rounded-md cursor-pointer"
-              onClick={() => setShowContact(false)}
-            />
-            <h2 className="text-lg font-ubuntu font-medium mb-4">
-              Contact Information
-            </h2>
-            <div className="flex items-center mb-4">
-              <a
-                href={`tel:${vendor.phoneNumber}`}
-                className="flex items-center"
-              >
-                <FaPhoneAlt className="mr-4 w-6 h-6 " />
-                <p className="font-ubuntu text-black text-lg">{vendor.phoneNumber}</p>
-              </a>
-            </div>
-            <div className="flex items-center mb-4">
-              <IoMdContact className="mr-4 w-6 h-6 " />
-              <p className="font-ubuntu text-black text-lg">{vendor.complexName}</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

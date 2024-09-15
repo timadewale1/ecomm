@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { collection, query, where, getDocs, doc, deleteDoc, updateDoc, addDoc } from 'firebase/firestore';
+import { collection, getDoc, arrayRemove, doc, deleteDoc, updateDoc, addDoc } from 'firebase/firestore';
 import { db } from '../../firebase.config';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -29,6 +29,7 @@ const VendorProducts = () => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setVendorId(user.uid);
+        console.log("Vendor ID set:", user.uid);
         fetchVendorProducts(user.uid);
       } else {
         toast.error('Unauthorized access or no user is signed in.');
@@ -40,26 +41,38 @@ const VendorProducts = () => {
     return () => unsubscribe();
   }, [auth, navigate]);
 
+  // Fetch products from the centralized 'products' collection
   const fetchVendorProducts = async (uid) => {
     try {
-      const vendorRef = collection(db, 'vendors', uid, 'products');
-      const q = query(vendorRef, where('vendorId', '==', uid));
-      const querySnapshot = await getDocs(q);
-      const productsData = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-
-      const currentTime = new Date().getTime();
-      const productsWithTimers = productsData.map((product) => {
-        if (product.dateAdded && product.dateAdded.toDate) {
-          const dateAddedTime = product.dateAdded.toDate().getTime();
-          const timeDiff = currentTime - dateAddedTime;
-          const remainingTime = Math.max(0, 600000 - timeDiff); // 10 minutes in milliseconds
-          return { ...product, remainingEditTime: remainingTime };
-        } else {
-          return { ...product, remainingEditTime: 0 };
-        }
-      });
-
-      setProducts(productsWithTimers);
+      // Fetch vendor document to get productIds array
+      const vendorDocRef = doc(db, 'vendors', uid);
+      const vendorDoc = await getDoc(vendorDocRef);
+      
+      if (!vendorDoc.exists()) {
+        throw new Error("Vendor not found");
+      }
+      
+      const vendorData = vendorDoc.data();
+      const productIds = vendorData.productIds || [];
+  
+      if (productIds.length === 0) {
+        toast.info('No products found.');
+        setProducts([]);
+        setLoading(false);
+        return;
+      }
+  
+      // Fetch products from the centralized 'products' collection using productIds array
+      const productsCollectionRef = collection(db, 'products');
+      const productsSnapshot = await Promise.all(
+        productIds.map(async (productId) => {
+          const productDoc = await getDoc(doc(productsCollectionRef, productId));
+          return productDoc.exists() ? { id: productDoc.id, ...productDoc.data() } : null;
+        })
+      );
+  
+      const validProducts = productsSnapshot.filter((product) => product !== null);
+      setProducts(validProducts);
     } catch (error) {
       console.error('Error fetching products: ', error);
       toast.error('Error fetching products: ' + error.message);
@@ -67,6 +80,7 @@ const VendorProducts = () => {
       setLoading(false);
     }
   };
+  
 
   const handleProductClick = (product) => {
     setSelectedProduct(product);
@@ -101,10 +115,24 @@ const VendorProducts = () => {
   const confirmDeleteProduct = async () => {
     setButtonLoading(true);
     try {
-      await deleteDoc(doc(db, 'vendors', vendorId, 'products', selectedProduct.id));
-      toast.success('Product deleted successfully.');
-      setProducts(products.filter((product) => product.id !== selectedProduct.id));
+      const productId = selectedProduct.id;
+      
+      // Step 1: Delete the product from the centralized 'products' collection
+      await deleteDoc(doc(db, 'products', productId));
+  
+      // Step 2: Remove the productId from the vendor's 'productIds' array
+      const vendorDocRef = doc(db, 'vendors', vendorId);
+      await updateDoc(vendorDocRef, {
+        productIds: arrayRemove(productId), // Remove the product ID from the array
+      });
+  
+      // Step 3: Log activity for product deletion
       await addActivityNote(`Deleted product: ${selectedProduct.name}`);
+      
+      // Update the products state
+      setProducts(products.filter((product) => product.id !== selectedProduct.id));
+      
+      toast.success('Product deleted successfully.');
       closeModals();
     } catch (error) {
       console.error('Error deleting product: ', error);
@@ -114,6 +142,7 @@ const VendorProducts = () => {
       setShowConfirmation(false);
     }
   };
+  
 
   const handleDeleteProduct = () => {
     setShowConfirmation(true);
@@ -122,11 +151,12 @@ const VendorProducts = () => {
   const handleRestockProduct = async () => {
     setButtonLoading(true);
     try {
-      const productRef = doc(db, 'vendors', vendorId, 'products', selectedProduct.id);
+      // Restocking product in the centralized 'products' collection
+      const productRef = doc(db, 'products', selectedProduct.id);
       await updateDoc(productRef, {
         stockQuantity: selectedProduct.stockQuantity + parseInt(restockQuantity, 10),
       });
-      await addActivityNote(`Restocked ${selectedProduct.name}`)
+      await addActivityNote(`Restocked ${selectedProduct.name}`);
       toast.success('Product restocked successfully.');
       fetchVendorProducts(vendorId);
       closeModals();
@@ -197,7 +227,7 @@ const VendorProducts = () => {
 
       {selectedProduct && (
         <Modal isOpen={isViewProductModalOpen} onClose={closeModals}>
-          <div className="p-4 space-y-4">
+          <div className="pb-24 pt-10 space-y-4">
             <h2 className="text-2xl font-bold text-green-700">{selectedProduct.name}</h2>
             {selectedProduct.coverImageUrl && (
               <img
@@ -226,7 +256,7 @@ const VendorProducts = () => {
               >
                 <FaTrashAlt />
               </button>
-              {selectedProduct.remainingEditTime = 0 && (
+              {selectedProduct.remainingEditTime > 0 && (
                 <div className="flex items-center justify-end space-x-2 mt-4">
                   <button
                     className={`px-3 py-2 bg-blue-700 text-white rounded-md shadow-sm hover:bg-blue-800 focus:ring focus:ring-blue-700 focus:outline-none ${buttonLoading ? 'cursor-not-allowed' : ''}`}
@@ -281,7 +311,7 @@ const VendorProducts = () => {
 
       {isAddProductModalOpen && (
         <Modal isOpen={isAddProductModalOpen} onClose={closeModals}>
-          <AddProduct onClose={closeModals} onProductAdded={() => fetchVendorProducts(vendorId)} />
+          <AddProduct vendorId={vendorId} onClose={closeModals} onProductAdded={() => fetchVendorProducts(vendorId)} />
         </Modal>
       )}
 

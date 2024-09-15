@@ -1,31 +1,40 @@
 import React, { useState, useEffect, useRef } from "react";
-import { RiMenu4Line } from "react-icons/ri";
-import { PiBell } from "react-icons/pi";
-import { FiSearch } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 import { IoArrowBack } from "react-icons/io5";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
+import logo from "../Images/logo.png";
 import "swiper/css/free-mode";
+import { CiSearch } from "react-icons/ci";
+import { BsHeart } from "react-icons/bs";
 import "swiper/css/autoplay";
 import { Cloudinary } from "@cloudinary/url-gen";
 import { auto } from "@cloudinary/url-gen/actions/resize";
 import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
 import { AdvancedImage } from "@cloudinary/react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { collection, query, getDocs, getDoc, doc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  query,
+  where,
+} from "firebase/firestore";
 import { FreeMode, Autoplay } from "swiper/modules";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import { IoIosNotificationsOutline } from "react-icons/io";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import BottomBar from "../components/BottomBar/BottomBar";
 import "../styles/bottombar.css";
-import { useNavigate } from "react-router-dom";
 import { useNavigation } from "../components/Context/Bottombarcontext";
 import Market from "../components/Market/Market";
 import { db } from "../firebase.config";
 import ProductCard from "../components/Products/ProductCard";
-import Logo from "../styles/THRIFT-LOGO-SMALL-TRANSPARENT.png";
+import SearchDropdown from "../components/Search/SearchDropdown";
+
 gsap.registerPlugin(ScrollTrigger);
 
 const Homepage = () => {
@@ -35,19 +44,42 @@ const Homepage = () => {
   const [userName, setUserName] = useState("User");
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
-  const [vendors, setVendors] = useState({});
+  const [vendors, setVendors] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
   const productCardsRef = useRef([]);
   const [initialLoad, setInitialLoad] = useState(true);
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
 
-  const handleFocus = () => {
-    setIsSearchFocused(true);
-  };
+  // Fetch unread notifications
+  useEffect(() => {
+    const fetchUnreadNotifications = async (userId) => {
+      try {
+        const notificationsRef = collection(db, "notifications");
+        const q = query(
+          notificationsRef,
+          where("userId", "==", userId),
+          where("seen", "==", false)
+        );
+        const querySnapshot = await getDocs(q);
 
-  const handleBlur = () => {
-    setIsSearchFocused(false);
-  };
+        if (!querySnapshot.empty) {
+          setHasUnreadNotifications(true);
+        } else {
+          setHasUnreadNotifications(false);
+        }
+      } catch (error) {
+        console.error("Error fetching notifications:", error);
+      }
+    };
+
+    const auth = getAuth();
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchUnreadNotifications(user.uid);
+      }
+    });
+  }, []);
 
   const handleShowMore = () => {
     setActiveNav(2);
@@ -56,20 +88,6 @@ const Homepage = () => {
 
   const handleCategoryClick = (category) => {
     navigate(`/category/${category}`);
-  };
-
-  const handleSearchChange = (e) => {
-    const term = e.target.value.toLowerCase();
-    setSearchTerm(term);
-
-    if (term.length < 2) {
-      setFilteredProducts(products);
-    } else {
-      const filtered = products.filter((product) =>
-        product.name.toLowerCase().includes(term)
-      );
-      setFilteredProducts(filtered);
-    }
   };
 
   const clearSearch = () => {
@@ -107,41 +125,36 @@ const Homepage = () => {
     });
   }, []);
 
+  const fetchProductsAndVendors = async () => {
+    try {
+      // Fetch all products from the centralized "products" collection
+      const productsSnapshot = await getDocs(collection(db, "products"));
+      const productsList = [];
+      const vendorList = new Set(); // To collect unique vendor names
+
+      productsSnapshot.forEach((productDoc) => {
+        const productData = productDoc.data();
+        productsList.push({
+          id: productDoc.id,
+          ...productData,
+        });
+
+        // Collect unique vendor names from products
+        vendorList.add(productData.vendorName);
+      });
+
+      setProducts(productsList);
+      setFilteredProducts(productsList);
+      setVendors(Array.from(vendorList)); // Convert the Set back to an array for vendors
+    } catch (error) {
+      console.error("Error fetching products and vendors:", error);
+    } finally {
+      setLoading(false);
+      setInitialLoad(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchProductsAndVendors = async () => {
-      try {
-        const vendorsSnapshot = await getDocs(collection(db, "vendors"));
-        const vendorsData = {};
-        const productsList = [];
-
-        for (const vendorDoc of vendorsSnapshot.docs) {
-          const vendorData = vendorDoc.data();
-          vendorsData[vendorDoc.id] = vendorData.shopName;
-
-          const productsSnapshot = await getDocs(
-            collection(db, `vendors/${vendorDoc.id}/products`)
-          );
-          productsSnapshot.forEach((productDoc) => {
-            productsList.push({
-              id: productDoc.id,
-              ...productDoc.data(),
-              vendorName: vendorData.shopName,
-              vendorId: vendorDoc.id,
-            });
-          });
-        }
-
-        setVendors(vendorsData);
-        setProducts(productsList);
-        setFilteredProducts(productsList);
-      } catch (error) {
-        console.error("Error fetching products and vendors:", error);
-      } finally {
-        setLoading(false);
-        setInitialLoad(false);
-      }
-    };
-
     fetchProductsAndVendors();
   }, []);
 
@@ -231,31 +244,33 @@ const Homepage = () => {
     .quality("auto")
     .resize(auto().gravity(autoGravity()).width(5000).height(3000));
 
+  const promoImages = [
+    "black-friday-composition-with-post-its_1_clwua4",
+    "4929101_na7pyp",
+    "4991116_bwrxkh",
+    "4395311_hcqoss",
+  ];
+
   return (
     <>
-      <div className="flex justify-center ">
-        <div className="text-xl font-semibold text-orange-500">
-          <img src={Logo} alt="logo" className="w-30 h-20" />
-        </div>
-      </div>
-      <div className="flex px-2 justify-center mb-3">
+      <div className="flex px-3 py-2 mt-3 justify-between mb-2">
         {searchTerm && (
           <IoArrowBack
             className="mr-2 text-3xl text-gray-500 cursor-pointer mt-3 bg-white rounded-full p-1"
             onClick={clearSearch}
           />
         )}
-        <div className="relative w-full mx-auto">
-          <input
-            type="text"
-            placeholder="Search"
-            className="w-full rounded-full bg-gray-200 p-3"
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            value={searchTerm}
-            onChange={handleSearchChange}
+
+        <CiSearch className="text-3xl" onClick={() => navigate("/search")} />
+        <img src={logo}></img>
+        <div className="relative">
+          <IoIosNotificationsOutline
+            onClick={() => navigate("/notifications")}
+            className="text-3xl cursor-pointer"
           />
-          <FiSearch className="absolute top-1/2 right-3 transform text-xl -translate-y-1/2 text-gray-500" />
+          {hasUnreadNotifications && (
+            <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500"></span>
+          )}
         </div>
       </div>
       {!searchTerm && (
@@ -296,52 +311,28 @@ const Homepage = () => {
                 ))
               ) : (
                 <>
-                  <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
-                    <div className="p-4 w-auto h-44 bg-orange-500 shadow-md rounded-lg">
-                      <h2 className="text-lg text-white font-bold">
-                        Hello, {userName}
-                      </h2>
-                      <p className="text-white">
-                        Explore our marketplaces to see the deals we have today!
-                      </p>
-                    </div>
-                  </SwiperSlide>
-                  <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
-                    <div className="p-4 w-auto h-44 bg-green-400 shadow-md rounded-lg">
-                      <h2 className="text-lg text-white font-bold">DEALS!!!</h2>
-                      <h1 className="text-white">₦1,500</h1>
-                      <p className="text-white">5TH-7TH JULY</p>
-                    </div>
-                  </SwiperSlide>
-                  <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
-                    <div className="w-auto h-44 p-4 bg-blue-900 shadow-md rounded-lg">
-                      <h2 className="text-lg font-bold text-white">UP TO</h2>
-                      <h1 className="text-white">50% OFF</h1>
-                      <p className="text-white">Buy one get one free from Guccineal Stores!!</p>
-                    </div>
-                  </SwiperSlide>
-                  <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
-                    <div className="w-auto h-44 p-4 bg-red-500 shadow-md rounded-lg">
-                      <h2 className="text-white">CHECKOUT</h2>
-                      <h2 className="text-lg font-bold text-white">
-                       YABA DEALS
-                      </h2>
-                      <p className="text-white">
-                        Free shipping on orders over ₦5000!
-                      </p>
-                    </div>
-                  </SwiperSlide>
-                  <SwiperSlide className="transition-transform duration-500 ease-in-out transform hover:scale-105">
-                    <div className="w-auto h-44 p-4 bg-yellow-500 shadow-md rounded-lg">
-                      <h2 className="text-white">WELCOME</h2>
-                      <h2 className="text-lg font-bold text-white">
-                       TO THE REAL MARKETPLACE
-                      </h2>
-                      <p className="text-white">
-                        Grab coupons worth ₦20000 by inviting a friend!
-                      </p>
-                    </div>
-                  </SwiperSlide>
+                  {promoImages.map((publicId, index) => (
+                    <SwiperSlide
+                      key={index}
+                      className="transition-transform duration-500 ease-in-out rounded-lg transform hover:scale-105"
+                    >
+                      <div className="p-1 w-auto h-44 shadow-md rounded-lg overflow-hidden">
+                        <AdvancedImage
+                          cldImg={cld
+                            .image(publicId)
+                            .format("auto")
+                            .quality("auto")
+                            .resize(
+                              auto()
+                                .gravity(autoGravity())
+                                .width(5000)
+                                .height(3000)
+                            )}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      </div>
+                    </SwiperSlide>
+                  ))}
                 </>
               )}
             </Swiper>
@@ -361,7 +352,7 @@ const Homepage = () => {
                 <>
                   <div
                     className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer"
-                    onClick={() => handleCategoryClick("Mens")}
+                    onClick={() => handleCategoryClick("Men")}
                   >
                     <AdvancedImage
                       cldImg={maleImg}
@@ -415,7 +406,7 @@ const Homepage = () => {
         <h1 className="text-left mt-2 font-medium text-xl translate-y-2 font-ubuntu mb-4">
           Featured Products
         </h1>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2">
           {loading ? (
             Array.from({ length: 6 }).map((_, index) => (
               <Skeleton key={index} height={200} width="100%" />
@@ -441,7 +432,7 @@ const Homepage = () => {
         </div>
         {!searchTerm && filteredProducts.length > 0 && (
           <button
-            className="w-full mt-4 py-2 font-medium bg-customOrange text-white rounded-full"
+            className="w-full mt-4 py-2 h-12 font-opensans font-medium bg-customOrange text-white rounded-full"
             onClick={handleLoadMore}
           >
             Load More
@@ -450,7 +441,10 @@ const Homepage = () => {
       </div>
       {!searchTerm && (
         <div className="px-2 mt-6 mb-4">
-          <div className="relative w-auto rounded-lg h-52 bg-green-700 overflow-hidden">
+          <div
+            className="relative w-auto rounded-lg h-52 bg-green-700 overflow-hidden cursor-pointer"
+            onClick={() => navigate("/donate")}
+          >
             <AdvancedImage
               cldImg={donationImg}
               className="w-full h-full object-cover"

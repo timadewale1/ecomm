@@ -1,6 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import React, { useState, useEffect } from "react";
 import { Cloudinary } from "@cloudinary/url-gen";
 import { fit } from "@cloudinary/url-gen/actions/resize";
 import { AdvancedImage } from "@cloudinary/react";
@@ -10,10 +8,7 @@ import { useNavigation } from "../Context/Bottombarcontext";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 
-gsap.registerPlugin(ScrollTrigger);
-
 const Market = () => {
-  const cardsRef = useRef([]);
   const navigate = useNavigate();
   const { setActiveNav } = useNavigation();
   const [loading, setLoading] = useState(true);
@@ -21,32 +16,8 @@ const Market = () => {
   useEffect(() => {
     setTimeout(() => {
       setLoading(false);
-    }, 500); // Simulating loading time
-
-    if (!loading) {
-      cardsRef.current.forEach((card, index) => {
-        gsap.fromTo(
-          card,
-          {
-            opacity: 0,
-            x: index % 2 === 0 ? -100 : 100, // Alternate between left and right
-          },
-          {
-            opacity: 1,
-            x: 0,
-            duration: 1,
-            scrollTrigger: {
-              trigger: card,
-              start: "top 80%",
-              end: "top 30%",
-              toggleActions: "play none none none",
-              once: true,
-            },
-          }
-        );
-      });
-    }
-  }, [loading]);
+    }, 50); // Simulating loading time
+  }, []);
 
   // Initialize Cloudinary instance
   const cld = new Cloudinary({
@@ -95,7 +66,6 @@ const Market = () => {
         : [YabaMrkt, onlineMrkt].map((img, index) => (
             <div
               key={index}
-              ref={(el) => (cardsRef.current[index] = el)}
               className="relative w-auto mb-2 rounded-lg h-52 overflow-hidden cursor-pointer"
               onClick={() => handleCardClick(cardTexts[index].title)}
             >

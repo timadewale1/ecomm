@@ -1,4 +1,5 @@
 import React from "react";
+import useTrackUserActivity from "./custom-hooks/trackuserActivity";
 import useAuth from "./custom-hooks/useAuth";
 import Layout from "./components/layout/Layout";
 import "./App.css";
@@ -14,7 +15,7 @@ function App() {
   
   setVh(); 
   useAuth(); // Initialize the auth state
-
+  useTrackUserActivity();
   return <Layout />;
 }
 

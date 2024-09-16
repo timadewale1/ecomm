@@ -8,6 +8,7 @@ import store from "./redux/store";
 import { Provider } from "react-redux";
 import { Toaster } from 'react-hot-toast';
 import { FavoritesProvider } from "./components/Context/FavoritesContext";
+
 import { NavigationProvider } from "./components/Context/Bottombarcontext";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));

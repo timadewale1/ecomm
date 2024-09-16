@@ -2,11 +2,22 @@ import React, { useState } from "react";
 import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
-import { getAuth, createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+} from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../firebase.config";
-import { toast } from "react-toastify";
-import { FaAngleLeft, FaRegEyeSlash, FaRegEye, FaRegUser } from "react-icons/fa";
+
+import toast from "react-hot-toast";
+
+import {
+  FaAngleLeft,
+  FaRegEyeSlash,
+  FaRegEye,
+  FaRegUser,
+} from "react-icons/fa";
 import { MdEmail } from "react-icons/md";
 import { GrSecure } from "react-icons/gr";
 import { motion } from "framer-motion";
@@ -47,34 +58,41 @@ const VendorSignup = () => {
   const handleSignup = async (e) => {
     e.preventDefault();
     setLoading(true);
-
-    if (!validateName(vendorData.firstName) || !validateName(vendorData.lastName)) {
-      toast.error("Names must only contain letters.", { className: "custom-toast" });
+  
+    if (
+      !validateName(vendorData.firstName) ||
+      !validateName(vendorData.lastName)
+    ) {
+      toast.error("Names must only contain letters.");
       setLoading(false);
       return;
     }
-
+  
     if (!validateEmail(vendorData.email)) {
-      toast.error("Invalid email format.", { className: "custom-toast" });
+      toast.error("Invalid email format.");
       setLoading(false);
       return;
     }
-
+  
     if (vendorData.password !== vendorData.confirmPassword) {
-      toast.error("Passwords do not match.", { className: "custom-toast" });
+      toast.error("Passwords do not match.");
       setLoading(false);
       return;
     }
-
+  
     try {
       const auth = getAuth();
-      const userCredential = await createUserWithEmailAndPassword(auth, vendorData.email, vendorData.password);
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        vendorData.email,
+        vendorData.password
+      );
       const user = userCredential.user;
-
+  
       await sendEmailVerification(user);
-
+  
       const timestamp = new Date();
-
+  
       await setDoc(doc(db, "vendors", user.uid), {
         uid: user.uid,
         firstName: vendorData.firstName,
@@ -83,10 +101,13 @@ const VendorSignup = () => {
         role: "vendor",
         profileComplete: false,
         createdSince: timestamp,
-        lastUpdate: timestamp
+        lastUpdate: timestamp,
+        isApproved: false,
       });
-
-      toast.success("Account created successfully. Please check your email for verification.", { className: "custom-toast" });
+  
+      toast.success(
+        "Account created successfully. Please check your email for verification."
+      );
       navigate("/vendorlogin");
     } catch (error) {
       handleSignupError(error);
@@ -94,30 +115,30 @@ const VendorSignup = () => {
       setLoading(false);
     }
   };
-
+  
   const handleSignupError = (error) => {
     switch (error.code) {
-      case 'auth/email-already-in-use':
-        toast.error("This email is already registered. Please log in.", { className: "custom-toast" });
+      case "auth/email-already-in-use":
+        toast.error("This email is already registered. Please log in.");
         break;
-      case 'auth/weak-password':
-        toast.error("Password should be at least 6 characters.", { className: "custom-toast" });
+      case "auth/weak-password":
+        toast.error("Password should be at least 6 characters.");
         break;
-      case 'auth/invalid-email':
-        toast.error("Invalid email format.", { className: "custom-toast" });
+      case "auth/invalid-email":
+        toast.error("Invalid email format.");
         break;
       default:
-        toast.error("Error signing up vendor: " + error.message, { className: "custom-toast" });
+        toast.error("Error signing up vendor: " + error.message);
     }
   };
-
+  
   return (
     <Helmet>
       <section>
         <Container>
           <Row>
             {loading ? (
-              <Loading/>
+              <Loading />
             ) : (
               <div className="px-3">
                 <Link to="/confirm-user-state">
@@ -247,7 +268,9 @@ const VendorSignup = () => {
                       />
                       <div
                         className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
                       >
                         {showConfirmPassword ? (
                           <FaRegEyeSlash className="text-gray-500 text-xl" />

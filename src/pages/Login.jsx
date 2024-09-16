@@ -60,43 +60,51 @@ const Login = () => {
 
   const signIn = async (e) => {
     e.preventDefault();
-
+  
     // Validate email field
     if (!email) {
       setEmailError(true);
       toast.error("Please fill in all fields correctly.");
       return;
     }
-
+  
     // Validate email format
     if (!validateEmail(email)) {
       toast.error("Invalid email format.");
       return;
     }
-
+  
     // Validate password field
     if (!password) {
       toast.error("Please fill in all fields correctly.");
       return;
     }
-
+  
     setLoading(true);
-
+  
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-
+  
       // Check if email is verified
       if (!user.emailVerified) {
         setLoading(false);
         toast.error("Please verify your email before logging in.");
         return;
       }
-
+  
       // Retrieve user data from Firestore
       const userDoc = await getDoc(doc(db, "users", user.uid));
       const userData = userDoc.data();
-
+  
+      // Check if the user is deactivated
+      if (userData?.isDeactivated) {
+        await auth.signOut();
+        setLoading(false);
+        toast.error("Your account has been deactivated. Please contact support.");
+        return;
+      }
+  
       // Check if the user is a regular user
       if (userData?.role !== "user") {
         await auth.signOut();
@@ -104,10 +112,10 @@ const Login = () => {
         toast.error("This email is already used for a Vendor account!");
         return;
       }
-
+  
       // Fetch the cart from Firestore
       await fetchCartFromFirestore(user.uid);
-
+  
       const Name = userData?.username || "User";
       setLoading(false);
       toast.success(`Hello ${Name}, welcome!`);
@@ -116,7 +124,7 @@ const Login = () => {
     } catch (error) {
       setLoading(false);
       console.error("Error during sign-in:", error); // Log the error message
-
+  
       // Provide user-friendly error messages based on Firebase error codes
       let errorMessage = "Unable to login. Please check your credentials and try again.";
       if (error.code === "auth/user-not-found") {
@@ -128,10 +136,11 @@ const Login = () => {
       } else if (error.code === "auth/network-request-failed") {
         errorMessage = "Network error. Please check your internet connection and try again.";
       }
-
+  
       toast.error(errorMessage);
     }
   };
+  
 
   const handleEmailChange = (e) => {
     setEmail(e.target.value);

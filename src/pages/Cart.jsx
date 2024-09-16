@@ -187,10 +187,10 @@ const Cart = () => {
       </div>
       <div className="p-2 overflow-y-auto flex-grow">
         {Object.keys(validCart).length === 0 ? (
-          <div>
-            <EmptyCart />
+          <div className="justify-center flex p-32 text-center">
+            <EmptyCart/>
             <h1 className="font-ubuntu text-lg text-center text-customOrange mt-20 font-medium">
-              Oops! Can't find anything in your Cart
+              {/* Oops! Cart is empty */}
             </h1>
           </div>
         ) : (

@@ -7,6 +7,7 @@ import Skeleton from "react-loading-skeleton";
 import 'react-loading-skeleton/dist/skeleton.css';
 import { toast } from "react-toastify";
 import { GoChevronLeft } from "react-icons/go";
+import { FiSearch } from "react-icons/fi"; // Import search icon
 
 const CategoryPage = () => {
   const { category } = useParams();
@@ -18,7 +19,6 @@ const CategoryPage = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        console.log(`Fetching products for category: ${category}`);
         const vendorQuery = query(collection(db, "vendors"));
         const vendorSnapshot = await getDocs(vendorQuery);
         const productsList = [];
@@ -30,13 +30,11 @@ const CategoryPage = () => {
           productsSnapshot.forEach((productDoc) => {
             const productData = productDoc.data();
             if (productData.category.includes(category)) {
-              console.log("Fetched product:", productData);
               productsList.push({ id: productDoc.id, vendorId: vendorId, ...productData });
             }
           });
         }
         
-        console.log("Fetched products:", productsList);
         setProducts(productsList);
       } catch (error) {
         console.error("Error fetching products:", error);
@@ -50,44 +48,72 @@ const CategoryPage = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 50) {
-        setIsSticky(true);
-      } else {
-        setIsSticky(false);
-      }
+      setIsSticky(window.scrollY > 50);
     };
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const getCategoryStyles = (category) => {
+  const getCategoryStyles = (category) => { 
     switch (category) {
       case 'Men':
-        return { header: 'bg-black text-white', text: 'Discover the Latest Men\'s Fashion', font: 'font-sans' };
+        return { headerImage: 'url(/public/womenhead.jpeg)', text: 'Discover the Latest Men\'s Fashion' };
       case 'Women':
-        return { header: 'bg-pink-500 text-white', text: 'Explore the Latest Women\'s Fashion', font: 'font-playfair' };
+        return { headerImage: 'url(/path/to/women-fashion.jpg)', text: 'Explore the Latest Women\'s Fashion' };
       case 'Kids':
-        return { header: 'bg-[url(https://miro.medium.com/v2/resize:fit:1400/1*pzbYin_gqDNVjOSLQs06NQ.jpeg)] bg-cover text-white', text: 'Adorable Kids Collection for All Ages', font: 'font-poppins' };
+        return { headerImage: 'url(/path/to/kids-fashion.jpg)', text: 'Adorable Kids Collection for All Ages' };
       default:
-        return { header: '', text: '', font: 'font-sans' };
+        return { headerImage: '', text: '' };
     }
   };
 
-  const { header: headerStyle, text: headerText, font: fontStyle } = getCategoryStyles(category);
+  const { headerImage, text: headerText } = getCategoryStyles(category);
 
   return (
     <div className="category-page mb-14">
-      <div className={`sticky top-0 z-10 w-full flex items-center p-2 transition-all ${isSticky ? 'bg-opacity-50 bg-black' : ''}`}>
-        <button onClick={() => navigate(-1)} className="p-1 bg-white rounded-full">
+      {/* Header Section */}
+      <div 
+        className={`relative h-56 flex items-end justify-center bg-cover bg-center`}
+        style={{ backgroundImage: headerImage }}
+      >
+        {/* Back button */}
+        <button 
+          onClick={() => navigate(-1)} 
+          className="absolute top-4 left-4 p-2 bg-white rounded-full shadow"
+        >
           <GoChevronLeft size={24} />
         </button>
-      </div>
-      <div className={`flex justify-center items-center h-20 ${headerStyle}`}>
-        <div className="w-full text-center">
-          <p className={`text-xs font-playwrite text-white ${fontStyle}`}>{headerText}</p>
+
+        {/* Search Button */}
+        <button className="absolute top-4 right-4 p-2 bg-white rounded-full shadow">
+          <FiSearch size={24} />
+        </button>
+
+        {/* Header Text */}
+        <div className="text-center p-4">
+          <p className="text-xl font-semibold text-white">{headerText}</p>
         </div>
       </div>
+
+      {/* Top Vendors Section */}
+      <div className="p-3">
+        <h2 className="text-lg font-semibold mb-2">Top Vendors</h2>
+        <div className="flex gap-4 overflow-x-auto">
+          {/* Example of Vendor Cards */}
+          {Array.from({ length: 2 }).map((_, index) => (
+            <div key={index} className="min-w-[150px]">
+              <img src="vendor-image-url" alt="Vendor" className="w-full h-24 object-cover rounded" />
+              <div className="flex justify-between items-center mt-1">
+                <span className="text-sm">Vendor Name</span>
+                <button className="px-2 py-1 text-sm bg-transparent-500 text-white rounded">+ Follow</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Product Grid */}
       <div className="grid grid-cols-2 gap-4 p-3">
         {loading
           ? Array.from({ length: 6 }).map((_, index) => (

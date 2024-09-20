@@ -9,6 +9,7 @@ import { FaStar } from "react-icons/fa";
 import { CiCircleInfo } from "react-icons/ci";
 import { TbInfoOctagon } from "react-icons/tb";
 import { TbInfoTriangle } from "react-icons/tb";
+import LoadProducts from "../../components/Loading/LoadProducts";
 import { GoChevronLeft, GoChevronRight } from "react-icons/go";
 import { LuCopyCheck, LuCopy } from "react-icons/lu";
 import toast from "react-hot-toast";
@@ -47,7 +48,7 @@ const ProductDetailPage = () => {
   const [mainImage, setMainImage] = useState("");
   const [isSticky, setIsSticky] = useState(false);
   const [isDisclaimerModalOpen, setIsDisclaimerModalOpen] = useState(false);
-
+  const [vendorLoading, setVendorLoading] = useState(true);
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
   const [animateCart, setAnimateCart] = useState(false);
@@ -117,8 +118,11 @@ const ProductDetailPage = () => {
       }
     } catch (err) {
       console.error("Error fetching vendor data:", err);
+    } finally {
+      setVendorLoading(false); // Stop loading once the data is fetched
     }
   };
+
 
   const handleScroll = () => {
     if (window.scrollY > 50) {
@@ -506,7 +510,9 @@ const ProductDetailPage = () => {
           ₦{formatPrice(product.price)}
         </p>
 
-        {vendor ? (
+        {vendorLoading ? (
+          <LoadProducts className= "mr-20" /> // Show the loading spinner while vendor data is loading
+        ) : vendor ? (
           <div className="flex  items-center mt-1">
             <p className="text-sm text-red-600 mr-2"> {vendor.shopName}</p>
             <div className="flex items-center">

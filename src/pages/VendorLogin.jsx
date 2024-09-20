@@ -32,9 +32,9 @@ const VendorLogin = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-
+  
     console.log("Login form submitted");
-
+  
     // Validations
     if (!email) {
       setEmailError(true);
@@ -42,29 +42,29 @@ const VendorLogin = () => {
       toast.error("Please fill in all fields correctly");
       return;
     }
-
+  
     if (!validateEmail(email)) {
       console.log("Invalid email format");
       toast.error("Invalid email format");
       return;
     }
-
+  
     if (!password) {
       console.log("Password is missing");
       toast.error("Please fill in all fields correctly");
       return;
     }
-
+  
     setLoading(true);
-
+  
     try {
       console.log("Attempting to sign in");
       const auth = getAuth();
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-
+  
       console.log("User signed in", user);
-
+  
       // Check if email is verified
       if (!user.emailVerified) {
         setLoading(false);
@@ -72,17 +72,26 @@ const VendorLogin = () => {
         toast.error("Please verify your email before logging in.");
         return;
       }
-
+  
       // Retrieve the vendor document from Firestore to check role and profile completion
       const docRef = doc(db, "vendors", user.uid);
       const docSnap = await getDoc(docRef);
-
+  
       console.log("Fetched vendor document", docSnap.data());
-
+  
+      // Check if the vendor is deactivated
+      if (docSnap.exists() && docSnap.data().isDeactivated) {
+        console.log("Vendor account is deactivated");
+        toast.error("Your vendor account is deactivated. Please contact support.");
+        await auth.signOut(); // Log the vendor out
+        setLoading(false); // Stop loading indicator
+        return;
+      }
+  
+      // Check if the vendor's role is correct and profile is complete
       if (docSnap.exists() && docSnap.data().role === "vendor") {
         if (!docSnap.data().profileComplete) {
           console.log("Profile incomplete");
-          // Changed toast.info to toast for react-hot-toast compatibility
           toast("Please complete your profile.");
           navigate("/complete-profile");
         } else {
@@ -90,12 +99,10 @@ const VendorLogin = () => {
           toast.success("Login successful");
           navigate("/vendordashboard");
         }
-        
-       
       } else {
         console.log("Vendor login failed, logging out");
         toast.error("This email is already registered as a user. Please login as a user.");
-        await auth.signOut();
+        await auth.signOut(); // Log the user out
       }
     } catch (error) {
       setLoading(false);
@@ -103,6 +110,7 @@ const VendorLogin = () => {
       toast.error("Error logging in: " + error.message);
     }
   };
+  
 
   const handleEmailChange = (e) => {
     setEmail(e.target.value);

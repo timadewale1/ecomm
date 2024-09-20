@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { IoArrowBack } from "react-icons/io5";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
@@ -43,13 +43,18 @@ const Homepage = () => {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [userName, setUserName] = useState("User");
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
   const [products, setProducts] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const productCardsRef = useRef([]);
+  const productCardsRef = useRef([]); // For GSAP animations
   const [initialLoad, setInitialLoad] = useState(true);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+
+  // Ref to store scroll position
+  const scrollPositionRef = useRef(0);
+  const prevProductsRef = useRef(null);
 
   // Fetch unread notifications
   useEffect(() => {
@@ -100,6 +105,18 @@ const Homepage = () => {
     navigate("/market-vendors");
   };
 
+  // Save scroll position when leaving the page
+  useEffect(() => {
+    return () => {
+      scrollPositionRef.current = window.scrollY; // Save the scroll position
+    };
+  }, []);
+
+  // Restore scroll position when returning to the page
+  useEffect(() => {
+    window.scrollTo(0, scrollPositionRef.current); // Restore scroll position
+  }, []);
+
   useEffect(() => {
     const auth = getAuth();
     const fetchUserName = async (uid) => {
@@ -127,25 +144,49 @@ const Homepage = () => {
 
   const fetchProductsAndVendors = async () => {
     try {
-      // Fetch all products from the centralized "products" collection
-      const productsSnapshot = await getDocs(collection(db, "products"));
-      const productsList = [];
-      const vendorList = new Set(); // To collect unique vendor names
+      if (!prevProductsRef.current) {
+        // Fetch vendors who are approved and not deactivated
+        const approvedVendorsSnapshot = await getDocs(
+          query(
+            collection(db, "vendors"),
+            where("isApproved", "==", true),
+            where("isDeactivated", "==", false)
+          )
+        );
 
-      productsSnapshot.forEach((productDoc) => {
-        const productData = productDoc.data();
-        productsList.push({
-          id: productDoc.id,
-          ...productData,
+        const approvedVendors = new Set(); // Store approved and active vendor IDs
+
+        approvedVendorsSnapshot.forEach((vendorDoc) => {
+          approvedVendors.add(vendorDoc.id); // Store approved and active vendor ID
         });
 
-        // Collect unique vendor names from products
-        vendorList.add(productData.vendorName);
-      });
+        // Fetch all products
+        const productsSnapshot = await getDocs(collection(db, "products"));
+        const productsList = [];
+        const vendorList = new Set(); // To collect unique vendor names
 
-      setProducts(productsList);
-      setFilteredProducts(productsList);
-      setVendors(Array.from(vendorList)); // Convert the Set back to an array for vendors
+        productsSnapshot.forEach((productDoc) => {
+          const productData = productDoc.data();
+
+          // Only add the product if its vendor is both approved and active
+          if (approvedVendors.has(productData.vendorId)) {
+            productsList.push({
+              id: productDoc.id,
+              ...productData,
+            });
+
+            // Collect unique vendor names from products
+            vendorList.add(productData.vendorName);
+          }
+        });
+
+        setProducts(productsList);
+        prevProductsRef.current = productsList; // Store the products in ref for future renders
+        setFilteredProducts(productsList); // Set filtered products to approved ones
+        setVendors(Array.from(vendorList)); // Convert the Set back to an array for vendors
+      } else {
+        setProducts(prevProductsRef.current);
+      }
     } catch (error) {
       console.error("Error fetching products and vendors:", error);
     } finally {
@@ -157,6 +198,7 @@ const Homepage = () => {
   useEffect(() => {
     fetchProductsAndVendors();
   }, []);
+
 
   useEffect(() => {
     if (!loading && initialLoad) {

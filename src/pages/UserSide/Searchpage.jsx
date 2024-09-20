@@ -11,6 +11,7 @@ import { PiGenderMaleBold, PiGenderFemaleBold } from "react-icons/pi";
 import { FaGenderless, FaChildren } from "react-icons/fa6";
 import { AiFillProduct } from "react-icons/ai";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
+import {query, where} from "firebase/firestore";
 
 const SearchPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -30,26 +31,29 @@ const SearchPage = () => {
 
     const fetchData = async () => {
       try {
-        // Fetch vendors as before
-        const vendorsSnapshot = await getDocs(collection(db, "vendors"));
+        // Fetch only approved and active vendors
+        const vendorsSnapshot = await getDocs(
+          query(collection(db, "vendors"), where("isApproved", "==", true), where("isDeactivated", "==", false))
+        );
         const vendorsData = vendorsSnapshot.docs.map((doc) => ({
           ...doc.data(),
           id: doc.id,
         }));
         setVendors(vendorsData);
-
-        // Fetch products from the centralized 'products' collection
+    
+        // Fetch all products (modify this to filter active vendors if needed)
         const productsSnapshot = await getDocs(collection(db, "products"));
         const productsData = productsSnapshot.docs.map((doc) => ({
           ...doc.data(),
           id: doc.id,
         }));
-
+    
         setProducts(productsData);
       } catch (error) {
         console.error("Error fetching data:", error);
       }
     };
+    
 
     fetchData();
   }, [db]);
@@ -89,17 +93,18 @@ const SearchPage = () => {
 
   const handleChange = (selectedItem) => {
     if (selectedItem) {
+      // Check if the item already exists in local storage
       const updatedHistory = [
-        selectedItem,
         ...searchHistory.filter((item) => item.id !== selectedItem.id),
-      ].slice(0, 8);
-
+        selectedItem, // Add the selected item at the end if not found in history
+      ].slice(0, 8); // Keep the most recent 8 items
+  
       setSearchHistory(updatedHistory);
       localStorage.setItem("searchHistory", JSON.stringify(updatedHistory));
-
+  
       // Navigate based on whether it's a product or a vendor
       if (selectedItem.type === "product") {
-        navigate(`/product/${selectedItem.id}`); // Fix to navigate correctly to product page
+        navigate(`/product/${selectedItem.id}`);
       } else if (selectedItem.type === "vendor") {
         if (selectedItem.marketPlaceType === "Online") {
           navigate(`/store/${selectedItem.id}`);
@@ -109,7 +114,7 @@ const SearchPage = () => {
       }
     }
   };
-
+  
   const getCategoryIcon = (category) => {
     switch (category?.toLowerCase()) {
       case "men":

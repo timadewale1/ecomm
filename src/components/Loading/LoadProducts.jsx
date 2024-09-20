@@ -3,7 +3,7 @@ import Lottie from "lottie-react";
 import loaddots from "../../Animations/loadingproducts.json";
 const LoadProducts = () => {
   return (
-    <div> <div className="flex justify-center items-center ">
+    <div> <div className="flex justify-start items-start ">
     <Lottie
       className="w-12 h-12"
       animationData={loaddots}

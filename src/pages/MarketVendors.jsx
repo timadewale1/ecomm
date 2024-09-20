@@ -45,25 +45,27 @@ const MarketVendors = () => {
   const marketplaces = ["Yaba", "Balogun"];
 
   useEffect(() => {
-    const fetchVendors = async () => {
-      try {
-        const vendorQuery = query(
-          collection(db, "vendors"),
-          where("marketPlaceType", "==", "marketplace")
-        );
-        const vendorSnapshot = await getDocs(vendorQuery);
-        const vendorsList = vendorSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setVendors(vendorsList);
-        setSearchResults(vendorsList);
-      } catch (error) {
-        toast.error("Error fetching vendors: " + error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchVendors = async () => {
+  try {
+    const vendorQuery = query(
+      collection(db, "vendors"),
+      where("marketPlaceType", "==", "marketplace"),
+      where("isDeactivated", "==", false) // Fetch only active vendors
+    );
+    const vendorSnapshot = await getDocs(vendorQuery);
+    const vendorsList = vendorSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    setVendors(vendorsList);
+    setSearchResults(vendorsList);
+  } catch (error) {
+    toast.error("Error fetching vendors: " + error.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
     fetchVendors();
   }, []);
 

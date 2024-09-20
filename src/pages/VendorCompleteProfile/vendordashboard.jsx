@@ -16,6 +16,7 @@ const VendorDashboard = () => {
   const [totalProducts, setTotalProducts] = useState(0);
   const [recentActivities, setRecentActivities] = useState([]);
   const [isModalOpen, setModalOpen] = useState(false);
+  const [isApproved, setIsApproved] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -25,7 +26,9 @@ const VendorDashboard = () => {
         setVendorId(user.uid);
         const vendorDoc = await getDoc(doc(db, "vendors", user.uid));
         if (vendorDoc.exists()) {
-          await fetchStatistics(user.uid); // Fetch statistics from the centralized products collection
+          const vendorData = vendorDoc.data();
+          setIsApproved(vendorData.isApproved);  // Check if vendor is approved
+          await fetchStatistics(user.uid); // Fetch statistics
           await fetchRecentActivities(user.uid); // Fetch recent activities
         } else {
           toast.error("Vendor data not found");
@@ -37,22 +40,18 @@ const VendorDashboard = () => {
   // Fetch vendor's products, orders, and sales statistics
   const fetchStatistics = async (vendorId) => {
     try {
-      // Fetch products from the centralized 'products' collection where vendorId matches
       const productsRef = collection(db, "products");
       const productsQuery = query(productsRef, where("vendorId", "==", vendorId));
       const productsSnapshot = await getDocs(productsQuery);
 
       const totalProducts = productsSnapshot.docs.length;
-
-      // Placeholder for orders and sales: Update this with real data once available
-      const totalOrders = 0; // You would fetch and calculate orders here
-      const totalSales = 0;  // You would fetch and calculate total sales here
+      const totalOrders = 0; // Placeholder
+      const totalSales = 0;  // Placeholder
 
       setTotalProducts(totalProducts);
       setTotalOrders(totalOrders);
       setTotalSales(totalSales);
     } catch (error) {
-      console.error("Error fetching data:", error);
       toast.error("Failed to fetch data, please refresh.");
     }
   };
@@ -71,7 +70,6 @@ const VendorDashboard = () => {
 
       setRecentActivities(activities);
     } catch (error) {
-      console.error("Error fetching recent activities:", error);
       toast.error("Failed to fetch recent activities.");
     }
   };
@@ -91,6 +89,14 @@ const VendorDashboard = () => {
     <>
       <div className="p-4 bg-gray-100 min-h-screen">
         <h2 className="text-2xl font-bold text-green-700 mb-4">Vendor Dashboard</h2>
+        
+        {/* Display message if the vendor is not approved */}
+        {!isApproved && (
+          <div className="bg-red-100 text-red-700 p-4 h-20  font-opensans text-xs rounded-lg mb-6">
+            <p>Your profile is under review. We usually get back within 12 hours.</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
           <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between" onClick={handleSwitch2Orders}>
             <div>
@@ -99,6 +105,7 @@ const VendorDashboard = () => {
             </div>
             <FaShoppingCart className="h-8 w-8 text-green-700" />
           </div>
+
           <div className="bg-white pt-4 pr-4 pb-4 pl-5 rounded-lg shadow-md flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-700">Total Sales</h3>
@@ -106,6 +113,7 @@ const VendorDashboard = () => {
             </div>
             <TbCurrencyNaira className="h-12 w-12 text-green-700" />
           </div>
+
           <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between" onClick={handleSwitch2Products}>
             <div>
               <h3 className="text-lg font-semibold text-gray-700">Total Products</h3>
@@ -113,6 +121,7 @@ const VendorDashboard = () => {
             </div>
             <FaBox className="h-8 w-8 text-green-700" />
           </div>
+
           <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-700">Recent Activities</h3>
@@ -133,9 +142,11 @@ const VendorDashboard = () => {
         </div>
       </div>
 
+      {/* Disable the Add Product button if the vendor is not approved */}
       <button
         onClick={openModal}
-        className="fixed bottom-32 right-3 bg-green-700 text-white rounded-full p-4 shadow-lg hover:bg-green-800 focus:outline-none focus:ring focus:ring-green-700"
+        className={`fixed bottom-32 right-3 ${isApproved ? 'bg-green-700' : 'bg-gray-400 cursor-not-allowed'} text-white rounded-full p-4 shadow-lg focus:outline-none`}
+        disabled={!isApproved}
       >
         <FaPlus className="h-4 w-4" />
       </button>

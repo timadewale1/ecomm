@@ -45,18 +45,28 @@ const OnlineVendors = () => {
   useEffect(() => {
     const fetchVendorsAndProducts = async () => {
       try {
-        const vendorQuery = query(collection(db, "vendors"), where("marketPlaceType", "==", "virtual"));
+        const vendorQuery = query(
+          collection(db, "vendors"),
+          where("marketPlaceType", "==", "virtual"),
+          where("isDeactivated", "==", false) // Fetch only active vendors
+        );
         const vendorSnapshot = await getDocs(vendorQuery);
-        const vendorsList = vendorSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
+        const vendorsList = vendorSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         setVendors(vendorsList);
-
+    
         const productsList = [];
         for (const vendor of vendorsList) {
           const productsRef = collection(db, `vendors/${vendor.id}/products`);
           const productsSnapshot = await getDocs(productsRef);
           productsSnapshot.forEach(productDoc => {
-            productsList.push({ id: productDoc.id, vendorId: vendor.id, ...productDoc.data() });
+            productsList.push({
+              id: productDoc.id,
+              vendorId: vendor.id,
+              ...productDoc.data(),
+            });
           });
         }
         setProducts(productsList);
@@ -66,7 +76,7 @@ const OnlineVendors = () => {
         setLoading(false);
       }
     };
-
+    
     fetchVendorsAndProducts();
   }, []);
 

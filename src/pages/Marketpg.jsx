@@ -34,32 +34,35 @@ const Marketpg = () => {
   ];
 
   useEffect(() => {
-    // Fetch both local and online vendors
     const fetchVendors = async () => {
       setLoading(true);
       try {
-        // Fetch local vendors
+        // Fetch approved and active local vendors
         const localVendorQuery = query(
           collection(db, "vendors"),
-          where("marketPlaceType", "==", "marketplace")
+          where("marketPlaceType", "==", "marketplace"),
+          where("isDeactivated", "==", false),
+          where("isApproved", "==", true) // Only fetch approved vendors
         );
         const localVendorSnapshot = await getDocs(localVendorQuery);
         const localVendorsList = localVendorSnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
-
-        // Fetch online vendors
+  
+        // Fetch approved and active online vendors
         const onlineVendorQuery = query(
           collection(db, "vendors"),
-          where("marketPlaceType", "==", "virtual")
+          where("marketPlaceType", "==", "virtual"),
+          where("isDeactivated", "==", false),
+          where("isApproved", "==", true) // Only fetch approved vendors
         );
         const onlineVendorSnapshot = await getDocs(onlineVendorQuery);
         const onlineVendorsList = onlineVendorSnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
-
+  
         // Set both local and online vendors
         setLocalVendors(localVendorsList);
         setOnlineVendors(onlineVendorsList);
@@ -70,9 +73,10 @@ const Marketpg = () => {
         setLoading(false);
       }
     };
-
+  
     fetchVendors();
   }, []);
+  
 
   const handleTabChange = (tab) => {
     setSelectedTab(tab);
@@ -168,7 +172,6 @@ const Marketpg = () => {
             <div key={index} className="vendor-item">
               <div className="flex justify-between p-3 mb-1 bg-white shadow">
                 <div>
-                
                   <Skeleton width={150} height={24} />
 
                   {/* Categories Skeleton */}

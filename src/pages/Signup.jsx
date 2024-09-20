@@ -7,12 +7,25 @@ import {
   sendEmailVerification,
 } from "firebase/auth";
 import { auth, db } from "../firebase.config";
-import { setDoc, doc, getDocs, collection, query, where } from "firebase/firestore";
+import {
+  setDoc,
+  doc,
+  getDocs,
+  collection,
+  query,
+  where,
+} from "firebase/firestore";
 import { motion } from "framer-motion";
 import Typewriter from "typewriter-effect";
 import toast from "react-hot-toast";
 import SignUpAnimation from "../SignUpAnimation/SignUpAnimation";
-import { FaRegUser, FaRegEyeSlash, FaRegEye, FaInfoCircle, FaCheckCircle } from "react-icons/fa";
+import {
+  FaRegUser,
+  FaRegEyeSlash,
+  FaRegEye,
+  FaInfoCircle,
+  FaCheckCircle,
+} from "react-icons/fa";
 import { MdOutlineEmail, MdOutlineLock } from "react-icons/md";
 import { Oval, RotatingLines } from "react-loader-spinner";
 import PasswordStrengthBar from "react-password-strength-bar";
@@ -21,9 +34,9 @@ const Signup = () => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState(""); 
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false); 
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [usernameLoading, setUsernameLoading] = useState(false);
   const [isUsernameTaken, setIsUsernameTaken] = useState(false);
@@ -37,7 +50,10 @@ const Signup = () => {
       if (username.trim().length >= 2) {
         setUsernameLoading(true);
         const formattedUsername = formatUsername(username);
-        const q = query(collection(db, "users"), where("username", "==", formattedUsername));
+        const q = query(
+          collection(db, "users"),
+          where("username", "==", formattedUsername)
+        );
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
@@ -121,31 +137,40 @@ const Signup = () => {
     setLoading(true);
     try {
       const formattedUsername = formatUsername(username);
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+
+      // Create user with Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       const user = userCredential.user;
 
-      await sendEmailVerification(user);
+      // Add user to Firestore with "user" role
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         username: formattedUsername,
         email,
-        role: "user",
+        role: "user", // Ensure this role is set for users
+        createdAt: new Date(),
       });
 
+      await sendEmailVerification(user);
       setLoading(false);
+
       toast.success("Account created successfully. Please verify your email.");
       navigate("/login");
     } catch (error) {
       setLoading(false);
-      let errorMessage = "Cannot sign up at the moment. Please try again later.";
+      let errorMessage =
+        "Cannot sign up at the moment. Please try again later.";
       if (error.code === "auth/email-already-in-use") {
-        errorMessage = "This email is already in use. Please use a different email.";
+        errorMessage =
+          "This email is already in use. Please use a different email.";
       } else if (error.code === "auth/weak-password") {
         errorMessage = "Password is too weak. Please use a stronger password.";
       } else if (error.code === "auth/invalid-email") {
         errorMessage = "Invalid email format. Please enter a valid email.";
-      } else if (error.code === "auth/operation-not-allowed") {
-        errorMessage = "Sign up is currently disabled. Please try again later.";
       }
 
       toast.error(errorMessage);
@@ -191,9 +216,15 @@ const Signup = () => {
                     placeholder="Username"
                     value={username}
                     className={`w-full h-14 text-gray-500 mt-1 pl-14 rounded-full bg-gray-300 ${
-                      isUsernameTaken ? "border-2 border-red-500" : isUsernameAvailable ? "border-2 border-green-500" : ""
+                      isUsernameTaken
+                        ? "border-2 border-red-500"
+                        : isUsernameAvailable
+                        ? "border-2 border-green-500"
+                        : ""
                     }`}
-                    onChange={(e) => setUsername(formatUsername(e.target.value))}
+                    onChange={(e) =>
+                      setUsername(formatUsername(e.target.value))
+                    }
                   />
                   {usernameLoading && (
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3">
@@ -211,7 +242,10 @@ const Signup = () => {
                   )}
                   {!usernameLoading && isUsernameAvailable && (
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                      <FaCheckCircle className="text-green-500 rounded-full p-1" size={24} />
+                      <FaCheckCircle
+                        className="text-green-500 rounded-full p-1"
+                        size={24}
+                      />
                     </div>
                   )}
                 </FormGroup>
@@ -243,7 +277,9 @@ const Signup = () => {
                 {showPasswordCriteria && (
                   <div className="text-red-500 ratings-text mb-2 flex items-center">
                     <FaInfoCircle className="mr-1" />
-                    Password must be at least 8 characters long and contain at least one uppercase letter, one digit, and one special character.
+                    Password must be at least 8 characters long and contain at
+                    least one uppercase letter, one digit, and one special
+                    character.
                   </div>
                 )}
                 <FormGroup className="relative">
@@ -276,8 +312,20 @@ const Signup = () => {
                     <PasswordStrengthBar
                       password={password}
                       minLength={8}
-                      barColors={['#ddd', '#ef4836', '#f6b44d', '#2b90ef', '#25c281']}
-                      scoreWords={['Too short', 'Weak', 'Okay', ' Very Good', 'Strong']}
+                      barColors={[
+                        "#ddd",
+                        "#ef4836",
+                        "#f6b44d",
+                        "#2b90ef",
+                        "#25c281",
+                      ]}
+                      scoreWords={[
+                        "Too short",
+                        "Weak",
+                        "Okay",
+                        " Very Good",
+                        "Strong",
+                      ]}
                       shortScoreWord="Too short"
                     />
                   </div>
@@ -296,9 +344,7 @@ const Signup = () => {
                   />
                   <div
                     className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
-                    onClick={() =>
-                      setShowConfirmPassword(!showConfirmPassword)
-                    }
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
                     {showConfirmPassword ? (
                       <FaRegEyeSlash className="text-gray-500 text-xl" />

@@ -34,6 +34,7 @@ import StorePage from "../pages/StorePage.jsx";
 import CategoryPage from "../pages/UserSide/CategoryPage.jsx";
 import VendorRatings from "../pages/vendor/VendorRatings.jsx";
 import SearchPage from "../pages/UserSide/Searchpage.jsx";
+import ErrorBoundary from "../components/Errorboundary.jsx";
 const Routers = () => {
   return (
     <Routes>
@@ -59,10 +60,17 @@ const Routers = () => {
         <Route path="newhome" element={<NewHome />} />
         <Route path="latest-cart" element={<LatestCart />} />
         <Route path="newcheckout" element={<Checkout />} />
-      
+
         <Route path="newcheckout/fulldelivery" element={<FullDelivery />} />
         <Route path="favorites" element={<FavoritesPage />} />
-        <Route path="browse-markets" element={<Marketpg />} />
+        <Route
+          path="browse-markets"
+          element={
+            <ErrorBoundary>
+              <Marketpg />
+            </ErrorBoundary>
+          }
+        />
         <Route path="market-card/:marketName" element={<Marketcardpage />} />
         <Route path="explore" element={<Explore />} />
         <Route path="donate" element={<Donate />} />
@@ -73,7 +81,7 @@ const Routers = () => {
         <Route path="vendor-profile" element={<VendorProfile />} />
         <Route path="vendor-products" element={<VendorProducts />} />
         <Route path="vendor-orders" element={<VendorOrders />} />
-        <Route path="/reviews/:id" element={<VendorRatings/>}/>
+        <Route path="/reviews/:id" element={<VendorRatings />} />
       </Route>
     </Routes>
   );

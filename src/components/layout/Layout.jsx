@@ -39,6 +39,7 @@ const Layout = () => {
     "/product/:id",
     "/reviews/:id",
     "/store/:id",
+    "category/:id",
     "marketstorepage/:id",
   ];
 

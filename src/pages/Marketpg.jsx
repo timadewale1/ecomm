@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../firebase.config";
@@ -9,90 +9,88 @@ import { CiSearch } from "react-icons/ci";
 import Skeleton from "react-loading-skeleton";
 import ReactStars from "react-rating-stars-component";
 import RoundedStar from "../components/Roundedstar";
+import { VendorContext } from "../components/Context/Vendorcontext";
 
 const Marketpg = () => {
-  const [vendors, setVendors] = useState([]);
+  const { vendors, setVendors } = useContext(VendorContext); // Use the context
   const [onlineVendors, setOnlineVendors] = useState([]);
   const [localVendors, setLocalVendors] = useState([]);
   const [selectedTab, setSelectedTab] = useState("online"); // Toggle between 'local' and 'online'
   const [searchTerm, setSearchTerm] = useState("");
+  const [filteredVendors, setFilteredVendors] = useState([]); // Add this to store the filtered vendors
+  const [loading, setLoading] = useState(!vendors.isFetched); // Use the 'isFetched' flag to check if loading is needed
   const [isSearching, setIsSearching] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
-  // Categories to filter
-  const categories = [
-    "Thrifts",
-    "Bags",
-    "Mens",
-    "Womens",
-    "Jewelry",
-    "Kids",
-    "Shoes",
-    "Accessories",
-    "Sportswear",
-  ];
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchVendors = async () => {
-      setLoading(true);
       try {
-        // Fetch approved and active local vendors
         const localVendorQuery = query(
           collection(db, "vendors"),
           where("marketPlaceType", "==", "marketplace"),
           where("isDeactivated", "==", false),
-          where("isApproved", "==", true) // Only fetch approved vendors
+          where("isApproved", "==", true)
         );
         const localVendorSnapshot = await getDocs(localVendorQuery);
         const localVendorsList = localVendorSnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
-  
-        // Fetch approved and active online vendors
+
         const onlineVendorQuery = query(
           collection(db, "vendors"),
           where("marketPlaceType", "==", "virtual"),
           where("isDeactivated", "==", false),
-          where("isApproved", "==", true) // Only fetch approved vendors
+          where("isApproved", "==", true)
         );
         const onlineVendorSnapshot = await getDocs(onlineVendorQuery);
         const onlineVendorsList = onlineVendorSnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
-  
-        // Set both local and online vendors
-        setLocalVendors(localVendorsList);
-        setOnlineVendors(onlineVendorsList);
-        setVendors(onlineVendorsList); // Default to online vendors
+
+        setVendors({
+          online: onlineVendorsList,
+          local: localVendorsList,
+          isFetched: true,
+        });
+
+        // Add console.log here to check if rating and ratingCount exist
+        console.log("Local Vendors:", localVendorsList);
+        console.log("Online Vendors:", onlineVendorsList);
       } catch (error) {
         toast.error("Error fetching vendors: " + error.message);
       } finally {
         setLoading(false);
       }
     };
-  
-    fetchVendors();
-  }, []);
-  
+
+    if (!vendors.isFetched) {
+      fetchVendors();
+    } else {
+      setFilteredVendors(vendors.online);
+      setLoading(false);
+    }
+  }, [setVendors, vendors.isFetched]);
 
   const handleTabChange = (tab) => {
     setSelectedTab(tab);
-    setVendors(tab === "local" ? localVendors : onlineVendors);
+    setFilteredVendors(tab === "local" ? vendors.local : vendors.online); // Change filtered vendors based on tab
   };
 
   const handleSearchChange = (e) => {
     const term = e.target.value.toLowerCase();
     setSearchTerm(term);
     if (term.length > 0) {
-      const filteredVendors = vendors.filter((vendor) =>
-        vendor.shopName.toLowerCase().includes(term)
-      );
-      setVendors(filteredVendors);
+      const filtered = (
+        selectedTab === "local" ? vendors.local : vendors.online
+      ).filter((vendor) => vendor.shopName.toLowerCase().includes(term));
+      setFilteredVendors(filtered);
     } else {
-      setVendors(selectedTab === "local" ? localVendors : onlineVendors); // Reset to original list
+      setFilteredVendors(
+        selectedTab === "local" ? vendors.local : vendors.online
+      ); // Reset to original list
     }
   };
 
@@ -168,46 +166,42 @@ const Marketpg = () => {
 
       <div className="vendor-list -mx-2 translate-y-1">
         {loading ? (
+          // Show skeleton loader when loading
           Array.from({ length: 5 }).map((_, index) => (
             <div key={index} className="vendor-item">
               <div className="flex justify-between p-3 mb-1 bg-white shadow">
                 <div>
                   <Skeleton width={150} height={24} />
-
-                  {/* Categories Skeleton */}
                   <div className="flex items-center mt-1">
                     <Skeleton width={100} height={16} />
                   </div>
-
-                  {/* Ratings Skeleton */}
                   <div className="flex items-center mt-4">
-                    {/* Rating Number */}
                     <Skeleton width={30} height={16} className="mr-2" />
-                    {/* Stars */}
                     <Skeleton width={120} height={24} />
-                    {/* Rating Count */}
                     <Skeleton width={50} height={16} className="ml-2" />
                   </div>
                 </div>
-
-                {/* Vendor Image Skeleton */}
                 <div>
                   <Skeleton height={96} width={96} />
                 </div>
               </div>
             </div>
           ))
-        ) : vendors.length > 0 ? (
-          vendors.map((vendor) => (
-            <div key={vendor.id} className="vendor-item ">
+        ) : filteredVendors.length > 0 ? (
+          // Show vendors once they are fetched and filtered
+          filteredVendors.map((vendor) => (
+            <div key={vendor.id} className="vendor-item">
               <div
                 className="flex justify-between p-3 mb-1 bg-white shadow"
                 onClick={() => handleStoreView(vendor)}
               >
                 <div>
                   <h1 className="font-poppins text-black text-2xl font-medium">
-                    {vendor.shopName}
+                    {vendor.shopName.length > 16
+                      ? `${vendor.shopName.substring(0, 16)}...`
+                      : vendor.shopName}
                   </h1>
+
                   <p className="font-sans text-gray-300 text-xs flex items-center -translate-y-1">
                     {vendor.categories.slice(0, 4).map((category, index) => (
                       <React.Fragment key={index}>
@@ -247,6 +241,7 @@ const Marketpg = () => {
             </div>
           ))
         ) : (
+          // Show "No results found" only if not loading and no vendors are found
           <div className="text-center my-10">
             <h2 className="text-2xl font-ubuntu font-medium">
               No results found

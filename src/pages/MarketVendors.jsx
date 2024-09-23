@@ -45,12 +45,13 @@ const MarketVendors = () => {
   const marketplaces = ["Yaba", "Balogun"];
 
   useEffect(() => {
-  const fetchVendors = async () => {
+ const fetchVendors = async () => {
   try {
     const vendorQuery = query(
       collection(db, "vendors"),
-      where("marketPlaceType", "==", "marketplace"),
-      where("isDeactivated", "==", false) // Fetch only active vendors
+      where("marketPlaceType", "==", "marketplace"), // For marketplace vendors
+      where("isDeactivated", "==", false), // Fetch only active vendors
+      where("isApproved", "==", true) // Fetch only approved vendors
     );
     const vendorSnapshot = await getDocs(vendorQuery);
     const vendorsList = vendorSnapshot.docs.map((doc) => ({
@@ -58,13 +59,14 @@ const MarketVendors = () => {
       ...doc.data(),
     }));
     setVendors(vendorsList);
-    setSearchResults(vendorsList);
+    setSearchResults(vendorsList); // Assuming you're using this for search results as well
   } catch (error) {
     toast.error("Error fetching vendors: " + error.message);
   } finally {
     setLoading(false);
   }
 };
+
 
     fetchVendors();
   }, []);

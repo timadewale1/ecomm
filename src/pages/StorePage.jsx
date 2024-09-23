@@ -46,7 +46,7 @@ const StorePage = () => {
           const vendorData = vendorDoc.data();
           vendorData.id = vendorDoc.id; // Assign the document ID to the vendor data
           setVendor(vendorData); // Set vendor with ID
-          
+
           // Now fetch the products for this vendor using the stored productIds
           if (vendorData.productIds && vendorData.productIds.length > 0) {
             fetchVendorProducts(vendorData.productIds); // Call the function to fetch products
@@ -62,11 +62,9 @@ const StorePage = () => {
         setLoading(false);
       }
     };
-  
+
     fetchVendorData();
   }, [id]);
-  
-  
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -84,14 +82,14 @@ const StorePage = () => {
     try {
       console.log("Current User:", currentUser); // Check if currentUser is defined
       console.log("Vendor ID:", vendor?.id); // Check if vendor ID is defined
-  
+
       if (!vendor?.id) {
         throw new Error("Vendor ID is undefined");
       }
-  
+
       const followRef = collection(db, "follows");
       const followDoc = doc(followRef, `${currentUser.uid}_${vendor.id}`);
-  
+
       if (!isFollowing) {
         // Add follow entry
         await setDoc(followDoc, {
@@ -99,27 +97,24 @@ const StorePage = () => {
           vendorId: vendor.id,
           createdAt: new Date(),
         });
-  
+
         console.log("Follow document successfully created", followDoc.id); // Log success
-  
+
         toast.success("You will be notified of new products and promos.");
       } else {
         // Unfollow
         await deleteDoc(followDoc);
         console.log("Follow document successfully deleted", followDoc.id); // Log deletion
-  
+
         toast.success("Unfollowed");
       }
-  
+
       setIsFollowing(!isFollowing);
     } catch (error) {
       console.error("Error following/unfollowing:", error.message);
       toast.error(`Error following/unfollowing: ${error.message}`);
     }
   };
-  
-  
-  
 
   const handleFavoriteToggle = (productId) => {
     setFavorites((prevFavorites) => {
@@ -148,20 +143,19 @@ const StorePage = () => {
     try {
       const productsRef = collection(db, "products");
       const q = query(productsRef, where("__name__", "in", productIds)); // Query the products collection by ID
-      
+
       const querySnapshot = await getDocs(q);
       const fetchedProducts = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-  
+
       setProducts(fetchedProducts); // Set the fetched products to state
     } catch (error) {
       console.error("Error fetching vendor products:", error);
       toast.error("Error fetching products.");
     }
   };
-  
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
@@ -214,8 +208,11 @@ const StorePage = () => {
               className="cursor-pointer text-3xl"
             />
             <h1 className="font-opensans text-lg font-semibold">
-              {vendor.shopName}
+              {vendor.shopName.length > 22
+                ? `${vendor.shopName.slice(0, 22)}...`
+                : vendor.shopName}
             </h1>
+
             <CiSearch
               className="text-black text-3xl cursor-pointer"
               onClick={() => setIsSearching(true)}

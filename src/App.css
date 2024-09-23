@@ -77,6 +77,12 @@ section {
 .modal{
   z-index: 2000;
 }
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 
 .confirmation {
   z-index: 4000;

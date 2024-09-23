@@ -15,6 +15,7 @@ import useAuth from "../custom-hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { GoChevronLeft } from "react-icons/go";
 import { useFavorites } from "../components/Context/FavoritesContext";
+import Loading from "../components/Loading/Loading";
 
 const debounce = (func, delay) => {
   let timeoutId;
@@ -39,7 +40,6 @@ const Cart = () => {
   const [toastShown, setToastShown] = useState({
     remove: false,
     clear: false,
-    
   });
 
   const formatPrice = (price) => {
@@ -166,7 +166,11 @@ const Cart = () => {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div>
+        <Loading />
+      </div>
+    );
   }
 
   if (!currentUser) {
@@ -237,23 +241,22 @@ const Cart = () => {
                           ₦{formatPrice(product.price)}
                         </p>
                         <div className="flex">
-                        <p className="text-gray-600 font-opensans font-normal text-md">
-                          Size:{" "}
-                          <span className="font-semibold text-black">
-                            {product.selectedSize || product.size}
-                          </span>
-                        </p>
-
-                        {product.selectedColor && (
-                          <p className="text-gray-600 font-opensans ml-4 font-normal text-md">
-                            Color:{" "}
+                          <p className="text-gray-600 font-opensans font-normal text-md">
+                            Size:{" "}
                             <span className="font-semibold text-black">
-                              {product.selectedColor}
+                              {product.selectedSize || product.size}
                             </span>
                           </p>
-                        )}
+
+                          {product.selectedColor && (
+                            <p className="text-gray-600 font-opensans ml-4 font-normal text-md">
+                              Color:{" "}
+                              <span className="font-semibold text-black">
+                                {product.selectedColor}
+                              </span>
+                            </p>
+                          )}
                         </div>
-                        
                       </div>
                     </div>
                     <div className="flex mt-1 justify-between">

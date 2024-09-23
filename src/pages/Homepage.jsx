@@ -394,7 +394,7 @@ const Homepage = () => {
                 <>
                   <div
                     className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer"
-                    onClick={() => handleCategoryClick("Men")}
+                    onClick={() => handleCategoryClick("Mens")}
                   >
                     <AdvancedImage
                       cldImg={maleImg}
@@ -406,7 +406,7 @@ const Homepage = () => {
                   </div>
                   <div
                     className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer"
-                    onClick={() => handleCategoryClick("Women")}
+                    onClick={() => handleCategoryClick("Womens")}
                   >
                     <AdvancedImage
                       cldImg={femaleImg}

@@ -145,45 +145,44 @@ const Homepage = () => {
   const fetchProductsAndVendors = async () => {
     try {
       if (!prevProductsRef.current) {
-        // Fetch vendors who are approved and not deactivated
-        const approvedVendorsSnapshot = await getDocs(
-          query(
-            collection(db, "vendors"),
-            where("isApproved", "==", true),
-            where("isDeactivated", "==", false)
-          )
-        );
+        // Fetch vendors and products simultaneously
+        const [approvedVendorsSnapshot, productsSnapshot] = await Promise.all([
+          getDocs(
+            query(
+              collection(db, "vendors"),
+              where("isApproved", "==", true),
+              where("isDeactivated", "==", false)
+            )
+          ),
+          getDocs(collection(db, "products")),
+        ]);
 
-        const approvedVendors = new Set(); // Store approved and active vendor IDs
-
+        // Store approved vendor IDs in a Set
+        const approvedVendors = new Set();
         approvedVendorsSnapshot.forEach((vendorDoc) => {
-          approvedVendors.add(vendorDoc.id); // Store approved and active vendor ID
+          approvedVendors.add(vendorDoc.id);
         });
 
-        // Fetch all products
-        const productsSnapshot = await getDocs(collection(db, "products"));
+        // Create products list and vendor name list
         const productsList = [];
-        const vendorList = new Set(); // To collect unique vendor names
+        const vendorList = new Set(); // Use a Set to ensure uniqueness of vendor names
 
         productsSnapshot.forEach((productDoc) => {
           const productData = productDoc.data();
-
-          // Only add the product if its vendor is both approved and active
           if (approvedVendors.has(productData.vendorId)) {
             productsList.push({
               id: productDoc.id,
               ...productData,
             });
-
-            // Collect unique vendor names from products
             vendorList.add(productData.vendorName);
           }
         });
 
+        // Update state with results
         setProducts(productsList);
-        prevProductsRef.current = productsList; // Store the products in ref for future renders
-        setFilteredProducts(productsList); // Set filtered products to approved ones
-        setVendors(Array.from(vendorList)); // Convert the Set back to an array for vendors
+        prevProductsRef.current = productsList; // Cache for future renders
+        setFilteredProducts(productsList); // Initialize filtered products
+        setVendors(Array.from(vendorList)); // Convert Set to Array for vendors
       } else {
         setProducts(prevProductsRef.current);
       }
@@ -198,7 +197,6 @@ const Homepage = () => {
   useEffect(() => {
     fetchProductsAndVendors();
   }, []);
-
 
   useEffect(() => {
     if (!loading && initialLoad) {
@@ -303,9 +301,9 @@ const Homepage = () => {
           />
         )}
 
-        <CiSearch className="text-3xl" onClick={() => navigate("/search")} />
         <img src={logo}></img>
-        <div className="relative">
+        <div className="relative flex space-x-2">
+          <CiSearch className="text-3xl" onClick={() => navigate("/search")} />
           <IoIosNotificationsOutline
             onClick={() => navigate("/notifications")}
             className="text-3xl cursor-pointer"

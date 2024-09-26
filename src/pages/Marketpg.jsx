@@ -106,16 +106,13 @@ const Marketpg = () => {
     "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 
   return (
-    <div className="mb-1 p-2">
+    <div className="mb-1 py-2 px-3">
       <div className="sticky py-3 w-[calc(100%+1rem)] -ml-2 top-0 shadow-md bg-white z-10">
         <div className="flex items-center justify-between mb-3 pb-2 px-2.5">
           {!isSearching && (
             <>
-              <BsHeart
-                className="text-2xl cursor-pointer"
-                onClick={() => navigate("/favorites")}
-              />
-              <h1 className="text-xl font-opensans font-semibold">MARKET</h1>
+             
+              <h1 className="text-xl font-opensans font-semibold">Stores</h1>
               <CiSearch
                 className="text-3xl cursor-pointer"
                 onClick={() => setIsSearching(true)}
@@ -140,7 +137,7 @@ const Marketpg = () => {
         </div>
 
         {/* Tab Buttons for Local and Online Vendors */}
-        <div className="flex justify-between mb-3 w-full overflow-x-auto space-x-2 scrollbar-hide px-3">
+        <div className="flex justify-between mb-3 w-full overflow-x-auto space-x-2 scrollbar-hide ">
           <button
             onClick={() => handleTabChange("online")}
             className={`flex-1 h-12 text-center text-sm font-medium font-opensans  rounded-full ${

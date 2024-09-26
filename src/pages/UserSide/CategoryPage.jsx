@@ -451,7 +451,7 @@ const CategoryPage = () => {
           <button onClick={() => navigate(-1)} className="p-1 rounded-full">
             <GoChevronLeft className="text-3xl" />
           </button>
-          <div className="flex-grow text-center text-xl font-opensans font-semibold">
+          <div className="flex-grow  text-xl font-opensans font-semibold">
             {category}
           </div>
         </div>

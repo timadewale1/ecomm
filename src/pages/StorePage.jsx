@@ -39,20 +39,21 @@ const StorePage = () => {
   useEffect(() => {
     const fetchVendorData = async () => {
       try {
-        // Fetch vendor data
-        const vendorRef = doc(db, "vendors", id); // 'id' from useParams
+        const vendorRef = doc(db, "vendors", id);
         const vendorDoc = await getDoc(vendorRef);
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
-          vendorData.id = vendorDoc.id; // Assign the document ID to the vendor data
-          setVendor(vendorData); // Set vendor with ID
-
-          // Now fetch the products for this vendor using the stored productIds
+          vendorData.id = vendorDoc.id; 
+          setVendor(vendorData);
+  
           if (vendorData.productIds && vendorData.productIds.length > 0) {
-            fetchVendorProducts(vendorData.productIds); // Call the function to fetch products
+            fetchVendorProducts(vendorData.productIds);
           } else {
-            setProducts([]); // No products if productIds array is empty
+            setProducts([]);
           }
+  
+          // Check follow status immediately after vendor data is set
+          checkIfFollowing(vendorData.id); // Call the check follow status function
         } else {
           toast.error("Vendor not found!");
         }
@@ -62,9 +63,23 @@ const StorePage = () => {
         setLoading(false);
       }
     };
-
-    fetchVendorData();
-  }, [id]);
+  
+    const checkIfFollowing = async (vendorId) => {
+      if (currentUser) {
+        try {
+          const followRef = collection(db, "follows");
+          const followDoc = doc(followRef, `${currentUser.uid}_${vendorId}`);
+          const followSnapshot = await getDoc(followDoc);
+  
+          setIsFollowing(followSnapshot.exists()); // Set follow state based on document existence
+        } catch (error) {
+          console.error("Error checking follow status:", error);
+        }
+      }
+    };
+  
+    fetchVendorData(); // Fetch vendor data on mount
+  }, [id, currentUser]); // Depend on vendor ID and current user state
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -80,9 +95,6 @@ const StorePage = () => {
 
   const handleFollowClick = async () => {
     try {
-      console.log("Current User:", currentUser); // Check if currentUser is defined
-      console.log("Vendor ID:", vendor?.id); // Check if vendor ID is defined
-
       if (!vendor?.id) {
         throw new Error("Vendor ID is undefined");
       }
@@ -97,15 +109,10 @@ const StorePage = () => {
           vendorId: vendor.id,
           createdAt: new Date(),
         });
-
-        console.log("Follow document successfully created", followDoc.id); // Log success
-
         toast.success("You will be notified of new products and promos.");
       } else {
         // Unfollow
         await deleteDoc(followDoc);
-        console.log("Follow document successfully deleted", followDoc.id); // Log deletion
-
         toast.success("Unfollowed");
       }
 

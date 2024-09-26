@@ -303,9 +303,9 @@ const Homepage = () => {
           />
         )}
 
-        <CiSearch className="text-3xl" onClick={() => navigate("/search")} />
         <img src={logo}></img>
-        <div className="relative">
+        <div className="relative flex space-x-2">
+        <CiSearch className="text-3xl" onClick={() => navigate("/search")} />
           <IoIosNotificationsOutline
             onClick={() => navigate("/notifications")}
             className="text-3xl cursor-pointer"

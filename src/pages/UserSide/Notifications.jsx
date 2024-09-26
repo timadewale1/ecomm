@@ -13,7 +13,7 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { GoChevronLeft } from "react-icons/go";
 import { useNavigate } from "react-router-dom";
-import { format, isToday, isYesterday, isThisWeek, isThisMonth } from "date-fns";
+import moment from "moment";
 
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
@@ -65,7 +65,7 @@ const NotificationsPage = () => {
     }
   };
 
-  // Grouping notifications based on time
+  // Grouping notifications based on time using moment.js
   const groupNotifications = () => {
     const todayNotifications = [];
     const thisWeekNotifications = [];
@@ -73,13 +73,13 @@ const NotificationsPage = () => {
     const olderNotifications = [];
 
     notifications.forEach((notification) => {
-      const createdAt = new Date(notification.createdAt.seconds * 1000); // Convert Firestore timestamp
+      const createdAt = moment(notification.createdAt.seconds * 1000); // Convert Firestore timestamp to moment.js object
 
-      if (isToday(createdAt)) {
+      if (createdAt.isSame(moment(), "day")) {
         todayNotifications.push(notification);
-      } else if (isYesterday(createdAt) || isThisWeek(createdAt)) {
+      } else if (createdAt.isSame(moment().subtract(1, "day"), "day") || createdAt.isSame(moment(), "week")) {
         thisWeekNotifications.push(notification);
-      } else if (isThisMonth(createdAt)) {
+      } else if (createdAt.isSame(moment(), "month")) {
         thisMonthNotifications.push(notification);
       } else {
         olderNotifications.push(notification);
@@ -114,7 +114,7 @@ const NotificationsPage = () => {
         <div>
           <p>{notification.message}</p>
           <span className="text-xs text-gray-500">
-            {new Date(notification.createdAt.seconds * 1000).toLocaleString()}
+            {moment(notification.createdAt.seconds * 1000).format("MMMM Do YYYY, h:mm:ss a")}
           </span>
         </div>
       </div>

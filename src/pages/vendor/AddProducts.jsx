@@ -181,7 +181,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         })
       );
   
-      // Fetch vendor's approval status
+      // Fetch vendor's approval status and cover image
       const vendorDocRef = doc(db, "vendors", vendorId);
       const vendorDoc = await getDoc(vendorDocRef);
   
@@ -191,8 +191,9 @@ const AddProduct = ({ vendorId, closeModal }) => {
         setIsLoading(false);
         return;
       }
-  
-     
+
+      const vendorData = vendorDoc.data();
+      const vendorCoverImage = vendorData.coverImageUrl || "";  // Fetch the vendor cover image
   
       // Create the product object with vendorIsApproved field
       const product = {
@@ -202,7 +203,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         coverImageUrl: coverImageUrl,
         imageUrls: productImageUrls,
         vendorId: currentUser.uid,
-        vendorName: vendorName, // Ensure vendorName is part of the product document
+        vendorName: vendorData.shopName, // Use vendorName from the vendor's document
         stockQuantity: parseInt(stockQuantity, 10),
         condition: productCondition === "defect"
           ? `Defect: ${productDefectDescription.charAt(0).toUpperCase() + productDefectDescription.slice(1).toLowerCase()}`
@@ -233,9 +234,10 @@ const AddProduct = ({ vendorId, closeModal }) => {
       // Notify followers after product has been successfully added
       await notifyFollowers(vendorId, {
         name: productName,
-        shopName: vendorName, // Use vendorName here
+        shopName: vendorData.shopName, // Use vendorName from the vendor document
         id: newProductRef.id,
-        coverImageUrl: coverImageUrl, // Pass the cover image URL here
+        vendorCoverImage: vendorCoverImage, // Pass the vendor cover image URL here
+        coverImageUrl: coverImageUrl, // Pass the product cover image URL here
       });
   
       // Show success message and reset form
@@ -259,7 +261,8 @@ const AddProduct = ({ vendorId, closeModal }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+};
+
   
 
   const generateDescription = async () => {

@@ -5,15 +5,20 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
+  GoogleAuthProvider,
+  signInWithPopup, // Import signInWithPopup for popup-based Google sign-in
+  onAuthStateChanged,
 } from "firebase/auth";
+import { FcGoogle } from "react-icons/fc";
 import { auth, db } from "../firebase.config";
 import {
   setDoc,
   doc,
-  getDocs,
+  getDoc, // Use getDoc to retrieve a single document
   collection,
   query,
   where,
+  getDocs,
 } from "firebase/firestore";
 import { motion } from "framer-motion";
 import Typewriter from "typewriter-effect";
@@ -29,6 +34,7 @@ import {
 import { MdOutlineEmail, MdOutlineLock } from "react-icons/md";
 import { Oval, RotatingLines } from "react-loader-spinner";
 import PasswordStrengthBar from "react-password-strength-bar";
+import useAuth from "../custom-hooks/useAuth";
 
 const Signup = () => {
   const [username, setUsername] = useState("");
@@ -43,7 +49,21 @@ const Signup = () => {
   const [isUsernameAvailable, setIsUsernameAvailable] = useState(false);
   const [showPasswordCriteria, setShowPasswordCriteria] = useState(false);
 
+  const { currentUser } = useAuth(); // Use the currentUser from the useAuth hook
   const navigate = useNavigate();
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log("User is already logged in after popup:", user);
+        // Ensure the user is navigated to the newhome page
+        navigate("/newhome");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [navigate]);
 
   useEffect(() => {
     const checkUsername = async () => {
@@ -96,6 +116,18 @@ const Signup = () => {
       });
     };
   }, []);
+
+  useEffect(() => {
+    // This ensures Firebase remembers the user's state after page reload
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log("User is already logged in after redirect:", user);
+        navigate("/newhome");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [navigate]);
 
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -151,7 +183,7 @@ const Signup = () => {
         uid: user.uid,
         username: formattedUsername,
         email,
-        role: "user", // Ensure this role is set for users
+        role: "user",
         createdAt: new Date(),
       });
 
@@ -177,6 +209,58 @@ const Signup = () => {
       console.error("Signup error:", error);
     }
   };
+
+  // Google sign-up handler using popup
+  const handleGoogleSignUp = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      setLoading(true);
+      console.log("Opening Google sign-up popup...");
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      console.log("Google user authenticated:", user);
+
+      const userRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userRef);
+
+      if (!userDoc.exists()) {
+        // Add new user to Firestore
+        await setDoc(userRef, {
+          uid: user.uid,
+          username: user.displayName,
+          email: user.email,
+          role: "user",
+          createdAt: new Date(),
+        });
+        console.log("New user added to Firestore:", user.displayName);
+      } else {
+        console.log("User already exists in Firestore");
+      }
+
+      toast.success("Signed up with Google successfully!");
+      // Ensure redirection to the new home route
+      navigate("/newhome");
+    } catch (error) {
+      console.error("Google Sign-Up Error:", error);
+      let errorMessage = "Google Sign-Up failed. Please try again.";
+      if (error.code === "auth/account-exists-with-different-credential") {
+        errorMessage = "An account with the same email already exists.";
+      } else if (error.code === "auth/popup-closed-by-user") {
+        errorMessage = "Popup closed before completing sign-up.";
+      }
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser) {
+      console.log("User is authenticated, redirecting to dashboard...");
+      navigate("/newhome");
+    }
+  }, [currentUser, navigate]);
 
   return (
     <Helmet className="p-4">
@@ -206,6 +290,7 @@ const Signup = () => {
               </div>
 
               <Form className="mt-4" onSubmit={signup}>
+                {/* Username input */}
                 <FormGroup className="relative mb-2">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
                     <FaRegUser className="text-gray-500 text-xl" />
@@ -255,12 +340,8 @@ const Signup = () => {
                     Username is already taken. Please choose another one.
                   </div>
                 )}
-                {isUsernameAvailable && !usernameLoading && (
-                  <div className="text-green-500 text-xs  flex items-center">
-                    {/* <FaCheckCircle className="mr-1" />
-                    Username is available. */}
-                  </div>
-                )}
+
+                {/* Email input */}
                 <FormGroup className="relative mb-2">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
                     <MdOutlineEmail className="text-gray-500 text-xl" />
@@ -274,14 +355,8 @@ const Signup = () => {
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </FormGroup>
-                {showPasswordCriteria && (
-                  <div className="text-red-500 ratings-text mb-2 flex items-center">
-                    <FaInfoCircle className="mr-1" />
-                    Password must be at least 8 characters long and contain at
-                    least one uppercase letter, one digit, and one special
-                    character.
-                  </div>
-                )}
+
+                {/* Password input */}
                 <FormGroup className="relative">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
                     <MdOutlineLock className="text-gray-500 text-xl" />
@@ -307,6 +382,8 @@ const Signup = () => {
                     )}
                   </div>
                 </FormGroup>
+
+                {/* Password strength bar */}
                 {showPasswordCriteria && (
                   <div className="mt-1">
                     <PasswordStrengthBar
@@ -323,13 +400,15 @@ const Signup = () => {
                         "Too short",
                         "Weak",
                         "Okay",
-                        " Very Good",
+                        "Very Good",
                         "Strong",
                       ]}
                       shortScoreWord="Too short"
                     />
                   </div>
                 )}
+
+                {/* Confirm password input */}
                 <FormGroup className="relative mt-4">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
                     <MdOutlineLock className="text-gray-500 text-xl" />
@@ -354,6 +433,7 @@ const Signup = () => {
                   </div>
                 </FormGroup>
 
+                {/* Sign Up button */}
                 <motion.button
                   type="submit"
                   className="glow-button w-full h-12 mt-4 bg-customOrange text-white font-medium rounded-full flex justify-center items-center"
@@ -370,6 +450,21 @@ const Signup = () => {
                     "Sign Up"
                   )}
                 </motion.button>
+                <div className="flex items-center justify-center mt-6 mb-6">
+                  <div className="flex-grow border-t border-gray-300"></div>
+                  <span className="mx-4 text-gray-500">OR</span>
+                  <div className="flex-grow border-t border-gray-300"></div>
+                </div>
+                {/* Google Sign-Up button */}
+                <motion.button
+                  type="button"
+                  className="w-full h-12 mt-4 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center"
+                  onClick={handleGoogleSignUp}
+                >
+                  <FcGoogle className="mr-2 text-2xl" />
+                  Sign up with Google
+                </motion.button>
+
                 <div className="text-center text-sm font-normal font-lato mt-2 pb-4 flex justify-center">
                   <p className="text-gray-700 text-sm">
                     Already have an account?{" "}

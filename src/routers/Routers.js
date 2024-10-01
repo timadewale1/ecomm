@@ -20,7 +20,7 @@ import PaymentApprove from "../pages/PaymentApprove.jsx";
 import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfile.jsx";
 import NewHome from "../pages/Homepage";
 import LatestCart from "../pages/Cart.jsx";
-
+import OrdersCentre from "../pages/UserSide/OrdersCentre.jsx"
 import FullDelivery from "../pages/FullDelivery.jsx";
 import Checkout from "../pages/NewCheckout.jsx";
 import MarketVendors from "../pages/MarketVendors.jsx";
@@ -60,7 +60,7 @@ const Routers = () => {
         <Route path="newhome" element={<NewHome />} />
         <Route path="latest-cart" element={<LatestCart />} />
         <Route path="newcheckout" element={<Checkout />} />
-
+    <Route path="user-orders" element={<OrdersCentre />} />
         <Route path="newcheckout/fulldelivery" element={<FullDelivery />} />
         <Route path="favorites" element={<FavoritesPage />} />
         <Route

@@ -5,6 +5,17 @@ import { auth, db } from "../firebase.config";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast"; 
 
+const retryGetDoc = async (ref, retries = 3, delay = 1000) => {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const docSnap = await getDoc(ref);
+    if (docSnap.exists()) {
+      return docSnap;
+    }
+    await new Promise(res => setTimeout(res, delay)); // Wait for delay
+  }
+  return null;
+};
+
 const useAuth = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -14,37 +25,28 @@ const useAuth = () => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
-          // Check the user document
           const userRef = doc(db, "users", user.uid);
-          const userDoc = await getDoc(userRef);
+          const userDoc = await retryGetDoc(userRef);
 
-          if (userDoc.exists()) {
+          if (userDoc && userDoc.exists()) {
             if (userDoc.data().isDeactivated) {
-              // User is deactivated, log them out
               await signOut(auth);
-              // toast.error("Your account has been deactivated.");
-              navigate("/login"); // Redirect to login page
+              navigate("/login");
             } else {
-              // User is active, set them as the current user
               setCurrentUser(user);
             }
           } else {
-            // If no user doc is found, check the vendors collection
             const vendorRef = doc(db, "vendors", user.uid);
-            const vendorDoc = await getDoc(vendorRef);
+            const vendorDoc = await retryGetDoc(vendorRef);
 
-            if (vendorDoc.exists()) {
+            if (vendorDoc && vendorDoc.exists()) {
               if (vendorDoc.data().isDeactivated) {
-                // Vendor is deactivated, log them out
                 await signOut(auth);
-                // toast.error("Your vendor account has been deactivated.");
-                navigate("/vendorlogin"); // Redirect to vendor login page
+                navigate("/vendorlogin");
               } else {
-                // Vendor is active, set them as the current user
                 setCurrentUser(user);
               }
             } else {
-              // If no user or vendor doc is found, consider them an unauthorized user
               toast.error("Unauthorized access. Please contact support.");
               await signOut(auth);
               navigate("/login");
@@ -55,13 +57,12 @@ const useAuth = () => {
           toast.error("Authentication error. Please try again.");
         }
       } else {
-        setCurrentUser(null); // Reset if no user is logged in
+        setCurrentUser(null);
       }
 
-      setLoading(false); // Finish loading after authentication check
+      setLoading(false);
     });
 
-    // Cleanup listener on unmount
     return () => unsubscribe();
   }, [navigate]);
 

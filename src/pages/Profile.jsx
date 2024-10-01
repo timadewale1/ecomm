@@ -8,7 +8,7 @@ import useAuth from "../custom-hooks/useAuth";
 import { FaPen, FaHeart, FaAngleRight, FaAngleLeft } from "react-icons/fa";
 import { FaRegCircleUser } from "react-icons/fa6";
 import { GiClothes } from "react-icons/gi";
-
+import { LiaClipboardListSolid } from "react-icons/lia";
 import OrderHistory from "./UserSide/History";
 import { MdHistory, MdHelpOutline, MdModeEdit } from "react-icons/md";
 import { CiMoneyBill } from "react-icons/ci";
@@ -177,6 +177,22 @@ const Profile = () => {
                   <AiOutlineDashboard className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-black capitalize">
                     Metrics
+                  </h2>
+                </div>
+                <FaAngleRight className="text-black" />
+              </div>
+              <hr className="w-full border-gray-600" />
+            </div>
+            <div className="flex flex-col items-center w-full">
+              <hr className="w-full border-gray-600" />
+              <div
+                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+                onClick={() => navigate("/user-orders")}
+              >
+                <div className="flex items-center">
+                  <LiaClipboardListSolid className="text-black text-xl mr-4" />
+                  <h2 className="text-size font-normal text-black capitalize">
+                    Orders
                   </h2>
                 </div>
                 <FaAngleRight className="text-black" />

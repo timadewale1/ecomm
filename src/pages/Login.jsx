@@ -3,7 +3,11 @@ import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup, // Import signInWithPopup for Google sign-in
+} from "firebase/auth";
 import { auth, db } from "../firebase.config";
 import { getDoc, doc, setDoc } from "firebase/firestore";
 import { FaRegEyeSlash, FaRegEye } from "react-icons/fa";
@@ -12,6 +16,7 @@ import toast from "react-hot-toast";
 import LoginAnimation from "../components/LoginAssets/LoginAnimation";
 import Typewriter from "typewriter-effect";
 import { FaAngleLeft } from "react-icons/fa6";
+import { FcGoogle } from "react-icons/fc"; // Import Google icon
 import { useDispatch } from "react-redux";
 import { setCart } from "../redux/actions/action";
 import { RotatingLines } from "react-loader-spinner"; // Import the RotatingLines spinner
@@ -60,62 +65,55 @@ const Login = () => {
 
   const signIn = async (e) => {
     e.preventDefault();
-  
-    // Validate email field
-    if (!email) {
+
+    if (!email || !validateEmail(email)) {
       setEmailError(true);
       toast.error("Please fill in all fields correctly.");
       return;
     }
-  
-    // Validate email format
-    if (!validateEmail(email)) {
-      toast.error("Invalid email format.");
-      return;
-    }
-  
-    // Validate password field
+
     if (!password) {
+      setPasswordError(true);
       toast.error("Please fill in all fields correctly.");
       return;
     }
-  
+
     setLoading(true);
-  
+
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       const user = userCredential.user;
-  
-      // Check if email is verified
+
       if (!user.emailVerified) {
         setLoading(false);
         toast.error("Please verify your email before logging in.");
         return;
       }
-  
-      // Retrieve user data from Firestore
+
       const userDoc = await getDoc(doc(db, "users", user.uid));
       const userData = userDoc.data();
-  
-      // Check if the user is deactivated
+
       if (userData?.isDeactivated) {
         await auth.signOut();
         setLoading(false);
-        toast.error("Your account has been deactivated. Please contact support.");
+        toast.error(
+          "Your account has been deactivated. Please contact support."
+        );
         return;
       }
-  
-      // Check if the user is a regular user
+
       if (userData?.role !== "user") {
         await auth.signOut();
         setLoading(false);
         toast.error("This email is already used for a Vendor account!");
         return;
       }
-  
-      // Fetch the cart from Firestore
+
       await fetchCartFromFirestore(user.uid);
-  
       const Name = userData?.username || "User";
       setLoading(false);
       toast.success(`Hello ${Name}, welcome!`);
@@ -123,10 +121,10 @@ const Login = () => {
       navigate(redirectTo, { replace: true });
     } catch (error) {
       setLoading(false);
-      console.error("Error during sign-in:", error); // Log the error message
-  
-      // Provide user-friendly error messages based on Firebase error codes
-      let errorMessage = "Unable to login. Please check your credentials and try again.";
+      console.error("Error during sign-in:", error);
+
+      let errorMessage =
+        "Unable to login. Please check your credentials and try again.";
       if (error.code === "auth/user-not-found") {
         errorMessage = "No user found with this email. Please sign up.";
       } else if (error.code === "auth/wrong-password") {
@@ -134,14 +132,68 @@ const Login = () => {
       } else if (error.code === "auth/invalid-email") {
         errorMessage = "Invalid email format.";
       } else if (error.code === "auth/network-request-failed") {
-        errorMessage = "Network error. Please check your internet connection and try again.";
+        errorMessage =
+          "Network error. Please check your internet connection and try again.";
       }
-  
+
       toast.error(errorMessage);
     }
   };
-  
 
+  const fetchUserDataWithRetry = async (userRef, retries = 5, delay = 1000) => {
+    for (let i = 0; i < retries; i++) {
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        return userDoc.data();
+      }
+      // Wait before retrying to fetch the document
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+    throw new Error("User data not available after multiple attempts");
+  };
+  const handleGoogleSignIn = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      setLoading(true);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Firestore reference for the user document
+      const userRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userRef);
+
+      if (!userDoc.exists()) {
+        // Create user document in Firestore if it doesn't exist
+        await setDoc(userRef, {
+          uid: user.uid,
+          username: user.displayName,
+          email: user.email,
+          role: "user",
+          createdAt: new Date(),
+        });
+        console.log("New user document created in Firestore");
+      }
+
+      // Fetch user cart data or sync it with Firestore (explained below)
+      await fetchCartFromFirestore(user.uid);
+
+      // Navigate to the homepage
+      toast.success(`Welcome back ${user.displayName}!`);
+      navigate("/newhome");
+    } catch (error) {
+      setLoading(false);
+      console.error("Google Sign-In Error:", error);
+      let errorMessage = "Google Sign-In failed. Please try again.";
+      if (error.code === "auth/account-exists-with-different-credential") {
+        errorMessage = "An account with the same email already exists.";
+      } else if (error.code === "auth/popup-closed-by-user") {
+        errorMessage = "Popup closed before completing sign-in.";
+      }
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleEmailChange = (e) => {
     setEmail(e.target.value);
     if (e.target.value) setEmailError(false);
@@ -152,7 +204,6 @@ const Login = () => {
     if (e.target.value) setPasswordError(false);
   };
 
-  // Implementing the scroll-lock feature
   useEffect(() => {
     const handleFocus = () => {
       document.body.classList.add("scroll-lock");
@@ -251,6 +302,8 @@ const Login = () => {
                     </p>
                   </div>
 
+               
+
                   <motion.button
                     type="submit"
                     className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-medium rounded-full flex justify-center items-center"
@@ -268,6 +321,24 @@ const Login = () => {
                       "Sign In"
                     )}
                   </motion.button>
+
+                  {/* OR separator */}
+                  <div className="flex items-center justify-center mt-6 mb-6">
+                    <div className="flex-grow border-t border-gray-300"></div>
+                    <span className="mx-4 text-gray-500">OR</span>
+                    <div className="flex-grow border-t border-gray-300"></div>
+                  </div>
+
+                  {/* Google Sign-In button */}
+                  <motion.button
+                    type="button"
+                    className="w-full h-12 mt-4 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center"
+                    onClick={handleGoogleSignIn}
+                  >
+                    <FcGoogle className="mr-2 text-2xl" />
+                    Sign in with Google
+                  </motion.button>
+
                   <div className="text-center font-light font-lato mt-2 flex justify-center">
                     <p className="text-gray-900 text-sm">
                       Don't have an account?{" "}

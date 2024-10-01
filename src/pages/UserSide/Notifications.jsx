@@ -214,49 +214,31 @@ const NotificationsPage = () => {
         <div>
           {activeTab === "all" && (
             <>
-              {groupedNotifications.today.length > 0
-                ? renderNotificationsSection(
-                    "Today",
-                    groupedNotifications.today
-                  )
-                : groupedNotifications.thisWeek.length > 0
-                ? renderNotificationsSection(
-                    "This Week",
-                    groupedNotifications.thisWeek
-                  )
-                : groupedNotifications.thisMonth.length > 0
-                ? renderNotificationsSection(
-                    "This Month",
-                    groupedNotifications.thisMonth
-                  )
-                : groupedNotifications.older.length > 0
-                ? renderNotificationsSection(
-                    "Older",
-                    groupedNotifications.older
-                  )
-                : null}
+              {renderNotificationsSection("Today", groupedNotifications.today)}
+              {renderNotificationsSection(
+                "This Week",
+                groupedNotifications.thisWeek
+              )}
+              {renderNotificationsSection(
+                "This Month",
+                groupedNotifications.thisMonth
+              )}
+              {renderNotificationsSection("Older", groupedNotifications.older)}
             </>
           )}
 
           {activeTab === "vendor" && (
             <>
-              {groupedNotifications.today.length > 0 ? (
-                renderNotificationsSection("Today", groupedNotifications.today)
-              ) : groupedNotifications.thisWeek.length > 0 ? (
-                renderNotificationsSection(
-                  "This Week",
-                  groupedNotifications.thisWeek
-                )
-              ) : groupedNotifications.thisMonth.length > 0 ? (
-                renderNotificationsSection(
-                  "This Month",
-                  groupedNotifications.thisMonth
-                )
-              ) : groupedNotifications.older.length > 0 ? (
-                renderNotificationsSection("Older", groupedNotifications.older)
-              ) : (
-                <p className="text-gray-500">No vendor notifications.</p>
+              {renderNotificationsSection("Today", groupedNotifications.today)}
+              {renderNotificationsSection(
+                "This Week",
+                groupedNotifications.thisWeek
               )}
+              {renderNotificationsSection(
+                "This Month",
+                groupedNotifications.thisMonth
+              )}
+              {renderNotificationsSection("Older", groupedNotifications.older)}
             </>
           )}
         </div>

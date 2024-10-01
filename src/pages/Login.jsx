@@ -323,16 +323,16 @@ const Login = () => {
                   </motion.button>
 
                   {/* OR separator */}
-                  <div className="flex items-center justify-center mt-6 mb-6">
+                  <div className="flex items-center justify-center mt-2 mb-2">
                     <div className="flex-grow border-t border-gray-300"></div>
-                    <span className="mx-4 text-gray-500">OR</span>
+                    <span className="mx-4 text-xs text-gray-500">OR</span>
                     <div className="flex-grow border-t border-gray-300"></div>
                   </div>
 
                   {/* Google Sign-In button */}
                   <motion.button
                     type="button"
-                    className="w-full h-12 mt-4 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center"
+                    className="w-full h-12 mt-2 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center"
                     onClick={handleGoogleSignIn}
                   >
                     <FcGoogle className="mr-2 text-2xl" />

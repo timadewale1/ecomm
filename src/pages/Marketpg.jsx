@@ -106,12 +106,11 @@ const Marketpg = () => {
     "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 
   return (
-    <div className="mb-1 py-2 px-3">
-      <div className="sticky py-3 w-[calc(100%+1rem)] -ml-2 top-0 shadow-md bg-white z-10">
+    <div className="mb-1 ">
+      <div className="sticky py-4 px-2 w-full top-0  bg-white z-10">
         <div className="flex items-center justify-between mb-3 pb-2 px-2.5">
           {!isSearching && (
             <>
-             
               <h1 className="text-xl font-opensans font-semibold">Stores</h1>
               <CiSearch
                 className="text-3xl cursor-pointer"
@@ -135,38 +134,38 @@ const Marketpg = () => {
             </div>
           )}
         </div>
+        <div className="border-t border-gray-300 mt-6"></div>
 
-        {/* Tab Buttons for Local and Online Vendors */}
-        <div className="flex justify-between mb-3 w-full overflow-x-auto space-x-2 scrollbar-hide ">
-          <button
-            onClick={() => handleTabChange("online")}
-            className={`flex-1 h-12 text-center text-sm font-medium font-opensans  rounded-full ${
-              selectedTab === "online"
-                ? "bg-customOrange text-white"
-                : "bg-transparent border-gray-200 font-medium  border-2 text-black"
-            }`}
-          >
-            Online Vendors
-          </button>
-          <button
-            onClick={() => handleTabChange("local")}
-            className={`flex-1 h-12 text-center text-sm font-opensans font-medium  rounded-full ${
-              selectedTab === "local"
-                ? "bg-customOrange text-white"
-                : "bg-transparent border-gray-200 font-medium border-2 text-black"
-            }`}
-          >
-            Local Vendors
-          </button>
-        </div>
+     
       </div>
-
-      <div className="vendor-list -mx-2 translate-y-1">
+      <div className="flex justify-between mb-3 w-full px-2 overflow-x-auto space-x-2 scrollbar-hide ">
+        <button
+          onClick={() => handleTabChange("online")}
+          className={`flex-1 h-12 text-center text-sm font-medium font-opensans  rounded-full ${
+            selectedTab === "online"
+              ? "bg-customOrange text-white"
+              : "bg-transparent border-gray-200 font-medium  border-2 text-black"
+          }`}
+        >
+          Online Vendors
+        </button>
+        <button
+          onClick={() => handleTabChange("local")}
+          className={`flex-1 h-12 text-center text-sm font-opensans font-medium  rounded-full ${
+            selectedTab === "local"
+              ? "bg-customOrange text-white"
+              : "bg-transparent border-gray-200 font-medium border-2 text-black"
+          }`}
+        >
+          Local Vendors
+        </button>
+      </div>
+      <div className="vendor-list px-2 -mx-2 translate-y-1">
         {loading ? (
           // Show skeleton loader when loading
           Array.from({ length: 5 }).map((_, index) => (
             <div key={index} className="vendor-item">
-              <div className="flex justify-between p-3 mb-1 bg-white shadow">
+              <div className="flex justify-between p-3 mb-1 bg-white ">
                 <div>
                   <Skeleton width={150} height={24} />
                   <div className="flex items-center mt-1">
@@ -189,7 +188,7 @@ const Marketpg = () => {
           filteredVendors.map((vendor) => (
             <div key={vendor.id} className="vendor-item">
               <div
-                className="flex justify-between p-3 mb-1 bg-white shadow"
+                className="flex justify-between p-3 mb-1 bg-white "
                 onClick={() => handleStoreView(vendor)}
               >
                 <div>

@@ -22,6 +22,13 @@ module.exports = {
         opensans: ['Open Sans', 'sans-serif'],
 
       },
+      'modal-slide-up': {
+          '0%': { transform: 'translateY(100%)' },
+          '100%': { transform: 'translateY(0)' },
+        },
+      animation: {
+        'modal-slide-up': 'modal-slide-up 4s ease-out',
+      },
     },
   },
   plugins: [],

@@ -16,11 +16,10 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { GoDotFill, GoChevronLeft } from "react-icons/go";
 import { FiSearch } from "react-icons/fi";
-import { FaAngleLeft, FaPlus, FaCheck } from "react-icons/fa";
+import { FaAngleLeft, FaPlus, FaCheck, FaSpinner, FaStar } from "react-icons/fa";
 import toast from "react-hot-toast";
 import ProductCard from "../components/Products/ProductCard";
 import Loading from "../components/Loading/Loading";
-import { FaStar } from "react-icons/fa6";
 import { CiSearch } from "react-icons/ci";
 
 const MarketStorePage = () => {
@@ -34,10 +33,16 @@ const MarketStorePage = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false); // Added loading state for follow button
   const navigate = useNavigate();
 
   // Fetch vendor data
   useEffect(() => {
+    // Reset state when vendor ID changes
+    setLoading(true);
+    setVendor(null);
+    setProducts([]);
+
     const fetchVendorData = async () => {
       try {
         const vendorRef = doc(db, "vendors", id); // Fetch vendor data using the vendor ID
@@ -67,12 +72,15 @@ const MarketStorePage = () => {
   }, [id]);
 
   useEffect(() => {
+    // Reset following status when vendor or currentUser changes
+    setIsFollowing(false);
+
     const checkIfFollowing = async () => {
       if (currentUser && vendor) {
         try {
           const followRef = collection(db, "follows");
-          const followDoc = doc(followRef, `${currentUser.uid}_${vendor.id}`);
-          const followSnapshot = await getDoc(followDoc);
+          const followDocRef = doc(followRef, `${currentUser.uid}_${vendor.id}`);
+          const followSnapshot = await getDoc(followDocRef);
 
           if (followSnapshot.exists()) {
             setIsFollowing(true); // User is following the vendor
@@ -100,6 +108,7 @@ const MarketStorePage = () => {
 
     return () => unsubscribe();
   }, []);
+
   const fetchVendorProducts = async (productIds) => {
     try {
       const productsRef = collection(db, "products");
@@ -117,32 +126,32 @@ const MarketStorePage = () => {
       toast.error("Error fetching products.");
     }
   };
+
   const filteredProducts = products.filter((product) => {
-    console.log("Product:", product.name, "Product Type:", product.productType); // Log product's name and productType
-    console.log("Search Term:", searchTerm.toLowerCase(), "Selected Category (Product Type):", selectedCategory);
-  
-    const matchesSearchTerm = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === "All" || product.productType.toLowerCase() === selectedCategory.toLowerCase();
-  
-    console.log("Matches Search Term:", matchesSearchTerm, "Matches Product Type:", matchesCategory);
-  
+    const matchesSearchTerm = product.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      selectedCategory === "All" ||
+      product.productType.toLowerCase() === selectedCategory.toLowerCase();
+
     return matchesSearchTerm && matchesCategory;
   });
-  
 
   // Handle follow/unfollow vendor
   const handleFollowClick = async () => {
     try {
+      setIsFollowLoading(true); // Start loading
       if (!vendor?.id) {
         throw new Error("Vendor ID is undefined");
       }
 
       const followRef = collection(db, "follows");
-      const followDoc = doc(followRef, `${currentUser.uid}_${vendor.id}`);
+      const followDocRef = doc(followRef, `${currentUser.uid}_${vendor.id}`);
 
       if (!isFollowing) {
         // Add follow entry
-        await setDoc(followDoc, {
+        await setDoc(followDocRef, {
           userId: currentUser.uid,
           vendorId: vendor.id,
           createdAt: new Date(),
@@ -150,7 +159,7 @@ const MarketStorePage = () => {
         toast.success("You will be notified of new products and promos.");
       } else {
         // Unfollow
-        await deleteDoc(followDoc);
+        await deleteDoc(followDocRef);
         toast.success("Unfollowed");
       }
 
@@ -158,6 +167,8 @@ const MarketStorePage = () => {
     } catch (error) {
       console.error("Error following/unfollowing:", error.message);
       toast.error(`Error following/unfollowing: ${error.message}`);
+    } finally {
+      setIsFollowLoading(false); // End loading
     }
   };
 
@@ -339,8 +350,11 @@ const MarketStorePage = () => {
                 : "bg-customOrange text-white"
             }`}
             onClick={handleFollowClick}
+            disabled={isFollowLoading} // Disable button when loading
           >
-            {isFollowing ? (
+            {isFollowLoading ? (
+              <FaSpinner className="animate-spin mr-2" />
+            ) : isFollowing ? (
               <>
                 <FaCheck className="mr-2" />
                 Following
@@ -358,7 +372,7 @@ const MarketStorePage = () => {
         {loading ? <Skeleton count={2} /> : vendor.description}
       </p>
       <div className="p-2 mt-7">
-        <h1 className="font-opensans text-lg mb-3  font-semibold ">Products</h1>
+        <h1 className="font-opensans text-lg mb-3 font-semibold">Products</h1>
         <div className="flex justify-between mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
           {[
             "All",
@@ -398,7 +412,6 @@ const MarketStorePage = () => {
                   isFavorite={!!favorites[product.id]}
                   onFavoriteToggle={handleFavoriteToggle}
                   onClick={() => {
-                    console.log("Navigating to product detail:", product.id); // Add console log
                     navigate(`/product/${product.id}`);
                   }}
                 />

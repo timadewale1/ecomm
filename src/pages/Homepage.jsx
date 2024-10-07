@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { IoArrowBack } from "react-icons/io5";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
@@ -43,13 +43,18 @@ const Homepage = () => {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [userName, setUserName] = useState("User");
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
   const [products, setProducts] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const productCardsRef = useRef([]);
+  const productCardsRef = useRef([]); // For GSAP animations
   const [initialLoad, setInitialLoad] = useState(true);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+
+  // Ref to store scroll position
+  const scrollPositionRef = useRef(0);
+  const prevProductsRef = useRef(null);
 
   // Fetch unread notifications
   useEffect(() => {
@@ -100,6 +105,18 @@ const Homepage = () => {
     navigate("/market-vendors");
   };
 
+  // Save scroll position when leaving the page
+  useEffect(() => {
+    return () => {
+      scrollPositionRef.current = window.scrollY; // Save the scroll position
+    };
+  }, []);
+
+  // Restore scroll position when returning to the page
+  useEffect(() => {
+    window.scrollTo(0, scrollPositionRef.current); // Restore scroll position
+  }, []);
+
   useEffect(() => {
     const auth = getAuth();
     const fetchUserName = async (uid) => {
@@ -127,25 +144,48 @@ const Homepage = () => {
 
   const fetchProductsAndVendors = async () => {
     try {
-      // Fetch all products from the centralized "products" collection
-      const productsSnapshot = await getDocs(collection(db, "products"));
-      const productsList = [];
-      const vendorList = new Set(); // To collect unique vendor names
+      if (!prevProductsRef.current) {
+        // Fetch vendors and products simultaneously
+        const [approvedVendorsSnapshot, productsSnapshot] = await Promise.all([
+          getDocs(
+            query(
+              collection(db, "vendors"),
+              where("isApproved", "==", true),
+              where("isDeactivated", "==", false)
+            )
+          ),
+          getDocs(collection(db, "products")),
+        ]);
 
-      productsSnapshot.forEach((productDoc) => {
-        const productData = productDoc.data();
-        productsList.push({
-          id: productDoc.id,
-          ...productData,
+        // Store approved vendor IDs in a Set
+        const approvedVendors = new Set();
+        approvedVendorsSnapshot.forEach((vendorDoc) => {
+          approvedVendors.add(vendorDoc.id);
         });
 
-        // Collect unique vendor names from products
-        vendorList.add(productData.vendorName);
-      });
+        // Create products list and vendor name list
+        const productsList = [];
+        const vendorList = new Set(); // Use a Set to ensure uniqueness of vendor names
 
-      setProducts(productsList);
-      setFilteredProducts(productsList);
-      setVendors(Array.from(vendorList)); // Convert the Set back to an array for vendors
+        productsSnapshot.forEach((productDoc) => {
+          const productData = productDoc.data();
+          if (approvedVendors.has(productData.vendorId)) {
+            productsList.push({
+              id: productDoc.id,
+              ...productData,
+            });
+            vendorList.add(productData.vendorName);
+          }
+        });
+
+        // Update state with results
+        setProducts(productsList);
+        prevProductsRef.current = productsList; // Cache for future renders
+        setFilteredProducts(productsList); // Initialize filtered products
+        setVendors(Array.from(vendorList)); // Convert Set to Array for vendors
+      } else {
+        setProducts(prevProductsRef.current);
+      }
     } catch (error) {
       console.error("Error fetching products and vendors:", error);
     } finally {
@@ -261,9 +301,9 @@ const Homepage = () => {
           />
         )}
 
-        <CiSearch className="text-3xl" onClick={() => navigate("/search")} />
         <img src={logo}></img>
-        <div className="relative">
+        <div className="relative flex space-x-2">
+          <CiSearch className="text-3xl" onClick={() => navigate("/search")} />
           <IoIosNotificationsOutline
             onClick={() => navigate("/notifications")}
             className="text-3xl cursor-pointer"
@@ -352,7 +392,7 @@ const Homepage = () => {
                 <>
                   <div
                     className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer"
-                    onClick={() => handleCategoryClick("Men")}
+                    onClick={() => handleCategoryClick("Mens")}
                   >
                     <AdvancedImage
                       cldImg={maleImg}
@@ -364,7 +404,7 @@ const Homepage = () => {
                   </div>
                   <div
                     className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer"
-                    onClick={() => handleCategoryClick("Women")}
+                    onClick={() => handleCategoryClick("Womens")}
                   >
                     <AdvancedImage
                       cldImg={femaleImg}

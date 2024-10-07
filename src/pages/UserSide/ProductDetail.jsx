@@ -9,6 +9,7 @@ import { FaStar } from "react-icons/fa";
 import { CiCircleInfo } from "react-icons/ci";
 import { TbInfoOctagon } from "react-icons/tb";
 import { TbInfoTriangle } from "react-icons/tb";
+import LoadProducts from "../../components/Loading/LoadProducts";
 import { GoChevronLeft, GoChevronRight } from "react-icons/go";
 import { LuCopyCheck, LuCopy } from "react-icons/lu";
 import toast from "react-hot-toast";
@@ -20,7 +21,7 @@ import { MdOutlineCancel } from "react-icons/md";
 import { doc, getDoc, getFirestore } from "firebase/firestore";
 import RelatedProducts from "./SimilarProducts";
 import Productnotofund from "../../components/Loading/Productnotofund";
-
+import { decreaseQuantity, increaseQuantity } from "../../redux/actions/action";
 Modal.setAppElement("#root");
 const debounce = (func, delay) => {
   let timeoutId;
@@ -47,7 +48,7 @@ const ProductDetailPage = () => {
   const [mainImage, setMainImage] = useState("");
   const [isSticky, setIsSticky] = useState(false);
   const [isDisclaimerModalOpen, setIsDisclaimerModalOpen] = useState(false);
-
+  const [vendorLoading, setVendorLoading] = useState(true);
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
   const [animateCart, setAnimateCart] = useState(false);
@@ -59,6 +60,7 @@ const ProductDetailPage = () => {
     productNotFound: false,
   });
   const [toastCount, setToastCount] = useState(0);
+
   const [vendor, setVendor] = useState(null); // Vendor details
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false); // Info modal for Similar Products
@@ -66,26 +68,58 @@ const ProductDetailPage = () => {
   const db = getFirestore();
   // Import selector for cart items at the top
 
-  const { cartItems = {} } = useSelector((state) => state.cart);
-
   // To get all items as an array:
+  // At the top of your component
+  const cart = useSelector((state) => state.cart || {});
 
-  const cartItemsArray = Object.values(cartItems);
-
-  // Check if the product is already in the cart on component load
   useEffect(() => {
-    if (product && Object.keys(cartItems).length > 0) {
-      const itemInCart = Object.values(cartItems).find(
-        (item) => item.id === product.id
-      );
-      if (itemInCart) {
-        setIsAddedToCart(true);
-        setQuantity(itemInCart.quantity); // Set initial quantity from cart
-        setSelectedColor(itemInCart.selectedColor);
-        setSelectedSize(itemInCart.selectedSize);
+    if (product) {
+      const vendorProducts = cart?.[product.vendorId]?.products || {};
+
+      // Find the product in cart
+      let foundInCart = false;
+      for (let key in vendorProducts) {
+        const cartItem = vendorProducts[key];
+        if (cartItem.id === product.id) {
+          setSelectedSize(cartItem.selectedSize);
+          setSelectedColor(cartItem.selectedColor);
+          setIsAddedToCart(true);
+          setQuantity(cartItem.quantity);
+          setAnimateCart(true); // Set animateCart to true when product is in cart
+          foundInCart = true;
+          break; // Exit the loop
+        }
+      }
+
+      if (!foundInCart) {
+        // If not found in cart, reset state variables
+        setIsAddedToCart(false);
+        setQuantity(1);
+        setSelectedSize("");
+        setSelectedColor("");
+        setAnimateCart(false); // Reset animateCart to false when not in cart
       }
     }
-  }, [cartItems, product]);
+  }, [cart, product]);
+
+  useEffect(() => {
+    if (product) {
+      const sizes = product.size
+        ? product.size.split(",").map((size) => size.trim())
+        : [];
+      const colors = product.color
+        ? product.color.split(",").map((color) => color.trim())
+        : [];
+
+      if (sizes.length === 1) {
+        setSelectedSize(sizes[0]);
+      }
+
+      if (colors.length === 1) {
+        setSelectedColor(colors[0]);
+      }
+    }
+  }, [product]);
 
   useEffect(() => {
     dispatch(fetchProduct(id)).catch((err) => {
@@ -117,9 +151,26 @@ const ProductDetailPage = () => {
       }
     } catch (err) {
       console.error("Error fetching vendor data:", err);
+    } finally {
+      setVendorLoading(false); // Stop loading once the data is fetched
     }
   };
-
+  const handleDisclaimer = () => {
+    const userAgreed = window.confirm(
+      "Important Disclaimer: By agreeing to purchase this product, you acknowledge that it may have defects as described by the vendor. My Thrift does not assume any responsibility for any damages or defects associated with the product. The vendor has disclosed the condition of the product, and by proceeding with the purchase, you agree to accept the product in its current condition."
+    );
+  
+    if (userAgreed) {
+      // Handle the case where the user agreed (proceed with the action)
+      console.log("User agreed to the disclaimer.");
+      // You can add any action like proceeding to checkout or whatever the next step is
+    } else {
+      // Handle the case where the user did not agree (cancel the action)
+      console.log("User did not agree to the disclaimer.");
+      // You can stop any further actions
+    }
+  };
+  
   const handleScroll = () => {
     if (window.scrollY > 50) {
       setIsSticky(true);
@@ -136,7 +187,12 @@ const ProductDetailPage = () => {
   }, []);
   const handleAddToCart = useCallback(() => {
     console.log("Add to Cart Triggered");
-    if (!product) return; // Ensure product exists
+
+    // Validate product and selections
+    if (!product) {
+      console.error("Product is missing. Cannot add to cart.");
+      return;
+    }
 
     if (!selectedSize) {
       toast.error("Please select a size before adding to cart!");
@@ -148,33 +204,42 @@ const ProductDetailPage = () => {
       return;
     }
 
+    if (!product.id || !product.vendorId) {
+      toast.error("Product or Vendor ID is missing. Cannot add to cart!");
+      console.error("Product or Vendor ID is missing:", product);
+      return;
+    }
+
     if (quantity > product.stockQuantity) {
       toast.error("Selected quantity exceeds stock availability!");
     } else {
       const productToAdd = {
         ...product,
-        quantity, // This should now be the selected quantity
+        quantity,
         selectedSize,
         selectedColor,
-        selectedImageUrl: mainImage, // Ensure selected image is passed
+        selectedImageUrl: mainImage,
       };
 
-      const existingCartItem = cartItems[product.id];
+      // Generate the consistent productKey
+      const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
+      console.log("Generated productKey:", productKey);
+
+      const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
 
       if (existingCartItem) {
-        // Instead of adding the quantities, override the existing quantity with the new one
         const updatedProduct = {
           ...existingCartItem,
-          quantity: quantity, // This ensures the selected quantity is set directly
+          quantity: quantity, // Set the new quantity directly
         };
-        dispatch(addToCart(updatedProduct));
+        dispatch(addToCart(updatedProduct, true)); // Use setQuantity=true
         console.log(
           "Updated product in cart with new quantity:",
           updatedProduct
         );
       } else {
-        dispatch(addToCart(productToAdd));
-        console.log("Added product to cart:", productToAdd);
+        dispatch(addToCart(productToAdd, true)); // Add with setQuantity=true
+        console.log("Added new product to cart:", productToAdd);
       }
 
       setIsAddedToCart(true);
@@ -185,63 +250,93 @@ const ProductDetailPage = () => {
     quantity,
     selectedSize,
     selectedColor,
-    cartItems,
     dispatch,
     mainImage,
+    cart, // Include cart in dependencies
   ]);
 
   const handleIncreaseQuantity = useCallback(() => {
-    if (!product) return; // Ensure product exists
+    if (!product) {
+      console.error("Product not found.");
+      return;
+    }
+
+    if (!selectedSize || !selectedColor) {
+      toast.error("Please select a size and color before adjusting quantity.");
+      return;
+    }
 
     if (quantity < product.stockQuantity) {
       const updatedQuantity = quantity + 1;
-      setQuantity(updatedQuantity);
 
-      const updatedProduct = {
-        ...product,
-        quantity: updatedQuantity, // Set the quantity directly
-        selectedSize,
-        selectedColor,
-        selectedImageUrl: mainImage,
-      };
+      const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
+      console.log("Generated Product Key:", productKey);
 
-      dispatch(addToCart(updatedProduct)); // Update quantity in cart
-      console.log("Increased quantity:", updatedQuantity);
+      const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
+
+      if (existingCartItem) {
+        dispatch(increaseQuantity({ vendorId: product.vendorId, productKey }));
+        console.log("Increased quantity for product:", existingCartItem);
+        setQuantity(updatedQuantity);
+      } else {
+        console.error("Product not found in cart for productKey:", productKey);
+        toast.error("Product not found in cart");
+      }
     } else {
       if (!toastShown.stockError) {
         toast.error("Cannot exceed available stock!");
         setToastShown((prev) => ({ ...prev, stockError: true }));
       }
+      console.warn("Stock limit reached. Quantity exceeds stock quantity.");
     }
   }, [
     product,
     quantity,
     selectedSize,
     selectedColor,
-    mainImage,
     dispatch,
     toastShown,
+    cart, // Include cart in dependencies
   ]);
 
   const handleDecreaseQuantity = useCallback(() => {
-    if (!product) return; // Ensure product exists
+    if (!product) {
+      console.error("Product not found.");
+      return;
+    }
+
+    if (!selectedSize || !selectedColor) {
+      toast.error("Please select a size and color before adjusting quantity.");
+      return;
+    }
 
     if (quantity > 1) {
       const updatedQuantity = quantity - 1;
-      setQuantity(updatedQuantity);
 
-      const updatedProduct = {
-        ...product,
-        quantity: updatedQuantity, // Set the quantity directly
-        selectedSize,
-        selectedColor,
-        selectedImageUrl: mainImage,
-      };
+      const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
+      console.log("Generated Product Key:", productKey);
 
-      dispatch(addToCart(updatedProduct)); // Update quantity in cart
-      console.log("Decreased quantity:", updatedQuantity);
+      const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
+
+      if (existingCartItem) {
+        dispatch(decreaseQuantity({ vendorId: product.vendorId, productKey }));
+        console.log("Decreased quantity for product:", existingCartItem);
+        setQuantity(updatedQuantity);
+      } else {
+        console.error("Product not found in cart for productKey:", productKey);
+        toast.error("Product not found in cart");
+      }
+    } else {
+      console.warn("Quantity is already at 1. Cannot decrease further.");
     }
-  }, [product, quantity, selectedSize, selectedColor, mainImage, dispatch]);
+  }, [
+    product,
+    quantity,
+    selectedSize,
+    selectedColor,
+    dispatch,
+    cart, // Include cart in dependencies
+  ]);
 
   const formatPrice = (price) => {
     return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -251,16 +346,15 @@ const ProductDetailPage = () => {
     return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
   };
   const handleRemoveFromCart = useCallback(() => {
-    if (!product || !product.id || !selectedSize) return; // Ensure product exists and size is selected
+    if (!product || !product.id || !selectedSize || !selectedColor) return; // Ensure product exists and size/color is selected
 
-    const productKey = `${product.id}-${selectedSize}`; // Combine id and selectedSize to form the key
+    const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`; // Generate consistent productKey
 
-    dispatch(removeFromCart(productKey)); // Dispatch action to remove the product from the cart
+    dispatch(removeFromCart({ vendorId: product.vendorId, productKey })); // Dispatch action with vendorId and productKey
     setIsAddedToCart(false); // Reset state when removed from the cart
     setQuantity(1); // Reset the quantity to 1 after removal
     toast.success(`${product.name} removed from cart!`);
-  }, [dispatch, product, selectedSize]);
-
+  }, [dispatch, product, selectedSize, selectedColor]);
   const sizes =
     product && product.size
       ? product.size.split(",").map((size) => size.trim())
@@ -453,7 +547,9 @@ const ProductDetailPage = () => {
               />
             )}
             <PiShoppingCartBold
-              onClick={() => navigate("/latest-cart")}
+              onClick={() =>
+                navigate("/latest-cart", { state: { fromProductDetail: true } })
+              } 
               className="text-2xl cursor-pointer "
             />
           </div>
@@ -477,7 +573,7 @@ const ProductDetailPage = () => {
               <div className="flex items-center mt-2">
                 <TbInfoTriangle
                   className="text-red-500 cursor-pointer"
-                  onClick={() => setIsDisclaimerModalOpen(true)}
+                  onClick={handleDisclaimer}
                   title="Click for important information about product defects"
                 />
 
@@ -506,7 +602,9 @@ const ProductDetailPage = () => {
           ₦{formatPrice(product.price)}
         </p>
 
-        {vendor ? (
+        {vendorLoading ? (
+          <LoadProducts className="mr-20" /> // Show the loading spinner while vendor data is loading
+        ) : vendor ? (
           <div className="flex  items-center mt-1">
             <p className="text-sm text-red-600 mr-2"> {vendor.shopName}</p>
             <div className="flex items-center">
@@ -615,29 +713,7 @@ const ProductDetailPage = () => {
       <div className="border-t-8 border-gray-100 mt-4"></div>
 
       <RelatedProducts product={product} />
-      <Modal
-        isOpen={isDisclaimerModalOpen}
-        onRequestClose={() => setIsDisclaimerModalOpen(false)}
-        className="modal-content2"
-        overlayClassName="modal-overlay"
-      >
-        <div className="p-2 relative">
-          <MdOutlineCancel
-            onClick={() => setIsDisclaimerModalOpen(false)}
-            className="absolute top-2 right-2 text-gray-600 cursor-pointer text-2xl"
-          />
-          <h2 className="text-lg font-bold">Important Disclaimer</h2>
-          <p className="text-gray-600 mt-4 font-poppins text-xs">
-            By agreeing to purchase this product, you acknowledge that it may
-            have defects as described by the vendor. My Thrift does not assume
-            any responsibility for any damages or defects associated with the
-            product. The vendor has disclosed the condition of the product, and
-            by proceeding with the purchase, you agree to accept the product in
-            its current condition.
-          </p>
-         
-        </div>
-      </Modal>
+      
 
       <div
         className="fixed bottom-0 left-0 right-0 z-50 p-3 flex justify-between items-center"
@@ -647,8 +723,18 @@ const ProductDetailPage = () => {
           zIndex: 9999,
         }}
       >
-        {!isAddedToCart ? (
-          // The "Add to Cart" button initially
+        {!selectedSize || !selectedColor ? (
+          // Prompt user to select size and color
+          <button
+            onClick={() => {
+              toast.error("Please select size and color");
+            }}
+            className={`bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out`}
+          >
+            Add to Cart
+          </button>
+        ) : !isAddedToCart ? (
+          // The "Add to Cart" button
           <button
             onClick={() => {
               handleAddToCart();
@@ -659,7 +745,7 @@ const ProductDetailPage = () => {
             Add to cart
           </button>
         ) : (
-          // The Remove and Quantity controls that animate in
+          // The Remove and Quantity controls
           <div
             className={`flex w-full justify-between transition-all duration-500 ease-in-out transform ${
               animateCart

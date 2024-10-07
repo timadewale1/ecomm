@@ -77,10 +77,29 @@ section {
 .modal{
   z-index: 2000;
 }
+.modal1{
+  z-index: 2500;
+}
+
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 
 .confirmation {
   z-index: 4000;
 }
+/* global.css or your component's css file */
+li {
+  list-style-type: none; /* Removes bullets or markers */
+}
+
+li::marker {
+  display: none; /* Hides any default browser markers */
+}
+
 
 .custom-toast {
   font-size: 11px;

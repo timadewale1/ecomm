@@ -8,9 +8,9 @@ import useAuth from "../custom-hooks/useAuth";
 import { FaPen, FaHeart, FaAngleRight, FaAngleLeft } from "react-icons/fa";
 import { FaRegCircleUser } from "react-icons/fa6";
 import { GiClothes } from "react-icons/gi";
-
+import { LiaClipboardListSolid } from "react-icons/lia";
 import OrderHistory from "./UserSide/History";
-import { MdHistory, MdHelpOutline } from "react-icons/md";
+import { MdHistory, MdHelpOutline, MdModeEdit } from "react-icons/md";
 import { CiMoneyBill } from "react-icons/ci";
 import { AiOutlineDashboard } from "react-icons/ai";
 import UserDashboard from "./UserDashboard";
@@ -80,7 +80,7 @@ const Profile = () => {
       !showFAQs &&
       !showDonations ? (
         <div className="flex flex-col items-center">
-          <div className="flex justify-center mt-4 relative">
+          <div className="flex border  rounded-full p-1 justify-center mt-4 relative">
             {loading ? (
               <Skeleton circle={true} height={144} width={144} />
             ) : userData && userData.photoURL ? (
@@ -98,11 +98,12 @@ const Profile = () => {
                 <IoMdContact className="text-gray-500 text-7xl" />
               </div>
             )}
-            <FaPen
-              className="absolute top-0 right-0 text-black cursor-pointer"
+            <MdModeEdit
+              className="absolute bottom-0 right-0 border text-black  mr-2 text-3xl p-2 rounded-full bg-white cursor-pointer shadow-md"
               onClick={() => setIsAvatarModalOpen(true)}
             />
           </div>
+
           <p className="text-lg font-medium text-black capitalize mt-2">
             {loading ? <Skeleton width={100} /> : userData?.username}
           </p>
@@ -176,6 +177,22 @@ const Profile = () => {
                   <AiOutlineDashboard className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-black capitalize">
                     Metrics
+                  </h2>
+                </div>
+                <FaAngleRight className="text-black" />
+              </div>
+              <hr className="w-full border-gray-600" />
+            </div>
+            <div className="flex flex-col items-center w-full">
+              <hr className="w-full border-gray-600" />
+              <div
+                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+                onClick={() => navigate("/user-orders")}
+              >
+                <div className="flex items-center">
+                  <LiaClipboardListSolid className="text-black text-xl mr-4" />
+                  <h2 className="text-size font-normal text-black capitalize">
+                    Orders
                   </h2>
                 </div>
                 <FaAngleRight className="text-black" />

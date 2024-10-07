@@ -89,8 +89,19 @@ const Cart = () => {
     }
   }, [cart, dispatch]);
   const fromProductDetail = location.state?.fromProductDetail || false;
+  useEffect(() => {
+    if (isModalOpen || isNoteModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
 
- 
+    // Clean up on component unmount
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isModalOpen, isNoteModalOpen]);
+
   useEffect(() => {
     const fetchVendorInfo = async () => {
       try {
@@ -126,11 +137,17 @@ const Cart = () => {
 
   const handleRemoveFromCart = useCallback(
     (vendorId, productKey) => {
-      const product = cart[vendorId].products[productKey];
+      const product = cart[vendorId].products[productKey]; // Directly access product by the key from cart
+      if (!product) {
+        console.error(`Product not found for key ${productKey}`);
+        return;
+      }
+
       console.log("Removing product:", product);
       const confirmRemove = window.confirm(
         `Are you sure you want to remove ${product.name} from the cart?`
       );
+
       if (confirmRemove) {
         dispatch(removeFromCart({ vendorId, productKey }));
         toast(`Removed ${product.name} from cart!`, { icon: "ℹ️" });
@@ -258,11 +275,12 @@ const Cart = () => {
   return (
     <div className="flex flex-col h-screen justify-between bg-gray-200">
       <div className="sticky top-0 bg-white w-full h-24 flex items-center p-3 shadow-md z-10">
-      {fromProductDetail && (
-        <GoChevronLeft
-          className="text-3xl cursor-pointer"
-          onClick={() => navigate(-1)}
-        />)}
+        {fromProductDetail && (
+          <GoChevronLeft
+            className="text-3xl cursor-pointer"
+            onClick={() => navigate(-1)}
+          />
+        )}
         <h1 className="font-opensans font-semibold text-xl ml-5 text-black">
           My Cart
         </h1>
@@ -412,9 +430,9 @@ const Cart = () => {
             {/* Scrollable Products List */}
             <div className="overflow-y-auto mt-4 flex-grow">
               {/* Display all products for the selected vendor */}
-              {Object.values(cart[selectedVendorId].products).map(
-                (product, index) => {
-                  const productKey = `${product.vendorId}-${product.id}-${product.selectedSize}-${product.selectedColor}-${index}`;
+              {Object.keys(cart[selectedVendorId].products).map(
+                (productKey, index) => {
+                  const product = cart[selectedVendorId].products[productKey]; // Use the productKey from cart directly
 
                   return (
                     <div key={productKey}>
@@ -454,7 +472,7 @@ const Cart = () => {
                         <button
                           onClick={() =>
                             handleRemoveFromCart(selectedVendorId, productKey)
-                          }
+                          } // Pass the actual productKey from the cart
                           className="text-gray-500 font-semibold font-opensans -translate-y-5 text-sm ml-2"
                         >
                           Remove
@@ -463,7 +481,7 @@ const Cart = () => {
 
                       {/* Add a thin line to separate products */}
                       {index <
-                        Object.values(cart[selectedVendorId].products).length -
+                        Object.keys(cart[selectedVendorId].products).length -
                           1 && (
                         <div className="border-t border-gray-300 my-2"></div>
                       )}

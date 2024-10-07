@@ -77,6 +77,10 @@ section {
 .modal{
   z-index: 2000;
 }
+.modal1{
+  z-index: 2500;
+}
+
 .truncate {
   white-space: nowrap;
   overflow: hidden;

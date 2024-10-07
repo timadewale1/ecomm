@@ -21,11 +21,9 @@ const Layout = () => {
     "/vendorlogin",
     "/vendor-signup",
     "/complete-profile",
-    "/newcheckout",
     "/newcheckout/bookingfee",
     "/newcheckout/fulldelivery",
     "/user-dashboard",
-    "/latest-cart",
     "/search",
     "/notifications",
     "/favorites",
@@ -41,6 +39,7 @@ const Layout = () => {
     "/store/:id",
     "category/:id",
     "marketstorepage/:id",
+    "/newcheckout/:vendorId",
   ];
 
   // Function to check if the current path matches any dynamic paths
@@ -48,10 +47,12 @@ const Layout = () => {
     return dynamicPaths.some((path) => matchPath(path, pathname));
   };
 
+  // Check if bottom bar should be hidden
   const hideBottomBar =
     noBottomBarPaths.includes(location.pathname) ||
     isDynamicPath(location.pathname) ||
-    !currentUser;
+    !currentUser ||
+    location.state?.fromProductDetail;  // Check if navigating from ProductDetail
 
   // List of vendor paths
   const vendorPaths = [

@@ -111,6 +111,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         imageUrls: productImageUrls,
         vendorId: user.uid,
         stockQuantity: parseInt(stockQuantity, 10),
+        isFeatured: false,
         condition:
           productCondition === "defect"
             ? `Defect: ${

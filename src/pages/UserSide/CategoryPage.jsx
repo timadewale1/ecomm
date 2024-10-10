@@ -1,127 +1,160 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { fetchProducts } from "../../redux/actions/productaction.js"; 
+import { toggleFavorite } from "../../redux/actions/favouriteactions";
+import { FaHeart, FaChevronLeft, FaSearch } from "react-icons/fa";
 import { useParams, useNavigate } from "react-router-dom";
-import { db } from "../../firebase.config";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import ProductCard from "../../components/Products/ProductCard";
-import Skeleton from "react-loading-skeleton";
-import 'react-loading-skeleton/dist/skeleton.css';
-import { toast } from "react-toastify";
-import { GoChevronLeft } from "react-icons/go";
-import { FiSearch } from "react-icons/fi"; // Import search icon
+import useVendorsFetch from "../../components/VendorsData/UseVendorFetch.js"; // Import the hook to fetch vendors
 
 const CategoryPage = () => {
   const { category } = useParams();
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [isSticky, setIsSticky] = useState(false);
+  const products = useSelector((state) => state.product.products);
+
+  const [selectedCategory] = useState(category);
+  const [productError, setProductError] = useState(null);  // Product error handling
+  const [vendorError, setVendorError] = useState(null);  // Vendor error handling
+  const [followedVendors, setFollowedVendors] = useState({});  // Track followed vendors
+
+  const { vendors, vendorsLoading, error: vendorFetchError } = useVendorsFetch(); // Fetch vendors using the hook
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchProductsData = async () => {
       try {
-        const vendorQuery = query(collection(db, "vendors"));
-        const vendorSnapshot = await getDocs(vendorQuery);
-        const productsList = [];
-        
-        for (const vendorDoc of vendorSnapshot.docs) {
-          const vendorId = vendorDoc.id;
-          const productsRef = collection(db, `vendors/${vendorId}/products`);
-          const productsSnapshot = await getDocs(productsRef);
-          productsSnapshot.forEach((productDoc) => {
-            const productData = productDoc.data();
-            if (productData.category.includes(category)) {
-              productsList.push({ id: productDoc.id, vendorId: vendorId, ...productData });
-            }
-          });
-        }
-        
-        setProducts(productsList);
+        await dispatch(fetchProducts());
       } catch (error) {
-        console.error("Error fetching products:", error);
-        toast.error("Error fetching products: " + error.message);
-      } finally {
-        setLoading(false);
+        setProductError("Failed to fetch products. Please try again later.");
       }
     };
-    fetchProducts();
-  }, [category]);
+
+    fetchProductsData();
+  }, [dispatch]);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsSticky(window.scrollY > 50);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const getCategoryStyles = (category) => { 
-    switch (category) {
-      case 'Men':
-        return { headerImage: 'url(/public/womenhead.jpeg)', text: 'Discover the Latest Men\'s Fashion' };
-      case 'Women':
-        return { headerImage: 'url(/path/to/women-fashion.jpg)', text: 'Explore the Latest Women\'s Fashion' };
-      case 'Kids':
-        return { headerImage: 'url(/path/to/kids-fashion.jpg)', text: 'Adorable Kids Collection for All Ages' };
-      default:
-        return { headerImage: '', text: '' };
+    if (vendorFetchError) {
+      setVendorError("Failed to load vendors. Please try again.");
     }
+  }, [vendorFetchError]);
+
+  const handleToggleFavorite = (productId) => {
+    dispatch(toggleFavorite(productId));
+    console.log(`Toggled favorite for product ID: ${productId}`);
   };
 
-  const { headerImage, text: headerText } = getCategoryStyles(category);
+  const handleProductClick = (productId) => {
+    navigate(`/product/${productId}`);
+  };
+
+  const handleFollowToggle = (vendorId) => {
+    setFollowedVendors((prevFollowed) => ({
+      ...prevFollowed,
+      [vendorId]: !prevFollowed[vendorId],
+    }));
+  };
+
+  // Memoizing the filtered products to prevent unnecessary recalculation
+  const filteredProducts = useMemo(() => {
+    return selectedCategory === "All"
+      ? products
+      : products.filter((product) => product.category === selectedCategory);
+  }, [selectedCategory, products]);
 
   return (
-    <div className="category-page mb-14">
-      {/* Header Section */}
-      <div 
-        className={`relative h-56 flex items-end justify-center bg-cover bg-center`}
-        style={{ backgroundImage: headerImage }}
-      >
-        {/* Back button */}
-        <button 
-          onClick={() => navigate(-1)} 
-          className="absolute top-4 left-4 p-2 bg-white rounded-full shadow"
-        >
-          <GoChevronLeft size={24} />
+    <div className="flex flex-col">
+      {/* Header with Back Button and Category Name */}
+      <div className="relative bg-gray-200 flex items-center justify-between p-4">
+        <button onClick={() => navigate(-1)} className="text-gray-500">
+          <FaChevronLeft />
         </button>
-
-        {/* Search Button */}
-        <button className="absolute top-4 right-4 p-2 bg-white rounded-full shadow">
-          <FiSearch size={24} />
-        </button>
-
-        {/* Header Text */}
-        <div className="text-center p-4">
-          <p className="text-xl font-semibold text-white">{headerText}</p>
-        </div>
+        <h1 className="text-xl font-bold">{selectedCategory}'s Fashion</h1>
+        <FaSearch className="text-gray-500" />
       </div>
 
-      {/* Top Vendors Section */}
-      <div className="p-3">
-        <h2 className="text-lg font-semibold mb-2">Top Vendors</h2>
-        <div className="flex gap-4 overflow-x-auto">
-          {/* Example of Vendor Cards */}
-          {Array.from({ length: 2 }).map((_, index) => (
-            <div key={index} className="min-w-[150px]">
-              <img src="vendor-image-url" alt="Vendor" className="w-full h-24 object-cover rounded" />
-              <div className="flex justify-between items-center mt-1">
-                <span className="text-sm">Vendor Name</span>
-                <button className="px-2 py-1 text-sm bg-transparent-500 text-white rounded">+ Follow</button>
+      {/* Vendors Section */}
+      <div className="p-4">
+        <h2 className="text-lg font-bold mb-2">Top Vendors</h2>
+        {vendorError ? (
+          <p className="text-red-500">{vendorError}</p> // Display error message
+        ) : vendorsLoading ? (
+          <p>Loading vendors...</p>
+        ) : vendors.length > 0 ? (
+          <div className="flex overflow-x-scroll gap-4 mb-4">
+            {vendors
+              .sort((a, b) => b.rating - a.rating) // Sort vendors by rating
+              .slice(0, 5) // Only display the top 5 vendors
+              .map((vendor) => (
+                <div
+                  key={vendor.id}
+                  className="min-w-[150px] rounded-lg  p-0 text-center"
+                >
+                  <img
+                    src={vendor.image}
+                    alt={vendor.name}
+                    className="w-full h-20 object-cover rounded-md mb-2"
+                  />
+                  <h3 className="text-sm font-medium">{vendor.name}</h3>
+                  <p className="text-xs text-gray-500 flex justify-evenly">
+                    ⭐ {vendor.rating} ({vendor.reviewsCount} reviews)
+
+                    <button
+                    onClick={() => handleFollowToggle(vendor.id)}
+                    className={`${
+                      followedVendors[vendor.id] ? "bg-green-500" : "bg-transparent"
+                    } text-black text-xs px-3 py-1 rounded-full mt-2`}
+                  >
+                    {followedVendors[vendor.id] ? "Following" : "+ Follow"}
+                  </button>
+                  </p>
+                  
+                </div>
+              ))}
+          </div>
+        ) : (
+          <p>No vendors available at the moment.</p>
+        )}
+      </div>
+
+      {/* Products Section */}
+      <div className="p-4">
+        <h2 className="text-lg font-bold mb-2">For You</h2>
+        {productError ? (
+          <p className="text-red-500">{productError}</p> // Display error message for products
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {filteredProducts.map((product) => (
+              <div
+                key={product.id}
+                className="bg-white rounded-lg shadow-md p-2 relative cursor-pointer"
+                onClick={() => handleProductClick(product.id)}
+              >
+                <img
+                  src={product.coverImageUrl}
+                  alt={product.name}
+                  className="w-full h-40 object-cover rounded-md"
+                  loading="lazy" // Lazy loading for images
+                />
+                <div className="flex justify-between items-center mt-2">
+                  <h3 className="text-sm font-semibold">{product.name}</h3>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleFavorite(product.id);
+                    }}
+                    className="bg-white p-1 rounded-full shadow"
+                  >
+                    <FaHeart className="text-red-500" />
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">{product.description}</p>
+                <div className="flex justify-between items-center mt-1">
+                  <p className="text-black font-bold">₦{product.price}</p>
+                  
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Product Grid */}
-      <div className="grid grid-cols-2 gap-4 p-3">
-        {loading
-          ? Array.from({ length: 6 }).map((_, index) => (
-              <Skeleton key={index} height={200} width="100%" />
-            ))
-          : products.map((product) => (
-              <ProductCard key={product.id} product={product} />
             ))}
+          </div>
+        )}
       </div>
     </div>
   );

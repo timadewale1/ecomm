@@ -62,7 +62,7 @@ const ProductCard = ({ product, isLoading }) => {
   return (
     <div
       className={`product-card relative mb-2 cursor-pointer ${
-        isOutOfStock ? "bg-gray-300 opacity-60 rounded-lg" : ""
+        isOutOfStock ? "bg-gray-300 p-2 opacity-60 rounded-lg" : ""
       }`}
       onClick={handleCardClick}
       style={{
@@ -99,7 +99,7 @@ const ProductCard = ({ product, isLoading }) => {
           {isLoading ? (
             <Skeleton width={100} />
           ) : isOutOfStock ? (
-            <p className="text-xs text-red-500">Out of Stock</p>
+            <p className="text-xs animate-pulse text-red-500">Out of Stock</p>
           ) : (
             renderCondition(product.condition)
           )}

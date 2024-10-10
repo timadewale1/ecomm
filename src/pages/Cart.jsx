@@ -39,8 +39,7 @@ const Cart = () => {
   const [toastShown, setToastShown] = useState({
     remove: false,
     clear: false,
-    increase: false,
-    decrease: false,
+    
   });
 
   const formatPrice = (price) => {

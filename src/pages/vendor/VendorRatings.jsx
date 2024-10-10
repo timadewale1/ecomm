@@ -16,6 +16,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { GoChevronLeft, GoDotFill } from "react-icons/go";
 import { FiPlus } from "react-icons/fi";
 import { FaStar } from "react-icons/fa";
+import { ProgressBar } from "react-bootstrap";
 import toast from "react-hot-toast";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -37,6 +38,14 @@ const VendorRatings = () => {
   const [newRating, setNewRating] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [ratingBreakdown, setRatingBreakdown] = useState({
+    5: 0,
+    4: 0,
+    3: 0,
+    2: 0,
+    1: 0,
+  });
+
   const [isProfileComplete, setIsProfileComplete] = useState(false);
 
   useEffect(() => {
@@ -91,27 +100,42 @@ const VendorRatings = () => {
   const fetchReviews = async () => {
     try {
       const reviewsRef = collection(db, "vendors", id, "reviews");
-      let q;
+      const reviewsSnapshot = await getDocs(reviewsRef);
+      const reviewsList = reviewsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
-      if (selectedRating && selectedRating !== "All") {
-        q = query(reviewsRef, where("rating", "==", selectedRating));
-      } else {
-        q = reviewsRef;
-      }
+      // Separate text and non-text reviews
+      const textReviews = reviewsList.filter((review) => review.reviewText);
+      setReviews(textReviews);
 
-      const reviewsSnapshot = await getDocs(q);
-      const reviewsList = reviewsSnapshot.docs
-        .map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-        .filter((review) => review.reviewText); // Only include reviews with text
+      // Calculate rating breakdown including all reviews (with and without text)
+      const allReviews = reviewsList;
+      // Calculate rating breakdown using **all reviews**, both text and non-text
+      const breakdown = {
+        5: reviewsList.filter((r) => r.rating === 5).length,
+        4: reviewsList.filter((r) => r.rating === 4).length,
+        3: reviewsList.filter((r) => r.rating === 3).length,
+        2: reviewsList.filter((r) => r.rating === 2).length,
+        1: reviewsList.filter((r) => r.rating === 1).length,
+      };
 
-      setReviews(reviewsList);
+      setRatingBreakdown(breakdown); // Update the rating breakdown
+
+      setRatingBreakdown(breakdown); // Update the rating breakdown
     } catch (error) {
       console.error("Error fetching reviews:", error);
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (id) {
+      fetchReviews();
+    }
+  }, [id]);
 
   useEffect(() => {
     if (id) {
@@ -202,15 +226,14 @@ const VendorRatings = () => {
       const reviewsRef = collection(db, "vendors", id, "reviews");
 
       // Save the review only if text is provided
-      if (newReview.trim() !== "") {
-        await addDoc(reviewsRef, {
-          reviewText: newReview,
-          rating: newRating,
-          userName: currentUser.username,
-          userPhotoURL: currentUser.photoURL,
-          createdAt: new Date(),
-        });
-      }
+      // Save review even without text
+      await addDoc(reviewsRef, {
+        reviewText: newReview.trim() !== "" ? newReview : null, // Add text if provided
+        rating: newRating,
+        userName: currentUser.username,
+        userPhotoURL: currentUser.photoURL,
+        createdAt: new Date(),
+      });
 
       // Update vendor rating even if no text review is provided
       const vendorRef = doc(db, "vendors", id);
@@ -222,7 +245,7 @@ const VendorRatings = () => {
       setShowModal(false);
       setNewReview("");
       setNewRating(0);
-      fetchReviews();
+      fetchReviews(); // Refresh the reviews and progress bar
       toast.success("Review added successfully!");
     } catch (error) {
       toast.error("Error adding review");
@@ -235,7 +258,21 @@ const VendorRatings = () => {
     "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 
   const averageRating =
-    vendor && vendor.ratingCount > 0 ? vendor.rating / vendor.ratingCount : 0;
+    vendor?.ratingCount > 0 ? vendor.rating / vendor.ratingCount : 0;
+  // const ratingBreakdown = {
+  //   5: reviews.filter((r) => r.rating === 5).length,
+  //   4: reviews.filter((r) => r.rating === 4).length,
+  //   3: reviews.filter((r) => r.rating === 3).length,
+  //   2: reviews.filter((r) => r.rating === 2).length,
+  //   1: reviews.filter((r) => r.rating === 1).length,
+  // };
+
+  const totalRatings = Object.values(ratingBreakdown).reduce(
+    (acc, value) => acc + value,
+    0
+  );
+
+  const calculatePercentage = (count) => (count / totalRatings) * 100;
 
   return (
     <div className="px-2 py-4">
@@ -270,33 +307,63 @@ const VendorRatings = () => {
 
         <div className="border-b border-gray-300 w-screen translate-y-3 relative left-1/2 transform -translate-x-1/2"></div>
       </div>
+      <div className="flex space-x-6">
+        <div className="flex items-center justify-start my-4">
+          <div className=" rounded-full flex flex-col ">
+            {loading ? (
+              <Skeleton square={true} height={80} width={80} />
+            ) : (
+              <>
+                <span className="text-5xl font-opensans font-semibold">
+                  {averageRating.toFixed(1)}
+                </span>
+                <div className="flex text-xs mt-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <FaStar
+                      key={i}
+                      className={
+                        i < Math.floor(averageRating)
+                          ? "text-yellow-500"
+                          : "text-gray-300"
+                      }
+                    />
+                  ))}
+                </div>
+                <span className="text-xs mt-1 font-poppins  text-gray-600">
+                  {vendor.ratingCount}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
 
-      <div className="flex justify-center mb-4 mt-4">
-        <div className="w-40 h-40 bg-white shadow-md border-2 border-yellow-300 rounded-full flex flex-col items-center justify-center">
-          {loading ? (
-            <Skeleton circle={true} height={160} width={160} />
-          ) : (
-            <>
-              <span className="text-4xl font-opensans font-bold">
-                {averageRating.toFixed(1)}
+        <div className="my-4  w-full">
+          {[5, 4, 3, 2, 1].map((star) => (
+            <div key={star} className="flex items-center mb-2">
+              <span className="w-6 text-xs  font-opensans font-light">
+                {star}
               </span>
-              <div className="flex mt-2 space-x-2">
-                {Array.from({ length: 5 }, (_, index) => (
-                  <FaStar
-                    key={index}
-                    className={`text-lg ${
-                      index < Math.floor(averageRating)
-                        ? "text-yellow-500"
-                        : "text-gray-300"
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className="text-sm font-poppins mt-2 text-gray-600">
-                {vendor.ratingCount} ratings
-              </span>
-            </>
-          )}
+              <ProgressBar
+                now={calculatePercentage(ratingBreakdown[star])}
+                className="flex-1 mx-2"
+                style={{
+                  height: "14px",
+                  backgroundColor: "#f5f3f2",
+                  borderRadius: "10px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: "#f9531e",
+                    height: "100%",
+                    width: `${calculatePercentage(ratingBreakdown[star])}%`,
+                    borderRadius: "10px",
+                  }}
+                />
+              </ProgressBar>
+            </div>
+          ))}
         </div>
       </div>
 

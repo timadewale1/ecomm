@@ -30,6 +30,7 @@ const SearchPage = () => {
 
     const fetchData = async () => {
       try {
+        // Fetch vendors as before
         const vendorsSnapshot = await getDocs(collection(db, "vendors"));
         const vendorsData = vendorsSnapshot.docs.map((doc) => ({
           ...doc.data(),
@@ -37,21 +38,14 @@ const SearchPage = () => {
         }));
         setVendors(vendorsData);
 
-        let allProducts = [];
-        for (const vendor of vendorsData) {
-          const productsSnapshot = await getDocs(
-            collection(db, `vendors/${vendor.id}/products`)
-          );
-          const productsData = productsSnapshot.docs.map((doc) => ({
-            ...doc.data(),
-            id: doc.id,
-            vendorId: vendor.id,
-          }));
+        // Fetch products from the centralized 'products' collection
+        const productsSnapshot = await getDocs(collection(db, "products"));
+        const productsData = productsSnapshot.docs.map((doc) => ({
+          ...doc.data(),
+          id: doc.id,
+        }));
 
-          allProducts = [...allProducts, ...productsData];
-        }
-
-        setProducts(allProducts);
+        setProducts(productsData);
       } catch (error) {
         console.error("Error fetching data:", error);
       }
@@ -60,36 +54,20 @@ const SearchPage = () => {
     fetchData();
   }, [db]);
 
-  const handleChange = (selectedItem) => {
-    if (selectedItem) {
-      const updatedHistory = [
-        selectedItem,
-        ...searchHistory.filter((item) => item.id !== selectedItem.id),
-      ].slice(0, 8);
-
-      setSearchHistory(updatedHistory);
-      localStorage.setItem("searchHistory", JSON.stringify(updatedHistory));
-
-      if (selectedItem.type === "product") {
-        navigate(`/product/${selectedItem.id}`);
-      } else if (selectedItem.type === "vendor") {
-        if (selectedItem.marketPlaceType === "Online") {
-          navigate(`/store/${selectedItem.id}`);
-        } else {
-          navigate(`/marketstorepage/${selectedItem.id}`);
-        }
-      }
-    }
-  };
-
+  // Adjusted search logic to also filter by category and product type
   const getFilteredItems = () => {
     const capitalizeText = (text) =>
       text.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 
     const filteredProducts = products
-      .filter((product) =>
-        product?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      .filter((product) => {
+        const searchTermLower = searchTerm.toLowerCase();
+        return (
+          product?.name?.toLowerCase().includes(searchTermLower) || // Match product name
+          product?.category?.toLowerCase().includes(searchTermLower) || // Match category
+          product?.productType?.toLowerCase().includes(searchTermLower) // Match product type
+        );
+      })
       .map((product) => ({
         ...product,
         name: capitalizeText(product.name),
@@ -107,6 +85,29 @@ const SearchPage = () => {
       }));
 
     return [...filteredProducts, ...filteredVendors];
+  };
+
+  const handleChange = (selectedItem) => {
+    if (selectedItem) {
+      const updatedHistory = [
+        selectedItem,
+        ...searchHistory.filter((item) => item.id !== selectedItem.id),
+      ].slice(0, 8);
+
+      setSearchHistory(updatedHistory);
+      localStorage.setItem("searchHistory", JSON.stringify(updatedHistory));
+
+      // Navigate based on whether it's a product or a vendor
+      if (selectedItem.type === "product") {
+        navigate(`/product/${selectedItem.id}`); // Fix to navigate correctly to product page
+      } else if (selectedItem.type === "vendor") {
+        if (selectedItem.marketPlaceType === "Online") {
+          navigate(`/store/${selectedItem.id}`);
+        } else {
+          navigate(`/marketstorepage/${selectedItem.id}`);
+        }
+      }
+    }
   };
 
   const getCategoryIcon = (category) => {
@@ -157,7 +158,7 @@ const SearchPage = () => {
           closeMenu,
         }) => (
           <div className="relative w-full">
-            <div className="flex items-center  mb-4">
+            <div className="flex items-center mb-4">
               <IoChevronBackOutline
                 className="text-2xl text-gray-500 cursor-pointer mr-2"
                 onClick={() => {

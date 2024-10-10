@@ -4,11 +4,10 @@ import { db, auth } from "../firebase.config";
 import {
   doc,
   getDoc,
+  setDoc,
+  deleteDoc,
   collection,
   getDocs,
-  updateDoc,
-  setDoc,
-  increment,
   query,
   where,
 } from "firebase/firestore";
@@ -37,27 +36,23 @@ const MarketStorePage = () => {
   const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
 
+  // Fetch vendor data
   useEffect(() => {
     const fetchVendorData = async () => {
       try {
-        // Fetch vendor data
-        const vendorRef = doc(db, "vendors", id);
+        const vendorRef = doc(db, "vendors", id); // Fetch vendor data using the vendor ID
         const vendorDoc = await getDoc(vendorRef);
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
+          vendorData.id = vendorDoc.id; // Ensure we have the vendor's document ID
           setVendor(vendorData);
 
-          // Fetch products from the centralized 'products' collection
-          const productsRef = collection(db, "products");
-          const productsSnapshot = await getDocs(
-            query(productsRef, where("vendorId", "==", id))
-          );
-
-          const productsList = productsSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          setProducts(productsList);
+          // If the vendor has productIds, use them to fetch products
+          if (vendorData.productIds && vendorData.productIds.length > 0) {
+            fetchVendorProducts(vendorData.productIds); // Fetch the vendor's products
+          } else {
+            setProducts([]); // No products if the vendor has no productIds
+          }
         } else {
           toast.error("Vendor not found!");
         }
@@ -72,6 +67,29 @@ const MarketStorePage = () => {
   }, [id]);
 
   useEffect(() => {
+    const checkIfFollowing = async () => {
+      if (currentUser && vendor) {
+        try {
+          const followRef = collection(db, "follows");
+          const followDoc = doc(followRef, `${currentUser.uid}_${vendor.id}`);
+          const followSnapshot = await getDoc(followDoc);
+
+          if (followSnapshot.exists()) {
+            setIsFollowing(true); // User is following the vendor
+          } else {
+            setIsFollowing(false); // User is not following the vendor
+          }
+        } catch (error) {
+          console.error("Error checking follow status:", error);
+        }
+      }
+    };
+
+    checkIfFollowing();
+  }, [currentUser, vendor]); // Runs whenever the currentUser or vendor data changes
+
+  // Check if user is logged in and load current user
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser(user);
@@ -82,14 +100,91 @@ const MarketStorePage = () => {
 
     return () => unsubscribe();
   }, []);
+  const fetchVendorProducts = async (productIds) => {
+    try {
+      const productsRef = collection(db, "products");
+      const q = query(productsRef, where("__name__", "in", productIds)); // Query the products collection by ID
 
-  const handleFollowClick = () => {
-    setIsFollowing(!isFollowing);
-    toast(
-      isFollowing
-        ? "Unfollowed"
-        : "You will be notified of new products and promos."
-    );
+      const productsSnapshot = await getDocs(q);
+      const productsList = productsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      setProducts(productsList); // Set the products in state
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast.error("Error fetching products.");
+    }
+  };
+  const filteredProducts = products.filter((product) => {
+    console.log("Product:", product.name, "Product Type:", product.productType); // Log product's name and productType
+    console.log("Search Term:", searchTerm.toLowerCase(), "Selected Category (Product Type):", selectedCategory);
+  
+    const matchesSearchTerm = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === "All" || product.productType.toLowerCase() === selectedCategory.toLowerCase();
+  
+    console.log("Matches Search Term:", matchesSearchTerm, "Matches Product Type:", matchesCategory);
+  
+    return matchesSearchTerm && matchesCategory;
+  });
+  
+
+  // Handle follow/unfollow vendor
+  const handleFollowClick = async () => {
+    try {
+      if (!vendor?.id) {
+        throw new Error("Vendor ID is undefined");
+      }
+
+      const followRef = collection(db, "follows");
+      const followDoc = doc(followRef, `${currentUser.uid}_${vendor.id}`);
+
+      if (!isFollowing) {
+        // Add follow entry
+        await setDoc(followDoc, {
+          userId: currentUser.uid,
+          vendorId: vendor.id,
+          createdAt: new Date(),
+        });
+        toast.success("You will be notified of new products and promos.");
+      } else {
+        // Unfollow
+        await deleteDoc(followDoc);
+        toast.success("Unfollowed");
+      }
+
+      setIsFollowing(!isFollowing);
+    } catch (error) {
+      console.error("Error following/unfollowing:", error.message);
+      toast.error(`Error following/unfollowing: ${error.message}`);
+    }
+  };
+
+  // Fetch all notifications for the current user
+  const notifyFollowers = async (productOrPromoDetails) => {
+    try {
+      const followRef = collection(db, "follows");
+      const q = query(followRef, where("vendorId", "==", vendor.id));
+      const followersSnapshot = await getDocs(q);
+
+      const followerPromises = followersSnapshot.docs.map(async (doc) => {
+        const userId = doc.data().userId;
+
+        // Send notification to the user (storing it in the 'notifications' collection)
+        await setDoc(collection(db, "notifications"), {
+          userId,
+          message: `New product or promo from ${vendor.shopName}: ${productOrPromoDetails}`,
+          createdAt: new Date(),
+          seen: false,
+        });
+      });
+
+      await Promise.all(followerPromises);
+      toast.success("Followers have been notified.");
+    } catch (error) {
+      console.error("Error notifying followers:", error);
+    }
   };
 
   const handleFavoriteToggle = (productId) => {
@@ -120,12 +215,6 @@ const MarketStorePage = () => {
     setSearchTerm(event.target.value);
   };
 
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (selectedCategory === "All" || product.category === selectedCategory)
-  );
-
   if (loading) {
     return (
       <div>
@@ -137,6 +226,7 @@ const MarketStorePage = () => {
   if (!vendor) {
     return <div>No vendor found</div>;
   }
+
   const DefaultImageUrl =
     "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 
@@ -269,22 +359,31 @@ const MarketStorePage = () => {
       </p>
       <div className="p-2 mt-7">
         <h1 className="font-opensans text-lg mb-3  font-semibold ">Products</h1>
-        <div className="flex justify-between  mb-4 w-full  overflow-x-auto  space-x-2">
-          {["All", "Tops", "Bottoms", "Shoes", "Dresses", "Accessories"].map(
-            (category) => (
-              <button
-                key={category}
-                onClick={() => handleCategorySelect(category)}
-                className={`flex-shrink-0 h-12 px-4 py-2 text-xs font-semibold font-opensans text-black border border-gray-400 rounded-full ${
-                  selectedCategory === category
-                    ? "bg-customOrange text-white"
-                    : "bg-transparent"
-                }`}
-              >
-                {category}
-              </button>
-            )
-          )}
+        <div className="flex justify-between mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
+          {[
+            "All",
+            "Cloth",
+            "Dress",
+            "Jewelry",
+            "Footwear",
+            "Pants",
+            "Shirts",
+            "Suits",
+            "Hats",
+            "Belts",
+          ].map((category) => (
+            <button
+              key={category}
+              onClick={() => handleCategorySelect(category)}
+              className={`flex-shrink-0 h-12 px-4 py-2 text-xs font-semibold font-opensans text-black border border-gray-400 rounded-full ${
+                selectedCategory === category
+                  ? "bg-customOrange text-white"
+                  : "bg-transparent"
+              }`}
+            >
+              {category}
+            </button>
+          ))}
         </div>
 
         <div className="grid mt-2 grid-cols-2 gap-2">
@@ -298,6 +397,10 @@ const MarketStorePage = () => {
                   product={product}
                   isFavorite={!!favorites[product.id]}
                   onFavoriteToggle={handleFavoriteToggle}
+                  onClick={() => {
+                    console.log("Navigating to product detail:", product.id); // Add console log
+                    navigate(`/product/${product.id}`);
+                  }}
                 />
               ))}
         </div>

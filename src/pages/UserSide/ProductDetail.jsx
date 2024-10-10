@@ -7,6 +7,8 @@ import Loading from "../../components/Loading/Loading";
 import { PiShoppingCartBold } from "react-icons/pi";
 import { FaStar } from "react-icons/fa";
 import { CiCircleInfo } from "react-icons/ci";
+import { TbInfoOctagon } from "react-icons/tb";
+import { TbInfoTriangle } from "react-icons/tb";
 import { GoChevronLeft, GoChevronRight } from "react-icons/go";
 import { LuCopyCheck, LuCopy } from "react-icons/lu";
 import toast from "react-hot-toast";
@@ -17,6 +19,7 @@ import { TbSquareRoundedCheck } from "react-icons/tb";
 import { MdOutlineCancel } from "react-icons/md";
 import { doc, getDoc, getFirestore } from "firebase/firestore";
 import RelatedProducts from "./SimilarProducts";
+import Productnotofund from "../../components/Loading/Productnotofund";
 
 Modal.setAppElement("#root");
 const debounce = (func, delay) => {
@@ -43,12 +46,13 @@ const ProductDetailPage = () => {
   const [quantity, setQuantity] = useState(1);
   const [mainImage, setMainImage] = useState("");
   const [isSticky, setIsSticky] = useState(false);
+  const [isDisclaimerModalOpen, setIsDisclaimerModalOpen] = useState(false);
+
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
   const [animateCart, setAnimateCart] = useState(false);
   const [isAddedToCart, setIsAddedToCart] = useState(false);
   const [toastShown, setToastShown] = useState({
-    
     stockError: false,
     success: false,
     fetchError: false,
@@ -301,16 +305,30 @@ const ProductDetailPage = () => {
   if (error || !product) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
-        <h1 className="text-2xl font-bold text-red-600 mb-2">
-          Product Not Found
-        </h1>
-        <p className="text-lg text-gray-700 mb-4">
-          It looks like this product has been removed from the inventory by the
-          vendor.
-        </p>
-        <p className="text-md font-poppins text-gray-500">
-          Please continue shopping for other great deals!
-        </p>
+        <Productnotofund />
+        <div className="relative w-full bg-customOrange bg-opacity-40 border-2 border-customOrange rounded-lg p-4">
+          <div className="absolute top-2 left-4 w-4 h-4 bg-black rounded-full"></div>
+          <div className="absolute top-2 right-4 w-4 h-4 bg-black rounded-full"></div>
+
+          {/* Text content */}
+          <h1 className="text-2xl font-opensans mt-2 font-bold text-red-600 mb-2">
+            Product Not Found
+          </h1>
+          <p className="text-lg text-gray-700 font-opensans mb-4">
+            It looks like this product has been removed from the inventory by
+            the vendor.
+          </p>
+          <p className="text-md font-opensans text-gray-500">
+            Please continue shopping for other great deals!
+          </p>
+        </div>
+
+        <button
+          className="w-32 bg-customOrange font-opensans text-xs px-2 h-10 text-white rounded-lg mt-12"
+          onClick={() => navigate("/newhome")} // Navigate to /newhome on click
+        >
+          Back Home
+        </button>
       </div>
     );
   }
@@ -457,7 +475,12 @@ const ProductDetailPage = () => {
             {product.condition &&
             product.condition.toLowerCase().includes("defect") ? (
               <div className="flex items-center mt-2">
-                <CiCircleInfo className="text-red-500" />
+                <TbInfoTriangle
+                  className="text-red-500 cursor-pointer"
+                  onClick={() => setIsDisclaimerModalOpen(true)}
+                  title="Click for important information about product defects"
+                />
+
                 <p className="ml-2 text-xs text-red-500">{product.condition}</p>
               </div>
             ) : product.condition.toLowerCase() === "brand new" ? (
@@ -592,6 +615,30 @@ const ProductDetailPage = () => {
       <div className="border-t-8 border-gray-100 mt-4"></div>
 
       <RelatedProducts product={product} />
+      <Modal
+        isOpen={isDisclaimerModalOpen}
+        onRequestClose={() => setIsDisclaimerModalOpen(false)}
+        className="modal-content2"
+        overlayClassName="modal-overlay"
+      >
+        <div className="p-2 relative">
+          <MdOutlineCancel
+            onClick={() => setIsDisclaimerModalOpen(false)}
+            className="absolute top-2 right-2 text-gray-600 cursor-pointer text-2xl"
+          />
+          <h2 className="text-lg font-bold">Important Disclaimer</h2>
+          <p className="text-gray-600 mt-4 font-poppins text-xs">
+            By agreeing to purchase this product, you acknowledge that it may
+            have defects as described by the vendor. My Thrift does not assume
+            any responsibility for any damages or defects associated with the
+            product. The vendor has disclosed the condition of the product, and
+            by proceeding with the purchase, you agree to accept the product in
+            its current condition.
+          </p>
+         
+        </div>
+      </Modal>
+
       <div
         className="fixed bottom-0 left-0 right-0 z-50 p-3 flex justify-between items-center"
         style={{

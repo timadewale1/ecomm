@@ -173,7 +173,7 @@ const Login = () => {
       <section>
         <Container>
           <Row>
-            <div className="px-3">
+            <div className="px-3 md:hidden">
               <Link to="/confirm-user-state">
                 <FaAngleLeft className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>

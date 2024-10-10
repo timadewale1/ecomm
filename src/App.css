@@ -89,6 +89,23 @@ section {
 
 
 }
+.modal-content2 {
+  min-width: 90%; /* Ensure the modal doesn't take too much width */
+  margin: auto;
+  padding: 10px;
+  z-index: 3000;
+  background-color: white;
+  border-radius: 10px;
+
+  min-height: 36%; /* Ensure the modal doesn't take the entire viewport */
+  overflow-y: auto; /* Add scroll when the content overflows vertically */
+  word-wrap: break-word; /* Ensure long words or text break into the next line */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
 .modal-content {
   position: fixed;
   top: 50%;

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import ProductDetailPage from "../pages/UserSide/ProductDetail";
 import Login from "../pages/Login";
 import Signup from "../pages/Signup";
+import NotificationsPage from "../pages/UserSide/Notifications.jsx";
 import ForgetPassword from "../pages/forgetPassword.jsx";
 import Donate from "../pages/Donate.jsx";
 import VendorSignup from "../pages/VendorSignup";
@@ -19,7 +20,7 @@ import PaymentApprove from "../pages/PaymentApprove.jsx";
 import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfile.jsx";
 import NewHome from "../pages/Homepage";
 import LatestCart from "../pages/Cart.jsx";
-import BookingFee from "../pages/BookingFee.jsx";
+
 import FullDelivery from "../pages/FullDelivery.jsx";
 import Checkout from "../pages/NewCheckout.jsx";
 import MarketVendors from "../pages/MarketVendors.jsx";
@@ -49,6 +50,7 @@ const Routers = () => {
       <Route path="/forgetpassword" element={<ForgetPassword />} />
       <Route path="/store/:id" element={<StorePage />} />
       <Route path="/category/:category" element={<CategoryPage />} />
+      <Route path="notifications" element={<NotificationsPage />} />
       <Route path="marketstorepage/:id" element={<MarketStorePage />} />
       <Route path="vendorlogin" element={<VendorLogin />} />
 
@@ -57,7 +59,7 @@ const Routers = () => {
         <Route path="newhome" element={<NewHome />} />
         <Route path="latest-cart" element={<LatestCart />} />
         <Route path="newcheckout" element={<Checkout />} />
-        <Route path="newcheckout/bookingfee" element={<BookingFee />} />
+      
         <Route path="newcheckout/fulldelivery" element={<FullDelivery />} />
         <Route path="favorites" element={<FavoritesPage />} />
         <Route path="browse-markets" element={<Marketpg />} />

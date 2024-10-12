@@ -41,7 +41,7 @@ const Cart = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [vendorNotes, setVendorNotes] = useState({});
-  const [vendorsInfo, setVendorsInfo] = useState({}); // New state variable
+  const [vendorsInfo, setVendorsInfo] = useState({}); 
   const location = useLocation();
   const formatPrice = (price) => {
     return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -96,7 +96,7 @@ const Cart = () => {
       document.body.style.overflow = "unset";
     }
 
-    // Clean up on component unmount
+  
     return () => {
       document.body.style.overflow = "unset";
     };
@@ -106,9 +106,9 @@ const Cart = () => {
     const fetchVendorInfo = async () => {
       try {
         const vendorIds = Object.keys(cart);
-        const newVendorsInfo = { ...vendorsInfo }; // Copy existing vendorsInfo
+        const newVendorsInfo = { ...vendorsInfo }; 
         for (const vendorId of vendorIds) {
-          // If we already have the vendor info, skip fetching
+         
           if (!newVendorsInfo[vendorId]) {
             const vendorDoc = await getDoc(doc(db, "vendors", vendorId));
             if (vendorDoc.exists()) {
@@ -128,28 +128,27 @@ const Cart = () => {
 
   useEffect(() => {
     if (cart && Object.keys(cart).length > 0) {
-      console.log("Cart before validation:", cart);
-      checkCartProducts(); // Validate products in cart
+     
+      checkCartProducts(); 
     } else {
-      console.log("Cart is empty or invalid:", cart);
+      
     }
   }, [cart, checkCartProducts]);
 
   const handleRemoveFromCart = useCallback(
     (vendorId, productKey) => {
-      const product = cart[vendorId].products[productKey]; // Directly access product by the key from cart
+      const product = cart[vendorId]?.products[productKey]; // Safely access product using productKey
       if (!product) {
         console.error(`Product not found for key ${productKey}`);
         return;
       }
 
-      console.log("Removing product:", product);
       const confirmRemove = window.confirm(
         `Are you sure you want to remove ${product.name} from the cart?`
       );
 
       if (confirmRemove) {
-        dispatch(removeFromCart({ vendorId, productKey }));
+        dispatch(removeFromCart({ vendorId, productKey })); 
         toast(`Removed ${product.name} from cart!`, { icon: "ℹ️" });
       }
     },
@@ -163,8 +162,8 @@ const Cart = () => {
     if (confirmClear) {
       dispatch(clearCart(vendorId));
       toast.success(`Cleared cart for ${cart[vendorId].vendorName}!`);
-      setIsModalOpen(false); // Close the modal
-      // Remove the note for this vendor
+      setIsModalOpen(false); 
+
       setVendorNotes((prevNotes) => {
         const updatedNotes = { ...prevNotes };
         delete updatedNotes[vendorId];
@@ -173,44 +172,24 @@ const Cart = () => {
     }
   };
 
-  const debouncedIncreaseQuantity = useCallback(
-    debounce((vendorId, productKey) => {
-      console.log(
-        "Dispatching increaseQuantity for product:",
-        productKey,
-        "from vendor:",
-        vendorId
-      );
-      dispatch(increaseQuantity({ vendorId, productKey }));
-    }, 200),
-    [dispatch]
-  );
-
-  const debouncedDecreaseQuantity = useCallback(
-    debounce((vendorId, productKey) => {
-      console.log(
-        "Dispatching decreaseQuantity for product:",
-        productKey,
-        "from vendor:",
-        vendorId
-      );
-      dispatch(decreaseQuantity({ vendorId, productKey }));
-    }, 200),
-    [dispatch]
-  );
-
+  
   const handleCheckout = (vendorId) => {
     const vendorCart = cart[vendorId];
-    console.log("Checkout initiated for vendor:", vendorId);
+   
 
     if (!vendorCart || Object.keys(vendorCart.products).length === 0) {
       toast.error("No products to checkout for this vendor.");
       return;
     }
 
-    navigate(`/newcheckout/${vendorId}`, {
-      state: { note: vendorNotes[vendorId] || "" },
-    });
+ 
+    const note = vendorNotes[vendorId]
+      ? encodeURIComponent(vendorNotes[vendorId])
+      : "";
+  
+
+   
+    navigate(`/newcheckout/${vendorId}?note=${note}`);
   };
 
   const calculateVendorTotal = (vendorId) => {
@@ -409,11 +388,11 @@ const Cart = () => {
       {/* Modal for viewing all products */}
       {isModalOpen && selectedVendorId && cart[selectedVendorId]?.products && (
         <div
-          className="fixed inset-0 modal  bg-black bg-opacity-50 flex items-end justify-center "
+          className="fixed inset-0 modal bg-black bg-opacity-50 flex items-end justify-center"
           onClick={handleOverlayClick}
         >
           <div
-            className="bg-white  w-full h-4/5 rounded-t-xl p-4 flex flex-col animate-modal-slide-up"
+            className="bg-white w-full h-4/5 rounded-t-xl p-4 flex flex-col animate-modal-slide-up"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -429,74 +408,121 @@ const Cart = () => {
 
             {/* Scrollable Products List */}
             <div className="overflow-y-auto mt-4 flex-grow">
-              {/* Display all products for the selected vendor */}
-              {Object.keys(cart[selectedVendorId].products).map(
-                (productKey, index) => {
-                  const product = cart[selectedVendorId].products[productKey]; // Use the productKey from cart directly
-
-                  return (
-                    <div key={productKey}>
-                      <div className="flex items-center justify-between mt-2">
-                        {/* Left side: Product Image */}
+              {/* Group products by productKey and aggregate quantity */}
+              {Object.entries(cart[selectedVendorId].products).reduce(
+                (acc, [productKey, product]) => {
+                  if (acc[product.id]) {
+                    // Combine sizes and colors using a comma separator, ensuring unique entries
+                    acc[product.id].selectedSize = [
+                      ...new Set([
+                        ...acc[product.id].selectedSize.split(", "),
+                        product.selectedSize,
+                      ]),
+                    ].join(", ");
+                    acc[product.id].selectedColor = [
+                      ...new Set([
+                        ...acc[product.id].selectedColor.split(", "),
+                        product.selectedColor,
+                      ]),
+                    ].join(", ");
+                    acc[product.id].quantity += product.quantity; // Aggregate the quantity
+                  } else {
+                    // Otherwise, add the product to the accumulator
+                    acc[product.id] = { ...product, productKey };
+                  }
+                  return acc;
+                },
+                {}
+              ) &&
+                Object.values(
+                  Object.entries(cart[selectedVendorId].products).reduce(
+                    (acc, [productKey, product]) => {
+                      if (acc[product.id]) {
+                        // Combine sizes and colors for the same product ID
+                        acc[product.id].selectedSize = [
+                          ...new Set([
+                            ...acc[product.id].selectedSize.split(", "),
+                            product.selectedSize,
+                          ]),
+                        ].join(", ");
+                        acc[product.id].selectedColor = [
+                          ...new Set([
+                            ...acc[product.id].selectedColor.split(", "),
+                            product.selectedColor,
+                          ]),
+                        ].join(", ");
+                        acc[product.id].quantity += product.quantity; // Aggregate quantity
+                      } else {
+                        acc[product.id] = { ...product, productKey };
+                      }
+                      return acc;
+                    },
+                    {}
+                  )
+                ).map((product, index, productArray) => (
+                  <div key={product.productKey}>
+                    {/* Product details with combined sizes and colors */}
+                    <div className="flex items-center justify-between mt-2">
+                      {/* Product Image */}
+                      <div className="relative">
                         <img
                           src={product.selectedImageUrl}
                           alt={product.name}
                           className="w-16 h-16 object-cover rounded-lg"
                         />
-
-                        {/* Middle: Product Details */}
-                        <div className="flex-grow ml-4">
-                          <h3 className="font-opensans text-sm">
-                            {product.name}
-                          </h3>
-                          <p className="font-opensans text-md mt-2 text-black font-bold">
-                            ₦{formatPrice(product.price)}
-                          </p>
-                          <p className="text-gray-600 mt-2">
-                            Size:{" "}
-                            <span className="font-semibold mr-4 text-black">
-                              {product.selectedSize}
-                            </span>
-                            {product.selectedColor && (
-                              <>
-                                Color:{" "}
-                                <span className="font-semibold text-black">
-                                  {product.selectedColor}
-                                </span>
-                              </>
-                            )}
-                          </p>
-                        </div>
-
-                        {/* Right side: Remove Button */}
-                        <button
-                          onClick={() =>
-                            handleRemoveFromCart(selectedVendorId, productKey)
-                          } // Pass the actual productKey from the cart
-                          className="text-gray-500 font-semibold font-opensans -translate-y-5 text-sm ml-2"
-                        >
-                          Remove
-                        </button>
+                        {product.quantity > 1 && (
+                          <div className="absolute -top-1 text-xs -right-2 bg-gray-900 bg-opacity-40 text-white rounded-full w-7 h-7 flex items-center justify-center backdrop-blur-md">
+                            +{product.quantity}
+                          </div>
+                        )}
                       </div>
 
-                      {/* Add a thin line to separate products */}
-                      {index <
-                        Object.keys(cart[selectedVendorId].products).length -
-                          1 && (
-                        <div className="border-t border-gray-300 my-2"></div>
-                      )}
-                    </div>
-                  );
-                }
-              )}
+                      {/* Product Details with Combined Sizes and Colors */}
+                      <div className="flex-grow ml-4">
+                        <h3 className="font-opensans text-sm">
+                          {product.name}
+                        </h3>
+                        <p className="font-opensans text-md mt-2 text-black font-bold">
+                          ₦{formatPrice(product.price)}
+                        </p>
+                        <p className="text-gray-600 mt-2">
+                          Size:{" "}
+                          <span className="font-semibold mr-4 text-black">
+                            {product.selectedSize}{" "}
+                            {/* Display combined sizes */}
+                          </span>
+                          {product.selectedColor && (
+                            <>
+                              Color:{" "}
+                              <span className="font-semibold text-black">
+                                {product.selectedColor}{" "}
+                                {/* Display combined colors */}
+                              </span>
+                            </>
+                          )}
+                        </p>
+                      </div>
 
-              <button
-                onClick={() => handleAddToSelection(selectedVendorId)}
-                className="flex items-center justify-center w-48 mt-6 bg-gray-200 text-black font-opensans font-semibold py-2 h-12 rounded-full mb-3"
-              >
-                <BsPlus className="text-2xl mr-2" />
-                Add to Selection
-              </button>
+                      {/* Remove Button */}
+                      <button
+                        onClick={() =>
+                          handleRemoveFromCart(
+                            selectedVendorId,
+                            product.productKey
+                          )
+                        }
+                        className="text-gray-500 font-semibold font-opensans -translate-y-5 text-sm ml-2"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    {/* Add separator only between different products */}
+                    {index < productArray.length - 1 && (
+                      <div className="border-t border-gray-300 my-2"></div>
+                    )}
+                  </div>
+                ))}
             </div>
 
             {/* Sticky Footer */}
@@ -527,13 +553,13 @@ const Cart = () => {
               <div className="flex flex-col justify-between space-y-4 mt-4">
                 <button
                   onClick={() => handleCheckout(selectedVendorId)}
-                  className="bg-customOrange w-full text-white font-opensans font-semibold py-3 h-12 rounded-full flex-grow"
+                  className="bg-customOrange w-full text-white  text-center  items-center font-opensans font-semibold  h-12 rounded-full flex-grow"
                 >
                   Proceed to checkout
                 </button>
                 <button
                   onClick={() => handleClearSelection(selectedVendorId)}
-                  className="bg-gray-300 text-black font-opensans font-semibold py-3 h-12 w-full rounded-full flex-grow"
+                  className="bg-gray-300 text-black font-opensans font-semibold  h-12 w-full rounded-full flex-grow"
                 >
                   Clear Order
                 </button>
@@ -582,7 +608,7 @@ const Cart = () => {
                 setIsNoteModalOpen(false);
                 // Note is already saved in vendorNotes
               }}
-              className="bg-customOrange w-full text-white font-opensans font-semibold py-3 mt-4 h-12 translate-y-5 rounded-full"
+              className="bg-customOrange w-full text-white font-opensans font-semibold py-3 mt-4 h-12 translate-y-10 rounded-full"
             >
               Send Note
             </button>

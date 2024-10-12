@@ -26,7 +26,7 @@ const Profile = () => {
   const { currentUser } = useAuth();
   const [userData, setUserData] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
+
   const [showMetrics, setShowMetrics] = useState(false);
   const [showFAQs, setShowFAQs] = useState(false);
   const [showDonations, setShowDonations] = useState(false);
@@ -74,11 +74,7 @@ const Profile = () => {
 
   return (
     <div className="py-4">
-      {!showDetails &&
-      !showHistory &&
-      !showMetrics &&
-      !showFAQs &&
-      !showDonations ? (
+      {!showDetails && !showMetrics && !showFAQs && !showDonations ? (
         <div className="flex flex-col items-center">
           <div className="flex border  rounded-full p-1 justify-center mt-4 relative">
             {loading ? (
@@ -144,24 +140,9 @@ const Profile = () => {
                 </div>
                 <FaAngleRight className="text-black" />
               </div>
-              <hr className="w-full border-gray-600" />
+             
             </div>
-            <div className="flex flex-col items-center w-full">
-              <hr className="w-full border-gray-600" />
-              <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
-                onClick={() => setShowHistory(!showHistory)}
-              >
-                <div className="flex items-center">
-                  <MdHistory className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal text-black capitalize">
-                    History
-                  </h2>
-                </div>
-                <FaAngleRight className="text-black" />
-              </div>
-              <hr className="w-full border-gray-600" />
-            </div>
+
             <div className="w-full h-14 flex bg-gray-200">
               <h1 className="text-xl font-ubuntu font-medium mx-4 translate-y-3 text-black">
                 Data
@@ -260,11 +241,7 @@ const Profile = () => {
               setShowDetails={setShowDetails}
             />
           )}
-          {showHistory && (
-            <div className="flex flex-col items-center">
-              <OrderHistory setShowHistory={setShowHistory} />
-            </div>
-          )}
+
           {showMetrics && <UserDashboard />}
           {showFAQs && <FAQs setShowFAQs={setShowFAQs} />}
           {showDonations && (

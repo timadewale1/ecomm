@@ -5,18 +5,24 @@ const generateOrderId = () => {
   return `order_${new Date().getTime()}`;
 };
 
-export const createOrderAndReduceStock = async (userId, cart) => {
+export const createOrderAndReduceStock = async (userId, cart, { userInfo, note, subTotal, bookingFee, serviceFee, total }) => {
   const db = getFirestore();
   const orderId = generateOrderId();
 
   console.log("Starting createOrderAndReduceStock function");
   console.log("User ID:", userId);
   console.log("Cart:", cart);
+  console.log("User Info:", userInfo);
+  console.log("Note:", note);
+  console.log("SubTotal (Vendor's):", subTotal);
+  console.log("Booking Fee:", bookingFee);
+  console.log("Service Fee:", serviceFee);
+  console.log("Total (User's Total):", total);
 
   try {
     // Step 1: Verify stock quantities from the centralized "products" collection
     const productRefs = Object.values(cart).map((product) =>
-      doc(db, "products", product.id) // Updated to centralized 'products' collection
+      doc(db, "products", product.id)
     );
 
     const productDocs = await Promise.all(
@@ -35,9 +41,6 @@ export const createOrderAndReduceStock = async (userId, cart) => {
       const product = productDoc.data();
       const cartProduct = Object.values(cart).find((item) => item.id === productDoc.id);
 
-      console.log("Matching cart product:", cartProduct);
-      console.log("Firestore Product data:", product);
-
       if (!cartProduct) {
         console.error(`Cart product ${productDoc.id} not found in cart!`);
         throw new Error(`Cart product ${productDoc.id} not found in cart!`);
@@ -49,7 +52,24 @@ export const createOrderAndReduceStock = async (userId, cart) => {
       }
     }
 
-    // Step 2: Place order and update stock quantities
+    // Step 2: Fetch user information from Firestore if not provided in checkout
+    let finalUserInfo = userInfo;
+    if (!userInfo || !userInfo.displayName || !userInfo.email || !userInfo.address) {
+      const userDoc = await getDoc(doc(db, "users", userId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        finalUserInfo = {
+          displayName: userInfo.displayName || userData.displayName || "",
+          email: userInfo.email || userData.email || "",
+          phoneNumber: userInfo.phoneNumber || userData.phoneNumber || "",
+          address: userInfo.address || userData.address || "",
+        };
+      } else {
+        throw new Error("User document does not exist in Firestore.");
+      }
+    }
+
+    // Step 3: Place order and update stock quantities
     const batch = writeBatch(db);
     const orderRef = doc(db, "orders", orderId);
 
@@ -59,12 +79,19 @@ export const createOrderAndReduceStock = async (userId, cart) => {
     const vendorId = Object.values(cart)[0]?.vendorId || "unknownVendor";
     console.log("Vendor ID:", vendorId);
 
+    // Store order with subtotal, booking fee, service fee, and total
     batch.set(orderRef, {
       userId,
       vendorId, // Add vendorId at the top level
       products: cart,
+      subTotal, // Vendor's subtotal (without fees)
+      bookingFee, // Marketplace booking fee (if applicable)
+      serviceFee, // Platform service fee
+      total, // Total the customer is paying (including fees)
       paymentStatus: "Pending",
       createdAt: new Date(),
+      note: note || "", // Add the note here
+      deliveryInfo: finalUserInfo, // Use the finalUserInfo, which is either from the checkout or Firestore
     });
 
     console.log("Order set in Firestore batch");

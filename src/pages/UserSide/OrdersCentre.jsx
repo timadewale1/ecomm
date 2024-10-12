@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { GoChevronLeft } from "react-icons/go";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../../firebase.config";
 import {
   collection,
@@ -30,6 +30,9 @@ const OrdersCentre = () => {
   const [loading, setLoading] = useState(true);
   const [sampleProduct, setSampleProduct] = useState(null);
   const ordersFetched = useRef(false);
+  const location = useLocation();
+
+  const fromPaymentApprove = location.state?.fromPaymentApprove;
 
   useEffect(() => {
     if (!userId || ordersFetched.current) return;
@@ -46,7 +49,6 @@ const OrdersCentre = () => {
           ...doc.data(),
         }));
 
-        // Sort orders by newest first
         fetchedOrders.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
 
         const vendorIds = [
@@ -66,7 +68,7 @@ const OrdersCentre = () => {
 
         setOrders(fetchedOrders);
         setVendors(vendorNames);
-        ordersFetched.current = true; // Mark orders as fetched
+        ordersFetched.current = true;
       } catch (error) {
         console.error("Error fetching orders:", error);
       } finally {
@@ -82,7 +84,11 @@ const OrdersCentre = () => {
       const fetchSampleProduct = async () => {
         try {
           const productsRef = collection(db, "products");
-          const q = query(productsRef, where("stockQuantity", ">", 0), limit(1));
+          const q = query(
+            productsRef,
+            where("stockQuantity", ">", 0),
+            limit(1)
+          );
           const querySnapshot = await getDocs(q);
           if (!querySnapshot.empty) {
             const productData = querySnapshot.docs[0].data();
@@ -113,7 +119,8 @@ const OrdersCentre = () => {
   const filterOrdersByStatus = (status) => {
     return orders.filter((order) => {
       if (status === "All") return true;
-      if (status === "Processing") return order.progressStatus === "In Progress";
+      if (status === "Processing")
+        return order.progressStatus === "In Progress";
       if (status === "Shipped")
         return order.progressStatus === "Out for Delivery";
       if (status === "Completed") return order.progressStatus === "Completed";
@@ -153,17 +160,25 @@ const OrdersCentre = () => {
   };
 
   const filteredOrders = filterOrdersByStatus(activeTab);
-
+  const handleBackClick = () => {
+    if (fromPaymentApprove) {
+    
+      navigate("/profile");
+    } else {
+      
+      navigate(-1);
+    }
+  };
   const tabButtons = ["All", "Processing", "Shipped", "Completed", "Cancelled"];
 
   return (
     <div>
       <div className="sticky top-0 pb-2 bg-white w-full z-10">
-        {/* Header Section */}
+   
         <div className="flex p-3 py-3 items-center bg-white h-20 mb-3 pb-2">
           <GoChevronLeft
             className="text-3xl cursor-pointer"
-            onClick={() => navigate(-1)}
+            onClick={handleBackClick} 
           />
           <h1 className="text-xl font-opensans ml-5 font-semibold">Orders</h1>
         </div>

@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 import { clearCart } from "../redux/actions/action";
 import useAuth from "../custom-hooks/useAuth";
 import { FaPen } from "react-icons/fa";
-import BookingFeeModal from "../components/BookingFee";
+
 import { calculateServiceFee } from "./VendorCompleteProfile/utilis";
 import { createOrderAndReduceStock } from "../services/Services";
 import { getDoc, doc } from "firebase/firestore";
@@ -18,7 +18,7 @@ import { MdOutlineLock, MdSupportAgent } from "react-icons/md";
 import { LiaShippingFastSolid, LiaTimesSolid } from "react-icons/lia";
 import { FaCheck } from "react-icons/fa6";
 
-// Modal for "Edit Delivery Information"
+
 const EditDeliveryModal = ({ userInfo, setUserInfo, onClose }) => {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white z-50 shadow-lg px-3 py-3 rounded-t-2xl ">
@@ -99,7 +99,7 @@ const EditDeliveryModal = ({ userInfo, setUserInfo, onClose }) => {
   );
 };
 
-// Modal for "Shop Safely and Sustainably"
+
 const ShopSafelyModal = ({ onClose }) => {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white z-50 shadow-lg ">
@@ -203,7 +203,6 @@ const ShopSafelyModal = ({ onClose }) => {
     </div>
   );
 };
-
 const Checkout = () => {
   const { vendorId } = useParams();
   const [searchParams] = useSearchParams();
@@ -222,7 +221,7 @@ const Checkout = () => {
     address: "",
   });
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showShopSafelyModal, setShowShopSafelyModal] = useState(false); // New state for Shop Safely Modal
+  const [showShopSafelyModal, setShowShopSafelyModal] = useState(false);
 
   useEffect(() => {
     if (!vendorId) {
@@ -282,7 +281,13 @@ const Checkout = () => {
       subTotal += product.price * product.quantity;
     }
 
-    const bookingFee = parseFloat((subTotal * 0.2).toFixed(2));
+    const vendorMarketPlaceType = vendorsInfo[vendorId]?.marketPlaceType;
+
+    let bookingFee = 0;
+    if (vendorMarketPlaceType === "marketplace") {
+      bookingFee = parseFloat((subTotal * 0.2).toFixed(2)); 
+    }
+
     const serviceFee = parseFloat(calculateServiceFee(subTotal));
     const total = parseFloat((subTotal + bookingFee + serviceFee).toFixed(2));
 
@@ -294,39 +299,47 @@ const Checkout = () => {
     };
 
     return totals;
-  }, [cart, vendorId]);
+  }, [cart, vendorId, vendorsInfo]);
 
   const vendorTotals = calculateVendorTotals();
+
   const handleProceedToPayment = async () => {
     try {
       const userId = currentUser?.uid;
       const vendorCart = cart[vendorId].products;
-      
-
+  
       const { subTotal, bookingFee, serviceFee, total } = vendorTotals[vendorId];
-      
+  
       
       const orderId = await createOrderAndReduceStock(userId, vendorCart, {
-        note, 
-        userInfo, 
-        subTotal, 
+        note,
+        userInfo,
+        subTotal,
         bookingFee,
-        serviceFee, 
-        total, 
+        serviceFee,
+        total,
       });
   
-      dispatch(clearCart(vendorId)); 
+     
+      dispatch(clearCart(vendorId));
   
-      toast.success("Order created successfully!");
+      toast.success("Order placed successfully!");
   
-    
+     
       navigate(`/payment-approve?orderId=${orderId}`);
+  
+      
+      setTimeout(() => {
+        navigate("/user-orders", { state: { fromPaymentApprove: true } });
+      }, 2000); 
     } catch (error) {
+     
       toast.error("Failed to create order. Please try again.");
       console.error("Error in handleProceedToPayment:", error);
     }
   };
   
+
   const handlePaystackPayment = (amount, onSuccessCallback) => {
     if (loading) {
       toast.info("Checking authentication status...");
@@ -367,7 +380,7 @@ const Checkout = () => {
         });
 
         setTimeout(() => {
-          navigate("/newhome");
+          navigate("/user-orders");
         }, 3000);
       } catch (error) {
         console.error("Error placing order:", error);
@@ -396,12 +409,14 @@ const Checkout = () => {
 
   const handleBookingFeePayment = (e) => {
     e.preventDefault();
-    window.confirm("Booking fee is a charge for marketplace vendors...");
+    window.confirm("The booking fee, exclusive to marketplace vendors, is a 20% charge on your subtotal that guarantees your items are packaged and reserved for pickup. Once the vendor accepts your order, they will securely hold your items, ensuring they're ready for collection at your convenience.");
     handleVendorPayment("booking");
   };
 
   const handleServiceFeeInfo = () => {
-    window.confirm("The service fee is used to run the platform...");
+    window.confirm(
+      "The service fee is a small, dynamic charge that helps cover our operational costs, like keeping the platform running smoothly and ensuring you have the best shopping experience. Rest assured, it’s capped at a maximum amount to keep things fair and transparent. We aim to keep the fee minimal while providing top-notch service!"
+    );
   };
 
   const handleFullDeliveryPayment = (e) => {
@@ -443,7 +458,7 @@ const Checkout = () => {
             </p>
           </div>
 
-          {vendorsInfo[vendorId]?.isMarketplace && (
+          {vendorsInfo[vendorId]?.marketPlaceType === "marketplace" && (
             <div className="flex justify-between">
               <label className="block mb-2 font-opensans">
                 Booking Fee
@@ -596,21 +611,19 @@ const Checkout = () => {
             </>
           )}
 
-          {showBookingFeeModal && (
-            <BookingFeeModal onClose={() => setShowBookingFeeModal(false)} />
-          )}
+         
         </form>
 
         <div className="mt-2">
           <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
-            <div onClick={() => setShowShopSafelyModal(true)} className="flex justify-between items-center">
+            <div
+              onClick={() => setShowShopSafelyModal(true)}
+              className="flex justify-between items-center"
+            >
               <h1 className="text-black font-semibold font-opensans text-lg">
                 Shop safely and sustainably
               </h1>
-              <GoChevronRight
-                className="text-black text-2xl cursor-pointer"
-                
-              />
+              <GoChevronRight className="text-black text-2xl cursor-pointer" />
             </div>
 
             <div className="border-t border-gray-300 my-2"></div>

@@ -10,12 +10,12 @@ import { db } from "../firebase.config";
 import { doc, getDoc } from "firebase/firestore";
 import toast, { Toaster } from "react-hot-toast";
 import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 const NotificationItem = ({
   notification,
   markAsRead,
   deleteNotification,
-  loading,
 }) => {
   const [translateX, setTranslateX] = useState(0);
   const [swipeDirection, setSwipeDirection] = useState("");
@@ -24,6 +24,7 @@ const NotificationItem = ({
   const [hasSwiped, setHasSwiped] = useState(false);
   const [vendorName, setVendorName] = useState("Unknown Vendor");
   const [productImage, setProductImage] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const defaultVendorImage =
     "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
@@ -31,37 +32,112 @@ const NotificationItem = ({
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchOrderDetails = async () => {
-      try {
-        const orderRef = doc(db, "orders", notification.orderId);
-        const orderDoc = await getDoc(orderRef);
+    const cacheVendorNameKey = `vendorName_${notification.id}`;
+    const cacheProductImageKey = `productImage_${notification.id}`;
 
-        if (orderDoc.exists()) {
-          const orderData = orderDoc.data();
-          const firstProduct = Object.values(orderData.products)[0];
+    const cachedVendorName = localStorage.getItem(cacheVendorNameKey);
+    const cachedProductImage = localStorage.getItem(cacheProductImageKey);
 
-          if (firstProduct.coverImageUrl) {
-            setProductImage(firstProduct.coverImageUrl);
+    if (cachedVendorName && cachedProductImage !== null) {
+      setVendorName(cachedVendorName);
+      setProductImage(
+        cachedProductImage !== "null" ? cachedProductImage : null
+      );
+      setLoading(false);
+    } else {
+      const fetchDetails = async () => {
+        try {
+          if (notification.type === "order" && notification.orderId) {
+            const orderRef = doc(db, "orders", notification.orderId);
+            const orderDoc = await getDoc(orderRef);
+
+            if (orderDoc.exists()) {
+              const orderData = orderDoc.data();
+              const firstProduct = Object.values(orderData.products)[0];
+
+              if (firstProduct?.coverImageUrl) {
+                setProductImage(firstProduct.coverImageUrl);
+              }
+
+              const vendorRef = doc(db, "vendors", orderData.vendorId);
+              const vendorDoc = await getDoc(vendorRef);
+              if (vendorDoc.exists()) {
+                const vendorShopName =
+                  vendorDoc.data().shopName || "Unknown Vendor";
+                setVendorName(vendorShopName);
+              }
+            }
+          } else if (notification.type === "vendor" && notification.productId) {
+            const productRef = doc(db, "products", notification.productId);
+            const productDoc = await getDoc(productRef);
+
+            if (productDoc.exists()) {
+              const productData = productDoc.data();
+              if (productData?.coverImageUrl) {
+                setProductImage(productData.coverImageUrl);
+              }
+
+              const vendorRef = doc(db, "vendors", productData.vendorId);
+              const vendorDoc = await getDoc(vendorRef);
+              if (vendorDoc.exists()) {
+                const vendorShopName =
+                  vendorDoc.data().shopName || "Unknown Vendor";
+                setVendorName(vendorShopName);
+              }
+            }
+          } else if (notification.vendorId) {
+            const vendorRef = doc(db, "vendors", notification.vendorId);
+            const vendorDoc = await getDoc(vendorRef);
+            if (vendorDoc.exists()) {
+              const vendorShopName =
+                vendorDoc.data().shopName || "Unknown Vendor";
+              setVendorName(vendorShopName);
+
+              const vendorData = vendorDoc.data();
+              if (vendorData?.profileImageUrl) {
+                setProductImage(vendorData.profileImageUrl);
+              }
+            }
           }
 
-          const vendorRef = doc(db, "vendors", orderData.vendorId);
-          const vendorDoc = await getDoc(vendorRef);
-          if (vendorDoc.exists()) {
-            setVendorName(vendorDoc.data().shopName || "Unknown Vendor");
-          }
+          // Cache the fetched data
+          localStorage.setItem(cacheVendorNameKey, vendorName);
+          localStorage.setItem(cacheProductImageKey, productImage);
+        } catch (error) {
+          console.error("Error fetching details: ", error);
+        } finally {
+          setLoading(false);
         }
-      } catch (error) {
-        console.error("Error fetching order details: ", error);
-      }
-    };
+      };
 
-    if (notification.orderId) {
-      fetchOrderDetails();
+      fetchDetails();
     }
-  }, [notification.orderId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notification]);
 
   let notificationIcon;
   let notificationMessage;
+
+  if (loading) {
+    return (
+      <li className="relative mt-4 overflow-hidden w-full mb-2">
+        <div className="flex justify-between items-center">
+          <div className="flex flex-grow">
+            <div className="mr-4">
+              <Skeleton circle={true} height={36} width={36} />
+            </div>
+            <div className="flex-grow">
+              <Skeleton height={10} width="80%" />
+              <Skeleton height={10} width="60%" style={{ marginTop: 6 }} />
+            </div>
+          </div>
+          <div className="flex-shrink-0 w-14 h-16 ml-4">
+            <Skeleton height={64} width={56} />
+          </div>
+        </div>
+      </li>
+    );
+  }
 
   if (notification.message.includes("In Progress")) {
     notificationIcon = (
@@ -87,14 +163,13 @@ const NotificationItem = ({
   } else {
     notificationIcon = (
       <img
-        src={notification.vendorCoverImage || defaultVendorImage}
-        alt="Vendor"
+        src={productImage || defaultVendorImage}
+        alt="Product"
         className="w-9 h-9 rounded-full object-cover mr-4 border-2 border-gray-300"
       />
     );
     notificationMessage = notification.message;
   }
-  
 
   const handleSwipe = (direction) => {
     const swipeDistance = 80;
@@ -142,8 +217,10 @@ const NotificationItem = ({
   const handleNotificationClick = () => {
     if (notification?.productId) {
       navigate(`/product/${notification.productId}`);
+    } else if (notification?.orderId) {
+      navigate(`/order/${notification.orderId}`);
     } else {
-      console.log("No productId found, cannot navigate.");
+      console.log("No productId or orderId found, cannot navigate.");
     }
   };
 
@@ -174,14 +251,6 @@ const NotificationItem = ({
   };
 
   if (isDeleted) return null;
-
-  if (loading) {
-    return (
-      <li className="relative mt-4 overflow-hidden w-full mb-2">
-        <Skeleton height={70} />
-      </li>
-    );
-  }
 
   return (
     <li className="relative mt-4 overflow-hidden w-full mb-2">
@@ -233,7 +302,7 @@ const NotificationItem = ({
         onTouchStart={handleTouchStart}
         onClick={handleNotificationClick}
       >
-        <div className="flex  flex-grow">
+        <div className="flex flex-grow">
           <div className="mr-4">{notificationIcon}</div>
           <div className="flex-grow">
             <p

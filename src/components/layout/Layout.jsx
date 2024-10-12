@@ -31,6 +31,7 @@ const Layout = () => {
     "/market-vendors",
     "/online-vendors",
     "market-vendors",
+    "/payment-approve",
   ];
 
   // Paths with dynamic segments

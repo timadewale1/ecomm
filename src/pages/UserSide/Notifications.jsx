@@ -10,8 +10,6 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-import Skeleton from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
 import { GoChevronLeft } from "react-icons/go";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
@@ -20,17 +18,26 @@ import NotificationItem from "../../components/Notificationtab";
 import notifspic from "../../Images/Notifs.svg";
 
 const NotificationsPage = () => {
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState(() => {
+    const savedNotifications = localStorage.getItem("notifications");
+    return savedNotifications ? JSON.parse(savedNotifications) : [];
+  });
+  const [loading, setLoading] = useState(notifications.length === 0);
   const [currentUser, setCurrentUser] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchNotifications = async (userId) => {
+      if (notifications.length > 0) {
+        // Data is already cached
+        setLoading(false);
+        return;
+      }
+
       try {
-        const notificationsRef = collection(db, "notifications");
-        const q = query(notificationsRef, where("userId", "==", userId));
+        const notificationsRefDB = collection(db, "notifications");
+        const q = query(notificationsRefDB, where("userId", "==", userId));
         const querySnapshot = await getDocs(q);
 
         const notificationsList = querySnapshot.docs.map((doc) => ({
@@ -38,7 +45,15 @@ const NotificationsPage = () => {
           ...doc.data(),
         }));
 
+        // Sort notifications by newest first
+        notificationsList.sort(
+          (a, b) => b.createdAt.seconds - a.createdAt.seconds
+        );
+
         setNotifications(notificationsList);
+
+        // Cache notifications in localStorage
+        localStorage.setItem("notifications", JSON.stringify(notificationsList));
       } catch (error) {
         console.error("Error fetching notifications:", error);
       } finally {
@@ -50,19 +65,29 @@ const NotificationsPage = () => {
       if (user) {
         setCurrentUser(user);
         fetchNotifications(user.uid);
+      } else {
+        navigate("/login");
       }
     });
 
     return () => unsubscribe();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array to run only once
 
   const markAsRead = async (notificationId) => {
     try {
       const notificationRef = doc(db, "notifications", notificationId);
       await updateDoc(notificationRef, { seen: true });
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notificationId ? { ...n, seen: true } : n))
-      );
+      setNotifications((prev) => {
+        const updatedNotifications = prev.map((n) =>
+          n.id === notificationId ? { ...n, seen: true } : n
+        );
+        localStorage.setItem(
+          "notifications",
+          JSON.stringify(updatedNotifications)
+        );
+        return updatedNotifications;
+      });
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }
@@ -72,7 +97,14 @@ const NotificationsPage = () => {
     try {
       const notificationRef = doc(db, "notifications", notificationId);
       await deleteDoc(notificationRef);
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+      setNotifications((prev) => {
+        const updatedNotifications = prev.filter((n) => n.id !== notificationId);
+        localStorage.setItem(
+          "notifications",
+          JSON.stringify(updatedNotifications)
+        );
+        return updatedNotifications;
+      });
     } catch (error) {
       console.error("Error deleting notification:", error);
     }
@@ -91,10 +123,7 @@ const NotificationsPage = () => {
 
       if (createdAt.isSame(moment(), "day")) {
         todayNotifications.push(notification);
-      } else if (
-        createdAt.isSame(moment().subtract(1, "day"), "day") ||
-        createdAt.isSame(moment(), "week")
-      ) {
+      } else if (createdAt.isSame(moment(), "week")) {
         thisWeekNotifications.push(notification);
       } else if (createdAt.isSame(moment(), "month")) {
         thisMonthNotifications.push(notification);
@@ -127,13 +156,15 @@ const NotificationsPage = () => {
     />
   );
 
-  const renderNotificationsSection = (title, notifications) => {
-    return notifications.length > 0 ? (
+  const renderNotificationsSection = (title, notificationsList) => {
+    return notificationsList.length > 0 ? (
       <>
         <h2 className="font-semibold text-sm font-opensans text-gray-500 mb-2">
           {title}
         </h2>
-        {notifications.map(renderNotificationItem)}
+        <ul>
+          {notificationsList.map(renderNotificationItem)}
+        </ul>
       </>
     ) : null;
   };
@@ -215,50 +246,16 @@ const NotificationsPage = () => {
         </div>
       ) : (
         <div className="px-2">
-          {activeTab === "all" && (
-            <>
-              {renderNotificationsSection("Today", groupedNotifications.today)}
-              {renderNotificationsSection(
-                "This Week",
-                groupedNotifications.thisWeek
-              )}
-              {renderNotificationsSection(
-                "This Month",
-                groupedNotifications.thisMonth
-              )}
-              {renderNotificationsSection("Older", groupedNotifications.older)}
-            </>
+          {renderNotificationsSection("Today", groupedNotifications.today)}
+          {renderNotificationsSection(
+            "This Week",
+            groupedNotifications.thisWeek
           )}
-
-          {activeTab === "vendor" && (
-            <>
-              {renderNotificationsSection("Today", groupedNotifications.today)}
-              {renderNotificationsSection(
-                "This Week",
-                groupedNotifications.thisWeek
-              )}
-              {renderNotificationsSection(
-                "This Month",
-                groupedNotifications.thisMonth
-              )}
-              {renderNotificationsSection("Older", groupedNotifications.older)}
-            </>
+          {renderNotificationsSection(
+            "This Month",
+            groupedNotifications.thisMonth
           )}
-
-          {activeTab === "order" && (
-            <>
-              {renderNotificationsSection("Today", groupedNotifications.today)}
-              {renderNotificationsSection(
-                "This Week",
-                groupedNotifications.thisWeek
-              )}
-              {renderNotificationsSection(
-                "This Month",
-                groupedNotifications.thisMonth
-              )}
-              {renderNotificationsSection("Older", groupedNotifications.older)}
-            </>
-          )}
+          {renderNotificationsSection("Older", groupedNotifications.older)}
         </div>
       )}
     </div>

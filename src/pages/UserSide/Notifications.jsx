@@ -18,6 +18,7 @@ import moment from "moment";
 import Loading from "../../components/Loading/Loading";
 import NotificationItem from "../../components/Notificationtab";
 import notifspic from "../../Images/Notifs.svg";
+
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,7 +85,7 @@ const NotificationsPage = () => {
     const olderNotifications = [];
 
     notifications.forEach((notification) => {
-      if (filter === "vendor" && notification.type !== "vendor") return;
+      if (filter && notification.type !== filter) return; // Filter based on type if provided
 
       const createdAt = moment(notification.createdAt.seconds * 1000);
 
@@ -113,6 +114,8 @@ const NotificationsPage = () => {
   const groupedNotifications =
     activeTab === "vendor"
       ? groupNotifications("vendor")
+      : activeTab === "order"
+      ? groupNotifications("order")
       : groupNotifications();
 
   const renderNotificationItem = (notification) => (
@@ -211,7 +214,7 @@ const NotificationsPage = () => {
           </p>
         </div>
       ) : (
-        <div>
+        <div className="px-2">
           {activeTab === "all" && (
             <>
               {renderNotificationsSection("Today", groupedNotifications.today)}
@@ -228,6 +231,21 @@ const NotificationsPage = () => {
           )}
 
           {activeTab === "vendor" && (
+            <>
+              {renderNotificationsSection("Today", groupedNotifications.today)}
+              {renderNotificationsSection(
+                "This Week",
+                groupedNotifications.thisWeek
+              )}
+              {renderNotificationsSection(
+                "This Month",
+                groupedNotifications.thisMonth
+              )}
+              {renderNotificationsSection("Older", groupedNotifications.older)}
+            </>
+          )}
+
+          {activeTab === "order" && (
             <>
               {renderNotificationsSection("Today", groupedNotifications.today)}
               {renderNotificationsSection(

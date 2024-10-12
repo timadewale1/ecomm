@@ -42,8 +42,7 @@ const ProductDetailPage = () => {
 
   // Fetch product from Redux store
   const { product, loading, error } = useSelector((state) => state.product);
-  const [initialImage, setInitialImage] = useState(""); // Already defined
-
+  const [initialImage, setInitialImage] = useState(""); 
   const [quantity, setQuantity] = useState(1);
   const [mainImage, setMainImage] = useState("");
   const [isSticky, setIsSticky] = useState(false);
@@ -61,47 +60,45 @@ const ProductDetailPage = () => {
   });
   const [toastCount, setToastCount] = useState(0);
 
-  const [vendor, setVendor] = useState(null); // Vendor details
+  const [vendor, setVendor] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false); // Info modal for Similar Products
-  const [isLinkCopied, setIsLinkCopied] = useState(false); // Link copy state
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [isLinkCopied, setIsLinkCopied] = useState(false);
   const db = getFirestore();
-  // Import selector for cart items at the top
 
-  // To get all items as an array:
-  // At the top of your component
   const cart = useSelector((state) => state.cart || {});
 
   useEffect(() => {
     if (product) {
       const vendorProducts = cart?.[product.vendorId]?.products || {};
-
-      // Find the product in cart
+  
       let foundInCart = false;
       for (let key in vendorProducts) {
         const cartItem = vendorProducts[key];
-        if (cartItem.id === product.id) {
-          setSelectedSize(cartItem.selectedSize);
-          setSelectedColor(cartItem.selectedColor);
-          setIsAddedToCart(true);
-          setQuantity(cartItem.quantity);
-          setAnimateCart(true); // Set animateCart to true when product is in cart
+        
+        // Check if the exact size/color combination is already in the cart
+        if (
+          cartItem.id === product.id &&
+          cartItem.selectedSize === selectedSize &&
+          cartItem.selectedColor === selectedColor
+        ) {
+          setIsAddedToCart(true); // The product with the selected size/color is in the cart
+          setQuantity(cartItem.quantity); // Update the quantity
+          setAnimateCart(true);
           foundInCart = true;
-          break; // Exit the loop
+          break;
         }
       }
-
+  
       if (!foundInCart) {
-        // If not found in cart, reset state variables
+        // If the product with this size/color is not in the cart, reset the state
         setIsAddedToCart(false);
         setQuantity(1);
-        setSelectedSize("");
-        setSelectedColor("");
-        setAnimateCart(false); // Reset animateCart to false when not in cart
+        setAnimateCart(false);
       }
     }
-  }, [cart, product]);
-
+  }, [cart, product, selectedSize, selectedColor]); // Depend on selectedSize and selectedColor
+  
   useEffect(() => {
     if (product) {
       const sizes = product.size
@@ -129,14 +126,14 @@ const ProductDetailPage = () => {
   }, [dispatch, id]);
   useEffect(() => {
     if (product) {
-      setMainImage(product.coverImageUrl); // Set main image after product fetch
-      setInitialImage(product.coverImageUrl); // Set initial image
+      setMainImage(product.coverImageUrl);
+      setInitialImage(product.coverImageUrl);
     }
   }, [product]);
 
   useEffect(() => {
     if (product && product.vendorId) {
-      fetchVendorData(product.vendorId); // Fetch vendor details
+      fetchVendorData(product.vendorId);
     }
   }, [product]);
 
@@ -152,25 +149,21 @@ const ProductDetailPage = () => {
     } catch (err) {
       console.error("Error fetching vendor data:", err);
     } finally {
-      setVendorLoading(false); // Stop loading once the data is fetched
+      setVendorLoading(false); 
     }
   };
   const handleDisclaimer = () => {
     const userAgreed = window.confirm(
       "Important Disclaimer: By agreeing to purchase this product, you acknowledge that it may have defects as described by the vendor. My Thrift does not assume any responsibility for any damages or defects associated with the product. The vendor has disclosed the condition of the product, and by proceeding with the purchase, you agree to accept the product in its current condition."
     );
-  
+
     if (userAgreed) {
-      // Handle the case where the user agreed (proceed with the action)
       console.log("User agreed to the disclaimer.");
-      // You can add any action like proceeding to checkout or whatever the next step is
     } else {
-      // Handle the case where the user did not agree (cancel the action)
       console.log("User did not agree to the disclaimer.");
-      // You can stop any further actions
     }
   };
-  
+
   const handleScroll = () => {
     if (window.scrollY > 50) {
       setIsSticky(true);
@@ -187,29 +180,29 @@ const ProductDetailPage = () => {
   }, []);
   const handleAddToCart = useCallback(() => {
     console.log("Add to Cart Triggered");
-
+  
     // Validate product and selections
     if (!product) {
       console.error("Product is missing. Cannot add to cart.");
       return;
     }
-
+  
     if (!selectedSize) {
       toast.error("Please select a size before adding to cart!");
       return;
     }
-
+  
     if (!selectedColor) {
       toast.error("Please select a color before adding to cart!");
       return;
     }
-
+  
     if (!product.id || !product.vendorId) {
       toast.error("Product or Vendor ID is missing. Cannot add to cart!");
       console.error("Product or Vendor ID is missing:", product);
       return;
     }
-
+  
     if (quantity > product.stockQuantity) {
       toast.error("Selected quantity exceeds stock availability!");
     } else {
@@ -220,28 +213,29 @@ const ProductDetailPage = () => {
         selectedColor,
         selectedImageUrl: mainImage,
       };
-
-      // Generate the consistent productKey
+  
+      // Generate the consistent productKey for this specific size/color combination
       const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
       console.log("Generated productKey:", productKey);
-
+  
+      // Check if the product with this size/color combination already exists in the cart
       const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
-
+  
       if (existingCartItem) {
+      
         const updatedProduct = {
           ...existingCartItem,
-          quantity: quantity, // Set the new quantity directly
+          quantity: quantity,
         };
-        dispatch(addToCart(updatedProduct, true)); // Use setQuantity=true
-        console.log(
-          "Updated product in cart with new quantity:",
-          updatedProduct
-        );
+        dispatch(addToCart(updatedProduct, true)); 
+        console.log("Updated product in cart with new quantity:", updatedProduct);
       } else {
-        dispatch(addToCart(productToAdd, true)); // Add with setQuantity=true
+      
+        dispatch(addToCart(productToAdd, true)); 
         console.log("Added new product to cart:", productToAdd);
       }
-
+  
+    
       setIsAddedToCart(true);
       toast.success(`Added ${product.name} to cart!`);
     }
@@ -252,8 +246,9 @@ const ProductDetailPage = () => {
     selectedColor,
     dispatch,
     mainImage,
-    cart, // Include cart in dependencies
+    cart, 
   ]);
+  
 
   const handleIncreaseQuantity = useCallback(() => {
     if (!product) {
@@ -296,7 +291,7 @@ const ProductDetailPage = () => {
     selectedColor,
     dispatch,
     toastShown,
-    cart, // Include cart in dependencies
+    cart,
   ]);
 
   const handleDecreaseQuantity = useCallback(() => {
@@ -365,18 +360,22 @@ const ProductDetailPage = () => {
       ? product.color.split(",").map((color) => color.trim())
       : [];
 
-  const handleColorClick = (color) => {
-    setSelectedColor(color);
-  };
-
-  const handleSizeClick = (size) => {
-    if (selectedSize === size) {
-      setSelectedSize(""); // Unselect if clicked again
-    } else {
-      setSelectedSize(size);
-    }
-  };
-
+      const handleSizeClick = (size) => {
+        if (selectedSize === size) {
+          setSelectedSize(""); // Unselect if clicked again
+        } else {
+          setSelectedSize(size);
+          setIsAddedToCart(false); // Reset the cart state when changing size
+          setQuantity(1); // Reset the quantity to 1 for new selections
+        }
+      };
+      
+      const handleColorClick = (color) => {
+        setSelectedColor(color);
+        setIsAddedToCart(false); // Reset the cart state when changing color
+        setQuantity(1); // Reset the quantity to 1 for new selections
+      };
+      
   const copyProductLink = async () => {
     try {
       const shareableLink = `${window.location.origin}/product/${id}`;
@@ -549,7 +548,7 @@ const ProductDetailPage = () => {
             <PiShoppingCartBold
               onClick={() =>
                 navigate("/latest-cart", { state: { fromProductDetail: true } })
-              } 
+              }
               className="text-2xl cursor-pointer "
             />
           </div>
@@ -713,7 +712,6 @@ const ProductDetailPage = () => {
       <div className="border-t-8 border-gray-100 mt-4"></div>
 
       <RelatedProducts product={product} />
-      
 
       <div
         className="fixed bottom-0 left-0 right-0 z-50 p-3 flex justify-between items-center"

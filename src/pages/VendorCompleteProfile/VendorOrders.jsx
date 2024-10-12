@@ -7,7 +7,7 @@ import { db } from '../../firebase.config';
 import useAuth from '../../custom-hooks/useAuth';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
-
+import notifyOrderStatusChange from '../../services/notifyorderstatus';
 const VendorOrders = () => {
   const { currentUser } = useAuth();
   const [orders, setOrders] = useState([]);
@@ -17,68 +17,71 @@ const VendorOrders = () => {
   const [declineReason, setDeclineReason] = useState('');
   const [loading, setLoading] = useState(true);
 
- // Fetch orders assigned to the vendor
-useEffect(() => {
-  const fetchOrders = async () => {
-    if (currentUser) {
-      try {
-        const q = query(collection(db, 'orders'));
-        const querySnapshot = await getDocs(q);
+  // Fetch orders assigned to the vendor
+  useEffect(() => {
+    const fetchOrders = async () => {
+      if (currentUser) {
+        try {
+          const q = query(collection(db, 'orders'));
+          const querySnapshot = await getDocs(q);
 
-        if (querySnapshot.empty) {
-          console.log('No orders found.');
-        }
+          if (querySnapshot.empty) {
+            console.log('No orders found.');
+          }
 
-        const fetchedOrders = [];
-        for (const orderDoc of querySnapshot.docs) {
-          const orderData = orderDoc.data();
+          const fetchedOrders = [];
+          for (const orderDoc of querySnapshot.docs) {
+            const orderData = orderDoc.data();
 
-          // Filter out the products that belong to the current vendor
-          const vendorProducts = Object.values(orderData.products || {}).filter(
-            product => product.vendorId === currentUser.uid
-          );
+            // Filter out the products that belong to the current vendor
+            const vendorProducts = Object.values(orderData.products || {}).filter(
+              product => product.vendorId === currentUser.uid
+            );
 
-          // If the current vendor has products in the order, add the order to the list
-          if (vendorProducts.length > 0) {
-            const userDoc = await getDoc(doc(db, 'users', orderData.userId));
-            if (userDoc.exists()) {
-              const userData = userDoc.data();
-              fetchedOrders.push({
-                id: orderDoc.id,
-                ...orderData,
-                products: vendorProducts, // Only include the vendor's products
-                user: {
-                  displayName: userData.displayName,
-                  email: userData.email,
-                  phoneNumber: userData.phoneNumber,
-                },
-                progressStatus: orderData.progressStatus || 'Pending',
-              });
-            } else {
-              fetchedOrders.push({
-                id: orderDoc.id,
-                ...orderData,
-                products: vendorProducts, // Only include the vendor's products
-                user: null
-              });
+            // If the current vendor has products in the order, add the order to the list
+            if (vendorProducts.length > 0) {
+              const userDoc = await getDoc(doc(db, 'users', orderData.userId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                fetchedOrders.push({
+                  id: orderDoc.id,
+                  ...orderData,
+                  products: vendorProducts, // Only include the vendor's products
+                  user: {
+                    displayName: userData.displayName,
+                    email: userData.email,
+                    phoneNumber: userData.phoneNumber,
+                    address: orderData.deliveryInfo?.address || userData.address, // Fetch delivery info from order
+                  },
+                  progressStatus: orderData.progressStatus || 'Pending',
+                  note: orderData.note || '', // Fetch the note added during checkout
+                });
+              } else {
+                fetchedOrders.push({
+                  id: orderDoc.id,
+                  ...orderData,
+                  products: vendorProducts, // Only include the vendor's products
+                  user: null,
+                  note: orderData.note || '', // Ensure we still get the note even if user data is missing
+                  deliveryInfo: orderData.deliveryInfo || {}, // Fetch delivery info from order
+                });
+              }
             }
           }
+
+          console.log('Fetched orders:', fetchedOrders);
+          setOrders(fetchedOrders);
+        } catch (error) {
+          console.error('Error fetching orders: ', error);
+          toast.error('Error fetching orders. Please try again.');
+        } finally {
+          setLoading(false);
         }
-
-        console.log('Fetched orders:', fetchedOrders);
-        setOrders(fetchedOrders);
-      } catch (error) {
-        console.error('Error fetching orders: ', error);
-        toast.error('Error fetching orders. Please try again.');
-      } finally {
-        setLoading(false);
       }
-    }
-  };
+    };
 
-  fetchOrders();
-}, [currentUser]);
-
+    fetchOrders();
+  }, [currentUser]);
 
   // Filter orders by their progress status
   const filterOrders = (status) => {
@@ -88,20 +91,62 @@ useEffect(() => {
   // Update the progress of an order
   const updateOrderProgress = async (orderId, newStatus) => {
     try {
-      const orderRef = doc(db, 'orders', orderId);
-      
-      // Only updating progressStatus field
-      await updateDoc(orderRef, { progressStatus: newStatus });
+      console.log("Order ID passed to updateOrderProgress:", orderId);
+      console.log("New Status passed:", newStatus);
   
-      setOrders(orders.map(order => 
+      const orderRef = doc(db, 'orders', orderId);
+  
+      // Update the progressStatus field in Firestore
+      await updateDoc(orderRef, { progressStatus: newStatus });
+      console.log("Order status updated successfully in Firestore");
+  
+      const updatedOrder = orders.find(order => order.id === orderId);
+  
+      console.log("Updated order found:", updatedOrder);
+  
+      if (updatedOrder) {
+        const userId = updatedOrder.userId || updatedOrder.user?.userId; // Check both possible locations for userId
+        
+        console.log("User ID:", userId);
+  
+        // Fetch the vendor name based on vendorId in the order
+        const vendorId = updatedOrder.vendorId || updatedOrder.vendor?.vendorId;
+        let vendorName = "Unknown Vendor"; // Default vendor name
+  
+        if (vendorId) {
+          const vendorRef = doc(db, 'vendors', vendorId);
+          const vendorDoc = await getDoc(vendorRef);
+          if (vendorDoc.exists()) {
+            vendorName = vendorDoc.data().shopName || "Unknown Vendor";
+          }
+        }
+  
+        console.log("Vendor name (shopName):", vendorName);
+  
+        // Check if userId exists before attempting to send the notification
+        if (userId) {
+          // Notify the user about the status update
+          await notifyOrderStatusChange(userId, orderId, newStatus, vendorName);
+          console.log("Notification sent successfully");
+        } else {
+          console.error("Error: User ID is undefined. Cannot send notification.");
+        }
+      } else {
+        console.error("Error: Updated order not found.");
+      }
+  
+      setOrders(orders.map(order =>
         order.id === orderId ? { ...order, progressStatus: newStatus } : order
       ));
       toast.success(`Order status updated to ${newStatus}`);
     } catch (error) {
-      console.error('Error updating order status: ', error);
-      toast.error('Error updating order status. Please try again.');
+      console.error("Error updating order status: ", error);
+      toast.error("Error updating order status. Please try again.");
     }
   };
+  
+  
+  
   
 
   // Handle decline with reason
@@ -172,7 +217,7 @@ useEffect(() => {
       return <p>No order details available.</p>;
     }
 
-    const { id, user, products, progressStatus } = selectedOrder;
+    const { id, user, products, progressStatus, note } = selectedOrder; // Destructure the note and delivery info
 
     return (
       <div className="space-y-4">
@@ -181,11 +226,18 @@ useEffect(() => {
           <>
             <div className="text-sm text-gray-700">Email: {user.email || 'Not Available'}</div>
             <div className="text-sm text-gray-700">Phone: {user.phoneNumber || 'Not Available'}</div>
+            <div className="text-sm text-gray-700">Address: {user.address || 'Not Available'}</div>
           </>
         )}
         <div className={`text-sm ${progressStatus === 'Completed' ? 'text-green-500' : 'text-orange-500'}`}>
           Status: {progressStatus}
         </div>
+        {/* Display the note if it exists */}
+        {note && (
+          <div className="text-sm text-gray-500">
+            <strong>Note:</strong> {note}
+          </div>
+        )}
         <div className="text-sm text-gray-500">Products:</div>
         <ul className="list-disc list-inside">
           {products.map((product, index) => (

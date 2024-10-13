@@ -18,7 +18,6 @@ import { MdOutlineLock, MdSupportAgent } from "react-icons/md";
 import { LiaShippingFastSolid, LiaTimesSolid } from "react-icons/lia";
 import { FaCheck } from "react-icons/fa6";
 
-
 const EditDeliveryModal = ({ userInfo, setUserInfo, onClose }) => {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white z-50 shadow-lg px-3 py-3 rounded-t-2xl ">
@@ -98,7 +97,6 @@ const EditDeliveryModal = ({ userInfo, setUserInfo, onClose }) => {
     </div>
   );
 };
-
 
 const ShopSafelyModal = ({ onClose }) => {
   return (
@@ -285,7 +283,7 @@ const Checkout = () => {
 
     let bookingFee = 0;
     if (vendorMarketPlaceType === "marketplace") {
-      bookingFee = parseFloat((subTotal * 0.2).toFixed(2)); 
+      bookingFee = parseFloat((subTotal * 0.2).toFixed(2));
     }
 
     const serviceFee = parseFloat(calculateServiceFee(subTotal));
@@ -307,10 +305,10 @@ const Checkout = () => {
     try {
       const userId = currentUser?.uid;
       const vendorCart = cart[vendorId].products;
-  
-      const { subTotal, bookingFee, serviceFee, total } = vendorTotals[vendorId];
-  
-      
+
+      const { subTotal, bookingFee, serviceFee, total } =
+        vendorTotals[vendorId];
+
       const orderId = await createOrderAndReduceStock(userId, vendorCart, {
         note,
         userInfo,
@@ -319,26 +317,21 @@ const Checkout = () => {
         serviceFee,
         total,
       });
-  
-     
+
       dispatch(clearCart(vendorId));
-  
+
       toast.success("Order placed successfully!");
-  
-     
+
       navigate(`/payment-approve?orderId=${orderId}`);
-  
-      
+
       setTimeout(() => {
         navigate("/user-orders", { state: { fromPaymentApprove: true } });
-      }, 2000); 
+      }, 2000);
     } catch (error) {
-     
       toast.error("Failed to create order. Please try again.");
       console.error("Error in handleProceedToPayment:", error);
     }
   };
-  
 
   const handlePaystackPayment = (amount, onSuccessCallback) => {
     if (loading) {
@@ -391,16 +384,38 @@ const Checkout = () => {
     });
   };
 
-  const groupProductsByIdSizeAndColor = (products) => {
+  const groupProductsById = (products) => {
     const groupedProducts = {};
 
     for (const productKey in products) {
       const product = products[productKey];
-      const key = `${product.id}-${product.selectedSize}-${product.selectedColor}`;
-      if (groupedProducts[key]) {
-        groupedProducts[key].quantity += product.quantity;
+      const id = product.id;
+
+      if (groupedProducts[id]) {
+        groupedProducts[id].quantity += product.quantity;
+
+        // Add size if not already present
+        if (
+          product.selectedSize &&
+          !groupedProducts[id].sizes.includes(product.selectedSize)
+        ) {
+          groupedProducts[id].sizes.push(product.selectedSize);
+        }
+
+        // Add color if not already present
+        if (
+          product.selectedColor &&
+          !groupedProducts[id].colors.includes(product.selectedColor)
+        ) {
+          groupedProducts[id].colors.push(product.selectedColor);
+        }
       } else {
-        groupedProducts[key] = { ...product };
+        groupedProducts[id] = {
+          ...product,
+          quantity: product.quantity,
+          sizes: product.selectedSize ? [product.selectedSize] : [],
+          colors: product.selectedColor ? [product.selectedColor] : [],
+        };
       }
     }
 
@@ -409,7 +424,9 @@ const Checkout = () => {
 
   const handleBookingFeePayment = (e) => {
     e.preventDefault();
-    window.confirm("The booking fee, exclusive to marketplace vendors, is a 20% charge on your subtotal that guarantees your items are packaged and reserved for pickup. Once the vendor accepts your order, they will securely hold your items, ensuring they're ready for collection at your convenience.");
+    window.confirm(
+      "The booking fee, exclusive to marketplace vendors, is a 20% charge on your subtotal that guarantees your items are packaged and reserved for pickup. Once the vendor accepts your order, they will securely hold your items, ensuring they're ready for collection at your convenience."
+    );
     handleVendorPayment("booking");
   };
 
@@ -557,61 +574,57 @@ const Checkout = () => {
               </div>
 
               <div className="mt-2 border-t ">
-                {groupProductsByIdSizeAndColor(cart[vendorId].products).map(
-                  (product) => (
-                    <div
-                      key={`${product.id}-${product.selectedSize}-${product.selectedColor}`}
-                      className="flex items-center justify-between py-4 border-b"
-                    >
-                      <div className="flex items-center">
-                        <img
-                          src={
-                            product.selectedImageUrl ||
-                            "https://via.placeholder.com/150"
-                          }
-                          alt={product.name}
-                          className="w-16 h-16 object-cover rounded-lg mr-4"
-                          onError={(e) => {
-                            e.target.src = "https://via.placeholder.com/150";
-                          }}
-                        />
-                        <div>
-                          <h4 className="text-sm font-opensans">
-                            {product.name}
-                          </h4>
-                          <p className="font-opensans text-md mt-2 text-black font-bold">
-                            ₦{product.price.toLocaleString()}
+                {groupProductsById(cart[vendorId].products).map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex items-center justify-between py-4 border-b"
+                  >
+                    <div className="flex items-center">
+                      <img
+                        src={
+                          product.selectedImageUrl ||
+                          "https://via.placeholder.com/150"
+                        }
+                        alt={product.name}
+                        className="w-16 h-16 object-cover rounded-lg mr-4"
+                        onError={(e) => {
+                          e.target.src = "https://via.placeholder.com/150";
+                        }}
+                      />
+                      <div>
+                        <h4 className="text-sm font-opensans">
+                          {product.name}
+                        </h4>
+                        <p className="font-opensans text-md mt-2 text-black font-bold">
+                          ₦{product.price.toLocaleString()}
+                        </p>
+                        <div className="flex items-center space-x-4 text-sm mt-2 ">
+                          <p className="text-black font-semibold font-opensans">
+                            <span className="font-normal text-gray-600">
+                              Size:
+                            </span>{" "}
+                            {product.sizes.join(", ") || "N/A"}
                           </p>
-                          <div className="flex items-center space-x-4 text-sm mt-2 ">
-                            <p className="text-black font-semibold font-opensans">
-                              <span className="font-normal text-gray-600">
-                                Size:
-                              </span>{" "}
-                              {product.selectedSize || product.size}
-                            </p>
-                            <p className="text-black font-semibold font-opensans">
-                              <span className="font-normal text-gray-600">
-                                Color:
-                              </span>{" "}
-                              {product.selectedColor || "N/A"}
-                            </p>
-                            <p className="text-black font-semibold font-opensans">
-                              <span className="font-normal text-gray-600">
-                                Qty:
-                              </span>{" "}
-                              {product.quantity}
-                            </p>
-                          </div>
+                          <p className="text-black font-semibold font-opensans">
+                            <span className="font-normal text-gray-600">
+                              Color:
+                            </span>{" "}
+                            {product.colors.join(", ") || "N/A"}
+                          </p>
+                          <p className="text-black font-semibold font-opensans">
+                            <span className="font-normal text-gray-600">
+                              Qty:
+                            </span>{" "}
+                            {product.quantity}
+                          </p>
                         </div>
                       </div>
                     </div>
-                  )
-                )}
+                  </div>
+                ))}
               </div>
             </>
           )}
-
-         
         </form>
 
         <div className="mt-2">

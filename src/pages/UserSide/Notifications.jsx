@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { db, auth } from "../../firebase.config"; // Adjust based on your setup
+import { db, auth } from "../../firebase.config";
 import {
   collection,
   query,
@@ -18,23 +18,14 @@ import NotificationItem from "../../components/Notificationtab";
 import notifspic from "../../Images/Notifs.svg";
 
 const NotificationsPage = () => {
-  const [notifications, setNotifications] = useState(() => {
-    const savedNotifications = localStorage.getItem("notifications");
-    return savedNotifications ? JSON.parse(savedNotifications) : [];
-  });
-  const [loading, setLoading] = useState(notifications.length === 0);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchNotifications = async (userId) => {
-      if (notifications.length > 0) {
-        // Data is already cached
-        setLoading(false);
-        return;
-      }
-
       try {
         const notificationsRefDB = collection(db, "notifications");
         const q = query(notificationsRefDB, where("userId", "==", userId));
@@ -51,9 +42,6 @@ const NotificationsPage = () => {
         );
 
         setNotifications(notificationsList);
-
-        // Cache notifications in localStorage
-        localStorage.setItem("notifications", JSON.stringify(notificationsList));
       } catch (error) {
         console.error("Error fetching notifications:", error);
       } finally {
@@ -71,23 +59,17 @@ const NotificationsPage = () => {
     });
 
     return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array to run only once
+  }, [navigate]);
 
   const markAsRead = async (notificationId) => {
     try {
       const notificationRef = doc(db, "notifications", notificationId);
       await updateDoc(notificationRef, { seen: true });
-      setNotifications((prev) => {
-        const updatedNotifications = prev.map((n) =>
+      setNotifications((prev) =>
+        prev.map((n) =>
           n.id === notificationId ? { ...n, seen: true } : n
-        );
-        localStorage.setItem(
-          "notifications",
-          JSON.stringify(updatedNotifications)
-        );
-        return updatedNotifications;
-      });
+        )
+      );
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }
@@ -97,14 +79,9 @@ const NotificationsPage = () => {
     try {
       const notificationRef = doc(db, "notifications", notificationId);
       await deleteDoc(notificationRef);
-      setNotifications((prev) => {
-        const updatedNotifications = prev.filter((n) => n.id !== notificationId);
-        localStorage.setItem(
-          "notifications",
-          JSON.stringify(updatedNotifications)
-        );
-        return updatedNotifications;
-      });
+      setNotifications((prev) =>
+        prev.filter((n) => n.id !== notificationId)
+      );
     } catch (error) {
       console.error("Error deleting notification:", error);
     }
@@ -117,7 +94,7 @@ const NotificationsPage = () => {
     const olderNotifications = [];
 
     notifications.forEach((notification) => {
-      if (filter && notification.type !== filter) return; // Filter based on type if provided
+      if (filter && notification.type !== filter) return;
 
       const createdAt = moment(notification.createdAt.seconds * 1000);
 

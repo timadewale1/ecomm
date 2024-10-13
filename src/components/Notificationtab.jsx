@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import moment from "moment";
 import { useNavigate } from "react-router-dom";
+import toast, { Toaster } from "react-hot-toast";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 import TrashIcon from "./Loading/trash";
 import EnvelopeIcon from "./Loading/Envelope";
 import { PiPackage } from "react-icons/pi";
@@ -8,9 +11,6 @@ import { IoTimeOutline } from "react-icons/io5";
 import { TbTruckDelivery } from "react-icons/tb";
 import { db } from "../firebase.config";
 import { doc, getDoc } from "firebase/firestore";
-import toast, { Toaster } from "react-hot-toast";
-import Skeleton from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
 
 const NotificationItem = ({
   notification,
@@ -32,87 +32,68 @@ const NotificationItem = ({
   const navigate = useNavigate();
 
   useEffect(() => {
-    const cacheVendorNameKey = `vendorName_${notification.id}`;
-    const cacheProductImageKey = `productImage_${notification.id}`;
+    const fetchDetails = async () => {
+      try {
+        if (notification.type === "order" && notification.orderId) {
+          const orderRef = doc(db, "orders", notification.orderId);
+          const orderDoc = await getDoc(orderRef);
 
-    const cachedVendorName = localStorage.getItem(cacheVendorNameKey);
-    const cachedProductImage = localStorage.getItem(cacheProductImageKey);
+          if (orderDoc.exists()) {
+            const orderData = orderDoc.data();
+            const firstProduct = Object.values(orderData.products)[0];
 
-    if (cachedVendorName && cachedProductImage !== null) {
-      setVendorName(cachedVendorName);
-      setProductImage(
-        cachedProductImage !== "null" ? cachedProductImage : null
-      );
-      setLoading(false);
-    } else {
-      const fetchDetails = async () => {
-        try {
-          if (notification.type === "order" && notification.orderId) {
-            const orderRef = doc(db, "orders", notification.orderId);
-            const orderDoc = await getDoc(orderRef);
-
-            if (orderDoc.exists()) {
-              const orderData = orderDoc.data();
-              const firstProduct = Object.values(orderData.products)[0];
-
-              if (firstProduct?.coverImageUrl) {
-                setProductImage(firstProduct.coverImageUrl);
-              }
-
-              const vendorRef = doc(db, "vendors", orderData.vendorId);
-              const vendorDoc = await getDoc(vendorRef);
-              if (vendorDoc.exists()) {
-                const vendorShopName =
-                  vendorDoc.data().shopName || "Unknown Vendor";
-                setVendorName(vendorShopName);
-              }
+            if (firstProduct?.coverImageUrl) {
+              setProductImage(firstProduct.coverImageUrl);
             }
-          } else if (notification.type === "vendor" && notification.productId) {
-            const productRef = doc(db, "products", notification.productId);
-            const productDoc = await getDoc(productRef);
 
-            if (productDoc.exists()) {
-              const productData = productDoc.data();
-              if (productData?.coverImageUrl) {
-                setProductImage(productData.coverImageUrl);
-              }
-
-              const vendorRef = doc(db, "vendors", productData.vendorId);
-              const vendorDoc = await getDoc(vendorRef);
-              if (vendorDoc.exists()) {
-                const vendorShopName =
-                  vendorDoc.data().shopName || "Unknown Vendor";
-                setVendorName(vendorShopName);
-              }
-            }
-          } else if (notification.vendorId) {
-            const vendorRef = doc(db, "vendors", notification.vendorId);
+            const vendorRef = doc(db, "vendors", orderData.vendorId);
             const vendorDoc = await getDoc(vendorRef);
             if (vendorDoc.exists()) {
               const vendorShopName =
                 vendorDoc.data().shopName || "Unknown Vendor";
               setVendorName(vendorShopName);
-
-              const vendorData = vendorDoc.data();
-              if (vendorData?.profileImageUrl) {
-                setProductImage(vendorData.profileImageUrl);
-              }
             }
           }
+        } else if (notification.type === "vendor" && notification.productId) {
+          const productRef = doc(db, "products", notification.productId);
+          const productDoc = await getDoc(productRef);
 
-          // Cache the fetched data
-          localStorage.setItem(cacheVendorNameKey, vendorName);
-          localStorage.setItem(cacheProductImageKey, productImage);
-        } catch (error) {
-          console.error("Error fetching details: ", error);
-        } finally {
-          setLoading(false);
+          if (productDoc.exists()) {
+            const productData = productDoc.data();
+            if (productData?.coverImageUrl) {
+              setProductImage(productData.coverImageUrl);
+            }
+
+            const vendorRef = doc(db, "vendors", productData.vendorId);
+            const vendorDoc = await getDoc(vendorRef);
+            if (vendorDoc.exists()) {
+              const vendorShopName =
+                vendorDoc.data().shopName || "Unknown Vendor";
+              setVendorName(vendorShopName);
+            }
+          }
+        } else if (notification.vendorId) {
+          const vendorRef = doc(db, "vendors", notification.vendorId);
+          const vendorDoc = await getDoc(vendorRef);
+          if (vendorDoc.exists()) {
+            const vendorShopName =
+              vendorDoc.data().shopName || "Unknown Vendor";
+            setVendorName(vendorShopName);
+
+            const vendorData = vendorDoc.data();
+            if (vendorData?.profileImageUrl) {
+              setProductImage(vendorData.profileImageUrl);
+            }
+          }
         }
-      };
+      } catch (error) {
+        console.error("Error fetching details: ", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      fetchDetails();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchDetails();
   }, [notification]);
 
   let notificationIcon;
@@ -160,6 +141,14 @@ const NotificationItem = ({
       </div>
     );
     notificationMessage = `Your order with ID ${notification.orderId} from ${vendorName} has been shipped 😁.`;
+  } else if (notification.message.includes("Declined")) {
+    notificationIcon = (
+      <div className="border rounded-full p-1">
+        {/* You might want to use a different icon for cancellation */}
+        <TbTruckDelivery className="text-3xl text-gray-500" />
+      </div>
+    );
+    notificationMessage = `Your order with ID ${notification.orderId} from ${vendorName} has been cancelled. We will process your refund shortly. 😔`;
   } else {
     notificationIcon = (
       <img
@@ -215,6 +204,10 @@ const NotificationItem = ({
   };
 
   const handleNotificationClick = () => {
+    // If notification type is 'order', do not navigate
+    if (notification.type === "order") {
+      return;
+    }
     if (notification?.productId) {
       navigate(`/product/${notification.productId}`);
     } else if (notification?.orderId) {
@@ -294,13 +287,17 @@ const NotificationItem = ({
         ) : null}
       </div>
       <div
-        className={`flex justify-between items-center relative z-10 bg-white`}
+        className={`flex justify-between items-center relative z-10 bg-white ${
+          notification.type !== "order" ? "cursor-pointer" : ""
+        }`}
         style={{
           transform: `translateX(${translateX}px)`,
           transition: "transform 0.3s ease",
         }}
         onTouchStart={handleTouchStart}
-        onClick={handleNotificationClick}
+        onClick={
+          notification.type !== "order" ? handleNotificationClick : undefined
+        }
       >
         <div className="flex flex-grow">
           <div className="mr-4">{notificationIcon}</div>

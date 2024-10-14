@@ -17,6 +17,7 @@ const Layout = () => {
     "/signup",
     "/forgetpassword",
     "/admin",
+    "/user-orders",
     "/confirm-user-state",
     "/vendorlogin",
     "/vendor-signup",
@@ -31,6 +32,7 @@ const Layout = () => {
     "/market-vendors",
     "/online-vendors",
     "market-vendors",
+    "/payment-approve",
   ];
 
   // Paths with dynamic segments

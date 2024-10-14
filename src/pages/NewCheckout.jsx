@@ -1,94 +1,336 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
-import { clearCart, removeFromCart } from "../redux/actions/action";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { toast } from "react-hot-toast";
+import { clearCart } from "../redux/actions/action";
 import useAuth from "../custom-hooks/useAuth";
-import { IoLocation } from "react-icons/io5";
-import GooglePlacesAutocomplete from "../components/Google";
-import { FaInfoCircle, FaAngleLeft } from "react-icons/fa";
-import BookingFeeModal from "../components/BookingFee";
+import { FaPen } from "react-icons/fa";
+
 import { calculateServiceFee } from "./VendorCompleteProfile/utilis";
 import { createOrderAndReduceStock } from "../services/Services";
-import { getDoc, doc,  } from "firebase/firestore";
+import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.config";
 import Loading from "../components/Loading/Loading";
+import { GoChevronLeft, GoChevronRight } from "react-icons/go";
+import { CiCircleInfo } from "react-icons/ci";
+import { RiSecurePaymentFill } from "react-icons/ri";
+import { MdOutlineLock, MdSupportAgent } from "react-icons/md";
+import { LiaShippingFastSolid, LiaTimesSolid } from "react-icons/lia";
+import { FaCheck } from "react-icons/fa6";
+
+const EditDeliveryModal = ({ userInfo, setUserInfo, onClose }) => {
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-white z-50 shadow-lg px-3 py-3 rounded-t-2xl ">
+      <div className="flex justify-between mt-3 items-center">
+        <h2 className="text-xl font-opensans font-semibold">
+          Edit Delivery Information
+        </h2>
+        <LiaTimesSolid className="text-2xl text-black" onClick={onClose} />
+      </div>
+
+      <form>
+        <div className="flex flex-col mt-8 space-y-3">
+          <div>
+            <label className="font-opensans text-black">Name</label>
+            <input
+              type="text"
+              className="border bg-gray-100 py-2.5 mt-2 rounded-lg w-full px-2 font-opensans text-gray-600"
+              value={userInfo.displayName}
+              onChange={(e) =>
+                setUserInfo({ ...userInfo, displayName: e.target.value })
+              }
+            />
+          </div>
+          <div>
+            <label className="font-opensans">Phone Number</label>
+            <input
+              type="text"
+              className="border bg-gray-100 py-2.5 mt-2 rounded-lg w-full px-2 font-opensans text-gray-600"
+              value={userInfo.phoneNumber}
+              onChange={(e) =>
+                setUserInfo({ ...userInfo, phoneNumber: e.target.value })
+              }
+            />
+          </div>
+          <div>
+            <label className="font-opensans">Email</label>
+            <input
+              type="text"
+              className="border bg-gray-100 py-2.5 mt-2 rounded-lg w-full px-2 font-opensans text-gray-600"
+              value={userInfo.email}
+              onChange={(e) =>
+                setUserInfo({ ...userInfo, email: e.target.value })
+              }
+            />
+          </div>
+          <div>
+            <label className="font-opensans">Address</label>
+            <input
+              type="text"
+              className="border bg-gray-100 py-2.5 mt-2 rounded-lg w-full px-2 font-opensans text-gray-600"
+              value={userInfo.address}
+              onChange={(e) =>
+                setUserInfo({ ...userInfo, address: e.target.value })
+              }
+            />
+          </div>
+        </div>
+
+        <div className="border-t mt-4 border-gray-300 my-2"></div>
+
+        <div className="flex mt-2 flex-col">
+          <button
+            type="button"
+            className="bg-customOrange text-white h-12 font-semibold rounded-full font-opensans"
+            onClick={onClose}
+          >
+            Save Changes
+          </button>
+          <button
+            onClick={onClose}
+            className="bg-gray-100 text-black h-12 rounded-full font-semibold font-opensans mt-3"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+const ShopSafelyModal = ({ onClose }) => {
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-white z-50 shadow-lg ">
+      <div className="bg-white px-3 py-4 w-full rounded-t-2xl max-w-4xl">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-xl font-semibold">Shop Safely and Sustainably</h1>
+          <LiaTimesSolid
+            className="text-2xl ml-2 cursor-pointer"
+            onClick={onClose}
+          />
+        </div>
+
+        {/* Secure Payment */}
+        <div className="flex items-start">
+          <div className="w-16 flex flex-col items-center">
+            <RiSecurePaymentFill className="text-3xl text-green-700" />
+            <FaCheck className="text-green-700 mt-2" />
+          </div>
+          <div className="ml-4">
+            <h3 className="text-sm text-green-700 font-semibold font-opensans">
+              Secure Your Payment
+            </h3>
+            <div className="mt-2">
+              <p className="text-sm font-opensans text-black">
+                Encrypted Transactions: Your data is always protected.
+              </p>
+
+              <p className="text-sm font-opensans text-black">
+                Fraud Prevention: Transactions are monitored in real-time.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t mt-4 border-gray-300 my-1"></div>
+
+        {/* Security & Privacy */}
+        <div className="flex items-start mt-3">
+          <div className="w-16 flex flex-col items-center">
+            <MdOutlineLock className="text-3xl text-green-700" />
+            <FaCheck className="text-green-700 mt-2" />
+          </div>
+          <div className="ml-4 ">
+            <h3 className="text-sm text-green-700 font-semibold font-opensans">
+              Security & Privacy
+            </h3>
+            <div className="mt-2">
+              <p className="text-sm font-opensans text-black">
+                No Data Sharing: We will never share your information with third
+                parties.
+              </p>
+              <p className="text-md font-opensans text-black">
+                Your data is used solely to enhance your experience.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t mt-4 border-gray-300 my-1"></div>
+
+        {/* Secure Shipment */}
+        <div className="flex items-start mt-3">
+          <div className="w-16 flex flex-col items-center">
+            <LiaShippingFastSolid className="text-3xl text-green-700" />
+            <FaCheck className="text-green-700 mt-2" />
+          </div>
+          <div className="ml-4">
+            <h3 className="text-sm text-green-700 font-semibold font-opensans">
+              Secure Shipment Guarantee
+            </h3>
+            <div className="mt-2">
+              <p className="text-sm font-opensans text-black">
+                Escrow Payments: Funds are held securely and released only after
+                you confirm delivery.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t mt-4 border-gray-300 my-1"></div>
+
+        {/* Customer Support */}
+        <div className="flex items-start mt-3">
+          <div className="w-16 flex flex-col items-center">
+            <MdSupportAgent className="text-3xl text-green-700" />
+            <FaCheck className="text-green-700 mt-2" />
+          </div>
+          <div className="ml-4">
+            <h3 className="text-sm text-green-700 font-semibold font-opensans">
+              Customer Support
+            </h3>
+            <div className="mt-2">
+              <p className="text-sm font-opensans text-black">
+                Dedicated support team is available to assist with any issues
+                related to your order, payment, or delivery.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 const Checkout = () => {
+  const { vendorId } = useParams();
+  const [searchParams] = useSearchParams();
+  const note = searchParams.get("note") || "";
+
   const cart = useSelector((state) => state.cart);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { currentUser, loading } = useAuth();
-  const [deliveryInfo, setDeliveryInfo] = useState({ address: "" });
   const [showBookingFeeModal, setShowBookingFeeModal] = useState(false);
-  const [vendorsInfo, setVendorsInfo] = useState({}); // Store vendor-specific info
+  const [vendorsInfo, setVendorsInfo] = useState({});
+  const [userInfo, setUserInfo] = useState({
+    displayName: "",
+    email: "",
+    phoneNumber: "",
+    address: "",
+  });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showShopSafelyModal, setShowShopSafelyModal] = useState(false);
 
-  // Fetch vendor information if needed (e.g., for fee calculations)
   useEffect(() => {
-    const fetchVendorsInfo = async () => {
+    if (!vendorId) {
+      toast.error("No vendor selected for checkout.");
+      navigate("/latest-cart");
+    }
+  }, [vendorId, navigate]);
+
+  useEffect(() => {
+    const fetchVendorInfo = async () => {
       try {
-        const vendorIds = Object.keys(cart);
-        const newVendorsInfo = { ...vendorsInfo };
+        if (!vendorId) return;
 
-        for (const vendorId of vendorIds) {
-          if (!newVendorsInfo[vendorId]) {
-            // Assuming you have a function to fetch vendor info
-            // Replace with your actual data fetching logic
-            const vendorDoc = await getDoc(doc(db, "vendors", vendorId));
-            if (vendorDoc.exists()) {
-              newVendorsInfo[vendorId] = vendorDoc.data();
-            } else {
-              console.warn(`Vendor with ID ${vendorId} does not exist.`);
-            }
-          }
+        const vendorDoc = await getDoc(doc(db, "vendors", vendorId));
+        if (vendorDoc.exists()) {
+          setVendorsInfo({ [vendorId]: vendorDoc.data() });
+        } else {
+          console.warn(`Vendor with ID ${vendorId} does not exist.`);
         }
-
-        setVendorsInfo(newVendorsInfo);
       } catch (error) {
-        console.error("Error fetching vendors info:", error);
+        console.error("Error fetching vendor info:", error);
       }
     };
 
-    if (Object.keys(cart).length > 0) {
-      fetchVendorsInfo();
-    }
-  }, [cart]);
+    fetchVendorInfo();
+  }, [vendorId]);
 
-  // Calculate total prices per vendor
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      if (currentUser) {
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists()) {
+          setUserInfo({
+            displayName: userDoc.data().displayName || "",
+            email: userDoc.data().email || "",
+            phoneNumber: userDoc.data().phoneNumber || "",
+            address: userDoc.data().address || "",
+          });
+        } else {
+          console.warn("User document does not exist.");
+        }
+      }
+    };
+
+    fetchUserInfo();
+  }, [currentUser]);
+
   const calculateVendorTotals = useCallback(() => {
     const totals = {};
+    if (!vendorId || !cart[vendorId]) return totals;
 
-    for (const vendorId in cart) {
-      const vendorCart = cart[vendorId].products;
-      let subTotal = 0;
+    const vendorCart = cart[vendorId].products;
+    let subTotal = 0;
 
-      for (const productKey in vendorCart) {
-        const product = vendorCart[productKey];
-        subTotal += product.price * product.quantity;
-      }
-
-      const bookingFee = (subTotal * 0.2).toFixed(2);
-      const serviceFee = calculateServiceFee(subTotal);
-      const total = (
-        parseFloat(subTotal) +
-        parseFloat(bookingFee) +
-        parseFloat(serviceFee)
-      ).toFixed(2);
-
-      totals[vendorId] = {
-        subTotal: subTotal.toFixed(2),
-        bookingFee,
-        serviceFee,
-        total,
-      };
+    for (const productKey in vendorCart) {
+      const product = vendorCart[productKey];
+      subTotal += product.price * product.quantity;
     }
 
+    const vendorMarketPlaceType = vendorsInfo[vendorId]?.marketPlaceType;
+
+    let bookingFee = 0;
+    if (vendorMarketPlaceType === "marketplace") {
+      bookingFee = parseFloat((subTotal * 0.2).toFixed(2));
+    }
+
+    const serviceFee = parseFloat(calculateServiceFee(subTotal));
+    const total = parseFloat((subTotal + bookingFee + serviceFee).toFixed(2));
+
+    totals[vendorId] = {
+      subTotal: subTotal.toLocaleString(),
+      bookingFee: bookingFee.toLocaleString(),
+      serviceFee: serviceFee.toLocaleString(),
+      total: total.toLocaleString(),
+    };
+
     return totals;
-  }, [cart]);
+  }, [cart, vendorId, vendorsInfo]);
 
   const vendorTotals = calculateVendorTotals();
 
-  const handleSelectPlace = (place) => {
-    setDeliveryInfo({ ...deliveryInfo, address: place });
+  const handleProceedToPayment = async () => {
+    try {
+      const userId = currentUser?.uid;
+      const vendorCart = cart[vendorId].products;
+
+      const { subTotal, bookingFee, serviceFee, total } =
+        vendorTotals[vendorId];
+
+      const orderId = await createOrderAndReduceStock(userId, vendorCart, {
+        note,
+        userInfo,
+        subTotal,
+        bookingFee,
+        serviceFee,
+        total,
+      });
+
+      dispatch(clearCart(vendorId));
+
+      toast.success("Order placed successfully!");
+
+      navigate(`/payment-approve?orderId=${orderId}`);
+
+      setTimeout(() => {
+        navigate("/user-orders", { state: { fromPaymentApprove: true } });
+      }, 2000);
+    } catch (error) {
+      toast.error("Failed to create order. Please try again.");
+      console.error("Error in handleProceedToPayment:", error);
+    }
   };
 
   const handlePaystackPayment = (amount, onSuccessCallback) => {
@@ -101,15 +343,9 @@ const Checkout = () => {
       toast.error("User is not logged in");
       return;
     }
-
-    // Implement your Paystack payment logic here
-    // After successful payment, call onSuccessCallback
   };
 
-  // Handle payment for a specific vendor
-  const handleVendorPayment = async (vendorId, paymentType) => {
-    // paymentType: 'booking' or 'full'
-
+  const handleVendorPayment = async (paymentType) => {
     const fees = vendorTotals[vendorId];
     let amountToPay = 0;
 
@@ -125,21 +361,19 @@ const Checkout = () => {
         const vendorCart = cart[vendorId].products;
 
         await createOrderAndReduceStock(userId, vendorId, vendorCart, {
-          address: deliveryInfo.address,
+          userInfo,
           paymentType,
         });
 
         dispatch(clearCart(vendorId));
         toast.success(`Order placed successfully for vendor ${vendorId}!`);
 
-        // Optionally navigate to a confirmation page
         navigate("/payment-approve", {
-          state: { vendorId, totalPrice: fees.total, deliveryInfo },
+          state: { vendorId, totalPrice: fees.total, userInfo },
         });
 
-        // Redirect after a delay
         setTimeout(() => {
-          navigate("/newhome");
+          navigate("/user-orders");
         }, 3000);
       } catch (error) {
         console.error("Error placing order:", error);
@@ -150,54 +384,62 @@ const Checkout = () => {
     });
   };
 
-  const handleBookingFeePayment = (e, vendorId) => {
-    e.preventDefault();
-    handleVendorPayment(vendorId, "booking");
-  };
+  const groupProductsById = (products) => {
+    const groupedProducts = {};
 
-  const handleFullDeliveryPayment = (e, vendorId) => {
-    e.preventDefault();
-    handleVendorPayment(vendorId, "full");
-  };
+    for (const productKey in products) {
+      const product = products[productKey];
+      const id = product.id;
 
-  const handleGetCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          fetch(
-            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=YOUR_GOOGLE_MAPS_API_KEY`
-          )
-            .then((response) => response.json())
-            .then((data) => {
-              if (data.results && data.results.length > 0) {
-                const address = data.results[0].formatted_address;
-                setDeliveryInfo({ ...deliveryInfo, address });
-              }
-            })
-            .catch((error) => {
-              console.error("Error fetching address:", error);
-            });
-        },
-        (error) => {
-          console.error("Error getting current location:", error);
+      if (groupedProducts[id]) {
+        groupedProducts[id].quantity += product.quantity;
+
+        // Add size if not already present
+        if (
+          product.selectedSize &&
+          !groupedProducts[id].sizes.includes(product.selectedSize)
+        ) {
+          groupedProducts[id].sizes.push(product.selectedSize);
         }
-      );
-    } else {
-      console.error("Geolocation is not supported by this browser.");
+
+        // Add color if not already present
+        if (
+          product.selectedColor &&
+          !groupedProducts[id].colors.includes(product.selectedColor)
+        ) {
+          groupedProducts[id].colors.push(product.selectedColor);
+        }
+      } else {
+        groupedProducts[id] = {
+          ...product,
+          quantity: product.quantity,
+          sizes: product.selectedSize ? [product.selectedSize] : [],
+          colors: product.selectedColor ? [product.selectedColor] : [],
+        };
+      }
     }
+
+    return Object.values(groupedProducts);
   };
 
-  // Calculate overall total if needed
-  const calculateOverallTotal = () => {
-    let overallTotal = 0;
-    for (const vendorId in vendorTotals) {
-      overallTotal += parseFloat(vendorTotals[vendorId].total);
-    }
-    return overallTotal.toFixed(2);
+  const handleBookingFeePayment = (e) => {
+    e.preventDefault();
+    window.confirm(
+      "The booking fee, exclusive to marketplace vendors, is a 20% charge on your subtotal that guarantees your items are packaged and reserved for pickup. Once the vendor accepts your order, they will securely hold your items, ensuring they're ready for collection at your convenience."
+    );
+    handleVendorPayment("booking");
   };
 
-  const overallTotal = calculateOverallTotal();
+  const handleServiceFeeInfo = () => {
+    window.confirm(
+      "The service fee is a small, dynamic charge that helps cover our operational costs, like keeping the platform running smoothly and ensuring you have the best shopping experience. Rest assured, it’s capped at a maximum amount to keep things fair and transparent. We aim to keep the fee minimal while providing top-notch service!"
+    );
+  };
+
+  const handleFullDeliveryPayment = (e) => {
+    e.preventDefault();
+    handleVendorPayment("full");
+  };
 
   if (loading) {
     return (
@@ -212,168 +454,243 @@ const Checkout = () => {
   }
 
   return (
-    <div className="p-4">
-      <div className="flex items-center mb-4">
-        <FaAngleLeft
-          className="text-2xl cursor-pointer mr-4"
+    <div className="bg-gray-100 pb-12">
+      <div className="flex p-3 py-3 items-center sticky top-0 bg-white w-full h-20 shadow-md z-10 mb-3 pb-2">
+        <GoChevronLeft
+          className="text-3xl cursor-pointer"
           onClick={() => navigate(-1)}
         />
-        <h1 className="font-ubuntu text-black text-2xl">Checkout</h1>
+        <h1 className="text-xl font-opensans ml-5 font-semibold">Checkout</h1>
       </div>
-      <form className="bg-white p-4 rounded-lg shadow-md">
-        <h2 className="text-lg font-semibold font-ubuntu mb-4">
-          Delivery Information
-        </h2>
-        <div className="relative">
-          <label className="block mb-2 font-semibold">Address</label>
-          <GooglePlacesAutocomplete onPlaceSelected={handleSelectPlace} />
-          <IoLocation
-            className="absolute right-3 text-gray-400 top-10 text-xl cursor-pointer"
-            onClick={handleGetCurrentLocation}
-          />
-        </div>
+      <div className="px-3">
+        <div className="mt-4 px-4 w-full py-4 rounded-lg bg-white ">
+          <h1 className="text-black font-semibold font-opensans text-lg ">
+            Order Summary
+          </h1>
+          <div className="border-t border-gray-300 my-2"></div>
+          <div className="flex justify-between">
+            <label className="block mb-2 font-opensans ">Sub-Total</label>
+            <p className="text-lg font-opensans text-black font-semibold">
+              ₦{vendorTotals[vendorId]?.subTotal}
+            </p>
+          </div>
 
-        {/* Iterate over each vendor in the cart */}
-        {Object.keys(cart).map((vendorId) => {
-          const vendorCart = cart[vendorId].products;
-          const fees = vendorTotals[vendorId];
-          const vendorInfo = vendorsInfo[vendorId] || {};
-
-          return (
-            <div
-              key={vendorId}
-              className="mt-6 border-t pt-4"
-            >
-              <h3 className="text-xl font-semibold mb-2">
-                Vendor: {vendorInfo.vendorName || `Vendor ${vendorId}`}
-              </h3>
-              {/* Order Summary */}
-              {Object.values(vendorCart).map((product) => (
-                <div
-                  key={product.id}
-                  className="flex justify-between items-center bg-gray-100 w-full border-b py-3 rounded-lg mb-2"
-                >
-                  <div className="flex items-center">
-                    <img
-                      src={product.selectedImageUrl || "https://via.placeholder.com/150"}
-                      alt={product.name}
-                      className="w-20 h-20 object-cover rounded-lg mr-4"
-                      onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/150";
-                      }}
-                    />
-                    <div>
-                      <h4 className="text-lg font-semibold font-poppins">
-                        {product.name}
-                      </h4>
-                      <p className="text-green-600 font-poppins font-medium text-md">
-                        ₦{product.price.toFixed(2)}
-                      </p>
-                      <p className="text-gray-600 font-poppins font-medium text-xs">
-                        Size: {product.selectedSize || product.size}
-                      </p>
-                      <p className="text-gray-600 font-medium text-xs">
-                        Quantity: {product.quantity}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* Fees and Total */}
-              <div className="mt-4">
-                <div className="flex justify-between">
-                  <label className="block mb-2 font-poppins font-semibold">
-                    Sub-Total
-                  </label>
-                  <p className="text-lg font-poppins text-black font-medium">
-                    ₦{fees.subTotal}
-                  </p>
-                </div>
-                <div className="flex justify-between">
-                  <label className="block mb-2 font-poppins font-semibold">
-                    Booking Fee
-                    <FaInfoCircle
-                      className="inline ml-2 text-gray-400 cursor-pointer"
-                      onClick={() => setShowBookingFeeModal(true)}
-                    />
-                  </label>
-                  <p className="text-lg font-poppins text-black font-medium">
-                    ₦{fees.bookingFee}
-                  </p>
-                </div>
-                <div className="flex justify-between">
-                  <label className="block mb-2 font-poppins font-semibold">
-                    Service Fee
-                  </label>
-                  <p className="text-lg font-poppins text-black font-medium">
-                    ₦{fees.serviceFee}
-                  </p>
-                </div>
-                <div className="flex justify-between mt-2">
-                  <label className="block mb-2 font-poppins font-semibold">
-                    Total
-                  </label>
-                  <p className="text-lg font-poppins text-black font-medium">
-                    ₦{fees.total}
-                  </p>
-                </div>
-              </div>
-
-              {/* Payment Buttons */}
-              <div className="mt-4 flex space-x-4">
-                <button
-                  onClick={(e) => handleBookingFeePayment(e, vendorId)}
-                  className="w-1/2 px-4 py-2 bg-blue-500 text-white rounded-md shadow-sm hover:bg-blue-600 transition-colors duration-300 font-ubuntu"
-                >
-                  Pay Booking Fee
-                </button>
-                <button
-                  onClick={(e) => handleFullDeliveryPayment(e, vendorId)}
-                  className="w-1/2 px-4 py-2 bg-green-500 text-white rounded-md shadow-sm hover:bg-green-600 transition-colors duration-300 font-ubuntu"
-                >
-                  Pay for Full Delivery
-                </button>
-              </div>
-            </div>
-          );
-        })}
-
-        {/* Overall Total */}
-        {Object.keys(cart).length > 1 && (
-          <div className="mt-6 border-t pt-4">
-            <h3 className="text-xl font-semibold mb-2">Overall Total</h3>
+          {vendorsInfo[vendorId]?.marketPlaceType === "marketplace" && (
             <div className="flex justify-between">
-              <label className="block mb-2 font-poppins font-semibold">
-                Grand Total
+              <label className="block mb-2 font-opensans">
+                Booking Fee
+                <CiCircleInfo
+                  className="inline ml-2 text-customOrange cursor-pointer"
+                  onClick={handleBookingFeePayment}
+                />
               </label>
-              <p className="text-lg font-poppins text-black font-medium">
-                ₦{overallTotal}
+              <p className="text-lg font-opensans text-black font-semibold">
+                ₦{vendorTotals[vendorId]?.bookingFee}
               </p>
             </div>
+          )}
+
+          <div className="flex justify-between">
+            <label className="block mb-2 font-opensans">
+              Service Fee
+              <CiCircleInfo
+                className="inline ml-2 text-customOrange cursor-pointer"
+                onClick={handleServiceFeeInfo}
+              />
+            </label>
+            <p className="text-lg font-opensans text-black font-semibold">
+              ₦{vendorTotals[vendorId]?.serviceFee}
+            </p>
           </div>
-        )}
+          <div className="border-t mt-3 border-gray-300 my-2"></div>
+          <div className="flex justify-between mt-2">
+            <label className="block mb-2 font-opensans text-lg font-semibold">
+              Total
+            </label>
+            <p className="text-lg font-opensans text-black font-semibold">
+              ₦{vendorTotals[vendorId]?.total}
+            </p>
+          </div>
+        </div>
 
-        {/* Payment Buttons for Overall Checkout (Optional) */}
-        {/* If you prefer to have a single payment option for all vendors combined, you can uncomment and use the following */}
-        {Object.keys(cart).length > 1 && (
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              // Implement overall payment logic here
-              toast.info("Please complete payments for each vendor separately.");
-            }}
-            className="w-full px-4 py-2 mt-6 bg-purple-500 text-white rounded-md shadow-sm hover:bg-purple-600 transition-colors duration-300 font-ubuntu"
-          >
-            Pay All
-          </button>
-        )}
-      </form>
+        <div className="mt-2">
+          <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
+            <div className="flex justify-between items-center">
+              <h1 className="text-black font-semibold font-opensans text-lg">
+                Delivery Information
+              </h1>
+              <FaPen
+                className="text-black cursor-pointer"
+                onClick={() => setShowEditModal(true)}
+              />
+            </div>
 
-      {/* Booking Fee Information Modal */}
-      {showBookingFeeModal && (
-        <BookingFeeModal onClose={() => setShowBookingFeeModal(false)} />
+            <div className="border-t border-gray-300 my-2"></div>
+
+            <div className="flex">
+              <label className="block mb-2 mr-1 font-semibold font-opensans">
+                Name:
+              </label>
+              <p className="font-opensans text-black">{userInfo.displayName}</p>
+            </div>
+            <div className="flex">
+              <label className="block mb-2 mr-1 font-semibold font-opensans">
+                Phone Number:
+              </label>
+              <p className="font-opensans text-black ">
+                {userInfo.phoneNumber}
+              </p>
+            </div>
+            <div className="flex">
+              <label className="block mb-2 font-semibold mr-1 font-opensans">
+                Email:
+              </label>
+              <p className="font-opensans text-black">{userInfo.email}</p>
+            </div>
+            <div className="flex">
+              <label className="block mb-2 mr-1 font-semibold font-opensans">
+                Address:
+              </label>
+              <p className="font-opensans text-black ">{userInfo.address}</p>
+            </div>
+          </div>
+        </div>
+
+        <form className="bg-white mt-3 p-3 rounded-lg shadow-md">
+          {vendorId && cart[vendorId] && (
+            <>
+              <div className="flex justify-between">
+                <h1 className="text-black font-semibold font-opensans text-lg">
+                  Shipment
+                </h1>
+                <h3 className="text-sm">
+                  <span className="text-gray-400 text-sm font-opensans">
+                    From:
+                  </span>
+                  {vendorsInfo[vendorId]?.shopName?.length > 8
+                    ? `${vendorsInfo[vendorId]?.shopName.slice(0, 8)}...`
+                    : vendorsInfo[vendorId]?.shopName || `Vendor ${vendorId}`}
+                </h3>
+              </div>
+
+              <div className="mt-2 border-t ">
+                {groupProductsById(cart[vendorId].products).map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex items-center justify-between py-4 border-b"
+                  >
+                    <div className="flex items-center">
+                      <img
+                        src={
+                          product.selectedImageUrl ||
+                          "https://via.placeholder.com/150"
+                        }
+                        alt={product.name}
+                        className="w-16 h-16 object-cover rounded-lg mr-4"
+                        onError={(e) => {
+                          e.target.src = "https://via.placeholder.com/150";
+                        }}
+                      />
+                      <div>
+                        <h4 className="text-sm font-opensans">
+                          {product.name}
+                        </h4>
+                        <p className="font-opensans text-md mt-2 text-black font-bold">
+                          ₦{product.price.toLocaleString()}
+                        </p>
+                        <div className="flex items-center space-x-4 text-sm mt-2 ">
+                          <p className="text-black font-semibold font-opensans">
+                            <span className="font-normal text-gray-600">
+                              Size:
+                            </span>{" "}
+                            {product.sizes.join(", ") || "N/A"}
+                          </p>
+                          <p className="text-black font-semibold font-opensans">
+                            <span className="font-normal text-gray-600">
+                              Color:
+                            </span>{" "}
+                            {product.colors.join(", ") || "N/A"}
+                          </p>
+                          <p className="text-black font-semibold font-opensans">
+                            <span className="font-normal text-gray-600">
+                              Qty:
+                            </span>{" "}
+                            {product.quantity}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </form>
+
+        <div className="mt-2">
+          <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
+            <div
+              onClick={() => setShowShopSafelyModal(true)}
+              className="flex justify-between items-center"
+            >
+              <h1 className="text-black font-semibold font-opensans text-lg">
+                Shop safely and sustainably
+              </h1>
+              <GoChevronRight className="text-black text-2xl cursor-pointer" />
+            </div>
+
+            <div className="border-t border-gray-300 my-2"></div>
+
+            <div className="flex mt-3 -mx-2 space-x-0.5">
+              <div className="flex items-center flex-col">
+                <RiSecurePaymentFill className="text-3xl text-green-700" />
+                <p className="text-xs text-gray-600 text-center">
+                  Secure your payment
+                </p>
+              </div>
+              <div className="flex items-center flex-col">
+                <MdOutlineLock className="text-3xl text-green-700" />
+                <p className="text-xs text-gray-600 text-center">
+                  Security & Privacy
+                </p>
+              </div>
+              <div className="flex items-center flex-col">
+                <LiaShippingFastSolid className="text-3xl text-green-700" />
+                <p className="text-xs text-gray-600 text-center">
+                  Secure Shipment Guarantee
+                </p>
+              </div>
+              <div className="flex items-center flex-col">
+                <MdSupportAgent className="text-3xl text-green-700" />
+                <p className="text-xs text-gray-600 text-center">
+                  Customer Support
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {showEditModal && (
+        <EditDeliveryModal
+          userInfo={userInfo}
+          setUserInfo={setUserInfo}
+          onClose={() => setShowEditModal(false)}
+        />
       )}
+
+      {/* Shop Safely Modal */}
+      {showShopSafelyModal && (
+        <ShopSafelyModal onClose={() => setShowShopSafelyModal(false)} />
+      )}
+      <div className="fixed bottom-0 left-0 right-0 p-3  bg-white shadow-lg">
+        <button
+          onClick={handleProceedToPayment}
+          className="w-full bg-customOrange h-12 text-white text-lg font-semibold font-opensans rounded-full"
+        >
+          Proceed to Payment
+        </button>
+      </div>
     </div>
   );
 };

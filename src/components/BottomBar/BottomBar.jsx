@@ -75,21 +75,22 @@ const BottomBar = React.memo(({ isSearchFocused }) => {
   }, [location.pathname, setActiveNav, navItems]);
 
   const handleClick = useCallback(
-    (index) => {
+    (event, index) => {
+      event.stopPropagation(); // Prevent click from propagating to elements behind
       setActiveNav(index);
     },
     [setActiveNav]
   );
 
   return (
-    <div class="bottom-bar-wrapper">
+    <div class="bottom-bar-wrapper" onClick={(e) => e.stopPropagation()}>
       <div className={`bottom-bar  ${isSearchFocused ? "under-keypad" : ""}`}>
         {navItems.map((item, index) => (
           <Link
             key={index}
             to={item.route}
             className={`bottom-nav-icon ${activeNav === index ? "active" : ""}`}
-            onClick={() => handleClick(index)}
+            onClick={(e) => handleClick(e, index)}
           >
             <div className="relative font-opensans  flex items-center">
               {activeNav === index ? (

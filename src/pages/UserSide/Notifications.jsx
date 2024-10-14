@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { db, auth } from "../../firebase.config"; // Adjust based on your setup
+import { db, auth } from "../../firebase.config";
 import {
   collection,
   query,
@@ -10,14 +10,13 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-import Skeleton from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
 import { GoChevronLeft } from "react-icons/go";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
 import Loading from "../../components/Loading/Loading";
 import NotificationItem from "../../components/Notificationtab";
 import notifspic from "../../Images/Notifs.svg";
+
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,14 +27,19 @@ const NotificationsPage = () => {
   useEffect(() => {
     const fetchNotifications = async (userId) => {
       try {
-        const notificationsRef = collection(db, "notifications");
-        const q = query(notificationsRef, where("userId", "==", userId));
+        const notificationsRefDB = collection(db, "notifications");
+        const q = query(notificationsRefDB, where("userId", "==", userId));
         const querySnapshot = await getDocs(q);
 
         const notificationsList = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
+
+        // Sort notifications by newest first
+        notificationsList.sort(
+          (a, b) => b.createdAt.seconds - a.createdAt.seconds
+        );
 
         setNotifications(notificationsList);
       } catch (error) {
@@ -49,18 +53,22 @@ const NotificationsPage = () => {
       if (user) {
         setCurrentUser(user);
         fetchNotifications(user.uid);
+      } else {
+        navigate("/login");
       }
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const markAsRead = async (notificationId) => {
     try {
       const notificationRef = doc(db, "notifications", notificationId);
       await updateDoc(notificationRef, { seen: true });
       setNotifications((prev) =>
-        prev.map((n) => (n.id === notificationId ? { ...n, seen: true } : n))
+        prev.map((n) =>
+          n.id === notificationId ? { ...n, seen: true } : n
+        )
       );
     } catch (error) {
       console.error("Error marking notification as read:", error);
@@ -71,7 +79,9 @@ const NotificationsPage = () => {
     try {
       const notificationRef = doc(db, "notifications", notificationId);
       await deleteDoc(notificationRef);
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+      setNotifications((prev) =>
+        prev.filter((n) => n.id !== notificationId)
+      );
     } catch (error) {
       console.error("Error deleting notification:", error);
     }
@@ -84,16 +94,13 @@ const NotificationsPage = () => {
     const olderNotifications = [];
 
     notifications.forEach((notification) => {
-      if (filter === "vendor" && notification.type !== "vendor") return;
+      if (filter && notification.type !== filter) return;
 
       const createdAt = moment(notification.createdAt.seconds * 1000);
 
       if (createdAt.isSame(moment(), "day")) {
         todayNotifications.push(notification);
-      } else if (
-        createdAt.isSame(moment().subtract(1, "day"), "day") ||
-        createdAt.isSame(moment(), "week")
-      ) {
+      } else if (createdAt.isSame(moment(), "week")) {
         thisWeekNotifications.push(notification);
       } else if (createdAt.isSame(moment(), "month")) {
         thisMonthNotifications.push(notification);
@@ -113,6 +120,8 @@ const NotificationsPage = () => {
   const groupedNotifications =
     activeTab === "vendor"
       ? groupNotifications("vendor")
+      : activeTab === "order"
+      ? groupNotifications("order")
       : groupNotifications();
 
   const renderNotificationItem = (notification) => (
@@ -124,13 +133,15 @@ const NotificationsPage = () => {
     />
   );
 
-  const renderNotificationsSection = (title, notifications) => {
-    return notifications.length > 0 ? (
+  const renderNotificationsSection = (title, notificationsList) => {
+    return notificationsList.length > 0 ? (
       <>
         <h2 className="font-semibold text-sm font-opensans text-gray-500 mb-2">
           {title}
         </h2>
-        {notifications.map(renderNotificationItem)}
+        <ul>
+          {notificationsList.map(renderNotificationItem)}
+        </ul>
       </>
     ) : null;
   };
@@ -211,36 +222,17 @@ const NotificationsPage = () => {
           </p>
         </div>
       ) : (
-        <div>
-          {activeTab === "all" && (
-            <>
-              {renderNotificationsSection("Today", groupedNotifications.today)}
-              {renderNotificationsSection(
-                "This Week",
-                groupedNotifications.thisWeek
-              )}
-              {renderNotificationsSection(
-                "This Month",
-                groupedNotifications.thisMonth
-              )}
-              {renderNotificationsSection("Older", groupedNotifications.older)}
-            </>
+        <div className="px-2">
+          {renderNotificationsSection("Today", groupedNotifications.today)}
+          {renderNotificationsSection(
+            "This Week",
+            groupedNotifications.thisWeek
           )}
-
-          {activeTab === "vendor" && (
-            <>
-              {renderNotificationsSection("Today", groupedNotifications.today)}
-              {renderNotificationsSection(
-                "This Week",
-                groupedNotifications.thisWeek
-              )}
-              {renderNotificationsSection(
-                "This Month",
-                groupedNotifications.thisMonth
-              )}
-              {renderNotificationsSection("Older", groupedNotifications.older)}
-            </>
+          {renderNotificationsSection(
+            "This Month",
+            groupedNotifications.thisMonth
           )}
+          {renderNotificationsSection("Older", groupedNotifications.older)}
         </div>
       )}
     </div>

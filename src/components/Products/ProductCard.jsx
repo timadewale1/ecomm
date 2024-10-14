@@ -1,14 +1,40 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useFavorites } from "../../components/Context/FavoritesContext";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import { db } from "../../firebase.config"; // Ensure firebase is configured
+import { doc, getDoc } from "firebase/firestore"; // Firestore methods
 
 const ProductCard = ({ product, isLoading }) => {
   const navigate = useNavigate();
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const favorite = isFavorite(product?.id);
+  const [vendorMarketplaceType, setVendorMarketplaceType] = useState(null);
+
+  // Fetch vendor's marketplace type from Firestore
+  useEffect(() => {
+    const fetchVendorMarketplaceType = async () => {
+      try {
+        const vendorRef = doc(db, "vendors", product.vendorId); // Assuming vendors collection
+        const vendorDoc = await getDoc(vendorRef);
+
+        if (vendorDoc.exists()) {
+          const vendorData = vendorDoc.data();
+          setVendorMarketplaceType(vendorData.marketPlaceType); // Fetch the marketplace type
+        } else {
+          console.error("Vendor not found");
+        }
+      } catch (error) {
+        console.error("Error fetching vendor marketplace type:", error);
+      }
+    };
+
+    if (product.vendorId) {
+      fetchVendorMarketplaceType();
+    }
+  }, [product.vendorId]);
 
   const handleCardClick = () => {
     if (!isLoading && product?.stockQuantity > 0) {
@@ -19,8 +45,16 @@ const ProductCard = ({ product, isLoading }) => {
 
   const handleVendorClick = (e) => {
     e.stopPropagation();
-    console.log(`Navigating to vendor/${product.vendorId} with name ${product.vendorName}`);
-    navigate(`/store/${product.vendorId}`);
+
+    if (vendorMarketplaceType === "virtual") {
+      console.log(`Navigating to virtual vendor ${product.vendorName} store`);
+      navigate(`/store/${product.vendorId}`);
+    } else if (vendorMarketplaceType === "marketplace") {
+      console.log(`Navigating to marketplace vendor ${product.vendorName} page`);
+      navigate(`/marketstorepage/${product.vendorId}`);
+    } else {
+      console.error("Unknown marketplace type or vendor not found");
+    }
   };
 
   const handleFavoriteToggle = (e) => {
@@ -37,7 +71,10 @@ const ProductCard = ({ product, isLoading }) => {
   const mainImage = product?.coverImageUrl;
 
   const formatPrice = (price) => {
-    return price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return price.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   };
 
   const renderCondition = (condition) => {

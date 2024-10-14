@@ -277,6 +277,11 @@ const VendorProfile = () => {
               </div>
               <hr className="w-full border-gray-600" />
             </div>
+            <div className="w-full h-14 flex bg-gray-200">
+              <h1 className="text-xl font-ubuntu font-medium mx-4 translate-y-3 text-black">
+                Data
+              </h1>
+            </div>
            
           </div>
         </div>
@@ -299,18 +304,6 @@ const VendorProfile = () => {
 
           
         </>
-      )}
-
-      {isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <RotatingLines
-            strokeColor="orange"
-            strokeWidth="5"
-            animationDuration="0.75"
-            width="96"
-            visible={true}
-          />
-        </div>
       )}
 
       {isAvatarModalOpen && (

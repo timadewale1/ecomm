@@ -330,18 +330,6 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
           </div>
         </div>
       )}
-
-      {isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <RotatingLines
-            strokeColor="orange"
-            strokeWidth="5"
-            animationDuration="0.75"
-            width="96"
-            visible={true}
-          />
-        </div>
-      )}
     </div>
   );
 };

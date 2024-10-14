@@ -20,6 +20,7 @@ import AddProduct from "../vendor/AddProducts";
 import { BsBox2Fill, BsPin, BsPinAngleFill } from "react-icons/bs";
 import { FaStar } from "react-icons/fa";
 import { Pin } from "@mui/icons-material";
+import Loading from "../../components/Loading/Loading";
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
@@ -217,7 +218,11 @@ const VendorProducts = () => {
   };
 
   return (
-    <div className="w-full mx-auto p-6 bg-white rounded-lg shadow-md">
+    <>
+      {loading ? (
+        <Loading />
+      ) : (
+        <div className="w-full mx-auto p-6 bg-white rounded-lg shadow-md">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-orange-500">Your Products</h2>
         <FaPlus
@@ -236,15 +241,16 @@ const VendorProducts = () => {
           {products.map((product) => (
             <div
               key={product.id}
-              className="border border-gray-300 rounded-lg p-2 shadow-sm cursor-pointer"
+              className="border border-gray-300 rounded-lg p-2 shadow-sm cursor-pointer relative"
               onClick={() => handleProductClick(product)}
             >
-              <div className="">
+              
+              <div className="absolute -top-2 -right-3 bg-gray-300 p-2 rounded-full border-2 flex justify-center">
               <button
-                  className={`bg-black ${
+                  className={` ${
                     product.isFeatured
-                      ? " text-green-700"
-                      : "text-red-400"
+                      ? "text-green-600"
+                      : ""
                   }`}
                   onClick={() => pinProduct(product)}
                 >
@@ -413,6 +419,8 @@ const VendorProducts = () => {
         />
       )}
     </div>
+      )}
+    </>
   );
 };
 

@@ -60,7 +60,8 @@ const VendorBottomBar = ({ isSearchFocused }) => {
   };
 
   return (
-    <div className={`bottom-bar ${isSearchFocused ? "under-keypad" : ""}`}>
+    <div className="bottom-bar-wrapper">
+      <div className={`bottom-bar ${isSearchFocused ? "under-keypad" : ""}`}>
       {navItems.map((item, index) => (
         <div
           key={index}
@@ -77,6 +78,7 @@ const VendorBottomBar = ({ isSearchFocused }) => {
           )}
         </div>
       ))}
+    </div>
     </div>
   );
 };

@@ -4,7 +4,7 @@
   import { db } from "../../firebase.config";
   import { useNavigate } from "react-router-dom";
   import { toast } from "react-toastify";
-  import { Container, Row, FormGroup, Button } from "reactstrap";
+  import { Container, Row, FormGroup } from "reactstrap";
   import { motion } from "framer-motion";
   import { FiChevronLeft } from "react-icons/fi"; // Back icon
   import { ProgressBar, Step } from "react-step-progress-bar";
@@ -117,16 +117,8 @@
       return (adjustedStep / totalVisibleSteps) * 100;
     };
 
-    const handleCategoryChange = (category) => {
-      const newCategories = [...vendorData.categories];
-      if (newCategories.includes(category)) {
-        const index = newCategories.indexOf(category);
-        newCategories.splice(index, 1);
-      } else {
-        newCategories.push(category);
-      }
-      setVendorData({ ...vendorData, categories: newCategories });
-    };
+    
+    
 
     const handleImageUpload = (e) => {
       if (e.target.files[0]) {
@@ -146,27 +138,60 @@
       setStep(step - 1);
     };
 
-    const handleProfileCompletion = async () => {
-      setLoading(true);
-
-      try {
-        const auth = getAuth();
-        const user = auth.currentUser;
-
-        await setDoc(doc(db, "vendors", user.uid), {
-          vendorType,
-          vendorData,
-          bankDetails,
-          deliveryMode,
-          idVerification,
-          idImage, // Save the uploaded ID image
-          profileComplete: true,
+    const handleProfileCompletion = async (e) => {
+      e.preventDefault();
+  
+      const missingFields = [];
+  
+      if (!vendorData.shopName) missingFields.push("Shop Name");
+      if (!vendorData.categories.length) missingFields.push("Categories");
+      if (!vendorData.description) missingFields.push("Description");
+      if (!vendorData.marketPlaceType) missingFields.push("Marketplace Type");
+  
+      if (vendorData.marketPlaceType === "marketplace") {
+        if (!vendorData.marketPlace) missingFields.push("Market Place");
+        if (!vendorData.complexName) missingFields.push("Complex Name");
+        if (!vendorData.phoneNumber) missingFields.push("Phone Number");
+      } else if (vendorData.marketPlaceType === "virtual") {
+        if (!vendorData.socialMediaHandle) missingFields.push("Social Media Handle");
+        if (!vendorData.personalAddress) missingFields.push("Personal Address");
+        if (!vendorData.phoneNumber) missingFields.push("Phone Number");
+        if (!vendorData.coverImage) missingFields.push("Cover Image");
+      }
+  
+      if (missingFields.length) {
+        toast.error(`Please complete the following fields: ${missingFields.join(", ")}`, {
+          className: "custom-toast",
         });
-
-        toast.success("Profile completed successfully.");
+        return;
+      }
+  
+      setLoading(true);
+      const auth = getAuth();
+      const user = auth.currentUser;
+  
+      const { coverImage, ...dataToStore } = vendorData; // Exclude coverImage
+  
+      try {
+        // Update Firestore document
+        await setDoc(
+          doc(db, "vendors", user.uid),
+          {
+            ...dataToStore,
+            profileComplete: true,
+          },
+          { merge: true }
+        );
+  
+        toast.success("Profile completed successfully.", {
+          className: "custom-toast",
+        });
         navigate("/vendordashboard");
       } catch (error) {
-        toast.error("Error completing profile: " + error.message);
+        console.log(error);
+        toast.error("Error completing profile: " + error.message, {
+          className: "custom-toast",
+        });
       } finally {
         setLoading(false);
       }
@@ -910,8 +935,29 @@
                   }}
                 >
                   <option value="">Choose Location</option>
-                  <option value="Lagos">Lagos</option>
-                  <option value="Abuja">Abuja</option>
+                  <option value="Ikeja">Ikeja</option>
+<option value="Surulere">Surulere</option>
+<option value="Yaba">Yaba</option>
+<option value="Victoria Island">Victoria Island</option>
+<option value="Ikoyi">Ikoyi</option>
+<option value="Lekki">Lekki</option>
+<option value="Ajah">Ajah</option>
+<option value="Epe">Epe</option>
+<option value="Badagry">Badagry</option>
+<option value="Ikorodu">Ikorodu</option>
+<option value="Oshodi">Oshodi</option>
+<option value="Mushin">Mushin</option>
+<option value="Agege">Agege</option>
+<option value="Alimosho">Alimosho</option>
+<option value="Ifako-Ijaiye">Ifako-Ijaiye</option>
+<option value="Isolo">Isolo</option>
+<option value="Ojo">Ojo</option>
+<option value="Festac">Festac</option>
+<option value="Somolu">Somolu</option>
+<option value="Amuwo Odofin">Amuwo Odofin</option>
+<option value="Eti-Osa">Eti-Osa</option>
+<option value="Ibeju-Lekki">Ibeju-Lekki</option>
+
                 </select>
               </FormGroup>
 

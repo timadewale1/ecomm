@@ -972,24 +972,63 @@
               />
 
               {/* Brand Category */}
-              <FormGroup className="relative mb-4">
-                <select
-                  name="brandCategory"
-                  value={vendorData.brandCategory}
-                  onChange={handleInputChange}
-                  className="w-full h-16 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-gray-700 text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange"
-                  style={{
-                    backgroundImage:
-                      "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 111.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0L5.516 8.608a.75.75 0 111.06-1.06z%22 /></svg>')",
-                    backgroundPosition: "right 1rem center",
-                    backgroundRepeat: "no-repeat",
-                    backgroundSize: "1rem",
-                  }}
-                >
-                  <option value="">Select Brand Category</option>
-                  <option value="Fashion">Fashion</option>
-                  <option value="Food">Food</option>
-                </select>
+              <FormGroup className="relative mb-2">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowDropdown(!showDropdown)}
+                    className="w-full h-16 mb-4 p-3 border-2 rounded-lg bg-white text-gray-700 text-left flex items-center justify-between"
+                  >
+                    {vendorData.categories.length > 0
+                      ? vendorData.categories.join(", ")
+                      : "Select Brand Category"}
+                    <svg
+                      className="fill-current h-4 w-4 text-gray-700"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 1 1 1.06 1.06l-5.015 5.015a.75.75 0 0 1-1.06 0l-5.015-5.015a.75.75 0 1 1 1.06-1.06z" />
+                    </svg>
+                  </button>
+
+                  {showDropdown && (
+                    <div className="absolute w-full bg-white border rounded-lg z-10">
+                      {categories.map((category, index) => (
+                        <div key={index} className="p-2">
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              value={category}
+                              checked={vendorData.categories.includes(
+                                category
+                              )}
+                              onChange={(e) => {
+                                const newCategories = [
+                                  ...vendorData.categories,
+                                ];
+                                if (e.target.checked) {
+                                  newCategories.push(category);
+                                } else {
+                                  const idx =
+                                    newCategories.indexOf(category);
+                                  if (idx > -1) {
+                                    newCategories.splice(idx, 1);
+                                  }
+                                }
+                                setVendorData({
+                                  ...vendorData,
+                                  categories: newCategories,
+                                });
+                              }}
+                              className="mr-2"
+                            />
+                            {category}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </FormGroup>
 
               {/* Days of Availability */}
@@ -1072,7 +1111,7 @@
                   vendorData.brandAddress &&
                   vendorData.location &&
                   vendorData.complexNumber &&
-                  vendorData.brandCategory &&
+                  vendorData.categories &&
                   vendorData.daysAvailability &&
                   vendorData.openTime &&
                   vendorData.closeTime
@@ -1086,7 +1125,7 @@
                   !vendorData.brandAddress ||
                   !vendorData.location ||
                   !vendorData.complexNumber ||
-                  !vendorData.brandCategory ||
+                  !vendorData.categories ||
                   !vendorData.daysAvailability ||
                   !vendorData.openTime ||
                   !vendorData.closeTime

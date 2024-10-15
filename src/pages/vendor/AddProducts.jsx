@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { doc, collection, setDoc, addDoc, updateDoc, arrayUnion, getDoc } from "firebase/firestore";
+import {
+  doc,
+  collection,
+  setDoc,
+  addDoc,
+  updateDoc,
+  arrayUnion,
+  getDoc,
+} from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from "../../firebase.config";
 import { toast } from "react-toastify";
@@ -127,9 +135,10 @@ const AddProduct = ({ vendorId, closeModal }) => {
   const handleAddProduct = async () => {
     if (!currentUser || currentUser.uid !== vendorId) {
       toast.error("Unauthorized access or no user is signed in.");
+      console.log("Unauthorized access or user not signed in.");  // Debugging log
       return;
     }
-
+  
     // Validate required fields
     if (
       !productName ||
@@ -144,14 +153,15 @@ const AddProduct = ({ vendorId, closeModal }) => {
       (productCondition === "defect" && !productDefectDescription)
     ) {
       toast.error("Please fill in all required fields!");
+      console.log("Missing required fields!");  // Debugging log
       return;
     }
-
+  
     setIsLoading(true);
-
+  
     try {
       let coverImageUrl = "";
-
+  
       // Upload cover image
       if (productCoverImageFile) {
         const storageRef = ref(
@@ -161,7 +171,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         await uploadBytes(storageRef, productCoverImageFile);
         coverImageUrl = await getDownloadURL(storageRef);
       }
-
+  
       // Upload additional product images
       const productImageUrls = await Promise.all(
         productImageFiles.map(async (file) => {
@@ -170,60 +180,66 @@ const AddProduct = ({ vendorId, closeModal }) => {
           return getDownloadURL(storageRef);
         })
       );
+  
+      // Fetch vendor's approval status and cover image
+      const vendorDocRef = doc(db, "vendors", vendorId);
+      const vendorDoc = await getDoc(vendorDocRef);
+  
+      if (!vendorDoc.exists()) {
+        toast.error("Vendor data not found.");
+        console.log("Vendor data not found!");  // Debugging log
+        setIsLoading(false);
+        return;
+      }
 
-      // Create the product object
+      const vendorData = vendorDoc.data();
+      const vendorCoverImage = vendorData.coverImageUrl || "";  // Fetch the vendor cover image
+  
+      // Create the product object with vendorIsApproved field
       const product = {
         name: productName.toUpperCase(),
-        description:
-          productDescription.charAt(0).toUpperCase() +
-          productDescription.slice(1).toLowerCase(),
+        description: productDescription.charAt(0).toUpperCase() + productDescription.slice(1).toLowerCase(),
         price: parseFloat(productPrice),
         coverImageUrl: coverImageUrl,
         imageUrls: productImageUrls,
         vendorId: currentUser.uid,
-        vendorName: vendorName, // Ensure vendorName is part of the product document
+        vendorName: vendorData.shopName, // Use vendorName from the vendor's document
         stockQuantity: parseInt(stockQuantity, 10),
-        condition:
-          productCondition === "defect"
-            ? `Defect: ${
-                productDefectDescription.charAt(0).toUpperCase() +
-                productDefectDescription.slice(1).toLowerCase()
-              }`
-            : productCondition.charAt(0).toUpperCase() +
-              productCondition.slice(1).toLowerCase(),
-        category:
-          category.charAt(0).toUpperCase() + category.slice(1).toLowerCase(),
-        productType:
-          productType.charAt(0).toUpperCase() +
-          productType.slice(1).toLowerCase(),
+        condition: productCondition === "defect"
+          ? `Defect: ${productDefectDescription.charAt(0).toUpperCase() + productDefectDescription.slice(1).toLowerCase()}`
+          : productCondition.charAt(0).toUpperCase() + productCondition.slice(1).toLowerCase(),
+        category: category.charAt(0).toUpperCase() + category.slice(1).toLowerCase(),
+        productType: productType.charAt(0).toUpperCase() + productType.slice(1).toLowerCase(),
         size: size.map((s) => s.value).join(", "),
         color: color.charAt(0).toUpperCase() + color.slice(1).toLowerCase(),
+        createdAt: new Date(),
       };
-
+  
+      // Log product data
+      console.log("Product Data:", product);  // Debugging log
+  
       // Add the product to the centralized 'products' collection
       const productsCollectionRef = collection(db, "products");
       const newProductRef = doc(productsCollectionRef); // Generate new product document reference
       await setDoc(newProductRef, product);
-      // After adding the product to the products collection
-      await setDoc(newProductRef, product);
-
+  
       // Add the product ID to the vendor's 'productIds' array
-      const vendorDocRef = doc(db, "vendors", vendorId);
       await updateDoc(vendorDocRef, {
         productIds: arrayUnion(newProductRef.id), // Add the new product ID to the array
       });
-
+  
       // Log activity in the vendor's activityNotes collection
       await logActivity(`Added ${productName} to your store`);
-
+  
       // Notify followers after product has been successfully added
       await notifyFollowers(vendorId, {
         name: productName,
-        shopName: vendorName, // Use vendorName here
+        shopName: vendorData.shopName, // Use vendorName from the vendor document
         id: newProductRef.id,
-        coverImageUrl: coverImageUrl, // Pass the cover image URL here
+        vendorCoverImage: vendorCoverImage, // Pass the vendor cover image URL here
+        coverImageUrl: coverImageUrl, // Pass the product cover image URL here
       });
-
+  
       // Show success message and reset form
       toast.success("Product added successfully");
       setProductName("");
@@ -240,12 +256,14 @@ const AddProduct = ({ vendorId, closeModal }) => {
       setColor("");
       closeModal(); // Close the modal after successful product addition
     } catch (error) {
-      console.error("Error adding product: ", error);
+      console.error("Error adding product: ", error);  // Error log
       toast.error("Error adding product: " + error.message);
     } finally {
       setIsLoading(false);
     }
-  };
+};
+
+  
 
   const generateDescription = async () => {
     setIsGeneratingDescription(true);

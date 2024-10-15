@@ -8,7 +8,7 @@ import useAuth from "../custom-hooks/useAuth";
 import { FaPen, FaHeart, FaAngleRight, FaAngleLeft } from "react-icons/fa";
 import { FaRegCircleUser } from "react-icons/fa6";
 import { GiClothes } from "react-icons/gi";
-
+import { LiaClipboardListSolid } from "react-icons/lia";
 import OrderHistory from "./UserSide/History";
 import { MdHistory, MdHelpOutline, MdModeEdit } from "react-icons/md";
 import { CiMoneyBill } from "react-icons/ci";
@@ -80,7 +80,7 @@ const Profile = () => {
       !showFAQs &&
       !showDonations ? (
         <div className="flex flex-col items-center">
-          <div className="flex border-4 border-customOrange rounded-full p-2 justify-center mt-4 relative">
+          <div className="flex border  rounded-full p-1 justify-center mt-4 relative">
             {loading ? (
               <Skeleton circle={true} height={144} width={144} />
             ) : userData && userData.photoURL ? (
@@ -99,7 +99,7 @@ const Profile = () => {
               </div>
             )}
             <MdModeEdit
-              className="absolute bottom-0 right-0 border-2 border-customOrange text-black  mr-2 text-3xl p-2 rounded-full bg-white cursor-pointer shadow-md"
+              className="absolute bottom-0 right-0 border text-black  mr-2 text-3xl p-2 rounded-full bg-white cursor-pointer shadow-md"
               onClick={() => setIsAvatarModalOpen(true)}
             />
           </div>
@@ -120,12 +120,12 @@ const Profile = () => {
                 onClick={() => setShowDetails(!showDetails)}
               >
                 <div className="flex items-center">
-                  <FaRegCircleUser className="text-customOrange text-xl mr-4" />
+                  <FaRegCircleUser className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-black capitalize">
                     Profile Details
                   </h2>
                 </div>
-                <FaAngleRight className="text-customOrange" />
+                <FaAngleRight className="text-black" />
               </div>
               <hr className="w-full border-gray-600" />
             </div>
@@ -137,12 +137,12 @@ const Profile = () => {
                 onClick={() => navigate("/favorites")}
               >
                 <div className="flex items-center">
-                  <FaHeart className="text-customOrange text-xl mr-4" />
+                  <FaHeart className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-black capitalize">
                     Favorites
                   </h2>
                 </div>
-                <FaAngleRight className="text-customOrange" />
+                <FaAngleRight className="text-black" />
               </div>
               <hr className="w-full border-gray-600" />
             </div>
@@ -153,12 +153,12 @@ const Profile = () => {
                 onClick={() => setShowHistory(!showHistory)}
               >
                 <div className="flex items-center">
-                  <MdHistory className="text-customOrange text-xl mr-4" />
+                  <MdHistory className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-black capitalize">
                     History
                   </h2>
                 </div>
-                <FaAngleRight className="text-customOrange" />
+                <FaAngleRight className="text-black" />
               </div>
               <hr className="w-full border-gray-600" />
             </div>
@@ -174,12 +174,28 @@ const Profile = () => {
                 onClick={() => navigate("/user-dashboard")}
               >
                 <div className="flex items-center">
-                  <AiOutlineDashboard className="text-customOrange text-xl mr-4" />
+                  <AiOutlineDashboard className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-black capitalize">
                     Metrics
                   </h2>
                 </div>
-                <FaAngleRight className="text-customOrange" />
+                <FaAngleRight className="text-black" />
+              </div>
+              <hr className="w-full border-gray-600" />
+            </div>
+            <div className="flex flex-col items-center w-full">
+              <hr className="w-full border-gray-600" />
+              <div
+                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+                onClick={() => navigate("/user-orders")}
+              >
+                <div className="flex items-center">
+                  <LiaClipboardListSolid className="text-black text-xl mr-4" />
+                  <h2 className="text-size font-normal text-black capitalize">
+                    Orders
+                  </h2>
+                </div>
+                <FaAngleRight className="text-black" />
               </div>
               <hr className="w-full border-gray-600" />
             </div>
@@ -195,12 +211,12 @@ const Profile = () => {
                 onClick={() => setShowFAQs(!showFAQs)}
               >
                 <div className="flex items-center">
-                  <MdHelpOutline className="text-customOrange text-xl mr-4" />
+                  <MdHelpOutline className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-black capitalize">
                     FAQs
                   </h2>
                 </div>
-                <FaAngleRight className="text-customOrange" />
+                <FaAngleRight className="text-black" />
               </div>
               <hr className="w-full border-gray-600" />
             </div>
@@ -211,12 +227,12 @@ const Profile = () => {
                 onClick={() => setShowDonations(true)}
               >
                 <div className="flex items-center">
-                  <CiMoneyBill className="text-customOrange text-xl mr-4" />
+                  <CiMoneyBill className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-black capitalize">
                     Donations
                   </h2>
                 </div>
-                <FaAngleRight className="text-customOrange" />
+                <FaAngleRight className="text-black" />
               </div>
               <hr className="w-full border-gray-600" />
             </div>
@@ -225,12 +241,12 @@ const Profile = () => {
               onClick={() => navigate("/explore")}
             >
               <div className="flex items-center">
-                <GiClothes className="text-customOrange text-xl mr-4" />
+                <GiClothes className="text-black text-xl mr-4" />
                 <h2 className="text-size font-normal text-black capitalize">
                   Declutter
                 </h2>
               </div>
-              <FaAngleRight className="text-customOrange" />
+              <FaAngleRight className="text-black" />
             </div>
           </div>
         </div>

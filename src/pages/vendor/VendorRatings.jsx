@@ -203,12 +203,12 @@ const VendorRatings = () => {
       toast.error("Your review contains inappropriate language.");
       return;
     }
-
+  
     if (!isProfileComplete) {
       toast.error("Please complete your profile before submitting a review.");
       return;
     }
-
+  
     try {
       setIsSubmitting(true);
       if (!id || !currentUser) {
@@ -216,43 +216,46 @@ const VendorRatings = () => {
         setIsSubmitting(false);
         return;
       }
-
+  
       if (!newRating) {
         toast.error("Please select a rating.");
         setIsSubmitting(false);
         return;
       }
-
+  
       const reviewsRef = collection(db, "vendors", id, "reviews");
-
+  
       // Save the review only if text is provided
-      // Save review even without text
       await addDoc(reviewsRef, {
         reviewText: newReview.trim() !== "" ? newReview : null, // Add text if provided
         rating: newRating,
-        userName: currentUser.username,
-        userPhotoURL: currentUser.photoURL,
+        userName: currentUser.username || currentUser.displayName, // Use displayName if username doesn't exist
+        userPhotoURL: currentUser.photoURL || DefaultImageUrl, // Use a default image if userPhotoURL is missing
         createdAt: new Date(),
       });
-
+  
       // Update vendor rating even if no text review is provided
       const vendorRef = doc(db, "vendors", id);
       await updateDoc(vendorRef, {
         ratingCount: increment(1),
         rating: increment(newRating),
       });
-
+  
       setShowModal(false);
       setNewReview("");
       setNewRating(0);
       fetchReviews(); // Refresh the reviews and progress bar
       toast.success("Review added successfully!");
     } catch (error) {
-      toast.error("Error adding review");
+      // Add detailed error logging for debugging
+      console.error("Error adding review:", error.message);
+      console.error("Error details:", error);
+      toast.error("Error adding review, please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
+  
 
   const DefaultImageUrl =
     "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";

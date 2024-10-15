@@ -1,4 +1,3 @@
-// redux/reducers/cartReducer.js
 import {
   SET_CART,
   ADD_TO_CART,
@@ -13,72 +12,169 @@ const initialState = {};
 export const cartReducer = (state = initialState, action) => {
   switch (action.type) {
     case SET_CART:
-      console.log("Reducer SET_CART:", action.payload);
       return action.payload;
-    case ADD_TO_CART: {
-      const { id, selectedSize, quantity } = action.payload;
-      const productKey = `${id}-${selectedSize}`;
-      const existingItem = state[productKey];
 
-      // If the product is already in the cart, replace its quantity or sum based on preference
-      const newState = {
+    case ADD_TO_CART: {
+      const { vendorId, productKey, product } = action.payload;
+
+      if (!vendorId || !productKey) {
+        return state;
+      }
+
+      const vendorCart = state[vendorId] || {
+        vendorName: product.vendorName,
+        products: {},
+      };
+
+      const updatedState = {
         ...state,
-        [productKey]: {
-          ...action.payload,
-          quantity: existingItem
-            ? quantity
-            : (existingItem?.quantity || 0) + quantity, // Sum only when intended
+        [vendorId]: {
+          ...vendorCart,
+          products: {
+            ...vendorCart.products,
+            [productKey]: product,
+          },
         },
       };
 
-      console.log("Reducer ADD_TO_CART:", newState);
-      return newState;
+      return updatedState;
     }
 
     case REMOVE_FROM_CART: {
-      const newState = { ...state };
-      delete newState[action.payload];
-      console.log("Reducer REMOVE_FROM_CART:", newState);
-      return newState;
-    }
-    case CLEAR_CART:
-      console.log("Reducer CLEAR_CART:", {});
-      return {};
-      case INCREASE_QUANTITY: {
-        const productKey = action.payload;
-        if (state[productKey].quantity < state[productKey].stockQuantity) {
-          const newState = {
-            ...state,
-            [productKey]: {
-              ...state[productKey],
-              quantity: state[productKey].quantity + 1,
-            },
-          };
-          console.log("Reducer INCREASE_QUANTITY:", newState);
-          return newState;
-        }
-        return state;
+      const { vendorId, productKey } = action.payload;
+      const vendorCart = state[vendorId];
+
+      if (!vendorCart) return state;
+
+      const updatedProducts = { ...vendorCart.products };
+      delete updatedProducts[productKey];
+
+      if (Object.keys(updatedProducts).length === 0) {
+        const newState = { ...state };
+        delete newState[vendorId];
+
+        return newState;
       }
-      
-    case DECREASE_QUANTITY: {
-      const productKey = action.payload;
-      if (state[productKey].quantity > 1) {
-        const newState = {
-          ...state,
-          [productKey]: {
-            ...state[productKey],
-            quantity: state[productKey].quantity - 1,
-          },
-        };
-        console.log("Reducer DECREASE_QUANTITY:", newState);
+
+      const updatedState = {
+        ...state,
+        [vendorId]: {
+          ...vendorCart,
+          products: updatedProducts,
+        },
+      };
+
+      return updatedState;
+    }
+
+    case CLEAR_CART: {
+      const { vendorId } = action.payload;
+
+      if (vendorId) {
+        const newState = { ...state };
+        delete newState[vendorId];
+        console.log("Cleared cart for vendor:", vendorId);
         return newState;
       } else {
-        const newState = { ...state };
-        delete newState[productKey];
-        console.log("Reducer DECREASE_QUANTITY:", newState);
-        return newState;
+        console.log("Clearing entire cart");
+        return {};
       }
     }
+
+    case INCREASE_QUANTITY: {
+      const { vendorId, productKey } = action.payload;
+      const vendorCart = state[vendorId];
+
+      if (!vendorCart) return state;
+
+      const product = vendorCart.products[productKey];
+
+      if (!product) {
+       
+        return state;
+      }
+
+      const updatedProduct = {
+        ...product,
+        quantity: product.quantity + 1,
+      };
+
+      const updatedVendorCart = {
+        ...vendorCart,
+        products: {
+          ...vendorCart.products,
+          [productKey]: updatedProduct,
+        },
+      };
+
+      const updatedState = {
+        ...state,
+        [vendorId]: updatedVendorCart,
+      };
+
+      
+      return updatedState;
+    }
+
+    case DECREASE_QUANTITY: {
+      const { vendorId, productKey } = action.payload;
+      const vendorCart = state[vendorId];
+
+      if (!vendorCart) return state;
+
+      const product = vendorCart.products[productKey];
+
+      if (!product) {
+       
+        return state;
+      }
+
+      if (product.quantity > 1) {
+        const updatedProduct = {
+          ...product,
+          quantity: product.quantity - 1,
+        };
+
+        const updatedVendorCart = {
+          ...vendorCart,
+          products: {
+            ...vendorCart.products,
+            [productKey]: updatedProduct,
+          },
+        };
+
+        const updatedState = {
+          ...state,
+          [vendorId]: updatedVendorCart,
+        };
+
+        
+        return updatedState;
+      } else {
+        // If quantity is 1, remove the product
+        const updatedProducts = { ...vendorCart.products };
+        delete updatedProducts[productKey];
+
+        if (Object.keys(updatedProducts).length === 0) {
+          const newState = { ...state };
+          delete newState[vendorId];
+          
+          return newState;
+        }
+
+        const updatedState = {
+          ...state,
+          [vendorId]: {
+            ...vendorCart,
+            products: updatedProducts,
+          },
+        };
+
+        
+        return updatedState;
+      }
+    }
+
     default:
       return state;
   }

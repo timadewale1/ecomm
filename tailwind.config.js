@@ -8,6 +8,7 @@ module.exports = {
       colors: {
         customOrange: '#f9531e',
         customCream: '#FCECD3',
+        customBrown: '#BE7159',
         customGreen: '#def2eb',
         textGreen: '#388f6e',
         dotGreen: '#9cd8c2',
@@ -21,6 +22,13 @@ module.exports = {
         playwrite: ['playwrite CU', 'cursive'],
         opensans: ['Open Sans', 'sans-serif'],
 
+      },
+      'modal-slide-up': {
+          '0%': { transform: 'translateY(100%)' },
+          '100%': { transform: 'translateY(0)' },
+        },
+      animation: {
+        'modal-slide-up': 'modal-slide-up 4s ease-out',
       },
     },
   },

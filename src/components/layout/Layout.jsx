@@ -21,6 +21,7 @@ const Layout = () => {
     "/confirm-user-state",
     "/vendorlogin",
     "/vendor-signup",
+    "/verify-otp",
     "/complete-profile",
     "/newcheckout/bookingfee",
     "/newcheckout/fulldelivery",

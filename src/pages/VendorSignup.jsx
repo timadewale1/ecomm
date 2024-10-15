@@ -1,64 +1,79 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-} from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { db } from "../firebase.config";
+import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
+import { auth } from "../firebase.config";
 
 import toast from "react-hot-toast";
 
-import {
-  FaAngleLeft,
-  FaRegEyeSlash,
-  FaRegEye,
-  FaRegUser,
-} from "react-icons/fa";
-import { MdEmail } from "react-icons/md";
-import { GrSecure } from "react-icons/gr";
+import { FaAngleLeft } from "react-icons/fa";
 import { motion } from "framer-motion";
-import Typewriter from "typewriter-effect";
 import VendorLoginAnimation from "../SignUpAnimation/SignUpAnimation";
-import { RotatingLines } from "react-loader-spinner";
+import OTPverification from "./OTPverification";
 import Loading from "../components/Loading/Loading";
 
 const VendorSignup = () => {
   const [vendorData, setVendorData] = useState({
     firstName: "",
     lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
+    phoneNumber: "",
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState(null); // Store confirmation result
   const [loading, setLoading] = useState(false);
+  const [bloading, setBLoading] = useState(false);
+  const [sent, setSent] = useState(false);
 
-  const navigate = useNavigate();
+  useEffect(() => {
+    setupRecaptcha();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setVendorData({ ...vendorData, [name]: value });
   };
 
-  const validateName = (name) => {
-    const regex = /^[A-Za-z]+$/;
-    return regex.test(name);
-  };
+  const validateName = (name) => /^[A-Za-z]+$/.test(name);
+  const validateNumber = (phoneNumber) => /^[0-9]{10,15}$/.test(phoneNumber); // Update regex as per the region
 
-  const validateEmail = (email) => {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
+  const setupRecaptcha = async () => {
+    if (!window.recaptchaVerifier) {
+      console.log("Initializing recaptcha verifier...");
+
+      window.recaptchaVerifier = new RecaptchaVerifier(
+        auth,
+        "recaptcha-container",
+        {
+          size: "normal",
+          callback: (response) => {
+            console.log("reCAPTCHA solved!");
+          },
+          "expired-callback": () => {
+            toast.error("reCAPTCHA expired. Please try again.");
+            window.recaptchaVerifier.clear(); // Clear recaptcha and re-render if expired
+            setupRecaptcha(); //
+          },
+        }
+      );
+    } else {
+      console.log("Recaptcha verifier already initialized");
+    }
+
+    try {
+      // Explicitly disable app verification for testing
+      // auth.settings.appVerificationDisabledForTesting = true;
+      await window.recaptchaVerifier.render();
+      console.log("Recaptcha rendered successfully");
+    } catch (error) {
+      console.error("Recaptcha rendering error:", error);
+      throw new Error("Recaptcha could not be rendered");
+    }
   };
 
   const handleSignup = async (e) => {
     e.preventDefault();
-    setLoading(true);
-  
+    setBLoading(true);
+
     if (
       !validateName(vendorData.firstName) ||
       !validateName(vendorData.lastName)
@@ -67,252 +82,185 @@ const VendorSignup = () => {
       setLoading(false);
       return;
     }
-  
-    if (!validateEmail(vendorData.email)) {
-      toast.error("Invalid email format.");
+
+    if (!validateNumber(vendorData.phoneNumber)) {
+      toast.error("Phone number must be valid.");
       setLoading(false);
       return;
     }
-  
-    if (vendorData.password !== vendorData.confirmPassword) {
-      toast.error("Passwords do not match.");
-      setLoading(false);
-      return;
-    }
-  
+
     try {
-      const auth = getAuth();
-      const userCredential = await createUserWithEmailAndPassword(
+      const Number = "+234" + vendorData.phoneNumber; // Assuming it's Nigeria; change the country code as necessary
+      const phoneNumber = Number;
+
+      // Check if the recaptchaVerifier is properly initialized
+      if (!window.recaptchaVerifier) {
+        await setupRecaptcha();
+        toast.error("reCAPTCHA verifier not initialized.");
+        setBLoading(false);
+        return;
+      }
+
+      const appVerifier = window.recaptchaVerifier;
+
+      // Confirm reCAPTCHA rendering before proceeding
+      if (typeof appVerifier.verify !== "function") {
+        toast.error("reCAPTCHA verification not properly initialized.");
+        setBLoading(false);
+        return;
+      }
+
+      const confirmationResult = await signInWithPhoneNumber(
         auth,
-        vendorData.email,
-        vendorData.password
+        phoneNumber, // Assuming it's Nigeria; change the country code as necessary
+        appVerifier
       );
-      const user = userCredential.user;
-  
-      await sendEmailVerification(user);
-  
-      const timestamp = new Date();
-  
-      await setDoc(doc(db, "vendors", user.uid), {
-        uid: user.uid,
-        firstName: vendorData.firstName,
-        lastName: vendorData.lastName,
-        email: vendorData.email,
-        role: "vendor",
-        profileComplete: false,
-        createdSince: timestamp,
-        lastUpdate: timestamp,
-        isApproved: false,
-      });
-  
-      toast.success(
-        "Account created successfully. Please check your email for verification."
-      );
-      navigate("/vendorlogin");
+
+      // Store the confirmationResult to verify OTP later
+      toast.success("OTP sent to your phone number.");
+
+      if (vendorData && confirmationResult) {
+        setConfirmationResult(confirmationResult);
+        setSent(true);
+      } else {
+        toast.error("Error sending OTP. missing data");
+
+        console.error("Missing data: vendorData or confirmationResult is null");
+      }
     } catch (error) {
-      handleSignupError(error);
+      toast.error("Error sending OTP: " + error.message);
+      console.log("Error sending OTP: ", error, "message:", error.message);
     } finally {
-      setLoading(false);
+      setBLoading(false);
     }
   };
-  
-  const handleSignupError = (error) => {
-    switch (error.code) {
-      case "auth/email-already-in-use":
-        toast.error("This email is already registered. Please log in.");
-        break;
-      case "auth/weak-password":
-        toast.error("Password should be at least 6 characters.");
-        break;
-      case "auth/invalid-email":
-        toast.error("Invalid email format.");
-        break;
-      default:
-        toast.error("Error signing up vendor: " + error.message);
-    }
-  };
-  
+
   return (
-    <Helmet>
-      <section>
-        <Container>
-          <Row>
-            {loading ? (
-              <Loading />
-            ) : (
-              <div className="px-3">
-                <Link to="/confirm-user-state">
-                  <FaAngleLeft className="text-3xl -translate-y-2 font-normal text-black" />
-                </Link>
-                <VendorLoginAnimation />
-                <div className="flex justify-center text-xl text-customOrange -translate-y-1">
-                  <Typewriter
-                    options={{
-                      strings: ["Showcase your goods", "Connect with buyers"],
-                      autoStart: true,
-                      loop: true,
-                      delay: 100,
-                      deleteSpeed: 10,
-                    }}
-                  />
-                </div>
-                <div className="flex justify-center text-xs font-medium text-customOrange -translate-y-2">
-                  <Typewriter
-                    options={{
-                      strings: [
-                        "and make OWO!",
-                        "and make KUDI!",
-                        "and make EGO!",
-                      ],
-                      autoStart: true,
-                      loop: true,
-                      delay: 50,
-                      deleteSpeed: 30,
-                    }}
-                  />
-                </div>
-                <div className="translate-y-4">
-                  <div className="mb-2">
-                    <h1 className="font-ubuntu text-5xl flex font-semibold text-black">
-                      Sign Up{" "}
-                      <span className="text-customOrange translate-y-4 text-xl">
-                        <p>(Vendor)</p>
-                      </span>
-                    </h1>
+    <Helmet className="font-opensans">
+      {sent ? (
+        <OTPverification
+          vendorData={vendorData}
+          confirmationResult={confirmationResult}
+          sent={sent}
+          setSent={setSent}
+        />
+      ) : (
+        <section>
+          <Container>
+            <Row>
+              {loading ? (
+                <Loading />
+              ) : (
+                <div className="px-3 font-opensans">
+                  <Link to="/confirm-user-state">
+                    <FaAngleLeft className="text-3xl -translate-y-2 font-extralight text-gray-500" />
+                  </Link>
+                  <div className="flex flex-col justify-center items-center">
+                    <VendorLoginAnimation />
                   </div>
-                  <p className="text-black font-semibold">
-                    Please sign up to continue
+                  <p className="text-3xl font-bold text-customBrown mt-4 mb-2">
+                    Create an account
                   </p>
-                  {/* <h4 className="text-xs text-red-500">
-                        Note that you can't change these details more than once within 30days
-                      </h4> */}
-                  <Form className="mt-4" onSubmit={handleSignup}>
-                    <FormGroup className="relative mb-2">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <FaRegUser className="text-gray-500 text-xl" />
+                  <div className="text-sm">
+                    Join us and elevate your business to new heights
+                  </div>
+                  <div className="translate-y-4">
+                    <Form className="mt-4" onSubmit={handleSignup}>
+                      <FormGroup className="relative mb-2">
+                        <input
+                          type="text"
+                          name="firstName"
+                          placeholder="First Name"
+                          value={vendorData.firstName}
+                          className="w-full h-14 text-gray-800 font-normal pl-2 rounded-lg border-2 focus:border-customOrange focus:outline-none"
+                          onChange={handleInputChange}
+                          required
+                        />
+                      </FormGroup>
+                      <FormGroup className="relative mb-2">
+                        <input
+                          type="text"
+                          name="lastName"
+                          placeholder="Last Name"
+                          value={vendorData.lastName}
+                          className="w-full h-14 text-gray-800 font-normal pl-2 rounded-lg border-2 focus:border-customOrange focus:outline-none"
+                          onChange={handleInputChange}
+                          required
+                        />
+                      </FormGroup>
+                      <div className="w-full flex">
+                        <div className="w-3/12 h-14 text-gray-800 font-normal p-2 mr-3 rounded-lg border-2 mb-2 flex justify-around md:w-2/12 items-center">
+                          <img
+                            src="flag.png"
+                            alt="flag"
+                            className="min-w-5 w-5 max-w-9"
+                          />
+                          <p>+234</p>
+                        </div>
+                        <input
+                          className="w-9/12 md:w-10/12 h-14 text-gray-800 font-normal pl-2 rounded-lg border-2 mb-2 focus:border-customOrange focus:outline-none"
+                          type="number"
+                          name="phoneNumber"
+                          placeholder="70 0000 0000"
+                          value={vendorData.phoneNumber}
+                          maxLength={10}
+                          onChange={handleInputChange}
+                          required
+                        />
                       </div>
-                      <input
-                        type="text"
-                        name="firstName"
-                        placeholder="First Name"
-                        value={vendorData.firstName}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </FormGroup>
-                    <FormGroup className="relative mb-2">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <FaRegUser className="text-gray-500 text-xl" />
-                      </div>
-                      <input
-                        type="text"
-                        name="lastName"
-                        placeholder="Last Name"
-                        value={vendorData.lastName}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </FormGroup>
-                    <FormGroup className="relative mb-2">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <MdEmail className="text-gray-500 text-xl" />
-                      </div>
-                      <input
-                        type="email"
-                        name="email"
-                        placeholder="Email"
-                        value={vendorData.email}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </FormGroup>
-                    <FormGroup className="relative mb-2">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <GrSecure className="text-gray-500 text-xl" />
-                      </div>
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        name="password"
-                        placeholder="Password"
-                        value={vendorData.password}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
-                        onChange={handleInputChange}
-                        required
-                      />
-                      <div
-                        className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? (
-                          <FaRegEyeSlash className="text-gray-500 text-xl" />
-                        ) : (
-                          <FaRegEye className="text-gray-500 text-xl" />
-                        )}
-                      </div>
-                    </FormGroup>
-                    <FormGroup className="relative mb-2">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <GrSecure className="text-gray-500 text-xl" />
-                      </div>
-                      <input
-                        type={showConfirmPassword ? "text" : "password"}
-                        name="confirmPassword"
-                        placeholder="Confirm Password"
-                        value={vendorData.confirmPassword}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
-                        onChange={handleInputChange}
-                        required
-                      />
-                      <div
-                        className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
-                        onClick={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
+
+                      <motion.button
+                        whileTap={
+                          vendorData.phoneNumber &&
+                          vendorData.firstName &&
+                          vendorData.lastName &&
+                          validateName(vendorData.firstName) &&
+                          validateName(vendorData.lastName) && { scale: 1.2 }
+                        }
+                        type="submit"
+                        className={`w-full h-14 bg-customOrange text-white font-semibold rounded-full mt-4 ${
+                          vendorData.phoneNumber &&
+                          vendorData.firstName &&
+                          vendorData.lastName &&
+                          validateName(vendorData.firstName) &&
+                          validateName(vendorData.lastName)
+                            ? ""
+                            : "bg-customOrange opacity-30"
+                        }`}
+                        disabled={
+                          !(
+                            vendorData.phoneNumber &&
+                            vendorData.firstName &&
+                            vendorData.lastName &&
+                            validateName(vendorData.firstName) &&
+                            validateName(vendorData.lastName)
+                          )
                         }
                       >
-                        {showConfirmPassword ? (
-                          <FaRegEyeSlash className="text-gray-500 text-xl" />
-                        ) : (
-                          <FaRegEye className="text-gray-500 text-xl" />
-                        )}
+                        {bloading ? "Sending OTP..." : "Continue"}
+                      </motion.button>
+                      <div className="text-center font-light mt-2 flex justify-center">
+                        <p className="text-gray-700">
+                          Already have an account?{" "}
+                          <span className="font-semibold text-black">
+                            <Link
+                              to="/vendorlogin"
+                              className="text-customOrange"
+                            >
+                              Login
+                            </Link>
+                          </span>
+                        </p>
                       </div>
-                    </FormGroup>
-                    <div className="">
-                      {/* <h4>
-                        By signing up, you agree to our{" "}
-                        <span className="text-customOrange font-semibold">
-                          <Link to="/terms-and-conditions">Terms and Conditions</Link>
-                        </span>{" "}
-                        and{" "}
-                        <span className="text-customOrange font-semibold">
-                          <Link to="/privacy-policy">Privacy Policy</Link>
-                        </span>
-                      </h4> */}
-                    </div>
-                    <motion.button
-                      whileTap={{ scale: 1.2 }}
-                      type="submit"
-                      className="w-full h-14 bg-customOrange text-white font-semibold rounded-full mt-4"
-                    >
-                      Sign Up
-                    </motion.button>
-                    <div className="text-center font-light mt-2 flex justify-center">
-                      <p className="text-gray-700">
-                        Already have an account?{" "}
-                        <span className="font-semibold underline text-black">
-                          <Link to="/vendorlogin">Login</Link>
-                        </span>
-                      </p>
-                    </div>
-                  </Form>
+                    </Form>
+                  </div>
                 </div>
-              </div>
-            )}
-          </Row>
-        </Container>
-      </section>
+              )}
+            </Row>
+          </Container>
+        </section>
+      )}
+      <div id="recaptcha-container"></div>
     </Helmet>
   );
 };

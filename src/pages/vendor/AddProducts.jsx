@@ -23,7 +23,7 @@ import notifyFollowers from "../../services/notifyfollowers";
 const animatedComponents = makeAnimated();
 const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
 
-const AddProduct = ({ vendorId, closeModal }) => {
+const AddProduct = ({ vendorId, closeModal, closeModals }) => {
   const [productName, setProductName] = useState("");
   const [productDescription, setProductDescription] = useState("");
   const [productPrice, setProductPrice] = useState("");

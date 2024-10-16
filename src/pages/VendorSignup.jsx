@@ -44,13 +44,14 @@ const VendorSignup = () => {
         auth,
         "recaptcha-container",
         {
-          size: "normal",
+          size: "invisible",
           callback: (response) => {
             console.log("reCAPTCHA solved!");
           },
           "expired-callback": () => {
             toast.error("reCAPTCHA expired. Please try again.");
             window.recaptchaVerifier.clear(); // Clear recaptcha and re-render if expired
+            window.recaptchaVerifier.reset(); // Clear recaptcha and re-render if expired
             setupRecaptcha(); //
           },
         }

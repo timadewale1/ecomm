@@ -6,7 +6,7 @@ import { clearCart } from "../redux/actions/action";
 import useAuth from "../custom-hooks/useAuth";
 import { FaPen } from "react-icons/fa";
 
-import { calculateServiceFee } from "./VendorCompleteProfile/utilis";
+import { calculateServiceFee } from "../services/utilis";
 import { createOrderAndReduceStock } from "../services/Services";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.config";

@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import { useDispatch } from "react-redux"; // Added missing useDispatch
 import { clearCart } from "../redux/actions/action"; // Add necessary imports
 import useAuth from "../custom-hooks/useAuth"; // Add useAuth import
-import { calculateServiceFee } from "./VendorCompleteProfile/utilis"; // Add calculateServiceFee import
+import { calculateServiceFee } from "../services/utilis";// Add calculateServiceFee import
 import { createOrderAndReduceStock } from "../services/Services"; // Add createOrderAndReduceStock import
 
 const FullDelivery = () => {

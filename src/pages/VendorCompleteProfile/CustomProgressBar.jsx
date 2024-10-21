@@ -1,24 +1,26 @@
 import { ProgressBar, Step } from "react-step-progress-bar";
 import "react-step-progress-bar/styles.css";
 
-// ProgressBar component with custom styles
+// Custom ProgressBar component with fixes
 const CustomProgressBar = ({ percent }) => {
   return (
     <ProgressBar
       percent={percent}
       height={8} // Adjust the height of the bar
-      filledBackground="transparent" // Set filled background to transparent so we handle it manually
-      unfilledBackground="#f0f0f0" // The color for the unfilled sections
+      filledBackground="#f9531e" // Orange background for filled section
+      unfilledBackground="#f0f0f0" // Light grey for unfilled sections
     >
       {/* Step 1 */}
       <Step transition="scale">
         {({ accomplished }) => (
           <div
-            className={`transitionAll rounded-full  ${accomplished ? "bg-customOrange" : "bg-gray-300"}`}
+            className={`rounded-full ${
+              accomplished ? "bg-customOrange" : "bg-gray-300"
+            }`}
             style={{
-              width: "70px", // Control the width of each step
-              height: "8px", // Height matches the progress bar height
-              marginRight: "10px", // This adds spacing between steps
+              width: "40px", // Consistent width for each step
+              height: "8px", // Height to match the progress bar
+              marginRight: "5px", // Consistent spacing between steps
             }}
           />
         )}
@@ -28,11 +30,13 @@ const CustomProgressBar = ({ percent }) => {
       <Step transition="scale">
         {({ accomplished }) => (
           <div
-            className={`transitionAll rounded-full  ${accomplished ? "bg-customOrange" : "bg-gray-300"}`}
+            className={`rounded-full ${
+              accomplished ? "bg-customOrange" : "bg-gray-300"
+            }`}
             style={{
-              width: "70px", // Control the width of each step
+              width: "40px", // Consistent width for each step
               height: "8px",
-              marginRight: "10px", // Spacing between steps
+              marginRight: "5px",
             }}
           />
         )}
@@ -42,47 +46,49 @@ const CustomProgressBar = ({ percent }) => {
       <Step transition="scale">
         {({ accomplished }) => (
           <div
-            className={`transitionAll rounded-full  ${accomplished ? "bg-customOrange" : "bg-gray-300"}`}
+            className={`rounded-full ${
+              accomplished ? "bg-customOrange" : "bg-gray-300"
+            }`}
             style={{
-              width: "70px",
+              width: "40px", // Consistent width for each step
               height: "8px",
-              marginRight: "10px",
+              marginRight: "5px",
             }}
           />
         )}
       </Step>
-          
-        {/* Step 4 */}
-        <Step transition="scale">
+
+      {/* Step 4 */}
+      <Step transition="scale">
         {({ accomplished }) => (
           <div
-            className={`transitionAll rounded
-            -full  ${accomplished ? "bg-customOrange" : "bg-gray-300"}`}
+            className={`rounded-full ${
+              accomplished ? "bg-customOrange" : "bg-gray-300"
+            }`}
             style={{
-              width: "70px",
+              width: "40px", // Consistent width for each step
               height: "8px",
-              marginRight: "10px",
+              marginRight: "5px",
             }}
-            />
-            )}
-        </Step>
+          />
+        )}
+      </Step>
 
-        {/* Step 5 */}
-        <Step transition="scale">
+      {/* Step 5 */}
+      <Step transition="scale">
         {({ accomplished }) => (
           <div
-            className={`transitionAll rounded
-            -full  ${accomplished ? "bg-customOrange" : "bg-gray-300"}`}
+            className={`rounded-full ${
+              accomplished ? "bg-customOrange" : "bg-gray-300"
+            }`}
             style={{
-              width: "70px",
+              width: "40px", // Consistent width for each step
               height: "8px",
-              marginRight: "10px",
+              marginRight: "5px",
             }}
-            />
-            )}
-        </Step>
-
-
+          />
+        )}
+      </Step>
     </ProgressBar>
   );
 };

@@ -12,6 +12,7 @@ module.exports = {
         customGreen: '#def2eb',
         textGreen: '#388f6e',
         dotGreen: '#9cd8c2',
+        header: '#3E0C00',
       },
       fontFamily: {
         roboto: ['Roboto', 'sans-serif'],

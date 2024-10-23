@@ -7,15 +7,18 @@ import {
   AiOutlineBank,
   AiOutlineFileProtect,
 } from "react-icons/ai";
+import { useState } from "react";
 import { BiSolidImageAdd } from "react-icons/bi";
 import { FaTruck } from "react-icons/fa";
-import CustomProgressBar from "./CustomProgressBar";
+import ProgressBar from "./ProgressBar";
+import { FaMinusCircle } from "react-icons/fa";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const MarketVendor = ({
   vendorData,
   setVendorData,
   step,
-  getProgress,
   handleInputChange,
   handleNextStep,
   setShowDropdown,
@@ -32,30 +35,141 @@ const MarketVendor = ({
   handleProfileCompletion,
   banks,
 }) => {
+  const [searchTerm, setSearchTerm] = useState(""); // State to handle search input
+
+  const [isLoading, setIsLoading] = useState(false); // State to track loading
+
+ 
+
+
+  const handleValidation = () => {
+    // Validate vendor form fields
+    if (!vendorData.brandName) {
+      toast.error("Please fill in the brand name", {
+        position: toast.POSITION.TOP_RIGHT,
+      });
+      return false;
+    }
+    if (!vendorData.phoneNumber || vendorData.phoneNumber.length !== 11) {
+      toast.error("Phone number must be 11 digits", {
+        position: toast.POSITION.TOP_RIGHT,
+      });
+      return false;
+    }
+    if (!vendorData.brandAddress) {
+      toast.error("Please fill in the brand address", {
+        position: toast.POSITION.TOP_RIGHT,
+      });
+      return false;
+    }
+    if (!vendorData.location) {
+      toast.error("Please select a location", {
+        position: toast.POSITION.TOP_RIGHT,
+      });
+      return false;
+    }
+    if (!vendorData.complexNumber) {
+      toast.error("Please fill in the complex number", {
+        position: toast.POSITION.TOP_RIGHT,
+      });
+      return false;
+    }
+    if (!vendorData.categories.length === 0) {
+      toast.error("Please select at least one category", {
+        position: toast.POSITION.TOP_RIGHT,
+      });
+      return false;
+    }
+    if (!vendorData.daysAvailability) {
+      toast.error("Please select days of availability", {
+        position: toast.POSITION.TOP_RIGHT,
+      });
+      return false;
+    }
+    if (!vendorData.openTime) {
+      toast.error("Please select an opening time", {
+        position: toast.POSITION.TOP_RIGHT,
+      });
+      return false;
+    }
+    if (!vendorData.closeTime) {
+      toast.error("Please select a closing time", {
+        position: toast.POSITION.TOP_RIGHT,
+      });
+      return false;
+    }
+    //bank details validation
+    if (!bankDetails.bankName) {
+      toast.error("Please select a bank name", {
+        position: toast.POSITION.TOP_RIGHT,
+      });
+      return false;
+    }
+    if (!bankDetails.accountNumber || bankDetails.accountNumber.length !== 10) {
+      toast.error("Account number must be 10 digits", {
+        position: toast.POSITION.TOP_RIGHT,
+      });
+      return false;
+    }
+    if (!bankDetails.accountName) {
+      toast.error("Please fill in the account name", {
+        position: toast.POSITION.TOP_RIGHT,
+      });
+      return false;
+    }
+    //delivery mode validation
+
+
+    // If all validations pass, proceed to the next step
+    handleNextStep();
+    return true;
+  };
+
+  const isFormComplete =
+    vendorData.brandName &&
+    vendorData.phoneNumber.length === 11 &&
+    vendorData.brandAddress &&
+    vendorData.location &&
+    vendorData.complexNumber &&
+    vendorData.categories.length > 0 &&
+    vendorData.daysAvailability &&
+    vendorData.openTime &&
+    vendorData.closeTime &&
+    //bank details validation
+    bankDetails.bankName &&
+    bankDetails.accountNumber.length === 10 &&
+    bankDetails.accountName;
+
+
+
+  // Filter categories based on the search input
+  const filteredCategories = categories.filter((category) =>
+    category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
   return (
     <div>
-      {" "}
+      <ToastContainer autoClose={3000} />{" "}
       {vendorData.marketPlaceType === "marketplace" && (
         <>
           {/* Step 2: Create Shop */}
           {step === 2 && (
-            <div className="p-3 mt-10">
+            <div className="p-3 mt-2">
               <h2 className="text-xl font-semibold text-customBrown">
                 Create Shop
               </h2>
-              <p className="text-gray-600 mb-4">
+              <p className="text-neutral-400 mb-4">
                 Set up your brand to get customers and sell products.
               </p>
-              <p className="text-sm text-orange-500 mb-3">
+              <p className="text-sm text-customOrange mb-3">
                 Step 1: Business Information
               </p>
 
               {/* Progress bar */}
-              <CustomProgressBar percent={getProgress()} />
+              <ProgressBar step={1} />
 
               {/* Brand Info for Market Vendor */}
               <h3 className="text-md font-semibold mb-3 flex items-center mt-3">
-                <AiOutlineIdcard className="w-5 h-5 mr-2 text-gray-600" />
+                <AiOutlineIdcard className="w-5 h-5 mr-2 text-header" />
                 Brand Info
               </h3>
 
@@ -68,15 +182,18 @@ const MarketVendor = ({
                 className="w-full h-12 mb-4 p-3 border-2 rounded-lg hover:border-customOrange 
             focus:outline-none focus:border-customOrange"
               />
-
               <input
                 type="tel"
                 name="phoneNumber"
                 placeholder="Brand Phone Number"
-                pattern="[0-9]*"
-                maxLength="11"
+                maxLength="11" // Limits input to 11 digits
                 value={vendorData.phoneNumber}
-                onChange={handleInputChange}
+                onChange={(e) => {
+                  const re = /^[0-9\b]+$/; // Regular expression to allow only numbers and backspace
+                  if (e.target.value === "" || re.test(e.target.value)) {
+                    handleInputChange(e); // Only update state if input is valid (only numbers)
+                  }
+                }}
                 className="w-full h-12 mb-4 p-3 border-2 rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
               />
 
@@ -96,7 +213,11 @@ const MarketVendor = ({
                   name="location"
                   value={vendorData.location}
                   onChange={handleInputChange}
-                  className="w-full h-16 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-gray-700 text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange"
+                  className={`w-full h-14 p-3 pr-10 border border-gray-300 rounded-lg bg-white text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange ${
+                    vendorData.location === ""
+                      ? "text-neutral-400"
+                      : "text-neutral-800"
+                  }`}
                   style={{
                     backgroundImage:
                       "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 111.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0L5.516 8.608a.75.75 0 111.06-1.06z%22 /></svg>')",
@@ -105,7 +226,12 @@ const MarketVendor = ({
                     backgroundSize: "1rem",
                   }}
                 >
-                  <option value="">Choose Location</option>
+                  {/* Placeholder Option */}
+                  <option value="" className="text-neutral-400">
+                    Choose Location
+                  </option>
+
+                  {/* Location Options */}
                   <option value="Ikeja">Ikeja</option>
                   <option value="Surulere">Surulere</option>
                   <option value="Yaba">Yaba</option>
@@ -147,13 +273,19 @@ const MarketVendor = ({
                   <button
                     type="button"
                     onClick={() => setShowDropdown(!showDropdown)}
-                    className="w-full h-16 mb-4 p-3 border-2 rounded-lg bg-white text-gray-700 text-left flex items-center justify-between"
+                    className="w-full h-12 mb-3 p-3 border-2 rounded-lg bg-white font-opensans text-left flex items-center justify-between"
                   >
-                    {vendorData.categories.length > 0
-                      ? vendorData.categories.join(", ")
-                      : "Select Brand Category"}
+                    {vendorData.categories.length > 0 ? (
+                      <span className="text-neutral-800">
+                        {vendorData.categories.join(", ")}
+                      </span>
+                    ) : (
+                      <span className="text-neutral-400">
+                        Select Brand Category
+                      </span>
+                    )}
                     <svg
-                      className="fill-current h-4 w-4 text-gray-700"
+                      className="fill-current h-4 w-4 text-neutral-400"
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 20 20"
                     >
@@ -162,37 +294,62 @@ const MarketVendor = ({
                   </button>
 
                   {showDropdown && (
-                    <div className="absolute w-full bg-white border rounded-lg z-10">
-                      {categories.map((category, index) => (
-                        <div key={index} className="p-2">
-                          <label className="flex items-center">
-                            <input
-                              type="checkbox"
-                              value={category}
-                              checked={vendorData.categories.includes(category)}
-                              onChange={(e) => {
-                                const newCategories = [
-                                  ...vendorData.categories,
-                                ];
-                                if (e.target.checked) {
-                                  newCategories.push(category);
-                                } else {
-                                  const idx = newCategories.indexOf(category);
-                                  if (idx > -1) {
-                                    newCategories.splice(idx, 1);
-                                  }
-                                }
-                                setVendorData({
-                                  ...vendorData,
-                                  categories: newCategories,
-                                });
-                              }}
-                              className="mr-2"
-                            />
-                            {category}
-                          </label>
-                        </div>
-                      ))}
+                    <div className="absolute w-full text-neutral-400 bg-white border rounded-lg z-10">
+                      {/* Search Input */}
+                      <div className="p-2">
+                        <input
+                          type="text"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          placeholder="Search categories..."
+                          className="w-full p-2 border rounded-lg focus:outline-none focus:border-customOrange"
+                        />
+                      </div>
+
+                      {/* Categories List */}
+                      <div className="max-h-60 overflow-y-auto">
+                        {filteredCategories.length > 0 ? (
+                          filteredCategories.map((category, index) => (
+                            <div key={index} className="p-2 h-12">
+                              <label className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  value={category}
+                                  checked={vendorData.categories.includes(
+                                    category
+                                  )}
+                                  onChange={(e) => {
+                                    const newCategories = [
+                                      ...vendorData.categories,
+                                    ];
+                                    if (e.target.checked) {
+                                      newCategories.push(category);
+                                    } else {
+                                      const idx =
+                                        newCategories.indexOf(category);
+                                      if (idx > -1) {
+                                        newCategories.splice(idx, 1);
+                                      }
+                                    }
+                                    setVendorData({
+                                      ...vendorData,
+                                      categories: newCategories,
+                                    });
+                                  }}
+                                  className="mr-2 appearance-none h-4 w-4 border border-gray-300  checked:bg-customOrange checked:border-customOrange focus:outline-none focus:ring-2 focus:ring-customOrange focus:ring-opacity-50 rounded-lg"
+                                />
+                                <span className="text-neutral-800">
+                                  {category}
+                                </span>
+                              </label>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-2 text-sm text-gray-500">
+                            No categories found
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -204,7 +361,11 @@ const MarketVendor = ({
                   name="daysAvailability"
                   value={vendorData.daysAvailability}
                   onChange={handleInputChange}
-                  className="w-full h-16 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-gray-700 text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange"
+                  className={`w-full h-16 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange ${
+                    vendorData.daysAvailability === ""
+                      ? "text-neutral-400"
+                      : "text-neutral-800"
+                  }`}
                   style={{
                     backgroundImage:
                       "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 111.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0L5.516 8.608a.75.75 0 111.06-1.06z%22 /></svg>')",
@@ -213,7 +374,12 @@ const MarketVendor = ({
                     backgroundSize: "1rem",
                   }}
                 >
-                  <option value="">Days of Availability</option>
+                  {/* Placeholder Option */}
+                  <option value="" className="text-neutral-400">
+                    Days of Availability
+                  </option>
+
+                  {/* Available Days Options */}
                   <option value="Monday to Friday">Monday to Friday</option>
                   <option value="Weekends">Weekends</option>
                 </select>
@@ -221,12 +387,17 @@ const MarketVendor = ({
 
               {/* Open and Close time */}
               <div className="flex justify-between mb-4">
+                {/* Open Time */}
                 <FormGroup className="w-1/2 mr-2">
                   <select
                     name="openTime"
                     value={vendorData.openTime}
                     onChange={handleInputChange}
-                    className="w-full h-16 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-gray-700 text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange"
+                    className={`w-full h-16 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange ${
+                      vendorData.openTime === ""
+                        ? "text-neutral-400"
+                        : "text-neutral-800"
+                    }`}
                     style={{
                       backgroundImage:
                         "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 111.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0L5.516 8.608a.75.75 0 111.06-1.06z%22 /></svg>')",
@@ -235,7 +406,9 @@ const MarketVendor = ({
                       backgroundSize: "1rem",
                     }}
                   >
-                    <option value="">Open time</option>
+                    <option value="" className="text-neutral-400">
+                      Open time
+                    </option>
                     <option value="7:00 AM">7:00 AM</option>
                     <option value="8:00 AM">8:00 AM</option>
                     <option value="9:00 AM">9:00 AM</option>
@@ -245,12 +418,17 @@ const MarketVendor = ({
                   </select>
                 </FormGroup>
 
+                {/* Close Time */}
                 <FormGroup className="w-1/2">
                   <select
                     name="closeTime"
                     value={vendorData.closeTime}
                     onChange={handleInputChange}
-                    className="w-full h-16 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-gray-700 text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange"
+                    className={`w-full h-16 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange ${
+                      vendorData.closeTime === ""
+                        ? "text-neutral-400"
+                        : "text-neutral-800"
+                    }`}
                     style={{
                       backgroundImage:
                         "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 111.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0L5.516 8.608a.75.75 0 111.06-1.06z%22 /></svg>')",
@@ -259,7 +437,9 @@ const MarketVendor = ({
                       backgroundSize: "1rem",
                     }}
                   >
-                    <option value="">Closing time</option>
+                    <option value="" className="text-neutral-400">
+                      Closing time
+                    </option>
                     <option value="4:00 PM">4:00 PM</option>
                     <option value="5:00 PM">5:00 PM</option>
                     <option value="6:00 PM">6:00 PM</option>
@@ -273,30 +453,11 @@ const MarketVendor = ({
               <motion.button
                 whileTap={{ scale: 1.05 }}
                 className={`w-full h-12 text-white rounded-full ${
-                  vendorData.brandName &&
-                  vendorData.phoneNumber &&
-                  vendorData.brandAddress &&
-                  vendorData.location &&
-                  vendorData.complexNumber &&
-                  vendorData.categories &&
-                  vendorData.daysAvailability &&
-                  vendorData.openTime &&
-                  vendorData.closeTime
+                  isFormComplete
                     ? "bg-customOrange"
-                    : "bg-customOrange opacity-20"
+                    : "bg-customOrange opacity-50"
                 }`}
-                onClick={handleNextStep}
-                disabled={
-                  !vendorData.brandName ||
-                  !vendorData.phoneNumber ||
-                  !vendorData.brandAddress ||
-                  !vendorData.location ||
-                  !vendorData.complexNumber ||
-                  !vendorData.categories ||
-                  !vendorData.daysAvailability ||
-                  !vendorData.openTime ||
-                  !vendorData.closeTime
-                }
+                onClick={handleValidation} // Enable the button and handle validation on click
               >
                 Next
               </motion.button>
@@ -305,15 +466,15 @@ const MarketVendor = ({
 
           {/* Step 3: Bank Details */}
           {step === 3 && (
-            <div className="p-2 mt-14">
-              <h2 className="text-sm text-orange-500 mb-3">
+            <div className="p-2 mt-3">
+              <h2 className="text-sm text-customOrange mb-3">
                 Step 2: Bank Details
               </h2>
               {/* Progress bar */}
-              <CustomProgressBar percent={getProgress()} />
+              <ProgressBar step={2} />
 
               <h3 className="text-md font-semibold mt-3 mb-3 flex items-center">
-                <AiOutlineBank className="w-5 h-5 mr-2 text-gray-600" />
+                <AiOutlineBank className="w-5 h-5 mr-2 text-header" />
                 Bank Details
               </h3>
 
@@ -323,7 +484,11 @@ const MarketVendor = ({
                   name="bankName"
                   value={bankDetails.bankName}
                   onChange={handleBankDetailsChange}
-                  className="w-full h-16 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-gray-700 text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange"
+                  className={`w-full h-16 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange ${
+                    bankDetails.bankName === ""
+                      ? "text-neutral-400"
+                      : "text-neutral-800"
+                  }`}
                   style={{
                     backgroundImage:
                       "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 111.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0L5.516 8.608a.75.75 0 111.06-1.06z%22 /></svg>')",
@@ -332,7 +497,12 @@ const MarketVendor = ({
                     backgroundSize: "1rem",
                   }}
                 >
-                  <option value="">Bank Name</option>
+                  {/* Placeholder Option */}
+                  <option value="" className="text-neutral-400">
+                    Bank Name
+                  </option>
+
+                  {/* Bank Name Options */}
                   {banks.map((bank, index) => (
                     <option key={index} value={bank}>
                       {bank}
@@ -347,9 +517,13 @@ const MarketVendor = ({
                 name="accountNumber"
                 placeholder="Account Number"
                 value={bankDetails.accountNumber}
-                pattern="[0-9]*"
-                maxLength="11"
-                onChange={handleBankDetailsChange}
+                maxLength="10" // Ensures a maximum of 11 digits
+                onChange={(e) => {
+                  const re = /^[0-9\b]+$/; // Regular expression to allow only numbers and backspace
+                  if (e.target.value === "" || re.test(e.target.value)) {
+                    handleBankDetailsChange(e); // Update state only if valid input
+                  }
+                }}
                 className="w-full h-16 mb-4 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-customOrange"
               />
 
@@ -367,18 +541,11 @@ const MarketVendor = ({
               <motion.button
                 whileTap={{ scale: 1.05 }}
                 className={`w-full h-12 text-white rounded-full ${
-                  bankDetails.bankName &&
-                  bankDetails.accountNumber &&
-                  bankDetails.accountName
+                  isFormComplete
                     ? "bg-customOrange"
-                    : "bg-customOrange opacity-20"
+                    : "bg-customOrange opacity-50"
                 }`}
-                onClick={handleNextStep}
-                disabled={
-                  !bankDetails.bankName ||
-                  !bankDetails.accountNumber ||
-                  !bankDetails.accountName
-                }
+                onClick={handleValidation} // Enable the button and handle validation on click
               >
                 Next
               </motion.button>
@@ -387,20 +554,20 @@ const MarketVendor = ({
 
           {/* Step 5: Delivery Mode */}
           {step === 4 && (
-            <div className="p-2 mt-14">
-              <h2 className="text-sm text-orange-500 mb-3">
+            <div className="p-2 mt-3">
+              <h2 className="text-sm text-customOrange mb-3">
                 Step 3: Delivery Mode
               </h2>
 
               {/* Progress bar */}
-              <CustomProgressBar percent={getProgress()} />
+              <ProgressBar step={3} />
 
               <h3 className="text-md font-semibold mt-3 mb-3 flex items-center">
-                <FaTruck className="w-5 h-5 mr-2 text-gray-600" />
+                <FaTruck className="w-5 h-5 mr-2 text-header" />
                 Delivery Mode
               </h3>
 
-              <p className="text-gray-700 mb-4">
+              <p className="text-neutral-400 mb-4">
                 Choose a delivery mode for your brand
               </p>
 
@@ -411,7 +578,7 @@ const MarketVendor = ({
                   className={`border p-4 mb-4 rounded-lg cursor-pointer flex justify-between items-center ${
                     deliveryMode === "Pickup"
                       ? "border-customOrange"
-                      : "border-gray-300"
+                      : "border-customOrange"
                   }`}
                 >
                   <span>Pickup</span>
@@ -419,7 +586,7 @@ const MarketVendor = ({
                     className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
                       deliveryMode === "Pickup"
                         ? "border-customOrange"
-                        : "border-gray-300"
+                        : "border-customOrange"
                     }`}
                   >
                     {deliveryMode === "Pickup" && (
@@ -446,16 +613,16 @@ const MarketVendor = ({
 
           {/* Step 6: ID Verification */}
           {step === 5 && (
-            <div className="p-2 mt-14">
-              <h2 className="text-sm text-orange-500 mb-3">
+            <div className="p-2 mt-3">
+              <h2 className="text-sm text-customOrange mb-3">
                 Step 4: Verification
               </h2>
 
               {/* Progress bar */}
-              <CustomProgressBar percent={getProgress()} />
+              <ProgressBar step={4} />
 
               <h3 className="text-md font-semibold mt-3 mb-3 flex items-center">
-                <AiOutlineFileProtect className="w-5 h-5 mr-2 text-gray-600" />
+                <AiOutlineFileProtect className="w-5 h-5 mr-2 text-header" />
                 ID Verification
               </h3>
 
@@ -485,55 +652,112 @@ const MarketVendor = ({
 
               {/* Upload ID Image */}
               <h3 className="text-md font-semibold mb-3 flex items-center">
-                <AiOutlineCamera className="w-5 h-5 mr-2 text-gray-600" />
+                <AiOutlineCamera className="w-5 h-5 mr-2 text-header" />
                 Upload ID
               </h3>
-              <div className="border-2 border-dashed rounded-lg p-16 text-center mb-6">
+              <div className="border-2 border-customBrown border-dashed rounded-lg h-48 w-full text-center mb-6">
                 {idImage ? (
-                  <img
-                    src={URL.createObjectURL(idImage)}
-                    alt="Uploaded ID"
-                    className="w-full h-full object-cover"
-                  />
+                  <div className="relative w-full h-full">
+                    <img
+                      src={URL.createObjectURL(idImage)}
+                      alt="Uploaded ID"
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      className="absolute top-2 right-2 bg-customOrange text-white rounded-full p-1"
+                      onClick={() =>
+                        handleIdImageUpload({ target: { files: [] } })
+                      } // Clear the image by triggering the file input
+                    >
+                      <FaMinusCircle className="h-4 w-4" />
+                    </button>
+                  </div>
                 ) : (
                   <>
-                    <label htmlFor="idImageUpload" className="cursor-pointer">
-                      <BiSolidImageAdd
-                        size={40}
-                        className="mb-4 text-customOrange opacity-40"
-                      />
-                    </label>
+                    <div className="border-dashed rounded-lg h-48 w-full text-center mb-6 flex flex-col justify-center items-center">
+                      {idImage ? (
+                        <label
+                          htmlFor="idImageUpload"
+                          className="cursor-pointer w-full h-full"
+                        >
+                          <img
+                            src={URL.createObjectURL(idImage)}
+                            alt="Uploaded ID"
+                            className="w-full h-full object-cover rounded-lg"
+                          />
+                        </label>
+                      ) : (
+                        <>
+                          <label
+                            htmlFor="idImageUpload"
+                            className="cursor-pointer"
+                          >
+                            <BiSolidImageAdd
+                              size={54}
+                              className="text-customOrange opacity-40"
+                            />
+                          </label>
 
-                    <input
-                      type="file"
-                      className="hidden"
-                      onChange={handleIdImageUpload}
-                      id="idImageUpload"
-                    />
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={handleIdImageUpload}
+                            id="idImageUpload"
+                          />
 
-                    <label
-                      htmlFor="idImageUpload"
-                      className="text-customOrange cursor-pointer"
-                    >
-                      Upload ID image here
-                    </label>
+                          <label
+                            htmlFor="idImageUpload"
+                            className="text-customOrange font-opensans cursor-pointer text-sm"
+                          >
+                            Upload ID image
+                          </label>
+                        </>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
 
               {/* Next Button */}
-              <motion.button
-                whileTap={{ scale: 1.2 }}
-                type="submit"
-                className={`w-full h-12 text-white mt-14 rounded-full ${
-                  idVerification && idImage
-                    ? "bg-customOrange"
-                    : "bg-customOrange opacity-20"
-                }`}
-                disabled={!idVerification || !idImage}
-              >
-                Complete Profile
-              </motion.button>
+             <motion.button
+  whileTap={{ scale: 1.2 }}
+  type="submit"
+  className={`w-full h-12 text-white mt-6 rounded-full ${
+    idVerification && idImage ? "bg-customOrange" : "bg-customOrange opacity-20"
+  } flex justify-center items-center`}
+  onClick={handleProfileCompletion}
+  disabled={!idVerification || !idImage || isLoading}
+>
+  {isLoading ? (
+    <svg
+      className="animate-spin h-5 w-5 mr-3 text-white"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      ></circle>
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      ></path>
+    </svg>
+  ) : (
+    "Complete Profile"
+  )}
+</motion.button>
+
+
+
+
             </div>
           )}
         </>

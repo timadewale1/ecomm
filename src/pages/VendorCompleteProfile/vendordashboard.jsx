@@ -1,19 +1,33 @@
 import React, { useEffect, useState, useContext } from "react";
-import { collection, query, where, onSnapshot, orderBy, limit } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  orderBy,
+  limit,
+} from "firebase/firestore";
 import { db } from "../../firebase.config";
-import { toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { FaPlus, FaBox, FaShoppingCart, FaListAlt } from "react-icons/fa";
-import { TbCurrencyNaira } from "react-icons/tb";
+import { RxCopy } from "react-icons/rx";
+import { TbBell, TbCurrencyNaira } from "react-icons/tb";
 import Modal from "../../components/layout/Modal";
 import AddProduct from "../vendor/AddProducts";
 import { useNavigate } from "react-router-dom";
 import Loading from "../../components/Loading/Loading";
 import { VendorContext } from "../../components/Context/Vendorcontext"; // Use the existing VendorContext
+import { BsBell, BsBoxSeam, BsCopy } from "react-icons/bs";
+import { CopyAllRounded } from "@mui/icons-material";
+import { IoFilter } from "react-icons/io5";
 
 const VendorDashboard = () => {
   const { vendorData, loading } = useContext(VendorContext); // Get vendor data from context
+  const [totalFulfilledOrders, setTotalFulfilledOrders] = useState(0);
+  const [totalUnfulfilledOrders, setTotalUnfulfilledOrders] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
-  const [totalSales, setTotalSales] = useState(0);
+  const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalProducts, setTotalProducts] = useState(0);
   const [recentActivities, setRecentActivities] = useState([]);
   const [isModalOpen, setModalOpen] = useState(false);
@@ -38,17 +52,58 @@ const VendorDashboard = () => {
       setTotalProducts(totalProducts);
 
       // You can add similar logic for orders and sales
-      setTotalOrders(0); // Placeholder for orders
-      setTotalSales(0);  // Placeholder for sales
+      setTotalFulfilledOrders(0); // Placeholder for orders
+      setTotalRevenue("00.00"); // Placeholder for sales
     });
 
     return () => unsubscribe();
   };
 
+  const textToCopy = `www.mythrift.com/vendor/${vendorData.shopName.replace(
+    /\s+/g,
+    ""
+  )}`;
+
+  const copyToClipboard = async () => {
+    console.log("Clicked");
+    try {
+      await navigator.clipboard.writeText(textToCopy); // Ensure the text is copied
+      toast.success("Store link copied!"); // Show the success toast
+    } catch (err) {
+      toast.error("Failed to copy!"); // Handle any errors during copy
+      console.error("Failed to copy text: ", err);
+    }
+  };
+
+  const formatDateOrTime = (timestamp) => {
+    const eventDate = new Date(timestamp.toDate()); // Convert Firestore timestamp to JS Date
+    const today = new Date();
+
+    // Check if the event happened today by comparing year, month, and day
+    const isToday =
+      eventDate.getDate() === today.getDate() &&
+      eventDate.getMonth() === today.getMonth() &&
+      eventDate.getFullYear() === today.getFullYear();
+
+    // Return time if it's today, else return the date
+    if (isToday) {
+      return eventDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }); // Format as HH:mm
+    } else {
+      return eventDate.toLocaleDateString(); // Return formatted date
+    }
+  };
+
   // Fetch vendor's recent activities in real-time
   const fetchRecentActivities = (vendorId) => {
     const activityRef = collection(db, "vendors", vendorId, "activityNotes");
-    const recentActivityQuery = query(activityRef, orderBy("timestamp", "desc"), limit(4));
+    const recentActivityQuery = query(
+      activityRef,
+      orderBy("timestamp", "desc"),
+      limit(4)
+    );
 
     // Listen for real-time updates to recent activities
     const unsubscribe = onSnapshot(recentActivityQuery, (querySnapshot) => {
@@ -83,101 +138,156 @@ const VendorDashboard = () => {
 
   return (
     <>
-      <div className="p-4 bg-gray-100 min-h-screen">
-        <h2 className="text-2xl font-bold text-green-700 mb-4">
-          Vendor Dashboard
-        </h2>
+      <div className="text-black mx-3 my-7 flex flex-col justify-center space-y-1">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center">
+            <div className="overflow-hidden w-11 h-11 rounded-full flex justify-center items-center mr-1">
+              <img
+                src={vendorData.photoURL}
+                alt=""
+                className="rounded-full object-cover h-11 w-11"
+              />
+            </div>
+            <div className="ml-1 space-y-2">
+              <p className="font-bold text-lg">Hello, {vendorData.firstName}</p>
+              <p className="text-xs">Let's make cool cash</p>
+            </div>
+          </div>
+          <div>
+            <button className="border rounded-full p-1">
+              <img src="notif.png" alt="" className="w-5 h-5 " />
+            </button>
+          </div>
+        </div>
 
-        {/* Display message if the vendor is not approved */}
-        {!vendorData?.isApproved && (
-          <div className="bg-red-100 text-red-700 p-4 h-20  font-opensans text-xs rounded-lg mb-6">
-            <p>
-              Your profile is under review. We usually get back within 12 hours.
-            </p>
+        {!vendorData.isApproved && (
+          <div className="flex flex-col justify-center items-center">
+            <img src="info.png" alt="" className="w-full h-28" />
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          <div
-            className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between"
-            onClick={handleSwitch2Orders}
-          >
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700">
-                Total Orders
-              </h3>
-              <p className="text-2xl font-bold text-green-700">{totalOrders}</p>
+        <div className="flex flex-col justify-center items-center mt-4">
+          <div className="relative bg-customDeepOrange w-full h-36 rounded-2xl flex flex-col justify-between px-4 py-2">
+            <div className="absolute top-0 right-0">
+              <img src="Vector.png" alt="" className="w-20 h-24" />
             </div>
-            <FaShoppingCart className="h-8 w-8 text-green-700" />
-          </div>
-
-          <div className="bg-white pt-4 pr-4 pb-4 pl-5 rounded-lg shadow-md flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700">
-                Total Sales
-              </h3>
-              <p className="text-2xl font-bold text-green-700">
-                NGN{totalSales.toFixed(2)}
+            <div className="absolute bottom-0 left-0">
+              <img src="Vector2.png" alt="" className="w-16 h-18" />
+            </div>
+            <div className="flex flex-col justify-center items-center text-center space-y-4">
+              <p className="text-white text-lg">Total Revenue</p>
+              <p className="text-white text-3xl font-bold">
+                &#x20a6;{totalRevenue}
               </p>
             </div>
-            <TbCurrencyNaira className="h-12 w-12 text-green-700" />
-          </div>
-
-          <div
-            className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between"
-            onClick={handleSwitch2Products}
-          >
             <div>
-              <h3 className="text-lg font-semibold text-gray-700">
-                Total Products
-              </h3>
-              <p className="text-2xl font-bold text-green-700">
-                {totalProducts}
-              </p>
+              <div className="flex justify-between mb-2">
+                <p className="text-white text-xs truncate w-60 font-thin">
+                  {textToCopy}
+                </p>
+                <button className="text-white" onClick={copyToClipboard}>
+                  <BsCopy className="text-white" />
+                </button>
+              </div>
             </div>
-            <FaBox className="h-8 w-8 text-green-700" />
           </div>
+        </div>
+        <div className="flex flex-col justify-center mt-4">
+          <div>
+            <p className="text-black text-start font-bold mb-2">Overview</p>
 
-          <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700">
-                Recent Activities
-              </h3>
+            <div className="grid grid-cols-2 justify-between">
+              <div className="flex flex-col space-y-4 w-full h-20 rounded-xl p-2 m-2">
+                <div className="flex justify-between">
+                  <BsBoxSeam className="text-customOrange ml-3" />
+                  <p className="text-black text-start font-light text-xs">
+                    Total Orders
+                  </p>
+                </div>
+                <p className="text-end font-bold text-black">{totalOrders}</p>
+              </div>
+
+              <div className="flex flex-col space-y-4 w-full h-20 rounded-xl p-2 m-2">
+                <div className="flex justify-between">
+                  <BsBoxSeam className="text-customOrange ml-3" />
+                  <p className="text-black text-start font-light text-xs">
+                    Total Products
+                  </p>
+                </div>
+                <p className="text-end font-bold text-black">{totalProducts}</p>
+              </div>
+
+              <div className="flex flex-col space-y-4 w-full h-20 rounded-xl p-2 m-2">
+                <div className="flex justify-between">
+                  <BsBoxSeam className="text-customOrange ml-3" />
+                  <p className="text-black text-start font-light text-xs">
+                    Unfulfilled Orders
+                  </p>
+                </div>
+                <p className="text-end font-bold text-black">
+                  {totalUnfulfilledOrders}
+                </p>
+              </div>
+
+              <div className="flex flex-col space-y-4 w-full h-20 rounded-xl p-2 m-2">
+                <div className="flex justify-between">
+                  <BsBoxSeam className="text-customOrange ml-3" />
+                  <p className="text-black text-start font-light text-xs">
+                    Fulfilled Orders
+                  </p>
+                </div>
+                <p className="text-end font-bold text-black">
+                  {totalFulfilledOrders}
+                </p>
+              </div>
             </div>
-            <FaListAlt className="h-8 w-8 text-green-700" />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow-md mb-6">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">
-            Recent Activities
-          </h3>
-          <ul className="space-y-2">
-            {recentActivities.map((activity) => (
-              <li key={activity.id} className="text-gray-700">
-                {activity.note} -{" "}
-                <span className="text-gray-500 text-sm">
-                  {new Date(activity.timestamp.toDate()).toLocaleString()}
-                </span>
-              </li>
-            ))}
-          </ul>
+        <div className="flex flex-col justify-center mt-4">
+          <div className="flex justify-between mb-4">
+            <p className="text-black font-bold">Recent activity</p>
+            <IoFilter className="text-customOrange" />
+          </div>
+
+          <div className="flex flex-col space-y-2 text-black">
+            {recentActivities ? (
+              <>
+                {recentActivities.map((activity) => (
+                  <li key={activity.id}>
+                    <div className="text-gray-700 flex justify-between">
+                      <p>{activity.note} - </p>
+
+                      <p className="text-gray-500 text-sm">
+                        {formatDateOrTime(activity.timestamp)}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </>
+            ) : (
+              <div>
+                <img src="./Note.png" alt="" />
+              </div>
+            )}
+          </div>
         </div>
       </div>
-
       <button
         onClick={openModal}
-        className={`fixed bottom-32 right-3 ${
-          vendorData?.isApproved ? "bg-green-700" : "bg-gray-400 cursor-not-allowed"
-        } text-white rounded-full p-4 shadow-lg focus:outline-none`}
+        className={`fixed bottom-24 right-5 flex justify-center items-center ${
+          vendorData?.isApproved
+            ? "bg-customOrange"
+            : "bg-customOrange opacity-35 cursor-not-allowed"
+        } text-white rounded-full w-11 h-11 shadow-lg focus:outline-none`}
         disabled={!vendorData?.isApproved}
       >
-        <FaPlus className="h-4 w-4" />
+        <span className="text-5xl">+</span>
       </button>
-
       <Modal isOpen={isModalOpen} onClose={closeModal}>
         <AddProduct vendorId={vendorData?.vendorId} closeModal={closeModal} />
       </Modal>
+      <ToastContainer /> {/* Required to display the toast */}
     </>
   );
 };

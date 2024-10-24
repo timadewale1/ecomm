@@ -99,6 +99,25 @@ const VendorDashboard = () => {
     }
   };
 
+  function getGreeting() {
+    const currentHour = new Date().getHours(); // Get the current hour (0 - 23)
+    let greeting;
+  
+    if (currentHour >= 0 && currentHour < 12) {
+      greeting = "Good Morning";
+    } else if (currentHour >= 12 && currentHour < 18) {
+      greeting = "Good Afternoon";
+    } else {
+      greeting = "Good Evening";
+    }
+  
+    return greeting;
+  }
+  
+  // Example usage:
+  const greeting = getGreeting();
+  
+
   // Fetch vendor's recent activities in real-time
   const fetchRecentActivities = (vendorId) => {
     const activityRef = collection(db, "vendors", vendorId, "activityNotes");
@@ -141,7 +160,7 @@ const VendorDashboard = () => {
 
   return (
     <>
-      <div className="text-black mx-3 my-7 flex flex-col justify-center space-y-1">
+      <div className=" mx-3 my-7 flex flex-col justify-center space-y-1">
         <div className="flex justify-between items-center">
           <div className="flex items-center">
             <div className="overflow-hidden w-11 h-11 rounded-full flex justify-center items-center mr-1">
@@ -152,13 +171,12 @@ const VendorDashboard = () => {
               />
             </div>
             <div className="ml-1 space-y-2">
-              <p className="font-bold text-lg">Hello, {vendorData.firstName}</p>
-              <p className="text-xs">Let's make cool cash</p>
+              <p className="font-bold text-lg text-black">{greeting}, {vendorData.firstName}</p>
             </div>
           </div>
           <div>
             <button className="border rounded-full p-1">
-              <img src="notif.png" alt="" className="w-5 h-5 " />
+              <IoIosNotificationsOutline className="w-5 h-5 " />
             </button>
           </div>
         </div>

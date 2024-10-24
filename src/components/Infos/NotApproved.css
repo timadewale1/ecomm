@@ -1,0 +1,31 @@
+.not-approved-container {
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    background-color: #ffffff; /* White background */
+    border-radius: 12px;
+    width: 100%;
+    height: 100px; /* Font to match the look */
+    border: 1px solid #3E0C00; /* Red border to the left */
+  }
+  
+  .icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #ffeae6; /* Light red background */
+    border-radius: 50%;
+    padding: 10px;
+    margin-right: 15px;
+  }
+  
+  .icon {
+    color: #E74C3C; 
+  }
+  
+  
+  
+  .message-container p {
+    margin: 0;
+  }
+  

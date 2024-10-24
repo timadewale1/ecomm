@@ -10,6 +10,9 @@ import { AiOutlineProduct } from "react-icons/ai";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useVendorNavigation } from "../Context/VendorBottomBarCtxt"; // Updated import
 import "../../styles/bottombar.css";
+import { HiOutlineUser } from "react-icons/hi2";
+import { BsBoxSeam } from "react-icons/bs";
+import { GoHome } from 'react-icons/go';
 
 const VendorBottomBar = ({ isSearchFocused }) => {
   const { activeNav, setActiveNav } = useVendorNavigation();
@@ -18,14 +21,14 @@ const VendorBottomBar = ({ isSearchFocused }) => {
 
   const navItems = [
     {
-      icon: MdOutlineDashboardCustomize,
-      activeIcon: MdDashboardCustomize,
+      icon: GoHome,
+      activeIcon: GoHome,
       label: "Dashboard",
       route: "/vendordashboard",
     },
     {
-      icon: MdReorder,
-      activeIcon: MdReorder,
+      icon: BsBoxSeam,
+      activeIcon: BsBoxSeam,
       label: "Orders",
       route: "/vendor-orders",
     },
@@ -37,8 +40,8 @@ const VendorBottomBar = ({ isSearchFocused }) => {
     },
 
     {
-      icon: FaRegUser,
-      activeIcon: FaUser,
+      icon: HiOutlineUser,
+      activeIcon: HiOutlineUser,
       label: "Profile",
       route: "/vendor-profile",
     },
@@ -60,6 +63,8 @@ const VendorBottomBar = ({ isSearchFocused }) => {
   };
 
   return (
+    <div className="bottom-bar-wrapper">
+      
     <div className={`bottom-bar ${isSearchFocused ? "under-keypad" : ""}`}>
       {navItems.map((item, index) => (
         <div
@@ -69,14 +74,15 @@ const VendorBottomBar = ({ isSearchFocused }) => {
         >
           {activeNav === index ? (
             <>
-              <item.activeIcon className="w-8 h-6" />
+              <item.activeIcon className="w-8 h-6 text-white" />
               <span className="nav-label">{item.label}</span>
             </>
           ) : (
-            <item.icon className="w-8 text-white opacity-50 h-6" />
+            <item.icon className="w-8 text-black opacity-50 h-6" />
           )}
         </div>
       ))}
+    </div>
     </div>
   );
 };

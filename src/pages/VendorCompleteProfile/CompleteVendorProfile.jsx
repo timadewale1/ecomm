@@ -3,7 +3,7 @@ import { getAuth } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import { Container, Row, Form } from "reactstrap";
 import { motion } from "framer-motion";
 import { FiChevronLeft } from "react-icons/fi"; // Back icon
@@ -12,8 +12,10 @@ import MarketVendor from "./marketVendor";
 import VirtualVendor from "./virtualVendor";
 import { GoChevronLeft } from "react-icons/go";
 const CompleteProfile = () => {
+  const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [showDropdown, setShowDropdown] = useState(false);
+  
   const [vendorData, setVendorData] = useState({
     shopName: "",
     categories: [],
@@ -47,6 +49,8 @@ const CompleteProfile = () => {
     accountNumber: "",
     accountName: "",
   });
+  const vendorType = 'market'; // or 'virtual', based on logic
+  const activeStep = 2; 
   const [deliveryMode, setDeliveryMode] = useState(""); // Delivery Mode state
   const [idVerification, setIdVerification] = useState(""); // ID Verification type
   const [idImage, setIdImage] = useState(null); // ID Image
@@ -132,11 +136,8 @@ const CompleteProfile = () => {
     "Zenith Bank",
   ];
 
-  const getProgress = () => {
-    const adjustedStep = step - 2; // Starts the progress bar from step 3
-    const totalVisibleSteps = 4; // 4 steps (Create Shop, Bank Details, Delivery Mode, and Verification)
-    return (adjustedStep / totalVisibleSteps) * 100;
-  };
+
+  
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -194,112 +195,96 @@ const CompleteProfile = () => {
       setIdImage(e.target.files[0]);
     }
   };
-
   const handleProfileCompletion = async (e) => {
     e.preventDefault();
 
-    console.log("handleProfileCompletion called");
+    setIsLoading(true); // Set loading state to true at the start
 
     const missingFields = [];
 
     // Check for missing fields
-    if (!vendorData.shopName) missingFields.push("Shop Name");
-    if (!vendorData.categories.length) missingFields.push("Categories");
-    if (!vendorData.description) missingFields.push("Description");
     if (!vendorData.marketPlaceType) missingFields.push("Marketplace Type");
 
     // Check specific conditions for online vendors
     if (vendorData.marketPlaceType === "virtual") {
+      if (!vendorData.shopName) missingFields.push("Shop Name");  
+      if (!vendorData.categories.length) missingFields.push("Categories");
+      if (!vendorData.description) missingFields.push("Description");
       if (
-        !vendorData.socialMediaHandle.instagram ||
-        !vendorData.socialMediaHandle.facebook ||
+        !vendorData.socialMediaHandle.instagram &&
+        !vendorData.socialMediaHandle.facebook &&
         !vendorData.socialMediaHandle.twitter
       ) {
         missingFields.push("Social Media Handles");
       }
-      if (!vendorData.personalAddress) missingFields.push("Personal Address");
       if (!vendorData.phoneNumber) missingFields.push("Phone Number");
       if (!vendorData.coverImage) missingFields.push("Cover Image");
     }
 
     // Check specific conditions for market vendors
     else if (vendorData.marketPlaceType === "marketplace") {
-      if (!vendorData.marketPlace) missingFields.push("Market Place");
-      if (!vendorData.complexName) missingFields.push("Complex Name");
+      if (!vendorData.brandName) missingFields.push("Brand Name");
+      if (!vendorData.brandAddress) missingFields.push("Brand Address");
+      if (!vendorData.categories) missingFields.push("Brand Category");
+      if (!vendorData.brandDescription) missingFields.push("Brand Description");
+      if (!vendorData.complexNumber) missingFields.push("Complex Number");
       if (!vendorData.phoneNumber) missingFields.push("Phone Number");
-      if (!vendorData.shopNumber) missingFields.push("Shop Number");
-      if (!vendorData.daysAvailability)
-        missingFields.push("Days of Availability");
+      if (!vendorData.daysAvailability) missingFields.push("Days of Availability");
       if (!vendorData.openTime) missingFields.push("Opening Time");
       if (!vendorData.closeTime) missingFields.push("Closing Time");
       if (!bankDetails.bankName) missingFields.push("Bank Name");
-      if (!bankDetails.accountNumber) missingFields.push("Account Number");
+      if (!bankDetails.accountNumber || bankDetails.accountNumber.length !== 10) 
+        missingFields.push("Account Number");
       if (!bankDetails.accountName) missingFields.push("Account Name");
-      if (!vendorData.brandName) missingFields.push("Brand Name");
-      if (!vendorData.brandAddress) missingFields.push("Brand Address");
-      if (!vendorData.location) missingFields.push("Location");
-      if (!vendorData.complexNumber) missingFields.push("Complex Number");
-      if (!vendorData.brandCategory) missingFields.push("Brand Category");
-      if (!vendorData.brandDescription) missingFields.push("Brand Description");
     }
 
     // If any missing fields are found, show a toast and return early
     if (missingFields.length) {
-      toast.error(
-        `Please complete the following fields: ${missingFields.join(", ")}`,
-        {
-          className: "custom-toast",
+      toast.error(`Please complete the following fields: ${missingFields.join(", ")}`, {
+        className: "custom-toast",
+      });
+    } else {
+      // Proceed if no missing fields
+      try {
+        const auth = getAuth();
+        const user = auth.currentUser;
+
+        if (!user) {
+          throw new Error("User is not authenticated");
         }
-      );
-      setLoading(false);
-      return;
+
+        const { coverImage, ...dataToStore } = vendorData; // Exclude coverImage for Firestore
+
+        // Update Firestore document
+        await setDoc(
+          doc(db, "vendors", user.uid),
+          {
+            ...dataToStore,
+            profileComplete: true,
+            bankDetails,
+          },
+          { merge: true }
+        );
+
+        // Show success toast after successful submission
+        toast.success("Profile completed successfully!", {
+          className: "custom-toast",
+        });
+
+        // Navigate to the vendor dashboard after successful completion
+        navigate("/vendordashboard");
+
+      } catch (error) {
+        // Show error toast in case of any issues
+        toast.error("Error completing profile: " + error.message, {
+          className: "custom-toast",
+        });
+      }
     }
 
-    setLoading(true);
-    const auth = getAuth();
-    const user = auth.currentUser;
-
-    if (!user) {
-      toast.error("User is not authenticated", {
-        className: "custom-toast",
-      });
-      setLoading(false);
-      return;
-    }
-
-    const { coverImage, ...dataToStore } = vendorData; // Exclude coverImage for Firestore
-
-    try {
-      console.log("Attempting to set document in Firestore...");
-
-      // Update Firestore document
-      await setDoc(
-        doc(db, "vendors", user.uid),
-        {
-          ...dataToStore,
-          profileComplete: true,
-          bankDetails, // Include bankDetails if needed
-        },
-        { merge: true }
-      );
-
-      console.log("Firestore document updated successfully.");
-
-      toast.success("Profile completed successfully.", {
-        className: "custom-toast",
-      });
-
-      console.log("Navigating to dashboard...");
-      navigate("/vendordashboard");
-    } catch (error) {
-      console.log("Error during profile completion:", error);
-      toast.error("Error completing profile: " + error.message, {
-        className: "custom-toast",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Always set loading to false at the end, even if there's an error
+    setIsLoading(false);
+};
 
   return (
     <Container>
@@ -307,10 +292,12 @@ const CompleteProfile = () => {
         {loading ? (
           <Loading />
         ) : (
+          
           <Form
             className=""
             onSubmit={handleProfileCompletion}
           >
+            
             {/* Back Button */}
             {step > 1 && (
               <button
@@ -325,30 +312,33 @@ const CompleteProfile = () => {
             {/* Step 1: Vendor Type Selection */}
             {step === 1 && (
               <div className="p-2 mt-16">
-                <h1 className="text-xl gap-16 font-opensans font-semibold text-black">
+             
+                <h1 className="text-xl gap-16 font-opensans font-semibold text-header">
                   Choose your vendor type
                 </h1>
-                <p className="text-sm mt-3 font-opensans text-black">
+                <p className="text-sm mt-3 font-opensans text-neutral-800">
                   Online Vendor or Market Vendor—we have tools tailored just for
                   you!
                 </p>
+
                 <div className="my-6 mb-72">
+                  
                   <div
                     className={`border-0 p-3 mb-4 rounded-lg cursor-pointer flex justify-between items-center ${
                       vendorData.marketPlaceType === "virtual"
                         ? "border-customOrange"
                         : "border-none"
-                    } bg-gray-100 px-10 text-gray-800 rounded-lg`}
+                    } bg-gray-50 px-10 text-gray-800 rounded-lg`}
                     onClick={() => handleVendorTypeSelection("virtual")}
                   >
-                    <span className="font-opensans text-black ">
+                    <span className="font-opensans text-neutral-800 ">
                       Online Vendor
                     </span>
                     <div
                       className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
                         vendorData.marketPlaceType === "virtual"
                           ? "border-customOrange"
-                          : "border-gray-400"
+                          : "border-customOrange"
                       }`}
                     >
                       {vendorData.marketPlaceType === "virtual" && (
@@ -360,18 +350,18 @@ const CompleteProfile = () => {
                     className={`border-0 p-3 mb-4 rounded-lg cursor-pointer flex justify-between items-center ${
                       vendorData.marketPlaceType === "marketplace"
                         ? "border-customOrange"
-                        : "border-none"
-                    } bg-gray-100 px-10 text-gray-800 rounded-lg`}
+                        : "border-customOrange"
+                    } bg-gray-50 px-10 text-gray-800 rounded-lg`}
                     onClick={() => handleVendorTypeSelection("marketplace")}
                   >
-                    <span className="font-opensans text-black">
+                    <span className="font-opensans text-neutral-800">
                       Market Vendor
                     </span>
                     <div
                       className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
                         vendorData.marketPlaceType === "marketplace"
                           ? "border-customOrange"
-                          : "border-gray-400"
+                          : "border-customOrange"
                       }`}
                     >
                       {vendorData.marketPlaceType === "marketplace" && (
@@ -382,7 +372,7 @@ const CompleteProfile = () => {
                 </div>
                 <motion.button
                   type="button"
-                  className={`w-full h-12 text-white font-opensans rounded-full mt-8 ${
+                  className={`w-full h-12 text-white font-opensans rounded-full  ${
                     vendorData.marketPlaceType
                       ? "bg-customOrange"
                       : "bg-customOrange opacity-20"
@@ -402,7 +392,7 @@ const CompleteProfile = () => {
                 setVendorData={setVendorData}
                 step={step}
                 setStep={setStep}
-                getProgress={getProgress}
+             
                 handleInputChange={handleInputChange}
                 handleNextStep={handleNextStep}
                 setShowDropdown={setShowDropdown}
@@ -418,6 +408,7 @@ const CompleteProfile = () => {
                 handleIdImageUpload={handleIdImageUpload}
                 handleImageUpload={handleImageUpload}
                 handleSocialMediaChange={handleSocialMediaChange}
+                isLoading={isLoading}
                 handleProfileCompletion={handleProfileCompletion}
                 banks={banks}
               />
@@ -429,7 +420,7 @@ const CompleteProfile = () => {
                 setVendorData={setVendorData}
                 step={step}
                 setStep={setStep}
-                getProgress={getProgress}
+                
                 handleInputChange={handleInputChange}
                 handleNextStep={handleNextStep}
                 setShowDropdown={setShowDropdown}
@@ -443,6 +434,7 @@ const CompleteProfile = () => {
                 handleIdVerificationChange={handleIdVerificationChange}
                 idImage={idImage}
                 handleIdImageUpload={handleIdImageUpload}
+                isLoading={isLoading}
                 handleProfileCompletion={handleProfileCompletion}
                 banks={banks}
               />

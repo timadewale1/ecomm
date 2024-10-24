@@ -1,25 +1,21 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { FormGroup } from "reactstrap";
 import { FaXTwitter } from "react-icons/fa6";
 import { FaInstagram } from "react-icons/fa";
 import { TiCameraOutline } from "react-icons/ti";
 import { CiFacebook } from "react-icons/ci";
-import {
-  AiOutlineCamera,
-  AiOutlineBank,
-  AiOutlineFileProtect,
-} from "react-icons/ai";
-import { useState } from "react";
+import { AiOutlineBank } from "react-icons/ai";
 import { BiSolidImageAdd } from "react-icons/bi";
 import { PiIdentificationCardThin } from "react-icons/pi";
-import { FaIdCard } from "react-icons/fa";
+import { FaIdCard, FaMinusCircle } from "react-icons/fa";
 import { TbTruckDelivery } from "react-icons/tb";
-import CustomProgressBar from "./CustomProgressBar";
-import { ProgressBar, Step } from "react-step-progress-bar";
 import { IoShareSocial } from "react-icons/io5";
-import { FaImage } from "react-icons/fa";
-import { FaMinusCircle } from "react-icons/fa";
+import ProgressBar from "./ProgressBar";
+import toast from "react-hot-toast"; // Import from react-hot-toast
+import { RotatingLines } from "react-loader-spinner"; // Import the RotatingLines spinner
+
+
 const VirtualVendor = ({
   vendorData,
   setVendorData,
@@ -42,13 +38,103 @@ const VirtualVendor = ({
   handleImageUpload,
   handleSocialMediaChange,
   banks,
+  isLoading,
 }) => {
+  const handleValidation = () => {
+    // Check each required field and show a specific toast error if not filled (for Step 2)
+    if (step === 2) {
+      if (!vendorData.shopName) {
+        toast.error("Please fill in the shop name");
+        return false;
+      }
+      if (!vendorData.complexName) {
+        toast.error("Please fill in the complex name");
+        return false;
+      }
+      if (!vendorData.phoneNumber || vendorData.phoneNumber.length !== 11) {
+        toast.error("Phone number must be 11 digits");
+        return false;
+      }
+      if (vendorData.categories.length === 0) {
+        toast.error("Please select at least one category");
+        return false;
+      }
+      if (!vendorData.coverImage) {
+        toast.error("Please upload a cover image");
+        return false;
+      }
+      if (
+        !vendorData.socialMediaHandle.instagram &&
+        !vendorData.socialMediaHandle.facebook &&
+        !vendorData.socialMediaHandle.twitter
+      ) {
+        toast.error("Please provide at least one social media handle");
+        return false;
+      }
+    }
+
+    // Validation for Step 3: Bank Details
+    if (step === 3) {
+      if (!bankDetails.bankName) {
+        toast.error("Please select a bank");
+        return false;
+      }
+      if (!bankDetails.accountNumber || bankDetails.accountNumber.length !== 10) {
+        toast.error("Account number must be 10 digits");
+        return false;
+      }
+      if (!bankDetails.accountName) {
+        toast.error("Please fill in the account name");
+        return false;
+      }
+    }
+
+    // If everything is valid, call handleNextStep
+    handleNextStep();
+    return true;
+  };
+
   const [searchTerm, setSearchTerm] = useState(""); // State to handle search input
+
+  const isFormComplete = () => {
+    if (step === 2) {
+      return (
+        vendorData.shopName &&
+        vendorData.complexName &&
+        vendorData.phoneNumber &&
+        vendorData.phoneNumber.length === 11 &&
+        vendorData.categories.length > 0 &&
+        vendorData.coverImage &&
+        (vendorData.socialMediaHandle.instagram ||
+          vendorData.socialMediaHandle.facebook ||
+          vendorData.socialMediaHandle.twitter)
+      );
+    }
+
+    if (step === 3) {
+      return (
+        bankDetails.bankName &&
+        bankDetails.accountNumber.length === 10 &&
+        bankDetails.accountName
+      );
+    }
+
+    if (step === 4) {
+      return !!deliveryMode; // Ensures deliveryMode is selected
+    }
+
+    if (step === 5) {
+      return idVerification && idImage;
+    }
+
+    return false;
+  };
 
   // Filter categories based on the search input
   const filteredCategories = categories.filter((category) =>
     category.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
   return (
     <div>
       {vendorData.marketPlaceType === "virtual" && (
@@ -56,30 +142,20 @@ const VirtualVendor = ({
           {/* Step 2: Create Shop Form for Online Vendor */}
           {step === 2 && (
             <div className="p-2 mt">
-              <h2 className="text-xl font-opensans  font-semibold text-customBrown">
+              <h2 className="text-xl font-opensans font-semibold text-customBrown">
                 Create Shop
               </h2>
-              <p className="text-gray-600 mt-2 font-opensans mb-4">
+              <p className="text-neutral-400 mt-2 font-opensans mb-4">
                 Set up your brand to get customers and sell products.
               </p>
-              <p className="text-sm text-customOrange mb-3">
+              <p className="text-xs text-customOrange mb-3">
                 Step 1: Business Information
               </p>
               {/* Progress bar */}
-              <ProgressBar percent={getProgress()} filledBackground="#f9531e">
-                <Step transition="scale">
-                  {({ accomplished }) => (
-                    <div
-                      className={`transitionAll ${
-                        accomplished ? "completed" : ""
-                      }`}
-                    />
-                  )}
-                </Step>
-              </ProgressBar>
+              <ProgressBar step={1} />
               {/* Brand Info */}
-              <h3 className="text-md font-semibold mb-3 font-opensans  flex items-center mt-3">
-                <FaIdCard className="w-5 h-5 mr-2 text-black" />
+              <h3 className="text-md font-semibold mb-3 font-opensans flex items-center mt-3">
+                <FaIdCard className="w-5 h-5 mr-2 text-header" />
                 Brand Info
               </h3>
               <input
@@ -88,7 +164,7 @@ const VirtualVendor = ({
                 placeholder="Brand Name"
                 value={vendorData.shopName}
                 onChange={handleInputChange}
-                className="w-full h-12 mb-3 p-3 border-2 font-opensans text-black rounded-lg hover:border-customOrange 
+                className="w-full h-12 mb-3 p-3 border-2 font-opensans text-neutral-800 rounded-lg hover:border-customOrange 
                       focus:outline-none focus:border-customOrange"
               />
               <input
@@ -97,9 +173,10 @@ const VirtualVendor = ({
                 placeholder="Brand Address"
                 value={vendorData.complexName}
                 onChange={handleInputChange}
-                className="w-full h-12 mb-3 p-3 font-opensans text-black border-2 rounded-lg hover:border-customOrange 
-                      focus:outline-none focus:border-customOrange"
+                className="w-full h-12 mb-3 p-3 font-opensans text-neutral-800 border-2 rounded-lg hover:border-customOrange 
+            focus:outline-none focus:border-customOrange"
               />
+
               <input
                 type="tel"
                 name="phoneNumber"
@@ -107,20 +184,33 @@ const VirtualVendor = ({
                 pattern="[0-9]*"
                 maxLength="11"
                 value={vendorData.phoneNumber}
-                onChange={handleInputChange}
-                className="w-full h-12 mb-3 p-3 border-2 rounded-lg font-opensans text-black focus:outline-none focus:border-customOrange hover:border-customOrange"
+                onChange={(e) => {
+                  const re = /^[0-9\b]+$/;
+                  if (e.target.value === "" || re.test(e.target.value)) {
+                    handleInputChange(e);
+                  }
+                }}
+                className="w-full h-12 mb-3 p-3 border-2 rounded-lg font-opensans text-neutral-800 focus:outline-none focus:border-customOrange hover:border-customOrange"
               />
+
+              {/* Category Dropdown with Search */}
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setShowDropdown(!showDropdown)}
-                  className="w-full h-12 mb-3 p-3 border-2 rounded-lg bg-white text-black font-opensans text-left flex items-center justify-between"
+                  className="w-full h-12 mb-3 p-3 border-2 rounded-lg bg-white font-opensans text-left flex items-center justify-between"
                 >
-                  {vendorData.categories.length > 0
-                    ? vendorData.categories.join(", ")
-                    : "Select Brand Category"}
+                  {vendorData.categories.length > 0 ? (
+                    <span className="text-neutral-800">
+                      {vendorData.categories.join(", ")}
+                    </span>
+                  ) : (
+                    <span className="text-neutral-400">
+                      Select Brand Category
+                    </span>
+                  )}
                   <svg
-                    className="fill-current h-4 w-4 text-gray-700"
+                    className="fill-current h-4 w-4 text-neutral-400"
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 20 20"
                   >
@@ -129,7 +219,7 @@ const VirtualVendor = ({
                 </button>
 
                 {showDropdown && (
-                  <div className="absolute w-full bg-white border  rounded-lg z-10">
+                  <div className="absolute w-full text-neutral-400 bg-white border rounded-lg z-10">
                     {/* Search Input */}
                     <div className="p-2">
                       <input
@@ -137,7 +227,7 @@ const VirtualVendor = ({
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Search categories..."
-                        className="w-full p-2 border rounded-lg"
+                        className="w-full p-2 border rounded-lg focus:outline-none focus:border-customOrange"
                       />
                     </div>
 
@@ -170,9 +260,11 @@ const VirtualVendor = ({
                                     categories: newCategories,
                                   });
                                 }}
-                                className="mr-2"
+                                className="mr-2 appearance-none h-4 w-4 border border-gray-300  checked:bg-customOrange checked:border-customOrange focus:outline-none focus:ring-2 focus:ring-customOrange focus:ring-opacity-50 rounded-lg"
                               />
-                              {category}
+                              <span className="text-neutral-800">
+                                {category}
+                              </span>
                             </label>
                           </div>
                         ))
@@ -182,10 +274,12 @@ const VirtualVendor = ({
                         </div>
                       )}
                     </div>
+                
                   </div>
                 )}
               </div>
-              <input
+
+                  <input
                 type="text"
                 name="description"
                 placeholder="Brand Description"
@@ -197,7 +291,7 @@ const VirtualVendor = ({
               {/* Categories */}
               {/* Social Media */}
               <h3 className="text-md font-semibold mb-3 font-opensans flex items-center">
-                <IoShareSocial className="w-5 h-5 mr-2 text-black" />
+                <IoShareSocial className="w-5 h-5 mr-2 text-header" />
                 Social Media
               </h3>
               <div className="relative w-full mb-4">
@@ -247,10 +341,10 @@ const VirtualVendor = ({
 
               {/* Upload Image */}
               <h3 className="text-md font-semibold mb-3 font-opensans flex items-center">
-                <TiCameraOutline className="w-5 h-5 mr-2 text-xl text-black" />
+                <TiCameraOutline className="w-5 h-5 mr-2 text-xl text-header" />
                 Upload Image
               </h3>
-              <div className="border-2 border-dashed border-customOrange rounded-lg h-48 w-full text-center mb-6">
+              <div className="border-2 border-dashed border-customBrown rounded-lg h-48 w-full text-center mb-6">
                 <div
                   className={`w-full h-full flex items-center justify-center cursor-pointer relative`}
                   onClick={() =>
@@ -303,33 +397,15 @@ const VirtualVendor = ({
                 />
               </div>
 
+
               <motion.button
                 type="button"
                 className={`w-full h-12 text-white rounded-full ${
-                  vendorData.shopName &&
-                  vendorData.complexName &&
-                  vendorData.phoneNumber &&
-                  vendorData.categories.length > 0 &&
-                  vendorData.coverImage && // Ensures coverImage is uploaded
-                  (vendorData.socialMediaHandle.instagram || // Ensures at least one social media link is filled
-                    vendorData.socialMediaHandle.facebook ||
-                    vendorData.socialMediaHandle.twitter)
+                  isFormComplete()
                     ? "bg-customOrange"
-                    : "bg-customOrange opacity-20"
+                    : "bg-customOrange opacity-50"
                 }`}
-                onClick={handleNextStep}
-                disabled={
-                  !vendorData.shopName ||
-                  !vendorData.complexName ||
-                  !vendorData.phoneNumber ||
-                  vendorData.categories.length === 0 ||
-                  !vendorData.coverImage || // Requires coverImage
-                  !(
-                    vendorData.socialMediaHandle.instagram || // Requires at least one social media link
-                    vendorData.socialMediaHandle.facebook ||
-                    vendorData.socialMediaHandle.twitter
-                  )
-                }
+                onClick={handleValidation} // Enable the button and handle validation on click
               >
                 Next
               </motion.button>
@@ -342,22 +418,10 @@ const VirtualVendor = ({
               <h2 className="text-sm text-customOrange font-opensans mb-3">
                 Step 2: Bank Details
               </h2>
-              {/* Progress bar */}
-              <ProgressBar percent={getProgress()} filledBackground="#F97316">
-                <Step transition="scale">
-                  {({ accomplished }) => (
-                    <div
-                      className={`transitionAll ${
-                        accomplished ? "completed" : ""
-                      }`}
-                    />
-                  )}
-                </Step>
-              </ProgressBar>
-
+              <ProgressBar step={2} />
               {/* Bank Details */}
               <h3 className="text-md font-semibold font-opensans text-black mt-3 mb-3 flex items-center">
-                <AiOutlineBank className="w-5 h-5 mr-3 font-opensans text-black" />
+                <AiOutlineBank className="w-5 h-5 mr-3 font-opensans text-header" />
                 Bank Details
               </h3>
 
@@ -368,10 +432,10 @@ const VirtualVendor = ({
                     name="bankName"
                     value={bankDetails.bankName}
                     onChange={handleBankDetailsChange}
-                    className="w-full h-10 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-gray-700 text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange"
+                    className="w-full h-10 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-neutral-800 text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange focus:border-customOrange"
                     style={{
                       backgroundImage:
-                        "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 01 1.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0l-5.015-5.015a.75.75 0 011.06-1.06z%22 /></svg>')",
+                        "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23f97316%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 011.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0l-5.015-5.015a.75.75 0 011.06-1.06z%22 /></svg>')",
                       backgroundPosition: "right 1rem center",
                       backgroundRepeat: "no-repeat",
                       backgroundSize: "1rem",
@@ -393,10 +457,14 @@ const VirtualVendor = ({
                 name="accountNumber"
                 placeholder="Account Number"
                 value={bankDetails.accountNumber}
-                pattern="[0-9]*"
-                maxLength="10"
-                onChange={handleBankDetailsChange}
-                className="w-full h-10 mb-4 p-4 border-2 font-opensans text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-customOrange"
+                maxLength="10" // Limits the input to 10 digits
+                onChange={(e) => {
+                  const re = /^[0-9\b]+$/; // Regular expression to allow only numbers
+                  if (e.target.value === "" || re.test(e.target.value)) {
+                    handleBankDetailsChange(e); // Only update state if the input is valid
+                  }
+                }}
+                className="w-full h-10 mb-4 p-4 border-2 font-opensans text-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-customOrange"
               />
 
               {/* Account Name Field */}
@@ -406,28 +474,19 @@ const VirtualVendor = ({
                 placeholder="Account Name"
                 value={bankDetails.accountName}
                 onChange={handleBankDetailsChange}
-                className="w-full h-10 mb-48 p-4 border-2 font-opensans text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-customOrange"
+                className="w-full h-10 mb-4 p-4 border-2 font-opensans text-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-customOrange"
               />
 
               {/* Next Button */}
-              <div className="mt-16">
-                {/* Other content of your component */}
-
+              <div className="mt-60">
                 <motion.button
-                  type="button" // Prevent form submission
-                  className={`  w-full  h-12 text-white rounded-full p-2 font-opensans ${
-                    bankDetails.bankName &&
-                    bankDetails.accountNumber &&
-                    bankDetails.accountName
+                  type="button"
+                  className={`w-full h-12 text-white rounded-full ${
+                    isFormComplete()
                       ? "bg-customOrange"
-                      : "bg-customOrange opacity-20"
+                      : "bg-customOrange opacity-50"
                   }`}
-                  onClick={handleNextStep}
-                  disabled={
-                    !bankDetails.bankName ||
-                    !bankDetails.accountNumber ||
-                    !bankDetails.accountName
-                  }
+                  onClick={handleValidation} // Enable the button and handle validation on click
                 >
                   Next
                 </motion.button>
@@ -438,21 +497,17 @@ const VirtualVendor = ({
           {/* Step 4: Delivery Mode for Online Vendor */}
           {step === 4 && vendorData.marketPlaceType === "virtual" && (
             <div className="p-2 ">
-              <h2 className="text-sm text-orange-500 mb-3">
+              <h2 className="text-sm text-orange-500 mb-3 font-opensans">
                 Step 3: Delivery Mode
               </h2>
+              <ProgressBar step={3} />
 
-              {/* Progress bar */}
-              <div className="w-full overflow-hidden">
-                <CustomProgressBar percent={getProgress()} />
-              </div>
-
-              <h3 className="text-md font-semibold font-opensans text-black mt-3 mb-3 flex items-center">
-                <TbTruckDelivery className="w-5 h-5 mr-2 text-black" />
+              <h3 className="text-md font-semibold font-opensans text-header mt-3 mb-3 flex items-center">
+                <TbTruckDelivery className="w-5 h-5 mr-2 text-black font-opensans" />
                 Delivery Mode
               </h3>
 
-              <p className="text-black font-light text-sm mb-4">
+              <p className="text-black font-light text-sm mb-4 font-opensans">
                 Choose a delivery mode for your brand
               </p>
 
@@ -525,7 +580,7 @@ const VirtualVendor = ({
 
               <motion.button
                 type="button" // Prevent form submission
-                className={`w-full h-12 text-white rounded-full ${
+                className={`w-full h-12 text-white font-opensans rounded-full ${
                   deliveryMode
                     ? "bg-customOrange"
                     : "bg-customOrange opacity-20"
@@ -540,9 +595,12 @@ const VirtualVendor = ({
 
           {/* Step 5: ID Verification for Online Vendor */}
           {step === 5 && vendorData.marketPlaceType === "virtual" && (
-            <div className="p-2 mt-4">
+            <div className="p-2 mt-4 font-opensans">
+              <h2 className="text-sm text-orange-500 mb-3 font-opensans">
+                Step 4: ID verification
+              </h2>
               {/* Progress bar */}
-              <CustomProgressBar percent={getProgress()} />
+              <ProgressBar step={4} />
 
               {/* ID Verification */}
               <h3 className="text-md mt-3 font-semibold font-opensans flex items-center mb-3">
@@ -557,7 +615,7 @@ const VirtualVendor = ({
                   className="w-full h-10 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-gray-700 text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange"
                   style={{
                     backgroundImage:
-                      "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 01 1.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0l-5.015-5.015a.75.75 0 011.06-1.06z%22 /></svg>')",
+                      "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 01 1.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0l-5.015-5.015a.75.75 0 01-1.06-1.06z%22 /></svg>')",
                     backgroundPosition: "right 1rem center",
                     backgroundRepeat: "no-repeat",
                     backgroundSize: "1rem",
@@ -577,7 +635,7 @@ const VirtualVendor = ({
                 <TiCameraOutline className="w-5 h-5 mr-2 text-black" />
                 Upload ID
               </h3>
-              <div className="border-2 border-customOrange border-dashed rounded-lg h-48 w-full text-center mb-6">
+              <div className="border-2 border-customBrown border-dashed rounded-lg h-48 w-full text-center mb-6">
                 {idImage ? (
                   <div className="relative w-full h-full">
                     <img
@@ -643,16 +701,27 @@ const VirtualVendor = ({
 
               {/* Submit Button */}
               <motion.button
-                type="submit" // Correct type
-                className={`w-full h-12 text-white mt-14 rounded-full ${
-                  idVerification && idImage
-                    ? "bg-customOrange"
-                    : "bg-customOrange opacity-20"
-                }`}
-                disabled={!idVerification || !idImage}
-              >
-                Complete Profile
-              </motion.button>
+  type="submit"
+  className={`w-full h-12 text-white mt-28 rounded-full ${
+    idVerification && idImage
+      ? "bg-customOrange"
+      : "bg-customOrange opacity-20"
+  } flex justify-center items-center`}
+  onClick={handleProfileCompletion}
+  disabled={!idVerification || !idImage || isLoading} // Disable the button during loading
+>
+  {isLoading ? (
+    <RotatingLines
+    strokeColor="white"
+    strokeWidth="5"
+    animationDuration="0.75"
+    width="30"
+    visible={true}
+  />
+  ) : (
+    "Complete Profile"
+  )}
+</motion.button>
             </div>
           )}
         </>

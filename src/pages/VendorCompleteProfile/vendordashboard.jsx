@@ -17,7 +17,9 @@ import Modal from "../../components/layout/Modal";
 import AddProduct from "../vendor/AddProducts";
 import { useNavigate } from "react-router-dom";
 import Loading from "../../components/Loading/Loading";
-import { VendorContext } from "../../components/Context/Vendorcontext"; // Use the existing VendorContext
+import { VendorContext } from "../../components/Context/Vendorcontext";
+import { FiPlus } from "react-icons/fi";
+import { IoIosNotificationsOutline } from "react-icons/io"; // Use the existing VendorContext
 import { BsBell, BsBoxSeam, BsCopy } from "react-icons/bs";
 import { CopyAllRounded } from "@mui/icons-material";
 import { IoFilter } from "react-icons/io5";

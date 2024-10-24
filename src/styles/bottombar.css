@@ -5,7 +5,7 @@
   transform: translateX(-50%);
   width: calc(100% - 10px);
   padding: 8px 0;
-  background-color: white; 
+  background-color: #100f0e; 
   border-radius: 50px;
   z-index: 1000;
   display: flex;

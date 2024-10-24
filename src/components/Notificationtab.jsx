@@ -31,70 +31,77 @@ const NotificationItem = ({
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchDetails = async () => {
-      try {
-        if (notification.type === "order" && notification.orderId) {
-          const orderRef = doc(db, "orders", notification.orderId);
-          const orderDoc = await getDoc(orderRef);
+useEffect(() => {
+  const fetchDetails = async () => {
+    try {
+      if (notification.type === "order" && notification.orderId) {
+        // For order notifications: Fetch order and product details
+        const orderRef = doc(db, "orders", notification.orderId);
+        const orderDoc = await getDoc(orderRef);
 
-          if (orderDoc.exists()) {
-            const orderData = orderDoc.data();
-            const firstProduct = Object.values(orderData.products)[0];
+        if (orderDoc.exists()) {
+          const orderData = orderDoc.data();
+          const firstProduct = Object.values(orderData.products)[0]; // Fetch first product image
 
-            if (firstProduct?.coverImageUrl) {
-              setProductImage(firstProduct.coverImageUrl);
-            }
-
-            const vendorRef = doc(db, "vendors", orderData.vendorId);
-            const vendorDoc = await getDoc(vendorRef);
-            if (vendorDoc.exists()) {
-              const vendorShopName =
-                vendorDoc.data().shopName || "Unknown Vendor";
-              setVendorName(vendorShopName);
-            }
+          if (firstProduct?.coverImageUrl) {
+            setProductImage(firstProduct.coverImageUrl); // Set product image for order notifications
           }
-        } else if (notification.type === "vendor" && notification.productId) {
-          const productRef = doc(db, "products", notification.productId);
-          const productDoc = await getDoc(productRef);
 
-          if (productDoc.exists()) {
-            const productData = productDoc.data();
-            if (productData?.coverImageUrl) {
-              setProductImage(productData.coverImageUrl);
-            }
-
-            const vendorRef = doc(db, "vendors", productData.vendorId);
-            const vendorDoc = await getDoc(vendorRef);
-            if (vendorDoc.exists()) {
-              const vendorShopName =
-                vendorDoc.data().shopName || "Unknown Vendor";
-              setVendorName(vendorShopName);
-            }
-          }
-        } else if (notification.vendorId) {
-          const vendorRef = doc(db, "vendors", notification.vendorId);
+          const vendorRef = doc(db, "vendors", orderData.vendorId);
           const vendorDoc = await getDoc(vendorRef);
           if (vendorDoc.exists()) {
             const vendorShopName =
               vendorDoc.data().shopName || "Unknown Vendor";
             setVendorName(vendorShopName);
-
-            const vendorData = vendorDoc.data();
-            if (vendorData?.profileImageUrl) {
-              setProductImage(vendorData.profileImageUrl);
-            }
           }
         }
-      } catch (error) {
-        console.error("Error fetching details: ", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      } else if (notification.type === "vendor" && notification.vendorId) {
+        // For vendor notifications: Fetch vendor details and vendor cover image
+        const vendorRef = doc(db, "vendors", notification.vendorId);
+        const vendorDoc = await getDoc(vendorRef);
 
-    fetchDetails();
-  }, [notification]);
+        if (vendorDoc.exists()) {
+          const vendorData = vendorDoc.data();
+          const vendorShopName =
+            vendorData.shopName || "Unknown Vendor";
+          setVendorName(vendorShopName);
+
+          // Set vendor cover image for vendor notifications
+          if (vendorData?.coverImageUrl) {
+            setProductImage(vendorData.coverImageUrl);
+          } else {
+            setProductImage(defaultVendorImage); // Use fallback image if no cover image is available
+          }
+        }
+      } else if (notification.type === "vendor" && notification.productId) {
+        // For product notifications posted by vendor: Fetch product image
+        const productRef = doc(db, "products", notification.productId);
+        const productDoc = await getDoc(productRef);
+
+        if (productDoc.exists()) {
+          const productData = productDoc.data();
+          if (productData?.coverImageUrl) {
+            setProductImage(productData.coverImageUrl); // Set product image
+          }
+
+          const vendorRef = doc(db, "vendors", productData.vendorId);
+          const vendorDoc = await getDoc(vendorRef);
+          if (vendorDoc.exists()) {
+            const vendorShopName =
+              vendorDoc.data().shopName || "Unknown Vendor";
+            setVendorName(vendorShopName);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching details: ", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchDetails();
+}, [notification]);
 
   let notificationIcon;
   let notificationMessage;

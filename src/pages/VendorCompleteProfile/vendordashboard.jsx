@@ -9,7 +9,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { toast, ToastContainer } from "react-toastify";
-import 'react-toastify/dist/ReactToastify.css';
+import "react-toastify/dist/ReactToastify.css";
 import { FaPlus, FaBox, FaShoppingCart, FaListAlt } from "react-icons/fa";
 import { RxCopy } from "react-icons/rx";
 import { TbBell, TbCurrencyNaira } from "react-icons/tb";
@@ -21,6 +21,7 @@ import { VendorContext } from "../../components/Context/Vendorcontext"; // Use t
 import { BsBell, BsBoxSeam, BsCopy } from "react-icons/bs";
 import { CopyAllRounded } from "@mui/icons-material";
 import { IoFilter } from "react-icons/io5";
+import NotApproved from "../../components/Infos/NotApproved";
 
 const VendorDashboard = () => {
   const { vendorData, loading } = useContext(VendorContext); // Get vendor data from context
@@ -59,7 +60,10 @@ const VendorDashboard = () => {
     return () => unsubscribe();
   };
 
-  const textToCopy = `www.mythrift.com/vendor/${vendorData.shopName.replace(/\s+/g, '')}`;
+  const textToCopy = `www.mythrift.com/vendor/${vendorData.shopName.replace(
+    /\s+/g,
+    ""
+  )}`;
 
   const copyToClipboard = async () => {
     console.log("Clicked");
@@ -75,15 +79,19 @@ const VendorDashboard = () => {
   const formatDateOrTime = (timestamp) => {
     const eventDate = new Date(timestamp.toDate()); // Convert Firestore timestamp to JS Date
     const today = new Date();
-  
+
     // Check if the event happened today by comparing year, month, and day
-    const isToday = eventDate.getDate() === today.getDate() &&
-                    eventDate.getMonth() === today.getMonth() &&
-                    eventDate.getFullYear() === today.getFullYear();
-  
+    const isToday =
+      eventDate.getDate() === today.getDate() &&
+      eventDate.getMonth() === today.getMonth() &&
+      eventDate.getFullYear() === today.getFullYear();
+
     // Return time if it's today, else return the date
     if (isToday) {
-      return eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); // Format as HH:mm
+      return eventDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }); // Format as HH:mm
     } else {
       return eventDate.toLocaleDateString(); // Return formatted date
     }
@@ -155,14 +163,19 @@ const VendorDashboard = () => {
 
         {!vendorData.isApproved && (
           <div className="flex flex-col justify-center items-center">
-            <img src="info.png" alt="" className="w-full h-28" />
+            <NotApproved />
+            {/* <img src="info.png" alt="" className="w-full h-28" /> */}
           </div>
         )}
 
         <div className="flex flex-col justify-center items-center mt-4">
-          <div className="bg-customDeepOrange w-full h-36 rounded-2xl flex flex-col justify-between px-4 py-2">
-          <img src="./vector.png" alt="" />
-          <img src="" alt="" />
+          <div className="relative bg-customDeepOrange w-full h-36 rounded-2xl flex flex-col justify-between px-4 py-2">
+            <div className="absolute top-0 right-0">
+            <img src="./Vector.png" alt="" className="w-16 h-24"/>
+            </div>
+            <div className="absolute bottom-0 left-0">
+            <img src="./Vector2.png" alt="" className="w-16 h-16"/>
+            </div>
             <div className="flex flex-col justify-center items-center space-y-4">
               <p className="text-white text-lg">Total Revenue</p>
               <p className="text-white text-3xl font-bold">
@@ -174,10 +187,7 @@ const VendorDashboard = () => {
                 <p className="text-white text-xs truncate w-60 font-thin">
                   {textToCopy}
                 </p>
-                <button
-                  className="text-white"
-                  onClick={copyToClipboard}
-                >
+                <button className="text-white" onClick={copyToClipboard}>
                   <BsCopy className="text-white" />
                 </button>
               </div>
@@ -248,16 +258,12 @@ const VendorDashboard = () => {
                 {recentActivities.map((activity) => (
                   <li key={activity.id}>
                     <div className="text-gray-700 flex justify-between">
-                      <p>
-                        {activity.note} -{" "}
-                      </p>
-                      
+                      <p>{activity.note} - </p>
+
                       <p className="text-gray-500 text-sm">
-                      {formatDateOrTime(activity.timestamp)}
-                    </p>
+                        {formatDateOrTime(activity.timestamp)}
+                      </p>
                     </div>
-                    
-                    
                   </li>
                 ))}
               </>
@@ -269,7 +275,6 @@ const VendorDashboard = () => {
           </div>
         </div>
       </div>
-
       <button
         onClick={openModal}
         className={`fixed bottom-24 right-5 flex justify-center items-center ${
@@ -279,11 +284,8 @@ const VendorDashboard = () => {
         } text-white rounded-full w-11 h-11 shadow-lg focus:outline-none`}
         disabled={!vendorData?.isApproved}
       >
-        <span className="text-5xl">
-          +
-        </span>
+        <span className="text-5xl">+</span>
       </button>
-
       <Modal isOpen={isModalOpen} onClose={closeModal}>
         <AddProduct vendorId={vendorData?.vendorId} closeModal={closeModal} />
       </Modal>

@@ -10,6 +10,7 @@ module.exports = {
         customDeepOrange: '#DA3A00',
         customCream: '#FCECD3',
         customBrown: '#BE7159',
+        customRichBrown: '#3E0C00',
         customGreen: '#def2eb',
         textGreen: '#388f6e',
         dotGreen: '#9cd8c2',

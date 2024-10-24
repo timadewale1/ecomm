@@ -1,22 +1,21 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { FormGroup } from "reactstrap";
 import { FaXTwitter } from "react-icons/fa6";
 import { FaInstagram } from "react-icons/fa";
 import { TiCameraOutline } from "react-icons/ti";
 import { CiFacebook } from "react-icons/ci";
-
 import { AiOutlineBank } from "react-icons/ai";
-import { useState } from "react";
 import { BiSolidImageAdd } from "react-icons/bi";
 import { PiIdentificationCardThin } from "react-icons/pi";
-import { FaIdCard } from "react-icons/fa";
+import { FaIdCard, FaMinusCircle } from "react-icons/fa";
 import { TbTruckDelivery } from "react-icons/tb";
 import { IoShareSocial } from "react-icons/io5";
-import { FaMinusCircle } from "react-icons/fa";
 import ProgressBar from "./ProgressBar";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import toast from "react-hot-toast"; // Import from react-hot-toast
+import { RotatingLines } from "react-loader-spinner"; // Import the RotatingLines spinner
+
+
 const VirtualVendor = ({
   vendorData,
   setVendorData,
@@ -39,44 +38,29 @@ const VirtualVendor = ({
   handleImageUpload,
   handleSocialMediaChange,
   banks,
-
-  
+  isLoading,
 }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  
-  
-
   const handleValidation = () => {
     // Check each required field and show a specific toast error if not filled (for Step 2)
     if (step === 2) {
       if (!vendorData.shopName) {
-        toast.error("Please fill in the shop name", {
-          position: toast.POSITION.TOP_RIGHT,
-        });
+        toast.error("Please fill in the shop name");
         return false;
       }
       if (!vendorData.complexName) {
-        toast.error("Please fill in the complex name", {
-          position: toast.POSITION.TOP_RIGHT,
-        });
+        toast.error("Please fill in the complex name");
         return false;
       }
       if (!vendorData.phoneNumber || vendorData.phoneNumber.length !== 11) {
-        toast.error("Phone number must be 11 digits", {
-          position: toast.POSITION.TOP_RIGHT,
-        });
+        toast.error("Phone number must be 11 digits");
         return false;
       }
       if (vendorData.categories.length === 0) {
-        toast.error("Please select at least one category", {
-          position: toast.POSITION.TOP_RIGHT,
-        });
+        toast.error("Please select at least one category");
         return false;
       }
       if (!vendorData.coverImage) {
-        toast.error("Please upload a cover image", {
-          position: toast.POSITION.TOP_RIGHT,
-        });
+        toast.error("Please upload a cover image");
         return false;
       }
       if (
@@ -84,34 +68,31 @@ const VirtualVendor = ({
         !vendorData.socialMediaHandle.facebook &&
         !vendorData.socialMediaHandle.twitter
       ) {
-        toast.error("Please provide at least one social media handle", {
-          position: toast.POSITION.TOP_RIGHT,
-        });
+        toast.error("Please provide at least one social media handle");
         return false;
       }
     }
-  
+
     // Validation for Step 3: Bank Details
     if (step === 3) {
       if (!bankDetails.bankName) {
-        toast.error('Please select a bank', { position: toast.POSITION.TOP_RIGHT });
+        toast.error("Please select a bank");
         return false;
       }
       if (!bankDetails.accountNumber || bankDetails.accountNumber.length !== 10) {
-        toast.error('Account number must be 10 digits', { position: toast.POSITION.TOP_RIGHT });
+        toast.error("Account number must be 10 digits");
         return false;
       }
       if (!bankDetails.accountName) {
-        toast.error('Please fill in the account name', { position: toast.POSITION.TOP_RIGHT });
+        toast.error("Please fill in the account name");
         return false;
       }
     }
-  
+
     // If everything is valid, call handleNextStep
     handleNextStep();
     return true;
   };
-  
 
   const [searchTerm, setSearchTerm] = useState(""); // State to handle search input
 
@@ -129,7 +110,7 @@ const VirtualVendor = ({
           vendorData.socialMediaHandle.twitter)
       );
     }
-  
+
     if (step === 3) {
       return (
         bankDetails.bankName &&
@@ -137,32 +118,31 @@ const VirtualVendor = ({
         bankDetails.accountName
       );
     }
-  
+
     if (step === 4) {
       return !!deliveryMode; // Ensures deliveryMode is selected
     }
-  
+
     if (step === 5) {
       return idVerification && idImage;
     }
-  
+
     return false;
   };
-  
 
   // Filter categories based on the search input
   const filteredCategories = categories.filter((category) =>
     category.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
   return (
     <div>
-      <ToastContainer autoClose={3000} />
       {vendorData.marketPlaceType === "virtual" && (
         <>
           {/* Step 2: Create Shop Form for Online Vendor */}
           {step === 2 && (
             <div className="p-2 mt">
-              <h2 className="text-xl font-opensans  font-semibold text-customBrown">
+              <h2 className="text-xl font-opensans font-semibold text-customBrown">
                 Create Shop
               </h2>
               <p className="text-neutral-400 mt-2 font-opensans mb-4">
@@ -174,7 +154,7 @@ const VirtualVendor = ({
               {/* Progress bar */}
               <ProgressBar step={1} />
               {/* Brand Info */}
-              <h3 className="text-md font-semibold mb-3 font-opensans  flex items-center mt-3">
+              <h3 className="text-md font-semibold mb-3 font-opensans flex items-center mt-3">
                 <FaIdCard className="w-5 h-5 mr-2 text-header" />
                 Brand Info
               </h3>
@@ -213,6 +193,7 @@ const VirtualVendor = ({
                 className="w-full h-12 mb-3 p-3 border-2 rounded-lg font-opensans text-neutral-800 focus:outline-none focus:border-customOrange hover:border-customOrange"
               />
 
+              {/* Category Dropdown with Search */}
               <div className="relative">
                 <button
                   type="button"
@@ -293,11 +274,12 @@ const VirtualVendor = ({
                         </div>
                       )}
                     </div>
+                
                   </div>
                 )}
               </div>
 
-              <input
+                  <input
                 type="text"
                 name="description"
                 placeholder="Brand Description"
@@ -415,6 +397,7 @@ const VirtualVendor = ({
                 />
               </div>
 
+
               <motion.button
                 type="button"
                 className={`w-full h-12 text-white rounded-full ${
@@ -496,17 +479,17 @@ const VirtualVendor = ({
 
               {/* Next Button */}
               <div className="mt-60">
-                {/* Other content of your component */}
-
-                 <motion.button
-        type="button" // Prevent form submission
-        className={`w-full h-12 text-white rounded-full p-2 font-opensans ${
-          isFormComplete ? 'bg-customOrange' : 'bg-customOrange opacity-50'
-        }`}
-        onClick={handleValidation}  // Enable the button and handle validation on click
-      >
-        Next
-      </motion.button>
+                <motion.button
+                  type="button"
+                  className={`w-full h-12 text-white rounded-full ${
+                    isFormComplete()
+                      ? "bg-customOrange"
+                      : "bg-customOrange opacity-50"
+                  }`}
+                  onClick={handleValidation} // Enable the button and handle validation on click
+                >
+                  Next
+                </motion.button>
               </div>
             </div>
           )}
@@ -518,7 +501,6 @@ const VirtualVendor = ({
                 Step 3: Delivery Mode
               </h2>
               <ProgressBar step={3} />
-              {/* Progress bar */}
 
               <h3 className="text-md font-semibold font-opensans text-header mt-3 mb-3 flex items-center">
                 <TbTruckDelivery className="w-5 h-5 mr-2 text-black font-opensans" />
@@ -615,7 +597,7 @@ const VirtualVendor = ({
           {step === 5 && vendorData.marketPlaceType === "virtual" && (
             <div className="p-2 mt-4 font-opensans">
               <h2 className="text-sm text-orange-500 mb-3 font-opensans">
-                Step 4: Id verification
+                Step 4: ID verification
               </h2>
               {/* Progress bar */}
               <ProgressBar step={4} />
@@ -633,7 +615,7 @@ const VirtualVendor = ({
                   className="w-full h-10 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-gray-700 text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange"
                   style={{
                     backgroundImage:
-                      "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 01 1.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0l-5.015-5.015a.75.75 0 011.06-1.06z%22 /></svg>')",
+                      "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 01 1.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0l-5.015-5.015a.75.75 0 01-1.06-1.06z%22 /></svg>')",
                     backgroundPosition: "right 1rem center",
                     backgroundRepeat: "no-repeat",
                     backgroundSize: "1rem",
@@ -719,42 +701,27 @@ const VirtualVendor = ({
 
               {/* Submit Button */}
               <motion.button
-  whileTap={{ scale: 1.2 }}
   type="submit"
-  className={`w-full h-12 text-white mt-6 rounded-full ${
-    idVerification && idImage ? "bg-customOrange" : "bg-customOrange opacity-20"
+  className={`w-full h-12 text-white mt-28 rounded-full ${
+    idVerification && idImage
+      ? "bg-customOrange"
+      : "bg-customOrange opacity-20"
   } flex justify-center items-center`}
   onClick={handleProfileCompletion}
-  disabled={!idVerification || !idImage || isLoading}
+  disabled={!idVerification || !idImage || isLoading} // Disable the button during loading
 >
   {isLoading ? (
-    <svg
-      className="animate-spin h-5 w-5 mr-3 text-white"
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      ></circle>
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-      ></path>
-    </svg>
+    <RotatingLines
+    strokeColor="white"
+    strokeWidth="5"
+    animationDuration="0.75"
+    width="30"
+    visible={true}
+  />
   ) : (
     "Complete Profile"
   )}
 </motion.button>
-
-
-
             </div>
           )}
         </>

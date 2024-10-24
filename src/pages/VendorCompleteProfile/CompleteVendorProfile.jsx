@@ -3,7 +3,7 @@ import { getAuth } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import { Container, Row, Form } from "reactstrap";
 import { motion } from "framer-motion";
 import { FiChevronLeft } from "react-icons/fi"; // Back icon
@@ -12,8 +12,10 @@ import MarketVendor from "./marketVendor";
 import VirtualVendor from "./virtualVendor";
 import { GoChevronLeft } from "react-icons/go";
 const CompleteProfile = () => {
+  const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [showDropdown, setShowDropdown] = useState(false);
+  
   const [vendorData, setVendorData] = useState({
     shopName: "",
     categories: [],
@@ -196,18 +198,17 @@ const CompleteProfile = () => {
   const handleProfileCompletion = async (e) => {
     e.preventDefault();
 
+    setIsLoading(true); // Set loading state to true at the start
+
     const missingFields = [];
 
     // Check for missing fields
-    
     if (!vendorData.marketPlaceType) missingFields.push("Marketplace Type");
 
     // Check specific conditions for online vendors
     if (vendorData.marketPlaceType === "virtual") {
       if (!vendorData.shopName) missingFields.push("Shop Name");  
-
       if (!vendorData.categories.length) missingFields.push("Categories");
-
       if (!vendorData.description) missingFields.push("Description");
       if (
         !vendorData.socialMediaHandle.instagram &&
@@ -223,19 +224,16 @@ const CompleteProfile = () => {
     // Check specific conditions for market vendors
     else if (vendorData.marketPlaceType === "marketplace") {
       if (!vendorData.brandName) missingFields.push("Brand Name");
-
       if (!vendorData.brandAddress) missingFields.push("Brand Address");
-
       if (!vendorData.categories) missingFields.push("Brand Category");
-
+      if (!vendorData.brandDescription) missingFields.push("Brand Description");
       if (!vendorData.complexNumber) missingFields.push("Complex Number");
       if (!vendorData.phoneNumber) missingFields.push("Phone Number");
-      if (!vendorData.daysAvailability)
-        missingFields.push("Days of Availability");
+      if (!vendorData.daysAvailability) missingFields.push("Days of Availability");
       if (!vendorData.openTime) missingFields.push("Opening Time");
       if (!vendorData.closeTime) missingFields.push("Closing Time");
       if (!bankDetails.bankName) missingFields.push("Bank Name");
-      if (!bankDetails.accountNumber || bankDetails.accountNumber.length !== 10)
+      if (!bankDetails.accountNumber || bankDetails.accountNumber.length !== 10) 
         missingFields.push("Account Number");
       if (!bankDetails.accountName) missingFields.push("Account Name");
     }
@@ -245,51 +243,47 @@ const CompleteProfile = () => {
       toast.error(`Please complete the following fields: ${missingFields.join(", ")}`, {
         className: "custom-toast",
       });
-      setLoading(false);
-      return;
+    } else {
+      // Proceed if no missing fields
+      try {
+        const auth = getAuth();
+        const user = auth.currentUser;
+
+        if (!user) {
+          throw new Error("User is not authenticated");
+        }
+
+        const { coverImage, ...dataToStore } = vendorData; // Exclude coverImage for Firestore
+
+        // Update Firestore document
+        await setDoc(
+          doc(db, "vendors", user.uid),
+          {
+            ...dataToStore,
+            profileComplete: true,
+            bankDetails,
+          },
+          { merge: true }
+        );
+
+        // Show success toast after successful submission
+        toast.success("Profile completed successfully!", {
+          className: "custom-toast",
+        });
+
+        // Navigate to the vendor dashboard after successful completion
+        navigate("/vendordashboard");
+
+      } catch (error) {
+        // Show error toast in case of any issues
+        toast.error("Error completing profile: " + error.message, {
+          className: "custom-toast",
+        });
+      }
     }
 
-    setLoading(true);
-    const auth = getAuth();
-    const user = auth.currentUser;
-
-    if (!user) {
-      toast.error("User is not authenticated", {
-        className: "custom-toast",
-      });
-      setLoading(false);
-      return;
-    }
-
-    const { coverImage, ...dataToStore } = vendorData; // Exclude coverImage for Firestore
-
-    try {
-      // Update Firestore document
-      await setDoc(
-        doc(db, "vendors", user.uid),
-        {
-          ...dataToStore,
-          profileComplete: true,
-          bankDetails,
-        },
-        { merge: true }
-      );
-
-      // Show success toast
-      toast.success("Profile completed successfully!", {
-        className: "custom-toast",
-      });
-
-      // Navigate to the vendor dashboard after successful completion
-      navigate("/vendordashboard");
-    } catch (error) {
-      // Show error toast in case of any issues
-      toast.error("Error completing profile: " + error.message, {
-        className: "custom-toast",
-      });
-    } finally {
-      setLoading(false);
-    }
+    // Always set loading to false at the end, even if there's an error
+    setIsLoading(false);
 };
 
   return (
@@ -298,10 +292,12 @@ const CompleteProfile = () => {
         {loading ? (
           <Loading />
         ) : (
+          
           <Form
             className=""
             onSubmit={handleProfileCompletion}
           >
+            
             {/* Back Button */}
             {step > 1 && (
               <button
@@ -316,6 +312,7 @@ const CompleteProfile = () => {
             {/* Step 1: Vendor Type Selection */}
             {step === 1 && (
               <div className="p-2 mt-16">
+             
                 <h1 className="text-xl gap-16 font-opensans font-semibold text-header">
                   Choose your vendor type
                 </h1>
@@ -411,6 +408,7 @@ const CompleteProfile = () => {
                 handleIdImageUpload={handleIdImageUpload}
                 handleImageUpload={handleImageUpload}
                 handleSocialMediaChange={handleSocialMediaChange}
+                isLoading={isLoading}
                 handleProfileCompletion={handleProfileCompletion}
                 banks={banks}
               />
@@ -436,6 +434,7 @@ const CompleteProfile = () => {
                 handleIdVerificationChange={handleIdVerificationChange}
                 idImage={idImage}
                 handleIdImageUpload={handleIdImageUpload}
+                isLoading={isLoading}
                 handleProfileCompletion={handleProfileCompletion}
                 banks={banks}
               />

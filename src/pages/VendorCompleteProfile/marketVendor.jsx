@@ -12,9 +12,8 @@ import { BiSolidImageAdd } from "react-icons/bi";
 import { FaTruck } from "react-icons/fa";
 import ProgressBar from "./ProgressBar";
 import { FaMinusCircle } from "react-icons/fa";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-
+import toast from "react-hot-toast";
+import { RotatingLines } from "react-loader-spinner";
 const MarketVendor = ({
   vendorData,
   setVendorData,
@@ -34,16 +33,12 @@ const MarketVendor = ({
   handleIdImageUpload,
   handleProfileCompletion,
   banks,
+  isLoading,
 }) => {
   const [searchTerm, setSearchTerm] = useState(""); // State to handle search input
 
-  const [isLoading, setIsLoading] = useState(false); // State to track loading
-
- 
-
-
+  // Handle validation for vendor form (Step 1)
   const handleValidation = () => {
-    // Validate vendor form fields
     if (!vendorData.brandName) {
       toast.error("Please fill in the brand name", {
         position: toast.POSITION.TOP_RIGHT,
@@ -74,7 +69,7 @@ const MarketVendor = ({
       });
       return false;
     }
-    if (!vendorData.categories.length === 0) {
+    if (vendorData.categories.length === 0) {
       toast.error("Please select at least one category", {
         position: toast.POSITION.TOP_RIGHT,
       });
@@ -98,7 +93,13 @@ const MarketVendor = ({
       });
       return false;
     }
-    //bank details validation
+
+    handleNextStep();
+    return true; // If all validations pass
+  };
+
+  // Handle validation for bank details (Step 2)
+  const handleBankValidation = () => {
     if (!bankDetails.bankName) {
       toast.error("Please select a bank name", {
         position: toast.POSITION.TOP_RIGHT,
@@ -117,14 +118,12 @@ const MarketVendor = ({
       });
       return false;
     }
-    //delivery mode validation
 
-
-    // If all validations pass, proceed to the next step
     handleNextStep();
     return true;
   };
 
+  // You can define the "isFormComplete" logic to check the entire form completion:
   const isFormComplete =
     vendorData.brandName &&
     vendorData.phoneNumber.length === 11 &&
@@ -134,13 +133,12 @@ const MarketVendor = ({
     vendorData.categories.length > 0 &&
     vendorData.daysAvailability &&
     vendorData.openTime &&
-    vendorData.closeTime &&
-    //bank details validation
+    vendorData.closeTime;
+
+  const isFormBankComplete =
     bankDetails.bankName &&
     bankDetails.accountNumber.length === 10 &&
     bankDetails.accountName;
-
-
 
   // Filter categories based on the search input
   const filteredCategories = categories.filter((category) =>
@@ -148,7 +146,7 @@ const MarketVendor = ({
   );
   return (
     <div>
-      <ToastContainer autoClose={3000} />{" "}
+      
       {vendorData.marketPlaceType === "marketplace" && (
         <>
           {/* Step 2: Create Shop */}
@@ -361,7 +359,7 @@ const MarketVendor = ({
                   name="daysAvailability"
                   value={vendorData.daysAvailability}
                   onChange={handleInputChange}
-                  className={`w-full h-16 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange ${
+                  className={`w-full h-12 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange ${
                     vendorData.daysAvailability === ""
                       ? "text-neutral-400"
                       : "text-neutral-800"
@@ -384,6 +382,17 @@ const MarketVendor = ({
                   <option value="Weekends">Weekends</option>
                 </select>
               </FormGroup>
+
+              {/* brand description */}
+
+              <input
+                type="text"
+                name="brandDescription"
+                placeholder="Brand Description"
+                value={vendorData.brandDescription}
+                onChange={handleInputChange}
+                className="w-full h-12 mb-3 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
+              />
 
               {/* Open and Close time */}
               <div className="flex justify-between mb-4">
@@ -541,11 +550,11 @@ const MarketVendor = ({
               <motion.button
                 whileTap={{ scale: 1.05 }}
                 className={`w-full h-12 text-white rounded-full ${
-                  isFormComplete
+                  isFormBankComplete
                     ? "bg-customOrange"
                     : "bg-customOrange opacity-50"
                 }`}
-                onClick={handleValidation} // Enable the button and handle validation on click
+                onClick={handleBankValidation} // Enable the button and handle validation on click
               >
                 Next
               </motion.button>
@@ -720,44 +729,28 @@ const MarketVendor = ({
               </div>
 
               {/* Next Button */}
-             <motion.button
-  whileTap={{ scale: 1.2 }}
+              <motion.button
   type="submit"
-  className={`w-full h-12 text-white mt-6 rounded-full ${
-    idVerification && idImage ? "bg-customOrange" : "bg-customOrange opacity-20"
+  className={`w-full h-12 text-white mt-28 rounded-full ${
+    idVerification && idImage
+      ? "bg-customOrange"
+      : "bg-customOrange opacity-20"
   } flex justify-center items-center`}
   onClick={handleProfileCompletion}
-  disabled={!idVerification || !idImage || isLoading}
+  disabled={!idVerification || !idImage || isLoading} // Disable the button during loading
 >
   {isLoading ? (
-    <svg
-      className="animate-spin h-5 w-5 mr-3 text-white"
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      ></circle>
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-      ></path>
-    </svg>
+    <RotatingLines
+    strokeColor="white"
+    strokeWidth="5"
+    animationDuration="0.75"
+    width="30"
+    visible={true}
+  />
   ) : (
     "Complete Profile"
   )}
 </motion.button>
-
-
-
-
             </div>
           )}
         </>

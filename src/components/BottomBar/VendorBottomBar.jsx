@@ -78,7 +78,7 @@ const VendorBottomBar = ({ isSearchFocused }) => {
               <span className="nav-label">{item.label}</span>
             </>
           ) : (
-            <item.icon className="w-8 text-black opacity-50 h-6" />
+            <item.icon className="w-8 text-white opacity-50 h-6" />
           )}
         </div>
       ))}

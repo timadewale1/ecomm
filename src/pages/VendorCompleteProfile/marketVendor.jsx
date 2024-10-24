@@ -1,4 +1,5 @@
 import React from "react";
+import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { FormGroup } from "reactstrap";
 import {
@@ -14,6 +15,11 @@ import ProgressBar from "./ProgressBar";
 import { FaMinusCircle } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { RotatingLines } from "react-loader-spinner";
+import { TbTruckDelivery } from "react-icons/tb";
+import { HiBuildingStorefront } from "react-icons/hi2";
+import { TiCameraOutline } from "react-icons/ti";
+import { PiIdentificationCardThin } from "react-icons/pi";
+import { GoTrash } from "react-icons/go";
 const MarketVendor = ({
   vendorData,
   setVendorData,
@@ -30,16 +36,19 @@ const MarketVendor = ({
   idVerification,
   handleIdVerificationChange,
   idImage,
+  isIdImageUploading,
   handleIdImageUpload,
   handleProfileCompletion,
   banks,
+  setIdImage,
   isLoading,
 }) => {
   const [searchTerm, setSearchTerm] = useState(""); // State to handle search input
+  const [showDaysDropdown, setShowDaysDropdown] = useState(false);
 
   // Handle validation for vendor form (Step 1)
   const handleValidation = () => {
-    if (!vendorData.brandName) {
+    if (!vendorData.shopName) {
       toast.error("Please fill in the brand name", {
         position: toast.POSITION.TOP_RIGHT,
       });
@@ -51,13 +60,13 @@ const MarketVendor = ({
       });
       return false;
     }
-    if (!vendorData.brandAddress) {
+    if (!vendorData.Address) {
       toast.error("Please fill in the brand address", {
         position: toast.POSITION.TOP_RIGHT,
       });
       return false;
     }
-    if (!vendorData.location) {
+    if (!vendorData.marketPlace) {
       toast.error("Please select a location", {
         position: toast.POSITION.TOP_RIGHT,
       });
@@ -97,6 +106,32 @@ const MarketVendor = ({
     handleNextStep();
     return true; // If all validations pass
   };
+  const daysOfWeek = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ];
+
+  const daysDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        daysDropdownRef.current &&
+        !daysDropdownRef.current.contains(event.target)
+      ) {
+        setShowDaysDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Handle validation for bank details (Step 2)
   const handleBankValidation = () => {
@@ -125,10 +160,10 @@ const MarketVendor = ({
 
   // You can define the "isFormComplete" logic to check the entire form completion:
   const isFormComplete =
-    vendorData.brandName &&
+    vendorData.shopName &&
     vendorData.phoneNumber.length === 11 &&
-    vendorData.brandAddress &&
-    vendorData.location &&
+    vendorData.Address &&
+    vendorData.marketPlace &&
     vendorData.complexNumber &&
     vendorData.categories.length > 0 &&
     vendorData.daysAvailability &&
@@ -146,19 +181,18 @@ const MarketVendor = ({
   );
   return (
     <div>
-      
       {vendorData.marketPlaceType === "marketplace" && (
         <>
           {/* Step 2: Create Shop */}
           {step === 2 && (
-            <div className="p-3 mt-2">
-              <h2 className="text-xl font-semibold text-customBrown">
+            <div className="p-2 mt-2">
+              <h2 className="text-xl font-opensans font-semibold text-customBrown">
                 Create Shop
               </h2>
-              <p className="text-neutral-400 mb-4">
+              <p className="text-black font-light mt-2 font-opensans mb-3">
                 Set up your brand to get customers and sell products.
               </p>
-              <p className="text-sm text-customOrange mb-3">
+              <p className="text-xs font-opensans font-light text-customOrange mb-3">
                 Step 1: Business Information
               </p>
 
@@ -166,59 +200,59 @@ const MarketVendor = ({
               <ProgressBar step={1} />
 
               {/* Brand Info for Market Vendor */}
-              <h3 className="text-md font-semibold mb-3 flex items-center mt-3">
+              <h3 className="text-md font-semibold mb-4 mt-4 flex items-center ">
                 <AiOutlineIdcard className="w-5 h-5 mr-2 text-header" />
                 Brand Info
               </h3>
 
               <input
                 type="text"
-                name="brandName"
-                placeholder="Brand Name"
-                value={vendorData.brandName}
+                name="shopName"
+                placeholder="Store Name"
+                value={vendorData.shopName}
                 onChange={handleInputChange}
-                className="w-full h-12 mb-4 p-3 border-2 rounded-lg hover:border-customOrange 
-            focus:outline-none focus:border-customOrange"
+                className="w-full h-12 mb-3 p-3 border-2 font-opensans text-black rounded-lg hover:border-customOrange 
+                      focus:outline-none focus:border-customOrange"
               />
               <input
                 type="tel"
                 name="phoneNumber"
-                placeholder="Brand Phone Number"
-                maxLength="11" // Limits input to 11 digits
+                placeholder=" Phone Number"
+                pattern="[0-9]*"
+                maxLength="11"
                 value={vendorData.phoneNumber}
                 onChange={(e) => {
-                  const re = /^[0-9\b]+$/; // Regular expression to allow only numbers and backspace
+                  const re = /^[0-9\b]+$/;
                   if (e.target.value === "" || re.test(e.target.value)) {
-                    handleInputChange(e); // Only update state if input is valid (only numbers)
+                    handleInputChange(e);
                   }
                 }}
-                className="w-full h-12 mb-4 p-3 border-2 rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
+                className="w-full h-12 mb-3 p-3 border-2 rounded-lg font-opensans text-black focus:outline-none focus:border-customOrange hover:border-customOrange"
               />
 
               <input
                 type="text"
-                name="brandAddress"
-                placeholder="Brand Address"
-                value={vendorData.brandAddress}
+                name="Address"
+                placeholder=" Address"
+                value={vendorData.Address}
                 onChange={handleInputChange}
-                className="w-full h-12 mb-4 p-3 border-2 rounded-lg hover:border-customOrange 
-            focus:outline-none focus:border-customOrange"
+                className="w-full h-12 mb-3 p-3 border-2 rounded-lg font-opensans text-black focus:outline-none focus:border-customOrange hover:border-customOrange"
               />
 
               {/* Location and Complex */}
               <FormGroup className="relative mb-4">
                 <select
-                  name="location"
-                  value={vendorData.location}
+                  name="marketPlace"
+                  value={vendorData.marketPlace}
                   onChange={handleInputChange}
-                  className={`w-full h-14 p-3 pr-10 border border-gray-300 rounded-lg bg-white text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange ${
-                    vendorData.location === ""
+                  className={`w-full h-12 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange ${
+                    vendorData.marketPlace === ""
                       ? "text-neutral-400"
                       : "text-neutral-800"
                   }`}
                   style={{
                     backgroundImage:
-                      "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 111.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0L5.516 8.608a.75.75 0 111.06-1.06z%22 /></svg>')",
+                      "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 0 1 1.06 1.06l-5.015 5.015a.75.75 0 0 1-1.06 0L5.516 8.608a.75.75 0 0 1 1.06-1.06z%22 /></svg>')",
                     backgroundPosition: "right 1rem center",
                     backgroundRepeat: "no-repeat",
                     backgroundSize: "1rem",
@@ -226,32 +260,12 @@ const MarketVendor = ({
                 >
                   {/* Placeholder Option */}
                   <option value="" className="text-neutral-400">
-                    Choose Location
+                    Choose MarketPlace
                   </option>
 
                   {/* Location Options */}
-                  <option value="Ikeja">Ikeja</option>
-                  <option value="Surulere">Surulere</option>
                   <option value="Yaba">Yaba</option>
-                  <option value="Victoria Island">Victoria Island</option>
-                  <option value="Ikoyi">Ikoyi</option>
-                  <option value="Lekki">Lekki</option>
-                  <option value="Ajah">Ajah</option>
-                  <option value="Epe">Epe</option>
-                  <option value="Badagry">Badagry</option>
-                  <option value="Ikorodu">Ikorodu</option>
-                  <option value="Oshodi">Oshodi</option>
-                  <option value="Mushin">Mushin</option>
-                  <option value="Agege">Agege</option>
-                  <option value="Alimosho">Alimosho</option>
-                  <option value="Ifako-Ijaiye">Ifako-Ijaiye</option>
-                  <option value="Isolo">Isolo</option>
-                  <option value="Ojo">Ojo</option>
-                  <option value="Festac">Festac</option>
-                  <option value="Somolu">Somolu</option>
-                  <option value="Amuwo Odofin">Amuwo Odofin</option>
-                  <option value="Eti-Osa">Eti-Osa</option>
-                  <option value="Ibeju-Lekki">Ibeju-Lekki</option>
+                  {/* Add more options as needed */}
                 </select>
               </FormGroup>
 
@@ -261,8 +275,7 @@ const MarketVendor = ({
                 placeholder="Complex & Number"
                 value={vendorData.complexNumber}
                 onChange={handleInputChange}
-                className="w-full h-12 mb-4 p-3 border-2 rounded-lg hover:border-customOrange 
-            focus:outline-none focus:border-customOrange"
+                className="w-full h-12 mb-3 p-3 border-2 rounded-lg font-opensans text-black focus:outline-none focus:border-customOrange hover:border-customOrange"
               />
 
               {/* Brand Category */}
@@ -278,9 +291,7 @@ const MarketVendor = ({
                         {vendorData.categories.join(", ")}
                       </span>
                     ) : (
-                      <span className="text-neutral-400">
-                        Select Brand Category
-                      </span>
+                      <span className="text-neutral-400">Select Category</span>
                     )}
                     <svg
                       className="fill-current h-4 w-4 text-neutral-400"
@@ -352,47 +363,80 @@ const MarketVendor = ({
                   )}
                 </div>
               </FormGroup>
-
-              {/* Days of Availability */}
-              <FormGroup className="relative mb-4">
-                <select
-                  name="daysAvailability"
-                  value={vendorData.daysAvailability}
-                  onChange={handleInputChange}
-                  className={`w-full h-12 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange ${
-                    vendorData.daysAvailability === ""
-                      ? "text-neutral-400"
-                      : "text-neutral-800"
-                  }`}
-                  style={{
-                    backgroundImage:
-                      "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 111.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0L5.516 8.608a.75.75 0 111.06-1.06z%22 /></svg>')",
-                    backgroundPosition: "right 1rem center",
-                    backgroundRepeat: "no-repeat",
-                    backgroundSize: "1rem",
-                  }}
-                >
-                  {/* Placeholder Option */}
-                  <option value="" className="text-neutral-400">
-                    Days of Availability
-                  </option>
-
-                  {/* Available Days Options */}
-                  <option value="Monday to Friday">Monday to Friday</option>
-                  <option value="Weekends">Weekends</option>
-                </select>
-              </FormGroup>
-
-              {/* brand description */}
-
               <input
                 type="text"
-                name="brandDescription"
-                placeholder="Brand Description"
-                value={vendorData.brandDescription}
+                name="description"
+                placeholder=" Description"
+                value={vendorData.description}
                 onChange={handleInputChange}
                 className="w-full h-12 mb-3 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
               />
+              <h3 className="text-md font-semibold mb-4 mt-1 flex items-center ">
+                <HiBuildingStorefront className="w-5 h-5 mr-2 text-header" />
+                Operations
+              </h3>
+              {/* Days of Availability */}
+              <div className="relative mb-4" ref={daysDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowDaysDropdown(!showDaysDropdown)}
+                  className="w-full h-12 mb-3 p-3 border-2 rounded-lg bg-white font-opensans text-left flex items-center justify-between"
+                >
+                  {vendorData.daysAvailability.length > 0 ? (
+                    <span className="text-neutral-800">
+                      {vendorData.daysAvailability.join(", ")}
+                    </span>
+                  ) : (
+                    <span className="text-neutral-400">
+                      Days of Availability
+                    </span>
+                  )}
+                  <svg
+                    className="fill-current h-4 w-4 text-neutral-400"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 1 1 1.06 1.06l-5.015 5.015a.75.75 0 0 1-1.06 0l-5.015-5.015a.75.75 0 1 1 1.06-1.06z" />
+                  </svg>
+                </button>
+
+                {showDaysDropdown && (
+                  <div className="absolute w-full text-neutral-400 bg-white border rounded-lg z-10">
+                    {/* Days of the Week List */}
+                    <div className="max-h-60 overflow-y-auto">
+                      {daysOfWeek.map((day, index) => (
+                        <div key={index} className="p-2 h-12">
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              value={day}
+                              checked={vendorData.daysAvailability.includes(
+                                day
+                              )}
+                              onChange={(e) => {
+                                let newDays = [...vendorData.daysAvailability];
+                                if (e.target.checked) {
+                                  newDays.push(day);
+                                } else {
+                                  newDays = newDays.filter((d) => d !== day);
+                                }
+                                setVendorData({
+                                  ...vendorData,
+                                  daysAvailability: newDays,
+                                });
+                              }}
+                              className="mr-2 appearance-none h-4 w-4 border border-gray-300 checked:bg-customOrange checked:border-customOrange focus:outline-none focus:ring-2 focus:ring-customOrange focus:ring-opacity-50 rounded-lg"
+                            />
+                            <span className="text-neutral-800">{day}</span>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* brand description */}
 
               {/* Open and Close time */}
               <div className="flex justify-between mb-4">
@@ -402,7 +446,7 @@ const MarketVendor = ({
                     name="openTime"
                     value={vendorData.openTime}
                     onChange={handleInputChange}
-                    className={`w-full h-16 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange ${
+                    className={`w-full h-12 px-4 pr-10 font-opensans text-black border border-gray-300 rounded-lg bg-white text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange ${
                       vendorData.openTime === ""
                         ? "text-neutral-400"
                         : "text-neutral-800"
@@ -433,7 +477,7 @@ const MarketVendor = ({
                     name="closeTime"
                     value={vendorData.closeTime}
                     onChange={handleInputChange}
-                    className={`w-full h-16 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange ${
+                    className={`w-full h-12 px-4 pr-10 border font-opensans text-black border-gray-300 rounded-lg bg-white text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange ${
                       vendorData.closeTime === ""
                         ? "text-neutral-400"
                         : "text-neutral-800"
@@ -460,7 +504,6 @@ const MarketVendor = ({
               </div>
 
               <motion.button
-                whileTap={{ scale: 1.05 }}
                 className={`w-full h-12 text-white rounded-full ${
                   isFormComplete
                     ? "bg-customOrange"
@@ -476,48 +519,39 @@ const MarketVendor = ({
           {/* Step 3: Bank Details */}
           {step === 3 && (
             <div className="p-2 mt-3">
-              <h2 className="text-sm text-customOrange mb-3">
+              <h2 className="text-xs text-customOrange font-light font-opensans mb-3">
                 Step 2: Bank Details
               </h2>
-              {/* Progress bar */}
               <ProgressBar step={2} />
-
-              <h3 className="text-md font-semibold mt-3 mb-3 flex items-center">
-                <AiOutlineBank className="w-5 h-5 mr-2 text-header" />
+              {/* Bank Details */}
+              <h3 className="text-md font-semibold font-opensans text-black mt-3 mb-3 flex items-center">
+                <AiOutlineBank className="w-5 h-5 mr-3 font-opensans text-header" />
                 Bank Details
               </h3>
-
               {/* Bank Name Dropdown */}
-              <FormGroup className="relative mb-4">
-                <select
-                  name="bankName"
-                  value={bankDetails.bankName}
-                  onChange={handleBankDetailsChange}
-                  className={`w-full h-16 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange ${
-                    bankDetails.bankName === ""
-                      ? "text-neutral-400"
-                      : "text-neutral-800"
-                  }`}
-                  style={{
-                    backgroundImage:
-                      "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 111.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0L5.516 8.608a.75.75 0 111.06-1.06z%22 /></svg>')",
-                    backgroundPosition: "right 1rem center",
-                    backgroundRepeat: "no-repeat",
-                    backgroundSize: "1rem",
-                  }}
-                >
-                  {/* Placeholder Option */}
-                  <option value="" className="text-neutral-400">
-                    Bank Name
-                  </option>
-
-                  {/* Bank Name Options */}
-                  {banks.map((bank, index) => (
-                    <option key={index} value={bank}>
-                      {bank}
-                    </option>
-                  ))}
-                </select>
+              <FormGroup className="relative mb-2">
+                <div className="relative font-opensans">
+                  <select
+                    name="bankName"
+                    value={bankDetails.bankName}
+                    onChange={handleBankDetailsChange}
+                    className="w-full h-12 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-neutral-800 text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange focus:border-customOrange"
+                    style={{
+                      backgroundImage:
+                        "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23f97316%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 011.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0l-5.015-5.015a.75.75 0 011.06-1.06z%22 /></svg>')",
+                      backgroundPosition: "right 1rem center",
+                      backgroundRepeat: "no-repeat",
+                      backgroundSize: "1rem",
+                    }}
+                  >
+                    <option value="">Bank Name</option>
+                    {banks.map((bank, index) => (
+                      <option key={index} value={bank}>
+                        {bank}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </FormGroup>
 
               {/* Account Number Field */}
@@ -526,14 +560,14 @@ const MarketVendor = ({
                 name="accountNumber"
                 placeholder="Account Number"
                 value={bankDetails.accountNumber}
-                maxLength="10" // Ensures a maximum of 11 digits
+                maxLength="10" // Limits the input to 10 digits
                 onChange={(e) => {
-                  const re = /^[0-9\b]+$/; // Regular expression to allow only numbers and backspace
+                  const re = /^[0-9\b]+$/; // Regular expression to allow only numbers
                   if (e.target.value === "" || re.test(e.target.value)) {
-                    handleBankDetailsChange(e); // Update state only if valid input
+                    handleBankDetailsChange(e); // Only update state if the input is valid
                   }
                 }}
-                className="w-full h-16 mb-4 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-customOrange"
+                className="w-full h-10 mb-4 p-4 border-2 font-opensans text-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-customOrange"
               />
 
               {/* Account Name Field */}
@@ -543,18 +577,17 @@ const MarketVendor = ({
                 placeholder="Account Name"
                 value={bankDetails.accountName}
                 onChange={handleBankDetailsChange}
-                className="w-full h-16 mb-48 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-customOrange"
+                className="w-full h-10 mb-4 p-4 border-2 font-opensans text-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-customOrange"
               />
 
               {/* Next Button */}
               <motion.button
-                whileTap={{ scale: 1.05 }}
-                className={`w-full h-12 text-white rounded-full ${
+                className={`w-11/12 h-12 fixed bottom-6 font-opensans  left-0 right-0 mx-auto flex justify-center items-center text-white rounded-full ${
                   isFormBankComplete
                     ? "bg-customOrange"
                     : "bg-customOrange opacity-50"
                 }`}
-                onClick={handleBankValidation} // Enable the button and handle validation on click
+                onClick={handleBankValidation}
               >
                 Next
               </motion.button>
@@ -564,33 +597,33 @@ const MarketVendor = ({
           {/* Step 5: Delivery Mode */}
           {step === 4 && (
             <div className="p-2 mt-3">
-              <h2 className="text-sm text-customOrange mb-3">
+              <h2 className="text-xs text-customOrange font-light font-opensans mb-3">
                 Step 3: Delivery Mode
               </h2>
 
               {/* Progress bar */}
               <ProgressBar step={3} />
 
-              <h3 className="text-md font-semibold mt-3 mb-3 flex items-center">
-                <FaTruck className="w-5 h-5 mr-2 text-header" />
+              <h3 className="text-md font-semibold font-opensans text-header mt-3 mb-3 flex items-center">
+                <TbTruckDelivery className="w-5 h-5 mr-2 text-black font-opensans" />
                 Delivery Mode
               </h3>
 
-              <p className="text-neutral-400 mb-4">
-                Choose a delivery mode for your brand
+              <p className="text-black font-light text-sm mb-4 font-opensans">
+                Choose a delivery mode for your store
               </p>
 
               {/* Delivery Mode Options */}
-              <div className="mb-72">
+              <div className="">
                 <div
                   onClick={() => handleDeliveryModeChange("Pickup")}
-                  className={`border p-4 mb-4 rounded-lg cursor-pointer flex justify-between items-center ${
+                  className={`border-0 p-2 mb-4 rounded-lg cursor-pointer flex justify-between items-center ${
                     deliveryMode === "Pickup"
                       ? "border-customOrange"
                       : "border-customOrange"
                   }`}
                 >
-                  <span>Pickup</span>
+                  <span className="font-opensans">Pickup</span>
                   <div
                     className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
                       deliveryMode === "Pickup"
@@ -606,8 +639,7 @@ const MarketVendor = ({
               </div>
 
               <motion.button
-                whileTap={{ scale: 1.05 }}
-                className={`w-full h-12 text-white rounded-full ${
+                className={`w-11/12 h-12 fixed bottom-6 font-opensans left-0 right-0 mx-auto flex justify-center items-center text-white rounded-full ${
                   deliveryMode
                     ? "bg-customOrange"
                     : "bg-customOrange opacity-20"
@@ -622,135 +654,149 @@ const MarketVendor = ({
 
           {/* Step 6: ID Verification */}
           {step === 5 && (
-            <div className="p-2 mt-3">
-              <h2 className="text-sm text-customOrange mb-3">
-                Step 4: Verification
+            <div className="p-2 mt-4 font-opensans">
+              <h2 className="text-sm text-customOrange mb-3 font-opensans">
+                Step 4: ID verification
               </h2>
-
               {/* Progress bar */}
               <ProgressBar step={4} />
 
-              <h3 className="text-md font-semibold mt-3 mb-3 flex items-center">
-                <AiOutlineFileProtect className="w-5 h-5 mr-2 text-header" />
+              {/* ID Verification */}
+              <h3 className="text-md mt-3 font-semibold font-opensans flex items-center mb-3">
+                <PiIdentificationCardThin className="w-5 h-5 mr-2 text-gray-600" />
                 ID Verification
               </h3>
-
-              {/* ID Verification Type Dropdown */}
-              <FormGroup className="relative mb-4">
+              <div className="relative mb-2 font-opensans">
                 <select
                   name="idVerification"
                   value={idVerification}
                   onChange={handleIdVerificationChange}
-                  className="w-full h-16 p-3 border-2 rounded-lg bg-white text-gray-700 text-left appearance-none focus:outline-none focus:border-customOrange"
+                  className="w-full h-10 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-gray-700 text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange"
                   style={{
                     backgroundImage:
-                      "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 111.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0L5.516 8.608a.75.75 0 111.06-1.06z%22 /></svg>')",
+                      "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 01 1.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0l-5.015-5.015a.75.75 0 01-1.06-1.06z%22 /></svg>')",
                     backgroundPosition: "right 1rem center",
                     backgroundRepeat: "no-repeat",
                     backgroundSize: "1rem",
                   }}
                 >
-                  <option value="">Select verification type</option>
+                  <option value="">Select Verification Document</option>
                   <option value="NIN">NIN</option>
                   <option value="International Passport">
                     International Passport
                   </option>
                   <option value="CAC">CAC</option>
                 </select>
-              </FormGroup>
+              </div>
 
-              {/* Upload ID Image */}
-              <h3 className="text-md font-semibold mb-3 flex items-center">
-                <AiOutlineCamera className="w-5 h-5 mr-2 text-header" />
+              {/* Upload ID */}
+              <h3 className="text-md mt-3 font-semibold font-opensans mb-3 flex items-center">
+                <TiCameraOutline className="w-5 h-5 mr-2 text-black" />
                 Upload ID
               </h3>
               <div className="border-2 border-customBrown border-dashed rounded-lg h-48 w-full text-center mb-6">
                 {idImage ? (
                   <div className="relative w-full h-full">
                     <img
-                      src={URL.createObjectURL(idImage)}
+                      src={
+                        typeof idImage === "string"
+                          ? idImage // Use the URL string directly
+                          : URL.createObjectURL(idImage) // Create a URL for the File object
+                      }
                       alt="Uploaded ID"
                       className="w-full h-full object-cover rounded-lg"
                     />
-                    <button
-                      type="button"
-                      className="absolute top-2 right-2 bg-customOrange text-white rounded-full p-1"
-                      onClick={() =>
-                        handleIdImageUpload({ target: { files: [] } })
-                      } // Clear the image by triggering the file input
-                    >
-                      <FaMinusCircle className="h-4 w-4" />
-                    </button>
+                    {/* Show loader if image is uploading */}
+                    {isIdImageUploading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 rounded-lg">
+                        <RotatingLines
+                          strokeColor="orange"
+                          strokeWidth="5"
+                          animationDuration="0.75"
+                          width="50"
+                          visible={true}
+                        />
+                      </div>
+                    )}
+                    {!isIdImageUploading && (
+                      <button
+                        type="button"
+                        className="absolute top-2 right-2 bg-customBrown text-white rounded-full p-1"
+                        onClick={() => {
+                          setIdImage(null); // Clear the image state
+                          setVendorData({ ...vendorData, idImage: null }); // Also clear it from vendorData
+                        }}
+                      >
+                        <GoTrash className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 ) : (
-                  <>
-                    <div className="border-dashed rounded-lg h-48 w-full text-center mb-6 flex flex-col justify-center items-center">
-                      {idImage ? (
+                  <div className="border-dashed rounded-lg h-48 w-full text-center border-opacity-20 mb-6 flex flex-col justify-center items-center">
+                    {/* Show loader if image is uploading */}
+                    {isIdImageUploading ? (
+                      <RotatingLines
+                        strokeColor="orange"
+                        strokeWidth="5"
+                        animationDuration="0.75"
+                        width="50"
+                        visible={true}
+                      />
+                    ) : (
+                      <>
                         <label
                           htmlFor="idImageUpload"
-                          className="cursor-pointer w-full h-full"
+                          className="cursor-pointer"
                         >
-                          <img
-                            src={URL.createObjectURL(idImage)}
-                            alt="Uploaded ID"
-                            className="w-full h-full object-cover rounded-lg"
+                          <BiSolidImageAdd
+                            size={54}
+                            className="text-customOrange opacity-40"
                           />
                         </label>
-                      ) : (
-                        <>
-                          <label
-                            htmlFor="idImageUpload"
-                            className="cursor-pointer"
-                          >
-                            <BiSolidImageAdd
-                              size={54}
-                              className="text-customOrange opacity-40"
-                            />
-                          </label>
 
-                          <input
-                            type="file"
-                            className="hidden"
-                            onChange={handleIdImageUpload}
-                            id="idImageUpload"
-                          />
+                        <input
+                          type="file"
+                          className="hidden"
+                          onChange={handleIdImageUpload}
+                          id="idImageUpload"
+                          disabled={isIdImageUploading} // Disable input during upload
+                        />
 
-                          <label
-                            htmlFor="idImageUpload"
-                            className="text-customOrange font-opensans cursor-pointer text-sm"
-                          >
-                            Upload ID image
-                          </label>
-                        </>
-                      )}
-                    </div>
-                  </>
+                        <label
+                          htmlFor="idImageUpload"
+                          className="text-customOrange opacity-40 font-opensans cursor-pointer text-sm"
+                        >
+                          Upload ID image
+                        </label>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
 
-              {/* Next Button */}
+              {/* Submit Button */}
               <motion.button
-  type="submit"
-  className={`w-full h-12 text-white mt-28 rounded-full ${
-    idVerification && idImage
-      ? "bg-customOrange"
-      : "bg-customOrange opacity-20"
-  } flex justify-center items-center`}
-  onClick={handleProfileCompletion}
-  disabled={!idVerification || !idImage || isLoading} // Disable the button during loading
->
-  {isLoading ? (
-    <RotatingLines
-    strokeColor="white"
-    strokeWidth="5"
-    animationDuration="0.75"
-    width="30"
-    visible={true}
-  />
-  ) : (
-    "Complete Profile"
-  )}
-</motion.button>
+                type="submit"
+                className={`w-11/12 h-12 fixed bottom-6 left-0 right-0 mx-auto flex justify-center items-center text-white rounded-full ${
+                  idVerification && idImage
+                    ? "bg-customOrange"
+                    : "bg-customOrange opacity-20"
+                }`}
+                onClick={handleProfileCompletion}
+                disabled={!idVerification || !idImage || isLoading} // Disable the button during loading
+              >
+                {isLoading ? (
+                  <RotatingLines
+                    strokeColor="white"
+                    strokeWidth="5"
+                    animationDuration="0.75"
+                    width="30"
+                    visible={true}
+                  />
+                ) : (
+                  "Complete Profile"
+                )}
+              </motion.button>
             </div>
           )}
         </>

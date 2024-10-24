@@ -14,8 +14,7 @@ import { IoShareSocial } from "react-icons/io5";
 import ProgressBar from "./ProgressBar";
 import toast from "react-hot-toast"; // Import from react-hot-toast
 import { RotatingLines } from "react-loader-spinner"; // Import the RotatingLines spinner
-
-
+import { GoTrash } from "react-icons/go";
 const VirtualVendor = ({
   vendorData,
   setVendorData,
@@ -38,6 +37,9 @@ const VirtualVendor = ({
   handleImageUpload,
   handleSocialMediaChange,
   banks,
+  setIdImage,
+  isCoverImageUploading,
+  isIdImageUploading,
   isLoading,
 }) => {
   const handleValidation = () => {
@@ -47,8 +49,8 @@ const VirtualVendor = ({
         toast.error("Please fill in the shop name");
         return false;
       }
-      if (!vendorData.complexName) {
-        toast.error("Please fill in the complex name");
+      if (!vendorData.Address) {
+        toast.error("Please fill in Address");
         return false;
       }
       if (!vendorData.phoneNumber || vendorData.phoneNumber.length !== 11) {
@@ -59,7 +61,7 @@ const VirtualVendor = ({
         toast.error("Please select at least one category");
         return false;
       }
-      if (!vendorData.coverImage) {
+      if (!vendorData.coverImageUrl) {
         toast.error("Please upload a cover image");
         return false;
       }
@@ -79,7 +81,10 @@ const VirtualVendor = ({
         toast.error("Please select a bank");
         return false;
       }
-      if (!bankDetails.accountNumber || bankDetails.accountNumber.length !== 10) {
+      if (
+        !bankDetails.accountNumber ||
+        bankDetails.accountNumber.length !== 10
+      ) {
         toast.error("Account number must be 10 digits");
         return false;
       }
@@ -100,11 +105,11 @@ const VirtualVendor = ({
     if (step === 2) {
       return (
         vendorData.shopName &&
-        vendorData.complexName &&
+        vendorData.Address &&
         vendorData.phoneNumber &&
         vendorData.phoneNumber.length === 11 &&
         vendorData.categories.length > 0 &&
-        vendorData.coverImage &&
+        vendorData.coverImageUrl &&
         (vendorData.socialMediaHandle.instagram ||
           vendorData.socialMediaHandle.facebook ||
           vendorData.socialMediaHandle.twitter)
@@ -145,16 +150,16 @@ const VirtualVendor = ({
               <h2 className="text-xl font-opensans font-semibold text-customBrown">
                 Create Shop
               </h2>
-              <p className="text-neutral-400 mt-2 font-opensans mb-4">
+              <p className="text-black font-light mt-2 font-opensans mb-3">
                 Set up your brand to get customers and sell products.
               </p>
-              <p className="text-xs text-customOrange mb-3">
+              <p className="text-xs text-customOrange font-opensans mb-2">
                 Step 1: Business Information
               </p>
               {/* Progress bar */}
               <ProgressBar step={1} />
               {/* Brand Info */}
-              <h3 className="text-md font-semibold mb-3 font-opensans flex items-center mt-3">
+              <h3 className="text-md mt-4 font-semibold mb-4 font-opensans flex items-center ">
                 <FaIdCard className="w-5 h-5 mr-2 text-header" />
                 Brand Info
               </h3>
@@ -169,9 +174,9 @@ const VirtualVendor = ({
               />
               <input
                 type="text"
-                name="complexName"
-                placeholder="Brand Address"
-                value={vendorData.complexName}
+                name="Address"
+                placeholder="Brand/Personal Address"
+                value={vendorData.Address}
                 onChange={handleInputChange}
                 className="w-full h-12 mb-3 p-3 font-opensans text-neutral-800 border-2 rounded-lg hover:border-customOrange 
             focus:outline-none focus:border-customOrange"
@@ -180,7 +185,7 @@ const VirtualVendor = ({
               <input
                 type="tel"
                 name="phoneNumber"
-                placeholder="Brand Phone Number"
+                placeholder=" Phone Number"
                 pattern="[0-9]*"
                 maxLength="11"
                 value={vendorData.phoneNumber}
@@ -274,23 +279,22 @@ const VirtualVendor = ({
                         </div>
                       )}
                     </div>
-                
                   </div>
                 )}
               </div>
 
-                  <input
+              <input
                 type="text"
                 name="description"
                 placeholder="Brand Description"
                 value={vendorData.description}
                 onChange={handleInputChange}
-                className="w-full h-12 mb-3 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
+                className="w-full h-12 mb-4 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
               />
 
               {/* Categories */}
               {/* Social Media */}
-              <h3 className="text-md font-semibold mb-3 font-opensans flex items-center">
+              <h3 className="text-md font-semibold mb-4 font-opensans flex items-center">
                 <IoShareSocial className="w-5 h-5 mr-2 text-header" />
                 Social Media
               </h3>
@@ -340,7 +344,7 @@ const VirtualVendor = ({
               </div>
 
               {/* Upload Image */}
-              <h3 className="text-md font-semibold mb-3 font-opensans flex items-center">
+              <h3 className="text-md font-semibold mb-4 font-opensans flex items-center">
                 <TiCameraOutline className="w-5 h-5 mr-2 text-xl text-header" />
                 Upload Image
               </h3>
@@ -351,25 +355,26 @@ const VirtualVendor = ({
                     document.getElementById("shopImageUpload").click()
                   }
                 >
-                  {vendorData.coverImage ? (
+                  {vendorData.coverImageUrl ? (
                     <>
                       <img
-                        src={URL.createObjectURL(vendorData.coverImage)}
+                        src={vendorData.coverImageUrl}
                         alt="Uploaded Shop"
-                        className="w-full h-full object-cover rounded-lg" // Ensure image fills the container
+                        className="w-full h-full object-cover rounded-lg"
                       />
                       <button
                         type="button"
-                        className="absolute top-2 right-2 bg-customOrange text-white rounded-full p-1"
+                        className="absolute top-2 right-2 bg-customBrown text-white rounded-full p-1"
                         onClick={(e) => {
                           e.stopPropagation();
                           setVendorData((prev) => ({
                             ...prev,
-                            coverImage: null,
-                          })); // Clear the image
+                            coverImageUrl: null,
+                          })); // Clear the image URL
+                          // Optionally, delete the image from Firebase Storage here
                         }}
                       >
-                        <FaMinusCircle className="h-4 w-4" />
+                        <GoTrash className="h-4 w-4" />
                       </button>
                     </>
                   ) : (
@@ -387,6 +392,18 @@ const VirtualVendor = ({
                       </label>
                     </div>
                   )}
+                  {/* Loader overlay when uploading */}
+                  {isCoverImageUploading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 rounded-lg">
+                      <RotatingLines
+                        strokeColor="orange"
+                        strokeWidth="5"
+                        animationDuration="0.75"
+                        width="50"
+                        visible={true}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <input
@@ -396,7 +413,6 @@ const VirtualVendor = ({
                   onChange={(e) => handleImageUpload(e)}
                 />
               </div>
-
 
               <motion.button
                 type="button"
@@ -415,7 +431,7 @@ const VirtualVendor = ({
           {/* Step 3: Bank Details for Online Vendor */}
           {step === 3 && vendorData.marketPlaceType === "virtual" && (
             <div className="p-2 mt-3">
-              <h2 className="text-sm text-customOrange font-opensans mb-3">
+              <h2 className="text-xs text-customOrange font-light font-opensans mb-3">
                 Step 2: Bank Details
               </h2>
               <ProgressBar step={2} />
@@ -478,15 +494,15 @@ const VirtualVendor = ({
               />
 
               {/* Next Button */}
-              <div className="mt-60">
+              <div className="">
                 <motion.button
                   type="button"
-                  className={`w-full h-12 text-white rounded-full ${
+                  className={`w-11/12 h-12 fixed bottom-6 left-0 right-0 mx-auto flex justify-center items-center text-white rounded-full ${
                     isFormComplete()
                       ? "bg-customOrange"
                       : "bg-customOrange opacity-50"
                   }`}
-                  onClick={handleValidation} // Enable the button and handle validation on click
+                  onClick={handleValidation}
                 >
                   Next
                 </motion.button>
@@ -496,8 +512,8 @@ const VirtualVendor = ({
 
           {/* Step 4: Delivery Mode for Online Vendor */}
           {step === 4 && vendorData.marketPlaceType === "virtual" && (
-            <div className="p-2 ">
-              <h2 className="text-sm text-orange-500 mb-3 font-opensans">
+            <div className="p-2 mt-3 ">
+              <h2 className="text-xs text-customOrange font-light font-opensans mb-3">
                 Step 3: Delivery Mode
               </h2>
               <ProgressBar step={3} />
@@ -513,6 +529,7 @@ const VirtualVendor = ({
 
               {/* Delivery Mode Options */}
               <div className="">
+                {/* Delivery Option - Selectable */}
                 <div
                   onClick={() => handleDeliveryModeChange("Delivery")}
                   className={`border-0 p-2 mb-4 rounded-lg cursor-pointer flex justify-between items-center ${
@@ -526,7 +543,7 @@ const VirtualVendor = ({
                     className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
                       deliveryMode === "Delivery"
                         ? "border-customOrange"
-                        : "border-customOrange"
+                        : "border-gray-200"
                     }`}
                   >
                     {deliveryMode === "Delivery" && (
@@ -534,53 +551,29 @@ const VirtualVendor = ({
                     )}
                   </div>
                 </div>
-                <div
-                  onClick={() => handleDeliveryModeChange("Pickup")}
-                  className={`border-0 p-2 mb-4 rounded-lg cursor-pointer flex justify-between items-center ${
-                    deliveryMode === "Pickup"
-                      ? "border-customOrange"
-                      : "border-customOrange"
-                  }`}
-                >
-                  <span className="font-opensans">Pickup</span>
-                  <div
-                    className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
-                      deliveryMode === "Pickup"
-                        ? "border-customOrange"
-                        : "border-customOrange"
-                    }`}
-                  >
-                    {deliveryMode === "Pickup" && (
-                      <div className="w-3 h-3 rounded-full bg-customOrange" />
-                    )}
+
+                {/* Pickup Option - Grayed Out, Not Selectable */}
+                <div className="border-0 p-2 mb-4 rounded-lg cursor-not-allowed flex justify-between items-center border-gray-200 opacity-50">
+                  <span className="font-opensans text-gray-400">Pickup</span>
+                  <div className="w-6 h-6 rounded-full border-2 flex justify-center items-center border-gray-200">
+                    {/* No inner circle for non-selectable options */}
                   </div>
                 </div>
-                <div
-                  onClick={() => handleDeliveryModeChange("Delivery & Pickup")}
-                  className={`border-0 p-2 mb-60 rounded-lg cursor-pointer flex justify-between items-center ${
-                    deliveryMode === "Delivery & Pickup"
-                      ? "border-customOrange"
-                      : "border-customOrange"
-                  }`}
-                >
-                  <span className="font-opensans">Delivery & Pickup</span>
-                  <div
-                    className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
-                      deliveryMode === "Delivery & Pickup"
-                        ? "border-customOrange"
-                        : "border-customOrange"
-                    }`}
-                  >
-                    {deliveryMode === "Delivery & Pickup" && (
-                      <div className="w-3 h-3 rounded-full bg-orange-500" />
-                    )}
+
+                {/* Delivery & Pickup Option - Grayed Out, Not Selectable */}
+                <div className="border-0 p-2 mb-60 rounded-lg cursor-not-allowed flex justify-between items-center border-gray-200 opacity-50">
+                  <span className="font-opensans text-gray-400">
+                    Delivery & Pickup
+                  </span>
+                  <div className="w-6 h-6 rounded-full border-2 flex justify-center items-center border-gray-200">
+                    {/* No inner circle for non-selectable options */}
                   </div>
                 </div>
               </div>
 
               <motion.button
                 type="button" // Prevent form submission
-                className={`w-full h-12 text-white font-opensans rounded-full ${
+                className={`w-11/12 h-12 fixed bottom-6 left-0 right-0 mx-auto flex justify-center items-center text-white font-opensans rounded-full ${
                   deliveryMode
                     ? "bg-customOrange"
                     : "bg-customOrange opacity-20"
@@ -595,8 +588,8 @@ const VirtualVendor = ({
 
           {/* Step 5: ID Verification for Online Vendor */}
           {step === 5 && vendorData.marketPlaceType === "virtual" && (
-            <div className="p-2 mt-4 font-opensans">
-              <h2 className="text-sm text-orange-500 mb-3 font-opensans">
+            <div className="p-2 mt-3 ">
+              <h2 className="text-xs text-customOrange font-light font-opensans mb-3">
                 Step 4: ID verification
               </h2>
               {/* Progress bar */}
@@ -639,89 +632,104 @@ const VirtualVendor = ({
                 {idImage ? (
                   <div className="relative w-full h-full">
                     <img
-                      src={URL.createObjectURL(idImage)}
+                      src={
+                        typeof idImage === "string"
+                          ? idImage // Use the URL string directly
+                          : URL.createObjectURL(idImage) // Create a URL for the File object
+                      }
                       alt="Uploaded ID"
                       className="w-full h-full object-cover rounded-lg"
                     />
-                    <button
-                      type="button"
-                      className="absolute top-2 right-2 bg-customOrange text-white rounded-full p-1"
-                      onClick={() =>
-                        handleIdImageUpload({ target: { files: [] } })
-                      } // Clear the image by triggering the file input
-                    >
-                      <FaMinusCircle className="h-4 w-4" />
-                    </button>
+                    {/* Show loader if image is uploading */}
+                    {isIdImageUploading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 rounded-lg">
+                        <RotatingLines
+                          strokeColor="orange"
+                          strokeWidth="5"
+                          animationDuration="0.75"
+                          width="50"
+                          visible={true}
+                        />
+                      </div>
+                    )}
+                    {!isIdImageUploading && (
+                      <button
+                        type="button"
+                        className="absolute top-2 right-2 bg-customBrown text-white rounded-full p-1"
+                        onClick={() => {
+                          setIdImage(null); // Clear the image state
+                          setVendorData({ ...vendorData, idImage: null }); // Also clear it from vendorData
+                        }}
+                      >
+                        <GoTrash className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 ) : (
-                  <>
-                    <div className="border-dashed rounded-lg h-48 w-full text-center mb-6 flex flex-col justify-center items-center">
-                      {idImage ? (
+                  <div className="border-dashed rounded-lg h-48 w-full text-center border-opacity-20 mb-6 flex flex-col justify-center items-center">
+                    {/* Show loader if image is uploading */}
+                    {isIdImageUploading ? (
+                      <RotatingLines
+                        strokeColor="orange"
+                        strokeWidth="5"
+                        animationDuration="0.75"
+                        width="50"
+                        visible={true}
+                      />
+                    ) : (
+                      <>
                         <label
                           htmlFor="idImageUpload"
-                          className="cursor-pointer w-full h-full"
+                          className="cursor-pointer"
                         >
-                          <img
-                            src={URL.createObjectURL(idImage)}
-                            alt="Uploaded ID"
-                            className="w-full h-full object-cover rounded-lg"
+                          <BiSolidImageAdd
+                            size={54}
+                            className="text-customOrange opacity-40"
                           />
                         </label>
-                      ) : (
-                        <>
-                          <label
-                            htmlFor="idImageUpload"
-                            className="cursor-pointer"
-                          >
-                            <BiSolidImageAdd
-                              size={54}
-                              className="text-customOrange opacity-40"
-                            />
-                          </label>
 
-                          <input
-                            type="file"
-                            className="hidden"
-                            onChange={handleIdImageUpload}
-                            id="idImageUpload"
-                          />
+                        <input
+                          type="file"
+                          className="hidden"
+                          onChange={handleIdImageUpload}
+                          id="idImageUpload"
+                          disabled={isIdImageUploading} // Disable input during upload
+                        />
 
-                          <label
-                            htmlFor="idImageUpload"
-                            className="text-customOrange font-opensans cursor-pointer text-sm"
-                          >
-                            Upload ID image
-                          </label>
-                        </>
-                      )}
-                    </div>
-                  </>
+                        <label
+                          htmlFor="idImageUpload"
+                          className="text-customOrange opacity-40 font-opensans cursor-pointer text-sm"
+                        >
+                          Upload ID image
+                        </label>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
 
-              {/* Submit Button */}
               <motion.button
-  type="submit"
-  className={`w-full h-12 text-white mt-28 rounded-full ${
-    idVerification && idImage
-      ? "bg-customOrange"
-      : "bg-customOrange opacity-20"
-  } flex justify-center items-center`}
-  onClick={handleProfileCompletion}
-  disabled={!idVerification || !idImage || isLoading} // Disable the button during loading
->
-  {isLoading ? (
-    <RotatingLines
-    strokeColor="white"
-    strokeWidth="5"
-    animationDuration="0.75"
-    width="30"
-    visible={true}
-  />
-  ) : (
-    "Complete Profile"
-  )}
-</motion.button>
+                type="submit"
+                className={`w-11/12 h-12 fixed bottom-6 left-0 right-0 mx-auto flex justify-center font-opensans items-center text-white rounded-full ${
+                  idVerification && idImage
+                    ? "bg-customOrange"
+                    : "bg-customOrange opacity-20"
+                }`}
+                onClick={handleProfileCompletion}
+                disabled={!idVerification || !idImage || isLoading} // Disable the button during loading
+              >
+                {isLoading ? (
+                  <RotatingLines
+                    strokeColor="white"
+                    strokeWidth="5"
+                    animationDuration="0.75"
+                    width="30"
+                    visible={true}
+                  />
+                ) : (
+                  "Complete Profile"
+                )}
+              </motion.button>
             </div>
           )}
         </>

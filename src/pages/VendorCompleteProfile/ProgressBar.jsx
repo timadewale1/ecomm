@@ -4,13 +4,13 @@ const ProgressBar = ({ step }) => {
   const totalSteps = 4;
 
   return (
-    <div className="flex flex-col items-start space-y-4">
-      <div className="flex space-x-2">
+    <div className="flex flex-col items-start space-y-4  w-full">
+      <div className="flex justify-between space-x-2 w-full">
         {Array.from({ length: totalSteps }).map((_, index) => (
           <div
             key={index}
-            className={`w-20 h-1 rounded-full ${
-              index < step ? 'bg-customOrange' : 'bg-gray-300'
+            className={`h-1 flex-grow  rounded-full ${
+              index < step ? 'bg-customOrange' : 'bg-gray-100'
             }`}
           ></div>
         ))}
@@ -18,6 +18,5 @@ const ProgressBar = ({ step }) => {
     </div>
   );
 };
-
 
 export default ProgressBar;

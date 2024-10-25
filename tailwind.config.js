@@ -5,8 +5,18 @@ module.exports = {
   ],
   theme: {
     extend: {
+      screens : {
+        preSm: '380px',
+      },
+      borderRadius : {
+        '2.5xl': '20px'
+      },
+      width : {
+        custVCard: '10.6875rem',
+      },
       colors: {
         customOrange: '#f9531e',
+        customSoftGray: '#fafafa',
         customDeepOrange: '#DA3A00',
         customCream: '#FCECD3',
         customBrown: '#BE7159',

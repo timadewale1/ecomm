@@ -313,7 +313,15 @@ const VendorDashboard = () => {
             <p className="text-black text-lg font-semibold">Recent activity</p>
             
             <div className="relative">
-            <div className="absolute bg-white w-44 h-40 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-48 top-2"></div>
+            <div className="absolute bg-white w-44 h-40 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-44 top-2 p-3 flex flex-col justify-between">
+             <div classname="text-xs flex items-center">All</div>
+             <hr />
+             <div classname="text-xs flex items-center">Recent Transactions</div>
+             <hr />
+             <div classname="text-xs flex items-center">Orders</div>
+             <hr />
+             <div classname="text-xs flex items-center">Product Update</div>
+            </div>
             <LuListFilter className="text-customOrange" onClick={() => setFilterOptions(!filterOptions)}/>
             </div>
             

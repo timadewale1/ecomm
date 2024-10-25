@@ -39,45 +39,52 @@ const StorePage = () => {
   useEffect(() => {
     const fetchVendorData = async () => {
       try {
+        // Set loading state to true
+        setLoading(true);
+
+        // Fetch vendor data using the vendor ID
         const vendorRef = doc(db, "vendors", id);
         const vendorDoc = await getDoc(vendorRef);
+
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
-          vendorData.id = vendorDoc.id; 
+          vendorData.id = vendorDoc.id; // Ensure we have the vendor's document ID
           setVendor(vendorData);
-  
+
+          // If the vendor has productIds, use them to fetch products
           if (vendorData.productIds && vendorData.productIds.length > 0) {
-            fetchVendorProducts(vendorData.productIds);
+            await fetchVendorProducts(vendorData.productIds); // Fetch the vendor's products
           } else {
+            // No products if the vendor has no productIds
             setProducts([]);
           }
-  
-          // Check follow status immediately after vendor data is set
-          checkIfFollowing(vendorData.id); // Call the check follow status function
         } else {
+          // Show error if the vendor is not found
           toast.error("Vendor not found!");
         }
       } catch (error) {
+        // Handle any errors during the fetch operation
         toast.error("Error fetching vendor data: " + error.message);
       } finally {
+        // Set loading state to false once fetching is complete
         setLoading(false);
       }
     };
-  
+
     const checkIfFollowing = async (vendorId) => {
       if (currentUser) {
         try {
           const followRef = collection(db, "follows");
           const followDoc = doc(followRef, `${currentUser.uid}_${vendorId}`);
           const followSnapshot = await getDoc(followDoc);
-  
+
           setIsFollowing(followSnapshot.exists()); // Set follow state based on document existence
         } catch (error) {
           console.error("Error checking follow status:", error);
         }
       }
     };
-  
+
     fetchVendorData(); // Fetch vendor data on mount
   }, [id, currentUser]); // Depend on vendor ID and current user state
 
@@ -243,11 +250,11 @@ const StorePage = () => {
           )}
         </div>
       </div>
-      <div className="flex justify-center mt-3 mb-2">
+      {/* <div className="flex justify-center mt-3 mb-2">
         <div className="flex items-center text-black text-lg font-medium">
           {vendor.socialMediaHandle}
         </div>
-      </div>
+      </div> */}
       <div
         className="flex justify-center mt-2"
         style={{ cursor: "pointer" }}
@@ -342,22 +349,27 @@ const StorePage = () => {
         </div>
 
         <div className="grid mt-2 grid-cols-2 gap-2">
-          {loading
-            ? Array.from({ length: 6 }).map((_, index) => (
-                <Skeleton key={index} height={200} width="100%" />
-              ))
-            : filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  isFavorite={!!favorites[product.id]}
-                  onFavoriteToggle={handleFavoriteToggle}
-                  onClick={() => {
-                    console.log("Navigating to product detail:", product.id); // Add console log
-                    navigate(`/product/${product.id}`);
-                  }}
-                />
-              ))}
+          {loading ? (
+            Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} height={200} width="100%" />
+            ))
+          ) : filteredProducts.length > 0 ? (
+            filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                isFavorite={!!favorites[product.id]}
+                onFavoriteToggle={handleFavoriteToggle}
+                onClick={() => {
+                  navigate(`/product/${product.id}`);
+                }}
+              />
+            ))
+          ) : (
+            <p className=" flex justify-center text-center font-opensans text-gray-500">
+              No products available for this vendor.
+            </p>
+          )}
         </div>
       </div>
     </div>

@@ -74,7 +74,7 @@ const VendorBottomBar = ({ isSearchFocused }) => {
         >
           {activeNav === index ? (
             <>
-              <item.activeIcon className="w-8 h-6 text-white" />
+              <item.activeIcon className="w-8 h-6" />
               <span className="nav-label">{item.label}</span>
             </>
           ) : (

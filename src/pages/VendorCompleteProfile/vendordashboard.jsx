@@ -17,14 +17,18 @@ import Modal from "../../components/layout/Modal";
 import AddProduct from "../vendor/AddProducts";
 import { useNavigate } from "react-router-dom";
 import Loading from "../../components/Loading/Loading";
-import { VendorContext } from "../../components/Context/Vendorcontext"; // Use the existing VendorContext
-import { BsBell, BsBoxSeam, BsCopy } from "react-icons/bs";
+import { VendorContext } from "../../components/Context/Vendorcontext";
+import { FiPlus } from "react-icons/fi";
+import { IoIosNotificationsOutline } from "react-icons/io"; // Use the existing VendorContext
+import { BsBell, BsBoxSeam, BsCopy, BsEye, BsEyeSlash } from "react-icons/bs";
 import { CopyAllRounded } from "@mui/icons-material";
-import { IoFilter } from "react-icons/io5";
+import { LuListFilter } from "react-icons/lu";
 import NotApproved from "../../components/Infos/NotApproved";
 const VendorDashboard = () => {
   const { vendorData, loading } = useContext(VendorContext); // Get vendor data from context
   const [totalFulfilledOrders, setTotalFulfilledOrders] = useState(0);
+  const [hide, setHide] = useState(false);
+  const [filterOptions, setFilterOptions] = useState(false);
   const [totalUnfulfilledOrders, setTotalUnfulfilledOrders] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -39,7 +43,7 @@ const VendorDashboard = () => {
       fetchStatistics(vendorData.vendorId);
       fetchRecentActivities(vendorData.vendorId);
     }
-  }, [vendorData]);
+  });
 
   // Fetch vendor's products, orders, and sales statistics in real-time
   const fetchStatistics = (vendorId) => {
@@ -96,6 +100,24 @@ const VendorDashboard = () => {
     }
   };
 
+  const getGreeting = () => {
+    const currentHour = new Date().getHours(); // Get the current hour (0 - 23)
+    let greeting;
+
+    if (currentHour >= 0 && currentHour < 12) {
+      greeting = "Good Morning";
+    } else if (currentHour >= 12 && currentHour < 18) {
+      greeting = "Good Afternoon";
+    } else {
+      greeting = "Good Evening";
+    }
+
+    return greeting;
+  };
+
+  // Example usage:
+  const greeting = getGreeting();
+
   // Fetch vendor's recent activities in real-time
   const fetchRecentActivities = (vendorId) => {
     const activityRef = collection(db, "vendors", vendorId, "activityNotes");
@@ -141,7 +163,7 @@ const VendorDashboard = () => {
   }
   return (
     <>
-      <div className="text-black mx-3 my-7 flex flex-col justify-center space-y-1">
+      <div className=" mx-3 my-7 flex flex-col justify-center space-y-1 font-opensans ">
         <div className="flex justify-between items-center">
           <div className="flex items-center">
             <div className="overflow-hidden w-11 h-11 rounded-full flex justify-center items-center mr-1">
@@ -152,13 +174,14 @@ const VendorDashboard = () => {
               />
             </div>
             <div className="ml-1 space-y-2">
-              <p className="font-bold text-lg">Hello, {vendorData.firstName}</p>
-              <p className="text-xs">Let's make cool cash</p>
+              <p className="font-bold text-lg text-black">
+                {greeting}, {vendorData.firstName}
+              </p>
             </div>
           </div>
           <div>
             <button className="border rounded-full p-1">
-              <img src="notif.png" alt="" className="w-5 h-5 " />
+              <IoIosNotificationsOutline className="w-5 h-5 " />
             </button>
           </div>
         </div>
@@ -179,9 +202,26 @@ const VendorDashboard = () => {
               <img src="./Vector2.png" alt="" className="w-16 h-16" />
             </div>
             <div className="flex flex-col justify-center items-center space-y-4">
-              <p className="text-white text-lg">Total Revenue</p>
+              <p className="text-white text-lg flex justify-between items-center">
+                <p
+                  className="text-white mr-2"
+                >
+                  Total Revenue{" "}
+                </p>
+                <p>
+                  {!hide ? (
+                    <BsEye onClick={() => setHide(!hide)}  className="text-white"/>
+                  ) : (
+                    <BsEyeSlash onClick={() => setHide(!hide)}  className="text-white"/>
+                  )}
+                </p>
+              </p>
               <p className="text-white text-3xl font-bold">
-                &#x20a6;{totalRevenue}
+                {!hide ? (
+                <p className="text-white text-3xl font-bold">&#x20a6;{totalRevenue}</p>
+                ) : (
+                  <p className="text-white text-3xl font-bold">{"**.**"}</p>
+                )}
               </p>
             </div>
             <div>
@@ -198,60 +238,95 @@ const VendorDashboard = () => {
         </div>
         <div className="flex flex-col justify-center mt-4">
           <div>
-            <p className="text-black text-start font-bold mb-2">Overview</p>
+            <p className="text-black text-lg text-start font-semibold mb-3">Overview</p>
 
-            <div className="grid grid-cols-2 justify-between">
-              <div className="flex flex-col space-y-4 w-full h-20 rounded-xl p-2 m-2">
-                <div className="flex justify-between">
-                  <BsBoxSeam className="text-customOrange ml-3" />
-                  <p className="text-black text-start font-light text-xs">
-                    Total Orders
-                  </p>
+            <div className="grid grid-cols-2 gap-2 justify-center">
+              <div className="flex flex-col justify-between w-40 preSm:w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
+                <div className="flex justify-between items-center">
+                  <div  className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
+                    <BsBoxSeam  className="text-sm text-customOrange"/>
+                  </div>
+                  
+                  <div>
+                    <p className="text-xs text-customRichBrown font-medium">Total Orders</p>
+                  </div>
+                  
                 </div>
-                <p className="text-end font-bold text-black">{totalOrders}</p>
-              </div>
-
-              <div className="flex flex-col space-y-4 w-full h-20 rounded-xl p-2 m-2">
-                <div className="flex justify-between">
-                  <BsBoxSeam className="text-customOrange ml-3" />
-                  <p className="text-black text-start font-light text-xs">
-                    Total Products
-                  </p>
+                <div className="text-lg font-semibold text-end">
+                {totalOrders}
                 </div>
-                <p className="text-end font-bold text-black">{totalProducts}</p>
               </div>
-
-              <div className="flex flex-col space-y-4 w-full h-20 rounded-xl p-2 m-2">
-                <div className="flex justify-between">
-                  <BsBoxSeam className="text-customOrange ml-3" />
-                  <p className="text-black text-start font-light text-xs">
-                    Unfulfilled Orders
-                  </p>
+                
+              <div className="flex flex-col justify-between w-40 preSm:w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
+                <div className="flex justify-between items-center">
+                  <div  className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
+                    <BsBoxSeam  className="text-sm text-customOrange"/>
+                  </div>
+                  
+                  <div>
+                    <p className="text-xs text-customRichBrown font-medium">Total Products</p>
+                  </div>
+                  
                 </div>
-                <p className="text-end font-bold text-black">
-                  {totalUnfulfilledOrders}
-                </p>
-              </div>
-
-              <div className="flex flex-col space-y-4 w-full h-20 rounded-xl p-2 m-2">
-                <div className="flex justify-between">
-                  <BsBoxSeam className="text-customOrange ml-3" />
-                  <p className="text-black text-start font-light text-xs">
-                    Fulfilled Orders
-                  </p>
+                <div className="text-lg font-semibold text-end">
+                {totalProducts}
                 </div>
-                <p className="text-end font-bold text-black">
-                  {totalFulfilledOrders}
-                </p>
               </div>
+                
+              <div className="flex flex-col justify-between w-40 preSm:w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
+                <div className="flex justify-between items-center">
+                  <div  className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
+                    <BsBoxSeam  className="text-sm text-customOrange"/>
+                  </div>
+                  
+                  <div>
+                    <p className="text-xs text-customRichBrown font-medium">Unfulfilled Orders</p>
+                  </div>
+                  
+                </div>
+                <div className="text-lg font-semibold text-end">
+                {totalUnfulfilledOrders}
+                </div>
+              </div>
+                
+              <div className="flex flex-col justify-between w-40 preSm:w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
+                <div className="flex justify-between items-center">
+                  <div  className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
+                    <BsBoxSeam  className="text-sm text-customOrange"/>
+                  </div>
+                  
+                  <div>
+                    <p className="text-xs text-customRichBrown font-medium">Fulfilled Orders</p>
+                  </div>
+                  
+                </div>
+                <div className="text-lg font-semibold text-end">
+                {totalFulfilledOrders}
+                </div>
+              </div>
+                
+              
             </div>
           </div>
         </div>
 
         <div className="flex flex-col justify-center mt-4">
           <div className="flex justify-between mb-4">
-            <p className="text-black font-bold">Recent activity</p>
-            <IoFilter className="text-customOrange" />
+            <p className="text-black text-lg font-semibold">Recent activity</p>
+            
+            <div className="relative">
+            <div className="absolute bg-white w-44 h-40 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-44 top-2 p-3 flex flex-col justify-between">
+             <div classname="text-xs flex items-center">All</div>
+             <hr />
+             <div classname="text-xs flex items-center">Recent Transactions</div>
+             <hr />
+             <div classname="text-xs flex items-center">Orders</div>
+             <hr />
+             <div classname="text-xs flex items-center">Product Update</div>
+            </div>
+            <LuListFilter className="text-customOrange" onClick={() => setFilterOptions(!filterOptions)}/>
+            </div>
+            
           </div>
 
           <div className="flex flex-col space-y-2 text-black">

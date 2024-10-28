@@ -1,55 +1,73 @@
 import React, { useState } from "react";
 import { getAuth } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import { Container, Row, Form } from "reactstrap";
 import { motion } from "framer-motion";
 import { FiChevronLeft } from "react-icons/fi"; // Back icon
 import Loading from "../../components/Loading/Loading";
 import MarketVendor from "./marketVendor";
 import VirtualVendor from "./virtualVendor";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { GoChevronLeft } from "react-icons/go";
+import { RotatingLines } from "react-loader-spinner";
+
 const CompleteProfile = () => {
+  const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [showDropdown, setShowDropdown] = useState(false);
+
   const [vendorData, setVendorData] = useState({
     shopName: "",
     categories: [],
     description: "",
-    marketPlaceType: "", // This will store the type of vendor (online or market)
-    marketPlace: "",
-    complexName: "",
-    shopNumber: "",
-    phoneNumber: "",
-    socialMediaHandle: {
-      instagram: "",
-      twitter: "",
-      facebook: "",
-    },
-    personalAddress: "",
+    marketPlaceType: "",
+    // Virtual vendor specific fields
     coverImage: null,
     coverImageUrl: "",
+    socialMediaHandle: {
+      instagram: "", // Instagram link
+      twitter: "", // Twitter link
+      facebook: "", // Facebook link
+    },
+    phoneNumber: "", // Vendor's phone number
+    Address: "", // Vendor's address (could be for personal or business)
+
     // Market vendor specific fields
-    brandName: "",
-    brandAddress: "",
-    location: "",
-    complexNumber: "",
-    brandCategory: "",
-    daysAvailability: "",
-    openTime: "",
-    closeTime: "",
-    brandDescription: "", // Added to match validation
+    marketPlace: "", // Marketplace name (e.g., Yaba)
+    complexNumber: "", // Store number in the marketplace
+    daysAvailability: [], // Days of the week when the shop is open
+    openTime: "", // Opening time for the shop
+    closeTime: "", // Closing time for the shop
+
+    // Fields common for ID verification (for both market and virtual vendors)
+    idVerification: "", // Type of verification document (NIN, Passport, CAC)
+    idImage: null, // File for the ID image
+    idImageUrl: "", // URL for the ID image (if applicable)
+
+    // Bank details (for both market and virtual vendors)
+    bankDetails: {
+      bankName: "", // Name of the bank
+      accountNumber: "", // Vendor's bank account number
+      accountName: "", // Vendor's bank account name
+    },
   });
+
   const [bankDetails, setBankDetails] = useState({
     bankName: "",
     accountNumber: "",
     accountName: "",
   });
+  const vendorType = "market"; // or 'virtual', based on logic
+  const activeStep = 2;
   const [deliveryMode, setDeliveryMode] = useState(""); // Delivery Mode state
   const [idVerification, setIdVerification] = useState(""); // ID Verification type
   const [idImage, setIdImage] = useState(null); // ID Image
+  const [isIdImageUploading, setIsIdImageUploading] = useState(false);
+  const [isCoverImageUploading, setIsCoverImageUploading] = useState(false);
+
   const [loading, setLoading] = useState(false); // Updated loading state
   const navigate = useNavigate();
 
@@ -104,7 +122,6 @@ const CompleteProfile = () => {
     "Crossbody Bags",
     "Rings",
   ];
-  
 
   const banks = [
     "Access Bank",
@@ -132,20 +149,64 @@ const CompleteProfile = () => {
     "Zenith Bank",
   ];
 
-  const getProgress = () => {
-    const adjustedStep = step - 2; // Starts the progress bar from step 3
-    const totalVisibleSteps = 4; // 4 steps (Create Shop, Bank Details, Delivery Mode, and Verification)
-    return (adjustedStep / totalVisibleSteps) * 100;
-  };
-
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
-    if (file && file.size > 3 * 1024 * 1024) { // 3MB size limit
-      toast.error("File size exceeds 3MB. Please upload a smaller image.");
-      return; // Do not upload the image if it exceeds 3MB
+  
+    if (!file) {
+      toast.error("No file selected. Please choose an image.");
+      return;
     }
-    setVendorData({ ...vendorData, coverImage: file });
+  
+    if (file.size > 3 * 1024 * 1024) {
+      toast.error("File size exceeds 3MB. Please upload a smaller image.");
+      return;
+    }
+  
+    try {
+      setIsCoverImageUploading(true); // Start loading
+  
+      const auth = getAuth();
+      const user = auth.currentUser;
+  
+      if (!user) {
+        throw new Error("User is not authenticated");
+      }
+  
+      const vendorId = user.uid; // Assuming vendorId is the same as user ID
+  
+      console.log("Starting image upload for vendor:", vendorId);
+  
+      const storage = getStorage();
+      const storageRef = ref(storage, `vendorImages/${vendorId}/coverImage`);
+  
+      // Upload file
+      await uploadBytes(storageRef, file);
+      console.log("File uploaded to Firebase Storage.");
+  
+      // Get download URL
+      const downloadURL = await getDownloadURL(storageRef);
+      console.log("File available at:", downloadURL);
+  
+      // Update local state with the new image URL
+      setVendorData((prevData) => ({ ...prevData, coverImageUrl: downloadURL }));
+  
+      // Update Firestore document with the new image URL
+      const vendorDocRef = doc(db, "vendors", vendorId); // Reference to vendor document
+      await updateDoc(vendorDocRef, {
+        coverImageUrl: downloadURL,
+      });
+  
+      console.log("Firestore document updated with image URL:", downloadURL);
+      toast.success("Image uploaded successfully!");
+    } catch (error) {
+      console.error("Error during image upload ", error);
+      toast.error(`Error uploading image: ${error.message}`);
+    } finally {
+      setIsCoverImageUploading(false); // End loading
+    }
   };
+  
+  
   
 
   const handleVendorTypeSelection = (type) => {
@@ -183,64 +244,84 @@ const CompleteProfile = () => {
 
   const handleDeliveryModeChange = (mode) => {
     setDeliveryMode(mode);
+    setVendorData({ ...vendorData, deliveryMode: mode });
   };
 
   const handleIdVerificationChange = (e) => {
-    setIdVerification(e.target.value);
+    const value = e.target.value;
+    setIdVerification(value);
+    setVendorData({ ...vendorData, idVerification: value });
   };
 
-  const handleIdImageUpload = (e) => {
-    if (e.target.files[0]) {
-      setIdImage(e.target.files[0]);
+  const handleIdImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (file && file.size > 3 * 1024 * 1024) {
+      // 3MB size limit
+      toast.error("File size exceeds 3MB. Please upload a smaller image.");
+      return;
+    }
+    try {
+      setIsIdImageUploading(true); // Start loading
+      console.log("Selected ID image file:", file);
+
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (!user) {
+        throw new Error("User is not authenticated");
+      }
+
+      const storage = getStorage();
+      const storageRef = ref(storage, `vendorImages/${user.uid}/idImage`);
+
+      // Upload the file
+      await uploadBytes(storageRef, file);
+      console.log("ID image file uploaded to storage.");
+
+      // Get the download URL
+      const downloadURL = await getDownloadURL(storageRef);
+      console.log("ID image uploaded successfully. URL:", downloadURL);
+
+      // Update the idImage state with the download URL
+      setIdImage(downloadURL);
+
+      // Update vendorData with the ID image URL
+      setVendorData({ ...vendorData, idImage: downloadURL });
+    } catch (error) {
+      console.error("Error uploading ID image:", error);
+      toast.error("Error uploading ID image: " + error.message);
+    } finally {
+      setIsIdImageUploading(false); // End loading
     }
   };
 
   const handleProfileCompletion = async (e) => {
     e.preventDefault();
 
-    console.log("handleProfileCompletion called");
+    setIsLoading(true); // Set loading state to true at the start
 
     const missingFields = [];
 
     // Check for missing fields
-    if (!vendorData.shopName) missingFields.push("Shop Name");
-    if (!vendorData.categories.length) missingFields.push("Categories");
-    if (!vendorData.description) missingFields.push("Description");
     if (!vendorData.marketPlaceType) missingFields.push("Marketplace Type");
 
     // Check specific conditions for online vendors
     if (vendorData.marketPlaceType === "virtual") {
+      if (!vendorData.shopName) missingFields.push("Shop Name");
+      if (!vendorData.categories.length) missingFields.push("Categories");
+      if (!vendorData.description) missingFields.push("Description");
       if (
-        !vendorData.socialMediaHandle.instagram ||
-        !vendorData.socialMediaHandle.facebook ||
+        !vendorData.socialMediaHandle.instagram &&
+        !vendorData.socialMediaHandle.facebook &&
         !vendorData.socialMediaHandle.twitter
       ) {
         missingFields.push("Social Media Handles");
       }
-      if (!vendorData.personalAddress) missingFields.push("Personal Address");
       if (!vendorData.phoneNumber) missingFields.push("Phone Number");
-      if (!vendorData.coverImage) missingFields.push("Cover Image");
-    }
-
-    // Check specific conditions for market vendors
-    else if (vendorData.marketPlaceType === "marketplace") {
-      if (!vendorData.marketPlace) missingFields.push("Market Place");
-      if (!vendorData.complexName) missingFields.push("Complex Name");
-      if (!vendorData.phoneNumber) missingFields.push("Phone Number");
-      if (!vendorData.shopNumber) missingFields.push("Shop Number");
-      if (!vendorData.daysAvailability)
-        missingFields.push("Days of Availability");
-      if (!vendorData.openTime) missingFields.push("Opening Time");
-      if (!vendorData.closeTime) missingFields.push("Closing Time");
-      if (!bankDetails.bankName) missingFields.push("Bank Name");
-      if (!bankDetails.accountNumber) missingFields.push("Account Number");
-      if (!bankDetails.accountName) missingFields.push("Account Name");
-      if (!vendorData.brandName) missingFields.push("Brand Name");
-      if (!vendorData.brandAddress) missingFields.push("Brand Address");
-      if (!vendorData.location) missingFields.push("Location");
-      if (!vendorData.complexNumber) missingFields.push("Complex Number");
-      if (!vendorData.brandCategory) missingFields.push("Brand Category");
-      if (!vendorData.brandDescription) missingFields.push("Brand Description");
+      if (!vendorData.coverImageUrl) missingFields.push("Cover Image");
+      if (!vendorData.deliveryMode) missingFields.push("Delivery Mode");
+      if (!vendorData.idVerification) missingFields.push("ID Verification");
+      if (!vendorData.idImage) missingFields.push("ID Image");
     }
 
     // If any missing fields are found, show a toast and return early
@@ -251,53 +332,49 @@ const CompleteProfile = () => {
           className: "custom-toast",
         }
       );
-      setLoading(false);
-      return;
+      setIsLoading(false);
+      return; // Exit the function early
     }
 
-    setLoading(true);
-    const auth = getAuth();
-    const user = auth.currentUser;
-
-    if (!user) {
-      toast.error("User is not authenticated", {
-        className: "custom-toast",
-      });
-      setLoading(false);
-      return;
-    }
-
-    const { coverImage, ...dataToStore } = vendorData; // Exclude coverImage for Firestore
-
+    // Proceed if no missing fields
     try {
-      console.log("Attempting to set document in Firestore...");
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (!user) {
+        throw new Error("User is not authenticated");
+      }
+
+      // Include coverImage in dataToStore
+      const dataToStore = {
+        ...vendorData,
+        profileComplete: true,
+        bankDetails,
+      };
+
+      console.log("Data to store in Firestore:", dataToStore);
 
       // Update Firestore document
-      await setDoc(
-        doc(db, "vendors", user.uid),
-        {
-          ...dataToStore,
-          profileComplete: true,
-          bankDetails, // Include bankDetails if needed
-        },
-        { merge: true }
-      );
+      await setDoc(doc(db, "vendors", user.uid), dataToStore, { merge: true });
 
-      console.log("Firestore document updated successfully.");
+      console.log("Vendor data saved to Firestore.");
 
-      toast.success("Profile completed successfully.", {
+      // Show success toast after successful submission
+      toast.success("Profile completed successfully!", {
         className: "custom-toast",
       });
 
-      console.log("Navigating to dashboard...");
+      // Navigate to the vendor dashboard after successful completion
       navigate("/vendordashboard");
     } catch (error) {
-      console.log("Error during profile completion:", error);
+      // Show error toast in case of any issues
       toast.error("Error completing profile: " + error.message, {
         className: "custom-toast",
       });
+      console.error("Error completing profile:", error);
     } finally {
-      setLoading(false);
+      // Always set loading to false at the end, even if there's an error
+      setIsLoading(false);
     }
   };
 
@@ -307,10 +384,7 @@ const CompleteProfile = () => {
         {loading ? (
           <Loading />
         ) : (
-          <Form
-            className=""
-            onSubmit={handleProfileCompletion}
-          >
+          <Form className="" onSubmit={handleProfileCompletion}>
             {/* Back Button */}
             {step > 1 && (
               <button
@@ -325,30 +399,31 @@ const CompleteProfile = () => {
             {/* Step 1: Vendor Type Selection */}
             {step === 1 && (
               <div className="p-2 mt-16">
-                <h1 className="text-xl gap-16 font-opensans font-semibold text-black">
+                <h1 className="text-xl gap-16 font-opensans font-semibold text-header">
                   Choose your vendor type
                 </h1>
-                <p className="text-sm mt-3 font-opensans text-black">
+                <p className="text-sm mt-3 font-opensans text-neutral-800">
                   Online Vendor or Market Vendor—we have tools tailored just for
                   you!
                 </p>
+
                 <div className="my-6 mb-72">
                   <div
                     className={`border-0 p-3 mb-4 rounded-lg cursor-pointer flex justify-between items-center ${
                       vendorData.marketPlaceType === "virtual"
                         ? "border-customOrange"
                         : "border-none"
-                    } bg-gray-100 px-10 text-gray-800 rounded-lg`}
+                    } bg-gray-50 px-10 text-gray-800 rounded-lg`}
                     onClick={() => handleVendorTypeSelection("virtual")}
                   >
-                    <span className="font-opensans text-black ">
+                    <span className="font-opensans text-neutral-800 ">
                       Online Vendor
                     </span>
                     <div
                       className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
                         vendorData.marketPlaceType === "virtual"
                           ? "border-customOrange"
-                          : "border-gray-400"
+                          : "border-customOrange"
                       }`}
                     >
                       {vendorData.marketPlaceType === "virtual" && (
@@ -360,18 +435,18 @@ const CompleteProfile = () => {
                     className={`border-0 p-3 mb-4 rounded-lg cursor-pointer flex justify-between items-center ${
                       vendorData.marketPlaceType === "marketplace"
                         ? "border-customOrange"
-                        : "border-none"
-                    } bg-gray-100 px-10 text-gray-800 rounded-lg`}
+                        : "border-customOrange"
+                    } bg-gray-50 px-10 text-gray-800 rounded-lg`}
                     onClick={() => handleVendorTypeSelection("marketplace")}
                   >
-                    <span className="font-opensans text-black">
+                    <span className="font-opensans text-neutral-800">
                       Market Vendor
                     </span>
                     <div
                       className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
                         vendorData.marketPlaceType === "marketplace"
                           ? "border-customOrange"
-                          : "border-gray-400"
+                          : "border-customOrange"
                       }`}
                     >
                       {vendorData.marketPlaceType === "marketplace" && (
@@ -382,7 +457,7 @@ const CompleteProfile = () => {
                 </div>
                 <motion.button
                   type="button"
-                  className={`w-full h-12 text-white font-opensans rounded-full mt-8 ${
+                  className={`w-11/12 h-12 fixed bottom-6 left-0 right-0 mx-auto flex justify-center items-center text-white font-opensans rounded-full ${
                     vendorData.marketPlaceType
                       ? "bg-customOrange"
                       : "bg-customOrange opacity-20"
@@ -402,7 +477,6 @@ const CompleteProfile = () => {
                 setVendorData={setVendorData}
                 step={step}
                 setStep={setStep}
-                getProgress={getProgress}
                 handleInputChange={handleInputChange}
                 handleNextStep={handleNextStep}
                 setShowDropdown={setShowDropdown}
@@ -415,9 +489,13 @@ const CompleteProfile = () => {
                 idVerification={idVerification}
                 handleIdVerificationChange={handleIdVerificationChange}
                 idImage={idImage}
+                setIdImage={setIdImage}
+                isIdImageUploading={isIdImageUploading} 
+                isCoverImageUploading={isCoverImageUploading}
                 handleIdImageUpload={handleIdImageUpload}
                 handleImageUpload={handleImageUpload}
                 handleSocialMediaChange={handleSocialMediaChange}
+                isLoading={isLoading}
                 handleProfileCompletion={handleProfileCompletion}
                 banks={banks}
               />
@@ -429,7 +507,6 @@ const CompleteProfile = () => {
                 setVendorData={setVendorData}
                 step={step}
                 setStep={setStep}
-                getProgress={getProgress}
                 handleInputChange={handleInputChange}
                 handleNextStep={handleNextStep}
                 setShowDropdown={setShowDropdown}
@@ -443,6 +520,9 @@ const CompleteProfile = () => {
                 handleIdVerificationChange={handleIdVerificationChange}
                 idImage={idImage}
                 handleIdImageUpload={handleIdImageUpload}
+                isLoading={isLoading}
+                setIdImage={setIdImage}
+                isIdImageUploading={isIdImageUploading} 
                 handleProfileCompletion={handleProfileCompletion}
                 banks={banks}
               />

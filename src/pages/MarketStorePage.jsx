@@ -16,7 +16,13 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { GoDotFill, GoChevronLeft } from "react-icons/go";
 import { FiSearch } from "react-icons/fi";
-import { FaAngleLeft, FaPlus, FaCheck, FaSpinner, FaStar } from "react-icons/fa";
+import {
+  FaAngleLeft,
+  FaPlus,
+  FaCheck,
+  FaSpinner,
+  FaStar,
+} from "react-icons/fa";
 import toast from "react-hot-toast";
 import ProductCard from "../components/Products/ProductCard";
 import Loading from "../components/Loading/Loading";
@@ -45,8 +51,13 @@ const MarketStorePage = () => {
 
     const fetchVendorData = async () => {
       try {
-        const vendorRef = doc(db, "vendors", id); // Fetch vendor data using the vendor ID
+        // Set loading state to true
+        setLoading(true);
+
+        // Fetch vendor data using the vendor ID
+        const vendorRef = doc(db, "vendors", id);
         const vendorDoc = await getDoc(vendorRef);
+
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
           vendorData.id = vendorDoc.id; // Ensure we have the vendor's document ID
@@ -54,16 +65,20 @@ const MarketStorePage = () => {
 
           // If the vendor has productIds, use them to fetch products
           if (vendorData.productIds && vendorData.productIds.length > 0) {
-            fetchVendorProducts(vendorData.productIds); // Fetch the vendor's products
+            await fetchVendorProducts(vendorData.productIds); // Fetch the vendor's products
           } else {
-            setProducts([]); // No products if the vendor has no productIds
+            // No products if the vendor has no productIds
+            setProducts([]);
           }
         } else {
+          // Show error if the vendor is not found
           toast.error("Vendor not found!");
         }
       } catch (error) {
+        // Handle any errors during the fetch operation
         toast.error("Error fetching vendor data: " + error.message);
       } finally {
+        // Set loading state to false once fetching is complete
         setLoading(false);
       }
     };
@@ -79,7 +94,10 @@ const MarketStorePage = () => {
       if (currentUser && vendor) {
         try {
           const followRef = collection(db, "follows");
-          const followDocRef = doc(followRef, `${currentUser.uid}_${vendor.id}`);
+          const followDocRef = doc(
+            followRef,
+            `${currentUser.uid}_${vendor.id}`
+          );
           const followSnapshot = await getDoc(followDocRef);
 
           if (followSnapshot.exists()) {
@@ -299,11 +317,11 @@ const MarketStorePage = () => {
           )}
         </div>
       </div>
-      <div className="flex justify-center mt-3 mb-2">
+      {/* <div className="flex justify-center mt-3 mb-2">
         <div className="flex items-center text-black text-lg font-medium">
           {vendor.socialMediaHandle}
         </div>
-      </div>
+      </div> */}
       <div
         className="flex justify-center mt-2"
         style={{ cursor: "pointer" }}
@@ -401,21 +419,27 @@ const MarketStorePage = () => {
         </div>
 
         <div className="grid mt-2 grid-cols-2 gap-2">
-          {loading
-            ? Array.from({ length: 6 }).map((_, index) => (
-                <Skeleton key={index} height={200} width="100%" />
-              ))
-            : filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  isFavorite={!!favorites[product.id]}
-                  onFavoriteToggle={handleFavoriteToggle}
-                  onClick={() => {
-                    navigate(`/product/${product.id}`);
-                  }}
-                />
-              ))}
+          {loading ? (
+            Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} height={200} width="100%" />
+            ))
+          ) : filteredProducts.length > 0 ? (
+            filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                isFavorite={!!favorites[product.id]}
+                onFavoriteToggle={handleFavoriteToggle}
+                onClick={() => {
+                  navigate(`/product/${product.id}`);
+                }}
+              />
+            ))
+          ) : (
+            <p className=" flex justify-center text-center font-opensans text-gray-500">
+              No products available for this vendor.
+            </p>
+          )}
         </div>
       </div>
     </div>

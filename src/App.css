@@ -80,6 +80,9 @@ section {
 .modal1{
   z-index: 2500;
 }
+.modals{
+  z-index: 2400;
+}
 
 .truncate {
   white-space: nowrap;
@@ -303,4 +306,35 @@ button.bg-orange-500:hover {
 .totaltext{
   font-size: 17px;
 }
+
+.progress-bar-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.progress-line {
+  flex: 1;
+  height: 5px;
+  background-color: #e76f51; /* Or your color choice */
+  margin: 0 10px;
+}
+
+.progress-dashed-line {
+  flex: 1;
+  height: 5px;
+  background: repeating-linear-gradient(
+    90deg,
+    #e76f51,
+    #e76f51 10px,
+    transparent 10px,
+    transparent 20px
+  );
+  margin: 0 10px;
+}
+
+.active {
+  background-color: #e76f51; /* This will show active steps */
+}
+
 

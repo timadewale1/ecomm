@@ -8,8 +8,8 @@ import {
   limit,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+
+import toast from "react-hot-toast";
 import { FaPlus, FaBox, FaShoppingCart, FaListAlt } from "react-icons/fa";
 import { RxCopy } from "react-icons/rx";
 import { TbBell, TbCurrencyNaira } from "react-icons/tb";
@@ -24,7 +24,6 @@ import { BsBell, BsBoxSeam, BsCopy, BsEye, BsEyeSlash } from "react-icons/bs";
 import { CopyAllRounded } from "@mui/icons-material";
 import { LuListFilter } from "react-icons/lu";
 import NotApproved from "../../components/Infos/NotApproved";
-
 const VendorDashboard = () => {
   const { vendorData, loading } = useContext(VendorContext); // Get vendor data from context
   const [totalFulfilledOrders, setTotalFulfilledOrders] = useState(0);
@@ -159,6 +158,9 @@ const VendorDashboard = () => {
     ); // You can show a loading spinner or skeleton here
   }
 
+  if (!vendorData) {
+    return <p>Unable to load vendor data. Please try again later.</p>;
+  }
   return (
     <>
       <div className="mb-24 mx-3 my-7 flex flex-col justify-center space-y-1 font-opensans ">
@@ -166,8 +168,8 @@ const VendorDashboard = () => {
           <div className="flex items-center">
             <div className="overflow-hidden w-11 h-11 rounded-full flex justify-center items-center mr-1">
               <img
-                src={vendorData.photoURL}
-                alt=""
+                src={vendorData.photoURL || vendorData.coverImageUrl} 
+                alt="Vendor profile"
                 className="rounded-full object-cover h-11 w-11"
               />
             </div>
@@ -378,7 +380,6 @@ const VendorDashboard = () => {
       <Modal isOpen={isModalOpen} onClose={closeModal}>
         <AddProduct vendorId={vendorData?.vendorId} closeModal={closeModal} />
       </Modal>
-      <ToastContainer /> {/* Required to display the toast */}
     </>
   );
 };

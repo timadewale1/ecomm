@@ -106,13 +106,21 @@ const VendorRatings = () => {
         ...doc.data(),
       }));
 
+      // Apply filter based on selectedRating
+      let filteredReviews = reviewsList;
+
+      if (selectedRating !== "All") {
+        filteredReviews = reviewsList.filter(
+          (review) => review.rating === selectedRating
+        );
+      }
+
       // Separate text and non-text reviews
-      const textReviews = reviewsList.filter((review) => review.reviewText);
+      const textReviews = filteredReviews.filter((review) => review.reviewText);
       setReviews(textReviews);
 
       // Calculate rating breakdown including all reviews (with and without text)
       const allReviews = reviewsList;
-      // Calculate rating breakdown using **all reviews**, both text and non-text
       const breakdown = {
         5: reviewsList.filter((r) => r.rating === 5).length,
         4: reviewsList.filter((r) => r.rating === 4).length,
@@ -120,8 +128,6 @@ const VendorRatings = () => {
         2: reviewsList.filter((r) => r.rating === 2).length,
         1: reviewsList.filter((r) => r.rating === 1).length,
       };
-
-      setRatingBreakdown(breakdown); // Update the rating breakdown
 
       setRatingBreakdown(breakdown); // Update the rating breakdown
     } catch (error) {
@@ -140,8 +146,6 @@ const VendorRatings = () => {
   useEffect(() => {
     if (id) {
       fetchReviews();
-    } else {
-      console.error("id is undefined");
     }
   }, [id, selectedRating]);
 
@@ -203,12 +207,12 @@ const VendorRatings = () => {
       toast.error("Your review contains inappropriate language.");
       return;
     }
-  
+
     if (!isProfileComplete) {
       toast.error("Please complete your profile before submitting a review.");
       return;
     }
-  
+
     try {
       setIsSubmitting(true);
       if (!id || !currentUser) {
@@ -216,15 +220,15 @@ const VendorRatings = () => {
         setIsSubmitting(false);
         return;
       }
-  
+
       if (!newRating) {
         toast.error("Please select a rating.");
         setIsSubmitting(false);
         return;
       }
-  
+
       const reviewsRef = collection(db, "vendors", id, "reviews");
-  
+
       // Save the review only if text is provided
       await addDoc(reviewsRef, {
         reviewText: newReview.trim() !== "" ? newReview : null, // Add text if provided
@@ -233,14 +237,14 @@ const VendorRatings = () => {
         userPhotoURL: currentUser.photoURL || DefaultImageUrl, // Use a default image if userPhotoURL is missing
         createdAt: new Date(),
       });
-  
+
       // Update vendor rating even if no text review is provided
       const vendorRef = doc(db, "vendors", id);
       await updateDoc(vendorRef, {
         ratingCount: increment(1),
         rating: increment(newRating),
       });
-  
+
       setShowModal(false);
       setNewReview("");
       setNewRating(0);
@@ -255,7 +259,6 @@ const VendorRatings = () => {
       setIsSubmitting(false);
     }
   };
-  
 
   const DefaultImageUrl =
     "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
@@ -296,7 +299,7 @@ const VendorRatings = () => {
           {["All", 5, 4, 3, 2, 1].map((star) => (
             <button
               key={star}
-              onClick={() => setSelectedRating(star)}
+              onClick={() => setSelectedRating(star)} // This correctly updates selectedRating
               className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-bold font-opensans text-black border border-gray-400 rounded-full ${
                 selectedRating === star
                   ? "bg-customOrange text-white"
@@ -433,9 +436,9 @@ const VendorRatings = () => {
               </div>
             </div>
             <div className="flex justify-center">
-              <div className="flex items-center text-black text-lg font-semibold">
+              {/* <div className="flex items-center text-black text-lg font-semibold">
                 {vendor.socialMediaHandle}
-              </div>
+              </div> */}
             </div>
             <div className="flex justify-center mt-2">
               <>

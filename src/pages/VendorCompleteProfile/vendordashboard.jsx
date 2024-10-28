@@ -161,7 +161,7 @@ const VendorDashboard = () => {
 
   return (
     <>
-      <div className=" mx-3 my-7 flex flex-col justify-center space-y-1 font-opensans ">
+      <div className="mb-24 mx-3 my-7 flex flex-col justify-center space-y-1 font-opensans ">
         <div className="flex justify-between items-center">
           <div className="flex items-center">
             <div className="overflow-hidden w-11 h-11 rounded-full flex justify-center items-center mr-1">
@@ -323,13 +323,13 @@ const VendorDashboard = () => {
             <div className="relative">
               {filterOptions && (
                 <div className="z-50 absolute bg-white w-44 h-40 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-44 top-2 p-3 flex flex-col justify-between">
-                    <span className="text-xs ml-1">All</span>
+                    <span className="text-xs ml-2">All</span>
                   <hr className="text-slate-300"/>
-                    <span className="text-xs ml-1">Recent Transactions</span>
+                    <span className="text-xs ml-2">Recent Transactions</span>
                   <hr className="text-slate-300"/>
-                    <span className="text-xs ml-1">Orders</span>
+                    <span className="text-xs ml-2">Orders</span>
                   <hr className="text-slate-300"/>
-                    <span className="text-xs ml-1">Product Update</span>
+                    <span className="text-xs ml-2">Product Update</span>
                 </div>
               )}
               <LuListFilter

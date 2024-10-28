@@ -322,18 +322,14 @@ const VendorDashboard = () => {
 
             <div className="relative">
               {filterOptions && (
-                <div className="absolute bg-white w-44 h-40 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-44 top-2 p-3 flex flex-col justify-between">
-                  <div classname="text-xs flex items-center">All</div>
-                  <hr />
-                  <div classname="text-xs flex items-center">
-                    Recent Transactions
-                  </div>
-                  <hr />
-                  <div classname="text-xs flex items-center">Orders</div>
-                  <hr />
-                  <div classname="text-xs flex items-center">
-                    Product Update
-                  </div>
+                <div className="z-50 absolute bg-white w-44 h-40 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-44 top-2 p-3 flex flex-col justify-between">
+                    <span className="text-xs ml-1">All</span>
+                  <hr className="text-slate-300"/>
+                    <span className="text-xs ml-1">Recent Transactions</span>
+                  <hr className="text-slate-300"/>
+                    <span className="text-xs ml-1">Orders</span>
+                  <hr className="text-slate-300"/>
+                    <span className="text-xs ml-1">Product Update</span>
                 </div>
               )}
               <LuListFilter
@@ -375,7 +371,9 @@ const VendorDashboard = () => {
         } text-white rounded-full w-11 h-11 shadow-lg focus:outline-none`}
         disabled={!vendorData?.isApproved}
       >
-        <span className="text-5xl">+</span>
+        <span className="text-3xl">
+          <FiPlus />
+        </span>
       </button>
       <Modal isOpen={isModalOpen} onClose={closeModal}>
         <AddProduct vendorId={vendorData?.vendorId} closeModal={closeModal} />

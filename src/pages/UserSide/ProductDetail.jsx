@@ -18,11 +18,18 @@ import { FiPlus } from "react-icons/fi";
 import { FiMinus } from "react-icons/fi";
 import { TbSquareRoundedCheck } from "react-icons/tb";
 import { MdOutlineCancel } from "react-icons/md";
+import "swiper/css/free-mode";
+import "swiper/css/autoplay";
+import { Swiper, SwiperSlide } from "swiper/react";
+import "swiper/css";
+import SwiperCore, { Pagination, Navigation } from "swiper";
+import { FreeMode, Autoplay } from "swiper/modules";
 import { doc, getDoc, getFirestore } from "firebase/firestore";
 import RelatedProducts from "./SimilarProducts";
 import Productnotofund from "../../components/Loading/Productnotofund";
 import { decreaseQuantity, increaseQuantity } from "../../redux/actions/action";
 Modal.setAppElement("#root");
+
 const debounce = (func, delay) => {
   let timeoutId;
   return (...args) => {
@@ -42,7 +49,7 @@ const ProductDetailPage = () => {
 
   // Fetch product from Redux store
   const { product, loading, error } = useSelector((state) => state.product);
-  const [initialImage, setInitialImage] = useState(""); 
+  const [initialImage, setInitialImage] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [mainImage, setMainImage] = useState("");
   const [isSticky, setIsSticky] = useState(false);
@@ -50,6 +57,9 @@ const ProductDetailPage = () => {
   const [vendorLoading, setVendorLoading] = useState(true);
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
+  const [subProducts, setSubProducts] = useState([]);
+  const [selectedSubProduct, setSelectedSubProduct] = useState(null);
+
   const [animateCart, setAnimateCart] = useState(false);
   const [isAddedToCart, setIsAddedToCart] = useState(false);
   const [toastShown, setToastShown] = useState({
@@ -63,6 +73,10 @@ const ProductDetailPage = () => {
   const [vendor, setVendor] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [availableColors, setAvailableColors] = useState([]);
+  const [availableSizes, setAvailableSizes] = useState([]);
+  const [selectedVariantStock, setSelectedVariantStock] = useState(0);
+  const [allImages, setAllImages] = useState([]);
   const [isLinkCopied, setIsLinkCopied] = useState(false);
   const db = getFirestore();
 
@@ -70,12 +84,27 @@ const ProductDetailPage = () => {
 
   useEffect(() => {
     if (product) {
+      // Set initial images when the main product is loaded
+      setAllImages(
+        product.imageUrls?.length > 1
+          ? [
+              product.coverImageUrl,
+              ...product.imageUrls.filter(
+                (url) => url !== product.coverImageUrl
+              ),
+            ]
+          : [product.coverImageUrl]
+      );
+    }
+  }, [product]);
+  useEffect(() => {
+    if (product) {
       const vendorProducts = cart?.[product.vendorId]?.products || {};
-  
+
       let foundInCart = false;
       for (let key in vendorProducts) {
         const cartItem = vendorProducts[key];
-        
+
         // Check if the exact size/color combination is already in the cart
         if (
           cartItem.id === product.id &&
@@ -89,7 +118,7 @@ const ProductDetailPage = () => {
           break;
         }
       }
-  
+
       if (!foundInCart) {
         // If the product with this size/color is not in the cart, reset the state
         setIsAddedToCart(false);
@@ -97,8 +126,59 @@ const ProductDetailPage = () => {
         setAnimateCart(false);
       }
     }
-  }, [cart, product, selectedSize, selectedColor]); // Depend on selectedSize and selectedColor
-  
+  }, [cart, product, selectedSize, selectedColor]);
+  useEffect(() => {
+    // Assuming sub-products are part of the product data
+    if (product) {
+      setSubProducts(product.subProducts || []);
+      // Set the initial sub-product to the first one if available
+      if (product.subProducts && product.subProducts.length > 0) {
+        setSelectedSubProduct(product.subProducts[0]);
+        setSelectedColor(product.subProducts[0].color);
+        setSelectedSize(product.subProducts[0].size);
+
+        setMainImage(product.subProducts[0].images[0]);
+        setSelectedVariantStock(product.subProducts[0].stock);
+      }
+    }
+  }, [product]);
+
+  const handleSubProductClick = (subProduct) => {
+    // Update the selected sub-product details
+    setSelectedSubProduct(subProduct);
+    setSelectedColor(subProduct.color);
+    setSelectedSize(subProduct.size);
+    setMainImage(subProduct.images[0]);
+    setAllImages(subProduct.images); // Set images for the selected sub-product
+  };
+
+  useEffect(() => {
+    if (product) {
+      // Reset selected color and size when product changes
+      setSelectedColor("");
+      setSelectedSize("");
+
+      const sizes = product.size
+        ? product.size.split(",").map((size) => size.trim())
+        : [];
+      const colors = product.color
+        ? product.color.split(",").map((color) => color.trim())
+        : [];
+
+      if (sizes.length === 1) {
+        setSelectedSize(sizes[0]);
+      }
+
+      if (colors.length === 1) {
+        setSelectedColor(colors[0]);
+      }
+    } else {
+      // If product is null, reset the selections
+      setSelectedColor("");
+      setSelectedSize("");
+    }
+  }, [product]);
+
   useEffect(() => {
     if (product) {
       const sizes = product.size
@@ -117,6 +197,48 @@ const ProductDetailPage = () => {
       }
     }
   }, [product]);
+  useEffect(() => {
+    if (product && product.variants) {
+      const uniqueColors = Array.from(
+        new Set(product.variants.map((v) => v.color))
+      );
+      const uniqueSizes = Array.from(
+        new Set(product.variants.map((v) => v.size))
+      );
+      setAvailableColors(uniqueColors);
+      setAvailableSizes(uniqueSizes);
+    }
+  }, [product]);
+
+  // Automatically select color if only one is available
+  useEffect(() => {
+    if (availableColors.length === 1) {
+      setSelectedColor(availableColors[0]);
+    }
+  }, [availableColors]);
+  // const allImages =
+  //   product?.imageUrls?.length > 1
+  //     ? [
+  //         product.coverImageUrl,
+  //         ...product.imageUrls.filter((url) => url !== product.coverImageUrl),
+  //       ]
+  //     : [product?.coverImageUrl];
+
+  // useEffect(() => {
+  //   if (availableSizes.length === 1) {
+  //     setSelectedSize(availableSizes[0]);
+  //   }
+  // }, [availableSizes]);
+  // Update available stock based on selected color and size
+  useEffect(() => {
+    if (selectedColor && selectedSize) {
+      const matchingVariant = product.variants.find(
+        (variant) =>
+          variant.color === selectedColor && variant.size === selectedSize
+      );
+      setSelectedVariantStock(matchingVariant ? matchingVariant.stock : 0);
+    }
+  }, [selectedColor, selectedSize, product]);
 
   useEffect(() => {
     dispatch(fetchProduct(id)).catch((err) => {
@@ -149,7 +271,7 @@ const ProductDetailPage = () => {
     } catch (err) {
       console.error("Error fetching vendor data:", err);
     } finally {
-      setVendorLoading(false); 
+      setVendorLoading(false);
     }
   };
   const handleDisclaimer = () => {
@@ -180,29 +302,32 @@ const ProductDetailPage = () => {
   }, []);
   const handleAddToCart = useCallback(() => {
     console.log("Add to Cart Triggered");
-  
+    if (quantity > selectedVariantStock) {
+      toast.error("Selected quantity exceeds stock availability!");
+      return;
+    }
     // Validate product and selections
     if (!product) {
       console.error("Product is missing. Cannot add to cart.");
       return;
     }
-  
+
     if (!selectedSize) {
       toast.error("Please select a size before adding to cart!");
       return;
     }
-  
+
     if (!selectedColor) {
       toast.error("Please select a color before adding to cart!");
       return;
     }
-  
+
     if (!product.id || !product.vendorId) {
       toast.error("Product or Vendor ID is missing. Cannot add to cart!");
       console.error("Product or Vendor ID is missing:", product);
       return;
     }
-  
+
     if (quantity > product.stockQuantity) {
       toast.error("Selected quantity exceeds stock availability!");
     } else {
@@ -213,29 +338,29 @@ const ProductDetailPage = () => {
         selectedColor,
         selectedImageUrl: mainImage,
       };
-  
+
       // Generate the consistent productKey for this specific size/color combination
       const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
       console.log("Generated productKey:", productKey);
-  
+
       // Check if the product with this size/color combination already exists in the cart
       const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
-  
+
       if (existingCartItem) {
-      
         const updatedProduct = {
           ...existingCartItem,
           quantity: quantity,
         };
-        dispatch(addToCart(updatedProduct, true)); 
-        console.log("Updated product in cart with new quantity:", updatedProduct);
+        dispatch(addToCart(updatedProduct, true));
+        console.log(
+          "Updated product in cart with new quantity:",
+          updatedProduct
+        );
       } else {
-      
-        dispatch(addToCart(productToAdd, true)); 
+        dispatch(addToCart(productToAdd, true));
         console.log("Added new product to cart:", productToAdd);
       }
-  
-    
+
       setIsAddedToCart(true);
       toast.success(`Added ${product.name} to cart!`);
     }
@@ -246,9 +371,8 @@ const ProductDetailPage = () => {
     selectedColor,
     dispatch,
     mainImage,
-    cart, 
+    cart,
   ]);
-  
 
   const handleIncreaseQuantity = useCallback(() => {
     if (!product) {
@@ -340,6 +464,55 @@ const ProductDetailPage = () => {
   const capitalizeFirstLetter = (color) => {
     return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
   };
+
+  // Check if a color is available for the selected size
+  const isColorAvailableForSize = (color) => {
+    return product.variants.some(
+      (variant) => variant.size === selectedSize && variant.color === color
+    );
+  };
+
+  // Handle color selection
+
+  const updateSizes = (color) => {
+    const uniqueSizesForColor = Array.from(
+      new Set(
+        product.variants
+          .filter((variant) => variant.color === color)
+          .map((variant) => variant.size)
+      )
+    );
+    setAvailableSizes(uniqueSizesForColor);
+  };
+
+  // Handle color selection and update sizes
+  const handleColorClick = (color) => {
+    if (selectedColor === color) {
+      // Deselect color if clicked again
+      setSelectedColor("");
+      setSelectedSize(""); // Reset size if color is deselected
+    } else {
+      setSelectedColor(color);
+      setSelectedSize(""); // Reset size when color changes
+    }
+  };
+
+  // Handle size selection
+  const handleSizeClick = (size) => {
+    if (selectedSize === size) {
+      setSelectedSize(""); // Deselect if clicked again
+    } else {
+      setSelectedSize(size);
+    }
+  };
+
+  // Check if size is available for the selected color
+  const isSizeAvailableForColor = (size) => {
+    return product.variants.some(
+      (variant) => variant.color === selectedColor && variant.size === size
+    );
+  };
+
   const handleRemoveFromCart = useCallback(() => {
     if (!product || !product.id || !selectedSize || !selectedColor) return; // Ensure product exists and size/color is selected
 
@@ -360,22 +533,6 @@ const ProductDetailPage = () => {
       ? product.color.split(",").map((color) => color.trim())
       : [];
 
-      const handleSizeClick = (size) => {
-        if (selectedSize === size) {
-          setSelectedSize(""); // Unselect if clicked again
-        } else {
-          setSelectedSize(size);
-          setIsAddedToCart(false); // Reset the cart state when changing size
-          setQuantity(1); // Reset the quantity to 1 for new selections
-        }
-      };
-      
-      const handleColorClick = (color) => {
-        setSelectedColor(color);
-        setIsAddedToCart(false); // Reset the cart state when changing color
-        setQuantity(1); // Reset the quantity to 1 for new selections
-      };
-      
   const copyProductLink = async () => {
     try {
       const shareableLink = `${window.location.origin}/product/${id}`;
@@ -434,92 +591,57 @@ const ProductDetailPage = () => {
   const shouldShowAlikeProducts =
     product.imageUrls && product.imageUrls.length > 0;
 
-  const AlikeProducts = () => {
-    const handleAlikeProductClick = (imageUrl) => {
-      setMainImage(imageUrl);
-    };
-
-    return (
-      <div className="alike-products p-3 mt-1">
-        <div className="flex items-center">
-          <h2 className="text-lg font-semibold font-opensans mb-2">
-            Similar Products
-          </h2>
-          <CiCircleInfo
-            onClick={() => setIsInfoModalOpen(true)}
-            className="text-gray-600 ml-2 cursor-pointer"
-            title="Click to learn more about similar products"
-          />
-        </div>
-        <Modal
-          isOpen={isInfoModalOpen}
-          onRequestClose={() => setIsInfoModalOpen(false)}
-          className="modal-content"
-          overlayClassName="modal-overlay"
+  const AlikeProducts = () => (
+    <div className="alike-products p-3 mt-1">
+      <h2 className="text-lg font-semibold font-opensans mb-2">
+        Similar Products
+      </h2>
+      <div className="flex gap-4 overflow-x-scroll">
+        {/* Original Product Image */}
+        <div
+          className="w-48 min-w-48 cursor-pointer"
+          onClick={() => handleSubProductClick(subProducts[0])}
         >
-          <div
-            className="p-2 relative"
-            style={{ maxHeight: "100vh", overflowY: "auto" }}
-          >
-            <MdOutlineCancel
-              onClick={() => setIsInfoModalOpen(false)}
-              className="absolute top-2 right-2  text-gray-600 cursor-pointer text-2xl"
+          <div className="relative mb-2">
+            <img
+              src={mainImage}
+              alt="Original image"
+              className="h-52 w-full object-cover rounded-lg"
             />
-            <h2 className="text-lg mt-3 font-bold">Why Similar Products?</h2>
-            <p className="text-gray-600 mt-2 font-poppins text-sm">
-              The vendor has curated these similar products as part of a
-              sub-collection under this item. Whether they share the same
-              category, fall within a similar price range, or are from the same
-              brand, these selections are thoughtfully grouped to offer you
-              relevant alternatives within this product line.
-            </p>
           </div>
-        </Modal>
+          <p className="text-sm font-opensans text-black font-normal">
+            Original
+          </p>
+          <p className="text-lg font-opensans font-bold text-black">
+            ₦{formatPrice(product.price)}
+          </p>
+        </div>
 
-        <div className="flex gap-4 overflow-x-scroll">
+        {/* Map through Sub-Products */}
+        {subProducts.map((subProduct, index) => (
           <div
+            key={index}
             className="w-48 min-w-48 cursor-pointer"
-            onClick={() => setMainImage(initialImage)}
+            onClick={() => handleSubProductClick(subProduct)}
           >
             <div className="relative mb-2">
               <img
-                src={initialImage}
-                alt={`Initial image`}
+                src={subProduct.images[0]}
+                alt={`Sub-product ${index + 1}`}
                 className="h-52 w-full object-cover rounded-lg"
               />
             </div>
             <p className="text-sm font-opensans text-black font-normal">
-              Original
+              {subProduct.color}
             </p>
             <p className="text-lg font-opensans font-bold text-black">
               ₦{formatPrice(product.price)}
             </p>
           </div>
-          {product.imageUrls?.map((imageUrl, index) => (
-            <div
-              key={index}
-              className="w-48 min-w-48 cursor-pointer"
-              onClick={() => handleAlikeProductClick(imageUrl)}
-            >
-              <div className="relative mb-2">
-                <img
-                  src={imageUrl}
-                  alt={`Alike product ${index + 1}`}
-                  className="h-52 w-full object-cover rounded-lg"
-                />
-              </div>
-              <p className="text-sm font-opensans text-black font-normal">
-                {product.name}
-              </p>
-              <p className="text-lg font-opensans font-bold text-black">
-                ₦{formatPrice(product.price)}
-              </p>
-            </div>
-          ))}
-        </div>
+        ))}
       </div>
-    );
-  };
+    </div>
+  );
 
   return (
     <div className="relative pb-20">
@@ -554,153 +676,202 @@ const ProductDetailPage = () => {
           </div>
         </div>
       </div>
-      <div className="flex justify-center mt-20 h-96">
-        <img
-          src={mainImage}
-          alt={product.name}
-          className="w-full h-full object-cover rounded-b-lg "
-        />
-      </div>
-      <div className="px-3 mt-2">
-        <div className="flex items-center justify-between">
-          <h1 className="text-sm font-opensans text-black font-normal ">
-            {product.name}
-          </h1>
-          <div className="">
-            {product.condition &&
-            product.condition.toLowerCase().includes("defect") ? (
-              <div className="flex items-center mt-2">
-                <TbInfoTriangle
-                  className="text-red-500 cursor-pointer"
-                  onClick={handleDisclaimer}
-                  title="Click for important information about product defects"
-                />
+     <div className="flex justify-center h-[540px]">
+  {/* Only show Swiper if there's more than one image */}
+  {allImages.length > 1 ? (
+    <Swiper
+      modules={[FreeMode, Autoplay]}
+      pagination={{ clickable: true }}
+      navigation
+      autoplay={{
+        delay: 7500,
+        disableOnInteraction: false,
+      }}
+      className="product-images-swiper mt-20"
+      style={{ width: "100%", height: "" }}
+    >
+      {allImages.map((image, index) => (
+        <SwiperSlide key={index}>
+          <img
+            src={image}
+            alt={`${product.name} image ${index + 1}`}
+            className="object-cover w-full h-full"
+            style={{ borderBottom: "6px solid white" }} // White line separator
+          />
+        </SwiperSlide>
+      ))}
+    </Swiper>
+  ) : (
+    // If there's only one image, display it without the Swiper
+    <img
+      src={allImages[0]}
+      alt={`${product.name} image`}
+      className="object-cover w-full h-full rounded-b-lg"
+    />
+  )}
+</div>
+<div className="px-3 mt-2">
+  <div className="flex items-center justify-between">
+    <h1 className="text-sm font-opensans text-black font-normal ">
+      {product.name}
+    </h1>
+    <div className="">
+      {product.condition &&
+      product.condition.toLowerCase().includes("defect") ? (
+        <div className="flex items-center mt-2">
+          <TbInfoTriangle
+            className="text-red-500 cursor-pointer"
+            onClick={handleDisclaimer} // Optional: Add an actual function for handling disclaimers
+            title="Click for important information about product defects"
+          />
+          <p className="ml-2 text-xs text-red-500">
+            {product.condition}
+            {product.defectDescription
+              ? ` ${product.defectDescription}`
+              : ""}
+          </p>
+        </div>
+      ) : product.condition.toLowerCase() === "brand new" ? (
+        <div className="flex items-center mt-2">
+          <TbSquareRoundedCheck className="text-green-700" />
+          <p className="ml-2 text-xs text-green-700">Brand New</p>
+        </div>
+      ) : product.condition.toLowerCase() === "thrift" ? (
+        <div className="flex items-center mt-2">
+          <TbSquareRoundedCheck className="text-yellow-500" />
+          <p className="ml-2 text-xs text-yellow-500">Thrift</p>
+        </div>
+      ) : null}
+    </div>
+  </div>
 
-                <p className="ml-2 text-xs text-red-500">{product.condition}</p>
-              </div>
-            ) : product.condition.toLowerCase() === "brand new" ? (
-              <div className="flex items-center mt-2">
-                <TbSquareRoundedCheck className="text-green-700" />
-                <p className="ml-2 text-xs text-green-700">Brand New</p>
-              </div>
-            ) : product.condition.toLowerCase() === "thrift" ? (
-              <div className="flex items-center mt-2">
-                <TbSquareRoundedCheck className="text-yellow-500" />
-                <p className="ml-2 text-xs text-yellow-500">Thrift</p>
-              </div>
-            ) : (
-              <div className="flex items-center mt-2">
-                <CiCircleInfo className="text-green-500" />
-                <p className="ml-2 text-xs text-green-500">Second Hand</p>
-              </div>
+  <p className="text-2xl font-opensans font-semibold text-black">
+    ₦{formatPrice(product.price)}
+  </p>
+
+  {vendorLoading ? (
+    <LoadProducts className="mr-20" />
+  ) : vendor ? (
+    <div className="flex items-center mt-1">
+      <p className="text-sm text-red-600 mr-2">{vendor.shopName}</p>
+      {vendor.ratingCount > 0 && (
+        <div className="flex items-center">
+          <span className="mr-1 text-black font-medium ratings-text">
+            {averageRating}
+          </span>
+          <FaStar className="text-yellow-500 ratings-text" />
+        </div>
+      )}
+    </div>
+  ) : (
+    <p className="text-xs text-gray-500">
+      Vendor information not available
+    </p>
+  )}
+
+  {/* Color Options */}
+  {availableColors.length > 0 && (
+    <div className="mt-3">
+      <p className="text-sm font-semibold text-black font-opensans mb-2">
+        {selectedColor ? capitalizeFirstLetter(selectedColor) : "Colors"}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {availableColors.map((color, index) => (
+          <div
+            key={index}
+            onClick={() => handleColorClick(color)}
+            className={`w-8 h-8 flex items-center justify-center rounded-full cursor-pointer ${
+              selectedColor === color ? "border-2" : ""
+            }`}
+            style={{
+              padding: "3px",
+              borderColor:
+                selectedColor === color ? color : "transparent",
+              backgroundColor: "#f0f0f0",
+            }}
+            title={color}
+          >
+            <div
+              style={{ backgroundColor: color }}
+              className="w-6 h-6 rounded-full"
+            ></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {/* Size Selection */}
+  {availableSizes.length > 0 && (
+    <div className="mt-3">
+      <p className="text-sm font-semibold text-black font-opensans mb-2">
+        Sizes
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {availableSizes.map((size, index) => (
+          <div
+            key={index}
+            onClick={() =>
+              isSizeAvailableForColor(size) ? handleSizeClick(size) : null
+            }
+            className={`py-2 px-4 border rounded-lg cursor-pointer ${
+              selectedSize === size
+                ? "bg-customOrange text-white"
+                : "bg-transparent text-black"
+            } ${
+              selectedColor && !isSizeAvailableForColor(size)
+                ? "opacity-50 cursor-not-allowed relative"
+                : ""
+            }`}
+            style={{ position: "relative" }}
+          >
+            <span className="text-xs font-semibold">{size}</span>
+            {/* Show a slash for unavailable sizes */}
+            {selectedColor && !isSizeAvailableForColor(size) && (
+              <span
+                className="absolute inset-0 flex items-center justify-center text-customOrange text-xs font-bold"
+                style={{
+                  transform: "rotate(59deg) scaleX(0.3)", // Adjust scaleX to control thinness
+                  fontSize: "5.9rem",
+                  lineHeight: "0.1rem",
+                  fontWeight: "100", // Make the line thinner
+                }}
+              >
+                /
+              </span>
             )}
           </div>
-        </div>
-
-        <p className="text-2xl font-opensans font-semibold text-black">
-          ₦{formatPrice(product.price)}
-        </p>
-
-        {vendorLoading ? (
-          <LoadProducts className="mr-20" /> // Show the loading spinner while vendor data is loading
-        ) : vendor ? (
-          <div className="flex  items-center mt-1">
-            <p className="text-sm text-red-600 mr-2"> {vendor.shopName}</p>
-            <div className="flex items-center">
-              <span className="mr-1 text-black font-medium ratings-text">
-                {averageRating}
-              </span>
-              <FaStar className="text-yellow-500 ratings-text" />
-            </div>
-          </div>
-        ) : (
-          <p className="text-xs text-gray-500">
-            Vendor information not available
-          </p>
-        )}
-
-        {/* Color Options */}
-        {colors.length > 0 && (
-          <div className="mt-3">
-            <p className="text-sm font-semibold text-black font-opensans mb-2">
-              {selectedColor ? capitalizeFirstLetter(selectedColor) : "Colors"}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {colors.map((color, index) => (
-                <div
-                  key={index}
-                  onClick={() => handleColorClick(color)}
-                  className={`w-8 h-8 flex items-center justify-center rounded-full cursor-pointer ${
-                    selectedColor === color ? "border-2" : ""
-                  }`}
-                  style={{
-                    padding: "3px",
-                    borderColor:
-                      selectedColor === color ? color : "transparent", // Border matches the color when selected
-                    backgroundColor: "#f0f0f0", // Light gray background for visibility
-                  }}
-                  title={color} // Show color name/hex on hover
-                >
-                  <div
-                    style={{ backgroundColor: color }}
-                    className="w-6 h-6 rounded-full"
-                  ></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="mt-3">
-          <p className="text-sm font-semibold text-black font-opensans mb-2">
-            Size
-          </p>
-
-          {sizes.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {sizes.map((size, index) => (
-                <div
-                  key={index}
-                  onClick={() => handleSizeClick(size)}
-                  className={`py-2 px-4 border rounded-lg cursor-pointer ${
-                    selectedSize === size
-                      ? "bg-customOrange text-white" // Highlight selected size
-                      : "bg-transparent text-black" // Default style for other sizes
-                  }`}
-                >
-                  <span className="text-xs font-semibold">{size}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div
-          className="flex justify-between items-center mt-4 mb-4 cursor-pointer"
-          onClick={() => setIsModalOpen(true)}
-        >
-          <p className="text-black text-md font-semibold">Product Details</p>
-          <GoChevronRight className="text-3xl -mx-2" />
-        </div>
-
-        <Modal
-          isOpen={isModalOpen}
-          onRequestClose={() => setIsModalOpen(false)}
-          className="modal-content"
-          overlayClassName="modal-overlay"
-        >
-          <div className="p-2 relative">
-            <MdOutlineCancel
-              onClick={() => setIsModalOpen(false)}
-              className="absolute top-2 right-2 text-gray-600 cursor-pointer text-2xl"
-            />
-            <h2 className="text-lg mt-3 font-bold">Product Description</h2>
-            <p className="text-gray-600 mt-2 font-poppins text-sm">
-              {product.description}
-            </p>
-          </div>
-        </Modal>
+        ))}
       </div>
+    </div>
+  )}
+  <div
+    className="flex justify-between items-center mt-4 mb-4 cursor-pointer"
+    onClick={() => setIsModalOpen(true)}
+  >
+    <p className="text-black text-md font-semibold">Product Details</p>
+    <GoChevronRight className="text-3xl -mx-2" />
+  </div>
+
+  <Modal
+    isOpen={isModalOpen}
+    onRequestClose={() => setIsModalOpen(false)}
+    className="modal-content"
+    overlayClassName="modal-overlay"
+  >
+    <div className="p-2 relative">
+      <MdOutlineCancel
+        onClick={() => setIsModalOpen(false)}
+        className="absolute top-2 right-2 text-gray-600 cursor-pointer text-2xl"
+      />
+      <h2 className="text-lg mt-3 font-bold">Product Description</h2>
+      <p className="text-gray-600 mt-2 font-poppins text-sm">
+        {product.description}
+      </p>
+    </div>
+  </Modal>
+</div>
+
 
       {shouldShowAlikeProducts && (
         <>
@@ -740,7 +911,7 @@ const ProductDetailPage = () => {
             }}
             className={`bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out`}
           >
-            Add to cart
+            Add to Cart
           </button>
         ) : (
           // The Remove and Quantity controls

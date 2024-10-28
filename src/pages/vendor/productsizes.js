@@ -310,7 +310,7 @@ const productSizes = {
     "XXL (11 inches)", // Extra Extra Large
     "Universal Size", // For adjustable or stretch-fit gloves
   ],
-  "CorporateWomen": {
+  "Corporate Women": {
     Blazers: [
       "XS",
       "S",
@@ -392,7 +392,7 @@ const productSizes = {
     LongSleeveBlouses: ["XS", "S", "M", "L", "XL", "XXL", "One Size", "Adjustable"],
     Jumpsuits: ["XS", "S", "M", "L", "XL", "One Size", "Adjustable", ],
   },
-  "CorporateMen": {
+  "Corporate Men": {
     WhiteShirts: [
       "S",
       "M",
@@ -476,6 +476,20 @@ const productSizes = {
     Cardigans: ["S", "M", "L", "XL", "XXL", "One Size"],
   },
   "Slides": [
+    "EU 36",
+    "EU 37",
+    "EU 38",
+    "EU 39",
+    "EU 40",
+    "EU 41",
+    "EU 42",
+    "EU 43",
+    "EU 44",
+    "EU 45",
+    "EU 46",
+    "Universal Size", // For adjustable or one-size-fits-all slides
+  ],
+  "Footwear": [
     "EU 36",
     "EU 37",
     "EU 38",

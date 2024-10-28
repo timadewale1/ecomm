@@ -28,8 +28,10 @@ import { TiCameraOutline } from "react-icons/ti";
 import { FiPlus } from "react-icons/fi";
 import SubProduct from "./SubProduct";
 import productTypes from "./producttype";
+import Modal from "react-modal";
 import productSizes from "./productsizes";
 import { LuBadgeInfo } from "react-icons/lu";
+import { MdOutlineCancel } from "react-icons/md";
 const animatedComponents = makeAnimated();
 const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
 
@@ -50,6 +52,8 @@ const AddProduct = ({ vendorId, closeModal }) => {
   const [productVariants, setProductVariants] = useState([
     { color: "", sizes: [{ size: "", stock: "" }] },
   ]);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+
   const [sizeOptions, setSizeOptions] = useState([]);
   const [color, setColor] = useState("");
   const [productImages, setProductImages] = useState([]);
@@ -69,6 +73,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
   const [subProducts, setSubProducts] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const storage = getStorage();
+  Modal.setAppElement("#root");
   useEffect(() => {
     const fetchVendorName = async () => {
       if (currentUser) {
@@ -86,9 +91,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
 
     fetchVendorName();
   }, [currentUser, vendorId]);
-  useEffect(() => {
-    console.log("Component mounted");
-  }, []);
+  useEffect(() => {}, []);
   useEffect(() => {
     if (!hasVariations) {
       setSubProducts([]);
@@ -109,21 +112,54 @@ const AddProduct = ({ vendorId, closeModal }) => {
   }, []);
   useEffect(() => {
     if (selectedProductType && selectedSubType) {
-      const typeSizesObject = productSizes[selectedProductType.value];
-      const subTypeSizes = typeSizesObject || [];
-      if (subTypeSizes) {
+      // Access the sizes for the selected product type
+      const trimmedProductType = selectedProductType.value.trim();
+      const typeSizesObject = productSizes[trimmedProductType];
+
+      let subTypeSizes = [];
+
+      if (Array.isArray(typeSizesObject)) {
+        subTypeSizes = typeSizesObject;
+      } else if (
+        typeof typeSizesObject === "object" &&
+        typeSizesObject !== null
+      ) {
+        // Map `selectedSubType.value` to a key that matches productSizes format
+        const formattedSubType = selectedSubType.value.replace(/\s+/g, ""); // Remove spaces
+        subTypeSizes = typeSizesObject[formattedSubType] || [];
+      }
+
+      if (subTypeSizes && subTypeSizes.length > 0) {
         const options = subTypeSizes.map((size) => ({
           label: size,
           value: size,
         }));
         setSizeOptions(options);
-        setAvailableSizes(subTypeSizes); // Update availableSizes here
+        setAvailableSizes(subTypeSizes);
       } else {
         setSizeOptions([]);
-        setAvailableSizes([]); // Ensure availableSizes is cleared if no sizes are found
+        setAvailableSizes([]);
       }
+    } else {
+      setSizeOptions([]);
+      setAvailableSizes([]);
     }
   }, [selectedProductType, selectedSubType]);
+
+  // Log the product type and sub-type change
+  const handleProductTypeChange = (selectedOption) => {
+    console.log("Product Type Changed to:", selectedOption);
+    setSelectedProductType(selectedOption);
+    setSelectedSubType(null); // Reset sub-type when product type changes
+  };
+
+  // Log the subTypeOptions array
+  const subTypeOptions =
+    selectedProductType?.subTypes.map((subType) =>
+      typeof subType === "string"
+        ? { label: subType, value: subType }
+        : { label: subType.name, value: subType.name }
+    ) || [];
 
   useEffect(() => {
     if (productName && category && productType && size.length && color) {
@@ -131,19 +167,6 @@ const AddProduct = ({ vendorId, closeModal }) => {
     }
   }, [productName, category, productType, size, color]);
 
-  // const handleFileChange = async (e, setFile) => {
-  //   const file = e.target.files[0];
-  //   if (file.size > MAX_FILE_SIZE) {
-  //     toast.error("File size exceeds the maximum limit of 3MB.");
-  //     return;
-  //   }
-  //   setIsUploadingImage(true);
-  //   try {
-  //     setFile(file);
-  //   } finally {
-  //     setIsUploadingImage(false);
-  //   }
-  // };
   const handleFileChange = async (e) => {
     const files = Array.from(e.target.files);
     const validFiles = [];
@@ -217,15 +240,6 @@ const AddProduct = ({ vendorId, closeModal }) => {
     setAdditionalImages([...additionalImages, ...files]);
   };
 
-  // const handleRemoveImage = (index) => {
-  //   const updatedImages = productImages.filter((_, i) => i !== index);
-  //   setProductImages(updatedImages);
-
-  //   // Reset currentImageIndex if the removed image was the one being shown
-  //   if (index === currentImageIndex && updatedImages.length > 0) {
-  //     setCurrentImageIndex(0);
-  //   }
-  // };
   const addSizeUnderColor = (colorIndex) => {
     const updatedVariants = [...productVariants];
     updatedVariants[colorIndex].sizes.push({
@@ -235,7 +249,15 @@ const AddProduct = ({ vendorId, closeModal }) => {
     });
     setProductVariants(updatedVariants);
   };
+  const openInfoModal = () => {
+    console.log("Opening variations info modal"); // Log when opening the modal
+    setIsInfoModalOpen(true);
+  };
 
+  const closeInfoModal = () => {
+    console.log("Closing variations info modal"); // Log when closing the modal
+    setIsInfoModalOpen(false);
+  };
   // Remove size entry under the same color
   const removeSize = (colorIndex, sizeIndex) => {
     const updatedVariants = [...productVariants];
@@ -285,10 +307,16 @@ const AddProduct = ({ vendorId, closeModal }) => {
 
     // Validate productVariants
     if (productVariants.length === 0) {
+      
       toast.error("Please add at least one product variant.");
       return;
     }
-
+    if (productCondition === "Defect:" && !productDefectDescription) {
+      toast.dismiss();
+      toast.error("Please provide a defect description for the defective product.");
+      return;
+    }
+  
     // Validate each variant
     for (const [index, variant] of productVariants.entries()) {
       if (!variant.color) {
@@ -340,12 +368,18 @@ const AddProduct = ({ vendorId, closeModal }) => {
       // Upload main product images
       const imageUrls = [];
       for (const imageFile of productImages) {
+        if (!imageFile || !imageFile.name) {
+          console.error("Image file or filename is missing:", imageFile);
+          toast.error("One of the images is missing a filename.");
+          continue; // Skip this image
+        }
         const storageRef = ref(
           storage,
           `${vendorId}/products/${productName}/${imageFile.name}`
         );
         await uploadBytes(storageRef, imageFile);
         const imageUrl = await getDownloadURL(storageRef);
+        console.log("Uploaded Image URL:", imageUrl); // Log to confirm
         imageUrls.push(imageUrl);
       }
 
@@ -408,9 +442,9 @@ const AddProduct = ({ vendorId, closeModal }) => {
         setIsLoading(false);
         return;
       }
-      if (subProducts.length > 0) {
-        product.subProducts = subProductsData;
-      }
+      // if (subProducts.length > 0) {
+      //   product.subProducts = subProductsData;
+      // }
       const vendorData = vendorDoc.data();
       const vendorCoverImage = vendorData.coverImageUrl || "";
 
@@ -437,7 +471,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       if (subProductsData.length > 0) {
         product.subProducts = subProductsData;
       }
-      if (productCondition === "defect" && productDefectDescription) {
+      if (productCondition === "Defect:" && productDefectDescription) {
         product.defectDescription = productDefectDescription.trim();
       }
 
@@ -490,7 +524,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
   };
 
   const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files); // Convert to an array
+    const files = Array.from(e.target.files); // Convert to an array of File objects
     const validFiles = [];
 
     files.forEach((file) => {
@@ -501,33 +535,23 @@ const AddProduct = ({ vendorId, closeModal }) => {
       }
     });
 
+    // Check if adding these files exceeds the MAX_IMAGES limit
     if (validFiles.length + productImages.length > MAX_IMAGES) {
       toast.error("You can only upload a maximum of 4 images.");
       return;
     }
 
-    const newImages = validFiles.map((file) => URL.createObjectURL(file));
-    setProductImages((prevImages) => [...prevImages, ...newImages]); // Add new images to the existing ones
+    // Add valid files to productImages (as File objects, not URLs)
+    setProductImages((prevImages) => [...prevImages, ...validFiles]);
+
+   
   };
+
   const productTypeOptions = productTypes.map((item) => ({
     label: item.type,
     value: item.type,
     subTypes: item.subTypes,
   }));
-
-  // Add another size under the same color (inactive initially)
-
-  const handleProductTypeChange = (selectedOption) => {
-    setSelectedProductType(selectedOption);
-    setSelectedSubType(null); // Reset sub-type when product type changes
-  };
-
-  const subTypeOptions =
-    selectedProductType?.subTypes.map((subType) =>
-      typeof subType === "string"
-        ? { label: subType, value: subType }
-        : { label: subType.name, value: subType.name }
-    ) || [];
 
   const handleColorChange = (index, value) => {
     const updatedVariants = [...productVariants];
@@ -551,7 +575,6 @@ const AddProduct = ({ vendorId, closeModal }) => {
     setProductVariants(updatedVariants);
   };
   const handleVariationChange = (value) => {
-    console.log("Variations toggled:", value);
     setHasVariations(value);
     if (!value) {
       setSubProducts([]);
@@ -565,7 +588,6 @@ const AddProduct = ({ vendorId, closeModal }) => {
 
   // Handle closing of the sub-product modal
   const closeSubProductModal = () => {
-    console.log("Closing sub-product modal");
     setShowSubProductModal(false);
   };
 
@@ -647,23 +669,23 @@ const AddProduct = ({ vendorId, closeModal }) => {
       )}
       <div className="mb-4">
         <h3 className="text-md font-semibold mb-2 font-opensans text-black flex items-center">
-          <TiCameraOutline className="w-5 h-5 mr-2 text-xl text-black" />
+          <TiCameraOutline className="w-5 h-5 mr-2 text-xl font-medium text-black" />
           Upload Image
         </h3>
 
         <div className="flex flex-col items-center">
           <div
-            ref={scrollContainerRef} // Reference to the scrollable container
-            className={`relative w-full h-48 flex overflow-x-scroll snap-x snap-mandatory space-x-4`}
+            ref={scrollContainerRef} 
+            className={`relative w-full h-80 flex overflow-x-scroll snap-x snap-mandatory space-x-4`}
             style={{ scrollBehavior: "smooth" }}
-            onScroll={handleScroll} // Add scroll event listener
+            onScroll={handleScroll} 
           >
             {productImages.length > 0 ? (
               productImages.map((image, index) => (
                 <div
                   key={index}
-                  className={`relative flex-shrink-0 w-full h-full border-2 border-dashed border-customBrown rounded-md snap-center ${
-                    index === currentImageIndex ? "opacity-100" : "opacity-75"
+                  className={`relative flex-shrink-0 w-full h-full border-2 border-dashed border-customBrown border-opacity-30 rounded-md snap-center ${
+                    index === currentImageIndex ? "opacity-100" : "opacity-65"
                   } transition-opacity duration-300`}
                 >
                   <img
@@ -687,7 +709,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
               ))
             ) : (
               <div
-                className="w-full h-full border-2 border-dashed border-customBrown rounded-md flex items-center flex-col justify-center cursor-pointer"
+                className="w-full h-full border-opacity-30 border-2 border-dashed border-customBrown rounded-md flex items-center flex-col justify-center cursor-pointer"
                 onClick={() =>
                   document.getElementById("coverFileInput").click()
                 }
@@ -731,7 +753,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           {productImages.length < 4 && (
             <button
               onClick={() => document.getElementById("imageUpload").click()}
-              className="flex items-center text-customOrange"
+              className="flex items-center font-semibold text-customOrange"
             >
               <FiPlus className="text-xl" />
               <span className="ml-1 font-opensans text-sm">
@@ -750,7 +772,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       </div>
 
       <div className="mb-4">
-        <label className="font-opensans mb-1 text-sm text-black">
+        <label className="font-opensans font-medium mb-1 text-sm text-black">
           Product Name
         </label>
         <input
@@ -762,7 +784,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         />
       </div>
       <div className="mb-4">
-        <label className="font-opensans mb-1 text-sm text-black">
+        <label className="font-opensans font-medium mb-1 text-sm text-black">
           Product Category
         </label>
         <select
@@ -787,7 +809,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       </div>
 
       <div className="mb-4">
-        <label className="font-opensans mb-1 text-sm text-black ">
+        <label className="font-opensans font-medium mb-1 text-sm text-black ">
           Product Type
         </label>
         <Select
@@ -1037,7 +1059,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         </div>
       </div>
       <div className="mb-4">
-        <label className="font-opensans mb-1 text-sm text-black">
+        <label className="font-opensans font-medium mb-1 text-sm text-black">
           Product Price
         </label>
         <input
@@ -1049,7 +1071,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         />
       </div>
       <div className="mb-4">
-        <label className="font-opensans mb-1 text-sm text-black">
+        <label className="font-opensans mb-1 font-medium text-sm text-black">
           Product Condition
         </label>
 
@@ -1070,12 +1092,12 @@ const AddProduct = ({ vendorId, closeModal }) => {
           <option value="brand new">Brand New</option>
           <option value="thrift">Thrift</option>
 
-          <option value="defect">Defect</option>
+          <option value="Defect:">Defect</option>
         </select>
 
-        {productCondition === "defect" && (
+        {productCondition === "Defect:" && (
           <div className="mt-4">
-            <label className="block text-black text-sm font-opensans">
+            <label className="block font-medium text-black text-sm font-opensans">
               Defect Description
             </label>
             <input
@@ -1090,7 +1112,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       </div>
 
       <div className="mb-3">
-        <label className="mb-1 text-black font-opensans text-sm">
+        <label className="mb-1 text-black font-medium font-opensans text-sm">
           Product Description
         </label>
         <textarea
@@ -1123,7 +1145,9 @@ const AddProduct = ({ vendorId, closeModal }) => {
         </div>
       </div>
       <div className="mb-4">
-        <label className="font-opensans mb-1 text-sm text-black">Tags</label>
+        <label className="font-opensans mb-1 text-sm font-medium text-black">
+          Tags
+        </label>
         <div className="flex flex-wrap  items-center border-2 border-gray-300 rounded-lg p-2">
           {tags.map((tag, index) => (
             <div
@@ -1145,7 +1169,13 @@ const AddProduct = ({ vendorId, closeModal }) => {
       </div>
       <div className="mb-4">
         <div className="flex items-center">
-          <LuBadgeInfo className="w-5 h-5 mr-2 text-lg text-customBrown" />
+          <button>
+            <LuBadgeInfo
+              onClick={openInfoModal}
+              className="w-5 h-5 mr-2 text-lg text-customBrown"
+            />
+          </button>
+
           <label className="text-black font-opensans text-sm mb-1">
             Does this product have variations?
           </label>
@@ -1217,13 +1247,38 @@ const AddProduct = ({ vendorId, closeModal }) => {
             </button>
           </div>
         )}
+        <Modal
+          isOpen={isInfoModalOpen}
+          onRequestClose={closeInfoModal}
+          className="modal-content "
+          overlayClassName="modal-overlay modals"
+        >
+          <div
+            className="p-2 relative"
+            style={{ maxHeight: "100vh", overflowY: "auto" }}
+          >
+            <MdOutlineCancel
+              onClick={closeInfoModal}
+              className="absolute top-2 right-2 text-gray-600 cursor-pointer text-2xl"
+            />
+            <h2 className="text-lg text-black mt-3 font-bold">
+              What are Product Variations?
+            </h2>
+            <p className="text-gray-600 mt-2 font-opensans text-sm">
+              Variations let you add different options like colors and sizes
+              under one product listing, making it easy to manage similar
+              products together. Ideal for products in the same category or
+              type, so you don’t have to post each one separately.
+            </p>
+          </div>
+        </Modal>
       </div>
 
       <div className="text-sm">
         <button
           type="button"
           onClick={handleAddProduct}
-          className="w-full px-4 h-12 bg-orange-600 font-opensans text-lg text-white rounded-full hover:bg-customOrange focus:ring focus:ring-customOrange focus:outline-none"
+          className="w-full px-4 h-12 bg-customOrange font-opensans text-lg text-white rounded-full hover:bg-customOrange focus:ring focus:ring-customOrange focus:outline-none"
           disabled={isLoading} // Disable button when loading
         >
           {isLoading ? (

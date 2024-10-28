@@ -436,9 +436,9 @@ const VendorRatings = () => {
               </div>
             </div>
             <div className="flex justify-center">
-              <div className="flex items-center text-black text-lg font-semibold">
+              {/* <div className="flex items-center text-black text-lg font-semibold">
                 {vendor.socialMediaHandle}
-              </div>
+              </div> */}
             </div>
             <div className="flex justify-center mt-2">
               <>

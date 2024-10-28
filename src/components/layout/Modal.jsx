@@ -19,10 +19,10 @@ const Modal = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center w-full bg-gray-300 bg-opacity-70 modal">
+    <div className="fixed inset-0 flex rounded-t-lg flex-col items-center justify-center w-full bg-gray-300 bg-opacity-70 modal">
       <div
         ref={modalRef}
-        className="bg-white rounded-lg mx-1 px-2 py-4 flex flex-col items-center w-full md:w-3/4 lg:w-1/2 max-h-screen overflow-y-auto"
+        className="bg-white rounded-t-lg mx-1 px-2 py-4 flex flex-col items-center w-full md:w-3/4 lg:w-1/2 max-h-screen overflow-y-auto"
       >
         <div className="flex items-center justify-between w-full mb-2">
           <GoChevronLeft
@@ -42,6 +42,7 @@ const Modal = ({ isOpen, onClose, children }) => {
         <div className="w-full p-2">{children}</div>
       </div>
     </div>
+    
   );
 };
 

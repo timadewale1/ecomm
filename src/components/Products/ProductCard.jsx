@@ -17,12 +17,12 @@ const ProductCard = ({ product, isLoading }) => {
   useEffect(() => {
     const fetchVendorMarketplaceType = async () => {
       try {
-        const vendorRef = doc(db, "vendors", product.vendorId); // Assuming vendors collection
+        const vendorRef = doc(db, "vendors", product.vendorId);
         const vendorDoc = await getDoc(vendorRef);
 
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
-          setVendorMarketplaceType(vendorData.marketPlaceType); // Fetch the marketplace type
+          setVendorMarketplaceType(vendorData.marketPlaceType);
         } else {
           console.error("Vendor not found");
         }
@@ -38,7 +38,6 @@ const ProductCard = ({ product, isLoading }) => {
 
   const handleCardClick = () => {
     if (!isLoading && product?.stockQuantity > 0) {
-      console.log(`Navigating to product/${product.id}`);
       navigate(`/product/${product.id}`);
     }
   };
@@ -47,10 +46,8 @@ const ProductCard = ({ product, isLoading }) => {
     e.stopPropagation();
 
     if (vendorMarketplaceType === "virtual") {
-      console.log(`Navigating to virtual vendor ${product.vendorName} store`);
       navigate(`/store/${product.vendorId}`);
     } else if (vendorMarketplaceType === "marketplace") {
-      console.log(`Navigating to marketplace vendor ${product.vendorName} page`);
       navigate(`/marketstorepage/${product.vendorId}`);
     } else {
       console.error("Unknown marketplace type or vendor not found");
@@ -68,7 +65,7 @@ const ProductCard = ({ product, isLoading }) => {
     }
   };
 
-  const mainImage = product?.coverImageUrl;
+  const mainImage = product?.coverImageUrl || product?.imageUrls[0];
 
   const formatPrice = (price) => {
     return price.toLocaleString(undefined, {
@@ -81,31 +78,24 @@ const ProductCard = ({ product, isLoading }) => {
     if (!condition) return null;
 
     switch (condition.toLowerCase()) {
-      case "defect":
+      case "Defect:":
         return <p className="text-xs text-red-500">{condition}</p>;
       case "brand new":
         return <p className="text-xs text-green-500">Brand New</p>;
       case "thrift":
         return <p className="text-xs text-yellow-500">Thrift</p>;
-      case "second hand":
-        return <p className="text-xs text-green-500">Second Hand</p>;
       default:
         return <p className="text-xs text-red-500">{condition}</p>;
     }
   };
 
-  const isOutOfStock = product?.stockQuantity === 0;
-
   return (
     <div
-      className={`product-card relative mb-2 cursor-pointer ${
-        isOutOfStock ? "bg-gray-300 p-2 opacity-60 rounded-lg" : ""
-      }`}
+      className="product-card relative mb-2 cursor-pointer"
       onClick={handleCardClick}
       style={{
         width: "100%",
         margin: "0",
-        pointerEvents: isOutOfStock ? "none" : "auto",
       }}
     >
       <div className="relative">
@@ -115,9 +105,7 @@ const ProductCard = ({ product, isLoading }) => {
           <img
             src={mainImage}
             alt={product.name}
-            className={`h-52 w-full object-cover rounded-lg ${
-              isOutOfStock ? "opacity-50" : ""
-            }`}
+            className="h-52 w-full object-cover rounded-lg"
           />
         )}
         <div
@@ -135,18 +123,28 @@ const ProductCard = ({ product, isLoading }) => {
         <div className="flex font-opensans font-light items-center mt-2">
           {isLoading ? (
             <Skeleton width={100} />
-          ) : isOutOfStock ? (
-            <p className="text-xs animate-pulse text-red-500">Out of Stock</p>
           ) : (
-            renderCondition(product.condition)
+            <div className="flex items-center space-x-1">
+              {renderCondition(product.condition)}
+              {product.condition === "Defect:" && product.defectDescription && (
+                <span className="text-xs text-red-500">
+                  {product.defectDescription}
+                </span>
+              )}
+            </div>
           )}
         </div>
+
         <h3 className="text-sm font-opensans font-medium mt-1">
           {isLoading ? <Skeleton width={100} /> : product.name}
         </h3>
         <div className="flex items-center justify-between mt-1">
           <p className="text-black text-lg font-opensans font-bold">
-            {isLoading ? <Skeleton width={50} /> : `₦${formatPrice(product.price)}`}
+            {isLoading ? (
+              <Skeleton width={50} />
+            ) : (
+              `₦${formatPrice(product.price)}`
+            )}
           </p>
         </div>
         {product.vendorName && (

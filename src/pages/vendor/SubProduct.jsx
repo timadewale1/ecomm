@@ -114,9 +114,10 @@ const SubProduct = ({
       subProduct.images.length > 0 &&
       subProduct.size !== "" &&
       subProduct.color !== "" &&
-      subProduct.stock !== ""
+      subProduct.stock > 0 
     );
   };
+  
 
   const allSubProductsValid = subProducts.every(isSubProductValid);
 
@@ -152,7 +153,7 @@ const SubProduct = ({
               <div className="flex flex-col items-center">
                 <div
                   ref={scrollContainerRef}
-                  className="relative w-full h-48 flex overflow-x-scroll snap-x snap-mandatory space-x-4"
+                  className="relative w-full h-80 flex overflow-x-scroll snap-x snap-mandatory space-x-4"
                   style={{ scrollBehavior: "smooth" }}
                   onScroll={handleScroll}
                 >
@@ -160,7 +161,7 @@ const SubProduct = ({
                     subProduct.images.map((image, index) => (
                       <div
                         key={index}
-                        className={`relative flex-shrink-0 w-full h-full border-2 border-dashed border-customBrown rounded-md snap-center ${
+                        className={`relative flex-shrink-0 w-full h-full border-2 border-dashed border-opacity-30  border-customBrown rounded-md snap-center ${
                           index === currentImageIndex
                             ? "opacity-100"
                             : "opacity-75"
@@ -185,7 +186,7 @@ const SubProduct = ({
                     ))
                   ) : (
                     <div
-                      className="w-full h-full border-2 border-dashed border-customBrown rounded-md flex items-center flex-col justify-center cursor-pointer"
+                      className="w-full h-full border-2 border-dashed border-opacity-30  border-customBrown rounded-md flex items-center flex-col justify-center cursor-pointer"
                       onClick={() =>
                         document
                           .getElementById(`imageUpload-${subIndex}`)
@@ -235,10 +236,10 @@ const SubProduct = ({
                           .getElementById(`imageUpload-${subIndex}`)
                           .click()
                       }
-                      className="flex items-center justify-end text-customOrange"
+                      className="flex items-center font-semibold justify-end text-customOrange"
                     >
                       <FiPlus className="text-xl" />
-                      <span className="ml-1 font-opensans text-sm">
+                      <span className="ml-1 font-opensans  text-sm">
                         Add Another Image
                       </span>
                     </button>
@@ -249,7 +250,7 @@ const SubProduct = ({
 
             {/* Size */}
             <div className="mb-4">
-              <label className="text-sm font-opensans text-black mb-1">
+              <label className="text-sm font-opensans font-medium text-black mb-1">
                 Size
               </label>
               <Select
@@ -269,7 +270,7 @@ const SubProduct = ({
 
             {/* Color */}
             <div className="mb-4">
-              <label className="font-opensans mb-1 text-sm text-black">
+              <label className="font-opensans font-medium mb-1 text-sm text-black">
                 Color
               </label>
               <input
@@ -284,7 +285,7 @@ const SubProduct = ({
             </div>
 
             <div className="mb-4">
-              <label className="font-opensans mb-1 text-sm text-black">
+              <label className="font-opensans  font-medium mb-1 text-sm text-black">
                 Stock Quantity
               </label>
               <input

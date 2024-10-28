@@ -25,33 +25,143 @@ const productTypes = [
   {
     type: "Corporate Women",
     subTypes: [
-      { name: "Blazers", sizes: productSizes["CorporateWomen"].Blazers },
-      { name: "Pencil Skirts", sizes: productSizes["CorporateWomen"].PencilSkirts },
-      { name: "Dress Shirts", sizes: productSizes["CorporateWomen"].DressShirts },
-      { name: "Corporate Dresses", sizes: productSizes["CorporateWomen"].CorporateDresses },
-      { name: "Wide-Leg Trousers", sizes: productSizes["CorporateWomen"].WideLegTrousers },
-      { name: "Pant Suits", sizes: productSizes["CorporateWomen"].PantSuits },
-      { name: "Shirt Dresses", sizes: productSizes["CorporateWomen"].ShirtDresses },
-      { name: "Office Tops", sizes: productSizes["CorporateWomen"].OfficeTops },
-      { name: "Blazer Dresses", sizes: productSizes["CorporateWomen"].BlazerDresses },
-      { name: "Long Sleeve Blouses", sizes: productSizes["CorporateWomen"].LongSleeveBlouses },
-      { name: "Jumpsuits", sizes: productSizes["CorporateWomen"].Jumpsuits },
+      {
+        name: "Blazers",
+        sizes: productSizes["Corporate Women"]
+          ? productSizes["Corporate Women"].Blazers || []
+          : [], // Fallback if key or subkey is missing
+      },
+      {
+        name: "Pencil Skirts",
+        sizes: productSizes["Corporate Women"]
+          ? productSizes["Corporate Women"].PencilSkirts || []
+          : [],
+      },
+      {
+        name: "Dress Shirts",
+        sizes: productSizes["Corporate Women"]
+          ? productSizes["Corporate Women"].DressShirts || []
+          : [],
+      },
+      {
+        name: "Corporate Dresses",
+        sizes: productSizes["Corporate Women"]
+          ? productSizes["Corporate Women"].CorporateDresses || []
+          : [],
+      },
+      {
+        name: "WideLeg Trousers",
+        sizes: productSizes["Corporate Women"]
+          ? productSizes["Corporate Women"].WideLegTrousers || []
+          : [],
+      },
+      {
+        name: "Pant Suits",
+        sizes: productSizes["Corporate Women"]
+          ? productSizes["Corporate Women"].PantSuits || []
+          : [],
+      },
+      {
+        name: "Shirt Dresses",
+        sizes: productSizes["Corporate Women"]
+          ? productSizes["Corporate Women"].ShirtDresses || []
+          : [],
+      },
+      {
+        name: "Office Tops",
+        sizes: productSizes["Corporate Women"]
+          ? productSizes["Corporate Women"].OfficeTops || []
+          : [],
+      },
+      {
+        name: "Blazer Dresses",
+        sizes: productSizes["Corporate Women"]
+          ? productSizes["Corporate Women"].BlazerDresses || []
+          : [],
+      },
+      {
+        name: "Long Sleeve Blouses",
+        sizes: productSizes["Corporate Women"]
+          ? productSizes["Corporate Women"].LongSleeveBlouses || []
+          : [],
+      },
+      {
+        name: "Jumpsuits",
+        sizes: productSizes["Corporate Women"]
+          ? productSizes["Corporate Women"].Jumpsuits || []
+          : [],
+      },
     ],
   },
   {
     type: "Corporate Men",
     subTypes: [
-      { name: "White Shirts", sizes: productSizes["CorporateMen"].WhiteShirts },
-      { name: "Light Blue Shirts", sizes: productSizes["CorporateMen"].LightBlueShirts },
-      { name: "Plain Trousers", sizes: productSizes["CorporateMen"].PlainTrousers },
-      { name: "Suit Vests", sizes: productSizes["CorporateMen"].SuitVests },
-      { name: "Blazers", sizes: productSizes["CorporateMen"].Blazers },
-      { name: "Tailored Suits", sizes: productSizes["CorporateMen"].TailoredSuits },
-      { name: "Dress Pants", sizes: productSizes["CorporateMen"].DressPants },
-      { name: "Double-Breasted Jackets", sizes: productSizes["CorporateMen"].DoubleBreastedJackets },
-      { name: "Button-Up Shirts", sizes: productSizes["CorporateMen"].ButtonUpShirts },
-      { name: "Checkered Shirts", sizes: productSizes["CorporateMen"].CheckeredShirts },
-      { name: "Cardigans", sizes: productSizes["CorporateMen"].Cardigans },
+      {
+        name: "White Shirts",
+        sizes: productSizes["Corporate Men"]
+          ? productSizes["Corporate Men"].WhiteShirts || []
+          : [],
+      },
+      {
+        name: "Light Blue Shirts",
+        sizes: productSizes["Corporate Men"]
+          ? productSizes["Corporate Men"].LightBlueShirts || []
+          : [],
+      },
+      {
+        name: "Plain Trousers",
+        sizes: productSizes["Corporate Men"]
+          ? productSizes["Corporate Men"].PlainTrousers || []
+          : [],
+      },
+      {
+        name: "Suit Vests",
+        sizes: productSizes["Corporate Men"]
+          ? productSizes["Corporate Men"].SuitVests || []
+          : [],
+      },
+      {
+        name: "Blazers",
+        sizes: productSizes["Corporate Men"]
+          ? productSizes["Corporate Men"].Blazers || []
+          : [],
+      },
+      {
+        name: "Tailored Suits",
+        sizes: productSizes["Corporate Men"]
+          ? productSizes["Corporate Men"].TailoredSuits || []
+          : [],
+      },
+      {
+        name: "Dress Pants",
+        sizes: productSizes["Corporate Men"]
+          ? productSizes["Corporate Men"].DressPants || []
+          : [],
+      },
+      {
+        name: "Double-Breasted Jackets",
+        sizes: productSizes["Corporate Men"]
+          ? productSizes["Corporate Men"].DoubleBreastedJackets || []
+          : [],
+      },
+      {
+        name: "Button-Up Shirts",
+        sizes: productSizes["Corporate Men"]
+          ? productSizes["Corporate Men"].ButtonUpShirts || []
+          : [],
+      },
+      {
+        name: "Checkered Shirts",
+        sizes: productSizes["Corporate Men"]
+          ? productSizes["Corporate Men"].CheckeredShirts || []
+          : [],
+      },
+      {
+        name: "Cardigans",
+        sizes: productSizes["Corporate Men"]
+          ? productSizes["Corporate Men"].Cardigans || []
+          : [],
+      },
     ],
   },
   {
@@ -255,7 +365,10 @@ const productTypes = [
       { name: "Tracksuits", sizes: productSizes["Sportswear"].Tracksuits },
       { name: "Sweatbands", sizes: productSizes["Sportswear"].Sweatbands },
       { name: "Headbands", sizes: productSizes["Sportswear"].Headbands },
-      { name: "Compression Pants", sizes: productSizes["Sportswear"].CompressionPants },
+      {
+        name: "Compression Pants",
+        sizes: productSizes["Sportswear"].CompressionPants,
+      },
       { name: "Running Shoes", sizes: productSizes["Sportswear"].RunningShoes },
       { name: "Yoga Pants", sizes: productSizes["Sportswear"].YogaPants },
       { name: "Tank Tops", sizes: productSizes["Sportswear"].TankTops },
@@ -277,7 +390,7 @@ const productTypes = [
       "Brogues",
       "Corporate Shoes",
     ],
-    sizes: productSizes["Slides"],
+    sizes: productSizes["FootWear"],
   },
   // Gym Wear
   {

@@ -3,10 +3,12 @@ import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { clearCart } from "../redux/actions/action";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../firebase.config";
 import useAuth from "../custom-hooks/useAuth";
 import { FaPen } from "react-icons/fa";
-import { getDeliveryEstimate } from "../services/deliveryestimator";
-import { calculateServiceFee } from "../services/utilis";
+
+// import { calculateServiceFee } from "../services/utilis";
 import { createOrderAndReduceStock } from "../services/Services";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.config";
@@ -99,7 +101,6 @@ const EditDeliveryModal = ({ userInfo, setUserInfo, onClose }) => {
 };
 
 const ShopSafelyModal = ({ onClose }) => {
-  
   return (
     <div className="fixed inset-0 pointer-events-auto bg-gray-700 bg-opacity-50 flex justify-center items-end z-50">
       <div className="bg-white w-full max-w-md h-[85vh] rounded-t-2xl shadow-lg overflow-y-auto px-4 py-4 relative">
@@ -110,7 +111,7 @@ const ShopSafelyModal = ({ onClose }) => {
             onClick={onClose}
           />
         </div>
-  
+
         {/* Secure Payment */}
         <div className="flex items-start mb-4">
           <div className="w-16 flex flex-col items-center">
@@ -129,9 +130,9 @@ const ShopSafelyModal = ({ onClose }) => {
             </p>
           </div>
         </div>
-  
+
         <div className="border-t border-gray-300 my-1"></div>
-  
+
         {/* Security & Privacy */}
         <div className="flex items-start mt-3 mb-4">
           <div className="w-16 flex flex-col items-center">
@@ -151,9 +152,9 @@ const ShopSafelyModal = ({ onClose }) => {
             </p>
           </div>
         </div>
-  
+
         <div className="border-t border-gray-300 my-1"></div>
-  
+
         {/* Secure Shipment */}
         <div className="flex items-start mt-3 mb-4">
           <div className="w-16 flex flex-col items-center">
@@ -170,9 +171,9 @@ const ShopSafelyModal = ({ onClose }) => {
             </p>
           </div>
         </div>
-  
+
         <div className="border-t border-gray-300 my-1"></div>
-  
+
         {/* Customer Support */}
         <div className="flex items-start mt-3">
           <div className="w-16 flex flex-col items-center">
@@ -192,7 +193,6 @@ const ShopSafelyModal = ({ onClose }) => {
       </div>
     </div>
   );
-  
 };
 const Checkout = () => {
   const { vendorId } = useParams();
@@ -215,6 +215,107 @@ const Checkout = () => {
   });
   const [showEditModal, setShowEditModal] = useState(false);
   const [showShopSafelyModal, setShowShopSafelyModal] = useState(false);
+  const [previewedOrder, setPreviewedOrder] = useState({
+    subtotal: 0,
+    bookingFee: 0,
+    serviceFee: 0,
+    total: 0,
+  });
+  const prepareOrderData = (isPreview = false) => {
+    const vendorCart = cart[vendorId]?.products;
+
+    if (!vendorCart || Object.keys(vendorCart).length === 0) {
+      console.warn("Cart is empty");
+      return null;
+    }
+
+    return {
+      cartItems: Object.values(vendorCart).map((product) => {
+        const cartItem = {
+          productId: product.id,
+          quantity: product.quantity,
+        };
+
+        if (product.subProduct) {
+          cartItem.subProductAttributes = {
+            color: product.selectedColor,
+            size: product.selectedSize,
+            subType: product.subType,
+          };
+        } else if (product.variant) {
+          cartItem.variantAttributes = {
+            color: product.selectedColor,
+            size: product.selectedSize,
+          };
+        } else {
+          // For simple products, no additional attributes are needed
+        }
+        return cartItem;
+      }),
+      userInfo,
+      preview: isPreview,
+    };
+  };
+
+  // Fetch the previewed fees and totals from the server
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      if (currentUser) {
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists()) {
+          setUserInfo({
+            displayName: userDoc.data().displayName || "",
+            email: userDoc.data().email || "",
+            phoneNumber: userDoc.data().phoneNumber || "",
+            address: userDoc.data().address || "",
+          });
+        } else {
+          console.warn("User document does not exist.");
+        }
+      }
+    };
+
+    fetchUserInfo();
+  }, [currentUser]);
+
+  useEffect(() => {
+    const fetchOrderPreview = async () => {
+      if (!currentUser) {
+        console.warn("User not authenticated yet");
+        return;
+      }
+
+      if (
+        !userInfo.displayName ||
+        !userInfo.email ||
+        !userInfo.phoneNumber ||
+        !userInfo.address
+      ) {
+        console.warn(
+          "User info incomplete, waiting for user info to be fetched"
+        );
+        return;
+      }
+
+      const orderData = prepareOrderData(true); // Set preview mode to true
+      if (!orderData) return;
+
+      try {
+        // Call the Cloud Function in preview mode
+        const processOrder = httpsCallable(functions, "processOrder");
+        const response = await processOrder(orderData);
+
+        // Set previewed values in the state
+        const { subtotal, bookingFee, serviceFee, total } = response.data;
+        setPreviewedOrder({ subtotal, bookingFee, serviceFee, total });
+      } catch (error) {
+        console.error("Error fetching order preview:", error);
+        toast.error("Failed to load order preview. Please try again.");
+      }
+    };
+
+    fetchOrderPreview();
+  }, [vendorId, cart, currentUser, userInfo]);
 
   useEffect(() => {
     if (!vendorId) {
@@ -241,169 +342,109 @@ const Checkout = () => {
 
     fetchVendorInfo();
   }, [vendorId]);
-  useEffect(() => {
-    const calculateDeliveryEstimate = () => {
-      // Extract the last word (city) from vendor and user addresses
-      const vendorCity = vendorsInfo.address?.split(" ").pop();
-      const userCity = userInfo.address?.split(" ").pop();
 
-      if (vendorCity && userCity) {
-        // Calculate estimated delivery price based on cities
-        const estimate = getDeliveryEstimate(userCity, vendorCity);
-        setDeliveryEstimate(estimate);
-      } else {
-        setDeliveryEstimate("Contact vendor for delivery price");
-      }
-    };
-
-    if (vendorsInfo.address && userInfo.address) {
-      calculateDeliveryEstimate();
-    }
-  }, [vendorsInfo, userInfo]);
   useEffect(() => {
     if (vendorsInfo[vendorId]?.deliveryMode) {
       // Pre-select the delivery mode if available in vendorsInfo
       setSelectedDeliveryMode(vendorsInfo[vendorId].deliveryMode);
     }
   }, [vendorsInfo, vendorId]);
-  useEffect(() => {
-    const fetchUserInfo = async () => {
-      if (currentUser) {
-        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-        if (userDoc.exists()) {
-          setUserInfo({
-            displayName: userDoc.data().displayName || "",
-            email: userDoc.data().email || "",
-            phoneNumber: userDoc.data().phoneNumber || "",
-            address: userDoc.data().address || "",
-          });
-        } else {
-          console.warn("User document does not exist.");
-        }
-      }
-    };
 
-    fetchUserInfo();
-  }, [currentUser]);
+  // useEffect(() => {
+  //   const fetchUserInfo = async () => {
+  //     if (currentUser) {
+  //       const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+  //       if (userDoc.exists()) {
+  //         setUserInfo({
+  //           displayName: userDoc.data().displayName || "",
+  //           email: userDoc.data().email || "",
+  //           phoneNumber: userDoc.data().phoneNumber || "",
+  //           address: userDoc.data().address || "",
+  //         });
+  //       } else {
+  //         console.warn("User document does not exist.");
+  //       }
+  //     }
+  //   };
 
-  const calculateVendorTotals = useCallback(() => {
-    const totals = {};
-    if (!vendorId || !cart[vendorId]) return totals;
+  //   fetchUserInfo();
+  // }, [currentUser]);
 
-    const vendorCart = cart[vendorId].products;
-    let subTotal = 0;
+  // const calculateVendorTotals = useCallback(() => {
+  //   const totals = {};
+  //   if (!vendorId || !cart[vendorId]) return totals;
 
-    for (const productKey in vendorCart) {
-      const product = vendorCart[productKey];
-      subTotal += product.price * product.quantity;
-    }
+  //   const vendorCart = cart[vendorId].products;
+  //   let subTotal = 0;
 
-    const vendorMarketPlaceType = vendorsInfo[vendorId]?.marketPlaceType;
+  //   for (const productKey in vendorCart) {
+  //     const product = vendorCart[productKey];
+  //     subTotal += product.price * product.quantity;
+  //   }
 
-    let bookingFee = 0;
-    if (vendorMarketPlaceType === "marketplace") {
-      bookingFee = parseFloat((subTotal * 0.2).toFixed(2));
-    }
+  //   const vendorMarketPlaceType = vendorsInfo[vendorId]?.marketPlaceType;
 
-    const serviceFee = parseFloat(calculateServiceFee(subTotal));
-    const total = parseFloat((subTotal + bookingFee + serviceFee).toFixed(2));
+  //   let bookingFee = 0;
+  //   if (vendorMarketPlaceType === "marketplace") {
+  //     bookingFee = parseFloat((subTotal * 0.2).toFixed(2));
+  //   }
 
-    totals[vendorId] = {
-      subTotal: subTotal.toLocaleString(),
-      bookingFee: bookingFee.toLocaleString(),
-      serviceFee: serviceFee.toLocaleString(),
-      total: total.toLocaleString(),
-    };
+  //   const serviceFee = parseFloat(calculateServiceFee(subTotal));
+  //   const total = parseFloat((subTotal + bookingFee + serviceFee).toFixed(2));
 
-    return totals;
-  }, [cart, vendorId, vendorsInfo]);
+  //   totals[vendorId] = {
+  //     subTotal: subTotal.toLocaleString(),
+  //     bookingFee: bookingFee.toLocaleString(),
+  //     serviceFee: serviceFee.toLocaleString(),
+  //     total: total.toLocaleString(),
+  //   };
 
-  const vendorTotals = calculateVendorTotals();
+  //   return totals;
+  // }, [cart, vendorId, vendorsInfo]);
+
+  // const vendorTotals = calculateVendorTotals();
 
   const handleProceedToPayment = async () => {
     try {
-      const userId = currentUser?.uid;
-      const vendorCart = cart[vendorId].products;
+      const orderData = prepareOrderData(); // No preview, for final order submission
+      if (!orderData) return;
 
-      const { subTotal, bookingFee, serviceFee, total } =
-        vendorTotals[vendorId];
+      // Call the Cloud Function
+      const processOrder = httpsCallable(functions, "processOrder");
+      const response = await processOrder(orderData);
 
-      const orderId = await createOrderAndReduceStock(userId, vendorCart, {
-        note,
-        userInfo,
-        subTotal,
-        bookingFee,
-        serviceFee,
-        total,
-      });
+      // Get the result
+      const { orderId, total } = response.data;
 
+      // Clear the cart and show success message
       dispatch(clearCart(vendorId));
-
       toast.success("Order placed successfully!");
 
+      // Navigate to the payment approval or orders page
       navigate(`/payment-approve?orderId=${orderId}`);
-
       setTimeout(() => {
         navigate("/user-orders", { state: { fromPaymentApprove: true } });
       }, 2000);
     } catch (error) {
-      toast.error("Failed to create order. Please try again.");
       console.error("Error in handleProceedToPayment:", error);
+      toast.error("Failed to create order. Please try again.");
     }
   };
 
-  const handlePaystackPayment = (amount, onSuccessCallback) => {
-    if (loading) {
-      toast.info("Checking authentication status...");
-      return;
-    }
-
-    if (!currentUser) {
-      toast.error("User is not logged in");
-      return;
-    }
-  };
   const handleDeliveryModeSelection = (mode) => {
     setSelectedDeliveryMode(mode);
   };
-  const handleVendorPayment = async (paymentType) => {
-    const fees = vendorTotals[vendorId];
-    let amountToPay = 0;
+  // const handleVendorPayment = async (paymentType) => {
+  //   const fees = vendorTotals[vendorId];
+  //   let amountToPay = 0;
 
-    if (paymentType === "booking") {
-      amountToPay = parseFloat(fees.bookingFee) + parseFloat(fees.serviceFee);
-    } else if (paymentType === "full") {
-      amountToPay = parseFloat(fees.total);
-    }
+  //   if (paymentType === "booking") {
+  //     amountToPay = parseFloat(fees.bookingFee) + parseFloat(fees.serviceFee);
+  //   } else if (paymentType === "full") {
+  //     amountToPay = parseFloat(fees.total);
+  //   }
 
-    handlePaystackPayment(amountToPay, async () => {
-      try {
-        const userId = currentUser.uid;
-        const vendorCart = cart[vendorId].products;
-
-        await createOrderAndReduceStock(userId, vendorId, vendorCart, {
-          userInfo,
-          paymentType,
-        });
-
-        dispatch(clearCart(vendorId));
-        toast.success(`Order placed successfully for vendor ${vendorId}!`);
-
-        navigate("/payment-approve", {
-          state: { vendorId, totalPrice: fees.total, userInfo },
-        });
-
-        setTimeout(() => {
-          navigate("/user-orders");
-        }, 3000);
-      } catch (error) {
-        console.error("Error placing order:", error);
-        toast.error(
-          "An error occurred while placing the order. Please try again."
-        );
-      }
-    });
-  };
+  // };
 
   const groupProductsById = (products) => {
     const groupedProducts = {};
@@ -448,7 +489,7 @@ const Checkout = () => {
     window.confirm(
       "The booking fee, exclusive to marketplace vendors, is a 20% charge on your subtotal that guarantees your items are packaged and reserved for pickup. Once the vendor accepts your order, they will securely hold your items, ensuring they're ready for collection at your convenience."
     );
-    handleVendorPayment("booking");
+    // handleVendorPayment("booking");
   };
 
   const handleServiceFeeInfo = () => {
@@ -461,10 +502,10 @@ const Checkout = () => {
     return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
   };
 
-  const handleFullDeliveryPayment = (e) => {
-    e.preventDefault();
-    handleVendorPayment("full");
-  };
+  // const handleFullDeliveryPayment = (e) => {
+  //   e.preventDefault();
+  //   handleVendorPayment("full");
+  // };
 
   if (loading) {
     return (
@@ -496,7 +537,7 @@ const Checkout = () => {
           <div className="flex justify-between">
             <label className="block mb-2 font-opensans ">Sub-Total</label>
             <p className="text-lg font-opensans text-black font-semibold">
-              ₦{vendorTotals[vendorId]?.subTotal}
+              ₦{previewedOrder.subtotal.toLocaleString()}
             </p>
           </div>
 
@@ -510,7 +551,7 @@ const Checkout = () => {
                 />
               </label>
               <p className="text-lg font-opensans text-black font-semibold">
-                ₦{vendorTotals[vendorId]?.bookingFee}
+                ₦{previewedOrder.bookingFee.toLocaleString()}
               </p>
             </div>
           )}
@@ -524,7 +565,7 @@ const Checkout = () => {
               />
             </label>
             <p className="text-lg font-opensans text-black font-semibold">
-              ₦{vendorTotals[vendorId]?.serviceFee}
+              ₦{previewedOrder.serviceFee.toLocaleString()}
             </p>
           </div>
           <div className="border-t mt-3 border-gray-300 my-2"></div>
@@ -533,11 +574,10 @@ const Checkout = () => {
               Total
             </label>
             <p className="text-lg font-opensans text-black font-semibold">
-              ₦{vendorTotals[vendorId]?.total}
+              ₦{previewedOrder.total.toLocaleString()}
             </p>
           </div>
         </div>
-
         <div className="mt-2">
           <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
             <div className="flex justify-between items-center">

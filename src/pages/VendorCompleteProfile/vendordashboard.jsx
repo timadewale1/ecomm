@@ -345,15 +345,18 @@ const VendorDashboard = () => {
             {recentActivities ? (
               <>
                 {recentActivities.map((activity) => (
-                  <li key={activity.id}>
-                    <div className="text-gray-700 flex justify-between">
-                      <p>{activity.note} - </p>
+                  <div key={activity.id} className="mx-2 bg-customSoftGray rounded-2xl px-4 py-2">
+                    <div className="flex justify-between mb-2">
+                      <p className="text-black font-semibold text-xs">{activity.title}</p>
 
-                      <p className="text-gray-500 text-sm">
+                      <p className="text-black font-semibold text-xs">
                         {formatDateOrTime(activity.timestamp)}
                       </p>
                     </div>
-                  </li>
+                    <p className="text-black text-xs">
+                      {activity.note}
+                    </p>
+                  </div>
                 ))}
               </>
             ) : (

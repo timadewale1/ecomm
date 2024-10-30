@@ -252,7 +252,7 @@ const VendorDashboard = () => {
             </p>
 
             <div className="grid grid-cols-2 gap-2 justify-center">
-              <div className="flex flex-col justify-between w-40 preSm:w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
+              <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
                 <div className="flex justify-between items-center">
                   <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
                     <BsBoxSeam className="text-sm text-customOrange" />
@@ -269,7 +269,7 @@ const VendorDashboard = () => {
                 </div>
               </div>
 
-              <div className="flex flex-col justify-between w-40 preSm:w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
+              <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
                 <div className="flex justify-between items-center">
                   <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
                     <BsBoxSeam className="text-sm text-customOrange" />
@@ -286,7 +286,7 @@ const VendorDashboard = () => {
                 </div>
               </div>
 
-              <div className="flex flex-col justify-between w-40 preSm:w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
+              <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
                 <div className="flex justify-between items-center">
                   <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
                     <BsBoxSeam className="text-sm text-customOrange" />
@@ -303,7 +303,7 @@ const VendorDashboard = () => {
                 </div>
               </div>
 
-              <div className="flex flex-col justify-between w-40 preSm:w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
+              <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
                 <div className="flex justify-between items-center">
                   <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
                     <BsBoxSeam className="text-sm text-customOrange" />

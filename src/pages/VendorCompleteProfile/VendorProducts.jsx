@@ -122,7 +122,7 @@ const VendorProducts = () => {
       await updateDoc(productRef, {
         isFeatured: !product.isFeatured,
       });
-      await addActivityNote("Product Pinned 📌", `You've made ${product.name} one of your featured products! This will be part of the first products customers see in your store`, "Product Update");
+      await addActivityNote("Product Pinned 📌", `You've made ${product.name} one of your featured products! This will be part of the first products customers see in your store.`, "Product Update");
       toast.success("Product is now featured.");
       fetchVendorProducts(vendorId);
       closeModals();
@@ -169,7 +169,7 @@ const VendorProducts = () => {
       });
 
       // Step 3: Log activity for product deletion
-      await addActivityNote("Deleted Product 🗑"`You removed ${selectedProduct.name} from your store! This product no longer exists in your store and customers that have it in their carts will be notified.`, "Product Update");
+      await addActivityNote("Deleted Product 🗑", `You removed ${selectedProduct.name} from your store! This product no longer exists in your store and customers that have it in their carts will be notified.`, "Product Update");
 
       // Update the products state
       setProducts(
@@ -215,7 +215,7 @@ const VendorProducts = () => {
   const handleEditProduct = async () => {
     // Logic to open the edit modal or handle product edit functionality
     console.log("Edit product:", selectedProduct);
-    await addActivityNote(`Edited product: ${selectedProduct.name}`);
+    await addActivityNote("Edited Product 📝", `You edited ${selectedProduct.name}! Customers that have this in their cart will be notified of the changes you made.`, "Product Update");
   };
 
   return (

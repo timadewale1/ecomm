@@ -28,7 +28,8 @@ const VendorDashboard = () => {
   const { vendorData, loading } = useContext(VendorContext); // Get vendor data from context
   const [totalFulfilledOrders, setTotalFulfilledOrders] = useState(0);
   const [hide, setHide] = useState(false);
-  const [filterOptions, setFilterOptions] = useState(false);
+  const [filterOptions, setFilterOptions] = useState("All");
+  const [viewOptions, setViewOptions] = useState(false);
   const [totalUnfulfilledOrders, setTotalUnfulfilledOrders] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -43,6 +44,11 @@ const VendorDashboard = () => {
       fetchStatistics(vendorData.vendorId);
       fetchRecentActivities(vendorData.vendorId);
     }
+  });
+
+  const filteredActivities = recentActivities.filter((activity) => {
+    if (filterOptions === "All") return true;
+    return activity.type === filterOptions;
   });
 
   // Fetch vendor's products, orders, and sales statistics in real-time
@@ -163,12 +169,12 @@ const VendorDashboard = () => {
   }
   return (
     <>
-      <div className="mb-24 mx-3 my-7 flex flex-col justify-center space-y-1 font-opensans ">
+      <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-1 font-opensans ">
         <div className="flex justify-between items-center">
           <div className="flex items-center">
             <div className="overflow-hidden w-11 h-11 rounded-full flex justify-center items-center mr-1">
               <img
-                src={vendorData.photoURL || vendorData.coverImageUrl} 
+                src={vendorData.photoURL || vendorData.coverImageUrl}
                 alt="Vendor profile"
                 className="rounded-full object-cover h-11 w-11"
               />
@@ -319,24 +325,56 @@ const VendorDashboard = () => {
         </div>
 
         <div className="flex flex-col justify-center mt-4">
-          <div className="flex justify-between mb-4">
+          <div className="flex justify-between mb-3">
             <p className="text-black text-lg font-semibold">Recent activity</p>
 
             <div className="relative">
-              {filterOptions && (
+              {viewOptions && (
                 <div className="z-50 absolute bg-white w-44 h-40 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-44 top-2 p-3 flex flex-col justify-between">
-                    <span className="text-xs ml-2">All</span>
-                  <hr className="text-slate-300"/>
-                    <span className="text-xs ml-2">Recent Transactions</span>
-                  <hr className="text-slate-300"/>
-                    <span className="text-xs ml-2">Orders</span>
-                  <hr className="text-slate-300"/>
-                    <span className="text-xs ml-2">Product Update</span>
+                  <span
+                    className="text-xs ml-2 cursor-pointer"
+                    onClick={() => {
+                      setFilterOptions("All");
+                      setViewOptions(!viewOptions);
+                    }}
+                  >
+                    All
+                  </span>
+                  <hr className="text-slate-300" />
+                  <span
+                    className="text-xs ml-2 cursor-pointer"
+                    onClick={() => {
+                      setFilterOptions("Recent Transactions");
+                      setViewOptions(!viewOptions);
+                    }}
+                  >
+                    Recent Transactions
+                  </span>
+                  <hr className="text-slate-300" />
+                  <span
+                    className="text-xs ml-2 cursor-pointer"
+                    onClick={() => {
+                      setFilterOptions("Orders");
+                      setViewOptions(!viewOptions);
+                    }}
+                  >
+                    Orders
+                  </span>
+                  <hr className="text-slate-300" />
+                  <span
+                    className="text-xs ml-2 cursor-pointer"
+                    onClick={() => {
+                      setFilterOptions("Product Update");
+                      setViewOptions(!viewOptions);
+                    }}
+                  >
+                    Product Update
+                  </span>
                 </div>
               )}
               <LuListFilter
-                className="text-customOrange"
-                onClick={() => setFilterOptions(!filterOptions)}
+                className="text-customOrange cursor-pointer"
+                onClick={() => setViewOptions(!viewOptions)}
               />
             </div>
           </div>
@@ -344,18 +382,21 @@ const VendorDashboard = () => {
           <div className="flex flex-col space-y-2 text-black">
             {recentActivities ? (
               <>
-                {recentActivities.map((activity) => (
-                  <div key={activity.id} className="mx-2 bg-customSoftGray rounded-2xl px-4 py-2">
+                {filteredActivities.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="mb-2 bg-customSoftGray rounded-2xl px-4 py-2"
+                  >
                     <div className="flex justify-between mb-2">
-                      <p className="text-black font-semibold text-xs">{activity.title}</p>
+                      <p className="text-black font-semibold text-xs">
+                        {activity.title}
+                      </p>
 
                       <p className="text-black font-semibold text-xs">
                         {formatDateOrTime(activity.timestamp)}
                       </p>
                     </div>
-                    <p className="text-black text-xs">
-                      {activity.note}
-                    </p>
+                    <p className="text-black text-xs">{activity.note}</p>
                   </div>
                 ))}
               </>

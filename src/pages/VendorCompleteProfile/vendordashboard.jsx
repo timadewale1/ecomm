@@ -69,10 +69,9 @@ const VendorDashboard = () => {
     return () => unsubscribe();
   };
 
-  const textToCopy = `www.mythrift.com/vendor/${vendorData.shopName.replace(
-    /\s+/g,
-    ""
-  )}`;
+  const textToCopy = `https://mythriftprod.vercel.app/${
+    vendorData.marketPlaceType === "virtual" ? ("store") : ("marketstorepage")
+  }/${vendorData.vendorId}`;
 
   const copyToClipboard = async () => {
     console.log("Clicked");

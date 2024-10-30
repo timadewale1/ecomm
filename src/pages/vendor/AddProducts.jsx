@@ -486,7 +486,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       });
 
       // Log activity and notify followers
-      await logActivity("Added New Product 📦", `You've added ${productName} to your store! You can now view and feature it in your store products section.`, "Product Update");
+      await logActivity("Added New Product 📦", `You've added ${productName} to your store! You can now view and feature it in your store products section.`, 'Product Update');
       await notifyFollowers(vendorId, {
         name: productName,
         shopName: vendorData.shopName,

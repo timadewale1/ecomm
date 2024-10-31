@@ -4,11 +4,10 @@ import {
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
-  signOut,
 } from "firebase/auth";
 import { auth, db } from "../../firebase.config";
 import toast from "react-hot-toast";
-import { doc, updateDoc, setDoc } from "firebase/firestore";
+import { doc, updateDoc } from "firebase/firestore";
 import {
   FaTimes,
   FaEye,
@@ -16,19 +15,18 @@ import {
   FaPhone,
   FaCalendarAlt,
   FaAngleLeft,
-  FaAngleRight,
+
 } from "react-icons/fa";
 import { FaRegCircleUser } from "react-icons/fa6";
-import { PiAtThin, PiSignOutBold } from "react-icons/pi";
+import { PiAtThin } from "react-icons/pi";
 import { MdEmail, MdVerified } from "react-icons/md";
 import { GrSecure } from "react-icons/gr";
 import { RiEditFill } from "react-icons/ri";
 import { RotatingLines } from "react-loader-spinner";
 import { useNavigate } from "react-router-dom";
 import { FaRegTimesCircle } from "react-icons/fa";
-import { clearCart } from "../../redux/actions/action";
 import { useDispatch, useSelector } from "react-redux";
-import { resetUserData } from "../../redux/actions/authactions";
+
 
 const ProfileDetails = ({
   currentUser,
@@ -41,8 +39,7 @@ const ProfileDetails = ({
     console.log("userData:", userData);
   }, [currentUser, userData]);
 
-  const dispatch = useDispatch();
-  const cart = useSelector((state) => state.cart);
+  
 
   const [isEditing, setIsEditing] = useState(false);
   const [editField, setEditField] = useState("");
@@ -56,7 +53,7 @@ const ProfileDetails = ({
   const [currentPassword, setCurrentPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+ 
   const navigate = useNavigate();
 
   const handleEdit = (field) => {
@@ -158,29 +155,7 @@ const ProfileDetails = ({
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true); // Start the loading spinner
-
-      console.log("Logging out, cart:", cart); // Log the cart data
-      await setDoc(doc(db, "carts", currentUser.uid), { cart });
-      console.log("Cart saved to Firestore:", { cart }); // Log after saving to Firestore
-
-      await signOut(auth);
-      localStorage.removeItem("cart");
-      dispatch(clearCart()); // Clear Redux cart state
-      dispatch(resetUserData()); // Reset user data
-      console.log("Cart cleared in Redux and localStorage");
-
-      toast.success("Successfully logged out", { className: "custom-toast" });
-      navigate("/login");
-    } catch (error) {
-      console.error("Error logging out:", error);
-      toast.error("Error logging out", { className: "custom-toast" });
-    } finally {
-      setIsLoggingOut(false); // Stop the loading spinner
-    }
-  };
+ 
 
   return (
     <div className="flex flex-col p-2 items-center">
@@ -193,21 +168,23 @@ const ProfileDetails = ({
               setShowDetails(false);
             }}
           />
-          <h1 className="text-xl font-medium font-ubuntu text-black">
+          <h1 className="text-xl font-medium font-ubuntu text-black   ">
             Profile Details
           </h1>
         </div>
+        
+          
       </div>
-
+        
       <div className="w-full ">
-        <div className="flex flex-col bg-gray-200 rounded-lg mb-6 items-center w-full">
-          <hr className="w-full border-gray-400" />
+        <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full ">
+         
           <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
             UserName
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <PiAtThin className="text-black text-xl mr-4" />
-            <p className="text-size font-medium font-poppins text-black w-full">
+            <p className="text-size font-normal font-poppins text-black w-full">
               {username || "Username"}
             </p>
             <MdVerified
@@ -222,14 +199,14 @@ const ProfileDetails = ({
           </div>
         </div>
 
-        <div className="flex flex-col bg-gray-200 rounded-lg mb-6 items-center w-full">
-          <hr className="w-full border-gray-400" />
+        <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2  items-center w-full">
+          
           <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
             Account Name
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <FaRegCircleUser className="text-black text-xl mr-4" />
-            <p className="text-size font-medium font-poppins text-black w-full">
+            <p className="text-size font-normal font-poppins text-black w-full">
               {displayName || "Add Account Name"}
             </p>
             <MdVerified
@@ -244,14 +221,13 @@ const ProfileDetails = ({
           </div>
         </div>
 
-        <div className="flex flex-col bg-gray-200 rounded-lg mb-6 items-center w-full">
-          <hr className="w-full border-gray-400" />
+        <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
           <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
             Email
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <MdEmail className="text-black text-xl mr-4" />
-            <p className="text-size font-medium font-poppins text-black w-full">
+            <p className="text-size font-normal font-poppins text-black w-full">
               {currentUser.email}
             </p>
             <MdVerified
@@ -262,8 +238,7 @@ const ProfileDetails = ({
           </div>
         </div>
 
-        <div className="flex flex-col bg-gray-200 rounded-lg mb-6 items-center w-full">
-          <hr className="w-full border-gray-400" />
+        <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
           <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
             Phone Number
           </h1>
@@ -284,8 +259,7 @@ const ProfileDetails = ({
           </div>
         </div>
 
-        <div className="flex flex-col bg-gray-200 rounded-lg mb-6 items-center w-full">
-          <hr className="w-full border-gray-400" />
+        <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
           <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
             Birthday
           </h1>
@@ -301,8 +275,7 @@ const ProfileDetails = ({
           </div>
         </div>
 
-        <div className="flex flex-col bg-gray-200 rounded-lg mb-6 items-center w-full">
-          <hr className="w-full border-gray-400" />
+        <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
           <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
             Password
           </h1>
@@ -318,22 +291,11 @@ const ProfileDetails = ({
           </div>
         </div>
 
-        <div
-          className="flex flex-col bg-gray-200 rounded-lg items-center w-full mt-6 cursor-pointer"
-          onClick={handleLogout}
-        >
-          <hr className="w-full border-gray-400" />
-          <div className="flex items-center justify-between w-full px-4 py-3">
-            <PiSignOutBold className="text-red-600 text-xl mr-4" />
-            <p className="text-size text-black w-full font-medium">Sign Out</p>
-            <FaAngleRight className="text-black text-xl ml-2" />
-          </div>
-          <hr className="w-full border-gray-400" />
-        </div>
+       
       </div>
 
       {isEditing && (
-        <div className="fixed inset-0 bg-white bg-opacity-50 px-14 flex items-center justify-center">
+        <div className="fixed inset-0 border-none rounded-xl bg-customGrey mb-2 px-14 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative">
             <FaRegTimesCircle
               className="absolute top-2 right-2 font-bold text-lg rounded-md text-black cursor-pointer"
@@ -454,17 +416,7 @@ const ProfileDetails = ({
           </div>
         </div>
       )}
-      {isLoggingOut && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-          <RotatingLines
-            strokeColor="#f9531e"
-            strokeWidth="5"
-            animationDuration="0.75"
-            width="96"
-            visible={true}
-          />
-        </div>
-      )}
+      
     </div>
   );
 };

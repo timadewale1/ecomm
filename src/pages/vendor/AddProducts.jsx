@@ -486,7 +486,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       });
 
       // Log activity and notify followers
-      await logActivity(`Added ${productName} to your store`);
+      await logActivity("Added New Product 📦", `You've added ${productName} to your store! You can now view and feature it in your store products section.`, 'Product Update');
       await notifyFollowers(vendorId, {
         name: productName,
         shopName: vendorData.shopName,
@@ -598,9 +598,11 @@ const AddProduct = ({ vendorId, closeModal }) => {
     closeSubProductModal(); // Close the modal after submitting
   };
 
-  const logActivity = async (note) => {
+  const logActivity = async (title, note, type) => {
     const activityRef = collection(db, "vendors", vendorId, "activityNotes");
     const activityNote = {
+      title,
+      type,
       timestamp: new Date(),
       note: note,
     };

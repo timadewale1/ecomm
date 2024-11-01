@@ -122,7 +122,7 @@ const VendorProducts = () => {
       await updateDoc(productRef, {
         isFeatured: !product.isFeatured,
       });
-      await addActivityNote(`Featured ${product.name}`);
+      await addActivityNote("Product Pinned 📌", `You've made ${product.name} one of your featured products! This will be part of the first products customers see in your store.`, "Product Update");
       toast.success("Product is now featured.");
       fetchVendorProducts(vendorId);
       closeModals();
@@ -134,7 +134,7 @@ const VendorProducts = () => {
     }
   };
 
-  const addActivityNote = async (note) => {
+  const addActivityNote = async (title, note, type) => {
     try {
       const activityNotesRef = collection(
         db,
@@ -143,6 +143,8 @@ const VendorProducts = () => {
         "activityNotes"
       );
       await addDoc(activityNotesRef, {
+        title,
+        type,
         note,
         timestamp: new Date(),
       });
@@ -167,7 +169,7 @@ const VendorProducts = () => {
       });
 
       // Step 3: Log activity for product deletion
-      await addActivityNote(`Deleted product: ${selectedProduct.name}`);
+      await addActivityNote("Deleted Product 🗑", `You removed ${selectedProduct.name} from your store! This product no longer exists in your store and customers that have it in their carts will be notified.`, "Product Update");
 
       // Update the products state
       setProducts(
@@ -198,7 +200,7 @@ const VendorProducts = () => {
         stockQuantity:
           selectedProduct.stockQuantity + parseInt(restockQuantity, 10),
       });
-      await addActivityNote(`Restocked ${selectedProduct.name}`);
+      await addActivityNote(`Restocked Product 📦`, ` You’ve restocked ${selectedProduct.name}! Products are in stock and available for purchase.`, "Product Update");
       toast.success("Product restocked successfully.");
       fetchVendorProducts(vendorId);
       closeModals();
@@ -213,7 +215,7 @@ const VendorProducts = () => {
   const handleEditProduct = async () => {
     // Logic to open the edit modal or handle product edit functionality
     console.log("Edit product:", selectedProduct);
-    await addActivityNote(`Edited product: ${selectedProduct.name}`);
+    await addActivityNote("Edited Product 📝", `You edited ${selectedProduct.name}! Customers that have this in their cart will be notified of the changes you made.`, "Product Update");
   };
 
   return (

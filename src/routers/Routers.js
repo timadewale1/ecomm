@@ -21,7 +21,7 @@ import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfil
 import NewHome from "../pages/Homepage";
 import LatestCart from "../pages/Cart.jsx";
 import OrdersCentre from "../pages/UserSide/OrdersCentre.jsx";
-import FullDelivery from "../pages/FullDelivery.jsx";
+
 import Checkout from "../pages/NewCheckout.jsx";
 import MarketVendors from "../pages/MarketVendors.jsx";
 import Profile from "../pages/Profile.jsx";
@@ -61,7 +61,7 @@ const Routers = () => {
         <Route path="latest-cart" element={<LatestCart />} />
         <Route path="newcheckout/:vendorId" element={<Checkout />} />
         <Route path="user-orders" element={<OrdersCentre />} />
-        <Route path="newcheckout/fulldelivery" element={<FullDelivery />} />
+        {/* <Route path="newcheckout/fulldelivery" element={<FullDelivery />} /> */}
         <Route path="favorites" element={<FavoritesPage />} />
         <Route
           path="browse-markets"

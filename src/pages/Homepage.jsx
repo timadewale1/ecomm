@@ -301,7 +301,7 @@ const Homepage = () => {
           />
         )}
 
-        <img src={logo}></img>
+        <img src={logo} alt="Logo"></img>
         <div className="relative flex space-x-2">
           <CiSearch className="text-3xl" onClick={() => navigate("/search")} />
           <IoIosNotificationsOutline

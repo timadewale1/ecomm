@@ -11,7 +11,7 @@ import {
 import { auth, db } from "../../firebase.config";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import useAuth from "../../custom-hooks/useAuth";
 import {
   FaPen,
@@ -31,6 +31,7 @@ import { RotatingLines } from "react-loader-spinner";
 import AvatarSelectorModal from "../vendor/VendorAvatarSelect.jsx";
 import Skeleton from "react-loading-skeleton";
 import VprofileDetails from "../vendor/VprofileDetails.jsx";
+import OrderChart from './OrderChart';
 
 const VendorProfile = () => {
   const navigate = useNavigate();
@@ -51,6 +52,38 @@ const VendorProfile = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [fulfilledOrders, setFulfilledOrders] = useState(0);
+  const [unfulfilledOrders, setUnfulfilledOrders] = useState(0);
+  const [incomingOrders, setIncomingOrders] = useState(0);
+
+  useEffect(() => {
+    const fetchOrderData = async () => {
+      try {
+        const ordersRef = collection(db, "orders");
+        
+        // Query fulfilled orders
+        const fulfilledQuery = query(ordersRef, where("status", "==", "fulfilled"));
+        const fulfilledSnapshot = await getDocs(fulfilledQuery);
+        setFulfilledOrders(fulfilledSnapshot.size);
+
+        // Query unfulfilled orders
+        const unfulfilledQuery = query(ordersRef, where("status", "==", "unfulfilled"));
+        const unfulfilledSnapshot = await getDocs(unfulfilledQuery);
+        setUnfulfilledOrders(unfulfilledSnapshot.size);
+
+        // Query incoming orders
+        const incomingQuery = query(ordersRef, where("status", "==", "incoming"));
+        const incomingSnapshot = await getDocs(incomingQuery);
+        setIncomingOrders(incomingSnapshot.size);
+
+      } catch (error) {
+        console.error("Error fetching order data:", error);
+      }
+    };
+
+    fetchOrderData();
+  }, []);
+
 
   useEffect(() => {
     setIsLoading(true);
@@ -165,10 +198,9 @@ const VendorProfile = () => {
       {!showDetails &&
       !showHistory ? (
         <div className="flex flex-col items-center">
-          <div className="relative flex justify-center w-full h-full">
+          {/* <div className="relative flex justify-center w-full h-full"> */}
             {/* Store Image */}
-            <div className="relative w-full h-72">
-              {isLoading ? (
+              {/* {isLoading ? (
                 <Skeleton height={288} />
               ) : userData && userData.coverImageUrl ? (
                 <img
@@ -178,10 +210,10 @@ const VendorProfile = () => {
                 />
               ) : (
                 <div className="w-full h-full bg-gray-300 rounded-b-lg" />
-              )}
+              )} */}
 
               {/* User Image */}
-              <div className="absolute top-52 left-0">
+              <div className=" flex border  rounded-full p-1 justify-center mt-4 relative">
                 {isLoading ? (
                   <Skeleton circle height={144} width={144} />
                 ) : userData && userData.photoURL ? (
@@ -204,46 +236,50 @@ const VendorProfile = () => {
                   />
                 </div>
               </div>
-            </div>
-          </div>
+            
+          {/* </div> */}
 
-          <div className="mt-10">
+          <div className="">
             {isLoading ? (
               <Skeleton width={150} height={24} />
             ) : userData && userData.shopName ? (
-              <p className="text-md font-medium text-black capitalize">
+              <p className="text-lg font-semibold text-black capitalize mt-2">
                 {shopName}
               </p>
             ) : (
-              <div className="h-6 bg-gray-300 w-40 mt-10" />
+              <div/>
             )}
           </div>
-          <div className="w-full mt-12">
-            <div className="w-full h-14 flex bg-gray-200">
-              <h1 className="text-xl font-ubuntu font-medium mx-4 translate-y-3 text-black">
+
+
+          
+          <div className="w-full mt-2">
+            <div className="w-full h-14 flex">
+              <h1 className="text-base font-semibold mx-4 translate-y-3 text-black">
                 Personal
               </h1>
             </div>
+
             <div className="flex flex-col items-center w-full">
-              <hr className="w-full border-gray-600" />
               <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
                 onClick={() => setShowDetails(!showDetails)}
               >
                 <div className="flex items-center">
                   <FaRegCircleUser className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-black capitalize">
-                    Profile Details
-                  </h2>
+                      Personal information
+                    </h2>
                 </div>
                 <FaAngleRight className="text-black" />
               </div>
-              <hr className="w-full border-gray-600" />
+           
+           
             </div>
             <div className="flex flex-col items-center w-full">
-              <hr className="w-full border-gray-600" />
+           
               <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
                 onClick={() => setShowHistory(!showHistory)}
               >
                 <div className="flex items-center">
@@ -254,17 +290,17 @@ const VendorProfile = () => {
                 </div>
                 <FaAngleRight className="text-black" />
               </div>
-              <hr className="w-full border-gray-600" />
+             
             </div>
-            <div className="w-full h-14 flex bg-gray-200">
-              <h1 className="text-xl font-ubuntu font-medium mx-4 translate-y-3 text-black">
+            <div className="w-full h-14 flex">
+              <h1 className="text-base font-semibold mx-4 translate-y-3 text-black">
                 Data
               </h1>
             </div>
             <div className="flex flex-col items-center w-full">
-              <hr className="w-full border-gray-600" />
+            
               <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
                 onClick={() => navigate("")}
               >
                 <div className="flex items-center">
@@ -275,7 +311,7 @@ const VendorProfile = () => {
                 </div>
                 <FaAngleRight className="text-black" />
               </div>
-              <hr className="w-full border-gray-600" />
+              
             </div>
            
           </div>

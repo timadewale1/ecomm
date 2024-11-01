@@ -18,70 +18,70 @@ const FAQs = ({ setShowFAQs }) => {
         <h2 className="text-xl text-black font-ubuntu ml-2">FAQs</h2>
       </div>
       <div className="w-full mt-4">
-        <div className="flex flex-col items-center w-full">
-          <hr className="w-full border-gray-600" />
+        <div className="flex flex-col rounded-xl bg-customGrey mb-2 items-center w-full">
+          
           <div
             className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
             onClick={() => handleFaqClick("What is Booking Fee?")}
           >
-            <p className="text-lg font-semibold font-poppins text-black capitalize w-full">
+            <p className="text-base font-normal font-poppins text-black capitalize w-full">
               What is Booking Fee?
             </p>
             <FaAngleRight className="text-black" />
           </div>
-          <hr className="w-full border-gray-600" />
+          
         </div>
         <div className="flex flex-col items-center w-full mt-2">
-          <hr className="w-full border-gray-600" />
+        
           <div
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-2"
             onClick={() => handleFaqClick("How do I become a vendor?")}
           >
-            <p className="text-lg font-semibold font-poppins text-black capitalize w-full">
+            <p className="text-base font-normal font-poppins text-black capitalize w-full">
               How do I become a vendor?
             </p>
             <FaAngleRight className="text-black" />
           </div>
-          <hr className="w-full border-gray-600" />
+         
         </div>
         <div className="flex flex-col items-center w-full mt-2">
-          <hr className="w-full border-gray-600" />
+          
           <div
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-2"
             onClick={() => handleFaqClick("Do I get a refund for my booking fee?")}
           >
-            <p className="text-lg font-semibold font-poppins text-black capitalize w-full">
+            <p className="text-base font-normal font-poppins text-black capitalize w-full">
               Do I get a refund for my booking fee?
             </p>
             <FaAngleRight className="text-black" />
           </div>
-          <hr className="w-full border-gray-600" />
+         
         </div>
         <div className="flex flex-col items-center w-full mt-2">
-          <hr className="w-full border-gray-600" />
+         
           <div
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-2"
             onClick={() => handleFaqClick("What are service fees?")}
           >
-            <p className="text-lg font-semibold font-poppins text-black capitalize w-full">
+            <p className="text-base font-normal font-poppins text-black capitalize w-full">
               What are service fees?
             </p>
             <FaAngleRight className="text-black" />
           </div>
-          <hr className="w-full border-gray-600" />
+         
         </div>
         <div className="flex flex-col items-center w-full mt-2">
-          <hr className="w-full border-gray-600" />
+         
           <div
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-2"
             onClick={() => handleFaqClick("What are donations for?")}
           >
-            <p className="text-lg font-semibold font-poppins text-black capitalize w-full">
+            <p className="text-base font-normal font-poppins text-black capitalize w-full">
               What are donations for?
             </p>
             <FaAngleRight className="text-black" />
           </div>
-          <hr className="w-full border-gray-600" />
+         
         </div>
       </div>
 

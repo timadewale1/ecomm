@@ -143,7 +143,7 @@ const Explore = () => {
               <button
                 key={filter}
                 onClick={() => handleCategoryClick(filter)}
-                className={`px-4 py-2 rounded-full ${selectedCategory === filter ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-800"} font-semibold`}
+                className={`px-4 py-2 rounded-full ${selectedCategory === filter ? "bg-customOrange text-white" : "bg-gray-100 text-gray-800"} font-semibold`}
               >
                 {filter}
               </button>

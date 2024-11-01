@@ -3,22 +3,78 @@ import { useSelector } from "react-redux";
 import { IoChevronBackOutline, IoChevronForward } from "react-icons/io5";
 import Loading from "../components/Loading/Loading";
 import productTypes from "../pages/vendor/producttype"; // Adjust path to where producttype.js is located
+import { db } from "../firebase.config"; 
+import { collection, query, where, getDocs } from "firebase/firestore";
 
 const Explore = () => {
   const loading = useSelector((state) => state.product.loading);
+  const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedProductType, setSelectedProductType] = useState(null);
+  const [selectedSubType, setSelectedSubType] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
 
-  // Toggle to switch between main product types view and subtypes view
+  // Function to fetch products based on selected productType, subType, and category
+  const fetchProducts = async (productType, subType, category) => {
+    setIsLoadingProducts(true);
+    try {
+      const productsRef = collection(db, "products");
+      let q = query(
+        productsRef,
+        where("productType", "==", productType),
+        where("subType", "==", subType)
+      );
+
+      // Apply category filter if not "All"
+      if (category !== "All") {
+        q = query(q, where("category", "==", category));
+      }
+
+      const querySnapshot = await getDocs(q);
+      const productsData = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setProducts(productsData);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
+  // Handler for category selection
+  const handleCategoryClick = (category) => {
+    setSelectedCategory(category);
+    setSelectedProductType(null); // Reset selection on category change
+    setSelectedSubType(null);
+    setProducts([]);
+  };
+
+  // Handler for when a product type is selected
   const handleProductTypeClick = (productType) => {
-    setSelectedProductType(productType); // Show subtypes for the selected product type
+    setSelectedProductType(productType);
+    setSelectedSubType(null); // Reset subType selection
+    setProducts([]); // Clear products list
+  };
+
+  // Handler for when a subType is selected
+  const handleSubTypeClick = (subType) => {
+    setSelectedSubType(subType);
+    fetchProducts(selectedProductType.type, subType.name || subType, selectedCategory); // Fetch products for selected subType and category
   };
 
   const handleBackClick = () => {
-    setSelectedProductType(null); // Return to main product types list
+    if (selectedSubType) {
+      setSelectedSubType(null); // Go back to subTypes list
+      setProducts([]);
+    } else {
+      setSelectedProductType(null); // Go back to main product types list
+    }
   };
 
-  // Show loading spinner if the product loading or product types loading is true
-  if (loading) {
+  // Show loading spinner if any loading state is true
+  if (loading || isLoadingProducts) {
     return <Loading />;
   }
 
@@ -26,18 +82,40 @@ const Explore = () => {
     <div className="p-4">
       {/* Header */}
       <div className="flex items-center space-x-2 mb-4">
-        {selectedProductType ? (
+        {(selectedProductType || selectedSubType) ? (
           <IoChevronBackOutline
             onClick={handleBackClick}
             className="text-lg text-gray-800 cursor-pointer"
           />
         ) : null}
         <h1 className="text-2xl font-bold">
-          {selectedProductType ? selectedProductType.type : "Explore Products"}
+          {selectedSubType ? selectedSubType.name || selectedSubType 
+          : selectedProductType ? selectedProductType.type : "Explore Products"}
         </h1>
       </div>
 
-      {selectedProductType ? (
+      {selectedSubType ? (
+        // Products View
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-gray-800">
+            Products in {selectedSubType.name || selectedSubType}
+          </h2>
+          {products.length > 0 ? (
+            products.map((product) => (
+              <div key={product.id} className="border-b border-gray-200 py-2 flex items-start">
+                <img src={product.image} alt={product.name} className="w-16 h-16 rounded-md" />
+                <div className="ml-4">
+                  <h3 className="text-md font-medium">{product.name}</h3>
+                  <p className="text-sm text-gray-600">{product.size ? `Size: ${product.size}` : ''}</p>
+                  <p className="text-lg font-semibold text-gray-800">₦{product.price}</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p>No products available for this subcategory.</p>
+          )}
+        </div>
+      ) : selectedProductType ? (
         // Subtypes View
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-gray-800">
@@ -46,25 +124,13 @@ const Explore = () => {
           {selectedProductType.subTypes.map((subType) => (
             <div
               key={subType.name || subType}
-              className="flex flex-col border-b border-gray-200 py-2"
+              onClick={() => handleSubTypeClick(subType)}
+              className="flex justify-between items-center py-2 border-b border-gray-200 cursor-pointer"
             >
-              {/* Subtype Name */}
               <span className="text-gray-600">
                 {typeof subType === "string" ? subType : subType.name}
               </span>
-              {/* Sizes if available */}
-              {subType.sizes && subType.sizes.length > 0 && (
-                <div className="flex flex-wrap mt-1">
-                  {subType.sizes.map((size, index) => (
-                    <span
-                      key={index}
-                      className="text-xs font-medium bg-gray-200 px-2 py-1 mr-2 mb-2 rounded"
-                    >
-                      {size}
-                    </span>
-                  ))}
-                </div>
-              )}
+              <IoChevronForward className="text-gray-400" />
             </div>
           ))}
         </div>
@@ -72,11 +138,12 @@ const Explore = () => {
         // Main Product Types View
         <>
           <div className="flex space-x-2 mb-4 overflow-x-auto">
-            {/* Horizontal filter options (example only) */}
-            {["All", "Men", "Women", "Kids", "Accessories"].map((filter) => (
+            {/* Horizontal filter options */}
+            {["All", "Men", "Women", "Kids"].map((filter) => (
               <button
                 key={filter}
-                className="px-4 py-2 rounded-full bg-gray-100 text-gray-800 font-semibold"
+                onClick={() => handleCategoryClick(filter)}
+                className={`px-4 py-2 rounded-full ${selectedCategory === filter ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-800"} font-semibold`}
               >
                 {filter}
               </button>

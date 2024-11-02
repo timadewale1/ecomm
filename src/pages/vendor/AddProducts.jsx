@@ -307,16 +307,17 @@ const AddProduct = ({ vendorId, closeModal }) => {
 
     // Validate productVariants
     if (productVariants.length === 0) {
-      
       toast.error("Please add at least one product variant.");
       return;
     }
     if (productCondition === "Defect:" && !productDefectDescription) {
       toast.dismiss();
-      toast.error("Please provide a defect description for the defective product.");
+      toast.error(
+        "Please provide a defect description for the defective product."
+      );
       return;
     }
-  
+
     // Validate each variant
     for (const [index, variant] of productVariants.entries()) {
       if (!variant.color) {
@@ -421,10 +422,12 @@ const AddProduct = ({ vendorId, closeModal }) => {
           const imageUrl = await getDownloadURL(storageRef);
           subProductImageUrls.push(imageUrl);
         }
-
+        const subProductStock = parseInt(subProduct.stock, 10);
+        totalStockQuantity += subProductStock;
         const subProductData = {
           color: subProduct.color.trim(),
           size: subProduct.size,
+          subProductId: subProduct.subProductId,
           stock: parseInt(subProduct.stock, 10),
           images: subProductImageUrls,
         };
@@ -465,6 +468,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         createdAt: new Date(),
         tags: tags,
         variants: variantsData,
+        published: true,
       };
 
       // Include subProducts if any
@@ -543,8 +547,6 @@ const AddProduct = ({ vendorId, closeModal }) => {
 
     // Add valid files to productImages (as File objects, not URLs)
     setProductImages((prevImages) => [...prevImages, ...validFiles]);
-
-   
   };
 
   const productTypeOptions = productTypes.map((item) => ({
@@ -677,10 +679,10 @@ const AddProduct = ({ vendorId, closeModal }) => {
 
         <div className="flex flex-col items-center">
           <div
-            ref={scrollContainerRef} 
+            ref={scrollContainerRef}
             className={`relative w-full h-80 flex overflow-x-scroll snap-x snap-mandatory space-x-4`}
             style={{ scrollBehavior: "smooth" }}
-            onScroll={handleScroll} 
+            onScroll={handleScroll}
           >
             {productImages.length > 0 ? (
               productImages.map((image, index) => (

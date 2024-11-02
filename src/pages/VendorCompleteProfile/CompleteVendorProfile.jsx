@@ -72,6 +72,7 @@ const CompleteProfile = () => {
   const navigate = useNavigate();
 
   const categories = [
+    "Thrifts",
     "Mens",
     "Womens",
     "Underwears",

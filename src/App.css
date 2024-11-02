@@ -49,6 +49,19 @@ p {
   color: var(--small-text-color);
   font-size: 1rem;
 }
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.loading-text {
+  color: #a0a0a0; /* Light gray color */
+  animation: pulse 1.5s infinite;
+}
 
 h1,
 h2 {

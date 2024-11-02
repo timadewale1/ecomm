@@ -10,7 +10,6 @@ export const SET_CART = "SET_CART";
 
 // Save cart to local storage
 const saveCartToLocalStorage = (cart) => {
-  console.log("Saving cart to local storage:", cart);
   localStorage.setItem("cart", JSON.stringify(cart));
 };
 
@@ -21,18 +20,28 @@ const saveCartToFirestore = async (userId, cart) => {
 };
 
 // Add to Cart (Vendor-specific)
-// action.js
 export const addToCart =
   (product, setQuantity = false) =>
   async (dispatch, getState) => {
-    const { vendorId, id, selectedSize, selectedColor, quantity } = product;
+    const {
+      vendorId,
+      id,
+      selectedSize,
+      selectedColor,
+      quantity,
+      subProductId,
+    } = product;
 
     if (!vendorId || !id) {
       console.error("Vendor ID or Product ID is missing:", product);
       return;
     }
 
-    const productKey = `${vendorId}-${id}-${selectedSize}-${selectedColor}`;
+    // Generate product key including subProductId if available
+    const productKey = subProductId
+      ? `${vendorId}-${id}-${subProductId}`
+      : `${vendorId}-${id}-${selectedSize}-${selectedColor}`;
+
     const cart = getState().cart;
     const vendorCart = cart[vendorId] || {
       vendorName: product.vendorName,
@@ -113,13 +122,6 @@ export const clearCart = (vendorId) => (dispatch, getState) => {
 export const increaseQuantity =
   ({ vendorId, productKey }) =>
   (dispatch, getState) => {
-    console.log(
-      "Dispatching INCREASE_QUANTITY for product:",
-      productKey,
-      "from vendor:",
-      vendorId
-    );
-
     dispatch({
       type: INCREASE_QUANTITY,
       payload: {

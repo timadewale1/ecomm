@@ -34,7 +34,8 @@ const RelatedProducts = ({ product }) => {
         const vendorProductsQuery = query(
           productsRef,
           where("vendorId", "==", product.vendorId),
-          where("category", "==", product.category), // Combine these in separate queries
+          where("category", "==", product.category), 
+          where("published", "==", true), 
           limit(2)
         );
 
@@ -50,8 +51,9 @@ const RelatedProducts = ({ product }) => {
         const otherVendorsQuery = query(
           productsRef,
           where("vendorId", "!=", product.vendorId),
-          where("category", "==", product.category), // Combine these in separate queries
-          limit(6)
+          where("category", "==", product.category), 
+          where("published", "==", true), 
+          limit(10)
         );
 
         const otherVendorsSnapshot = await getDocs(otherVendorsQuery);

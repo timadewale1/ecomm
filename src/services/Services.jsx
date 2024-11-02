@@ -9,16 +9,7 @@ export const createOrderAndReduceStock = async (userId, cart, { userInfo, note, 
   const db = getFirestore();
   const orderId = generateOrderId();
 
-  console.log("Starting createOrderAndReduceStock function");
-  console.log("User ID:", userId);
-  console.log("Cart:", cart);
-  console.log("User Info:", userInfo);
-  console.log("Note:", note);
-  console.log("SubTotal (Vendor's):", subTotal);
-  console.log("Booking Fee:", bookingFee);
-  console.log("Service Fee:", serviceFee);
-  console.log("Total (User's Total):", total);
-
+  
   try {
     // Step 1: Verify stock quantities from the centralized "products" collection
     const productRefs = Object.values(cart).map((product) =>

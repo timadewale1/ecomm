@@ -18,6 +18,7 @@ module.exports = {
         c120: '120px',
       },
       colors: {
+        customGrey: '#FAFAFA',
         customOrange: '#f9531e',
         customSoftGray: '#fafafa',
         customDeepOrange: '#DA3A00',

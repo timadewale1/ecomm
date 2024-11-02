@@ -145,7 +145,7 @@ const Homepage = () => {
   const fetchProductsAndVendors = async () => {
     try {
       if (!prevProductsRef.current) {
-        // Fetch vendors and products simultaneously
+       
         const [approvedVendorsSnapshot, productsSnapshot] = await Promise.all([
           getDocs(
             query(
@@ -154,7 +154,12 @@ const Homepage = () => {
               where("isDeactivated", "==", false)
             )
           ),
-          getDocs(collection(db, "products")),
+          getDocs(
+            query(
+              collection(db, "products"),
+              where("published", "==", true)
+            )
+          ),
         ]);
 
         // Store approved vendor IDs in a Set
@@ -301,7 +306,7 @@ const Homepage = () => {
           />
         )}
 
-        <img src={logo}></img>
+        <img src={logo} alt="Logo"></img>
         <div className="relative flex space-x-2">
           <CiSearch className="text-3xl" onClick={() => navigate("/search")} />
           <IoIosNotificationsOutline

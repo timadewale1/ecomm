@@ -18,7 +18,15 @@ const SubProduct = ({
   const [subProducts, setSubProducts] = useState(
     initialSubProducts.length > 0
       ? initialSubProducts
-      : [{ images: [], size: "", color: "", stock: "" }]
+      : [
+          {
+            subProductId: Math.random().toString(36).substr(2, 9),
+            images: [],
+            size: "",
+            color: "",
+            stock: "",
+          },
+        ]
   );
   const scrollContainerRef = useRef(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -78,19 +86,24 @@ const SubProduct = ({
 
   const handleAddAnotherSubProduct = () => {
     if (subProducts.length >= MAX_SUB_PRODUCTS) {
-      toast.dismiss(); // Dismiss existing toasts
       toast.error("You can only add up to 4 sub-products", { duration: 3000 });
       return;
     }
     setSubProducts([
       ...subProducts,
-      { images: [], size: "", color: "", stock: "" },
+      {
+        subProductId: Math.random().toString(36).substr(2, 9),
+        images: [],
+        size: "",
+        color: "",
+        stock: "",
+      },
     ]);
   };
 
   const handleProceed = () => {
     addSubProduct(subProducts);
-    closeModal(); // Close modal after proceeding
+    closeModal();
   };
 
   const handleScroll = () => {
@@ -114,10 +127,9 @@ const SubProduct = ({
       subProduct.images.length > 0 &&
       subProduct.size !== "" &&
       subProduct.color !== "" &&
-      subProduct.stock > 0 
+      subProduct.stock > 0
     );
   };
-  
 
   const allSubProductsValid = subProducts.every(isSubProductValid);
 

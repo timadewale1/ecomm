@@ -41,7 +41,7 @@ const Cart = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [vendorNotes, setVendorNotes] = useState({});
-  const [vendorsInfo, setVendorsInfo] = useState({}); 
+  const [vendorsInfo, setVendorsInfo] = useState({});
   const location = useLocation();
   const formatPrice = (price) => {
     return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -96,7 +96,6 @@ const Cart = () => {
       document.body.style.overflow = "unset";
     }
 
-  
     return () => {
       document.body.style.overflow = "unset";
     };
@@ -106,9 +105,8 @@ const Cart = () => {
     const fetchVendorInfo = async () => {
       try {
         const vendorIds = Object.keys(cart);
-        const newVendorsInfo = { ...vendorsInfo }; 
+        const newVendorsInfo = { ...vendorsInfo };
         for (const vendorId of vendorIds) {
-         
           if (!newVendorsInfo[vendorId]) {
             const vendorDoc = await getDoc(doc(db, "vendors", vendorId));
             if (vendorDoc.exists()) {
@@ -128,10 +126,8 @@ const Cart = () => {
 
   useEffect(() => {
     if (cart && Object.keys(cart).length > 0) {
-     
-      checkCartProducts(); 
+      checkCartProducts();
     } else {
-      
     }
   }, [cart, checkCartProducts]);
 
@@ -148,7 +144,7 @@ const Cart = () => {
       );
 
       if (confirmRemove) {
-        dispatch(removeFromCart({ vendorId, productKey })); 
+        dispatch(removeFromCart({ vendorId, productKey }));
         toast(`Removed ${product.name} from cart!`, { icon: "ℹ️" });
       }
     },
@@ -162,7 +158,7 @@ const Cart = () => {
     if (confirmClear) {
       dispatch(clearCart(vendorId));
       toast.success(`Cleared cart for ${cart[vendorId].vendorName}!`);
-      setIsModalOpen(false); 
+      setIsModalOpen(false);
 
       setVendorNotes((prevNotes) => {
         const updatedNotes = { ...prevNotes };
@@ -172,23 +168,18 @@ const Cart = () => {
     }
   };
 
-  
   const handleCheckout = (vendorId) => {
     const vendorCart = cart[vendorId];
-   
 
     if (!vendorCart || Object.keys(vendorCart.products).length === 0) {
       toast.error("No products to checkout for this vendor.");
       return;
     }
 
- 
     const note = vendorNotes[vendorId]
       ? encodeURIComponent(vendorNotes[vendorId])
       : "";
-  
 
-   
     navigate(`/newcheckout/${vendorId}?note=${note}`);
   };
 
@@ -198,6 +189,10 @@ const Cart = () => {
       (total, product) => total + product.price * product.quantity,
       0
     );
+  };
+  const formatColorText = (color) => {
+    if (!color) return "";
+    return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
   };
 
   const calculateTotal = () => {
@@ -408,60 +403,10 @@ const Cart = () => {
 
             {/* Scrollable Products List */}
             <div className="overflow-y-auto mt-4 flex-grow">
-              {/* Group products by productKey and aggregate quantity */}
-              {Object.entries(cart[selectedVendorId].products).reduce(
-                (acc, [productKey, product]) => {
-                  if (acc[product.id]) {
-                    // Combine sizes and colors using a comma separator, ensuring unique entries
-                    acc[product.id].selectedSize = [
-                      ...new Set([
-                        ...acc[product.id].selectedSize.split(", "),
-                        product.selectedSize,
-                      ]),
-                    ].join(", ");
-                    acc[product.id].selectedColor = [
-                      ...new Set([
-                        ...acc[product.id].selectedColor.split(", "),
-                        product.selectedColor,
-                      ]),
-                    ].join(", ");
-                    acc[product.id].quantity += product.quantity; // Aggregate the quantity
-                  } else {
-                    // Otherwise, add the product to the accumulator
-                    acc[product.id] = { ...product, productKey };
-                  }
-                  return acc;
-                },
-                {}
-              ) &&
-                Object.values(
-                  Object.entries(cart[selectedVendorId].products).reduce(
-                    (acc, [productKey, product]) => {
-                      if (acc[product.id]) {
-                        // Combine sizes and colors for the same product ID
-                        acc[product.id].selectedSize = [
-                          ...new Set([
-                            ...acc[product.id].selectedSize.split(", "),
-                            product.selectedSize,
-                          ]),
-                        ].join(", ");
-                        acc[product.id].selectedColor = [
-                          ...new Set([
-                            ...acc[product.id].selectedColor.split(", "),
-                            product.selectedColor,
-                          ]),
-                        ].join(", ");
-                        acc[product.id].quantity += product.quantity; // Aggregate quantity
-                      } else {
-                        acc[product.id] = { ...product, productKey };
-                      }
-                      return acc;
-                    },
-                    {}
-                  )
-                ).map((product, index, productArray) => (
-                  <div key={product.productKey}>
-                    {/* Product details with combined sizes and colors */}
+              {Object.entries(cart[selectedVendorId].products).map(
+                ([productKey, product], index, productArray) => (
+                  <div key={productKey}>
+                    {/* Product details */}
                     <div className="flex items-center justify-between mt-2">
                       {/* Product Image */}
                       <div className="relative">
@@ -477,7 +422,7 @@ const Cart = () => {
                         )}
                       </div>
 
-                      {/* Product Details with Combined Sizes and Colors */}
+                      {/* Product Details */}
                       <div className="flex-grow ml-4">
                         <h3 className="font-opensans text-sm">
                           {product.name}
@@ -488,15 +433,13 @@ const Cart = () => {
                         <p className="text-gray-600 mt-2">
                           Size:{" "}
                           <span className="font-semibold mr-4 text-black">
-                            {product.selectedSize}{" "}
-                            {/* Display combined sizes */}
+                            {product.selectedSize}
                           </span>
                           {product.selectedColor && (
                             <>
                               Color:{" "}
                               <span className="font-semibold text-black">
-                                {product.selectedColor}{" "}
-                                {/* Display combined colors */}
+                                {formatColorText(product.selectedColor)}
                               </span>
                             </>
                           )}
@@ -506,10 +449,7 @@ const Cart = () => {
                       {/* Remove Button */}
                       <button
                         onClick={() =>
-                          handleRemoveFromCart(
-                            selectedVendorId,
-                            product.productKey
-                          )
+                          handleRemoveFromCart(selectedVendorId, productKey)
                         }
                         className="text-gray-500 font-semibold font-opensans -translate-y-5 text-sm ml-2"
                       >
@@ -517,12 +457,13 @@ const Cart = () => {
                       </button>
                     </div>
 
-                    {/* Add separator only between different products */}
+                    {/* Separator */}
                     {index < productArray.length - 1 && (
                       <div className="border-t border-gray-300 my-2"></div>
                     )}
                   </div>
-                ))}
+                )
+              )}
             </div>
 
             {/* Sticky Footer */}

@@ -2,8 +2,10 @@ import React, { useEffect, useRef } from "react";
 import { LiaTimesSolid } from "react-icons/lia";
 import { gsap } from "gsap";
 import { GoChevronLeft } from "react-icons/go";
+import { FaTrash, FaTrashAlt } from "react-icons/fa";
+import { IoTrashOutline } from "react-icons/io5";
 
-const Modal = ({ isOpen, onClose, children }) => {
+const VendorProductModal = ({ isOpen, onClose, children, onDel }) => {
   const modalRef = useRef(null);
 
   useEffect(() => {
@@ -31,11 +33,12 @@ const Modal = ({ isOpen, onClose, children }) => {
           />
 
           <h2 className="text-xl font-opensans text-center font-semibold text-black">
-            Add Product
+            Product Details
           </h2>
 
-          <div className="w-3 h-3"></div>
-
+          <button onClick={onDel}>
+            <IoTrashOutline className="h-8 w-8 p-1 text-customOrange" />
+          </button>
         </div>
 
         <div className="w-full p-2">{children}</div>
@@ -45,4 +48,4 @@ const Modal = ({ isOpen, onClose, children }) => {
   );
 };
 
-export default Modal;
+export default VendorProductModal;

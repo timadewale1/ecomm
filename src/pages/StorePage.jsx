@@ -156,15 +156,29 @@ const StorePage = () => {
   const fetchVendorProducts = async (productIds) => {
     try {
       const productsRef = collection(db, "products");
-      const q = query(productsRef, where("__name__", "in", productIds)); // Query the products collection by ID
 
-      const querySnapshot = await getDocs(q);
-      const fetchedProducts = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+     
+      const productChunks = [];
+      for (let i = 0; i < productIds.length; i += 10) {
+        productChunks.push(productIds.slice(i, i + 10));
+      }
 
-      setProducts(fetchedProducts); // Set the fetched products to state
+      const productsList = [];
+      for (const chunk of productChunks) {
+        const q = query(
+          productsRef,
+          where("__name__", "in", chunk),
+          where("published", "==", true)
+        );
+        const productsSnapshot = await getDocs(q);
+        const productsChunk = productsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        productsList.push(...productsChunk);
+      }
+
+      setProducts(productsList);
     } catch (error) {
       console.error("Error fetching vendor products:", error);
       toast.error("Error fetching products.");

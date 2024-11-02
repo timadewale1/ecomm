@@ -143,38 +143,30 @@ const ProductDetailPage = () => {
 
   useEffect(() => {
     if (product && selectedSize && selectedColor) {
-      const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
-      console.log("Checking cart for productKey:", productKey);
+      // Generate product key based on whether it's a sub-product or a variant
+      const productKey = selectedSubProduct
+        ? `${product.vendorId}-${product.id}-${selectedSubProduct.subProductId}`
+        : `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
 
+      // Check if the item exists in the cart
       const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
 
       if (existingCartItem) {
         setIsAddedToCart(true);
         setQuantity(existingCartItem.quantity);
         setAnimateCart(true);
-        console.log("Product found in cart:", existingCartItem);
       } else {
         setIsAddedToCart(false);
         setQuantity(1);
         setAnimateCart(false);
-        console.log("Product not found in cart for productKey:", productKey);
       }
     }
-  }, [cart, product, selectedSize, selectedColor]);
+  }, [cart, product, selectedSize, selectedColor, selectedSubProduct]);
 
   useEffect(() => {
     // Assuming sub-products are part of the product data
     if (product) {
       setSubProducts(product.subProducts || []);
-      // Set the initial sub-product to the first one if available
-      // if (product.subProducts && product.subProducts.length > 0) {
-      //   setSelectedSubProduct(product.subProducts[0]);
-      //   setSelectedColor(product.subProducts[0].color);
-      //   setSelectedSize(product.subProducts[0].size);
-
-      //   setMainImage(product.subProducts[0].images[0]);
-      //   setSelectedVariantStock(product.subProducts[0].stock);
-      // }
     }
   }, [product]);
 
@@ -187,17 +179,6 @@ const ProductDetailPage = () => {
     setAvailableColors([subProduct.color]);
     setAvailableSizes([subProduct.size]);
   };
-
-  // useEffect(() => {
-  //   if (product) {
-  //     setSelectedColor("");
-  //     setSelectedSize("");
-  //     setAvailableSizes(product.variants.map((variant) => variant.size)); // Show all sizes initially
-  //     setAvailableColors(
-  //       Array.from(new Set(product.variants.map((variant) => variant.color)))
-  //     );
-  //   }
-  // }, [product]);
 
   useEffect(() => {
     if (product && product.variants) {
@@ -326,15 +307,7 @@ const ProductDetailPage = () => {
     };
   }, []);
   const handleAddToCart = useCallback(() => {
-    console.log("Add to Cart Triggered");
-    console.log("Product:", product);
-    console.log("Selected Size:", selectedSize);
-    console.log("Selected Color:", selectedColor);
-    console.log("Selected Sub-Product:", selectedSubProduct);
-    console.log("Quantity:", quantity);
-
     if (!product) {
-      console.error("Product is missing. Cannot add to cart.");
       return;
     }
 
@@ -350,7 +323,7 @@ const ProductDetailPage = () => {
 
     if (!product.id || !product.vendorId) {
       toast.error("Product or Vendor ID is missing. Cannot add to cart!");
-      console.error("Product or Vendor ID is missing:", product);
+
       return;
     }
 
@@ -358,7 +331,7 @@ const ProductDetailPage = () => {
     let maxStock = 0;
     if (selectedSubProduct) {
       maxStock = selectedSubProduct.stock;
-      console.log("Sub-Product Stock:", maxStock);
+
       if (quantity > maxStock) {
         toast.error("Selected quantity exceeds stock availability!");
         return;
@@ -370,13 +343,11 @@ const ProductDetailPage = () => {
       );
       if (!matchingVariant) {
         toast.error("Selected variant is not available!");
-        console.error(
-          "Matching variant not found for selected size and color."
-        );
+
         return;
       }
       maxStock = matchingVariant.stock;
-      console.log("Variant Stock:", maxStock);
+
       if (quantity > maxStock) {
         toast.error("Selected quantity exceeds stock availability!");
         return;
@@ -388,15 +359,15 @@ const ProductDetailPage = () => {
       quantity,
       selectedSize,
       selectedColor,
-      selectedImageUrl: selectedImage, // Use selectedImage which may change with sub-products
-      selectedSubProduct, // Include this for reference if needed
+      selectedImageUrl: selectedImage,
+      selectedSubProduct,
+      subProductId: selectedSubProduct ? selectedSubProduct.subProductId : null,
     };
 
-    // Generate the consistent productKey for this specific size/color combination
-    const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
-    console.log("Generated productKey:", productKey);
+    const productKey = selectedSubProduct
+      ? `${product.vendorId}-${product.id}-${selectedSubProduct.subProductId}`
+      : `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
 
-    // Check if the product with this size/color combination already exists in the cart
     const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
 
     if (existingCartItem) {
@@ -405,10 +376,8 @@ const ProductDetailPage = () => {
         quantity: quantity,
       };
       dispatch(addToCart(updatedProduct, true));
-      console.log("Updated product in cart with new quantity:", updatedProduct);
-    } else {
+
       dispatch(addToCart(productToAdd, true));
-      console.log("Added new product to cart:", productToAdd);
     }
 
     setIsAddedToCart(true);
@@ -425,15 +394,8 @@ const ProductDetailPage = () => {
   ]);
 
   const handleIncreaseQuantity = useCallback(() => {
-    console.log("Increase Quantity Triggered");
-    console.log("Product:", product);
-    console.log("Selected Size:", selectedSize);
-    console.log("Selected Color:", selectedColor);
-    console.log("Selected Sub-Product:", selectedSubProduct);
-    console.log("Current Quantity:", quantity);
-
     if (!product) {
-      console.error("Product not found.");
+      toast.error("Product not found.");
       return;
     }
 
@@ -442,11 +404,9 @@ const ProductDetailPage = () => {
       return;
     }
 
-    // Determine max stock based on selected product
     let maxStock = 0;
     if (selectedSubProduct) {
       maxStock = selectedSubProduct.stock;
-      console.log("Sub-Product Stock:", maxStock);
     } else {
       const matchingVariant = product.variants.find(
         (variant) =>
@@ -454,29 +414,26 @@ const ProductDetailPage = () => {
       );
       if (!matchingVariant) {
         toast.error("Selected variant is not available!");
-        console.error(
-          "Matching variant not found for selected size and color."
-        );
+
         return;
       }
       maxStock = matchingVariant.stock;
-      console.log("Variant Stock:", maxStock);
     }
 
     if (quantity < maxStock) {
       const updatedQuantity = quantity + 1;
 
-      const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
-      console.log("Generated Product Key:", productKey);
+      const productKey = selectedSubProduct
+        ? `${product.vendorId}-${product.id}-${selectedSubProduct.subProductId}`
+        : `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
 
       const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
 
       if (existingCartItem) {
         dispatch(increaseQuantity({ vendorId: product.vendorId, productKey }));
-        console.log("Increased quantity for product:", existingCartItem);
+
         setQuantity(updatedQuantity);
       } else {
-        console.error("Product not found in cart for productKey:", productKey);
         toast.error("Product not found in cart");
       }
     } else {
@@ -484,7 +441,6 @@ const ProductDetailPage = () => {
         toast.error("Cannot exceed available stock!");
         setToastShown((prev) => ({ ...prev, stockError: true }));
       }
-      console.warn("Stock limit reached. Quantity exceeds stock quantity.");
     }
   }, [
     product,
@@ -498,13 +454,6 @@ const ProductDetailPage = () => {
   ]);
 
   const handleDecreaseQuantity = useCallback(() => {
-    console.log("Decrease Quantity Triggered");
-    console.log("Product:", product);
-    console.log("Selected Size:", selectedSize);
-    console.log("Selected Color:", selectedColor);
-    console.log("Selected Sub-Product:", selectedSubProduct);
-    console.log("Current Quantity:", quantity);
-
     if (!product) {
       console.error("Product not found.");
       return;
@@ -518,21 +467,23 @@ const ProductDetailPage = () => {
     if (quantity > 1) {
       const updatedQuantity = quantity - 1;
 
-      const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
-      console.log("Generated Product Key:", productKey);
+      // Generate a unique product key based on whether this is a sub-product or a variant
+      const productKey = selectedSubProduct
+        ? `${product.vendorId}-${product.id}-${selectedSubProduct.subProductId}`
+        : `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
 
       const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
 
       if (existingCartItem) {
+        // Dispatch action to decrease quantity
         dispatch(decreaseQuantity({ vendorId: product.vendorId, productKey }));
-        console.log("Decreased quantity for product:", existingCartItem);
+
         setQuantity(updatedQuantity);
       } else {
-        console.error("Product not found in cart for productKey:", productKey);
         toast.error("Product not found in cart");
       }
     } else {
-      console.warn("Quantity is already at 1. Cannot decrease further.");
+      toast.error("Quantity cannot be less than 1");
     }
   }, [
     product,
@@ -588,11 +539,9 @@ const ProductDetailPage = () => {
   const handleColorClick = (color) => {
     if (selectedSubProduct) {
       // Prevent changing color if a sub-product is selected
-      console.log("Sub-product selected; cannot change color.");
+
       return;
     }
-
-    console.log("Color clicked:", color);
 
     if (selectedColor === color) {
       setSelectedColor("");
@@ -600,7 +549,6 @@ const ProductDetailPage = () => {
         Array.from(new Set(product.variants.map((variant) => variant.size)))
       );
       setSelectedSize("");
-      console.log("Color deselected. Available sizes reset.");
     } else {
       setSelectedColor(color);
       const sizesForColor = product.variants
@@ -609,8 +557,6 @@ const ProductDetailPage = () => {
       const uniqueSizesForColor = Array.from(new Set(sizesForColor));
       setAvailableSizes(uniqueSizesForColor);
       setSelectedSize("");
-      console.log("Color selected:", color);
-      console.log("Available sizes for color:", uniqueSizesForColor);
     }
   };
 
@@ -629,16 +575,13 @@ const ProductDetailPage = () => {
 
   const handleSizeClick = (size) => {
     if (!isSizeInStock(size)) {
-      console.log("Size clicked is out of stock:", size);
       return;
     }
 
     if (selectedSize === size) {
       setSelectedSize("");
-      console.log("Size deselected:", size);
     } else {
       setSelectedSize(size);
-      console.log("Size selected:", size);
     }
   };
 
@@ -656,16 +599,9 @@ const ProductDetailPage = () => {
   };
 
   const handleRemoveFromCart = useCallback(() => {
-    console.log("Remove from Cart Triggered");
-    console.log("Product:", product);
-    console.log("Selected Size:", selectedSize);
-    console.log("Selected Color:", selectedColor);
-    console.log("Selected Sub-Product:", selectedSubProduct);
-
     if (!product || !product.id || !selectedSize || !selectedColor) return;
 
     const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
-    console.log("Removing product with productKey:", productKey);
 
     dispatch(removeFromCart({ vendorId: product.vendorId, productKey }));
     setIsAddedToCart(false);
@@ -693,7 +629,6 @@ const ProductDetailPage = () => {
       toast.success("Link copied!");
       setTimeout(() => setIsLinkCopied(false), 2000); // Reset after 2 seconds
     } catch (err) {
-      console.error("Failed to copy the link", err);
       toast.error("Failed to copy the link. Please try again.");
     }
   };

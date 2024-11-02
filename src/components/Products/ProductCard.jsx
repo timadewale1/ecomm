@@ -6,6 +6,7 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { db } from "../../firebase.config"; // Ensure firebase is configured
 import { doc, getDoc } from "firebase/firestore"; // Firestore methods
+import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
 
 const ProductCard = ({ product, isLoading }) => {
   const navigate = useNavigate();
@@ -78,7 +79,7 @@ const ProductCard = ({ product, isLoading }) => {
     if (!condition) return null;
 
     switch (condition.toLowerCase()) {
-      case "Defect:":
+      case "defect:":
         return <p className="text-xs text-red-500">{condition}</p>;
       case "brand new":
         return <p className="text-xs text-green-500">Brand New</p>;
@@ -91,7 +92,9 @@ const ProductCard = ({ product, isLoading }) => {
 
   return (
     <div
-      className="product-card relative mb-2 cursor-pointer"
+      className={`product-card relative mb-2 cursor-pointer ${
+        product.stockQuantity === 0 ? "opacity-50 pointer-events-none" : ""
+      }`}
       onClick={handleCardClick}
       style={{
         width: "100%",
@@ -108,16 +111,27 @@ const ProductCard = ({ product, isLoading }) => {
             className="h-52 w-full object-cover rounded-lg"
           />
         )}
+
+        {/* Favorite Icon */}
         <div
-          className="absolute bottom-2 right-2 cursor-pointer"
+          className="absolute bottom-2 right-2 cursor-pointer bg-white p-1 rounded-full shadow-lg"
           onClick={handleFavoriteToggle}
         >
-          <img
-            src={favorite ? "/heart-filled.png" : "/heart.png"}
-            alt="Favorite Icon"
-            className="w-8 h-8"
-          />
+          {favorite ? (
+            <RiHeart3Fill className="text-red-500 text-2xl" />
+          ) : (
+            <RiHeart3Line className="text-gray-800 text-2xl" />
+          )}
         </div>
+
+        {/* Out of Stock Overlay */}
+        {product.stockQuantity === 0 && (
+          <div className="absolute inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center rounded-lg">
+            <p className="text-red-700 font-semibold text-lg animate-pulse">
+              Out of Stock
+            </p>
+          </div>
+        )}
       </div>
       <div className="">
         <div className="flex font-opensans font-light items-center mt-2">

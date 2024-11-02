@@ -7,8 +7,9 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase.config";
 import useAuth from "../custom-hooks/useAuth";
 import { FaPen } from "react-icons/fa";
+import serviceimage from "../Images/servicemodal.jpg";
+import bookingimage from "../Images/bookingfee.jpg";
 
-// import { calculateServiceFee } from "../services/utilis";
 import { createOrderAndReduceStock } from "../services/Services";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.config";
@@ -19,7 +20,9 @@ import { RiSecurePaymentFill } from "react-icons/ri";
 import { MdOutlineLock, MdSupportAgent } from "react-icons/md";
 import { LiaShippingFastSolid, LiaTimesSolid } from "react-icons/lia";
 import { FaCheck } from "react-icons/fa6";
-// import { RadioGroup } from "@headlessui/react";
+import Skeleton from "react-loading-skeleton";
+import Serviceanimate from "../components/Loading/servicefees";
+
 const EditDeliveryModal = ({ userInfo, setUserInfo, onClose }) => {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white z-50 shadow-lg px-3 py-3 rounded-t-2xl ">
@@ -205,7 +208,6 @@ const Checkout = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { currentUser, loading } = useAuth();
-  const [showBookingFeeModal, setShowBookingFeeModal] = useState(false);
   const [vendorsInfo, setVendorsInfo] = useState({});
   const [userInfo, setUserInfo] = useState({
     displayName: "",
@@ -213,48 +215,61 @@ const Checkout = () => {
     phoneNumber: "",
     address: "",
   });
+  const [displayText, setDisplayText] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
   const [showShopSafelyModal, setShowShopSafelyModal] = useState(false);
   const [previewedOrder, setPreviewedOrder] = useState({
-    subtotal: 0,
-    bookingFee: 0,
-    serviceFee: 0,
-    total: 0,
+    subtotal: null, // set to null initially to check loading
+    bookingFee: null,
+    serviceFee: "Calculating fees...", // leave as text initially for the service fee
+    total: null,
   });
+  const [showBookingFeeModal, setShowBookingFeeModal] = useState(false);
+  const [showServiceFeeModal, setShowServiceFeeModal] = useState(false);
+
+  const [showServiceFee, setShowServiceFee] = useState(false);
+  // const [isCalculatingServiceFee, setIsCalculatingServiceFee] = useState(true); // Track service fee calculation
+  const [isFetchingOrderPreview, setIsFetchingOrderPreview] = useState(true);
+  // const note = searchParams.get("note") || "";
   const prepareOrderData = (isPreview = false) => {
     const vendorCart = cart[vendorId]?.products;
 
     if (!vendorCart || Object.keys(vendorCart).length === 0) {
-      console.warn("Cart is empty");
+      toast.error("Cart is empty");
+      toast.dismiss();
       return null;
     }
 
-    return {
+    const orderData = {
       cartItems: Object.values(vendorCart).map((product) => {
         const cartItem = {
           productId: product.id,
           quantity: product.quantity,
         };
 
-        if (product.subProduct) {
-          cartItem.subProductAttributes = {
-            color: product.selectedColor,
-            size: product.selectedSize,
-            subType: product.subType,
-          };
-        } else if (product.variant) {
+        if (product.subProductId) {
+          // Use subProductId for sub-products
+          cartItem.subProductId = product.subProductId;
+        } else if (product.selectedColor && product.selectedSize) {
+          // Use color and size attributes for variants
           cartItem.variantAttributes = {
             color: product.selectedColor,
             size: product.selectedSize,
           };
         } else {
-          // For simple products, no additional attributes are needed
         }
+
         return cartItem;
       }),
       userInfo,
       preview: isPreview,
     };
+
+    if (note) {
+      orderData.note = note;
+    }
+
+    return orderData;
   };
 
   // Fetch the previewed fees and totals from the server
@@ -270,7 +285,8 @@ const Checkout = () => {
             address: userDoc.data().address || "",
           });
         } else {
-          console.warn("User document does not exist.");
+          toast.error("User document does not exist.");
+          toast.dismiss();
         }
       }
     };
@@ -281,7 +297,8 @@ const Checkout = () => {
   useEffect(() => {
     const fetchOrderPreview = async () => {
       if (!currentUser) {
-        console.warn("User not authenticated yet");
+        toast.error("User not authenticated yet");
+        toast.dismiss();
         return;
       }
 
@@ -291,9 +308,6 @@ const Checkout = () => {
         !userInfo.phoneNumber ||
         !userInfo.address
       ) {
-        console.warn(
-          "User info incomplete, waiting for user info to be fetched"
-        );
         return;
       }
 
@@ -308,8 +322,13 @@ const Checkout = () => {
         // Set previewed values in the state
         const { subtotal, bookingFee, serviceFee, total } = response.data;
         setPreviewedOrder({ subtotal, bookingFee, serviceFee, total });
+
+        setIsFetchingOrderPreview(false);
+
+        setTimeout(() => {
+          setShowServiceFee(true);
+        }, 2000);
       } catch (error) {
-        console.error("Error fetching order preview:", error);
         toast.error("Failed to load order preview. Please try again.");
       }
     };
@@ -333,10 +352,10 @@ const Checkout = () => {
         if (vendorDoc.exists()) {
           setVendorsInfo({ [vendorId]: vendorDoc.data() });
         } else {
-          console.warn(`Vendor with ID ${vendorId} does not exist.`);
+          toast.error(`Vendor with ID ${vendorId} does not exist.`);
         }
       } catch (error) {
-        console.error("Error fetching vendor info:", error);
+        toast.error("Error fetching vendor info:", error);
       }
     };
 
@@ -345,82 +364,23 @@ const Checkout = () => {
 
   useEffect(() => {
     if (vendorsInfo[vendorId]?.deliveryMode) {
-      // Pre-select the delivery mode if available in vendorsInfo
       setSelectedDeliveryMode(vendorsInfo[vendorId].deliveryMode);
     }
   }, [vendorsInfo, vendorId]);
 
-  // useEffect(() => {
-  //   const fetchUserInfo = async () => {
-  //     if (currentUser) {
-  //       const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-  //       if (userDoc.exists()) {
-  //         setUserInfo({
-  //           displayName: userDoc.data().displayName || "",
-  //           email: userDoc.data().email || "",
-  //           phoneNumber: userDoc.data().phoneNumber || "",
-  //           address: userDoc.data().address || "",
-  //         });
-  //       } else {
-  //         console.warn("User document does not exist.");
-  //       }
-  //     }
-  //   };
-
-  //   fetchUserInfo();
-  // }, [currentUser]);
-
-  // const calculateVendorTotals = useCallback(() => {
-  //   const totals = {};
-  //   if (!vendorId || !cart[vendorId]) return totals;
-
-  //   const vendorCart = cart[vendorId].products;
-  //   let subTotal = 0;
-
-  //   for (const productKey in vendorCart) {
-  //     const product = vendorCart[productKey];
-  //     subTotal += product.price * product.quantity;
-  //   }
-
-  //   const vendorMarketPlaceType = vendorsInfo[vendorId]?.marketPlaceType;
-
-  //   let bookingFee = 0;
-  //   if (vendorMarketPlaceType === "marketplace") {
-  //     bookingFee = parseFloat((subTotal * 0.2).toFixed(2));
-  //   }
-
-  //   const serviceFee = parseFloat(calculateServiceFee(subTotal));
-  //   const total = parseFloat((subTotal + bookingFee + serviceFee).toFixed(2));
-
-  //   totals[vendorId] = {
-  //     subTotal: subTotal.toLocaleString(),
-  //     bookingFee: bookingFee.toLocaleString(),
-  //     serviceFee: serviceFee.toLocaleString(),
-  //     total: total.toLocaleString(),
-  //   };
-
-  //   return totals;
-  // }, [cart, vendorId, vendorsInfo]);
-
-  // const vendorTotals = calculateVendorTotals();
-
   const handleProceedToPayment = async () => {
     try {
-      const orderData = prepareOrderData(); // No preview, for final order submission
+      const orderData = prepareOrderData();
       if (!orderData) return;
 
-      // Call the Cloud Function
       const processOrder = httpsCallable(functions, "processOrder");
       const response = await processOrder(orderData);
 
-      // Get the result
       const { orderId, total } = response.data;
 
-      // Clear the cart and show success message
       dispatch(clearCart(vendorId));
       toast.success("Order placed successfully!");
 
-      // Navigate to the payment approval or orders page
       navigate(`/payment-approve?orderId=${orderId}`);
       setTimeout(() => {
         navigate("/user-orders", { state: { fromPaymentApprove: true } });
@@ -434,17 +394,6 @@ const Checkout = () => {
   const handleDeliveryModeSelection = (mode) => {
     setSelectedDeliveryMode(mode);
   };
-  // const handleVendorPayment = async (paymentType) => {
-  //   const fees = vendorTotals[vendorId];
-  //   let amountToPay = 0;
-
-  //   if (paymentType === "booking") {
-  //     amountToPay = parseFloat(fees.bookingFee) + parseFloat(fees.serviceFee);
-  //   } else if (paymentType === "full") {
-  //     amountToPay = parseFloat(fees.total);
-  //   }
-
-  // };
 
   const groupProductsById = (products) => {
     const groupedProducts = {};
@@ -456,7 +405,6 @@ const Checkout = () => {
       if (groupedProducts[id]) {
         groupedProducts[id].quantity += product.quantity;
 
-        // Add size if not already present
         if (
           product.selectedSize &&
           !groupedProducts[id].sizes.includes(product.selectedSize)
@@ -464,7 +412,6 @@ const Checkout = () => {
           groupedProducts[id].sizes.push(product.selectedSize);
         }
 
-        // Add color if not already present
         if (
           product.selectedColor &&
           !groupedProducts[id].colors.includes(product.selectedColor)
@@ -483,20 +430,73 @@ const Checkout = () => {
 
     return Object.values(groupedProducts);
   };
-
-  const handleBookingFeePayment = (e) => {
-    e.preventDefault();
-    window.confirm(
-      "The booking fee, exclusive to marketplace vendors, is a 20% charge on your subtotal that guarantees your items are packaged and reserved for pickup. Once the vendor accepts your order, they will securely hold your items, ensuring they're ready for collection at your convenience."
-    );
-    // handleVendorPayment("booking");
+  const handleScroll = (event) => {
+    event.stopPropagation();
   };
 
-  const handleServiceFeeInfo = () => {
-    window.confirm(
-      "The service fee is a small, dynamic charge that helps cover our operational costs, like keeping the platform running smoothly and ensuring you have the best shopping experience. Rest assured, it’s capped at a maximum amount to keep things fair and transparent. We aim to keep the fee minimal while providing top-notch service!"
-    );
-  };
+  const BookingFeeModal = ({ onClose }) => (
+    <div
+      className="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
+      onScroll={handleScroll}
+    >
+      <div className="bg-white w-full max-w-md h-[60vh] rounded-t-2xl shadow-lg overflow-y-auto  relative">
+        <LiaTimesSolid
+          className="text-2xl cursor-pointer absolute top-4 right-4"
+          onClick={onClose}
+        />
+        <img
+          src={bookingimage}
+          alt="Booking Fee Details"
+          className="w-full h-40 object-cover"
+        />
+        <div className="px-4 mb-4 overflow-y-auto">
+          <p className="text-sm font-opensans text-black">
+            A 40% booking fee applies to marketplace vendor purchases, securing
+            your items and guaranteeing they'll be packaged and reserved for
+            pickup. Once payment is confirmed, you'll receive an email with the
+            vendor's store location and operational hours in the market. Your
+            items will be securely held by the vendor for 5 days after payment,
+            ensuring they're ready for collection at your convenience.
+          </p>
+          <p className="text-xs mt-4 text-gray-500 italic">
+            <span className="font-semibold">Note:</span> This fee is
+            non-refundable.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const ServiceFeeModal = ({ onClose }) => (
+    <div
+      className="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
+      onScroll={handleScroll}
+    >
+      <div className="bg-white w-full max-w-md h-[60vh] rounded-t-2xl shadow-lg overflow-hidden relative flex flex-col">
+        <LiaTimesSolid
+          className="text-2xl cursor-pointer modals absolute top-4 right-4"
+          onClick={onClose}
+        />
+        <img
+          src={serviceimage}
+          alt="Service Fee Details"
+          className="w-full h-40 object-cover"
+        />
+        <div className="px-4 mt-4 flex-auto mb-4 overflow-y-auto">
+          <p className="text-sm font-opensans text-black z-10">
+            Service fees are nominal charges applied to transactions to support
+            the operational demands of our platform. These fees contribute to
+            maintaining a seamless and efficient shopping environment, ensuring
+            reliability and the highest quality of service. We are committed to
+            transparency and fairness, thus we cap the service fee at a maximum
+            of 2,000. This policy is in place to minimize costs to our customers
+            while upholding our dedication to excellence.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
   const formatColorText = (color) => {
     if (!color) return "";
     return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
@@ -537,7 +537,11 @@ const Checkout = () => {
           <div className="flex justify-between">
             <label className="block mb-2 font-opensans ">Sub-Total</label>
             <p className="text-lg font-opensans text-black font-semibold">
-              ₦{previewedOrder.subtotal.toLocaleString()}
+              {isFetchingOrderPreview ? (
+                <Skeleton width={80} />
+              ) : (
+                `₦${previewedOrder.subtotal.toLocaleString()}`
+              )}
             </p>
           </div>
 
@@ -547,11 +551,15 @@ const Checkout = () => {
                 Booking Fee
                 <CiCircleInfo
                   className="inline ml-2 text-customOrange cursor-pointer"
-                  onClick={handleBookingFeePayment}
+                  onClick={() => setShowBookingFeeModal(true)}
                 />
               </label>
               <p className="text-lg font-opensans text-black font-semibold">
-                ₦{previewedOrder.bookingFee.toLocaleString()}
+                {isFetchingOrderPreview ? (
+                  <Skeleton width={80} />
+                ) : (
+                  `₦${previewedOrder.bookingFee.toLocaleString()}`
+                )}
               </p>
             </div>
           )}
@@ -561,11 +569,21 @@ const Checkout = () => {
               Service Fee
               <CiCircleInfo
                 className="inline ml-2 text-customOrange cursor-pointer"
-                onClick={handleServiceFeeInfo}
+                onClick={() => setShowServiceFeeModal(true)}
               />
             </label>
-            <p className="text-lg font-opensans text-black font-semibold">
-              ₦{previewedOrder.serviceFee.toLocaleString()}
+            <p
+              className={`font-opensans font-semibold ${
+                !showServiceFee ? "loading-text text-xs" : "text-black text-lg"
+              }`}
+            >
+              {isFetchingOrderPreview ? (
+                <Skeleton width={80} />
+              ) : showServiceFee ? (
+                `₦${previewedOrder.serviceFee.toLocaleString()}`
+              ) : (
+                "Calculating fees..."
+              )}
             </p>
           </div>
           <div className="border-t mt-3 border-gray-300 my-2"></div>
@@ -574,7 +592,11 @@ const Checkout = () => {
               Total
             </label>
             <p className="text-lg font-opensans text-black font-semibold">
-              ₦{previewedOrder.total.toLocaleString()}
+              {isFetchingOrderPreview ? (
+                <Skeleton width={80} />
+              ) : (
+                `₦${previewedOrder.total.toLocaleString()}`
+              )}
             </p>
           </div>
         </div>
@@ -794,7 +816,7 @@ const Checkout = () => {
                   vendor will securely reserve your purchased items and package
                   them for you in their inventory. Once you have paid, the
                   vendor will hold the items for pick-up at your convenience.
-                  (Orders are null after 3 working days if not picked up).
+                  (Orders are null after 5 working days if not picked up).
                   <br /> <br />
                   <span className="font-semibold">Note:</span> This option is
                   currently only available to customers purchasing from market
@@ -892,10 +914,16 @@ const Checkout = () => {
         />
       )}
 
-      {/* Shop Safely Modal */}
       {showShopSafelyModal && (
         <ShopSafelyModal onClose={() => setShowShopSafelyModal(false)} />
       )}
+      {showServiceFeeModal && (
+        <ServiceFeeModal onClose={() => setShowServiceFeeModal(false)} />
+      )}
+      {showBookingFeeModal && (
+        <BookingFeeModal onClose={() => setShowBookingFeeModal(false)} />
+      )}
+
       <div className="fixed bottom-0 left-0 right-0 p-3  bg-white shadow-lg">
         <button
           onClick={handleProceedToPayment}

@@ -1,10 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { IoChevronBackOutline, IoChevronForward } from "react-icons/io5";
+import { IoChevronBackOutline, IoChevronForward, IoSearchOutline } from "react-icons/io5";
 import Loading from "../components/Loading/Loading";
+import { Swiper, SwiperSlide } from "swiper/react";
+import "swiper/css";
+import "swiper/css/free-mode";
+import "swiper/css/autoplay";
 import productTypes from "../pages/vendor/producttype"; // Adjust path to where producttype.js is located
 import { db } from "../firebase.config"; 
 import { collection, query, where, getDocs } from "firebase/firestore";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
+import { AdvancedImage } from "@cloudinary/react";
+import { FreeMode, Autoplay } from "swiper/modules";
+import { Cloudinary } from "@cloudinary/url-gen";
+import { auto } from "@cloudinary/url-gen/actions/resize";
+import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
+
 
 const Explore = () => {
   const loading = useSelector((state) => state.product.loading);
@@ -13,6 +25,10 @@ const Explore = () => {
   const [selectedSubType, setSelectedSubType] = useState(null);
   const [products, setProducts] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [subTypeSearchTerm, setSubTypeSearchTerm] = useState(""); // Add subType search term state
+  const [showSearchInput, setShowSearchInput] = useState(false); // Toggle for main search input visibility
+  const [showSubTypeSearchInput, setShowSubTypeSearchInput] = useState(false); // Toggle for subType search input visibility
 
   // Function to fetch products based on selected productType, subType, and category
   const fetchProducts = async (productType, subType, category) => {
@@ -42,6 +58,19 @@ const Explore = () => {
       setIsLoadingProducts(false);
     }
   };
+
+  const promoImages = [
+    "black-friday-composition-with-post-its_1_clwua4",
+    "4929101_na7pyp",
+    "4991116_bwrxkh",
+    "4395311_hcqoss",
+  ];
+
+  const cld = new Cloudinary({
+    cloud: {
+      cloudName: "dtaqusjav",
+    },
+  });
 
   // Handler for category selection
   const handleCategoryClick = (category) => {
@@ -73,31 +102,69 @@ const Explore = () => {
     }
   };
 
+  // Filter product types based on the search term
+  const filteredProductTypes = productTypes.filter((productType) =>
+    productType.type.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Filter subtypes based on the subType search term
+  const filteredSubTypes = selectedProductType
+    ? selectedProductType.subTypes.filter((subType) =>
+        (typeof subType === "string" ? subType : subType.name)
+          .toLowerCase()
+          .includes(subTypeSearchTerm.toLowerCase())
+      )
+    : [];
+
   // Show loading spinner if any loading state is true
   if (loading || isLoadingProducts) {
     return <Loading />;
   }
 
   return (
-    <div className="p-4">
-      {/* Header */}
-      <div className="flex items-center space-x-2 mb-4">
+    <div className="py-2">
+
+      
+    <div className="px-4">
+
+{/* Header */}
+      <div className="flex items-center space-x-2 mb-4 py-8">
         {(selectedProductType || selectedSubType) ? (
           <IoChevronBackOutline
             onClick={handleBackClick}
             className="text-lg text-gray-800 cursor-pointer"
           />
         ) : null}
-        <h1 className="text-2xl font-bold">
+        <h1 className="text-lg font-semibold font-opensans">
           {selectedSubType ? selectedSubType.name || selectedSubType 
-          : selectedProductType ? selectedProductType.type : "Explore Products"}
+          : selectedProductType ? selectedProductType.type : "Explore"}
         </h1>
+
+        {/* Search Icon for main product types */}
+        <div className="ml-20 relative">
+          {!showSearchInput ? (
+            <IoSearchOutline
+              onClick={() => setShowSearchInput(true)}
+              className="text-xl text-gray-800 cursor-pointer"
+            />
+          ) : (
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search product types"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-customOrange"
+              onBlur={() => setShowSearchInput(false)} // Hide input on blur
+              autoFocus
+            />
+          )}
+        </div>
       </div>
 
       {selectedSubType ? (
         // Products View
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-800">
+        <div className="space-y-4 font-opensans">
+          <h2 className="text-lg font-semibold text-gray-800 font-opensans">
             Products in {selectedSubType.name || selectedSubType}
           </h2>
           {products.length > 0 ? (
@@ -115,13 +182,38 @@ const Explore = () => {
             <p>No products available for this subcategory.</p>
           )}
         </div>
+
+        
       ) : selectedProductType ? (
         // Subtypes View
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-800">
-            {selectedProductType.type}
-          </h2>
-          {selectedProductType.subTypes.map((subType) => (
+        <div className="space-y-4 font-opensans">
+          <div className="flex items-center space-x-2 mb-4">
+            <h2 className="text-lg font-semibold text-gray-800">
+              {selectedProductType.type}
+            </h2>
+
+            {/* Search Icon for subtypes */}
+            <div className="ml-auto relative">
+              {!showSubTypeSearchInput ? (
+                <IoSearchOutline
+                  onClick={() => setShowSubTypeSearchInput(true)}
+                  className="text-xl text-gray-800 cursor-pointer"
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={subTypeSearchTerm}
+                  onChange={(e) => setSubTypeSearchTerm(e.target.value)}
+                  placeholder="Search subtypes"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-customOrange"
+                  onBlur={() => setShowSubTypeSearchInput(false)} // Hide input on blur
+                  autoFocus
+                />
+              )}
+            </div>
+          </div>
+
+          {filteredSubTypes.map((subType) => (
             <div
               key={subType.name || subType}
               onClick={() => handleSubTypeClick(subType)}
@@ -137,22 +229,9 @@ const Explore = () => {
       ) : (
         // Main Product Types View
         <>
-          <div className="flex space-x-2 mb-4 overflow-x-auto">
-            {/* Horizontal filter options */}
-            {["All", "Men", "Women", "Kids"].map((filter) => (
-              <button
-                key={filter}
-                onClick={() => handleCategoryClick(filter)}
-                className={`px-4 py-2 rounded-full ${selectedCategory === filter ? "bg-customOrange text-white" : "bg-gray-100 text-gray-800"} font-semibold`}
-              >
-                {filter}
-              </button>
-            ))}
-          </div>
-
           {/* Main Product Types List */}
           <div className="space-y-4">
-            {productTypes.map((productType) => (
+            {filteredProductTypes.map((productType) => (
               <div
                 key={productType.type}
                 onClick={() => handleProductTypeClick(productType)}
@@ -166,21 +245,75 @@ const Explore = () => {
             ))}
           </div>
 
-          {/* Discount Cards */}
-          <div className="grid grid-cols-2 gap-4 mt-6">
-            <div className="bg-red-500 text-white p-4 rounded-lg flex flex-col justify-center items-center">
-              <p className="text-sm">UP TO</p>
-              <p className="text-2xl font-bold">50% OFF</p>
-              <p className="text-sm">SUPER DISCOUNT</p>
-            </div>
-            <div className="bg-green-500 text-white p-4 rounded-lg flex flex-col justify-center items-center">
-              <p className="text-sm">DEALS FROM</p>
-              <p className="text-2xl font-bold">₦1,000</p>
-              <p className="text-sm">5TH - 7TH</p>
-            </div>
-          </div>
         </>
       )}
+
+
+         
+    </div>
+     {/* Discount Cards */}
+     <div className="px-0 mt-2">
+            <Swiper
+              modules={[FreeMode, Autoplay]}
+              spaceBetween={5}
+              slidesPerView={1}
+              freeMode={true}
+              loop={true}
+              autoplay={{
+                delay: 2500,
+                disableOnInteraction: false,
+              }}
+              breakpoints={{
+                640: {
+                  slidesPerView: 2,
+                  spaceBetween: 10,
+                },
+                768: {
+                  slidesPerView: 3,
+                  spaceBetween: 30,
+                },
+                1024: {
+                  slidesPerView: 4,
+                  spaceBetween: 40,
+                },
+              }}
+            >
+              {loading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <SwiperSlide key={index}>
+                    <div className="p-2 w-auto h-44 shadow-md rounded-lg">
+                      <Skeleton height="100%" />
+                    </div>
+                  </SwiperSlide>
+                ))
+              ) : (
+                <>
+                  {promoImages.map((publicId, index) => (
+                    <SwiperSlide
+                      key={index}
+                      className="transition-transform duration-500 ease-in-out rounded-lg transform hover:scale-105"
+                    >
+                      <div className="p-1 w-auto h-44 shadow-md rounded-lg overflow-hidden">
+                        <AdvancedImage
+                          cldImg={cld
+                            .image(publicId)
+                            .format("auto")
+                            .quality("auto")
+                            .resize(
+                              auto()
+                                .gravity(autoGravity())
+                                .width(5000)
+                                .height(3000)
+                            )}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      </div>
+                    </SwiperSlide>
+                  ))}
+                </>
+              )}
+            </Swiper>
+          </div>
     </div>
   );
 };

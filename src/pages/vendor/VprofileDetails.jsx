@@ -134,30 +134,31 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
     setIsEditing(true);
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      toast.success("Successfully logged out", { className: "custom-toast" });
-      navigate("/vendorlogin");
-    } catch (error) {
-      toast.error("Error logging out", { className: "custom-toast" });
-    }
-  };
+
 
   return (
     <div>
-      <div className="flex flex-col p-2 -py-80 items-center">
-        <FaAngleLeft
-          className="text-2xl cursor-pointer self-start"
-          onClick={() => setShowDetails(!showDetails)}
-        />
-        <h1 className="text-xl font-medium font-ubuntu text-black">
-          Profile Details
-        </h1>
-        <div className="w-full translate-y-14  mt-4">
-          <div className="flex flex-col bg-gray-200 rounded-lg items-center w-full">
-            <hr className="w-full border-gray-400" />
-            <h1 className=" text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500  ">
+      <div className="flex flex-col p-2 items-center">
+      <div className="sticky top-0 bg-white z-10 flex items-center -translate-y-4 justify-between h-24 w-full">
+        <div className="flex items-center space-x-2">
+          <FaAngleLeft
+            className="text-2xl text-black cursor-pointer"
+            onClick={() => {
+              console.log("Closing Profile Details");
+              setShowDetails(false);
+            }}
+          />
+          <h1 className="text-xl font-medium font-ubuntu text-black   ">
+            Profile Details
+          </h1>
+        </div>
+        
+          
+      </div>
+        <div className="w-full translate-y-14 ">
+          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
+
+            <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               User Name
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
@@ -170,10 +171,9 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 onClick={() => handleEdit("displayName")}
               />
             </div>
-            <hr className="w-full border-gray-400" />
           </div>
-          <div className="flex flex-col bg-gray-200 rounded-lg items-center w-full mt-6">
-            <hr className="w-full border-gray-400" />
+          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
+           
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Store Name
             </h1>
@@ -187,10 +187,10 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 onClick={() => handleEdit("shopName")}
               />
             </div>
-            <hr className="w-full border-gray-600" />
+            
           </div>
-          <div className="flex flex-col  bg-gray-200 rounded-lg items-center w-full mt-6">
-            <hr className="w-full border-gray-600" />
+          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
+          
             <h1 className=" text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500  ">
               Email
             </h1>
@@ -204,10 +204,10 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 onClick={() => handleEdit("email")}
               />
             </div>
-            <hr className="w-full border-gray-400" />
+            
           </div>
-          <div className="flex flex-col bg-gray-200 rounded-lg items-center w-full mt-6">
-            <hr className="w-full border-gray-400" />
+          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
+           
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Password
             </h1>
@@ -219,23 +219,10 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 onClick={() => handleEdit("password")}
               />
             </div>
-            <hr className="w-full border-gray-600" />
+            
           </div>
 
-          <div
-            className="flex flex-col bg-gray-200 rounded-lg items-center w-full mt-6 cursor-pointer"
-            onClick={handleLogout}
-          >
-            <hr className="w-full border-gray-400" />
-            <div className="flex items-center justify-between w-full px-4 py-3">
-              <PiSignOutBold className="text-red-600 text-xl mr-4" />
-              <p className="text-size text-black w-full font-medium">
-                Sign Out
-              </p>
-              <FaAngleRight className="text-black text-xl ml-2" />
-            </div>
-            <hr className="w-full border-gray-400" />
-          </div>
+          
         </div>
       </div>
 
@@ -331,17 +318,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
         </div>
       )}
 
-      {isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <RotatingLines
-            strokeColor="orange"
-            strokeWidth="5"
-            animationDuration="0.75"
-            width="96"
-            visible={true}
-          />
-        </div>
-      )}
+      
     </div>
   );
 };

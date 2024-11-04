@@ -8,11 +8,14 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider,
 } from "firebase/auth";
+import { MdHistory, MdHelpOutline, MdModeEdit } from "react-icons/md";
 import { auth, db } from "../../firebase.config";
+import { RotatingLines } from "react-loader-spinner";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import useAuth from "../../custom-hooks/useAuth";
+import { IoMdContact } from "react-icons/io";
 import {
   FaPen,
   FaTimes,
@@ -25,9 +28,7 @@ import { TbHomeStar } from "react-icons/tb";
 import { GrSecure } from "react-icons/gr";
 import { PiSignOutBold } from "react-icons/pi";
 import { FaRegCircleUser, FaShop } from "react-icons/fa6";
-import { MdEmail, MdHistory } from "react-icons/md";
 
-import { RotatingLines } from "react-loader-spinner";
 import AvatarSelectorModal from "../vendor/VendorAvatarSelect.jsx";
 import Skeleton from "react-loading-skeleton";
 import VprofileDetails from "../vendor/VprofileDetails.jsx";
@@ -37,6 +38,7 @@ const VendorProfile = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [userData, setUserData] = useState(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editField, setEditField] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -180,14 +182,19 @@ const VendorProfile = () => {
  
   const handleLogout = async () => {
     try {
+      setIsLoggingOut(true); // Start the loading spinner
       await signOut(auth);
       toast.success("Successfully logged out", { className: "custom-toast" });
       navigate("/vendorlogin");
     } catch (error) {
       toast.error("Error logging out", { className: "custom-toast" });
+    } finally {
+      setIsLoggingOut(false); // Stop the loading spinner
     }
   };
 
+
+  
 
   const handleAvatarChange = (newAvatar) => {
     setUserData((prev) => ({ ...prev, photoURL: newAvatar }));
@@ -198,47 +205,32 @@ const VendorProfile = () => {
       {!showDetails &&
       !showHistory ? (
         <div className="flex flex-col items-center">
-          {/* <div className="relative flex justify-center w-full h-full"> */}
-            {/* Store Image */}
-              {/* {isLoading ? (
-                <Skeleton height={288} />
-              ) : userData && userData.coverImageUrl ? (
+            
+            <div className="flex border  rounded-full p-1 justify-center mt-4 relative">
+              {isLoading ? (
+                <Skeleton circle={true} height={144} width={144} />
+              ) : userData && userData.photoURL ? (
                 <img
-                  src={userData.coverImageUrl}
-                  alt="Store"
-                  className="w-full h-full object-cover rounded-b-lg bg-gray-400"
+                  src={userData.photoURL}
+                  alt=""
+                  className="rounded-full object-cover h-28 w-28"
+                  onClick={() => setIsAvatarModalOpen(true)}
                 />
               ) : (
-                <div className="w-full h-full bg-gray-300 rounded-b-lg" />
-              )} */}
-
-              {/* User Image */}
-              <div className=" flex border  rounded-full p-1 justify-center mt-4 relative">
-                {isLoading ? (
-                  <Skeleton circle height={144} width={144} />
-                ) : userData && userData.photoURL ? (
-                  <img
-                    src={userData.photoURL}
-                    alt="User"
-                    className="rounded-full object-cover h-36 w-36 border-2 border-white bg-gray-400"
-                  />
-                ) : (
-                  <img
-                    src="" // You might want to provide a placeholder or default image here
-                    alt="User"
-                    className="rounded-full h-36 w-36 border-4 border-white"
-                  />
-                )}
-                <div className="absolute top-1 right-1 bg-white p-2 rounded-full">
-                  <FaPen
-                    className=" text-black cursor-pointer"
-                    onClick={() => setIsAvatarModalOpen(true)}
-                  />
+                <div
+                  className="rounded-full h-36 w-36 flex items-center justify-center "
+                  onClick={() => setIsAvatarModalOpen(true)}
+                >
+                  <IoMdContact className="text-gray-500 text-7xl" />
                 </div>
-              </div>
-            
-          {/* </div> */}
+              )}
+              <MdModeEdit
+                className="absolute bottom-0 right-0 border text-black  mr-2 text-3xl p-2 rounded-full bg-white cursor-pointer shadow-md"
+                onClick={() => setIsAvatarModalOpen(true)}
+              />
+            </div>
 
+            
           <div className="">
             {isLoading ? (
               <Skeleton width={150} height={24} />
@@ -313,7 +305,25 @@ const VendorProfile = () => {
               </div>
               
             </div>
-           
+            <div
+      className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
+      onClick={handleLogout}
+    >
+      <div className="flex items-center justify-between w-full px-4 py-3">
+        <PiSignOutBold className="text-red-600 text-xl mr-4" />
+        <p className="text-size text-black w-full font-normal">Sign Out</p>
+        
+        {isLoggingOut && (
+          <RotatingLines
+            strokeColor="#f9531e"
+            strokeWidth="5"
+            animationDuration="0.75"
+            width="24" // Adjust size as needed
+            visible={true}
+          />
+        )}
+      </div>
+    </div>
           </div>
         </div>
       ) : (
@@ -332,22 +342,12 @@ const VendorProfile = () => {
               {/* Render History content here */}
             </div>
           )}
-
+      
           
         </>
       )}
 
-      {isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <RotatingLines
-            strokeColor="orange"
-            strokeWidth="5"
-            animationDuration="0.75"
-            width="96"
-            visible={true}
-          />
-        </div>
-      )}
+     
 
       {isAvatarModalOpen && (
         <AvatarSelectorModal

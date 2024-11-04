@@ -168,20 +168,75 @@ const Cart = () => {
     }
   };
 
-  const handleCheckout = (vendorId) => {
+  const handleCheckout = async (vendorId) => {
     const vendorCart = cart[vendorId];
-
+  
     if (!vendorCart || Object.keys(vendorCart.products).length === 0) {
       toast.error("No products to checkout for this vendor.");
       return;
     }
-
+  
+    // Check if user is logged in
+    if (!currentUser) {
+      return;
+    }
+  
+    let profileComplete = currentUser.profileComplete;
+  
+    // If profileComplete is undefined, try fetching from Firestore
+    if (profileComplete === undefined) {
+      try {
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          profileComplete = userData.profileComplete;
+        }
+      } catch (error) {
+        console.error("Error fetching user profile from Firestore:", error);
+      }
+    }
+  
+    // Redirect if profile is incomplete
+    if (!profileComplete) {
+      toast.error("Please complete your profile before proceeding to checkout.");
+      navigate("/profile?incomplete=true");
+      return;
+    }
+  
+    // Check stock availability for each product in the cart
+    const outOfStockItems = [];
+    for (const productKey in vendorCart.products) {
+      const product = vendorCart.products[productKey];
+      const productRef = doc(db, "products", product.id);
+      const productDoc = await getDoc(productRef);
+  
+      if (productDoc.exists()) {
+        const productData = productDoc.data();
+        const stockAvailable = productData.stock >= product.quantity;
+        
+        if (!stockAvailable) {
+          outOfStockItems.push(product.name);
+        }
+      } else {
+        console.warn(`Product with ID ${product.id} not found.`);
+      }
+    }
+  
+    // If any items are out of stock, display a toast and exit
+    if (outOfStockItems.length > 0) {
+      toast.error(
+        `The following items are out of stock: ${outOfStockItems.join(", ")}`
+      );
+      return;
+    }
+  
     const note = vendorNotes[vendorId]
       ? encodeURIComponent(vendorNotes[vendorId])
       : "";
-
+  
     navigate(`/newcheckout/${vendorId}?note=${note}`);
   };
+  
 
   const calculateVendorTotal = (vendorId) => {
     const vendorCart = cart[vendorId]?.products || {};

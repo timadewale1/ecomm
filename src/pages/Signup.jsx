@@ -185,6 +185,7 @@ const Signup = () => {
         email,
         role: "user",
         createdAt: new Date(),
+        profileComplete: false,
       });
 
       await sendEmailVerification(user);
@@ -232,8 +233,9 @@ const Signup = () => {
           email: user.email,
           role: "user",
           createdAt: new Date(),
+          profileComplete: false,
         });
-        console.log("New user added to Firestore:", user.displayName);
+        // console.log("New user added to Firestore:", user.displayName);
       } else {
         console.log("User already exists in Firestore");
       }
@@ -257,7 +259,7 @@ const Signup = () => {
 
   useEffect(() => {
     if (currentUser) {
-      console.log("User is authenticated, redirecting to dashboard...");
+      // console.log("User is authenticated, redirecting to dashboard...");
       navigate("/newhome");
     }
   }, [currentUser, navigate]);

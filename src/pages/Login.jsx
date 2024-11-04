@@ -267,7 +267,7 @@ const Login = () => {
                       value={email}
                       className={`w-full h-14 ${
                         emailError ? "border-red-500" : "border-none"
-                      } bg-gray-300 px-14  font-semibold text- rounded-full`}
+                      } bg-gray-300 px-14  font-semibold text- rounded-lg`}
                       onChange={handleEmailChange}
                     />
                   </FormGroup>
@@ -280,7 +280,7 @@ const Login = () => {
                       type={showPassword ? "text" : "password"}
                       className={`w-full h-14 ${
                         passwordError ? "border-red-500" : "border-none"
-                      } bg-gray-300 px-14 font-semibold text- rounded-full`}
+                      } bg-gray-300 px-14 font-semibold text- rounded-lg`}
                       placeholder="Enter your password"
                       value={password}
                       onChange={handlePasswordChange}

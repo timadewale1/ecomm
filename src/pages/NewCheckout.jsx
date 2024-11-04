@@ -9,7 +9,7 @@ import useAuth from "../custom-hooks/useAuth";
 import { FaPen } from "react-icons/fa";
 import serviceimage from "../Images/servicemodal.jpg";
 import bookingimage from "../Images/bookingfee.jpg";
-
+import Modal from "react-modal";
 import { createOrderAndReduceStock } from "../services/Services";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.config";
@@ -23,14 +23,36 @@ import { FaCheck } from "react-icons/fa6";
 import Skeleton from "react-loading-skeleton";
 import Serviceanimate from "../components/Loading/servicefees";
 
-const EditDeliveryModal = ({ userInfo, setUserInfo, onClose }) => {
+const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
+  useEffect(() => {
+    // Disable background scrolling when modal is open
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      // Clean up when the modal is closed
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white z-50 shadow-lg px-3 py-3 rounded-t-2xl ">
+    <Modal
+      isOpen={isOpen}
+      onRequestClose={onClose}
+      className="bg-white w-full max-w-md h-[60vh] rounded-t-2xl shadow-lg px-3 py-3 relative overflow-y-scroll"
+      overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
+      ariaHideApp={false}
+    >
       <div className="flex justify-between mt-3 items-center">
         <h2 className="text-xl font-opensans font-semibold">
           Edit Delivery Information
         </h2>
-        <LiaTimesSolid className="text-2xl text-black" onClick={onClose} />
+        <LiaTimesSolid
+          className="text-2xl text-black cursor-pointer"
+          onClick={onClose}
+        />
       </div>
 
       <form>
@@ -92,6 +114,7 @@ const EditDeliveryModal = ({ userInfo, setUserInfo, onClose }) => {
             Save Changes
           </button>
           <button
+            type="button"
             onClick={onClose}
             className="bg-gray-100 text-black h-12 rounded-full font-semibold font-opensans mt-3"
           >
@@ -99,104 +122,119 @@ const EditDeliveryModal = ({ userInfo, setUserInfo, onClose }) => {
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 };
 
-const ShopSafelyModal = ({ onClose }) => {
+const ShopSafelyModal = ({ isOpen, onClose }) => {
+  useEffect(() => {
+    // Disable background scrolling when modal is open
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      // Clean up when the modal is closed
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
+
   return (
-    <div className="fixed inset-0 pointer-events-auto bg-gray-700 bg-opacity-50 flex justify-center items-end z-50">
-      <div className="bg-white w-full max-w-md h-[85vh] rounded-t-2xl shadow-lg overflow-y-auto px-4 py-4 relative">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl font-semibold">Shop Safely and Sustainably</h1>
-          <LiaTimesSolid
-            className="text-2xl cursor-pointer"
-            onClick={onClose}
-          />
+    <Modal
+      isOpen={isOpen}
+      onRequestClose={onClose}
+      className="bg-white w-full max-w-md h-[85vh] rounded-t-2xl shadow-lg overflow-y-scroll px-4 py-4 relative"
+      overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
+      ariaHideApp={false}
+    >
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-xl font-semibold">Shop Safely and Sustainably</h1>
+        <LiaTimesSolid className="text-2xl cursor-pointer" onClick={onClose} />
+      </div>
+
+      {/* Secure Payment */}
+      <div className="flex items-start mb-4">
+        <div className="w-16 flex flex-col items-center">
+          <RiSecurePaymentFill className="text-3xl text-green-700" />
+          <FaCheck className="text-green-700 mt-2" />
         </div>
-
-        {/* Secure Payment */}
-        <div className="flex items-start mb-4">
-          <div className="w-16 flex flex-col items-center">
-            <RiSecurePaymentFill className="text-3xl text-green-700" />
-            <FaCheck className="text-green-700 mt-2" />
-          </div>
-          <div className="ml-4">
-            <h3 className="text-sm text-green-700 font-semibold font-opensans">
-              Secure Your Payment
-            </h3>
-            <p className="text-sm font-opensans text-black mt-2">
-              Encrypted Transactions: Your data is always protected.
-            </p>
-            <p className="text-sm font-opensans text-black">
-              Fraud Prevention: Transactions are monitored in real-time.
-            </p>
-          </div>
-        </div>
-
-        <div className="border-t border-gray-300 my-1"></div>
-
-        {/* Security & Privacy */}
-        <div className="flex items-start mt-3 mb-4">
-          <div className="w-16 flex flex-col items-center">
-            <MdOutlineLock className="text-3xl text-green-700" />
-            <FaCheck className="text-green-700 mt-2" />
-          </div>
-          <div className="ml-4">
-            <h3 className="text-sm text-green-700 font-semibold font-opensans">
-              Security & Privacy
-            </h3>
-            <p className="text-sm font-opensans text-black mt-2">
-              No Data Sharing: We will never share your information with third
-              parties.
-            </p>
-            <p className="text-sm font-opensans text-black">
-              Your data is used solely to enhance your experience.
-            </p>
-          </div>
-        </div>
-
-        <div className="border-t border-gray-300 my-1"></div>
-
-        {/* Secure Shipment */}
-        <div className="flex items-start mt-3 mb-4">
-          <div className="w-16 flex flex-col items-center">
-            <LiaShippingFastSolid className="text-3xl text-green-700" />
-            <FaCheck className="text-green-700 mt-2" />
-          </div>
-          <div className="ml-4">
-            <h3 className="text-sm text-green-700 font-semibold font-opensans">
-              Secure Shipment Guarantee
-            </h3>
-            <p className="text-sm font-opensans text-black mt-2">
-              Escrow Payments: Funds are held securely and released only after
-              you confirm delivery.
-            </p>
-          </div>
-        </div>
-
-        <div className="border-t border-gray-300 my-1"></div>
-
-        {/* Customer Support */}
-        <div className="flex items-start mt-3">
-          <div className="w-16 flex flex-col items-center">
-            <MdSupportAgent className="text-3xl text-green-700" />
-            <FaCheck className="text-green-700 mt-2" />
-          </div>
-          <div className="ml-4">
-            <h3 className="text-sm text-green-700 font-semibold font-opensans">
-              Customer Support
-            </h3>
-            <p className="text-sm font-opensans text-black mt-2">
-              Our dedicated support team is available to assist with any issues
-              related to your order, payment, or delivery.
-            </p>
-          </div>
+        <div className="ml-4">
+          <h3 className="text-sm text-green-700 font-semibold font-opensans">
+            Secure Your Payment
+          </h3>
+          <p className="text-sm font-opensans text-black mt-2">
+            Encrypted Transactions: Your data is always protected.
+          </p>
+          <p className="text-sm font-opensans text-black">
+            Fraud Prevention: Transactions are monitored in real-time.
+          </p>
         </div>
       </div>
-    </div>
+
+      <div className="border-t border-gray-300 my-1"></div>
+
+      {/* Security & Privacy */}
+      <div className="flex items-start mt-3 mb-4">
+        <div className="w-16 flex flex-col items-center">
+          <MdOutlineLock className="text-3xl text-green-700" />
+          <FaCheck className="text-green-700 mt-2" />
+        </div>
+        <div className="ml-4">
+          <h3 className="text-sm text-green-700 font-semibold font-opensans">
+            Security & Privacy
+          </h3>
+          <p className="text-sm font-opensans text-black mt-2">
+            No Data Sharing: We will never share your information with third
+            parties.
+          </p>
+          <p className="text-sm font-opensans text-black">
+            Your data is used solely to enhance your experience.
+          </p>
+        </div>
+      </div>
+
+      <div className="border-t border-gray-300 my-1"></div>
+
+      {/* Secure Shipment */}
+      <div className="flex items-start mt-3 mb-4">
+        <div className="w-16 flex flex-col items-center">
+          <LiaShippingFastSolid className="text-3xl text-green-700" />
+          <FaCheck className="text-green-700 mt-2" />
+        </div>
+        <div className="ml-4">
+          <h3 className="text-sm text-green-700 font-semibold font-opensans">
+            Secure Shipment Guarantee
+          </h3>
+          <p className="text-sm font-opensans text-black mt-2">
+            Escrow Payments: Funds are held securely and released only after you
+            confirm delivery.
+          </p>
+        </div>
+      </div>
+
+      <div className="border-t border-gray-300 my-1"></div>
+
+      {/* Customer Support */}
+      <div className="flex items-start mt-3">
+        <div className="w-16 flex flex-col items-center">
+          <MdSupportAgent className="text-3xl text-green-700" />
+          <FaCheck className="text-green-700 mt-2" />
+        </div>
+        <div className="ml-4">
+          <h3 className="text-sm text-green-700 font-semibold font-opensans">
+            Customer Support
+          </h3>
+          <p className="text-sm font-opensans text-black mt-2">
+            Our dedicated support team is available to assist with any issues
+            related to your order, payment, or delivery.
+          </p>
+        </div>
+      </div>
+    </Modal>
   );
 };
+
 const Checkout = () => {
   const { vendorId } = useParams();
   const [searchParams] = useSearchParams();
@@ -297,7 +335,7 @@ const Checkout = () => {
   useEffect(() => {
     const fetchOrderPreview = async () => {
       if (!currentUser) {
-        toast.error("User not authenticated yet");
+        // toast.error("User not authenticated yet");
         toast.dismiss();
         return;
       }
@@ -430,72 +468,199 @@ const Checkout = () => {
 
     return Object.values(groupedProducts);
   };
-  const handleScroll = (event) => {
-    event.stopPropagation();
+  // const handleScroll = (event) => {
+  //   event.stopPropagation();
+  // };
+
+  const BookingFeeModal = ({ isOpen, onClose }) => {
+    useEffect(() => {
+      // Disable background scrolling when modal is open
+      if (isOpen) {
+        document.body.style.overflow = "hidden";
+      } else {
+        document.body.style.overflow = "unset";
+      }
+      return () => {
+        // Clean up when the modal is closed
+        document.body.style.overflow = "unset";
+      };
+    }, [isOpen]);
+
+    return (
+      <Modal
+        isOpen={isOpen}
+        onRequestClose={onClose}
+        className="bg-white w-full max-w-md h-[60vh] rounded-t-2xl shadow-lg overflow-y-scroll relative"
+        overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
+        ariaHideApp={false}
+      >
+        <div className="relative h-full overflow-y-scroll">
+          <LiaTimesSolid
+            className="text-2xl cursor-pointer absolute top-4 right-4"
+            onClick={onClose}
+          />
+          <img
+            src={bookingimage}
+            alt="Booking Fee Details"
+            className="w-full h-40 object-cover"
+          />
+          <div className="px-4 mb-4">
+            <p className="text-sm font-opensans text-black">
+              A 40% booking fee applies to marketplace vendor purchases,
+              securing your items and guaranteeing they'll be packaged and
+              reserved for pickup. Once payment is confirmed, you'll receive an
+              email with the vendor's store location and operational hours in
+              the market. Your items will be securely held by the vendor for 5
+              days after payment, ensuring they're ready for collection at your
+              convenience.
+            </p>
+            <p className="text-xs mt-4 text-gray-500 italic">
+              <span className="font-semibold">Note:</span> This fee is
+              non-refundable.
+            </p>
+          </div>
+        </div>
+      </Modal>
+    );
   };
 
-  const BookingFeeModal = ({ onClose }) => (
-    <div
-      className="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
-      onScroll={handleScroll}
-    >
-      <div className="bg-white w-full max-w-md h-[60vh] rounded-t-2xl shadow-lg overflow-y-auto  relative">
+  const ServiceFeeModal = ({ isOpen, onClose }) => {
+    useEffect(() => {
+      // Disable background scrolling when modal is open
+      if (isOpen) {
+        document.body.style.overflow = "hidden";
+      } else {
+        document.body.style.overflow = "unset";
+      }
+      return () => {
+        // Clean up when the modal is closed
+        document.body.style.overflow = "unset";
+      };
+    }, [isOpen]);
+
+    return (
+      <Modal
+        isOpen={isOpen}
+        onRequestClose={onClose}
+        className="bg-white w-full max-w-md h-[60vh] rounded-t-2xl shadow-lg overflow-y-scroll relative flex flex-col"
+        overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
+        ariaHideApp={false}
+      >
+        <div className="relative h-full overflow-y-scroll">
+          {" "}
+          <LiaTimesSolid
+            className="text-2xl cursor-pointer modals absolute top-4 right-4"
+            onClick={onClose}
+          />
+          <img
+            src={serviceimage}
+            alt="Service Fee Details"
+            className="w-full h-40 object-cover"
+          />
+          <div className="px-4 mt-4 flex-auto mb-4">
+            <p className="text-sm font-opensans text-black z-10">
+              Service fees are nominal charges applied to transactions to
+              support the operational demands of our platform. These fees
+              contribute to maintaining a seamless and efficient shopping
+              environment, ensuring reliability and the highest quality of
+              service. We are committed to transparency and fairness, thus we
+              cap the service fee at a maximum of 2,000. This policy is in place
+              to minimize costs to our customers while upholding our dedication
+              to excellence.
+            </p>
+          </div>
+        </div>
+      </Modal>
+    );
+  };
+  const DeliveryInfoModal = ({ isOpen, onClose }) => {
+    useEffect(() => {
+      // Prevent background scrolling when modal is open
+      if (isOpen) {
+        document.body.style.overflow = "hidden";
+      } else {
+        document.body.style.overflow = "unset";
+      }
+      return () => {
+        // Clean up when modal is closed
+        document.body.style.overflow = "unset";
+      };
+    }, [isOpen]);
+
+    return (
+      <Modal
+        isOpen={isOpen}
+        onRequestClose={onClose}
+        className="bg-white p-6 rounded-t-2xl w-full max-w-md h-[85vh] shadow-lg relative overflow-y-scroll"
+        overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
+        ariaHideApp={false}
+      >
+        {/* Close Icon */}
         <LiaTimesSolid
-          className="text-2xl cursor-pointer absolute top-4 right-4"
+          className="absolute top-5 right-4 text-2xl text-gray-500 cursor-pointer"
           onClick={onClose}
         />
-        <img
-          src={bookingimage}
-          alt="Booking Fee Details"
-          className="w-full h-40 object-cover"
-        />
-        <div className="px-4 mb-4 overflow-y-auto">
-          <p className="text-sm font-opensans text-black">
-            A 40% booking fee applies to marketplace vendor purchases, securing
-            your items and guaranteeing they'll be packaged and reserved for
-            pickup. Once payment is confirmed, you'll receive an email with the
-            vendor's store location and operational hours in the market. Your
-            items will be securely held by the vendor for 5 days after payment,
-            ensuring they're ready for collection at your convenience.
+
+        <h2 className="text-lg font-semibold font-opensans text-black mb-4">
+          Delivery Options
+        </h2>
+
+        <div className="mb-4">
+          <h3 className="font-opensans font-semibold text-md text-black">
+            Pick-up
+          </h3>
+          <p className="text-sm font-opensans font-light text-black">
+            For{" "}
+            <span className="font-semibold text-black text-xs">
+              market vendors only
+            </span>
+            , Pick-up ensures that on payment of your booking fee, the vendor
+            will securely reserve your purchased items and package them for you
+            in their inventory. Once you have paid, the vendor will hold the
+            items for pick-up at your convenience. (Orders are null after 5
+            working days if not picked up).
+            <br /> <br />
+            <span className="font-semibold">Note:</span> This option is
+            currently only available to customers purchasing from market
+            vendors.
+          </p>
+        </div>
+
+        <div className="border-t border-gray-300 my-3"></div>
+
+        <div>
+          <h3 className="font-opensans font-semibold text-md text-black">
+            Door Delivery
+          </h3>
+          <p className="text-sm text-black font-opensans">
+            Estimated Delivery rates are structured as follows: <br />-{" "}
+            <span className="font-semibold">Within the same state</span>: ₦2,000
+            - ₦4,000 <br />-{" "}
+            <span className="font-semibold">Across different states</span>:
+            ₦3,000 - ₦7,000
+          </p>
+          <p className="text-sm text-black font-light font-opensans mt-2">
+            After completing your payment, the vendor will reach out to discuss
+            logistics. You’ll receive the rider’s contact details (name and
+            phone number) via email and SMS, ensuring a smooth delivery process.
           </p>
           <p className="text-xs mt-4 text-gray-500 italic">
-            <span className="font-semibold">Note:</span> This fee is
-            non-refundable.
+            <span className="font-semibold">Note:</span> Delivery charges are
+            not included in this order. The final delivery fee will be discussed
+            with the vendor directly and paid at the time of delivery.
           </p>
         </div>
-      </div>
-    </div>
-  );
 
-  const ServiceFeeModal = ({ onClose }) => (
-    <div
-      className="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
-      onScroll={handleScroll}
-    >
-      <div className="bg-white w-full max-w-md h-[60vh] rounded-t-2xl shadow-lg overflow-hidden relative flex flex-col">
-        <LiaTimesSolid
-          className="text-2xl cursor-pointer modals absolute top-4 right-4"
-          onClick={onClose}
-        />
-        <img
-          src={serviceimage}
-          alt="Service Fee Details"
-          className="w-full h-40 object-cover"
-        />
-        <div className="px-4 mt-4 flex-auto mb-4 overflow-y-auto">
-          <p className="text-sm font-opensans text-black z-10">
-            Service fees are nominal charges applied to transactions to support
-            the operational demands of our platform. These fees contribute to
-            maintaining a seamless and efficient shopping environment, ensuring
-            reliability and the highest quality of service. We are committed to
-            transparency and fairness, thus we cap the service fee at a maximum
-            of 2,000. This policy is in place to minimize costs to our customers
-            while upholding our dedication to excellence.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+        <p className="text-xs font-opensans mt-4 text-gray-600">
+          If you have concerns or need more information, please{" "}
+          <span className="text-customOrange cursor-pointer font-semibold">
+            check our policies
+          </span>{" "}
+          for detailed guidelines.
+        </p>
+      </Modal>
+    );
+  };
 
   const formatColorText = (color) => {
     if (!color) return "";
@@ -790,77 +955,6 @@ const Checkout = () => {
             </>
           )}
         </div>
-        {showDeliveryInfoModal && (
-          <div className="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50">
-            <div className="bg-white p-6 rounded-t-2xl w-full max-w-md h-[85vh] shadow-lg relative overflow-y-auto">
-              {/* Close Icon */}
-              <LiaTimesSolid
-                className="absolute top-5 right-4 text-2xl text-gray-500 cursor-pointer"
-                onClick={() => setShowDeliveryInfoModal(false)}
-              />
-
-              <h2 className="text-lg font-semibold font-opensans text-black mb-4">
-                Delivery Options
-              </h2>
-
-              <div className="mb-4">
-                <h3 className="font-opensans font-semibold text-md text-black">
-                  Pick-up
-                </h3>
-                <p className="text-sm font-opensans font-light text-black">
-                  For{" "}
-                  <span className="font-semibold text-black text-xs">
-                    market vendors only
-                  </span>
-                  , Pick-up ensures that on payment of your booking fee, the
-                  vendor will securely reserve your purchased items and package
-                  them for you in their inventory. Once you have paid, the
-                  vendor will hold the items for pick-up at your convenience.
-                  (Orders are null after 5 working days if not picked up).
-                  <br /> <br />
-                  <span className="font-semibold">Note:</span> This option is
-                  currently only available to customers purchasing from market
-                  vendors.
-                </p>
-              </div>
-
-              <div className="border-t border-gray-300 my-3"></div>
-
-              <div>
-                <h3 className="font-opensans font-semibold text-md text-black">
-                  Door Delivery
-                </h3>
-                <p className="text-sm text-black font-opensans">
-                  Estimated Delivery rates are structured as follows: <br />-{" "}
-                  <span className="font-semibold">Within the same state</span>:
-                  ₦2,000 - ₦4,000 <br />-{" "}
-                  <span className="font-semibold">Across different states</span>
-                  : ₦3,000 - ₦7,000
-                </p>
-                <p className="text-sm text-black font-light font-opensans mt-2">
-                  After completing your payment, the vendor will reach out to
-                  discuss logistics. You’ll receive the rider’s contact details
-                  (name and phone number) via email and SMS, ensuring a smooth
-                  delivery process.
-                </p>
-                <p className="text-xs mt-4 text-gray-500 italic">
-                  <span className="font-semibold">Note:</span> Delivery charges
-                  are not included in this order. The final delivery fee will be
-                  discussed with the vendor directly and paid at the time of
-                  delivery.
-                </p>
-              </div>
-
-              <p className="text-xs font-opensans mt-4 text-gray-600">
-                If you have concerns or need more information, please{" "}
-                <span className="text-customOrange cursor-pointer font-semibold">
-                  check our policies
-                </span>{" "}
-                for detailed guidelines.
-              </p>
-            </div>
-          </div>
-        )}
 
         <div className="mt-2">
           <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
@@ -906,23 +1000,29 @@ const Checkout = () => {
         </div>
       </div>
 
-      {showEditModal && (
-        <EditDeliveryModal
-          userInfo={userInfo}
-          setUserInfo={setUserInfo}
-          onClose={() => setShowEditModal(false)}
-        />
-      )}
+      <EditDeliveryModal
+        isOpen={showEditModal}
+        userInfo={userInfo}
+        setUserInfo={setUserInfo}
+        onClose={() => setShowEditModal(false)}
+      />
 
-      {showShopSafelyModal && (
-        <ShopSafelyModal onClose={() => setShowShopSafelyModal(false)} />
-      )}
-      {showServiceFeeModal && (
-        <ServiceFeeModal onClose={() => setShowServiceFeeModal(false)} />
-      )}
-      {showBookingFeeModal && (
-        <BookingFeeModal onClose={() => setShowBookingFeeModal(false)} />
-      )}
+      <ShopSafelyModal
+        isOpen={showShopSafelyModal}
+        onClose={() => setShowShopSafelyModal(false)}
+      />
+      <DeliveryInfoModal
+        isOpen={showDeliveryInfoModal}
+        onClose={() => setShowDeliveryInfoModal(false)}
+      />
+      <ServiceFeeModal
+        isOpen={showServiceFeeModal}
+        onClose={() => setShowServiceFeeModal(false)}
+      />
+      <BookingFeeModal
+        isOpen={showBookingFeeModal}
+        onClose={() => setShowBookingFeeModal(false)}
+      />
 
       <div className="fixed bottom-0 left-0 right-0 p-3  bg-white shadow-lg">
         <button

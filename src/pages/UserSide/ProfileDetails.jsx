@@ -7,7 +7,7 @@ import {
 } from "firebase/auth";
 import { auth, db } from "../../firebase.config";
 import toast from "react-hot-toast";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc } from "firebase/firestore";
 import {
   FaTimes,
   FaEye,
@@ -15,7 +15,6 @@ import {
   FaPhone,
   FaCalendarAlt,
   FaAngleLeft,
-
 } from "react-icons/fa";
 import { FaRegCircleUser } from "react-icons/fa6";
 import { PiAtThin } from "react-icons/pi";
@@ -26,7 +25,8 @@ import { RotatingLines } from "react-loader-spinner";
 import { useNavigate } from "react-router-dom";
 import { FaRegTimesCircle } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
-
+import { CiLocationOn } from "react-icons/ci";
+import Loading from "../../components/Loading/Loading";
 
 const ProfileDetails = ({
   currentUser,
@@ -34,27 +34,74 @@ const ProfileDetails = ({
   setUserData,
   setShowDetails,
 }) => {
-  useEffect(() => {
-    console.log("currentUser:", currentUser);
-    console.log("userData:", userData);
-  }, [currentUser, userData]);
-
-  
-
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editField, setEditField] = useState("");
-  const [username, setUsername] = useState(userData?.username || "");
-  const [displayName, setDisplayName] = useState(userData?.displayName || "");
+  const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState(userData?.phoneNumber || "");
-  const [birthday, setBirthday] = useState(userData?.birthday || "");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [birthday, setBirthday] = useState("");
+  const [address, setAddress] = useState("");
   const [password, setPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
- 
+
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (currentUser) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            setUserData(data);
+            setUsername(data.username || "");
+            setDisplayName(data.displayName || "");
+            setPhoneNumber(data.phoneNumber || "");
+            setBirthday(data.birthday || "");
+            setAddress(data.address || "");
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+          toast.error("Failed to load profile details. Please try again.");
+        } finally {
+          setLoading(false); // Set loading to false after data is fetched
+        }
+      } else {
+        setLoading(false); // Set loading to false if no current user
+      }
+    };
+
+    fetchData();
+  }, [currentUser, setUserData]);
+
+  if (loading) {
+    return <Loading />;
+  }
+
+  const checkProfileCompletion = async (userId, userData) => {
+    const requiredFields = [
+      "username",
+      "displayName",
+      "phoneNumber",
+      "address",
+    ];
+    const isComplete = requiredFields.every((field) => userData[field]);
+
+    if (isComplete) {
+      const userRef = doc(db, "users", userId);
+      await updateDoc(userRef, {
+        profileComplete: true,
+      });
+    }
+  };
+  if (!currentUser) {
+    return <div>Loading profile...</div>;
+  }
 
   const handleEdit = (field) => {
     setEditField(field);
@@ -139,6 +186,10 @@ const ProfileDetails = ({
         await updateDoc(doc(db, "users", currentUser.uid), { phoneNumber });
         setUserData((prev) => ({ ...prev, phoneNumber }));
         setPhoneNumber(phoneNumber);
+      } else if (editField === "address") {
+        await updateDoc(doc(db, "users", currentUser.uid), { address });
+        setUserData((prev) => ({ ...prev, address }));
+        setPhoneNumber(phoneNumber);
       } else if (editField === "birthday") {
         await updateDoc(doc(db, "users", currentUser.uid), { birthday });
         setUserData((prev) => ({ ...prev, birthday }));
@@ -146,6 +197,12 @@ const ProfileDetails = ({
       }
 
       toast.success("Profile updated successfully");
+      await checkProfileCompletion(currentUser.uid, {
+        username,
+        displayName,
+        phoneNumber,
+        address,
+      });
       setIsEditing(false);
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -154,8 +211,6 @@ const ProfileDetails = ({
       setIsLoading(false);
     }
   };
-
- 
 
   return (
     <div className="flex flex-col p-2 items-center">
@@ -172,13 +227,10 @@ const ProfileDetails = ({
             Profile Details
           </h1>
         </div>
-        
-          
       </div>
-        
+
       <div className="w-full ">
         <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full ">
-         
           <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
             UserName
           </h1>
@@ -200,7 +252,6 @@ const ProfileDetails = ({
         </div>
 
         <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2  items-center w-full">
-          
           <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
             Account Name
           </h1>
@@ -244,7 +295,7 @@ const ProfileDetails = ({
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <FaPhone className="text-black text-xl mr-4" />
-            <p className="text-size font-poppins font-medium text-black w-full">
+            <p className="text-size font-poppins font-normal text-black w-full">
               {phoneNumber || "Add Phone Number"}
             </p>
             <MdVerified
@@ -265,12 +316,32 @@ const ProfileDetails = ({
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <FaCalendarAlt className="text-black text-xl mr-4" />
-            <p className="text-size font-medium font-poppins text-black w-full">
-              {birthday}
+            <p className="text-size font-normal font-poppins text-black w-full">
+              {birthday || "Add Birthday"}
             </p>
             <RiEditFill
               className="text-black cursor-pointer ml-2 text-2xl"
               onClick={() => handleEdit("birthday")}
+            />
+          </div>
+        </div>
+        <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
+          <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
+            Address
+          </h1>
+          <div className="flex items-center justify-between w-full px-4 py-3">
+            <CiLocationOn className="text-black text-xl mr-4" />
+            <p className="text-size font-normal font-poppins text-black w-full">
+              {address || "Add Delivery Address"}
+            </p>
+            <MdVerified
+              className={`${
+                address ? "text-green-500" : "text-yellow-500"
+              } text-2xl ml-2`}
+            />
+            <RiEditFill
+              className="text-black cursor-pointer ml-2 text-2xl"
+              onClick={() => handleEdit("address")}
             />
           </div>
         </div>
@@ -281,7 +352,7 @@ const ProfileDetails = ({
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <GrSecure className="text-black text-xl mr-4" />
-            <p className="text-lg text-black w-full font-poppins font-medium">
+            <p className="text-lg text-black w-full font-poppins font-normal">
               *******
             </p>
             <RiEditFill
@@ -290,18 +361,16 @@ const ProfileDetails = ({
             />
           </div>
         </div>
-
-       
       </div>
 
       {isEditing && (
-        <div className="fixed inset-0 border-none rounded-xl bg-customGrey mb-2 px-14 flex items-center justify-center">
+        <div className="fixed inset-0 border-none rounded-xl bg-customGrey bg-opacity-85 mb-2 px-14 flex items-center modals justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative">
             <FaRegTimesCircle
               className="absolute top-2 right-2 font-bold text-lg rounded-md text-black cursor-pointer"
               onClick={() => setIsEditing(false)}
             />
-            <h2 className="text-xl font-semibold mb-4">
+            <h2 className="text-lg font-opensans font-medium mb-4">
               Edit{" "}
               {editField === "username"
                 ? "Username"
@@ -311,6 +380,8 @@ const ProfileDetails = ({
                 ? "Password"
                 : editField === "phoneNumber"
                 ? "Phone Number"
+                : editField === "address"
+                ? "Address"
                 : "Birthday"}
             </h2>
             {editField === "username" && (
@@ -376,6 +447,15 @@ const ProfileDetails = ({
                 className="w-full p-2 border border-gray-300 rounded"
               />
             )}
+            {editField === "address" && (
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            )}
+
             {editField === "password" && (
               <div className="relative w-full mt-4">
                 <input
@@ -396,7 +476,7 @@ const ProfileDetails = ({
 
             <div className="flex justify-end mt-4 relative">
               <button
-                className="bg-customOrange text-white text-xs h-9 w-30 font-semibold px-4 py-2 rounded"
+                className="bg-customOrange flex justify-center text-white text-xs h-9 w-16  font-semibold font-opensans px-4 py-2 rounded"
                 onClick={handleSave}
                 disabled={isLoading}
               >
@@ -416,7 +496,6 @@ const ProfileDetails = ({
           </div>
         </div>
       )}
-      
     </div>
   );
 };

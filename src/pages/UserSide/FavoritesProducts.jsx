@@ -22,11 +22,11 @@ const FavoritesPage = () => {
 
         // Collect all product IDs from favorites
         const favoriteProductIds = favorites.map((favorite) => favorite.id);
-        console.log("Favorite product IDs:", favoriteProductIds);
+
 
         // Fetch products from the centralized 'products' collection
         const productPromises = favoriteProductIds.map((productId) => {
-          console.log(`Fetching product with ID: ${productId} from 'products' collection`);
+
           return getDoc(doc(db, "products", productId));
         });
 

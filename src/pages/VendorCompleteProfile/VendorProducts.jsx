@@ -8,6 +8,7 @@ import {
   deleteDoc,
   updateDoc,
   addDoc,
+  onSnapshot,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { toast } from "react-toastify";
@@ -22,12 +23,14 @@ import { FaStar } from "react-icons/fa";
 import { Pin } from "@mui/icons-material";
 import { FiPlus } from "react-icons/fi";
 import VendorProductModal from "../../components/layout/VendorProductModal";
+import ToggleButton from "../../components/Buttons/ToggleButton";
+import { motion } from "framer-motion";
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [vendorId, setVendorId] = useState(null);
-  const [tabOpt, setTabOpt] = useState("Active")
+  const [tabOpt, setTabOpt] = useState("Active");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [totalProducts, setTotalProducts] = useState(0);
   const [isViewProductModalOpen, setIsViewProductModalOpen] = useState(false);
@@ -36,6 +39,8 @@ const VendorProducts = () => {
   const [showRestockInput, setShowRestockInput] = useState(false);
   const [restockQuantity, setRestockQuantity] = useState(0);
   const [buttonLoading, setButtonLoading] = useState(false);
+  const [isPublished, setIsPublished] = useState(false);
+
   const auth = getAuth();
   const navigate = useNavigate();
 
@@ -54,6 +59,32 @@ const VendorProducts = () => {
 
     return () => unsubscribe();
   }, [auth, navigate]);
+
+  // Real-time listener to keep `isPublished` up-to-date
+  useEffect(() => {
+    if (selectedProduct) {
+      const productRef = doc(db, "products", selectedProduct.id);
+      const unsubscribe = onSnapshot(productRef, (doc) => {
+        if (doc.exists()) {
+          setIsPublished(doc.data().published);
+        }
+      });
+      fetchVendorProducts(vendorId);
+      return () => unsubscribe(); // Clean up the listener on unmount
+    }
+  }, [selectedProduct]);
+
+  const handleToggle = async () => {
+    // Any other logic that should happen when toggling
+    const productRef = doc(db, "products", selectedProduct.id);
+    await updateDoc(productRef, {
+      published: !selectedProduct.published,
+    });
+
+    selectedProduct.published
+      ? toast.success("Product is now drafted successfully.")
+      : toast.success("Product published successfully.");
+  };
 
   // Fetch products from the centralized 'products' collection
   const fetchVendorProducts = async (uid) => {
@@ -240,21 +271,15 @@ const VendorProducts = () => {
     );
   };
 
-  const filteredProducts = () => {
+  const filteredProducts = products.filter((p) => {
     if (tabOpt === "Active") {
-      products.filter((p) => {
-        return p.state === "Active" && p.stockQuantity > 0
-      })
+      return p.published && p.stockQuantity > 0;
     } else if (tabOpt === "OOS") {
-      products.filter((p) => {
-        return p.stockQuantity === 0
-      })
+      return p.stockQuantity === 0;
     } else {
-      products.filter((p) => {
-        return p.state === "Unpublished"
-      })
+      return !p.published;
     }
-  }
+  });
 
   const formatNumber = (num) => {
     return num.toLocaleString("en-US", {
@@ -265,7 +290,7 @@ const VendorProducts = () => {
 
   return (
     <>
-      <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-10 font-opensans ">
+      <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-5 font-opensans ">
         <div className="relative bg-customDeepOrange w-full h-c120 rounded-2xl flex flex-col justify-center px-4 py-2">
           <div className="absolute top-0 right-0">
             <img src="./Vector.png" alt="" className="w-16 h-24" />
@@ -278,41 +303,112 @@ const VendorProducts = () => {
             <p className="text-white text-3xl font-bold">{totalProducts}</p>
           </div>
         </div>
-        <div className="flex justify-center space-x-4 items-center">
-
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          {products.map((product) => (
-            <div
-              key={product.id}
-              className=" cursor-pointer"
-              onClick={() => handleProductClick(product)}
+        <div className="flex justify-center space-x-5 items-center">
+          <div className="flex flex-col justify-center items-center space-y-3">
+            <p
+              className={`text-sm ${
+                tabOpt === "Active" ? "text-customOrange" : "text-black"
+              }`}
+              onClick={() => setTabOpt("Active")}
             >
-              <div className="flex flex-col space-y-2">
-                <div className="w-44 h-44 rounded-xl bg-customSoftGray">
-                  <img
-                    src={product.coverImageUrl}
-                    alt={product.name}
-                    className="w-full h-full object-cover rounded-xl bg-customSoftGray"
-                  />
-                </div>
-                <div className="flex">
-                  <p className="text-xs font-semibold text-black truncate w-32">
-                    {product.name}
-                  </p>{" "}
-                  <p className="text-xs font-semibold text-black truncate w-9">
-                    {/* {product.color} */}
-                  </p>{" "}
-                </div>
-                <p className="text-xs font-semibold text-black">
-                  Size: {product.size}
-                </p>
-                <p className="text-xs font-medium text-black">
-                  &#x20a6;{formatNumber(product.price)}
-                </p>
-              </div>
+              Active
+            </p>
+            <div className="h-1">
+              {tabOpt === "Active" && <hr className="w-11 text-customOrange" />}
             </div>
-          ))}
+          </div>
+          <div className="flex flex-col justify-center items-center space-y-3">
+            <p
+              className={`text-sm ${
+                tabOpt === "OOS" ? "text-customOrange" : "text-black"
+              }`}
+              onClick={() => setTabOpt("OOS")}
+            >
+              Out of Stock
+            </p>
+            <div className="h-1">
+              {tabOpt === "OOS" && <hr className="w-11 text-customOrange" />}
+            </div>
+          </div>
+          <div className="flex flex-col justify-center items-center space-y-3">
+            <p
+              className={` text-sm ${
+                tabOpt === "Drafts" ? "text-customOrange" : "text-black"
+              }`}
+              onClick={() => setTabOpt("Drafts")}
+            >
+              Drafts
+            </p>
+            <div className="h-1">
+              {tabOpt === "Drafts" && <hr className="w-11 text-customOrange" />}
+            </div>
+          </div>
+        </div>
+        <div
+          className={` ${
+            filteredProducts < 1
+              ? " justify-center items-center text-center"
+              : "grid grid-cols-2 gap-4"
+          }`}
+        >
+          {filteredProducts && filteredProducts.length > 0 ? (
+            filteredProducts.map((product) => (
+              <div
+                key={product.id}
+                className=" cursor-pointer"
+                onClick={() => handleProductClick(product)}
+              >
+                <div className="flex flex-col space-y-2">
+                  <div className="w-44 h-44 rounded-xl bg-customSoftGray">
+                    <img
+                      src={product.coverImageUrl}
+                      alt={product.name}
+                      className="w-full h-full object-cover rounded-xl bg-customSoftGray"
+                    />
+                  </div>
+                  <div className="flex">
+                    <p className="text-xs font-semibold text-black truncate w-32">
+                      {product.name}
+                    </p>{" "}
+                    <p className="text-xs font-semibold text-black truncate w-9">
+                      {/* {product.color} */}
+                    </p>{" "}
+                  </div>
+                  <div
+                    className={` ${
+                      !product.published ? "flex space-x-4" : "space-y-2"
+                    }`}
+                  >
+                    <p className="text-xs font-semibold text-black">
+                      Size: {product.size}
+                    </p>
+                    <p className="text-xs font-medium text-black">
+                      &#x20a6;{formatNumber(product.price)}
+                    </p>
+                  </div>
+                  {!product.published && (
+                    <p className="text-xs font-semibold text-customOrange">
+                      Unpublished Product
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : tabOpt === "Active" ? (
+            <p className="text-xs mt-24">
+              📭 Your store has no active products yet. Upload items to start
+              attracting customers!
+            </p>
+          ) : tabOpt === "OOS" ? (
+            <p className="text-xs mt-24">
+              📦 You currently have no items marked as out of stock.
+            </p>
+          ) : (
+            <p className="text-xs mt-24">
+              📝 You have no saved draft products yet. Start a new listing and
+              save it as a draft anytime!
+            </p>
+          )}
         </div>
       </div>
       <button
@@ -335,7 +431,7 @@ const VendorProducts = () => {
               <img
                 src={selectedProduct.coverImageUrl}
                 alt={selectedProduct.name}
-                className="w-full h-44 object-cover rounded-md mb-2"
+                className="w-full h-44 object-cover bg-customSoftGray rounded-md mb-2"
               />
             )}
 
@@ -437,15 +533,40 @@ const VendorProducts = () => {
             <p className="text-lg text-black font-semibold mb-4">
               Make Product
             </p>
-            <div className="px-3 mb-4 flex flex-col justify-between space-y-3">
-              <p className="text-black text-sm">
-                Unpublish Product
-              </p>
-              <hr className="text-slate-400" />
+            {selectedProduct && (
+              <div className="px-3 mb-4 flex flex-col justify-between space-y-3">
+                <div className="flex justify-between">
+                  <p className="text-black text-sm">Publish Product</p>
+                  <ToggleButton
+                    itemId={selectedProduct.id}
+                    initialIsOn={isPublished}
+                  />
+                </div>
+                <hr className="text-slate-400" />
+              </div>
+            )}
 
-              <p className="text-black text-sm">
-                Publish Product
-              </p>
+            <div
+              className={`mt-10 ${
+                isPublished ? "" : "flex justify-between"
+              }`}
+            >
+              {!isPublished && (
+                <motion.button
+                whileTap={{ scale: 1.05 }}
+                className="glow-button w-full h-12 mt-7 bg-white border-2 border-customRichBrown text-customRichBrown font-semibold rounded-full"
+              >
+                Edit Product
+                </motion.button>
+              )}
+              {!isPublished && <div className="w-6"></div>}
+                <motion.button
+                  whileTap={{ scale: 1.1 }}
+                  className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full"
+                >
+                  Restock Item
+              
+              </motion.button>
             </div>
 
             {selectedProduct.productImages && (
@@ -462,7 +583,7 @@ const VendorProducts = () => {
             )}
 
             <div className="flex items-center justify-between space-x-2">
-              <button
+              {/* <button
                 className="px-4 py-2 bg-red-600 text-white rounded-md shadow-sm hover:bg-red-700 focus:ring focus:ring-red-600 focus:outline-none"
                 onClick={handleDeleteProduct}
               >
@@ -492,8 +613,8 @@ const VendorProducts = () => {
                     minutes
                   </span>
                 </div>
-              )}
-              <div className="w-fit h-fit flex items-center justify-center">
+              )} */}
+              {/* <div className="w-fit h-fit flex items-center justify-center">
                 {showRestockInput ? (
                   <>
                     <input
@@ -521,7 +642,7 @@ const VendorProducts = () => {
                     <BsBox2Fill />
                   </button>
                 )}
-              </div>
+              </div> */}
             </div>
           </div>
         </VendorProductModal>
@@ -531,7 +652,7 @@ const VendorProducts = () => {
         <Modal isOpen={isAddProductModalOpen} onClose={closeModals}>
           <AddProduct
             vendorId={vendorId}
-            onClose={closeModals}
+            closeModal={closeModals}
             onProductAdded={() => fetchVendorProducts(vendorId)}
           />
         </Modal>
@@ -550,200 +671,3 @@ const VendorProducts = () => {
 };
 
 export default VendorProducts;
-
-// <div className="w-full mx-auto p-6 bg-white rounded-lg shadow-md">
-//   <div className="flex justify-between items-center mb-6">
-//     <h2 className="text-2xl font-bold text-orange-500">Your Products</h2>
-//     <FaPlus
-//       className="h-5 w-5 text-green-700 cursor-pointer"
-//       onClick={openAddProductModal}
-//     />
-//   </div>
-//   {loading ? (
-//     <div className="flex items-center justify-center">
-//       <RotatingLines />
-//     </div>
-//   ) : products.length === 0 ? (
-//     <p>No products found.</p>
-//   ) : (
-//     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-//       {products.map((product) => (
-//         <div
-//           key={product.id}
-//           className="border border-gray-300 rounded-lg p-2 shadow-sm cursor-pointer"
-//           onClick={() => handleProductClick(product)}
-//         >
-//           <div className="">
-//           <button
-//               className={`bg-black ${
-//                 product.isFeatured
-//                   ? " text-green-700"
-//                   : "text-red-400"
-//               }`}
-//               onClick={() => pinProduct(product)}
-//             >
-//               {buttonLoading ? (
-//                 <RotatingLines width="20" strokeColor="white" />
-//               ) : (
-//                 <BsPinAngleFill />
-//               )}
-//             </button>
-//           </div>
-//           {product.coverImageUrl && (
-//             <img
-//               src={product.coverImageUrl}
-//               alt={product.name}
-//               className="h-32 w-full object-cover rounded-md"
-//             />
-//           )}
-//           <h3 className="text-xs font-bold text-gray-900 mt-2">
-//             {product.name}
-//           </h3>
-//           <div className="mt-2">
-//             {product.categories && (
-//               <div className="flex space-x-2">
-//                 {product.categories.map((category, index) => (
-//                   <span
-//                     key={index}
-//                     className="bg-gray-200 px-2 py-1 text-sm text-gray-700 rounded-md"
-//                   >
-//                     <div className="bg-green-600 text-white rounded-md shadow-sm hover:bg-green-700 focus:ring focus:ring-green-600 focus:outline-none">
-//                       <FaStar />
-//                     </div>
-//                     {category}
-//                   </span>
-//                 ))}
-//               </div>
-//             )}
-//           </div>
-//         </div>
-//       ))}
-//     </div>
-//   )}
-
-//   {selectedProduct && (
-//     <Modal isOpen={isViewProductModalOpen} onClose={closeModals}>
-//       <div className="pb-24 pt-10 space-y-4">
-//         <h2 className="text-2xl font-bold text-green-700">
-//           {selectedProduct.name}
-//         </h2>
-//         {selectedProduct.coverImageUrl && (
-//           <img
-//             src={selectedProduct.coverImageUrl}
-//             alt={selectedProduct.name}
-//             className="w-full h-64 object-cover rounded-md"
-//           />
-//         )}
-//         <p>
-//           <strong>Description:</strong>{" "}
-//           {selectedProduct.description || "N/A"}
-//         </p>
-//         <p>
-//           <strong>Price:</strong> ${selectedProduct.price.toFixed(2)}
-//         </p>
-//         <p>
-//           <strong>Stock Quantity:</strong> {selectedProduct.stockQuantity}
-//         </p>
-//         <p>
-//           <strong>Categories:</strong>{" "}
-//           {selectedProduct.categories?.join(", ") || "N/A"}
-//         </p>
-//         {selectedProduct.productImages && (
-//           <div className="flex space-x-2 overflow-x-scroll">
-//             {selectedProduct.productImages.map((url, index) => (
-//               <img
-//                 key={index}
-//                 src={url}
-//                 alt={`Product ${index + 1}`}
-//                 className="w-full h-32 object-cover rounded-md"
-//               />
-//             ))}
-//           </div>
-//         )}
-
-//         <div className="flex items-center justify-between space-x-2">
-//           <button
-//             className="px-4 py-2 bg-red-600 text-white rounded-md shadow-sm hover:bg-red-700 focus:ring focus:ring-red-600 focus:outline-none"
-//             onClick={handleDeleteProduct}
-//           >
-//             <FaTrashAlt />
-//           </button>
-//           {selectedProduct.remainingEditTime > 0 && (
-//             <div className="flex items-center justify-end space-x-2 mt-4">
-//               <button
-//                 className={`px-3 py-2 bg-blue-700 text-white rounded-md shadow-sm hover:bg-blue-800 focus:ring focus:ring-blue-700 focus:outline-none ${
-//                   buttonLoading ? "cursor-not-allowed" : ""
-//                 }`}
-//                 onClick={handleEditProduct}
-//                 disabled={buttonLoading}
-//               >
-//                 {buttonLoading ? (
-//                   <RotatingLines width="20" strokeColor="white" />
-//                 ) : (
-//                   <FaEdit />
-//                 )}
-//               </button>
-//               <span className="text-sm text-red-500">
-//                 Available for{" "}
-//                 {Math.floor(selectedProduct.remainingEditTime / 60000)}:
-//                 {((selectedProduct.remainingEditTime % 60000) / 1000)
-//                   .toFixed(0)
-//                   .padStart(2, "0")}{" "}
-//                 minutes
-//               </span>
-//             </div>
-//           )}
-//           <div className="w-fit h-fit flex items-center justify-center">
-
-//             {showRestockInput ? (
-//               <>
-//                 <input
-//                   type="number"
-//                   value={restockQuantity}
-//                   onChange={(e) => setRestockQuantity(e.target.value)}
-//                   className="border border-gray-300 rounded-md px-2 py-1 w-16"
-//                 />
-//                 <button
-//                   className="px-4 py-2 bg-green-600 text-white rounded-md shadow-sm hover:bg-green-700 focus:ring focus:ring-green-600 focus:outline-none"
-//                   onClick={handleRestockProduct}
-//                 >
-//                   {buttonLoading ? (
-//                     <RotatingLines width="20" strokeColor="white" />
-//                   ) : (
-//                     <FaBoxOpen />
-//                   )}
-//                 </button>
-//               </>
-//             ) : (
-//               <button
-//                 className="px-4 py-2 bg-yellow-600 text-white rounded-md shadow-sm hover:bg-yellow-700 focus:ring focus:ring-yellow-600 focus:outline-none h-8"
-//                 onClick={() => setShowRestockInput(true)}
-//               >
-//                 <BsBox2Fill />
-//               </button>
-//             )}
-//           </div>
-//         </div>
-//       </div>
-//     </Modal>
-//   )}
-
-//   {isAddProductModalOpen && (
-//     <Modal isOpen={isAddProductModalOpen} onClose={closeModals}>
-//       <AddProduct
-//         vendorId={vendorId}
-//         onClose={closeModals}
-//         onProductAdded={() => fetchVendorProducts(vendorId)}
-//       />
-//     </Modal>
-//   )}
-
-//   {showConfirmation && (
-//     <ConfirmationDialog
-//       isOpen={showConfirmation}
-//       onClose={() => setShowConfirmation(false)}
-//       onConfirm={confirmDeleteProduct}
-//       message="Are you sure you want to delete this product?"
-//     />
-//   )}
-// </div>

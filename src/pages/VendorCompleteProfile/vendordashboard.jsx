@@ -71,7 +71,7 @@ const VendorDashboard = () => {
   };
 
   const textToCopy = `https://mythriftprod.vercel.app/${
-    vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage"
+    vendorData && (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
   }/${vendorData.vendorId}`;
 
   const copyToClipboard = async () => {

@@ -72,7 +72,7 @@ const VendorProducts = () => {
       fetchVendorProducts(vendorId);
       return () => unsubscribe(); // Clean up the listener on unmount
     }
-  }, [selectedProduct]);
+  }, [selectedProduct, vendorId]);
 
   const handleToggle = async () => {
     // Any other logic that should happen when toggling
@@ -435,7 +435,18 @@ const VendorProducts = () => {
               />
             )}
 
-            <div className="mb-3"></div>
+            <div className="mb-3 flex overflow-x-auto w-full">
+              {selectedProduct.imageUrls &&
+                selectedProduct.imageUrls.length > 0 &&
+                selectedProduct.imageUrls.map((url, index) => (
+                  <img
+                    key={index}
+                    src={url}
+                    alt={`Product ${index + 1}`}
+                    className="w-24 h-24 object-cover bg-customSoftGray rounded-md mr-2"
+                  />
+                ))}
+            </div>
 
             <p className="text-lg text-black font-semibold mb-4">
               {selectedProduct.name}
@@ -459,25 +470,29 @@ const VendorProducts = () => {
                 Quantity:{" "}
                 <span
                   className={`${
-                    selectedProduct.stockQuantity < 1 && "text-red-500"
+                    selectedProduct.variants[0].stock < 1 && "text-red-500"
                   }`}
                 >
-                  {selectedProduct.stockQuantity > 0
-                    ? selectedProduct.stockQuantity
+                  {selectedProduct.variants[0].stock > 0
+                    ? selectedProduct.variants[0].stock
                     : "Out of stock"}
                 </span>
               </p>
               <hr className="text-slate-400" />
 
               <p className="text-black font-semibold text-sm">
-                Color:
-                {/* <span className="font-normal">{selectedProduct.price}</span> */}
+                Color:{" "}
+                <span className="font-normal">
+                  {selectedProduct.variants[0].color}
+                </span>
               </p>
               <hr className="text-slate-400" />
 
               <p className="text-black font-semibold text-sm">
-                Size:
-                {/* <span className="font-normal">{selectedProduct.price}</span> */}
+                Size:{" "}
+                <span className="font-normal">
+                  {selectedProduct.variants[0].size}
+                </span>
               </p>
               <hr className="text-slate-400" />
 
@@ -509,26 +524,77 @@ const VendorProducts = () => {
                   {selectedProduct.description}
                 </p>
               </div>
+              {selectedProduct.variants.slice(1) && (
+                <p className="text-lg text-black font-semibold mb-4">
+                  {selectedProduct.variants.slice(1).length === 1 ? "Product Variant" : "Product Variants"}
+                </p>
+              )}
+              <div className="flex overflow-x-auto space-x-3">
+                {selectedProduct.variants.slice(1) &&
+                  selectedProduct.variants.slice(1).map((variant, index) => (
+                    <div
+                      key={index}
+                      className="px-2 mb-4 flex flex-col justify-between space-y-2 py-2 w-64 rounded-xl bg-customSoftGray"
+                    >
+                      <p className="text-black font-semibold text-sm">
+                        Quantity:{" "}
+                        <span
+                          className={`${variant.stock < 1 && "text-red-500"}`}
+                        >
+                          {variant.stock > 0 ? variant.stock : "Out of stock"}
+                        </span>
+                      </p>
+                      <hr className="text-slate-400" />
+
+                      <p className="text-black font-semibold text-sm">
+                        Color:{" "}
+                        <span className="font-normal">{variant.color}</span>
+                      </p>
+                      <hr className="text-slate-400" />
+
+                      <p className="text-black font-semibold text-sm">
+                        Size:{" "}
+                        <span className="font-normal">{variant.size}</span>
+                      </p>
+                    </div>
+                  ))}
+              </div>
             </div>
 
-            <p className="text-lg text-black font-semibold mb-4">Sub-Product</p>
-            <div className="px-3 mb-4 flex flex-col justify-between space-y-3">
-              <p className="text-black font-semibold text-sm">
-                Quantity:{" "}
-                <span className="font-normal">{selectedProduct.subType}</span>
+            {selectedProduct.subProducts && (
+              <p className="text-lg text-black font-semibold mb-4">
+                {selectedProduct.subProducts.length > 1
+                  ? "Sub-Products"
+                  : "Sub-Products"}
               </p>
-              <hr className="text-slate-400" />
+            )}
 
-              <p className="text-black font-semibold text-sm">
-                Color:{" "}
-                <span className="font-normal">{selectedProduct.subType}</span>
-              </p>
-              <hr className="text-slate-400" />
-              <p className="text-black font-semibold text-sm">
-                Size:{" "}
-                <span className="font-normal">{selectedProduct.subType}</span>
-              </p>
-            </div>
+            {selectedProduct.subProducts &&
+              selectedProduct.subProducts.map((sp) => (
+                <div key={sp.subProductId} className="flex w-full items-center">
+                  <div className="w-24 h-24">
+                    <img
+                      src={sp.images}
+                      alt=""
+                      className="object-cover bg-customSoftGray rounded-md w-full h-24"
+                    />
+                  </div>
+                  <div className="px-3 mb-4 flex flex-col justify-between space-y-3 w-full">
+                    <p className="text-black font-semibold text-sm">
+                      Quantity: <span className="font-normal">{sp.stock}</span>
+                    </p>
+                    <hr className="text-slate-400" />
+
+                    <p className="text-black font-semibold text-sm">
+                      Color: <span className="font-normal">{sp.color}</span>
+                    </p>
+                    <hr className="text-slate-400" />
+                    <p className="text-black font-semibold text-sm">
+                      Size: <span className="font-normal">{sp.size}</span>
+                    </p>
+                  </div>
+                </div>
+              ))}
 
             <p className="text-lg text-black font-semibold mb-4">
               Make Product
@@ -536,7 +602,9 @@ const VendorProducts = () => {
             {selectedProduct && (
               <div className="px-3 mb-4 flex flex-col justify-between space-y-3">
                 <div className="flex justify-between">
-                  <p className="text-black text-sm">Publish Product</p>
+                  <p className="text-black text-sm">
+                    Unpublish/Publish Product
+                  </p>
                   <ToggleButton
                     itemId={selectedProduct.id}
                     initialIsOn={isPublished}
@@ -547,40 +615,24 @@ const VendorProducts = () => {
             )}
 
             <div
-              className={`mt-10 ${
-                isPublished ? "" : "flex justify-between"
-              }`}
+              className={`mt-10 ${isPublished ? "" : "flex justify-between"}`}
             >
               {!isPublished && (
                 <motion.button
-                whileTap={{ scale: 1.05 }}
-                className="glow-button w-full h-12 mt-7 bg-white border-2 border-customRichBrown text-customRichBrown font-semibold rounded-full"
-              >
-                Edit Product
+                  whileTap={{ scale: 1.05 }}
+                  className="glow-button w-full h-12 mt-7 bg-white border-2 border-customRichBrown text-customRichBrown font-semibold rounded-full"
+                >
+                  Edit Product
                 </motion.button>
               )}
               {!isPublished && <div className="w-6"></div>}
-                <motion.button
-                  whileTap={{ scale: 1.1 }}
-                  className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full"
-                >
-                  Restock Item
-              
+              <motion.button
+                whileTap={{ scale: 1.1 }}
+                className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full"
+              >
+                Restock Item
               </motion.button>
             </div>
-
-            {selectedProduct.productImages && (
-              <div className="flex space-x-2 overflow-x-scroll">
-                {selectedProduct.productImages.map((url, index) => (
-                  <img
-                    key={index}
-                    src={url}
-                    alt={`Product ${index + 1}`}
-                    className="w-full h-32 object-cover rounded-md"
-                  />
-                ))}
-              </div>
-            )}
 
             <div className="flex items-center justify-between space-x-2">
               {/* <button

@@ -170,19 +170,19 @@ const Cart = () => {
 
   const handleCheckout = async (vendorId) => {
     const vendorCart = cart[vendorId];
-  
+
     if (!vendorCart || Object.keys(vendorCart.products).length === 0) {
       toast.error("No products to checkout for this vendor.");
       return;
     }
-  
+
     // Check if user is logged in
     if (!currentUser) {
       return;
     }
-  
+
     let profileComplete = currentUser.profileComplete;
-  
+
     // If profileComplete is undefined, try fetching from Firestore
     if (profileComplete === undefined) {
       try {
@@ -195,48 +195,72 @@ const Cart = () => {
         console.error("Error fetching user profile from Firestore:", error);
       }
     }
-  
+
     // Redirect if profile is incomplete
     if (!profileComplete) {
-      toast.error("Please complete your profile before proceeding to checkout.");
+      toast.error(
+        "Please complete your profile before proceeding to checkout."
+      );
       navigate("/profile?incomplete=true");
       return;
     }
-  
+
     // Check stock availability for each product in the cart
     const outOfStockItems = [];
+
     for (const productKey in vendorCart.products) {
       const product = vendorCart.products[productKey];
       const productRef = doc(db, "products", product.id);
       const productDoc = await getDoc(productRef);
-  
+
       if (productDoc.exists()) {
         const productData = productDoc.data();
-        const stockAvailable = productData.stock >= product.quantity;
-        
-        if (!stockAvailable) {
-          outOfStockItems.push(product.name);
+
+        if (product.subProductId) {
+          // Check stock for sub-product
+          const subProduct = productData.subProducts?.find(
+            (sp) => sp.subProductId === product.subProductId
+          );
+          if (!subProduct || subProduct.stock < product.quantity) {
+            outOfStockItems.push(
+              `${product.name} (Sub-product ID: ${product.subProductId})`
+            );
+          }
+        } else if (product.selectedColor && product.selectedSize) {
+          // Check stock for variant
+          const variant = productData.variants?.find(
+            (v) =>
+              v.color === product.selectedColor &&
+              v.size === product.selectedSize
+          );
+          if (!variant || variant.stock < product.quantity) {
+            outOfStockItems.push(
+              `${product.name} (${product.selectedColor}, ${product.selectedSize})`
+            );
+          }
+        } else {
+          // Check stock for main product
+          if (productData.stock < product.quantity) {
+            outOfStockItems.push(product.name);
+          }
         }
       } else {
         console.warn(`Product with ID ${product.id} not found.`);
       }
     }
-  
-    // If any items are out of stock, display a toast and exit
     if (outOfStockItems.length > 0) {
       toast.error(
         `The following items are out of stock: ${outOfStockItems.join(", ")}`
       );
       return;
     }
-  
+
     const note = vendorNotes[vendorId]
       ? encodeURIComponent(vendorNotes[vendorId])
       : "";
-  
+
     navigate(`/newcheckout/${vendorId}?note=${note}`);
   };
-  
 
   const calculateVendorTotal = (vendorId) => {
     const vendorCart = cart[vendorId]?.products || {};

@@ -1,20 +1,12 @@
 import React, { useEffect, useState } from "react";
-import {
-  FaAngleLeft,
-  FaAngleRight,
-  FaEye,
-  FaEyeSlash,
-  FaPen,
-  FaTimes,
-} from "react-icons/fa";
+import { FaAngleLeft, FaEye, FaEyeSlash, FaPen, FaTimes } from "react-icons/fa";
 import { FaRegCircleUser, FaShop } from "react-icons/fa6";
 import { GrSecure } from "react-icons/gr";
 import { MdEmail } from "react-icons/md";
-import { PiSignOutBold } from "react-icons/pi";
+
 import useAuth from "../../custom-hooks/useAuth";
 import {
   sendEmailVerification,
-  signOut,
   updateEmail,
   updatePassword,
   updateProfile,
@@ -23,10 +15,8 @@ import { auth, db } from "../../firebase.config";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { RotatingLines } from "react-loader-spinner";
 
 const VprofileDetails = ({ showDetails, setShowDetails }) => {
-  const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [userData, setUserData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -134,30 +124,25 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
     setIsEditing(true);
   };
 
-
-
   return (
     <div>
       <div className="flex flex-col p-2 items-center">
-      <div className="sticky top-0 bg-white z-10 flex items-center -translate-y-4 justify-between h-24 w-full">
-        <div className="flex items-center space-x-2">
-          <FaAngleLeft
-            className="text-2xl text-black cursor-pointer"
-            onClick={() => {
-              console.log("Closing Profile Details");
-              setShowDetails(false);
-            }}
-          />
-          <h1 className="text-xl font-medium font-ubuntu text-black   ">
-            Profile Details
-          </h1>
+        <div className="sticky top-0 bg-white z-10 flex items-center -translate-y-4 justify-between h-24 w-full">
+          <div className="flex items-center space-x-2">
+            <FaAngleLeft
+              className="text-2xl text-black cursor-pointer"
+              onClick={() => {
+                console.log("Closing Profile Details");
+                setShowDetails(false);
+              }}
+            />
+            <h1 className="text-xl font-medium font-ubuntu text-black   ">
+              Profile Details
+            </h1>
+          </div>
         </div>
-        
-          
-      </div>
         <div className="w-full translate-y-14 ">
           <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               User Name
             </h1>
@@ -173,7 +158,6 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </div>
           </div>
           <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-           
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Store Name
             </h1>
@@ -187,10 +171,8 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 onClick={() => handleEdit("shopName")}
               />
             </div>
-            
           </div>
           <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-          
             <h1 className=" text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500  ">
               Email
             </h1>
@@ -204,10 +186,8 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 onClick={() => handleEdit("email")}
               />
             </div>
-            
           </div>
           <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-           
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Password
             </h1>
@@ -219,10 +199,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 onClick={() => handleEdit("password")}
               />
             </div>
-            
           </div>
-
-          
         </div>
       </div>
 
@@ -317,8 +294,6 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
           </div>
         </div>
       )}
-
-      
     </div>
   );
 };

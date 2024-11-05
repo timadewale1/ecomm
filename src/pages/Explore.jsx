@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { IoChevronBackOutline, IoFilterOutline } from "react-icons/io5";
 import { CiSearch } from "react-icons/ci";
@@ -15,13 +15,12 @@ import productTypes from "../pages/vendor/producttype"; // Adjust path to where 
 import { db } from "../firebase.config";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import ProductCard from "../components/Products/ProductCard";
-import ReactSlider from "react-slider";
-import Lottie from 'lottie-react';
-import noProductAnimation from '../Animations/noproduct.json'; // Adjust path to your Lottie JSON file
+import Lottie from "lottie-react";
+import noProductAnimation from "../Animations/noproduct.json"; // Adjust path to your Lottie JSON file
 
 const Explore = () => {
   const loading = useSelector((state) => state.product.loading);
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedCategory] = useState("All");
   const [selectedProductType, setSelectedProductType] = useState(null);
   const [selectedSubType, setSelectedSubType] = useState(null);
   const [activeSubType, setActiveSubType] = useState(null);
@@ -29,11 +28,10 @@ const Explore = () => {
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [showPriceFilter, setShowPriceFilter] = useState(false);
-  const [filteredProductTypes, setFilteredProductTypes] = useState(productTypes);
+  const [filteredProductTypes, setFilteredProductTypes] =
+    useState(productTypes);
   const [filteredSubTypes, setFilteredSubTypes] = useState([]);
-  const [priceRange, setPriceRange] = useState([1000, 10000]);
-  const productCardsRef = useRef([]);
+  const [priceRange] = useState([1000, 10000]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [sortOrder, setSortOrder] = useState(null); // 'high-to-low' or 'low-to-high'
 
@@ -91,14 +89,6 @@ const Explore = () => {
     }
   };
 
-  const handleCategoryClick = (category) => {
-    setSelectedCategory(category);
-    setSelectedProductType(null);
-    setSelectedSubType(null);
-    setProducts([]);
-    setSearchTerm("");
-  };
-
   const handleProductTypeClick = (productType) => {
     setSelectedProductType(productType);
     setSelectedSubType(null);
@@ -136,20 +126,6 @@ const Explore = () => {
     } else {
       setSelectedProductType(null);
     }
-  };
-
-  const handlePriceRangeChange = (values) => {
-    setPriceRange(values);
-  };
-
-  const handlePriceInputChange = (index, value) => {
-    const newPriceRange = [...priceRange];
-    newPriceRange[index] = value ? parseInt(value) : 0;
-    setPriceRange(newPriceRange);
-  };
-
-  const clearFilters = () => {
-    setPriceRange([1000, 10000]);
   };
 
   const filteredProducts = products.filter(
@@ -250,13 +226,13 @@ const Explore = () => {
                 ))
               ) : (
                 <div className="col-span-2 text-center mt-4 text-lg font-medium text-gray-500">
-                  <Lottie 
-                    animationData={noProductAnimation} 
-                    loop={true} 
-                    style={{ height: 200, width: 200, margin: '0 auto' }} 
+                  <Lottie
+                    animationData={noProductAnimation}
+                    loop={true}
+                    style={{ height: 200, width: 200, margin: "0 auto" }}
                   />
                   <h2 className="text-xl font-semibold text-black">
-                  Oops! Nothing here yet.
+                    Oops! Nothing here yet.
                   </h2>
                   <p className="text-gray-600">
                     Please try searching for another product.
@@ -274,7 +250,7 @@ const Explore = () => {
                   onClick={() => handleSubTypeClick(subType)}
                   className="flex justify-between items-center py-2 cursor-pointer"
                 >
-                  <span className="text-neutral-400 font-opensans">
+                  <span className="text-neutral-800 font-opensans">
                     {typeof subType === "string" ? subType : subType.name}
                   </span>
                   <ChevronRight className="text-neutral-400" />

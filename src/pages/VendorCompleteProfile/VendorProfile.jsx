@@ -1,26 +1,24 @@
 import React, { useEffect, useState } from "react";
-import {
-  signOut,
-  updateProfile,
-  updateEmail,
-  sendEmailVerification,
-  updatePassword,
-} from "firebase/auth";
-import { MdHistory, MdModeEdit } from "react-icons/md";
+import { signOut } from "firebase/auth";
+import { MdModeEdit } from "react-icons/md";
 import { auth, db } from "../../firebase.config";
 import { RotatingLines } from "react-loader-spinner";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import useAuth from "../../custom-hooks/useAuth";
 import { IoMdContact } from "react-icons/io";
-import {
-  FaAngleRight,
-  FaAngleLeft,
-} from "react-icons/fa";
+import { FaAngleRight, FaAngleLeft } from "react-icons/fa";
 import { TbHomeStar } from "react-icons/tb";
 import { PiSignOutBold } from "react-icons/pi";
-import { FaRegCircleUser, FaShop } from "react-icons/fa6";
+import { FaRegCircleUser } from "react-icons/fa6";
 import { Doughnut } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import AvatarSelectorModal from "../vendor/VendorAvatarSelect.jsx";
@@ -34,17 +32,12 @@ const VendorProfile = () => {
   const { currentUser } = useAuth();
   const [userData, setUserData] = useState(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editField, setEditField] = useState("");
+
   const [displayName, setDisplayName] = useState("");
-  const [editD, setEditD] = useState("");
+
   const [email, setEmail] = useState("");
-  const [editE, setEditE] = useState("");
+
   const [shopName, setShopName] = useState("");
-  const [editS, setEditS] = useState("");
-  const [password, setPassword] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,7 +51,10 @@ const VendorProfile = () => {
     labels: ["Fulfilled", "Unfulfilled", "Incoming"],
     datasets: [
       {
-        data: totalOrders === 0 ? [1, 1, 1] : [fulfilledOrders, unfulfilledOrders, incomingOrders],
+        data:
+          totalOrders === 0
+            ? [1, 1, 1]
+            : [fulfilledOrders, unfulfilledOrders, incomingOrders],
         backgroundColor: ["#D92CA0", "#F27D38", "#5CBF49"],
         hoverBackgroundColor: ["#D92CA0", "#F27D38", "#5CBF49"],
         borderWidth: 0,
@@ -85,15 +81,24 @@ const VendorProfile = () => {
       try {
         const ordersRef = collection(db, "orders");
 
-        const fulfilledQuery = query(ordersRef, where("status", "==", "fulfilled"));
+        const fulfilledQuery = query(
+          ordersRef,
+          where("status", "==", "fulfilled")
+        );
         const fulfilledSnapshot = await getDocs(fulfilledQuery);
         setFulfilledOrders(fulfilledSnapshot.size);
 
-        const unfulfilledQuery = query(ordersRef, where("status", "==", "unfulfilled"));
+        const unfulfilledQuery = query(
+          ordersRef,
+          where("status", "==", "unfulfilled")
+        );
         const unfulfilledSnapshot = await getDocs(unfulfilledQuery);
         setUnfulfilledOrders(unfulfilledSnapshot.size);
 
-        const incomingQuery = query(ordersRef, where("status", "==", "incoming"));
+        const incomingQuery = query(
+          ordersRef,
+          where("status", "==", "incoming")
+        );
         const incomingSnapshot = await getDocs(incomingQuery);
         setIncomingOrders(incomingSnapshot.size);
       } catch (error) {
@@ -139,7 +144,6 @@ const VendorProfile = () => {
       setIsLoggingOut(false);
     }
   };
- 
 
   return (
     <div className="pb-4">
@@ -176,35 +180,37 @@ const VendorProfile = () => {
 
           {/* My Activity Chart */}
           <div className="flex flex-col w-full my-4">
-          <h1 className="text-base font-semibold mx-4 translate-y-3 text-black">
-                My Activity
-              </h1>
-          <div className="flex flex-col items-center mt-4 rounded-xl bg-customGrey">
-        <div className="w-40 h-44 relative"> {/* Adjusted size for a semi-circle */}
-          <Doughnut data={activityData} options={activityOptions} />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center mt-5">
-              <p className="text-sm font-medium">Total Orders</p>
-              <p className="text-xl font-bold">{totalOrders}</p>
+            <h1 className="text-base font-semibold mx-4 translate-y-3 text-black">
+              My Activity
+            </h1>
+            <div className="flex flex-col items-center mt-4 rounded-xl bg-customGrey">
+              <div className="w-40 h-44 relative">
+                {" "}
+                {/* Adjusted size for a semi-circle */}
+                <Doughnut data={activityData} options={activityOptions} />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center mt-5">
+                    <p className="text-sm font-medium">Total Orders</p>
+                    <p className="text-xl font-bold">{totalOrders}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex mt-4 space-x-6 text-sm mb-3">
+                <div className="flex items-center space-x-1">
+                  <span className="w-3 h-3 rounded-full bg-[#D92CA0]"></span>
+                  <span>Fulfilled ({fulfilledOrders})</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span className="w-3 h-3 rounded-full bg-[#F27D38]"></span>
+                  <span>Unfulfilled ({unfulfilledOrders})</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span className="w-3 h-3 rounded-full bg-[#5CBF49]"></span>
+                  <span>Incoming ({incomingOrders})</span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="flex mt-4 space-x-6 text-sm mb-3">
-          <div className="flex items-center space-x-1">
-            <span className="w-3 h-3 rounded-full bg-[#D92CA0]"></span>
-            <span>Fulfilled ({fulfilledOrders})</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <span className="w-3 h-3 rounded-full bg-[#F27D38]"></span>
-            <span>Unfulfilled ({unfulfilledOrders})</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <span className="w-3 h-3 rounded-full bg-[#5CBF49]"></span>
-            <span>Incoming ({incomingOrders})</span>
-          </div>
-        </div>
-        </div>
-      </div>
 
           {/* Profile Options */}
           <div className="w-full mt-2">
@@ -227,20 +233,7 @@ const VendorProfile = () => {
                 <FaAngleRight className="text-black" />
               </div>
             </div>
-            <div className="flex flex-col items-center w-full">
-              <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={() => setShowHistory(!showHistory)}
-              >
-                <div className="flex items-center">
-                  <MdHistory className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal text-black capitalize">
-                    Recent Activities
-                  </h2>
-                </div>
-                <FaAngleRight className="text-black" />
-              </div>
-            </div>
+
             <div className="w-full h-14 flex">
               <h1 className="text-base font-semibold mx-4 translate-y-3 text-black">
                 Data
@@ -266,7 +259,9 @@ const VendorProfile = () => {
             >
               <div className="flex items-center justify-between w-full px-4 py-3">
                 <PiSignOutBold className="text-red-600 text-xl mr-4" />
-                <p className="text-size text-black w-full font-normal">Sign Out</p>
+                <p className="text-size text-black w-full font-normal">
+                  Sign Out
+                </p>
                 {isLoggingOut && (
                   <RotatingLines
                     strokeColor="#f9531e"
@@ -283,7 +278,10 @@ const VendorProfile = () => {
       ) : (
         <>
           {showDetails && (
-            <VprofileDetails showDetails={showDetails} setShowDetails={setShowDetails} />
+            <VprofileDetails
+              showDetails={showDetails}
+              setShowDetails={setShowDetails}
+            />
           )}
           {showHistory && (
             <div className="flex flex-col items-center">
@@ -302,7 +300,9 @@ const VendorProfile = () => {
         <AvatarSelectorModal
           userId={currentUser.uid}
           onClose={() => setIsAvatarModalOpen(false)}
-          onAvatarChange={(newAvatar) => setUserData((prev) => ({ ...prev, photoURL: newAvatar }))}
+          onAvatarChange={(newAvatar) =>
+            setUserData((prev) => ({ ...prev, photoURL: newAvatar }))
+          }
         />
       )}
     </div>

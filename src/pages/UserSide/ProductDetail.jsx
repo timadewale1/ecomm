@@ -143,9 +143,14 @@ const ProductDetailPage = () => {
 
   useEffect(() => {
     if (product && selectedSize && selectedColor) {
-      const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
+      // Generate product key based on whether it's a sub-product or a variant
+      const productKey = selectedSubProduct
+        ? `${product.vendorId}-${product.id}-${selectedSubProduct.subProductId}`
+        : `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
+
       console.log("Checking cart for productKey:", productKey);
 
+      // Check if the item exists in the cart
       const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
 
       if (existingCartItem) {
@@ -160,7 +165,7 @@ const ProductDetailPage = () => {
         console.log("Product not found in cart for productKey:", productKey);
       }
     }
-  }, [cart, product, selectedSize, selectedColor]);
+  }, [cart, product, selectedSize, selectedColor, selectedSubProduct]);
 
   useEffect(() => {
     // Assuming sub-products are part of the product data
@@ -388,16 +393,18 @@ const ProductDetailPage = () => {
       quantity,
       selectedSize,
       selectedColor,
-      selectedImageUrl: selectedImage, // Use selectedImage which may change with sub-products
-      selectedSubProduct, // Include this for reference if needed
+      selectedImageUrl: selectedImage,
+      selectedSubProduct,
+      subProductId: selectedSubProduct ? selectedSubProduct.subProductId : null,
     };
 
-    // Generate the consistent productKey for this specific size/color combination
-    const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
-    console.log("Generated productKey:", productKey);
+    const productKey = selectedSubProduct
+      ? `${product.vendorId}-${product.id}-${selectedSubProduct.subProductId}`
+      : `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
+    console.log("Generated productKey in add:", productKey);
 
-    // Check if the product with this size/color combination already exists in the cart
     const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
+    console.log("Existing Cart Item in add:", existingCartItem);
 
     if (existingCartItem) {
       const updatedProduct = {
@@ -442,11 +449,10 @@ const ProductDetailPage = () => {
       return;
     }
 
-    // Determine max stock based on selected product
     let maxStock = 0;
     if (selectedSubProduct) {
       maxStock = selectedSubProduct.stock;
-      console.log("Sub-Product Stock:", maxStock);
+      console.log("Sub-Product Stock in increase:", maxStock);
     } else {
       const matchingVariant = product.variants.find(
         (variant) =>
@@ -460,16 +466,19 @@ const ProductDetailPage = () => {
         return;
       }
       maxStock = matchingVariant.stock;
-      console.log("Variant Stock:", maxStock);
+      console.log("Variant Stock in increase:", maxStock);
     }
 
     if (quantity < maxStock) {
       const updatedQuantity = quantity + 1;
 
-      const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
-      console.log("Generated Product Key:", productKey);
+      const productKey = selectedSubProduct
+        ? `${product.vendorId}-${product.id}-${selectedSubProduct.subProductId}`
+        : `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
+      console.log("Generated Product Key in increase:", productKey);
 
       const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
+      console.log("Existing Cart Item in increase:", existingCartItem);
 
       if (existingCartItem) {
         dispatch(increaseQuantity({ vendorId: product.vendorId, productKey }));
@@ -518,12 +527,16 @@ const ProductDetailPage = () => {
     if (quantity > 1) {
       const updatedQuantity = quantity - 1;
 
-      const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
+      // Generate a unique product key based on whether this is a sub-product or a variant
+      const productKey = selectedSubProduct
+        ? `${product.vendorId}-${product.id}-${selectedSubProduct.subProductId}`
+        : `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
       console.log("Generated Product Key:", productKey);
 
       const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
 
       if (existingCartItem) {
+        // Dispatch action to decrease quantity
         dispatch(decreaseQuantity({ vendorId: product.vendorId, productKey }));
         console.log("Decreased quantity for product:", existingCartItem);
         setQuantity(updatedQuantity);
@@ -533,6 +546,7 @@ const ProductDetailPage = () => {
       }
     } else {
       console.warn("Quantity is already at 1. Cannot decrease further.");
+      toast.error("Quantity cannot be less than 1");
     }
   }, [
     product,

@@ -7,8 +7,9 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase.config";
 import useAuth from "../custom-hooks/useAuth";
 import { FaPen } from "react-icons/fa";
-
-// import { calculateServiceFee } from "../services/utilis";
+import serviceimage from "../Images/servicemodal.jpg";
+import bookingimage from "../Images/bookingfee.jpg";
+import Modal from "react-modal";
 import { createOrderAndReduceStock } from "../services/Services";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.config";
@@ -19,15 +20,39 @@ import { RiSecurePaymentFill } from "react-icons/ri";
 import { MdOutlineLock, MdSupportAgent } from "react-icons/md";
 import { LiaShippingFastSolid, LiaTimesSolid } from "react-icons/lia";
 import { FaCheck } from "react-icons/fa6";
-// import { RadioGroup } from "@headlessui/react";
-const EditDeliveryModal = ({ userInfo, setUserInfo, onClose }) => {
+import Skeleton from "react-loading-skeleton";
+import Serviceanimate from "../components/Loading/servicefees";
+
+const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
+  useEffect(() => {
+    // Disable background scrolling when modal is open
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      // Clean up when the modal is closed
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white z-50 shadow-lg px-3 py-3 rounded-t-2xl ">
+    <Modal
+      isOpen={isOpen}
+      onRequestClose={onClose}
+      className="bg-white w-full max-w-md h-[60vh] rounded-t-2xl shadow-lg px-3 py-3 relative overflow-y-scroll"
+      overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
+      ariaHideApp={false}
+    >
       <div className="flex justify-between mt-3 items-center">
         <h2 className="text-xl font-opensans font-semibold">
           Edit Delivery Information
         </h2>
-        <LiaTimesSolid className="text-2xl text-black" onClick={onClose} />
+        <LiaTimesSolid
+          className="text-2xl text-black cursor-pointer"
+          onClick={onClose}
+        />
       </div>
 
       <form>
@@ -89,6 +114,7 @@ const EditDeliveryModal = ({ userInfo, setUserInfo, onClose }) => {
             Save Changes
           </button>
           <button
+            type="button"
             onClick={onClose}
             className="bg-gray-100 text-black h-12 rounded-full font-semibold font-opensans mt-3"
           >
@@ -96,104 +122,119 @@ const EditDeliveryModal = ({ userInfo, setUserInfo, onClose }) => {
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 };
 
-const ShopSafelyModal = ({ onClose }) => {
+const ShopSafelyModal = ({ isOpen, onClose }) => {
+  useEffect(() => {
+    // Disable background scrolling when modal is open
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      // Clean up when the modal is closed
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
+
   return (
-    <div className="fixed inset-0 pointer-events-auto bg-gray-700 bg-opacity-50 flex justify-center items-end z-50">
-      <div className="bg-white w-full max-w-md h-[85vh] rounded-t-2xl shadow-lg overflow-y-auto px-4 py-4 relative">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl font-semibold">Shop Safely and Sustainably</h1>
-          <LiaTimesSolid
-            className="text-2xl cursor-pointer"
-            onClick={onClose}
-          />
+    <Modal
+      isOpen={isOpen}
+      onRequestClose={onClose}
+      className="bg-white w-full max-w-md h-[85vh] rounded-t-2xl shadow-lg overflow-y-scroll px-4 py-4 relative"
+      overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
+      ariaHideApp={false}
+    >
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-xl font-semibold">Shop Safely and Sustainably</h1>
+        <LiaTimesSolid className="text-2xl cursor-pointer" onClick={onClose} />
+      </div>
+
+      {/* Secure Payment */}
+      <div className="flex items-start mb-4">
+        <div className="w-16 flex flex-col items-center">
+          <RiSecurePaymentFill className="text-3xl text-green-700" />
+          <FaCheck className="text-green-700 mt-2" />
         </div>
-
-        {/* Secure Payment */}
-        <div className="flex items-start mb-4">
-          <div className="w-16 flex flex-col items-center">
-            <RiSecurePaymentFill className="text-3xl text-green-700" />
-            <FaCheck className="text-green-700 mt-2" />
-          </div>
-          <div className="ml-4">
-            <h3 className="text-sm text-green-700 font-semibold font-opensans">
-              Secure Your Payment
-            </h3>
-            <p className="text-sm font-opensans text-black mt-2">
-              Encrypted Transactions: Your data is always protected.
-            </p>
-            <p className="text-sm font-opensans text-black">
-              Fraud Prevention: Transactions are monitored in real-time.
-            </p>
-          </div>
-        </div>
-
-        <div className="border-t border-gray-300 my-1"></div>
-
-        {/* Security & Privacy */}
-        <div className="flex items-start mt-3 mb-4">
-          <div className="w-16 flex flex-col items-center">
-            <MdOutlineLock className="text-3xl text-green-700" />
-            <FaCheck className="text-green-700 mt-2" />
-          </div>
-          <div className="ml-4">
-            <h3 className="text-sm text-green-700 font-semibold font-opensans">
-              Security & Privacy
-            </h3>
-            <p className="text-sm font-opensans text-black mt-2">
-              No Data Sharing: We will never share your information with third
-              parties.
-            </p>
-            <p className="text-sm font-opensans text-black">
-              Your data is used solely to enhance your experience.
-            </p>
-          </div>
-        </div>
-
-        <div className="border-t border-gray-300 my-1"></div>
-
-        {/* Secure Shipment */}
-        <div className="flex items-start mt-3 mb-4">
-          <div className="w-16 flex flex-col items-center">
-            <LiaShippingFastSolid className="text-3xl text-green-700" />
-            <FaCheck className="text-green-700 mt-2" />
-          </div>
-          <div className="ml-4">
-            <h3 className="text-sm text-green-700 font-semibold font-opensans">
-              Secure Shipment Guarantee
-            </h3>
-            <p className="text-sm font-opensans text-black mt-2">
-              Escrow Payments: Funds are held securely and released only after
-              you confirm delivery.
-            </p>
-          </div>
-        </div>
-
-        <div className="border-t border-gray-300 my-1"></div>
-
-        {/* Customer Support */}
-        <div className="flex items-start mt-3">
-          <div className="w-16 flex flex-col items-center">
-            <MdSupportAgent className="text-3xl text-green-700" />
-            <FaCheck className="text-green-700 mt-2" />
-          </div>
-          <div className="ml-4">
-            <h3 className="text-sm text-green-700 font-semibold font-opensans">
-              Customer Support
-            </h3>
-            <p className="text-sm font-opensans text-black mt-2">
-              Our dedicated support team is available to assist with any issues
-              related to your order, payment, or delivery.
-            </p>
-          </div>
+        <div className="ml-4">
+          <h3 className="text-sm text-green-700 font-semibold font-opensans">
+            Secure Your Payment
+          </h3>
+          <p className="text-sm font-opensans text-black mt-2">
+            Encrypted Transactions: Your data is always protected.
+          </p>
+          <p className="text-sm font-opensans text-black">
+            Fraud Prevention: Transactions are monitored in real-time.
+          </p>
         </div>
       </div>
-    </div>
+
+      <div className="border-t border-gray-300 my-1"></div>
+
+      {/* Security & Privacy */}
+      <div className="flex items-start mt-3 mb-4">
+        <div className="w-16 flex flex-col items-center">
+          <MdOutlineLock className="text-3xl text-green-700" />
+          <FaCheck className="text-green-700 mt-2" />
+        </div>
+        <div className="ml-4">
+          <h3 className="text-sm text-green-700 font-semibold font-opensans">
+            Security & Privacy
+          </h3>
+          <p className="text-sm font-opensans text-black mt-2">
+            No Data Sharing: We will never share your information with third
+            parties.
+          </p>
+          <p className="text-sm font-opensans text-black">
+            Your data is used solely to enhance your experience.
+          </p>
+        </div>
+      </div>
+
+      <div className="border-t border-gray-300 my-1"></div>
+
+      {/* Secure Shipment */}
+      <div className="flex items-start mt-3 mb-4">
+        <div className="w-16 flex flex-col items-center">
+          <LiaShippingFastSolid className="text-3xl text-green-700" />
+          <FaCheck className="text-green-700 mt-2" />
+        </div>
+        <div className="ml-4">
+          <h3 className="text-sm text-green-700 font-semibold font-opensans">
+            Secure Shipment Guarantee
+          </h3>
+          <p className="text-sm font-opensans text-black mt-2">
+            Escrow Payments: Funds are held securely and released only after you
+            confirm delivery.
+          </p>
+        </div>
+      </div>
+
+      <div className="border-t border-gray-300 my-1"></div>
+
+      {/* Customer Support */}
+      <div className="flex items-start mt-3">
+        <div className="w-16 flex flex-col items-center">
+          <MdSupportAgent className="text-3xl text-green-700" />
+          <FaCheck className="text-green-700 mt-2" />
+        </div>
+        <div className="ml-4">
+          <h3 className="text-sm text-green-700 font-semibold font-opensans">
+            Customer Support
+          </h3>
+          <p className="text-sm font-opensans text-black mt-2">
+            Our dedicated support team is available to assist with any issues
+            related to your order, payment, or delivery.
+          </p>
+        </div>
+      </div>
+    </Modal>
   );
 };
+
 const Checkout = () => {
   const { vendorId } = useParams();
   const [searchParams] = useSearchParams();
@@ -205,7 +246,6 @@ const Checkout = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { currentUser, loading } = useAuth();
-  const [showBookingFeeModal, setShowBookingFeeModal] = useState(false);
   const [vendorsInfo, setVendorsInfo] = useState({});
   const [userInfo, setUserInfo] = useState({
     displayName: "",
@@ -213,48 +253,61 @@ const Checkout = () => {
     phoneNumber: "",
     address: "",
   });
+  const [displayText, setDisplayText] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
   const [showShopSafelyModal, setShowShopSafelyModal] = useState(false);
   const [previewedOrder, setPreviewedOrder] = useState({
-    subtotal: 0,
-    bookingFee: 0,
-    serviceFee: 0,
-    total: 0,
+    subtotal: null, // set to null initially to check loading
+    bookingFee: null,
+    serviceFee: "Calculating fees...", // leave as text initially for the service fee
+    total: null,
   });
+  const [showBookingFeeModal, setShowBookingFeeModal] = useState(false);
+  const [showServiceFeeModal, setShowServiceFeeModal] = useState(false);
+
+  const [showServiceFee, setShowServiceFee] = useState(false);
+  // const [isCalculatingServiceFee, setIsCalculatingServiceFee] = useState(true); // Track service fee calculation
+  const [isFetchingOrderPreview, setIsFetchingOrderPreview] = useState(true);
+  // const note = searchParams.get("note") || "";
   const prepareOrderData = (isPreview = false) => {
     const vendorCart = cart[vendorId]?.products;
 
     if (!vendorCart || Object.keys(vendorCart).length === 0) {
-      console.warn("Cart is empty");
+      toast.error("Cart is empty");
+      toast.dismiss();
       return null;
     }
 
-    return {
+    const orderData = {
       cartItems: Object.values(vendorCart).map((product) => {
         const cartItem = {
           productId: product.id,
           quantity: product.quantity,
         };
 
-        if (product.subProduct) {
-          cartItem.subProductAttributes = {
-            color: product.selectedColor,
-            size: product.selectedSize,
-            subType: product.subType,
-          };
-        } else if (product.variant) {
+        if (product.subProductId) {
+          // Use subProductId for sub-products
+          cartItem.subProductId = product.subProductId;
+        } else if (product.selectedColor && product.selectedSize) {
+          // Use color and size attributes for variants
           cartItem.variantAttributes = {
             color: product.selectedColor,
             size: product.selectedSize,
           };
         } else {
-          // For simple products, no additional attributes are needed
         }
+
         return cartItem;
       }),
       userInfo,
       preview: isPreview,
     };
+
+    if (note) {
+      orderData.note = note;
+    }
+
+    return orderData;
   };
 
   // Fetch the previewed fees and totals from the server
@@ -270,7 +323,8 @@ const Checkout = () => {
             address: userDoc.data().address || "",
           });
         } else {
-          console.warn("User document does not exist.");
+          toast.error("User document does not exist.");
+          toast.dismiss();
         }
       }
     };
@@ -281,7 +335,8 @@ const Checkout = () => {
   useEffect(() => {
     const fetchOrderPreview = async () => {
       if (!currentUser) {
-        console.warn("User not authenticated yet");
+        // toast.error("User not authenticated yet");
+        toast.dismiss();
         return;
       }
 
@@ -291,9 +346,6 @@ const Checkout = () => {
         !userInfo.phoneNumber ||
         !userInfo.address
       ) {
-        console.warn(
-          "User info incomplete, waiting for user info to be fetched"
-        );
         return;
       }
 
@@ -308,8 +360,13 @@ const Checkout = () => {
         // Set previewed values in the state
         const { subtotal, bookingFee, serviceFee, total } = response.data;
         setPreviewedOrder({ subtotal, bookingFee, serviceFee, total });
+
+        setIsFetchingOrderPreview(false);
+
+        setTimeout(() => {
+          setShowServiceFee(true);
+        }, 2000);
       } catch (error) {
-        console.error("Error fetching order preview:", error);
         toast.error("Failed to load order preview. Please try again.");
       }
     };
@@ -333,10 +390,10 @@ const Checkout = () => {
         if (vendorDoc.exists()) {
           setVendorsInfo({ [vendorId]: vendorDoc.data() });
         } else {
-          console.warn(`Vendor with ID ${vendorId} does not exist.`);
+          toast.error(`Vendor with ID ${vendorId} does not exist.`);
         }
       } catch (error) {
-        console.error("Error fetching vendor info:", error);
+        toast.error("Error fetching vendor info:", error);
       }
     };
 
@@ -345,82 +402,23 @@ const Checkout = () => {
 
   useEffect(() => {
     if (vendorsInfo[vendorId]?.deliveryMode) {
-      // Pre-select the delivery mode if available in vendorsInfo
       setSelectedDeliveryMode(vendorsInfo[vendorId].deliveryMode);
     }
   }, [vendorsInfo, vendorId]);
 
-  // useEffect(() => {
-  //   const fetchUserInfo = async () => {
-  //     if (currentUser) {
-  //       const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-  //       if (userDoc.exists()) {
-  //         setUserInfo({
-  //           displayName: userDoc.data().displayName || "",
-  //           email: userDoc.data().email || "",
-  //           phoneNumber: userDoc.data().phoneNumber || "",
-  //           address: userDoc.data().address || "",
-  //         });
-  //       } else {
-  //         console.warn("User document does not exist.");
-  //       }
-  //     }
-  //   };
-
-  //   fetchUserInfo();
-  // }, [currentUser]);
-
-  // const calculateVendorTotals = useCallback(() => {
-  //   const totals = {};
-  //   if (!vendorId || !cart[vendorId]) return totals;
-
-  //   const vendorCart = cart[vendorId].products;
-  //   let subTotal = 0;
-
-  //   for (const productKey in vendorCart) {
-  //     const product = vendorCart[productKey];
-  //     subTotal += product.price * product.quantity;
-  //   }
-
-  //   const vendorMarketPlaceType = vendorsInfo[vendorId]?.marketPlaceType;
-
-  //   let bookingFee = 0;
-  //   if (vendorMarketPlaceType === "marketplace") {
-  //     bookingFee = parseFloat((subTotal * 0.2).toFixed(2));
-  //   }
-
-  //   const serviceFee = parseFloat(calculateServiceFee(subTotal));
-  //   const total = parseFloat((subTotal + bookingFee + serviceFee).toFixed(2));
-
-  //   totals[vendorId] = {
-  //     subTotal: subTotal.toLocaleString(),
-  //     bookingFee: bookingFee.toLocaleString(),
-  //     serviceFee: serviceFee.toLocaleString(),
-  //     total: total.toLocaleString(),
-  //   };
-
-  //   return totals;
-  // }, [cart, vendorId, vendorsInfo]);
-
-  // const vendorTotals = calculateVendorTotals();
-
   const handleProceedToPayment = async () => {
     try {
-      const orderData = prepareOrderData(); // No preview, for final order submission
+      const orderData = prepareOrderData();
       if (!orderData) return;
 
-      // Call the Cloud Function
       const processOrder = httpsCallable(functions, "processOrder");
       const response = await processOrder(orderData);
 
-      // Get the result
       const { orderId, total } = response.data;
 
-      // Clear the cart and show success message
       dispatch(clearCart(vendorId));
       toast.success("Order placed successfully!");
 
-      // Navigate to the payment approval or orders page
       navigate(`/payment-approve?orderId=${orderId}`);
       setTimeout(() => {
         navigate("/user-orders", { state: { fromPaymentApprove: true } });
@@ -434,17 +432,6 @@ const Checkout = () => {
   const handleDeliveryModeSelection = (mode) => {
     setSelectedDeliveryMode(mode);
   };
-  // const handleVendorPayment = async (paymentType) => {
-  //   const fees = vendorTotals[vendorId];
-  //   let amountToPay = 0;
-
-  //   if (paymentType === "booking") {
-  //     amountToPay = parseFloat(fees.bookingFee) + parseFloat(fees.serviceFee);
-  //   } else if (paymentType === "full") {
-  //     amountToPay = parseFloat(fees.total);
-  //   }
-
-  // };
 
   const groupProductsById = (products) => {
     const groupedProducts = {};
@@ -456,7 +443,6 @@ const Checkout = () => {
       if (groupedProducts[id]) {
         groupedProducts[id].quantity += product.quantity;
 
-        // Add size if not already present
         if (
           product.selectedSize &&
           !groupedProducts[id].sizes.includes(product.selectedSize)
@@ -464,7 +450,6 @@ const Checkout = () => {
           groupedProducts[id].sizes.push(product.selectedSize);
         }
 
-        // Add color if not already present
         if (
           product.selectedColor &&
           !groupedProducts[id].colors.includes(product.selectedColor)
@@ -483,20 +468,200 @@ const Checkout = () => {
 
     return Object.values(groupedProducts);
   };
+  // const handleScroll = (event) => {
+  //   event.stopPropagation();
+  // };
 
-  const handleBookingFeePayment = (e) => {
-    e.preventDefault();
-    window.confirm(
-      "The booking fee, exclusive to marketplace vendors, is a 20% charge on your subtotal that guarantees your items are packaged and reserved for pickup. Once the vendor accepts your order, they will securely hold your items, ensuring they're ready for collection at your convenience."
+  const BookingFeeModal = ({ isOpen, onClose }) => {
+    useEffect(() => {
+      // Disable background scrolling when modal is open
+      if (isOpen) {
+        document.body.style.overflow = "hidden";
+      } else {
+        document.body.style.overflow = "unset";
+      }
+      return () => {
+        // Clean up when the modal is closed
+        document.body.style.overflow = "unset";
+      };
+    }, [isOpen]);
+
+    return (
+      <Modal
+        isOpen={isOpen}
+        onRequestClose={onClose}
+        className="bg-white w-full max-w-md h-[60vh] rounded-t-2xl shadow-lg overflow-y-scroll relative"
+        overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
+        ariaHideApp={false}
+      >
+        <div className="relative h-full overflow-y-scroll">
+          <LiaTimesSolid
+            className="text-2xl cursor-pointer absolute top-4 right-4"
+            onClick={onClose}
+          />
+          <img
+            src={bookingimage}
+            alt="Booking Fee Details"
+            className="w-full h-40 object-cover"
+          />
+          <div className="px-4 mb-4">
+            <p className="text-sm font-opensans text-black">
+              A 40% booking fee applies to marketplace vendor purchases,
+              securing your items and guaranteeing they'll be packaged and
+              reserved for pickup. Once payment is confirmed, you'll receive an
+              email with the vendor's store location and operational hours in
+              the market. Your items will be securely held by the vendor for 5
+              days after payment, ensuring they're ready for collection at your
+              convenience.
+            </p>
+            <p className="text-xs mt-4 text-gray-500 italic">
+              <span className="font-semibold">Note:</span> This fee is
+              non-refundable.
+            </p>
+          </div>
+        </div>
+      </Modal>
     );
-    // handleVendorPayment("booking");
   };
 
-  const handleServiceFeeInfo = () => {
-    window.confirm(
-      "The service fee is a small, dynamic charge that helps cover our operational costs, like keeping the platform running smoothly and ensuring you have the best shopping experience. Rest assured, it’s capped at a maximum amount to keep things fair and transparent. We aim to keep the fee minimal while providing top-notch service!"
+  const ServiceFeeModal = ({ isOpen, onClose }) => {
+    useEffect(() => {
+      // Disable background scrolling when modal is open
+      if (isOpen) {
+        document.body.style.overflow = "hidden";
+      } else {
+        document.body.style.overflow = "unset";
+      }
+      return () => {
+        // Clean up when the modal is closed
+        document.body.style.overflow = "unset";
+      };
+    }, [isOpen]);
+
+    return (
+      <Modal
+        isOpen={isOpen}
+        onRequestClose={onClose}
+        className="bg-white w-full max-w-md h-[60vh] rounded-t-2xl shadow-lg overflow-y-scroll relative flex flex-col"
+        overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
+        ariaHideApp={false}
+      >
+        <div className="relative h-full overflow-y-scroll">
+          {" "}
+          <LiaTimesSolid
+            className="text-2xl cursor-pointer modals absolute top-4 right-4"
+            onClick={onClose}
+          />
+          <img
+            src={serviceimage}
+            alt="Service Fee Details"
+            className="w-full h-40 object-cover"
+          />
+          <div className="px-4 mt-4 flex-auto mb-4">
+            <p className="text-sm font-opensans text-black z-10">
+              Service fees are nominal charges applied to transactions to
+              support the operational demands of our platform. These fees
+              contribute to maintaining a seamless and efficient shopping
+              environment, ensuring reliability and the highest quality of
+              service. We are committed to transparency and fairness, thus we
+              cap the service fee at a maximum of 2,000. This policy is in place
+              to minimize costs to our customers while upholding our dedication
+              to excellence.
+            </p>
+          </div>
+        </div>
+      </Modal>
     );
   };
+  const DeliveryInfoModal = ({ isOpen, onClose }) => {
+    useEffect(() => {
+      // Prevent background scrolling when modal is open
+      if (isOpen) {
+        document.body.style.overflow = "hidden";
+      } else {
+        document.body.style.overflow = "unset";
+      }
+      return () => {
+        // Clean up when modal is closed
+        document.body.style.overflow = "unset";
+      };
+    }, [isOpen]);
+
+    return (
+      <Modal
+        isOpen={isOpen}
+        onRequestClose={onClose}
+        className="bg-white p-6 rounded-t-2xl w-full max-w-md h-[85vh] shadow-lg relative overflow-y-scroll"
+        overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
+        ariaHideApp={false}
+      >
+        {/* Close Icon */}
+        <LiaTimesSolid
+          className="absolute top-5 right-4 text-2xl text-gray-500 cursor-pointer"
+          onClick={onClose}
+        />
+
+        <h2 className="text-lg font-semibold font-opensans text-black mb-4">
+          Delivery Options
+        </h2>
+
+        <div className="mb-4">
+          <h3 className="font-opensans font-semibold text-md text-black">
+            Pick-up
+          </h3>
+          <p className="text-sm font-opensans font-light text-black">
+            For{" "}
+            <span className="font-semibold text-black text-xs">
+              market vendors only
+            </span>
+            , Pick-up ensures that on payment of your booking fee, the vendor
+            will securely reserve your purchased items and package them for you
+            in their inventory. Once you have paid, the vendor will hold the
+            items for pick-up at your convenience. (Orders are null after 5
+            working days if not picked up).
+            <br /> <br />
+            <span className="font-semibold">Note:</span> This option is
+            currently only available to customers purchasing from market
+            vendors.
+          </p>
+        </div>
+
+        <div className="border-t border-gray-300 my-3"></div>
+
+        <div>
+          <h3 className="font-opensans font-semibold text-md text-black">
+            Door Delivery
+          </h3>
+          <p className="text-sm text-black font-opensans">
+            Estimated Delivery rates are structured as follows: <br />-{" "}
+            <span className="font-semibold">Within the same state</span>: ₦2,000
+            - ₦4,000 <br />-{" "}
+            <span className="font-semibold">Across different states</span>:
+            ₦3,000 - ₦7,000
+          </p>
+          <p className="text-sm text-black font-light font-opensans mt-2">
+            After completing your payment, the vendor will reach out to discuss
+            logistics. You’ll receive the rider’s contact details (name and
+            phone number) via email and SMS, ensuring a smooth delivery process.
+          </p>
+          <p className="text-xs mt-4 text-gray-500 italic">
+            <span className="font-semibold">Note:</span> Delivery charges are
+            not included in this order. The final delivery fee will be discussed
+            with the vendor directly and paid at the time of delivery.
+          </p>
+        </div>
+
+        <p className="text-xs font-opensans mt-4 text-gray-600">
+          If you have concerns or need more information, please{" "}
+          <span className="text-customOrange cursor-pointer font-semibold">
+            check our policies
+          </span>{" "}
+          for detailed guidelines.
+        </p>
+      </Modal>
+    );
+  };
+
   const formatColorText = (color) => {
     if (!color) return "";
     return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
@@ -537,7 +702,11 @@ const Checkout = () => {
           <div className="flex justify-between">
             <label className="block mb-2 font-opensans ">Sub-Total</label>
             <p className="text-lg font-opensans text-black font-semibold">
-              ₦{previewedOrder.subtotal.toLocaleString()}
+              {isFetchingOrderPreview ? (
+                <Skeleton width={80} />
+              ) : (
+                `₦${previewedOrder.subtotal.toLocaleString()}`
+              )}
             </p>
           </div>
 
@@ -547,11 +716,15 @@ const Checkout = () => {
                 Booking Fee
                 <CiCircleInfo
                   className="inline ml-2 text-customOrange cursor-pointer"
-                  onClick={handleBookingFeePayment}
+                  onClick={() => setShowBookingFeeModal(true)}
                 />
               </label>
               <p className="text-lg font-opensans text-black font-semibold">
-                ₦{previewedOrder.bookingFee.toLocaleString()}
+                {isFetchingOrderPreview ? (
+                  <Skeleton width={80} />
+                ) : (
+                  `₦${previewedOrder.bookingFee.toLocaleString()}`
+                )}
               </p>
             </div>
           )}
@@ -561,11 +734,21 @@ const Checkout = () => {
               Service Fee
               <CiCircleInfo
                 className="inline ml-2 text-customOrange cursor-pointer"
-                onClick={handleServiceFeeInfo}
+                onClick={() => setShowServiceFeeModal(true)}
               />
             </label>
-            <p className="text-lg font-opensans text-black font-semibold">
-              ₦{previewedOrder.serviceFee.toLocaleString()}
+            <p
+              className={`font-opensans font-semibold ${
+                !showServiceFee ? "loading-text text-xs" : "text-black text-lg"
+              }`}
+            >
+              {isFetchingOrderPreview ? (
+                <Skeleton width={80} />
+              ) : showServiceFee ? (
+                `₦${previewedOrder.serviceFee.toLocaleString()}`
+              ) : (
+                "Calculating fees..."
+              )}
             </p>
           </div>
           <div className="border-t mt-3 border-gray-300 my-2"></div>
@@ -574,7 +757,11 @@ const Checkout = () => {
               Total
             </label>
             <p className="text-lg font-opensans text-black font-semibold">
-              ₦{previewedOrder.total.toLocaleString()}
+              {isFetchingOrderPreview ? (
+                <Skeleton width={80} />
+              ) : (
+                `₦${previewedOrder.total.toLocaleString()}`
+              )}
             </p>
           </div>
         </div>
@@ -768,77 +955,6 @@ const Checkout = () => {
             </>
           )}
         </div>
-        {showDeliveryInfoModal && (
-          <div className="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50">
-            <div className="bg-white p-6 rounded-t-2xl w-full max-w-md h-[85vh] shadow-lg relative overflow-y-auto">
-              {/* Close Icon */}
-              <LiaTimesSolid
-                className="absolute top-5 right-4 text-2xl text-gray-500 cursor-pointer"
-                onClick={() => setShowDeliveryInfoModal(false)}
-              />
-
-              <h2 className="text-lg font-semibold font-opensans text-black mb-4">
-                Delivery Options
-              </h2>
-
-              <div className="mb-4">
-                <h3 className="font-opensans font-semibold text-md text-black">
-                  Pick-up
-                </h3>
-                <p className="text-sm font-opensans font-light text-black">
-                  For{" "}
-                  <span className="font-semibold text-black text-xs">
-                    market vendors only
-                  </span>
-                  , Pick-up ensures that on payment of your booking fee, the
-                  vendor will securely reserve your purchased items and package
-                  them for you in their inventory. Once you have paid, the
-                  vendor will hold the items for pick-up at your convenience.
-                  (Orders are null after 3 working days if not picked up).
-                  <br /> <br />
-                  <span className="font-semibold">Note:</span> This option is
-                  currently only available to customers purchasing from market
-                  vendors.
-                </p>
-              </div>
-
-              <div className="border-t border-gray-300 my-3"></div>
-
-              <div>
-                <h3 className="font-opensans font-semibold text-md text-black">
-                  Door Delivery
-                </h3>
-                <p className="text-sm text-black font-opensans">
-                  Estimated Delivery rates are structured as follows: <br />-{" "}
-                  <span className="font-semibold">Within the same state</span>:
-                  ₦2,000 - ₦4,000 <br />-{" "}
-                  <span className="font-semibold">Across different states</span>
-                  : ₦3,000 - ₦7,000
-                </p>
-                <p className="text-sm text-black font-light font-opensans mt-2">
-                  After completing your payment, the vendor will reach out to
-                  discuss logistics. You’ll receive the rider’s contact details
-                  (name and phone number) via email and SMS, ensuring a smooth
-                  delivery process.
-                </p>
-                <p className="text-xs mt-4 text-gray-500 italic">
-                  <span className="font-semibold">Note:</span> Delivery charges
-                  are not included in this order. The final delivery fee will be
-                  discussed with the vendor directly and paid at the time of
-                  delivery.
-                </p>
-              </div>
-
-              <p className="text-xs font-opensans mt-4 text-gray-600">
-                If you have concerns or need more information, please{" "}
-                <span className="text-customOrange cursor-pointer font-semibold">
-                  check our policies
-                </span>{" "}
-                for detailed guidelines.
-              </p>
-            </div>
-          </div>
-        )}
 
         <div className="mt-2">
           <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
@@ -884,18 +1000,30 @@ const Checkout = () => {
         </div>
       </div>
 
-      {showEditModal && (
-        <EditDeliveryModal
-          userInfo={userInfo}
-          setUserInfo={setUserInfo}
-          onClose={() => setShowEditModal(false)}
-        />
-      )}
+      <EditDeliveryModal
+        isOpen={showEditModal}
+        userInfo={userInfo}
+        setUserInfo={setUserInfo}
+        onClose={() => setShowEditModal(false)}
+      />
 
-      {/* Shop Safely Modal */}
-      {showShopSafelyModal && (
-        <ShopSafelyModal onClose={() => setShowShopSafelyModal(false)} />
-      )}
+      <ShopSafelyModal
+        isOpen={showShopSafelyModal}
+        onClose={() => setShowShopSafelyModal(false)}
+      />
+      <DeliveryInfoModal
+        isOpen={showDeliveryInfoModal}
+        onClose={() => setShowDeliveryInfoModal(false)}
+      />
+      <ServiceFeeModal
+        isOpen={showServiceFeeModal}
+        onClose={() => setShowServiceFeeModal(false)}
+      />
+      <BookingFeeModal
+        isOpen={showBookingFeeModal}
+        onClose={() => setShowBookingFeeModal(false)}
+      />
+
       <div className="fixed bottom-0 left-0 right-0 p-3  bg-white shadow-lg">
         <button
           onClick={handleProceedToPayment}

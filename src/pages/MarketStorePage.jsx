@@ -39,46 +39,46 @@ const MarketStorePage = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [isFollowLoading, setIsFollowLoading] = useState(false); // Added loading state for follow button
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Fetch vendor data
+ 
   useEffect(() => {
-    // Reset state when vendor ID changes
+
     setLoading(true);
     setVendor(null);
     setProducts([]);
 
     const fetchVendorData = async () => {
       try {
-        // Set loading state to true
+       
         setLoading(true);
 
-        // Fetch vendor data using the vendor ID
+      
         const vendorRef = doc(db, "vendors", id);
         const vendorDoc = await getDoc(vendorRef);
 
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
-          vendorData.id = vendorDoc.id; // Ensure we have the vendor's document ID
+          vendorData.id = vendorDoc.id; 
           setVendor(vendorData);
 
-          // If the vendor has productIds, use them to fetch products
+          
           if (vendorData.productIds && vendorData.productIds.length > 0) {
-            await fetchVendorProducts(vendorData.productIds); // Fetch the vendor's products
+            await fetchVendorProducts(vendorData.productIds);
           } else {
-            // No products if the vendor has no productIds
+           
             setProducts([]);
           }
         } else {
-          // Show error if the vendor is not found
+         
           toast.error("Vendor not found!");
         }
       } catch (error) {
-        // Handle any errors during the fetch operation
+       
         toast.error("Error fetching vendor data: " + error.message);
       } finally {
-        // Set loading state to false once fetching is complete
+       
         setLoading(false);
       }
     };
@@ -87,7 +87,7 @@ const MarketStorePage = () => {
   }, [id]);
 
   useEffect(() => {
-    // Reset following status when vendor or currentUser changes
+   
     setIsFollowing(false);
 
     const checkIfFollowing = async () => {
@@ -101,9 +101,9 @@ const MarketStorePage = () => {
           const followSnapshot = await getDoc(followDocRef);
 
           if (followSnapshot.exists()) {
-            setIsFollowing(true); // User is following the vendor
+            setIsFollowing(true); 
           } else {
-            setIsFollowing(false); // User is not following the vendor
+            setIsFollowing(false); 
           }
         } catch (error) {
           console.error("Error checking follow status:", error);
@@ -112,9 +112,8 @@ const MarketStorePage = () => {
     };
 
     checkIfFollowing();
-  }, [currentUser, vendor]); // Runs whenever the currentUser or vendor data changes
+  }, [currentUser, vendor]); 
 
-  // Check if user is logged in and load current user
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -130,15 +129,35 @@ const MarketStorePage = () => {
   const fetchVendorProducts = async (productIds) => {
     try {
       const productsRef = collection(db, "products");
-      const q = query(productsRef, where("__name__", "in", productIds)); // Query the products collection by ID
 
-      const productsSnapshot = await getDocs(q);
-      const productsList = productsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+     
+      if (!productIds || productIds.length === 0) {
+        setProducts([]);
+        return;
+      }
 
-      setProducts(productsList); // Set the products in state
+    
+      const productChunks = [];
+      for (let i = 0; i < productIds.length; i += 10) {
+        productChunks.push(productIds.slice(i, i + 10));
+      }
+
+      const productsList = [];
+      for (const chunk of productChunks) {
+        const q = query(
+          productsRef,
+          where("__name__", "in", chunk),
+          where("published", "==", true) 
+        );
+        const productsSnapshot = await getDocs(q);
+        const productsChunk = productsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        productsList.push(...productsChunk);
+      }
+
+      setProducts(productsList);
     } catch (error) {
       console.error("Error fetching products:", error);
       toast.error("Error fetching products.");
@@ -191,30 +210,30 @@ const MarketStorePage = () => {
   };
 
   // Fetch all notifications for the current user
-  const notifyFollowers = async (productOrPromoDetails) => {
-    try {
-      const followRef = collection(db, "follows");
-      const q = query(followRef, where("vendorId", "==", vendor.id));
-      const followersSnapshot = await getDocs(q);
+  // const notifyFollowers = async (productOrPromoDetails) => {
+  //   try {
+  //     const followRef = collection(db, "follows");
+  //     const q = query(followRef, where("vendorId", "==", vendor.id));
+  //     const followersSnapshot = await getDocs(q);
 
-      const followerPromises = followersSnapshot.docs.map(async (doc) => {
-        const userId = doc.data().userId;
+  //     const followerPromises = followersSnapshot.docs.map(async (doc) => {
+  //       const userId = doc.data().userId;
 
-        // Send notification to the user (storing it in the 'notifications' collection)
-        await setDoc(collection(db, "notifications"), {
-          userId,
-          message: `New product or promo from ${vendor.shopName}: ${productOrPromoDetails}`,
-          createdAt: new Date(),
-          seen: false,
-        });
-      });
+  //       // Send notification to the user (storing it in the 'notifications' collection)
+  //       await setDoc(collection(db, "notifications"), {
+  //         userId,
+  //         message: `New product or promo from ${vendor.shopName}: ${productOrPromoDetails}`,
+  //         createdAt: new Date(),
+  //         seen: false,
+  //       });
+  //     });
 
-      await Promise.all(followerPromises);
-      toast.success("Followers have been notified.");
-    } catch (error) {
-      console.error("Error notifying followers:", error);
-    }
-  };
+  //     await Promise.all(followerPromises);
+  //     toast.success("Followers have been notified.");
+  //   } catch (error) {
+  //     console.error("Error notifying followers:", error);
+  //   }
+  // };
 
   const handleFavoriteToggle = (productId) => {
     setFavorites((prevFavorites) => {
@@ -228,9 +247,9 @@ const MarketStorePage = () => {
     });
   };
 
-  const handleGoToCart = () => {
-    navigate("/cart");
-  };
+  // const handleGoToCart = () => {
+  //   navigate("/cart");
+  // };
 
   const handleRatingClick = () => {
     navigate(`/reviews/${id}`);

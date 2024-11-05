@@ -3,16 +3,20 @@ import { signOut } from "firebase/auth";
 import { auth, db } from "../firebase.config";
 import { toast } from "react-toastify";
 import { ChevronRight, User } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+
+
+import { useNavigate, useLocation } from "react-router-dom";
 import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 import useAuth from "../custom-hooks/useAuth";
-import { FaHeart, FaAngleLeft } from "react-icons/fa";
-
+import { FaPen, FaHeart, FaAngleRight, FaAngleLeft } from "react-icons/fa";
+import { FaRegCircleUser } from "react-icons/fa6";
 import { RotatingLines } from "react-loader-spinner";
 import { PiSignOutBold } from "react-icons/pi";
 import { GiClothes } from "react-icons/gi";
+import { LiaClipboardListSolid } from "react-icons/lia";
+import OrderHistory from "./UserSide/History";
+import { MdHistory, MdHelpOutline, MdModeEdit } from "react-icons/md";
 
-import { MdHelpOutline, MdModeEdit } from "react-icons/md";
 import { CiMoneyBill } from "react-icons/ci";
 import { AiOutlineDashboard } from "react-icons/ai";
 import UserDashboard from "./UserDashboard";
@@ -29,13 +33,16 @@ import { resetUserData } from "../redux/actions/authactions";
 import Donate from "./Donate";
 const Profile = () => {
   const navigate = useNavigate();
+
+  const location = useLocation();
   const { currentUser } = useAuth();
   const [userData, setUserData] = useState(null);
+  const [showHighlight, setShowHighlight] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-
+  // const [isIncomplete, setIsIncomplete] = useState(false);
   const dispatch = useDispatch();
   const cart = useSelector((state) => state.cart);
-
+  const [isIncomplete, setIsIncomplete] = useState(false);
   const [showMetrics, setShowMetrics] = useState(false);
   const [showFAQs, setShowFAQs] = useState(false);
   const [showDonations, setShowDonations] = useState(false);
@@ -44,13 +51,25 @@ const Profile = () => {
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
 
   useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const incompleteProfile = queryParams.get("incomplete") === "true";
+    setIsIncomplete(incompleteProfile);
+    setShowHighlight(incompleteProfile);
+
+    // Fade out the highlight after 10 seconds
+    if (incompleteProfile) {
+      const highlightTimeout = setTimeout(() => setShowHighlight(false), 10000);
+      return () => clearTimeout(highlightTimeout);
+    }
+
     const fetchUserData = async () => {
       if (currentUser) {
+        setLoading(true);
         try {
           const userDoc = await getDoc(doc(db, "users", currentUser.uid));
           if (userDoc.exists()) {
-            const data = userDoc.data();
-            setUserData(data);
+            setUserData(userDoc.data());
+
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
@@ -61,6 +80,10 @@ const Profile = () => {
     };
     fetchUserData();
   }, [currentUser]);
+
+
+    fetchUserData();
+  }, [currentUser, location.search]);
 
   const handleAvatarChange = (newAvatar) => {
     setUserData((prev) => ({ ...prev, photoURL: newAvatar }));
@@ -90,6 +113,7 @@ const Profile = () => {
       await setDoc(doc(db, "carts", currentUser.uid), { cart });
       console.log("Cart saved to Firestore:", { cart }); // Log after saving to Firestore
 
+
       await signOut(auth);
       localStorage.removeItem("cart");
       dispatch(clearCart()); // Clear Redux cart state
@@ -110,7 +134,9 @@ const Profile = () => {
     <div className="py-4">
       {!showDetails && !showMetrics && !showFAQs && !showDonations ? (
         <div className="flex flex-col items-center">
-          <h1 className="font-montserrat text-xl font-semibold ">
+
+          <h1 className="font-poppins text-xl font-semibold ">
+
             {" "}
             My Profile
           </h1>
@@ -138,7 +164,8 @@ const Profile = () => {
             />
           </div>
 
-          <p className="text-lg font-semibold text-black capitalize mt-2">
+          <p className="text-lg font-semibold text-black font-poppins capitalize mt-2">
+
             {loading ? <Skeleton width={100} /> : userData?.username}
           </p>
 
@@ -148,20 +175,34 @@ const Profile = () => {
                 Account
               </h1>
             </div>
-            <div className="flex flex-col items-center w-full px-2">
-              <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl bg-customGrey mb-3"
-                onClick={() => setShowDetails(!showDetails)}
-              >
-                <div className="flex items-center  ">
-                  <User className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal text-black capitalize">
-                    Personal information
-                  </h2>
-                </div>
-                <ChevronRight className="text-black" />
+
+            <div
+              className={`relative flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl transition-all duration-500 ease-in-out ${
+                showHighlight
+                  ? "highlight border-red-500 bg-red-100"
+                  : "bg-customGrey"
+              } mb-3`}
+              onClick={() => setShowDetails(true)}
+            >
+              <div className="flex items-center w-full">
+                <User className="text-black text-xl mr-4" />
+                <h2 className="text-size font-normal text-black capitalize">
+                  Personal information
+                </h2>
+                <ChevronRight className="text-black ml-auto" />
+
               </div>
             </div>
+
+
+
+              {isIncomplete && showHighlight && (
+                <span className="absolute top-1 right-4 font-opensans text-xs text-red-500 animate-pulse">
+                  Update profile here
+                </span>
+              )}
+            </div>
+
 
             <div className="flex flex-col items-center w-full px-2">
               <div

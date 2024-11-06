@@ -431,11 +431,11 @@ const VendorProducts = () => {
               <img
                 src={selectedProduct.coverImageUrl}
                 alt={selectedProduct.name}
-                className="w-full h-44 object-cover bg-customSoftGray rounded-md mb-2"
+                className="w-full h-44 object-cover bg-customSoftGray rounded-md mb-3"
               />
             )}
 
-            <div className="mb-3 flex overflow-x-auto w-full">
+            <div className="flex overflow-x-auto space-x-4 mb-3 snap-x snap-mandatory">
               {selectedProduct.imageUrls &&
                 selectedProduct.imageUrls.length > 0 &&
                 selectedProduct.imageUrls.map((url, index) => (
@@ -443,7 +443,7 @@ const VendorProducts = () => {
                     key={index}
                     src={url}
                     alt={`Product ${index + 1}`}
-                    className="w-24 h-24 object-cover bg-customSoftGray rounded-md mr-2"
+                    className="flex-shrink-0 w-24 h-24 object-cover bg-customSoftGray rounded-md mr-2 snap-center"
                   />
                 ))}
             </div>
@@ -529,12 +529,12 @@ const VendorProducts = () => {
                   {selectedProduct.variants.slice(1).length === 1 ? "Product Variant" : "Product Variants"}
                 </p>
               )}
-              <div className="flex overflow-x-auto space-x-4 p-4 snap-x snap-mandatory">
+              <div className="flex overflow-x-auto space-x-4 snap-x snap-mandatory">
                 {selectedProduct.variants.slice(1) &&
                   selectedProduct.variants.slice(1).map((variant, index) => (
                     <div
                       key={index}
-                      className="px-2 mb-4 flex-shrink-0 flex flex-col justify-between space-y-2 py-2 w-64 rounded-xl bg-customSoftGray"
+                      className="px-2 mb-4 flex-shrink-0 snap-center flex flex-col justify-between space-y-2 py-2 w-64 rounded-xl bg-customSoftGray"
                     >
                       <p className="text-black font-semibold text-sm">
                         Quantity:{" "}

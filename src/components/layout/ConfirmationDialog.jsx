@@ -5,7 +5,7 @@ const ConfirmationDialog = ({ isOpen, title, message, onClose, onConfirm }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 confirmation">
-      <div className="bg-white p-6 rounded-lg shadow-lg mx-4">
+      <div className="bg-white p-6 rounded-2xl shadow-lg mx-4">
         <h2 className="text-xl font-bold mb-4">{title}</h2>
         <p className="text-gray-700 mb-6">{message}</p>
         <div className="flex justify-end">

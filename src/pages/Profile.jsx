@@ -79,11 +79,11 @@ const Profile = () => {
       }
     };
     fetchUserData();
-  }, [currentUser]);
-
-
-    fetchUserData();
   }, [currentUser, location.search]);
+
+
+  //   fetchUserData();
+  // }, [currentUser, location.search];
 
   const handleAvatarChange = (newAvatar) => {
     setUserData((prev) => ({ ...prev, photoURL: newAvatar }));
@@ -322,7 +322,6 @@ const Profile = () => {
               </div>
             </div>
           </div>
-        </div>
       ) : (
         <>
           {showDetails && (

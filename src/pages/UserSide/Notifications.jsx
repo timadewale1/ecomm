@@ -19,6 +19,7 @@ import notifspic from "../../Images/Notifs.svg";
 
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
+  const [loadingAuth, setLoadingAuth] = useState(true);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
@@ -36,7 +37,6 @@ const NotificationsPage = () => {
           ...doc.data(),
         }));
 
-        // Sort notifications by newest first
         notificationsList.sort(
           (a, b) => b.createdAt.seconds - a.createdAt.seconds
         );
@@ -50,25 +50,35 @@ const NotificationsPage = () => {
     };
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setLoadingAuth(false); // Auth check completed
       if (user) {
         setCurrentUser(user);
         fetchNotifications(user.uid);
       } else {
-        navigate("/login");
+        // Only navigate after auth check completes and user is confirmed as null
+        if (!user && !loadingAuth) {
+          navigate("/login");
+        }
       }
     });
 
     return () => unsubscribe();
   }, [navigate]);
 
+  if (loadingAuth || loading) {
+    return (
+      <div>
+        <Loading />
+      </div>
+    );
+  }
+
   const markAsRead = async (notificationId) => {
     try {
       const notificationRef = doc(db, "notifications", notificationId);
       await updateDoc(notificationRef, { seen: true });
       setNotifications((prev) =>
-        prev.map((n) =>
-          n.id === notificationId ? { ...n, seen: true } : n
-        )
+        prev.map((n) => (n.id === notificationId ? { ...n, seen: true } : n))
       );
     } catch (error) {
       console.error("Error marking notification as read:", error);
@@ -79,9 +89,7 @@ const NotificationsPage = () => {
     try {
       const notificationRef = doc(db, "notifications", notificationId);
       await deleteDoc(notificationRef);
-      setNotifications((prev) =>
-        prev.filter((n) => n.id !== notificationId)
-      );
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
     } catch (error) {
       console.error("Error deleting notification:", error);
     }
@@ -139,20 +147,10 @@ const NotificationsPage = () => {
         <h2 className="font-semibold text-sm font-opensans text-gray-500 mb-2">
           {title}
         </h2>
-        <ul>
-          {notificationsList.map(renderNotificationItem)}
-        </ul>
+        <ul>{notificationsList.map(renderNotificationItem)}</ul>
       </>
     ) : null;
   };
-
-  if (loading) {
-    return (
-      <div>
-        <Loading />
-      </div>
-    );
-  }
 
   return (
     <div className="p-2">

@@ -125,10 +125,7 @@ const Profile = () => {
     <div className="py-4">
       {!showDetails && !showMetrics && !showFAQs && !showDonations ? (
         <div className="flex flex-col items-center">
-          <h1 className="font-poppins text-xl font-semibold ">
-            {" "}
-            My Profile
-          </h1>
+          <h1 className="font-poppins text-xl font-semibold "> My Profile</h1>
           <div className="flex border  rounded-full p-1 justify-center mt-4 relative">
             {loading ? (
               <Skeleton circle={true} height={144} width={144} />
@@ -163,27 +160,31 @@ const Profile = () => {
                 Account
               </h1>
             </div>
-            <div
-              className={`relative flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl transition-all duration-500 ease-in-out ${
-                showHighlight
-                  ? "highlight border-red-500 bg-red-100"
-                  : "bg-customGrey"
-              } mb-3`}
-              onClick={() => setShowDetails(true)}
-            >
-              <div className="flex items-center w-full">
-                <User className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal text-black capitalize">
-                  Personal information
-                </h2>
-                <ChevronRight className="text-black ml-auto" />
-              </div>
+            <div className="px-2">
+              {" "}
+             
+              <div
+                className={`relative flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl transition-all duration-500 ease-in-out ${
+                  showHighlight
+                    ? "highlight border-red-500 bg-red-100"
+                    : "bg-customGrey"
+                } mb-3`}
+                onClick={() => setShowDetails(true)}
+              >
+                <div className="flex items-center w-full">
+                  <User className="text-black text-xl mr-4" />
+                  <h2 className="text-size font-normal text-black capitalize">
+                    Personal information
+                  </h2>
+                  <ChevronRight className="text-black ml-auto" />
+                </div>
 
-              {isIncomplete && showHighlight && (
-                <span className="absolute top-1 right-4 font-opensans text-xs text-red-500 animate-pulse">
-                  Update profile here
-                </span>
-              )}
+                {isIncomplete && showHighlight && (
+                  <span className="absolute top-1 right-4 font-opensans text-xs text-red-500 animate-pulse">
+                    Update profile here
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col items-center w-full px-2">

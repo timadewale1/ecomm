@@ -252,6 +252,7 @@ const Cart = () => {
       toast.error(
         `The following items are out of stock: ${outOfStockItems.join(", ")}`
       );
+
       return;
     }
 

@@ -145,8 +145,8 @@ li::marker {
 }
 .highlight {
   background-color: #fff3e0;
-  border: 2px solid #ff9800;
-  padding: 1em;
+  /* border: 1px solid #ff9800; */
+  padding: 7em;
   transition: background-color 0.3s ease, border 0.3s ease;
 }
 

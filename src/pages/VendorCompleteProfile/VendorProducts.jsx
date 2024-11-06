@@ -529,12 +529,12 @@ const VendorProducts = () => {
                   {selectedProduct.variants.slice(1).length === 1 ? "Product Variant" : "Product Variants"}
                 </p>
               )}
-              <div className="flex overflow-x-auto space-x-3">
+              <div className="flex overflow-x-auto space-x-4 p-4 snap-x snap-mandatory">
                 {selectedProduct.variants.slice(1) &&
                   selectedProduct.variants.slice(1).map((variant, index) => (
                     <div
                       key={index}
-                      className="px-2 mb-4 flex flex-col justify-between space-y-2 py-2 w-64 rounded-xl bg-customSoftGray"
+                      className="px-2 mb-4 flex-shrink-0 flex flex-col justify-between space-y-2 py-2 w-64 rounded-xl bg-customSoftGray"
                     >
                       <p className="text-black font-semibold text-sm">
                         Quantity:{" "}

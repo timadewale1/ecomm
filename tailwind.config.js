@@ -14,6 +14,9 @@ module.exports = {
       width : {
         custVCard: '10.6875rem',
       },
+      height : {
+        c120: '120px',
+      },
       colors: {
         customGrey: '#FAFAFA',
         customOrange: '#f9531e',

@@ -36,6 +36,7 @@ const VendorDashboard = () => {
   const [totalProducts, setTotalProducts] = useState(0);
   const [recentActivities, setRecentActivities] = useState([]);
   const [isModalOpen, setModalOpen] = useState(false);
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -70,7 +71,7 @@ const VendorDashboard = () => {
   };
 
   const textToCopy = `https://mythriftprod.vercel.app/${
-    vendorData.marketPlaceType === "virtual" ? ("store") : ("marketstorepage")
+    vendorData && (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
   }/${vendorData.vendorId}`;
 
   const copyToClipboard = async () => {
@@ -185,8 +186,14 @@ const VendorDashboard = () => {
             </div>
           </div>
           <div>
-            <button className="border rounded-full p-1">
-              <IoIosNotificationsOutline className="w-5 h-5 " />
+            <button className="relative border rounded-full p-1">
+              {hasUnreadNotifications && (
+                <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500"></span>
+              )}
+              <IoIosNotificationsOutline
+                onClick={() => navigate("/vendor-notifications")}
+                className="w-5 h-5 cursor-pointer"
+              />
             </button>
           </div>
         </div>

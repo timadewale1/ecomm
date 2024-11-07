@@ -9,6 +9,8 @@ import {
   updateDoc,
   addDoc,
   onSnapshot,
+  where,
+  query,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { toast } from "react-toastify";
@@ -25,6 +27,8 @@ import { FiPlus } from "react-icons/fi";
 import VendorProductModal from "../../components/layout/VendorProductModal";
 import ToggleButton from "../../components/Buttons/ToggleButton";
 import { motion } from "framer-motion";
+import Lottie from "lottie-react";
+import LoadState from "../../Animations/loadinganimation.json";
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
@@ -40,12 +44,15 @@ const VendorProducts = () => {
   const [restockQuantity, setRestockQuantity] = useState(0);
   const [buttonLoading, setButtonLoading] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
+  const [productsLoading, setProductsLoading] = useState(false);
 
   const auth = getAuth();
   const navigate = useNavigate();
 
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    // Only set the vendorId when authenticated, then call fetchVendorProducts
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         setVendorId(user.uid);
         console.log("Vendor ID set:", user.uid);
@@ -56,10 +63,63 @@ const VendorProducts = () => {
         navigate("/login");
       }
     });
-
-    return () => unsubscribe();
+  
+    return () => unsubscribeAuth(); // Clean up on unmount
   }, [auth, navigate]);
 
+  // Fetch and listen for vendor products based on vendorId
+useEffect(() => {
+  if (!vendorId) return;
+
+  // Define a cleanup function to be used later
+  let unsubscribe;
+
+  // Fetch vendor products asynchronously and set up a real-time listener
+  const fetchProducts = async () => {
+    unsubscribe = await fetchVendorProducts(vendorId);
+  };
+
+  fetchProducts();
+
+  // Return cleanup function to remove listener on unmount
+  return () => {
+    if (unsubscribe) {
+      unsubscribe();
+    }
+  };
+}, [vendorId]);
+
+
+const handleToggle = async () => {
+  // Any other logic that should happen when toggling
+    const productRef = doc(db, "products", selectedProduct.id);
+    await updateDoc(productRef, {
+      published: !selectedProduct.published,
+    });
+
+    selectedProduct.published
+    ? toast.success("Product is now drafted successfully.")
+    : toast.success("Product published successfully.");
+  };
+
+  const fetchVendorProducts = (vendorId) => {
+    const productsQuery = query(
+      collection(db, "products"),
+      where("vendorId", "==", vendorId)
+    );
+  
+    const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
+      const updatedProducts = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setProducts(updatedProducts);
+      setTotalProducts(updatedProducts.length);
+    });
+  
+    return unsubscribe;
+  };
+  
   // Real-time listener to keep `isPublished` up-to-date
   useEffect(() => {
     if (selectedProduct) {
@@ -69,70 +129,9 @@ const VendorProducts = () => {
           setIsPublished(doc.data().published);
         }
       });
-      fetchVendorProducts(vendorId);
       return () => unsubscribe(); // Clean up the listener on unmount
     }
   }, [selectedProduct, vendorId]);
-
-  const handleToggle = async () => {
-    // Any other logic that should happen when toggling
-    const productRef = doc(db, "products", selectedProduct.id);
-    await updateDoc(productRef, {
-      published: !selectedProduct.published,
-    });
-
-    selectedProduct.published
-      ? toast.success("Product is now drafted successfully.")
-      : toast.success("Product published successfully.");
-  };
-
-  // Fetch products from the centralized 'products' collection
-  const fetchVendorProducts = async (uid) => {
-    try {
-      // Fetch vendor document to get productIds array
-      const vendorDocRef = doc(db, "vendors", uid);
-      const vendorDoc = await getDoc(vendorDocRef);
-
-      if (!vendorDoc.exists()) {
-        throw new Error("Vendor not found");
-      }
-
-      const vendorData = vendorDoc.data();
-      const productIds = vendorData.productIds || [];
-
-      setTotalProducts(products.length);
-
-      if (productIds.length === 0) {
-        toast.info("No products found.");
-        setProducts([]);
-        setLoading(false);
-        return;
-      }
-
-      // Fetch products from the centralized 'products' collection using productIds array
-      const productsCollectionRef = collection(db, "products");
-      const productsSnapshot = await Promise.all(
-        productIds.map(async (productId) => {
-          const productDoc = await getDoc(
-            doc(productsCollectionRef, productId)
-          );
-          return productDoc.exists()
-            ? { id: productDoc.id, ...productDoc.data() }
-            : null;
-        })
-      );
-
-      const validProducts = productsSnapshot.filter(
-        (product) => product !== null
-      );
-      setProducts(validProducts);
-    } catch (error) {
-      console.error("Error fetching products: ", error);
-      toast.error("Error fetching products: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleProductClick = (product) => {
     setSelectedProduct(product);
@@ -165,12 +164,12 @@ const VendorProducts = () => {
         "Product Update"
       );
       toast.success("Product is now featured.");
-      fetchVendorProducts(vendorId);
       closeModals();
     } catch (error) {
       console.error("Error pinning product: ", error);
       toast.error("Error pinning product: " + error.message);
     } finally {
+      fetchVendorProducts(vendorId);
       setButtonLoading(false);
     }
   };
@@ -229,6 +228,7 @@ const VendorProducts = () => {
     } finally {
       setButtonLoading(false);
       setShowConfirmation(false);
+      fetchVendorProducts(vendorId);
     }
   };
 
@@ -251,12 +251,12 @@ const VendorProducts = () => {
         "Product Update"
       );
       toast.success("Product restocked successfully.");
-      fetchVendorProducts(vendorId);
       closeModals();
     } catch (error) {
       console.error("Error restocking product: ", error);
       toast.error("Error restocking product: " + error.message);
     } finally {
+      fetchVendorProducts(vendorId);
       setButtonLoading(false);
     }
   };
@@ -346,12 +346,14 @@ const VendorProducts = () => {
         </div>
         <div
           className={` ${
-            filteredProducts < 1
+            filteredProducts < 1 && !productsLoading
               ? " justify-center items-center text-center"
               : "grid grid-cols-2 gap-4"
           }`}
         >
-          {filteredProducts && filteredProducts.length > 0 ? (
+          {filteredProducts &&
+          filteredProducts.length > 0 &&
+          !productsLoading ? (
             filteredProducts.map((product) => (
               <div
                 key={product.id}
@@ -394,20 +396,32 @@ const VendorProducts = () => {
                 </div>
               </div>
             ))
-          ) : tabOpt === "Active" ? (
+          ) : tabOpt === "Active" && !productsLoading ? (
             <p className="text-xs mt-24">
               📭 Your store has no active products yet. Upload items to start
               attracting customers!
             </p>
-          ) : tabOpt === "OOS" ? (
+          ) : tabOpt === "OOS" && !productsLoading ? (
             <p className="text-xs mt-24">
               📦 You currently have no items marked as out of stock.
             </p>
+          ) : productsLoading ? (
+            <div className="flex flex-col justify-center items-center space-y-2">
+              <Lottie
+                className="w-10 h-10"
+                animationData={LoadState}
+                loop={true}
+                autoplay={true}
+              />
+              <p className="text-xs">Loading products...</p>
+            </div>
           ) : (
-            <p className="text-xs mt-24">
-              📝 You have no saved draft products yet. Start a new listing and
-              save it as a draft anytime!
-            </p>
+            !productsLoading && (
+              <p className="text-xs mt-24">
+                📝 You have no saved draft products yet. Start a new listing and
+                save it as a draft anytime!
+              </p>
+            )
           )}
         </div>
       </div>
@@ -526,7 +540,9 @@ const VendorProducts = () => {
               </div>
               {selectedProduct.variants.slice(1) && (
                 <p className="text-lg text-black font-semibold mb-4">
-                  {selectedProduct.variants.slice(1).length === 1 ? "Product Variant" : "Product Variants"}
+                  {selectedProduct.variants.slice(1).length === 1
+                    ? "Product Variant"
+                    : "Product Variants"}
                 </p>
               )}
               <div className="flex overflow-x-auto space-x-4 snap-x snap-mandatory">
@@ -632,69 +648,6 @@ const VendorProducts = () => {
               >
                 Restock Item
               </motion.button>
-            </div>
-
-            <div className="flex items-center justify-between space-x-2">
-              {/* <button
-                className="px-4 py-2 bg-red-600 text-white rounded-md shadow-sm hover:bg-red-700 focus:ring focus:ring-red-600 focus:outline-none"
-                onClick={handleDeleteProduct}
-              >
-                <FaTrashAlt />
-              </button>
-              {selectedProduct.remainingEditTime > 0 && (
-                <div className="flex items-center justify-end space-x-2 mt-4">
-                  <button
-                    className={`px-3 py-2 bg-blue-700 text-white rounded-md shadow-sm hover:bg-blue-800 focus:ring focus:ring-blue-700 focus:outline-none ${
-                      buttonLoading ? "cursor-not-allowed" : ""
-                    }`}
-                    onClick={handleEditProduct}
-                    disabled={buttonLoading}
-                  >
-                    {buttonLoading ? (
-                      <RotatingLines width="20" strokeColor="white" />
-                    ) : (
-                      <FaEdit />
-                    )}
-                  </button>
-                  <span className="text-sm text-red-500">
-                    Available for{" "}
-                    {Math.floor(selectedProduct.remainingEditTime / 60000)}:
-                    {((selectedProduct.remainingEditTime % 60000) / 1000)
-                      .toFixed(0)
-                      .padStart(2, "0")}{" "}
-                    minutes
-                  </span>
-                </div>
-              )} */}
-              {/* <div className="w-fit h-fit flex items-center justify-center">
-                {showRestockInput ? (
-                  <>
-                    <input
-                      type="number"
-                      value={restockQuantity}
-                      onChange={(e) => setRestockQuantity(e.target.value)}
-                      className="border border-gray-300 rounded-md px-2 py-1 w-16"
-                    />
-                    <button
-                      className="px-4 py-2 bg-green-600 text-white rounded-md shadow-sm hover:bg-green-700 focus:ring focus:ring-green-600 focus:outline-none"
-                      onClick={handleRestockProduct}
-                    >
-                      {buttonLoading ? (
-                        <RotatingLines width="20" strokeColor="white" />
-                      ) : (
-                        <FaBoxOpen />
-                      )}
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    className="px-4 py-2 bg-yellow-600 text-white rounded-md shadow-sm hover:bg-yellow-700 focus:ring focus:ring-yellow-600 focus:outline-none h-8"
-                    onClick={() => setShowRestockInput(true)}
-                  >
-                    <BsBox2Fill />
-                  </button>
-                )}
-              </div> */}
             </div>
           </div>
         </VendorProductModal>

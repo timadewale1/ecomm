@@ -3,6 +3,8 @@ import { signOut } from "firebase/auth";
 import { auth, db } from "../firebase.config";
 import { toast } from "react-toastify";
 import { ChevronRight, User } from "lucide-react";
+
+
 import { useNavigate, useLocation } from "react-router-dom";
 import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 import useAuth from "../custom-hooks/useAuth";
@@ -14,6 +16,7 @@ import { GiClothes } from "react-icons/gi";
 import { LiaClipboardListSolid } from "react-icons/lia";
 import OrderHistory from "./UserSide/History";
 import { MdHistory, MdHelpOutline, MdModeEdit } from "react-icons/md";
+
 import { CiMoneyBill } from "react-icons/ci";
 import { AiOutlineDashboard } from "react-icons/ai";
 import UserDashboard from "./UserDashboard";
@@ -30,6 +33,7 @@ import { resetUserData } from "../redux/actions/authactions";
 import Donate from "./Donate";
 const Profile = () => {
   const navigate = useNavigate();
+
   const location = useLocation();
   const { currentUser } = useAuth();
   const [userData, setUserData] = useState(null);
@@ -65,6 +69,7 @@ const Profile = () => {
           const userDoc = await getDoc(doc(db, "users", currentUser.uid));
           if (userDoc.exists()) {
             setUserData(userDoc.data());
+
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
@@ -73,9 +78,12 @@ const Profile = () => {
         }
       }
     };
-
     fetchUserData();
   }, [currentUser, location.search]);
+
+
+  //   fetchUserData();
+  // }, [currentUser, location.search];
 
   const handleAvatarChange = (newAvatar) => {
     setUserData((prev) => ({ ...prev, photoURL: newAvatar }));
@@ -105,6 +113,7 @@ const Profile = () => {
       await setDoc(doc(db, "carts", currentUser.uid), { cart });
       console.log("Cart saved to Firestore:", { cart }); // Log after saving to Firestore
 
+
       await signOut(auth);
       localStorage.removeItem("cart");
       dispatch(clearCart()); // Clear Redux cart state
@@ -125,7 +134,9 @@ const Profile = () => {
     <div className="py-4">
       {!showDetails && !showMetrics && !showFAQs && !showDonations ? (
         <div className="flex flex-col items-center">
+
           <h1 className="font-poppins text-xl font-semibold ">
+
             {" "}
             My Profile
           </h1>
@@ -154,6 +165,7 @@ const Profile = () => {
           </div>
 
           <p className="text-lg font-semibold text-black font-poppins capitalize mt-2">
+
             {loading ? <Skeleton width={100} /> : userData?.username}
           </p>
 
@@ -163,6 +175,7 @@ const Profile = () => {
                 Account
               </h1>
             </div>
+
             <div
               className={`relative flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl transition-all duration-500 ease-in-out ${
                 showHighlight
@@ -177,7 +190,11 @@ const Profile = () => {
                   Personal information
                 </h2>
                 <ChevronRight className="text-black ml-auto" />
+
               </div>
+            </div>
+
+
 
               {isIncomplete && showHighlight && (
                 <span className="absolute top-1 right-4 font-opensans text-xs text-red-500 animate-pulse">
@@ -185,6 +202,7 @@ const Profile = () => {
                 </span>
               )}
             </div>
+
 
             <div className="flex flex-col items-center w-full px-2">
               <div
@@ -304,7 +322,6 @@ const Profile = () => {
               </div>
             </div>
           </div>
-        </div>
       ) : (
         <>
           {showDetails && (

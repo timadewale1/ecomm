@@ -1,53 +1,43 @@
 import React, { useEffect, useState } from "react";
-import {
-  signOut,
-  updateProfile,
-  updateEmail,
-  sendEmailVerification,
-  updatePassword,
-  reauthenticateWithCredential,
-  EmailAuthProvider,
-} from "firebase/auth";
+import { signOut } from "firebase/auth";
+import { MdModeEdit } from "react-icons/md";
 import { auth, db } from "../../firebase.config";
+import { RotatingLines } from "react-loader-spinner";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
-import useAuth from "../../custom-hooks/useAuth";
 import {
-  FaPen,
-  FaTimes,
-  FaEye,
-  FaEyeSlash,
-  FaAngleRight,
-  FaAngleLeft,
-} from "react-icons/fa";
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
+import useAuth from "../../custom-hooks/useAuth";
+import { IoMdContact } from "react-icons/io";
+import { FaAngleRight, FaAngleLeft } from "react-icons/fa";
 import { TbHomeStar } from "react-icons/tb";
-import { GrSecure } from "react-icons/gr";
 import { PiSignOutBold } from "react-icons/pi";
-import { FaRegCircleUser, FaShop } from "react-icons/fa6";
-import { MdEmail, MdHistory } from "react-icons/md";
-
-import { RotatingLines } from "react-loader-spinner";
+import { FaRegCircleUser } from "react-icons/fa6";
+import { Doughnut } from "react-chartjs-2";
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import AvatarSelectorModal from "../vendor/VendorAvatarSelect.jsx";
 import Skeleton from "react-loading-skeleton";
 import VprofileDetails from "../vendor/VprofileDetails.jsx";
-import OrderChart from './OrderChart';
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 const VendorProfile = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [userData, setUserData] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editField, setEditField] = useState("");
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   const [displayName, setDisplayName] = useState("");
-  const [editD, setEditD] = useState("");
+
   const [email, setEmail] = useState("");
-  const [editE, setEditE] = useState("");
+
   const [shopName, setShopName] = useState("");
-  const [editS, setEditS] = useState("");
-  const [password, setPassword] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -55,27 +45,62 @@ const VendorProfile = () => {
   const [fulfilledOrders, setFulfilledOrders] = useState(0);
   const [unfulfilledOrders, setUnfulfilledOrders] = useState(0);
   const [incomingOrders, setIncomingOrders] = useState(0);
+  const totalOrders = fulfilledOrders + unfulfilledOrders + incomingOrders;
+
+  const activityData = {
+    labels: ["Fulfilled", "Unfulfilled", "Incoming"],
+    datasets: [
+      {
+        data:
+          totalOrders === 0
+            ? [1, 1, 1]
+            : [fulfilledOrders, unfulfilledOrders, incomingOrders],
+        backgroundColor: ["#D92CA0", "#F27D38", "#5CBF49"],
+        hoverBackgroundColor: ["#D92CA0", "#F27D38", "#5CBF49"],
+        borderWidth: 0,
+      },
+    ],
+  };
+
+  const activityOptions = {
+    rotation: -90, // Start from the top (semi-circle orientation)
+    circumference: 180, // Only show half of the chart (semi-circle)
+    cutout: "70%", // Size of the center hole
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        enabled: false,
+      },
+    },
+  };
 
   useEffect(() => {
     const fetchOrderData = async () => {
       try {
         const ordersRef = collection(db, "orders");
-        
-        // Query fulfilled orders
-        const fulfilledQuery = query(ordersRef, where("status", "==", "fulfilled"));
+
+        const fulfilledQuery = query(
+          ordersRef,
+          where("status", "==", "fulfilled")
+        );
         const fulfilledSnapshot = await getDocs(fulfilledQuery);
         setFulfilledOrders(fulfilledSnapshot.size);
 
-        // Query unfulfilled orders
-        const unfulfilledQuery = query(ordersRef, where("status", "==", "unfulfilled"));
+        const unfulfilledQuery = query(
+          ordersRef,
+          where("status", "==", "unfulfilled")
+        );
         const unfulfilledSnapshot = await getDocs(unfulfilledQuery);
         setUnfulfilledOrders(unfulfilledSnapshot.size);
 
-        // Query incoming orders
-        const incomingQuery = query(ordersRef, where("status", "==", "incoming"));
+        const incomingQuery = query(
+          ordersRef,
+          where("status", "==", "incoming")
+        );
         const incomingSnapshot = await getDocs(incomingQuery);
         setIncomingOrders(incomingSnapshot.size);
-
       } catch (error) {
         console.error("Error fetching order data:", error);
       }
@@ -83,7 +108,6 @@ const VendorProfile = () => {
 
     fetchOrderData();
   }, []);
-
 
   useEffect(() => {
     setIsLoading(true);
@@ -108,158 +132,93 @@ const VendorProfile = () => {
     fetchUserData();
   }, [currentUser]);
 
-  const handleEdit = (field) => {
-    setEditField(field);
-    setIsEditing(true);
-  };
-
-  const handleSave = async () => {
-    if (editField === "displayName" && /[^a-zA-Z\s]/.test(displayName)) {
-      toast.error("You cannot use numbers as username!", {
-        className: "custom-toast",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Other profile updates...
-      if (editField === "displayName") {
-        await updateProfile(auth.currentUser, { displayName });
-        await updateDoc(doc(db, "vendors", currentUser.uid), { displayName });
-      } else if (editField === "email") {
-        await updateEmail(auth.currentUser, email);
-        await sendEmailVerification(auth.currentUser);
-        await updateDoc(doc(db, "vendors", currentUser.uid), { email: editE });
-      } else if (editField === "password") {
-        await updatePassword(auth.currentUser, password);
-        toast.success("Password updated successfully", {
-          className: "custom-toast",
-        });
-      } else if (editField === "shopName") {
-        if (shopName === "") {
-          toast.error("Store Name cannot be empty", {
-            className: "custom-toast",
-          });
-          return;
-        } else if (shopName.length <= 3) {
-          toast.error("Store Name must be more than 3 characters", {
-            className: "custom-toast",
-          });
-          return;
-        }
-        await updateDoc(doc(db, "vendors", currentUser.uid), {
-          shopName: editS,
-        });
-        toast.success("Store Name has been changed", {
-          className: "custom-toast",
-        });
-      }
-
-      // Update photoURL
-      await updateDoc(doc(db, "vendors", currentUser.uid), {
-        photoURL: userData.photoURL,
-      });
-
-      toast.success("Profile updated successfully", {
-        className: "custom-toast",
-      });
-
-      setIsEditing(false);
-      setEditField("");
-    } catch (error) {
-      console.log(error);
-      toast.error("Error updating profile, try again later", {
-        className: "custom-toast",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
- 
   const handleLogout = async () => {
     try {
+      setIsLoggingOut(true);
       await signOut(auth);
       toast.success("Successfully logged out", { className: "custom-toast" });
       navigate("/vendorlogin");
     } catch (error) {
       toast.error("Error logging out", { className: "custom-toast" });
+    } finally {
+      setIsLoggingOut(false);
     }
-  };
-
-
-  const handleAvatarChange = (newAvatar) => {
-    setUserData((prev) => ({ ...prev, photoURL: newAvatar }));
   };
 
   return (
     <div className="pb-4">
-      {!showDetails &&
-      !showHistory ? (
+      {!showDetails && !showHistory ? (
         <div className="flex flex-col items-center">
-          {/* <div className="relative flex justify-center w-full h-full"> */}
-            {/* Store Image */}
-              {/* {isLoading ? (
-                <Skeleton height={288} />
-              ) : userData && userData.coverImageUrl ? (
-                <img
-                  src={userData.coverImageUrl}
-                  alt="Store"
-                  className="w-full h-full object-cover rounded-b-lg bg-gray-400"
-                />
-              ) : (
-                <div className="w-full h-full bg-gray-300 rounded-b-lg" />
-              )} */}
-
-              {/* User Image */}
-              <div className=" flex border  rounded-full p-1 justify-center mt-4 relative">
-                {isLoading ? (
-                  <Skeleton circle height={144} width={144} />
-                ) : userData && userData.photoURL ? (
-                  <img
-                    src={userData.photoURL}
-                    alt="User"
-                    className="rounded-full object-cover h-36 w-36 border-2 border-white bg-gray-400"
-                  />
-                ) : (
-                  <img
-                    src="" // You might want to provide a placeholder or default image here
-                    alt="User"
-                    className="rounded-full h-36 w-36 border-4 border-white"
-                  />
-                )}
-                <div className="absolute top-1 right-1 bg-white p-2 rounded-full">
-                  <FaPen
-                    className=" text-black cursor-pointer"
-                    onClick={() => setIsAvatarModalOpen(true)}
-                  />
-                </div>
-              </div>
-            
-          {/* </div> */}
-
-          <div className="">
+          {/* Profile Picture and Name */}
+          <div className="flex border rounded-full p-1 justify-center mt-4 relative">
             {isLoading ? (
-              <Skeleton width={150} height={24} />
-            ) : userData && userData.shopName ? (
-              <p className="text-lg font-semibold text-black capitalize mt-2">
-                {shopName}
-              </p>
+              <Skeleton circle={true} height={144} width={144} />
+            ) : userData && userData.photoURL ? (
+              <img
+                src={userData.photoURL}
+                alt=""
+                className="rounded-full object-cover h-28 w-28"
+                onClick={() => setIsAvatarModalOpen(true)}
+              />
             ) : (
-              <div/>
+              <div
+                className="rounded-full h-36 w-36 flex items-center justify-center"
+                onClick={() => setIsAvatarModalOpen(true)}
+              >
+                <IoMdContact className="text-gray-500 text-7xl" />
+              </div>
             )}
+            <MdModeEdit
+              className="absolute bottom-0 right-0 border text-black mr-2 text-3xl p-2 rounded-full bg-white cursor-pointer shadow-md"
+              onClick={() => setIsAvatarModalOpen(true)}
+            />
           </div>
 
+          <div className="text-lg font-semibold text-black capitalize mt-2">
+            {shopName}
+          </div>
 
-          
+          {/* My Activity Chart */}
+          <div className="flex flex-col w-full my-4">
+            <h1 className="text-base font-semibold mx-4 translate-y-3 text-black">
+              My Activity
+            </h1>
+            <div className="flex flex-col items-center mt-4 rounded-xl bg-customGrey">
+              <div className="w-40 h-44 relative">
+                {" "}
+                {/* Adjusted size for a semi-circle */}
+                <Doughnut data={activityData} options={activityOptions} />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center mt-5">
+                    <p className="text-sm font-medium">Total Orders</p>
+                    <p className="text-xl font-bold">{totalOrders}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex mt-4 space-x-6 text-sm mb-3">
+                <div className="flex items-center space-x-1">
+                  <span className="w-3 h-3 rounded-full bg-[#D92CA0]"></span>
+                  <span>Fulfilled ({fulfilledOrders})</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span className="w-3 h-3 rounded-full bg-[#F27D38]"></span>
+                  <span>Unfulfilled ({unfulfilledOrders})</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span className="w-3 h-3 rounded-full bg-[#5CBF49]"></span>
+                  <span>Incoming ({incomingOrders})</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Profile Options */}
           <div className="w-full mt-2">
             <div className="w-full h-14 flex">
               <h1 className="text-base font-semibold mx-4 translate-y-3 text-black">
                 Personal
               </h1>
             </div>
-
             <div className="flex flex-col items-center w-full">
               <div
                 className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
@@ -268,37 +227,19 @@ const VendorProfile = () => {
                 <div className="flex items-center">
                   <FaRegCircleUser className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-black capitalize">
-                      Personal information
-                    </h2>
-                </div>
-                <FaAngleRight className="text-black" />
-              </div>
-           
-           
-            </div>
-            <div className="flex flex-col items-center w-full">
-           
-              <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={() => setShowHistory(!showHistory)}
-              >
-                <div className="flex items-center">
-                  <MdHistory className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal text-black capitalize">
-                    Recent Activities
+                    Personal information
                   </h2>
                 </div>
                 <FaAngleRight className="text-black" />
               </div>
-             
             </div>
+
             <div className="w-full h-14 flex">
               <h1 className="text-base font-semibold mx-4 translate-y-3 text-black">
                 Data
               </h1>
             </div>
             <div className="flex flex-col items-center w-full">
-            
               <div
                 className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
                 onClick={() => navigate("")}
@@ -311,17 +252,37 @@ const VendorProfile = () => {
                 </div>
                 <FaAngleRight className="text-black" />
               </div>
-              
             </div>
-           
+            <div
+              className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
+              onClick={handleLogout}
+            >
+              <div className="flex items-center justify-between w-full px-4 py-3">
+                <PiSignOutBold className="text-red-600 text-xl mr-4" />
+                <p className="text-size text-black w-full font-normal">
+                  Sign Out
+                </p>
+                {isLoggingOut && (
+                  <RotatingLines
+                    strokeColor="#f9531e"
+                    strokeWidth="5"
+                    animationDuration="0.75"
+                    width="24"
+                    visible={true}
+                  />
+                )}
+              </div>
+            </div>
           </div>
         </div>
       ) : (
         <>
           {showDetails && (
-            <VprofileDetails showDetails={showDetails} setShowDetails={setShowDetails} />
+            <VprofileDetails
+              showDetails={showDetails}
+              setShowDetails={setShowDetails}
+            />
           )}
-
           {showHistory && (
             <div className="flex flex-col items-center">
               <FaAngleLeft
@@ -332,28 +293,16 @@ const VendorProfile = () => {
               {/* Render History content here */}
             </div>
           )}
-
-          
         </>
-      )}
-
-      {isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <RotatingLines
-            strokeColor="orange"
-            strokeWidth="5"
-            animationDuration="0.75"
-            width="96"
-            visible={true}
-          />
-        </div>
       )}
 
       {isAvatarModalOpen && (
         <AvatarSelectorModal
           userId={currentUser.uid}
           onClose={() => setIsAvatarModalOpen(false)}
-          onAvatarChange={handleAvatarChange}
+          onAvatarChange={(newAvatar) =>
+            setUserData((prev) => ({ ...prev, photoURL: newAvatar }))
+          }
         />
       )}
     </div>

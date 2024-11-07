@@ -7,7 +7,7 @@ import NotificationsPage from "../pages/UserSide/Notifications.jsx";
 import ForgetPassword from "../pages/forgetPassword.jsx";
 import Donate from "../pages/Donate.jsx";
 import VendorSignup from "../pages/VendorSignup";
-import VendorOrders from "../pages/VendorCompleteProfile/VendorOrders.jsx";
+import VendorOrders from "../pages/Orders/VendorOrders.jsx";
 import VendorLogin from "../pages/VendorLogin";
 import VendorDashboard from "../pages/VendorCompleteProfile/vendordashboard.jsx";
 import FavoritesPage from "../pages/UserSide/FavoritesProducts.jsx";

@@ -558,7 +558,7 @@ const VendorProducts = () => {
                 {Object.entries(
                   groupVariantsByColor(selectedProduct.variants || [])
                 ).map(([color, variants], index) => (
-                  <div key={index} className="bg-customSoftGray p-3 rounded-lg w-96">
+                  <div key={index} className="bg-customSoftGray p-3 rounded-lg">
                     {/* Display the color name */}
                     <p className="text-black font-semibold text-sm mb-2">
                       Color: {color}

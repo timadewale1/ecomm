@@ -49,7 +49,6 @@ const VendorProducts = () => {
   const auth = getAuth();
   const navigate = useNavigate();
 
-
   useEffect(() => {
     // Only set the vendorId when authenticated, then call fetchVendorProducts
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -63,43 +62,42 @@ const VendorProducts = () => {
         navigate("/login");
       }
     });
-  
+
     return () => unsubscribeAuth(); // Clean up on unmount
   }, [auth, navigate]);
 
   // Fetch and listen for vendor products based on vendorId
-useEffect(() => {
-  if (!vendorId) return;
+  useEffect(() => {
+    if (!vendorId) return;
 
-  // Define a cleanup function to be used later
-  let unsubscribe;
+    // Define a cleanup function to be used later
+    let unsubscribe;
 
-  // Fetch vendor products asynchronously and set up a real-time listener
-  const fetchProducts = async () => {
-    unsubscribe = await fetchVendorProducts(vendorId);
-  };
+    // Fetch vendor products asynchronously and set up a real-time listener
+    const fetchProducts = async () => {
+      unsubscribe = await fetchVendorProducts(vendorId);
+    };
 
-  fetchProducts();
+    fetchProducts();
 
-  // Return cleanup function to remove listener on unmount
-  return () => {
-    if (unsubscribe) {
-      unsubscribe();
-    }
-  };
-}, [vendorId]);
+    // Return cleanup function to remove listener on unmount
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [vendorId]);
 
-
-const handleToggle = async () => {
-  // Any other logic that should happen when toggling
+  const handleToggle = async () => {
+    // Any other logic that should happen when toggling
     const productRef = doc(db, "products", selectedProduct.id);
     await updateDoc(productRef, {
       published: !selectedProduct.published,
     });
 
     selectedProduct.published
-    ? toast.success("Product is now drafted successfully.")
-    : toast.success("Product published successfully.");
+      ? toast.success("Product is now drafted successfully.")
+      : toast.success("Product published successfully.");
   };
 
   const fetchVendorProducts = (vendorId) => {
@@ -107,7 +105,7 @@ const handleToggle = async () => {
       collection(db, "products"),
       where("vendorId", "==", vendorId)
     );
-  
+
     const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
       const updatedProducts = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -116,10 +114,10 @@ const handleToggle = async () => {
       setProducts(updatedProducts);
       setTotalProducts(updatedProducts.length);
     });
-  
+
     return unsubscribe;
   };
-  
+
   // Real-time listener to keep `isPublished` up-to-date
   useEffect(() => {
     if (selectedProduct) {
@@ -261,6 +259,17 @@ const handleToggle = async () => {
     }
   };
 
+  // Helper function to group variants by color
+  const groupVariantsByColor = (variants) => {
+    return variants.reduce((acc, variant) => {
+      if (!acc[variant.color]) {
+        acc[variant.color] = [];
+      }
+      acc[variant.color].push(variant);
+      return acc;
+    }, {});
+  };
+
   const handleEditProduct = async () => {
     // Logic to open the edit modal or handle product edit functionality
     console.log("Edit product:", selectedProduct);
@@ -382,7 +391,7 @@ const handleToggle = async () => {
                     }`}
                   >
                     <p className="text-xs font-semibold text-black">
-                      Size: {product.size}
+                      Size: {product.stockQuantity}
                     </p>
                     <p className="text-xs font-medium text-black">
                       &#x20a6;{formatNumber(product.price)}
@@ -545,35 +554,49 @@ const handleToggle = async () => {
                     : "Product Variants"}
                 </p>
               )}
-              <div className="flex overflow-x-auto space-x-4 snap-x snap-mandatory">
-                {selectedProduct.variants.slice(1) &&
-                  selectedProduct.variants.slice(1).map((variant, index) => (
-                    <div
-                      key={index}
-                      className="px-2 mb-4 flex-shrink-0 snap-center flex flex-col justify-between space-y-2 py-2 w-64 rounded-xl bg-customSoftGray"
-                    >
-                      <p className="text-black font-semibold text-sm">
-                        Quantity:{" "}
-                        <span
-                          className={`${variant.stock < 1 && "text-red-500"}`}
-                        >
-                          {variant.stock > 0 ? variant.stock : "Out of stock"}
-                        </span>
-                      </p>
-                      <hr className="text-slate-400" />
+              <div className="flex w-full overflow-x-auto space-x-4 snap-x snap-mandatory">
+                {Object.entries(
+                  groupVariantsByColor(selectedProduct.variants || [])
+                ).map(([color, variants], index) => (
+                  <div key={index} className="bg-customSoftGray p-3 rounded-lg w-96">
+                    {/* Display the color name */}
+                    <p className="text-black font-semibold text-sm mb-2">
+                      Color: {color}
+                    </p>
 
-                      <p className="text-black font-semibold text-sm">
-                        Color:{" "}
-                        <span className="font-normal">{variant.color}</span>
-                      </p>
-                      <hr className="text-slate-400" />
-
-                      <p className="text-black font-semibold text-sm">
-                        Size:{" "}
-                        <span className="font-normal">{variant.size}</span>
-                      </p>
-                    </div>
-                  ))}
+                    {/* Vertical table layout for sizes and quantities */}
+                    <table className="w-custVCard text-left border-collapse">
+                      <thead>
+                        <tr className="space-x-8">
+                          <th className="text-black font-semibold text-sm pb-2 border-b border-gray-300">
+                            Size
+                          </th>
+                          <th className="text-black text-right font-semibold text-sm pb-2 border-b border-gray-300">
+                            Quantity
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {variants.map((variant, i) => (
+                          <tr key={i} className="space-x-8">
+                            <td className="py-2 text-sm font-normal border-b border-gray-200">
+                              {variant.size}
+                            </td>
+                            <td
+                              className={`py-2 text-sm text-right font-normal border-b border-gray-200 ${
+                                variant.stock < 1 ? "text-red-500" : ""
+                              }`}
+                            >
+                              {variant.stock > 0
+                                ? variant.stock
+                                : "Out of stock"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -597,12 +620,12 @@ const handleToggle = async () => {
                   </div>
                   <div className="px-3 mb-4 flex flex-col justify-between space-y-3 w-full">
                     <p className="text-black font-semibold text-sm">
-                      Quantity: <span className="font-normal">{sp.stock}</span>
+                      Color: <span className="font-normal">{sp.color}</span>
                     </p>
                     <hr className="text-slate-400" />
 
                     <p className="text-black font-semibold text-sm">
-                      Color: <span className="font-normal">{sp.color}</span>
+                      Quantity: <span className="font-normal">{sp.stock}</span>
                     </p>
                     <hr className="text-slate-400" />
                     <p className="text-black font-semibold text-sm">
@@ -630,18 +653,7 @@ const handleToggle = async () => {
               </div>
             )}
 
-            <div
-              className={`mt-10 ${isPublished ? "" : "flex justify-between"}`}
-            >
-              {!isPublished && (
-                <motion.button
-                  whileTap={{ scale: 1.05 }}
-                  className="glow-button w-full h-12 mt-7 bg-white border-2 border-customRichBrown text-customRichBrown font-semibold rounded-full"
-                >
-                  Edit Product
-                </motion.button>
-              )}
-              {!isPublished && <div className="w-6"></div>}
+            <div className={`mt-10`}>
               <motion.button
                 whileTap={{ scale: 1.1 }}
                 className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full"

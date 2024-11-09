@@ -6,6 +6,7 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
   setDoc,
   doc,
   deleteDoc,
@@ -121,11 +122,15 @@ const CategoryPage = () => {
       setProducts([]);
       setVendors([]);
       setLoading(true); // Set loading to true during data fetch
-  
+
       // Check if data is available in localStorage for this category
-      const savedProducts = JSON.parse(localStorage.getItem(`${category}_products`) || '[]');
-      const savedVendors = JSON.parse(localStorage.getItem(`${category}_vendors`) || '[]');
-  
+      const savedProducts = JSON.parse(
+        localStorage.getItem(`${category}_products`) || "[]"
+      );
+      const savedVendors = JSON.parse(
+        localStorage.getItem(`${category}_vendors`) || "[]"
+      );
+
       if (savedProducts.length > 0 && savedVendors.length > 0) {
         // If data exists in localStorage, use it
         setProducts(savedProducts);
@@ -135,11 +140,12 @@ const CategoryPage = () => {
         setLoading(false);
         return;
       }
-  
+
       // If no data in localStorage, fetch from Firestore
       try {
-        const normalizedCategory = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
-  
+        const normalizedCategory =
+          category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+
         // Fetch first 25 vendors
         const vendorsQuery = query(
           collection(db, "vendors"),
@@ -149,14 +155,22 @@ const CategoryPage = () => {
           limit(25) // Fetch only 25 vendors
         );
         const vendorSnapshot = await getDocs(vendorsQuery);
-        const vendorsList = vendorSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        const vendorsList = vendorSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         setVendors(vendorsList);
         setFilteredVendors(vendorsList);
-        setLastVisibleVendor(vendorSnapshot.docs[vendorSnapshot.docs.length - 1]); // Track last vendor
-  
+        setLastVisibleVendor(
+          vendorSnapshot.docs[vendorSnapshot.docs.length - 1]
+        ); // Track last vendor
+
         // Save vendors to localStorage
-        localStorage.setItem(`${category}_vendors`, JSON.stringify(vendorsList));
-  
+        localStorage.setItem(
+          `${category}_vendors`,
+          JSON.stringify(vendorsList)
+        );
+
         // Fetch first 50 products
         const productsQuery = query(
           collection(db, "products"),
@@ -164,25 +178,30 @@ const CategoryPage = () => {
           limit(50) // Fetch only 50 products
         );
         const productSnapshot = await getDocs(productsQuery);
-        const productsList = productSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        const productsList = productSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         setProducts(productsList);
         setFilteredProducts(productsList);
-        setLastVisibleProduct(productSnapshot.docs[productSnapshot.docs.length - 1]); // Track last product
-  
+        setLastVisibleProduct(
+          productSnapshot.docs[productSnapshot.docs.length - 1]
+        ); // Track last product
+
         // Save products to localStorage
-        localStorage.setItem(`${category}_products`, JSON.stringify(productsList));
+        localStorage.setItem(
+          `${category}_products`,
+          JSON.stringify(productsList)
+        );
       } catch (error) {
         toast.error("Error fetching initial products and vendors.");
       } finally {
         setLoading(false); // Set loading to false after data is fetched
       }
     };
-  
+
     fetchInitialData();
   }, [category]); // Dependencies ensure it only runs when category changes
-  
-
- 
 
   const fetchMoreData = useCallback(async () => {
     if (isFetchingMore) return; // Prevent multiple fetches at once
@@ -338,11 +357,30 @@ const CategoryPage = () => {
     }
   };
 
-  // Navigate to vendor store page
-  const handleVendorClick = (vendorId) => {
-    navigate(`/store/${vendorId}`, { replace: false });
+  const handleVendorClick = async (vendorId) => {
+    try {
+      // Fetch vendor data from Firestore
+      const vendorRef = doc(db, "vendors", vendorId);
+      const vendorDoc = await getDoc(vendorRef);
+
+      if (vendorDoc.exists()) {
+        const vendorData = vendorDoc.data();
+
+        // Check marketplace type and navigate accordingly
+        if (vendorData.marketPlaceType === "virtual") {
+          navigate(`/store/${vendorId}`, { replace: false });
+        } else if (vendorData.marketPlaceType === "marketplace") {
+          navigate(`/marketstorepage/${vendorId}`, { replace: false });
+        } else {
+          console.warn("Unknown marketplace type for vendor:", vendorId);
+        }
+      } else {
+        console.error("Vendor not found:", vendorId);
+      }
+    } catch (error) {
+      console.error("Error fetching vendor data:", error);
+    }
   };
-  
 
   // Dynamic header styles based on category and slideshow image
   const getCategoryStyles = (category) => {

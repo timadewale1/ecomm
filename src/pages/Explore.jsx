@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import { IoChevronBackOutline, IoFilterOutline } from "react-icons/io5";
+import { LuListFilter } from "react-icons/lu";
 import { CiSearch } from "react-icons/ci";
 import Loading from "../components/Loading/Loading";
 import Skeleton from "react-loading-skeleton";
@@ -34,6 +35,7 @@ const Explore = () => {
   const [priceRange] = useState([1000, 10000]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [sortOrder, setSortOrder] = useState(null); // 'high-to-low' or 'low-to-high'
+  const dropdownRef = useRef(null);
 
   const cld = new Cloudinary({
     cloud: {
@@ -47,6 +49,18 @@ const Explore = () => {
     "4991116_bwrxkh",
     "4395311_hcqoss",
   ];
+  const handleClickOutside = (event) => {
+    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      setShowFilterDropdown(false); // Close the dropdown
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     if (selectedProductType) {
@@ -74,7 +88,7 @@ const Explore = () => {
         where("subType", "==", subType)
       );
       if (category !== "All") {
-        q = query(q, where("productCategory", "==", category)); // Filter by gender (productCategory) if not "All"
+        q = query(q, where("productCategory", "==", category));
       }
       const querySnapshot = await getDocs(q);
       const productsData = querySnapshot.docs.map((doc) => ({
@@ -165,8 +179,8 @@ const Explore = () => {
                 onClick={() => setIsSearching(true)}
               />
               {selectedSubType && (
-                <IoFilterOutline
-                  className="text-3xl cursor-pointer ml-4"
+                <LuListFilter
+                  className="text-2xl cursor-pointer ml-4"
                   onClick={toggleFilterDropdown}
                 />
               )}
@@ -183,25 +197,29 @@ const Explore = () => {
                 className="flex-1 border border-gray-300 rounded-full px-3 py-2 text-black focus:outline-none"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search vendors..."
+                placeholder="Search products..."
               />
             </div>
           )}
         </div>
         {showFilterDropdown && (
-          <div className="absolute top-14 right-4 bg-white shadow-lg rounded-lg w-48 z-20">
-            <div
-              className="p-4 cursor-pointer hover:bg-gray-100"
+          <div
+            ref={dropdownRef}
+            className="absolute right-4 bg-white shadow-[0_0_10px_rgba(0,0,0,0.1)]  top-14 p-3 w-44 h-28 rounded-2.5xl z-50 flex flex-col justify-between font-opensans "
+          >
+            <span
+              className="text-base ml-2 cursor-pointer"
               onClick={() => sortProducts("high-to-low")}
             >
               Price: High to Low
-            </div>
-            <div
-              className="p-4 cursor-pointer hover:bg-gray-100"
+            </span>
+            <hr className="text-slate-300" />
+            <span
+              className="text-base ml-2 cursor-pointer"
               onClick={() => sortProducts("low-to-high")}
             >
               Price: Low to High
-            </div>
+            </span>
           </div>
         )}
         <div className="border-t border-gray-300 mt-6"></div>

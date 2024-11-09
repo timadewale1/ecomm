@@ -62,12 +62,15 @@ const VendorOrders = () => {
   };
 
   // Filter orders by the selected tab status
-  const filteredOrders = orders.filter(
-    (order) => order.progressStatus === activeTab
+  // Filter orders by the selected tab status
+  const filteredOrders = orders.filter((order) =>
+    activeTab === "Shipped"
+      ? ["Shipped", "Delivered"].includes(order.progressStatus)
+      : order.progressStatus === activeTab
   );
 
   return (
-    <div className="p-3 bg-white min-h-screen flex flex-col items-center">
+    <div className="p-3 bg-white min-h-screen  flex flex-col items-center">
       {/* Pending Orders Banner */}
       <div className="bg-customDeepOrange rounded-xl w-full h-28 text-center mb-4 flex items-center justify-center relative">
         <div className="absolute top-0 right-0">
@@ -104,7 +107,7 @@ const VendorOrders = () => {
       </div>
 
       {/* Render Orders List or Skeleton/Message */}
-      <div className="orders-list w-full max-w-xs space-y-3 text-center">
+      <div className="orders-list pb-16 w-full max-w-xs space-y-3 text-center">
         {loading ? (
           <Skeleton count={2} height={60} className="mb-4" />
         ) : filteredOrders.length > 0 ? (

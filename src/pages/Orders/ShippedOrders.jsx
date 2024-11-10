@@ -156,7 +156,7 @@ const ShippedOrders = ({ orders, openModal }) => {
                   <span
                     className={`font-semibold text-xs font-opensans ${
                       order.progressStatus === "Delivered"
-                        ? "bg-green-100 text-green-800 px-2 py-1 rounded-md"
+                        ? "bg-green-700  text-white px-2 py-1 rounded-md"
                         : ""
                     } text-black`}
                   >

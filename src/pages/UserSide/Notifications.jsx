@@ -153,88 +153,93 @@ const NotificationsPage = () => {
   };
 
   return (
-    <div className="p-2">
-      {/* Navigation Header */}
-      <div className="sticky -px-2 py-3 top-0 bg-white z-10">
-        <div className="flex items-center mb-3 pb-2">
-          <GoChevronLeft
-            className="text-3xl cursor-pointer"
-            onClick={() => navigate(-1)}
-          />
-          <h1 className="text-xl font-opensans ml-4 font-semibold">
-            Notifications
-          </h1>
+    <div className="relative">
+      {/* Sticky Header Section */}
+      <div className="sticky top-0 z-20 bg-white w-full">
+        {/* Navigation Header */}
+        <div className="px-2 py-3 bg-white">
+          <div className="flex items-center mb-3 pb-2">
+            <GoChevronLeft
+              className="text-3xl cursor-pointer"
+              onClick={() => navigate(-1)}
+            />
+            <h1 className="text-xl font-opensans ml-4 font-semibold">
+              Notifications
+            </h1>
+          </div>
+          <div className="border-b border-gray-300 w-full"></div>
         </div>
-        <div className="border-b border-gray-300 w-screen translate-y-3 relative left-1/2 transform -translate-x-1/2"></div>
+
+        {/* Tabs for All, Vendors, and Orders */}
+        <div className="flex space-x-3 mt-2 mb-4 px-2 bg-white">
+          <button
+            onClick={() => setActiveTab("all")}
+            className={`py-2.5 px-3 text-xs font-normal rounded-full ${
+              activeTab === "all"
+                ? "bg-customOrange text-white"
+                : "bg-transparent border text-black font-opensans"
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setActiveTab("vendor")}
+            className={`py-2.5 px-3 text-xs font-normal rounded-full ${
+              activeTab === "vendor"
+                ? "bg-customOrange text-white"
+                : "bg-transparent border text-black font-opensans"
+            }`}
+          >
+            Vendors
+          </button>
+          <button
+            onClick={() => setActiveTab("order")}
+            className={`py-2.5 px-3 font-normal text-xs rounded-full ${
+              activeTab === "order"
+                ? "bg-customOrange text-white"
+                : "bg-transparent border text-black font-opensans"
+            }`}
+          >
+            Orders
+          </button>
+        </div>
       </div>
 
-      {/* Tabs for All, Vendors, and Orders */}
-      <div className="flex space-x-3 mt-2 mb-4">
-        <button
-          onClick={() => setActiveTab("all")}
-          className={`py-2.5 px-3 text-xs font-normal rounded-full ${
-            activeTab === "all"
-              ? "bg-customOrange text-white"
-              : "bg-transparent border text-black font-opensans"
-          }`}
-        >
-          All
-        </button>
-        <button
-          onClick={() => setActiveTab("vendor")}
-          className={`py-2.5 px-3 text-xs font-normal rounded-full ${
-            activeTab === "vendor"
-              ? "bg-customOrange text-white"
-              : "bg-transparent border text-black font-opensans"
-          }`}
-        >
-          Vendors
-        </button>
-        <button
-          onClick={() => setActiveTab("order")}
-          className={`py-2.5 px-3 font-normal text-xs rounded-full ${
-            activeTab === "order"
-              ? "bg-customOrange text-white"
-              : "bg-transparent border text-black font-opensans"
-          }`}
-        >
-          Orders
-        </button>
+      {/* Scrollable Notification List */}
+      <div className="overflow-y-auto h-[calc(100vh-150px)] px-2">
+        {notifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full mt-20">
+            <img
+              src={notifspic}
+              alt="No notifications"
+              className="w-36 h-32 mb-4"
+            />
+            <h2 className="text-lg font-opensans font-semibold">
+              Your notifications will show here
+            </h2>
+            <p className="text-gray-500 text-xs font-opensans text-center mt-2">
+              You’ll get important alerts about vendors <br /> you follow and
+              your orders here and <br /> through your email.
+            </p>
+          </div>
+        ) : (
+          <div>
+            {renderNotificationsSection("Today", groupedNotifications.today)}
+            {renderNotificationsSection(
+              "This Week",
+              groupedNotifications.thisWeek
+            )}
+            {renderNotificationsSection(
+              "This Month",
+              groupedNotifications.thisMonth
+            )}
+            {renderNotificationsSection("Older", groupedNotifications.older)}
+          </div>
+        )}
       </div>
-
-      {/* No Notifications Section */}
-      {notifications.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full mt-20">
-          <img
-            src={notifspic}
-            alt="No notifications"
-            className="w-36 h-32 mb-4"
-          />
-          <h2 className="text-lg font-opensans font-semibold">
-            Your notifications will show here
-          </h2>
-          <p className="text-gray-500 text-xs font-opensans text-center mt-2">
-            You’ll get important alerts about vendors <br /> you follow and your
-            orders here and
-            <br /> through your email.
-          </p>
-        </div>
-      ) : (
-        <div className="px-2">
-          {renderNotificationsSection("Today", groupedNotifications.today)}
-          {renderNotificationsSection(
-            "This Week",
-            groupedNotifications.thisWeek
-          )}
-          {renderNotificationsSection(
-            "This Month",
-            groupedNotifications.thisMonth
-          )}
-          {renderNotificationsSection("Older", groupedNotifications.older)}
-        </div>
-      )}
     </div>
   );
+  
 };
 
 export default NotificationsPage;

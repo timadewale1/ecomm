@@ -41,11 +41,10 @@ const VendorDashboard = () => {
 
   useEffect(() => {
     if (vendorData) {
-      // Fetch real-time statistics and activities only if vendor data exists
       fetchStatistics(vendorData.vendorId);
       fetchRecentActivities(vendorData.vendorId);
     }
-  });
+  }, [vendorData]);
 
   const filteredActivities = recentActivities.filter((activity) => {
     if (filterOptions === "All") return true;
@@ -71,7 +70,8 @@ const VendorDashboard = () => {
   };
 
   const textToCopy = `https://mythriftprod.vercel.app/${
-    vendorData && (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
+    vendorData &&
+    (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
   }/${vendorData.vendorId}`;
 
   const copyToClipboard = async () => {

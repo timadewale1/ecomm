@@ -39,27 +39,27 @@ const VendorOrders = () => {
     switch (activeTab) {
       case "Pending":
         return (
-          <div className="text-center translate-y-20 text-gray-700  text-xs font-normal font-opensans">
+          <div className="text-center translate-y-20 text-gray-700 text-xs font-normal font-opensans">
             📦 No pending orders at the moment. Keep an eye here -- your next
             sale could be just around the corner!
           </div>
         );
       case "In Progress":
         return (
-          <div className="text-center translate-y-20 text-gray-700  text-xs font-normal font-opensans">
+          <div className="text-center translate-y-20 text-gray-700 text-xs font-normal font-opensans">
             🚧 All caught up! No orders in progress right now.
           </div>
         );
       case "Shipped":
         return (
-          <div className="text-center translate-y-20 text-gray-700  text-xs font-normal font-opensans">
+          <div className="text-center translate-y-20 text-gray-700 text-xs font-normal font-opensans">
             📦 No shipped or delivered orders to track currently. Your fulfilled
             orders will show here.
           </div>
         );
       case "Declined":
         return (
-          <div className="text-center translate-y-20 text-gray-700  text-xs font-normal font-opensans">
+          <div className="text-center translate-y-20 text-gray-700 text-xs font-normal font-opensans">
             🙁 No declined orders in the list. Keep providing great service!
           </div>
         );

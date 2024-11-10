@@ -228,9 +228,13 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
                   : ""
               }`}
               onClick={() => {
-                if (progressStatus !== "Delivered") {
-                  setIsDeclineInfoModalOpen(true);
-                } else {
+                if (
+                  progressStatus === "Pending" ||
+                  progressStatus === "Shipped" ||
+                  progressStatus === "In Progress"
+                ) {
+                  setIsCallModalOpen(true);
+                } else if (progressStatus === "Delivered") {
                   toast.error("Cannot call, order is already delivered");
                 }
               }}

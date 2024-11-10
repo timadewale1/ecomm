@@ -54,7 +54,7 @@ const VendorProfile = () => {
           totalOrders === 0
             ? [1, 1, 1]
             : [fulfilledOrders, unfulfilledOrders, incomingOrders],
-        backgroundColor: ["#D92CA0", "#F27D38", "#5CBF49"],
+        backgroundColor: ["#5CBF49", "#d76230", "#d8d333"],
         hoverBackgroundColor: ["#D92CA0", "#F27D38", "#5CBF49"],
         borderWidth: 0,
       },
@@ -80,20 +80,23 @@ const VendorProfile = () => {
       try {
         const ordersRef = collection(db, "orders");
 
+        // Fulfilled Orders (Delivered)
         const fulfilledQuery = query(
           ordersRef,
-          where("status", "==", "fulfilled")
+          where("progressStatus", "==", "Delivered")
         );
         const fulfilledSnapshot = await getDocs(fulfilledQuery);
         setFulfilledOrders(fulfilledSnapshot.size);
 
+        // Unfulfilled Orders (In Progress, Shipped, or Pending)
         const unfulfilledQuery = query(
           ordersRef,
-          where("status", "==", "unfulfilled")
+          where("progressStatus", "in", ["In Progress", "Shipped", "Pending"])
         );
         const unfulfilledSnapshot = await getDocs(unfulfilledQuery);
         setUnfulfilledOrders(unfulfilledSnapshot.size);
 
+        // Incoming Orders (Adjust as needed based on actual criteria for "incoming")
         const incomingQuery = query(
           ordersRef,
           where("status", "==", "incoming")
@@ -180,34 +183,34 @@ const VendorProfile = () => {
           {/* My Activity Chart */}
           <div className=" my-4 w-full ">
             <div className="w-full h-14 flex">
-              <h1 className="text-base font-semibold mx-4 translate-y-3 text-black">
-                My Activity
+              <h1 className="text-base font-semibold font-opensans mx-4 translate-y-3 text-black">
+                Quick Stats
               </h1>
             </div>
-            <div className="flex flex-col items-center rounded-xl bg-customGrey">
+            <div className="flex flex-col items-center rounded-xl bg-zinc-200">
               <div className="w-40 h-40 relative">
                 {" "}
                 {/* Adjusted size for a semi-circle */}
                 <Doughnut data={activityData} options={activityOptions} />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center mt-5">
-                    <p className="text-xs font-medium">Total Orders</p>
-                    <p className="text-lg font-bold">{totalOrders}</p>
+                    <p className="text-xs text-black font-opensans font-medium">Total Orders</p>
+                    <p className="text-lg font-opensans text-black font-bold">{totalOrders}</p>
                   </div>
                 </div>
               </div>
               <div className="flex mt-2 space-x-6 text-sm mb-3">
                 <div className="flex items-center space-x-1">
-                  <span className="w-3 h-3 rounded-full bg-[#D92CA0]"></span>
-                  <span>Fulfilled ({fulfilledOrders})</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <span className="w-3 h-3 rounded-full bg-[#F27D38]"></span>
-                  <span>Unfulfilled ({unfulfilledOrders})</span>
-                </div>
-                <div className="flex items-center space-x-1">
                   <span className="w-3 h-3 rounded-full bg-[#5CBF49]"></span>
-                  <span>Incoming ({incomingOrders})</span>
+                  <span className="font-opensans text-black">Fulfilled ({fulfilledOrders})</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span className="w-3 h-3 rounded-full bg-[#d76230]"></span>
+                  <span className="font-opensans text-black">Unfulfilled ({unfulfilledOrders})</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span className="w-3 h-3 rounded-full bg-[#d8d333]"></span>
+                  <span className="font-opensans text-black">Incoming ({incomingOrders})</span>
                 </div>
               </div>
             </div>

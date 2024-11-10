@@ -1,13 +1,9 @@
-// src/components/orders/VendorOrders.js
-import React, { useState, useEffect } from "react";
-import { toast } from "react-toastify";
-import { getDocs, query, where, collection } from "firebase/firestore";
-import { db } from "../../firebase.config";
+import React, { useState, useMemo } from "react";
+import useVendorOrders from "../../custom-hooks/vendororderhk";
 import useAuth from "../../custom-hooks/useAuth";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 
-// Import status-specific components and the new OrderDetailsModal
 import PendingOrders from "./PendingOrders";
 import InProgressOrders from "./InProgressOrders";
 import ShippedOrders from "./ShippedOrders";
@@ -16,40 +12,18 @@ import OrderDetailsModal from "./OrderDetailsModals";
 
 const VendorOrders = () => {
   const { currentUser } = useAuth();
-  const [orders, setOrders] = useState([]);
   const [activeTab, setActiveTab] = useState("Pending");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { orders, loading } = useVendorOrders(currentUser?.uid);
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      if (currentUser) {
-        try {
-          const q = query(
-            collection(db, "orders"),
-            where("vendorId", "==", currentUser.uid)
-          );
-          const querySnapshot = await getDocs(q);
-          if (querySnapshot.empty) {
-            setOrders([]);
-            return;
-          }
-          const fetchedOrders = querySnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          setOrders(fetchedOrders);
-        } catch (error) {
-          console.error("Error fetching orders:", error);
-          toast.error("Error fetching orders. Please try again.");
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-    fetchOrders();
-  }, [currentUser]);
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) =>
+      activeTab === "Shipped"
+        ? ["Shipped", "Delivered"].includes(order.progressStatus)
+        : order.progressStatus === activeTab
+    );
+  }, [orders, activeTab]);
 
   const openModal = (order) => {
     setSelectedOrder(order);
@@ -61,36 +35,62 @@ const VendorOrders = () => {
     setIsModalOpen(false);
   };
 
-  // Filter orders by the selected tab status
-  // Filter orders by the selected tab status
-  const filteredOrders = orders.filter((order) =>
-    activeTab === "Shipped"
-      ? ["Shipped", "Delivered"].includes(order.progressStatus)
-      : order.progressStatus === activeTab
-  );
+  const getEmptyStateMessage = () => {
+    switch (activeTab) {
+      case "Pending":
+        return (
+          <div className="text-center translate-y-20 text-gray-700  text-xs font-normal font-opensans">
+            📦 No pending orders at the moment. Keep an eye here -- your next
+            sale could be just around the corner!
+          </div>
+        );
+      case "In Progress":
+        return (
+          <div className="text-center translate-y-20 text-gray-700  text-xs font-normal font-opensans">
+            🚧 All caught up! No orders in progress right now.
+          </div>
+        );
+      case "Shipped":
+        return (
+          <div className="text-center translate-y-20 text-gray-700  text-xs font-normal font-opensans">
+            📦 No shipped or delivered orders to track currently. Your fulfilled
+            orders will show here.
+          </div>
+        );
+      case "Declined":
+        return (
+          <div className="text-center translate-y-20 text-gray-700  text-xs font-normal font-opensans">
+            🙁 No declined orders in the list. Keep providing great service!
+          </div>
+        );
+      default:
+        return (
+          <div className="text-center text-gray-500 font-semibold">
+            No orders found.
+          </div>
+        );
+    }
+  };
 
   return (
-    <div className="p-3 bg-white min-h-screen  flex flex-col items-center">
-      {/* Pending Orders Banner */}
+    <div className="p-3 bg-white min-h-screen flex flex-col items-center">
+      {/* Top Card Banner for Selected Tab */}
       <div className="bg-customDeepOrange rounded-xl w-full h-28 text-center mb-4 flex items-center justify-center relative">
         <div className="absolute top-0 right-0">
           <img src="./Vector.png" alt="icon" className="w-16 h-20" />
         </div>
         <div className="flex flex-col">
-          <h1 className="font-opensans font-normal text-white text-sm">
-            Pending Orders
+          <h1 className="font-opensans font-normal text-white text-sm capitalize">
+            {activeTab} Orders
           </h1>
           <p className="text-4xl font-opensans font-semibold text-white mt-2">
-            {
-              orders.filter((order) => order.progressStatus === "Pending")
-                .length
-            }
+            {filteredOrders.length}
           </p>
         </div>
       </div>
 
       {/* Tabs for Order Status */}
-      <div className="tabs flex space-x-8 mb-1 align-items-center justify-center">
+      <div className="tabs flex space-x-12 mb-1 align-items-center justify-center">
         {["Pending", "In Progress", "Shipped", "Declined"].map((tab) => (
           <button
             key={tab}
@@ -122,7 +122,7 @@ const VendorOrders = () => {
           )
         ) : (
           <div className="text-gray-500 text-sm mt-6">
-            🍂 No {activeTab.toLowerCase()} orders yet.
+            {getEmptyStateMessage()}
           </div>
         )}
       </div>

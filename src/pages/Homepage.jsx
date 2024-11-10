@@ -87,8 +87,8 @@ const Homepage = () => {
   }, []);
 
   const handleShowMore = () => {
-    setActiveNav(2);
-    navigate("/explore");
+    setActiveNav(3);
+    navigate("/browse-markets");
   };
 
   const handleCategoryClick = (category) => {
@@ -434,10 +434,10 @@ const Homepage = () => {
                 </>
               )}
             </div>
-            <div className="flex justify-between px-2 mt-10 text-base">
-              <h1 className="font-semibold text-xl">Explore</h1>
+            <div className="flex justify-between items-center px-2 mt-10 text-base">
+              <h1 className="font-semibold font-opensans text-xl">Explore</h1>
               <p
-                className="font-light text-red-500 cursor-pointer"
+                className="font-light text-red-500 text-sm font-opensans cursor-pointer"
                 onClick={handleShowMore}
               >
                 Show All

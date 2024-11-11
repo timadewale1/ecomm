@@ -5,6 +5,7 @@ import { auth, db } from "../../firebase.config";
 import { RotatingLines } from "react-loader-spinner";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+import { ChevronRight, User, ChevronLeft } from "lucide-react";
 import {
   doc,
   getDoc,
@@ -15,10 +16,8 @@ import {
 } from "firebase/firestore";
 import useAuth from "../../custom-hooks/useAuth";
 import { IoMdContact } from "react-icons/io";
-import { FaAngleRight, FaAngleLeft } from "react-icons/fa";
 import { TbHomeStar } from "react-icons/tb";
 import { PiSignOutBold } from "react-icons/pi";
-import { FaRegCircleUser } from "react-icons/fa6";
 import { Doughnut } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import AvatarSelectorModal from "../vendor/VendorAvatarSelect.jsx";
@@ -55,7 +54,7 @@ const VendorProfile = () => {
           totalOrders === 0
             ? [1, 1, 1]
             : [fulfilledOrders, unfulfilledOrders, incomingOrders],
-        backgroundColor: ["#D92CA0", "#F27D38", "#5CBF49"],
+        backgroundColor: ["#5CBF49", "#d76230", "#d8d333"],
         hoverBackgroundColor: ["#D92CA0", "#F27D38", "#5CBF49"],
         borderWidth: 0,
       },
@@ -81,20 +80,23 @@ const VendorProfile = () => {
       try {
         const ordersRef = collection(db, "orders");
 
+        // Fulfilled Orders (Delivered)
         const fulfilledQuery = query(
           ordersRef,
-          where("status", "==", "fulfilled")
+          where("progressStatus", "==", "Delivered")
         );
         const fulfilledSnapshot = await getDocs(fulfilledQuery);
         setFulfilledOrders(fulfilledSnapshot.size);
 
+        // Unfulfilled Orders (In Progress, Shipped, or Pending)
         const unfulfilledQuery = query(
           ordersRef,
-          where("status", "==", "unfulfilled")
+          where("progressStatus", "in", ["In Progress", "Shipped", "Pending"])
         );
         const unfulfilledSnapshot = await getDocs(unfulfilledQuery);
         setUnfulfilledOrders(unfulfilledSnapshot.size);
 
+        // Incoming Orders (Adjust as needed based on actual criteria for "incoming")
         const incomingQuery = query(
           ordersRef,
           where("status", "==", "incoming")
@@ -146,11 +148,11 @@ const VendorProfile = () => {
   };
 
   return (
-    <div className="pb-4">
+    <div className="py-4 px-2 font-opensans ">
       {!showDetails && !showHistory ? (
         <div className="flex flex-col items-center">
           {/* Profile Picture and Name */}
-          <div className="flex border rounded-full p-1 justify-center mt-4 relative">
+          <div className="flex border rounded-full p-1 justify-center mt-6 relative">
             {isLoading ? (
               <Skeleton circle={true} height={144} width={144} />
             ) : userData && userData.photoURL ? (
@@ -179,34 +181,36 @@ const VendorProfile = () => {
           </div>
 
           {/* My Activity Chart */}
-          <div className="flex flex-col w-full my-4">
-            <h1 className="text-base font-semibold mx-4 translate-y-3 text-black">
-              My Activity
-            </h1>
-            <div className="flex flex-col items-center mt-4 rounded-xl bg-customGrey">
-              <div className="w-40 h-44 relative">
+          <div className=" my-4 w-full ">
+            <div className="w-full h-14 flex">
+              <h1 className="text-base font-semibold font-opensans mx-4 translate-y-3 text-black">
+                Quick Stats
+              </h1>
+            </div>
+            <div className="flex flex-col items-center rounded-xl bg-zinc-200">
+              <div className="w-40 h-40 relative">
                 {" "}
                 {/* Adjusted size for a semi-circle */}
                 <Doughnut data={activityData} options={activityOptions} />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center mt-5">
-                    <p className="text-sm font-medium">Total Orders</p>
-                    <p className="text-xl font-bold">{totalOrders}</p>
+                    <p className="text-xs text-black font-opensans font-medium">Total Orders</p>
+                    <p className="text-lg font-opensans text-black font-bold">{totalOrders}</p>
                   </div>
                 </div>
               </div>
-              <div className="flex mt-4 space-x-6 text-sm mb-3">
-                <div className="flex items-center space-x-1">
-                  <span className="w-3 h-3 rounded-full bg-[#D92CA0]"></span>
-                  <span>Fulfilled ({fulfilledOrders})</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <span className="w-3 h-3 rounded-full bg-[#F27D38]"></span>
-                  <span>Unfulfilled ({unfulfilledOrders})</span>
-                </div>
+              <div className="flex mt-2 space-x-6 text-sm mb-3">
                 <div className="flex items-center space-x-1">
                   <span className="w-3 h-3 rounded-full bg-[#5CBF49]"></span>
-                  <span>Incoming ({incomingOrders})</span>
+                  <span className="font-opensans text-black">Fulfilled ({fulfilledOrders})</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span className="w-3 h-3 rounded-full bg-[#d76230]"></span>
+                  <span className="font-opensans text-black">Unfulfilled ({unfulfilledOrders})</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span className="w-3 h-3 rounded-full bg-[#d8d333]"></span>
+                  <span className="font-opensans text-black">Incoming ({incomingOrders})</span>
                 </div>
               </div>
             </div>
@@ -221,16 +225,16 @@ const VendorProfile = () => {
             </div>
             <div className="flex flex-col items-center w-full">
               <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
                 onClick={() => setShowDetails(!showDetails)}
               >
                 <div className="flex items-center">
-                  <FaRegCircleUser className="text-black text-xl mr-4" />
+                  <User className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-black capitalize">
                     Personal information
                   </h2>
                 </div>
-                <FaAngleRight className="text-black" />
+                <ChevronRight className="text-black" />
               </div>
             </div>
 
@@ -241,7 +245,7 @@ const VendorProfile = () => {
             </div>
             <div className="flex flex-col items-center w-full">
               <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
                 onClick={() => navigate("")}
               >
                 <div className="flex items-center">
@@ -250,27 +254,28 @@ const VendorProfile = () => {
                     View Ratings
                   </h2>
                 </div>
-                <FaAngleRight className="text-black" />
+                <ChevronRight className="text-black" />
               </div>
-            </div>
-            <div
-              className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
-              onClick={handleLogout}
-            >
-              <div className="flex items-center justify-between w-full px-4 py-3">
-                <PiSignOutBold className="text-red-600 text-xl mr-4" />
-                <p className="text-size text-black w-full font-normal">
-                  Sign Out
-                </p>
-                {isLoggingOut && (
-                  <RotatingLines
-                    strokeColor="#f9531e"
-                    strokeWidth="5"
-                    animationDuration="0.75"
-                    width="24"
-                    visible={true}
-                  />
-                )}
+
+              <div
+                className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                onClick={handleLogout}
+              >
+                <div className="flex items-center ">
+                  <PiSignOutBold className="text-red-600 text-xl mr-4" />
+                  <p className="text-size text-black font-normal capitalize">
+                    Sign Out
+                  </p>
+                  {isLoggingOut && (
+                    <RotatingLines
+                      strokeColor="#f9531e"
+                      strokeWidth="5"
+                      animationDuration="0.75"
+                      width="24"
+                      visible={true}
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -285,7 +290,7 @@ const VendorProfile = () => {
           )}
           {showHistory && (
             <div className="flex flex-col items-center">
-              <FaAngleLeft
+              <ChevronLeft
                 className="text-2xl text-black cursor-pointer self-start"
                 onClick={() => setShowHistory(false)}
               />

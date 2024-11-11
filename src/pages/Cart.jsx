@@ -19,7 +19,7 @@ import Loading from "../components/Loading/Loading";
 import { HiOutlineBuildingStorefront } from "react-icons/hi2";
 import { BiMessageDetail } from "react-icons/bi";
 import { BsPlus } from "react-icons/bs";
-
+import { Bars } from "react-loader-spinner";
 const debounce = (func, delay) => {
   let timeoutId;
   return (...args) => {
@@ -43,6 +43,8 @@ const Cart = () => {
   const [vendorNotes, setVendorNotes] = useState({});
   const [vendorsInfo, setVendorsInfo] = useState({});
   const location = useLocation();
+  const [checkoutLoading, setCheckoutLoading] = useState({});
+
   const formatPrice = (price) => {
     return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
@@ -71,6 +73,7 @@ const Cart = () => {
             const productDoc = await getDoc(doc(db, `products`, id));
             if (!productDoc.exists()) {
               dispatch(removeFromCart({ vendorId, productKey }));
+              toast.dismiss();
               toast(
                 `Product ${product.name} has been removed as it is no longer available.`,
                 { icon: "ℹ️" }
@@ -169,21 +172,23 @@ const Cart = () => {
   };
 
   const handleCheckout = async (vendorId) => {
+    setCheckoutLoading((prev) => ({ ...prev, [vendorId]: true }));
     const vendorCart = cart[vendorId];
 
     if (!vendorCart || Object.keys(vendorCart.products).length === 0) {
       toast.error("No products to checkout for this vendor.");
+      setCheckoutLoading(false);
       return;
     }
 
     // Check if user is logged in
     if (!currentUser) {
+      setCheckoutLoading(false);
       return;
     }
 
     let profileComplete = currentUser.profileComplete;
 
-    // If profileComplete is undefined, try fetching from Firestore
     if (profileComplete === undefined) {
       try {
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
@@ -193,19 +198,19 @@ const Cart = () => {
         }
       } catch (error) {
         console.error("Error fetching user profile from Firestore:", error);
+        setCheckoutLoading(false);
       }
     }
 
-    // Redirect if profile is incomplete
     if (!profileComplete) {
       toast.error(
         "Please complete your profile before proceeding to checkout."
       );
       navigate("/profile?incomplete=true");
+      setCheckoutLoading(false);
       return;
     }
 
-    // Check stock availability for each product in the cart
     const outOfStockItems = [];
 
     for (const productKey in vendorCart.products) {
@@ -217,7 +222,6 @@ const Cart = () => {
         const productData = productDoc.data();
 
         if (product.subProductId) {
-          // Check stock for sub-product
           const subProduct = productData.subProducts?.find(
             (sp) => sp.subProductId === product.subProductId
           );
@@ -227,7 +231,6 @@ const Cart = () => {
             );
           }
         } else if (product.selectedColor && product.selectedSize) {
-          // Check stock for variant
           const variant = productData.variants?.find(
             (v) =>
               v.color === product.selectedColor &&
@@ -239,7 +242,6 @@ const Cart = () => {
             );
           }
         } else {
-          // Check stock for main product
           if (productData.stock < product.quantity) {
             outOfStockItems.push(product.name);
           }
@@ -248,10 +250,12 @@ const Cart = () => {
         console.warn(`Product with ID ${product.id} not found.`);
       }
     }
+
     if (outOfStockItems.length > 0) {
       toast.error(
         `The following items are out of stock: ${outOfStockItems.join(", ")}`
       );
+      setCheckoutLoading(false); // Stop loader if items are out of stock
       return;
     }
 
@@ -260,6 +264,7 @@ const Cart = () => {
       : "";
 
     navigate(`/newcheckout/${vendorId}?note=${note}`);
+    setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
   };
 
   const calculateVendorTotal = (vendorId) => {
@@ -440,10 +445,25 @@ const Cart = () => {
                     <div className="flex-col flex mt-3">
                       <button
                         onClick={() => handleCheckout(vendorId)}
-                        className="bg-customOrange rounded-full h-12 w-full font-opensans font-medium text-white px-4 py-2"
+                        disabled={checkoutLoading[vendorId]}
+                        className={`rounded-full flex justify-center items-center h-12 w-full font-opensans font-medium text-white px-4 py-2 ${
+                          checkoutLoading[vendorId]
+                            ? "bg-orange-500"
+                            : "bg-customOrange"
+                        }`}
                       >
-                        Checkout
+                        {checkoutLoading[vendorId] ? (
+                          <Bars
+                            color="#fff"
+                            height={24}
+                            width={24}
+                            className="inline-block"
+                          />
+                        ) : (
+                          "Checkout"
+                        )}
                       </button>
+
                       <button
                         onClick={() => handleClearSelection(vendorId)}
                         className="text-customOrange font-semibold mt-3 font-opensans"
@@ -573,10 +593,25 @@ const Cart = () => {
               <div className="flex flex-col justify-between space-y-4 mt-4">
                 <button
                   onClick={() => handleCheckout(selectedVendorId)}
-                  className="bg-customOrange w-full text-white  text-center  items-center font-opensans font-semibold  h-12 rounded-full flex-grow"
+                  disabled={checkoutLoading[selectedVendorId]}
+                  className={`rounded-full flex justify-center items-center h-12 w-full font-opensans font-medium text-white px-4 py-2 ${
+                    checkoutLoading[selectedVendorId]
+                      ? "bg-orange-500"
+                      : "bg-customOrange"
+                  }`}
                 >
-                  Proceed to checkout
+                  {checkoutLoading[selectedVendorId] ? (
+                    <Bars
+                      color="#fff"
+                      height={24}
+                      width={24}
+                      className="inline-block"
+                    />
+                  ) : (
+                    "Checkout"
+                  )}
                 </button>
+
                 <button
                   onClick={() => handleClearSelection(selectedVendorId)}
                   className="bg-gray-300 text-black font-opensans font-semibold  h-12 w-full rounded-full flex-grow"

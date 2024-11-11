@@ -141,13 +141,55 @@ li::marker {
   background-color: white;
   border-radius: 10px 10px 10px 10px; /* Rounded corners at the top */
   padding: 10px;
+
+  outline: none;
+}
+.modal-content-reason {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 75%;
+  background-color: white;
+  border-radius: 10px;
+  padding: 20px;
+  outline: none;
+  transition: height 0.3s ease; /* Smooth height transition */
+}
+.modal-content-rider {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 85%;
+  background-color: white;
+  border-radius: 10px;
+  padding: 20px;
+  outline: none;
+  transition: height 0.3s ease; /* Smooth height transition */
+}
+
+.modal-content-order {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  background-color: white;
+  
+  padding: 0px;
+  z-index: 2000;
   outline: none;
 }
 .highlight {
   background-color: #fff3e0;
-  border: 2px solid #ff9800;
-  padding: 1em;
+  /* border: 1px solid #ff9800; */
+  padding: 7em;
   transition: background-color 0.3s ease, border 0.3s ease;
+}
+.modal-overlay{
+  z-index: 3000;
 }
 
 .transition-transform {

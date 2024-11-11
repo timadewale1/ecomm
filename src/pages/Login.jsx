@@ -31,7 +31,6 @@ const Login = () => {
   const location = useLocation();
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
-
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
@@ -301,8 +300,6 @@ const Login = () => {
                       <Link to="/forgetpassword">Forgot password?</Link>
                     </p>
                   </div>
-
-               
 
                   <motion.button
                     type="submit"

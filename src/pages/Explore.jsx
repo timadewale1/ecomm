@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import { IoChevronBackOutline, IoFilterOutline } from "react-icons/io5";
+import { LuListFilter } from "react-icons/lu";
 import { CiSearch } from "react-icons/ci";
 import Loading from "../components/Loading/Loading";
 import Skeleton from "react-loading-skeleton";
@@ -17,6 +18,7 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import ProductCard from "../components/Products/ProductCard";
 import Lottie from "lottie-react";
 import noProductAnimation from "../Animations/noproduct.json"; // Adjust path to your Lottie JSON file
+import { MdCancel } from "react-icons/md";
 
 const Explore = () => {
   const loading = useSelector((state) => state.product.loading);
@@ -34,6 +36,7 @@ const Explore = () => {
   const [priceRange] = useState([1000, 10000]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [sortOrder, setSortOrder] = useState(null); // 'high-to-low' or 'low-to-high'
+  const dropdownRef = useRef(null);
 
   const cld = new Cloudinary({
     cloud: {
@@ -47,6 +50,18 @@ const Explore = () => {
     "4991116_bwrxkh",
     "4395311_hcqoss",
   ];
+  const handleClickOutside = (event) => {
+    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      setShowFilterDropdown(false); // Close the dropdown
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     if (selectedProductType) {
@@ -74,7 +89,7 @@ const Explore = () => {
         where("subType", "==", subType)
       );
       if (category !== "All") {
-        q = query(q, where("productCategory", "==", category)); // Filter by gender (productCategory) if not "All"
+        q = query(q, where("productCategory", "==", category));
       }
       const querySnapshot = await getDocs(q);
       const productsData = querySnapshot.docs.map((doc) => ({
@@ -99,6 +114,7 @@ const Explore = () => {
   const handleSubTypeClick = (subType) => {
     setSelectedSubType(subType);
     setActiveSubType(subType);
+    setSearchTerm("");
     fetchProducts(
       selectedProductType.type,
       subType.name || subType,
@@ -116,16 +132,24 @@ const Explore = () => {
     });
     setProducts(sortedProducts);
     setSortOrder(order);
-    setShowFilterDropdown(false); // Close the dropdown after selecting
+    setShowFilterDropdown(false);
   };
 
   const handleBackClick = () => {
     if (selectedSubType) {
       setSelectedSubType(null);
       setProducts([]);
+      setSearchTerm("");
     } else {
       setSelectedProductType(null);
+      setSearchTerm("");
     }
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm("");
+    setIsSearching(false);
+    setFilteredProductTypes(productTypes);
   };
 
   const filteredProducts = products.filter(
@@ -138,7 +162,7 @@ const Explore = () => {
   }
 
   return (
-    <div className="">
+    <div className="pb-6">
       <div className="sticky py-4 px-2 w-full top-0 bg-white z-10">
         <div className="flex items-center justify-between mb-3 pb-2 px-2.5">
           {!isSearching && (
@@ -165,43 +189,56 @@ const Explore = () => {
                 onClick={() => setIsSearching(true)}
               />
               {selectedSubType && (
-                <IoFilterOutline
-                  className="text-3xl cursor-pointer ml-4"
+                <LuListFilter
+                  className="text-2xl cursor-pointer ml-4"
                   onClick={toggleFilterDropdown}
                 />
               )}
             </div>
           )}
           {isSearching && (
-            <div className="flex items-center w-full">
+            <div className="flex items-center w-full relative">
               <IoChevronBackOutline
                 className="text-3xl cursor-pointer mr-2"
-                onClick={() => setIsSearching(false)}
+                onClick={() => {
+                  setIsSearching(false);
+                  handleClearSearch(); 
+                }}
               />
               <input
                 type="text"
-                className="flex-1 border border-gray-300 rounded-full px-3 py-2 text-black focus:outline-none"
+                className="flex-1 border font-opensans text-sm border-gray-300 rounded-full px-3 py-2 text-black focus:outline-none"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search vendors..."
+                placeholder="Explore the best thrifted items..."
               />
+              {searchTerm && (
+                <MdCancel
+                  className="text-2xl text-gray-500 cursor-pointer absolute right-3"
+                  onClick={handleClearSearch}
+                />
+              )}
             </div>
           )}
         </div>
         {showFilterDropdown && (
-          <div className="absolute top-14 right-4 bg-white shadow-lg rounded-lg w-48 z-20">
-            <div
-              className="p-4 cursor-pointer hover:bg-gray-100"
+          <div
+            ref={dropdownRef}
+            className="absolute right-4 bg-white shadow-[0_0_10px_rgba(0,0,0,0.1)]  top-14 p-3 w-40 h-24 rounded-2.5xl z-50 flex flex-col justify-between font-opensans "
+          >
+            <span
+              className="text-sm ml-2  font-opensans cursor-pointer"
               onClick={() => sortProducts("high-to-low")}
             >
               Price: High to Low
-            </div>
-            <div
-              className="p-4 cursor-pointer hover:bg-gray-100"
+            </span>
+            <hr className="text-slate-300" />
+            <span
+              className="text-sm ml-2 font-opensans cursor-pointer"
               onClick={() => sortProducts("low-to-high")}
             >
               Price: Low to High
-            </div>
+            </span>
           </div>
         )}
         <div className="border-t border-gray-300 mt-6"></div>
@@ -231,10 +268,10 @@ const Explore = () => {
                     loop={true}
                     style={{ height: 200, width: 200, margin: "0 auto" }}
                   />
-                  <h2 className="text-xl font-semibold text-black">
+                  <h2 className="text-xl font-semibold font-opensans text-black">
                     Oops! Nothing here yet.
                   </h2>
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 font-opensans">
                     Please try searching for another product.
                   </p>
                 </div>
@@ -285,10 +322,10 @@ const Explore = () => {
                 ))
               ) : (
                 <div className="text-center mt-4 text-lg font-medium text-gray-500">
-                  <h2 className="text-xl font-semibold text-black">
+                  <h2 className="text-xl font-semibold font-opensans text-black">
                     No results found
                   </h2>
-                  <p className="text-gray-600">
+                  <p className="text-black text-sm font-opensans ">
                     Please try searching for another product type.
                   </p>
                 </div>

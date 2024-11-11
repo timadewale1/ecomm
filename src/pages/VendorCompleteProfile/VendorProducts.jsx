@@ -13,22 +13,31 @@ import {
   query,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
-import { toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import Modal from "../../components/layout/Modal";
 import ConfirmationDialog from "../../components/layout/ConfirmationDialog";
-import { FaTrashAlt, FaPlus, FaBoxOpen, FaEdit } from "react-icons/fa";
+import {
+  FaTrashAlt,
+  FaPlus,
+  FaBoxOpen,
+  FaEdit,
+  FaRegCircle,
+  FaRegCheckCircle,
+} from "react-icons/fa";
+import { GrRadialSelected } from "react-icons/gr";
 import { RotatingLines } from "react-loader-spinner";
 import AddProduct from "../vendor/AddProducts";
 import { BsBox2Fill, BsPin, BsPinAngleFill } from "react-icons/bs";
 import { FaStar } from "react-icons/fa";
 import { Pin } from "@mui/icons-material";
-import { FiPlus } from "react-icons/fi";
+import { FiMoreHorizontal, FiPlus } from "react-icons/fi";
 import VendorProductModal from "../../components/layout/VendorProductModal";
 import ToggleButton from "../../components/Buttons/ToggleButton";
 import { motion } from "framer-motion";
 import Lottie from "lottie-react";
 import LoadState from "../../Animations/loadinganimation.json";
+import { ToastBar } from "react-hot-toast";
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
@@ -40,11 +49,15 @@ const VendorProducts = () => {
   const [isViewProductModalOpen, setIsViewProductModalOpen] = useState(false);
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [action, setAction] = useState("");
   const [showRestockInput, setShowRestockInput] = useState(false);
   const [restockQuantity, setRestockQuantity] = useState(0);
   const [buttonLoading, setButtonLoading] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
   const [productsLoading, setProductsLoading] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [pickedProducts, setPickedProducts] = useState([]);
 
   const auth = getAuth();
   const navigate = useNavigate();
@@ -88,18 +101,6 @@ const VendorProducts = () => {
     };
   }, [vendorId]);
 
-  const handleToggle = async () => {
-    // Any other logic that should happen when toggling
-    const productRef = doc(db, "products", selectedProduct.id);
-    await updateDoc(productRef, {
-      published: !selectedProduct.published,
-    });
-
-    selectedProduct.published
-      ? toast.success("Product is now drafted successfully.")
-      : toast.success("Product published successfully.");
-  };
-
   const fetchVendorProducts = (vendorId) => {
     const productsQuery = query(
       collection(db, "products"),
@@ -134,6 +135,82 @@ const VendorProducts = () => {
   const handleProductClick = (product) => {
     setSelectedProduct(product);
     setIsViewProductModalOpen(true);
+  };
+
+  const handleTogglePicking = () => {
+    setPicking((prev) => !prev);
+    setPickedProducts([]); // Reset picked products when toggling
+  };
+
+  const togglePickProduct = (productId) => {
+    setPickedProducts((prevPicked) =>
+      prevPicked.includes(productId)
+        ? prevPicked.filter((id) => id !== productId)
+        : [...prevPicked, productId]
+    );
+  };
+
+  // Function to check if picked products are only from the same tab
+  const canPublishOrUnpublish = () => {
+    if (pickedProducts.length === 0) return false;
+    const selectedProducts = products.filter((p) =>
+      pickedProducts.includes(p.id)
+    );
+    const isAllPublished = selectedProducts.every((p) => p.published);
+    const isAllDrafted = selectedProducts.every((p) => !p.published);
+    return (tabOpt === "Active" && isAllPublished) ||
+           (tabOpt === "Drafts" && isAllDrafted);
+  };
+
+  const bulkPublishStateChange = async () => {
+    try {
+      for (const productId of pickedProducts) {
+        const productRef = doc(db, "products", productId);
+        await updateDoc(productRef, {
+          published: tabOpt === "Drafts",
+        });
+      }
+      toast.success(
+        tabOpt === "Drafts"
+          ? "Selected products published successfully."
+          : "Selected products unpublished successfully."
+      );
+      setPickedProducts([]);
+      setPicking(false);
+      setShowConfirmation(false);
+
+
+    } catch (error) {
+      console.error("Error changing publish state: ", error);
+      toast.error("Error changing publish state: " + error.message);
+    }
+  };
+
+
+  const confirmBulkDeleteProduct = async () => {
+    setLoading(true);
+    try {
+      for (const productId of pickedProducts) {
+        const productRef = doc(db, "products", productId);
+        await deleteDoc(productRef);
+      }
+      toast.success("Selected products deleted successfully.");
+      setPickedProducts([]);
+      setPicking(false);
+      setShowConfirmation(false);
+
+      await addActivityNote(
+        "Deleted Products 🗑",
+        `You removed products from your store! These products no longer exist in your store and customers that have them in their carts will be notified.`,
+        "Product Update"
+      );
+
+    } catch (error) {
+      console.error("Error deleting products: ", error);
+      toast.error("Error deleting products: " + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openAddProductModal = () => {
@@ -231,6 +308,22 @@ const VendorProducts = () => {
   };
 
   const handleDeleteProduct = () => {
+    setAction("delete");
+    setShowConfirmation(true);
+  };
+  
+  const handleBulkDelete = () => {
+    setAction("bulkDelete");
+    setShowConfirmation(true);
+  };
+
+  const handlePublish = () => {
+    setAction("publish");
+    setShowConfirmation(true);
+  };
+
+  const handleUnpublish = () => {
+    setAction("unpublish");
     setShowConfirmation(true);
   };
 
@@ -300,6 +393,24 @@ const VendorProducts = () => {
   return (
     <>
       <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-5 font-opensans ">
+        <div className="flex justify-end">
+          <div
+            className="relative flex justify-center items-center"
+            onClick={handleTogglePicking}
+          >
+            {picking && pickedProducts.length < 1 && (
+              <div className="absolute top-10 right-[28px] items-center flex justify-between w-[300px] h-[52px] p-4 bg-white shadow-lg rounded-2xl z-50 text-[16px]">
+                <p className=" font-semibold text-black">Select Product</p>
+                <FaRegCheckCircle />
+              </div>
+            )}
+            {!picking ? (
+              <div className="relative rounded-full w-11 h-11 bg-customOrange bg-opacity-10 flex justify-center items-center">
+                <FiMoreHorizontal className="w-6 h-6" />
+                </div>) : (<p className="text-[16px] mx-2">Cancel</p>)}
+          </div>
+        </div>
+
         <div className="relative bg-customDeepOrange w-full h-c120 rounded-2xl flex flex-col justify-center px-4 py-2">
           <div className="absolute top-0 right-0">
             <img src="./Vector.png" alt="" className="w-16 h-24" />
@@ -366,11 +477,26 @@ const VendorProducts = () => {
             filteredProducts.map((product) => (
               <div
                 key={product.id}
-                className=" cursor-pointer"
+                className="cursor-pointer"
                 onClick={() => handleProductClick(product)}
               >
                 <div className="flex flex-col space-y-2">
-                  <div className="w-44 h-44 rounded-xl bg-customSoftGray">
+                  <div className="relative w-44 h-44 rounded-xl bg-customSoftGray">
+                    {picking && (
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          togglePickProduct(product.id);
+                        }}
+                        className="absolute top-2 left-2"
+                      >
+                        {pickedProducts.includes(product.id) ? (
+                          <GrRadialSelected className="text-customOrange w-6 h-6" />
+                        ) : (
+                          <FaRegCircle className="text-customOrange w-6 h-6" />
+                        )}
+                      </div>
+                    )}
                     <img
                       src={product.coverImageUrl}
                       alt={product.name}
@@ -434,14 +560,44 @@ const VendorProducts = () => {
           )}
         </div>
       </div>
-      <button
-        onClick={openAddProductModal}
-        className={`fixed bottom-24 right-5 flex justify-center items-center bg-customOrange text-white rounded-full w-11 h-11 shadow-lg focus:outline-none`}
-      >
-        <span className="text-3xl">
-          <FiPlus />
-        </span>
-      </button>
+      {!picking && (
+        <button
+          onClick={openAddProductModal}
+          className={`fixed bottom-24 right-5 flex justify-center items-center bg-customOrange text-white rounded-full w-11 h-11 shadow-lg focus:outline-none`}
+        >
+          <span className="text-3xl">
+            <FiPlus />
+          </span>
+        </button>
+      )}
+
+      {picking && pickedProducts.length > 0 && (
+        <motion.div
+          initial={{ y: "100%" }}
+          animate={{ y: 0 }}
+          exit={{ x: "100%" }}
+          transition={{ type: "spring", stiffness: 100, damping: 20 }}
+          className={`fixed bottom-0 z-[1001] flex px-4 ${canPublishOrUnpublish() ? "justify-between" : "justify-center"} py-3 bg-white text-white w-full h-[94px] shadow-lg focus:outline-none`}
+        >{canPublishOrUnpublish() && (
+          <p className="text-lg font-semibold text-customRichBrown">
+              {tabOpt === 'Active' ? (
+                <p className="text-lg font-semibold text-customRichBrown"
+                onClick={handleUnpublish}>
+                Unpublish
+            </p>
+              ) : (
+                <p className="text-lg font-semibold text-customRichBrown"
+                onClick={handlePublish}>
+                  Publish
+                </p>
+              ) }
+          </p>)}
+          <p className="text-lg font-semibold text-customRichBrown mb-4"
+          onClick={() => handleBulkDelete()}>
+            Delete
+          </p>
+        </motion.div>
+      )}
 
       {selectedProduct && (
         <VendorProductModal
@@ -647,6 +803,7 @@ const VendorProducts = () => {
                   <ToggleButton
                     itemId={selectedProduct.id}
                     initialIsOn={isPublished}
+                    vendorId={vendorId}
                   />
                 </div>
                 <hr className="text-slate-400" />
@@ -665,6 +822,7 @@ const VendorProducts = () => {
         </VendorProductModal>
       )}
 
+
       {isAddProductModalOpen && (
         <Modal isOpen={isAddProductModalOpen} onClose={closeModals}>
           <AddProduct
@@ -676,12 +834,58 @@ const VendorProducts = () => {
       )}
 
       {showConfirmation && (
-        <ConfirmationDialog
-          isOpen={showConfirmation}
-          onClose={() => setShowConfirmation(false)}
-          onConfirm={confirmDeleteProduct}
-          message="Are you sure you want to delete this product?"
-        />
+        action === "delete" ? (
+          <ConfirmationDialog
+            isOpen={showConfirmation}
+            onClose={() => setShowConfirmation(false)}
+            onConfirm={confirmDeleteProduct}
+            message="Are you sure you want to delete this product?"
+            title="Delete Product"
+            loading={loading}
+          />
+        ) : action === "bulkDelete" ? (
+          <ConfirmationDialog
+            isOpen={showConfirmation}
+            onClose={() => setShowConfirmation(false)}
+            onConfirm={confirmBulkDeleteProduct}
+            message="Are you sure you want to delete these products?"
+            title="Delete Products"
+            loading={loading}
+          />
+        ) : action === "publish" ? (
+          <ConfirmationDialog
+            isOpen={showConfirmation}
+            onClose={() => setShowConfirmation(false)}
+            onConfirm={bulkPublishStateChange}
+            message="Are you sure you want to publish these products?"
+            title="Publish Products"
+            loading={loading}
+          />
+        ) : action === "unpublish" ? (
+          <ConfirmationDialog
+            isOpen={showConfirmation}
+            onClose={() => setShowConfirmation(false)}
+            onConfirm={bulkPublishStateChange}
+            message="Are you sure you want to unpublish these products?"
+            title="Unpublish Products"
+            loading={loading}
+          />
+        ) : null
+
+        // <ConfirmationDialog
+        //   isOpen={showConfirmation}
+        //   onClose={() => setShowConfirmation(false)}
+        //   onConfirm={confirmDeleteProduct}
+        //   message="Are you sure you want to delete this product?"
+        //   title="Delete Product"
+        // />
+        // <ConfirmationDialog
+        //   isOpen={showConfirmation}
+        //   onClose={() => setShowConfirmation(false)}
+        //   onConfirm={confirmDeleteProduct}
+        //   message="Are you sure you want to delete this product?"
+        //   title="Delete Product"
+        // />
       )}
     </>
   );

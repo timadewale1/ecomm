@@ -1,26 +1,40 @@
-import React from 'react';
+import React from "react";
+import { MdOutlineCancel } from "react-icons/md";
+import { FaTrashAlt } from "react-icons/fa";
+import { IoTrashOutline } from "react-icons/io5";
+import Loading from "../Loading/Loading";
+import Lottie from "lottie-react";
+import LoadState from "../../Animations/loadinganimation.json";
 
 const ConfirmationDialog = ({ isOpen, title, message, onClose, onConfirm }) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 confirmation">
-      <div className="bg-white p-6 rounded-2xl shadow-lg mx-4">
-        <h2 className="text-xl font-bold mb-4">{title}</h2>
-        <p className="text-gray-700 mb-6">{message}</p>
-        <div className="flex justify-end">
-          <button
-            className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md shadow-sm mr-4 hover:bg-gray-400 focus:outline-none"
+      <div className="space-y-4 flex flex-col justify-center bg-white  px-4 py-2 rounded-xl shadow-lg w-80 h-48">
+        <div className="flex flex-col items-center text-center space-y-2">
+          <h2 className="text-sm text-customRichBrown">{title}</h2>
+          <p className="text-[10px] text-customRichBrown">{message}</p>
+        </div>
+
+        <div className=" w-full h-24 px-3 py-1 flex flex-col items-center rounded-2xl bg-customSoftGray space-y-2">
+          <div
+            className={`w-full items-center ${ title === "Delete Product" || "Delete Products" ?  "text-red-600" : "text-customOrange"} text-sm flex justify-between py-2 focus:outline-none`}
+            onClick={onConfirm}
+          >
+            {title}
+          
+            <IoTrashOutline className="w-4 h-4" />
+          
+          </div>
+          <hr className="w-full text-slate-800" />
+          <div
+            className="w-full items-center text-sm flex justify-between py-2"
             onClick={onClose}
           >
             Cancel
-          </button>
-          <button
-            className="px-4 py-2 bg-red-600 text-white rounded-md shadow-sm hover:bg-red-700 focus:outline-none"
-            onClick={onConfirm}
-          >
-            Confirm
-          </button>
+            <MdOutlineCancel className="w-4 h-4" />
+          </div>
         </div>
       </div>
     </div>

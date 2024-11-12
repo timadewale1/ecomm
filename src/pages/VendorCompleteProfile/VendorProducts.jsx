@@ -37,7 +37,7 @@ import ToggleButton from "../../components/Buttons/ToggleButton";
 import { motion } from "framer-motion";
 import Lottie from "lottie-react";
 import LoadState from "../../Animations/loadinganimation.json";
-import { ToastBar } from "react-hot-toast";
+import { FaXmark } from "react-icons/fa6";
 
 
 const VendorProducts = () => {
@@ -53,7 +53,6 @@ const VendorProducts = () => {
   const [action, setAction] = useState("");
   const [isRestocking, setIsRestocking] = useState(false); // New state
   const [restockValues, setRestockValues] = useState({});
-  const [variantValues, setVariantValues] = useState({}) // New state
   const [rLoading, setRLoading] = useState(false);
   const [oLoading, setOLoading] = useState(false);
   const [buttonLoading, setButtonLoading] = useState(false);
@@ -77,33 +76,37 @@ const VendorProducts = () => {
         <table className="w-custVCard text-left border-collapse">
           <thead>
             <tr className="space-x-8">
-              <th className="text-black font-semibold text-sm pb-2 border-b border-gray-300">Size</th>
-              <th className="text-black text-right font-semibold text-sm pb-2 border-b border-gray-300">Quantity</th>
+              <th className="text-black font-semibold text-sm pb-2 border-b border-customOrange border-opacity-40">Size</th>
+              <th className="text-black text-right font-semibold text-sm pb-2 border-b border-customOrange border-opacity-40">Quantity</th>
             </tr>
           </thead>
+          
           <tbody>
             {variants.map((variant) => {
               const variantKey = `${variant.color}-${variant.size}`;
               return (
+                <>
                 <tr key={variantKey} className="space-x-8">
-                  <td className="py-2 text-sm font-normal border-b border-gray-200">{variant.size}</td>
+                  <td className="py-2 text-sm font-normal border-b border-customOrange border-opacity-40">{variant.size}</td>
                   <td
-                    className={`py-2 text-sm text-right font-normal border-b border-gray-200 ${
+                    className={`py-2 text-sm text-right font-normal border-b border-customOrange border-opacity-40 ${
                       variant.stock < 1 ? "text-red-500" : ""
                     }`}
                   >
-                    {variant.stock > 0 ? variant.stock : "Out of stock"}
-                    {isRestocking && (
+                    
+                    {isRestocking ? (
                       <input
                         type="number"
-                        placeholder="Restock"
-                        className="border p-1 ml-2 rounded-[10px]"
+                        className="border p-1 ml-2 rounded-[10px] focus:outline-customOrange w-24"
                         value={restockValues[variantKey]?.quantity || ""}
                         onChange={(e) => handleRestockInputChange("quantity", variantKey, e.target.value)}
                       />
+                    ) : (
+                      variant.stock > 0 ? variant.stock : "Out of stock"
                     )}
                   </td>
                 </tr>
+                </>
               );
             })}
           </tbody>
@@ -294,6 +297,11 @@ const VendorProducts = () => {
     setIsViewProductModalOpen(false);
     setIsAddProductModalOpen(false);
     setSelectedProduct(null);
+
+    if (isRestocking) {
+      setIsRestocking(false);
+      setRestockValues({});
+    }
   };
 
   const pinProduct = async (product) => {
@@ -560,7 +568,7 @@ const VendorProducts = () => {
               Active
             </p>
             <div className="h-1">
-              {tabOpt === "Active" && <hr className="w-11 text-customOrange" />}
+              {tabOpt === "Active" && <hr className="text-customOrange opacity-40  w-11" />}
             </div>
           </div>
           <div className="flex flex-col justify-center items-center space-y-3">
@@ -573,7 +581,7 @@ const VendorProducts = () => {
               Out of Stock
             </p>
             <div className="h-1">
-              {tabOpt === "OOS" && <hr className="w-11 text-customOrange" />}
+              {tabOpt === "OOS" && <hr className="text-customOrange opacity-40  w-11" />}
             </div>
           </div>
           <div className="flex flex-col justify-center items-center space-y-3">
@@ -586,7 +594,7 @@ const VendorProducts = () => {
               Drafts
             </p>
             <div className="h-1">
-              {tabOpt === "Drafts" && <hr className="w-11 text-customOrange" />}
+              {tabOpt === "Drafts" && <hr className="text-customOrange opacity-40  w-11" />}
             </div>
           </div>
         </div>
@@ -773,13 +781,13 @@ const VendorProducts = () => {
                   &#x20a6;{formatNumber(selectedProduct.price)}
                 </span>
               </p>
-              <hr className="text-slate-400" />
+              <hr className="text-customOrange opacity-40   " />
 
               <p className="text-black font-semibold text-sm">
                 Product Category:{" "}
                 <span className="font-normal">{selectedProduct.category}</span>
               </p>
-              <hr className="text-slate-400" />
+              <hr className="text-customOrange opacity-40   " />
 
               <p className="text-black font-semibold text-sm">
                 Quantity:{" "}
@@ -793,7 +801,7 @@ const VendorProducts = () => {
                     : "Out of stock"}
                 </span>
               </p>
-              <hr className="text-slate-400" />
+              <hr className="text-customOrange opacity-40   " />
 
               <p className="text-black font-semibold text-sm">
                 Product Type:{" "}
@@ -801,19 +809,19 @@ const VendorProducts = () => {
                   {selectedProduct.productType}
                 </span>
               </p>
-              <hr className="text-slate-400" />
+              <hr className="text-customOrange opacity-40   " />
 
               <p className="text-black font-semibold text-sm">
                 Product Condition:{" "}
                 <span className="font-normal">{selectedProduct.condition}</span>
               </p>
-              <hr className="text-slate-400" />
+              <hr className="text-customOrange opacity-40   " />
 
               <p className="text-black font-semibold text-sm">
                 Product Sub-type:{" "}
                 <span className="font-normal">{selectedProduct.subType}</span>
               </p>
-              <hr className="text-slate-400" />
+              <hr className="text-customOrange opacity-40   " />
 
               <div className="text-black font-semibold text-sm">
                 <p className="text-black font-semibold text-sm mb-2">
@@ -836,7 +844,7 @@ const VendorProducts = () => {
             </div>
 
             {selectedProduct.subProducts && (
-              <p className="text-lg text-black font-semibold mb-4">
+              <p className="text-lg text-black font-semibold mb-2">
                 {selectedProduct.subProducts.length > 1
                   ? "Sub-Products"
                   : "Sub-Products"}
@@ -857,21 +865,23 @@ const VendorProducts = () => {
                     <p className="text-black font-semibold text-sm">
                       Color: <span className="font-normal">{sp.color}</span>
                     </p>
-                    <hr className="text-slate-400" />
-
-                    <p className="text-black font-semibold text-sm">
-                      Quantity: <span className="font-normal">{sp.stock}</span>
-                    </p>
-                    <hr className="text-slate-400" />
+                    <hr className="text-customOrange opacity-40   " />
                     <p className="text-black font-semibold text-sm">
                       Size:{" "}
                       <span className="font-normal">
                         {sp.size}{" "}
-                        {isRestocking && (
+                        
+                      </span>
+                    </p>
+                    <hr className="text-customOrange opacity-40   " />
+                    {isRestocking ? (
+                      <>
+                      <p className="text-customOrange text-sm">
+                        Stock Quantity
+                      </p> 
                           <input
                             type="number"
-                            placeholder="Restock"
-                            className="border p-1 ml-2 rounded-[10px]"
+                            className="border p-1 ml-2 rounded-[10px] focus:outline-customOrange"
                             value={
                               restockValues[sp.subProductId]?.quantity || ""
                             }
@@ -881,11 +891,15 @@ const VendorProducts = () => {
                                 sp.subProductId,
                                 e.target.value
                               )
-                            }
-                          />
-                        )}
-                      </span>
+                            }/>
+                      
+                      
+                          </>
+                        ) : (
+                    <p className="text-black font-semibold text-sm">
+                      Quantity: <span className="font-normal">{sp.stock}</span>
                     </p>
+                  )}
                   </div>
                 </div>
               ))}
@@ -906,33 +920,43 @@ const VendorProducts = () => {
                     name={selectedProduct.name}
                   />
                 </div>
-                <hr className="text-slate-400" />
+                <hr className="text-customOrange opacity-40   " />
               </div>
             )}
 
             <div className={`mt-10`}>
               {isRestocking ? (
+                <div className="flex">
                 <motion.button
                   onClick={handleSubmitRestock}
                   whileTap={{ scale: 1.1 }}
-                  className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full"
-                >
-                  Submit Restock
-                </motion.button>
-              ) : (
-                <motion.button
-                  whileTap={{ scale: 1.1 }}
-                  onClick={toggleRestockMode}
-                  className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full"
-                >
-                 {rLoading ? (
+                  className={`glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full ${restockValues.length < 1 && "opacity-25"}`}
+                  disabled={restockValues.length === 0}
+                >{rLoading ? (
                   <Lottie
                   className="w-10 h-10"
                   animationData={LoadState}
                   loop={true}
                   autoplay={true}
                 />
-                 ) : "Restock Item"}
+                 ) : "Submit Restock"}
+                </motion.button>
+                <motion.button
+                whileTap={{ scale: 1.1 }}
+                onClick={toggleRestockMode}
+                className="glow-button w-12 h-12 mt-7 ml-4 bg-customSoftGray font-semibold rounded-full text-black"
+                >
+                  <FaXmark className="w-10 h-10" />
+                </motion.button>
+                </div>
+                
+              ) : (
+                <motion.button
+                  whileTap={{ scale: 1.1 }}
+                  onClick={toggleRestockMode}
+                  className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full"
+                >
+                 Restock Item
                 </motion.button>
               )}
               {/* <motion.button

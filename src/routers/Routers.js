@@ -16,12 +16,13 @@ import VendorProfile from "../pages/VendorCompleteProfile/VendorProfile.jsx";
 import MarketStorePage from "../pages/MarketStorePage.jsx";
 import UserDashboard from "../pages/UserDashboard";
 import Marketpg from "../pages/Marketpg";
+import ResetPassword from "../pages/UserSide/ResetPassword.jsx";
 import PaymentApprove from "../pages/PaymentApprove.jsx";
 import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfile.jsx";
 import NewHome from "../pages/Homepage";
 import LatestCart from "../pages/Cart.jsx";
 import OrdersCentre from "../pages/UserSide/OrdersCentre.jsx";
-
+import VendorReviews from "../pages/vendor/VendorReviews.jsx";
 import Checkout from "../pages/NewCheckout.jsx";
 import MarketVendors from "../pages/MarketVendors.jsx";
 import Profile from "../pages/Profile.jsx";
@@ -74,12 +75,14 @@ const Routers = () => {
         />
         <Route path="market-card/:marketName" element={<Marketcardpage />} />
         <Route path="explore" element={<Explore />} />
+        <Route path="reset-password" element={<ResetPassword />} />
         <Route path="donate" element={<Donate />} />
         <Route path="payment-approve" element={<PaymentApprove />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="user-dashboard" element={<UserDashboard />} />
         <Route path="vendordashboard" element={<VendorDashboard />} />
         <Route path="vendor-profile" element={<VendorProfile />} />
+        <Route path="vendor-reviews" element={<VendorReviews />} />
         <Route path="vendor-products" element={<VendorProducts />} />
         <Route path="vendor-notifications" element={<VendorNotificationPage />} />
         <Route path="vendor-orders" element={<VendorOrders />} />

@@ -19,7 +19,7 @@ import { FaAngleLeft } from "react-icons/fa6";
 import { FcGoogle } from "react-icons/fc"; // Import Google icon
 import { useDispatch } from "react-redux";
 import { setCart } from "../redux/actions/action";
-import { RotatingLines } from "react-loader-spinner"; // Import the RotatingLines spinner
+import { RotatingLines } from "react-loader-spinner"; 
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -31,7 +31,6 @@ const Login = () => {
   const location = useLocation();
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
-
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
@@ -301,8 +300,6 @@ const Login = () => {
                       <Link to="/forgetpassword">Forgot password?</Link>
                     </p>
                   </div>
-
-               
 
                   <motion.button
                     type="submit"

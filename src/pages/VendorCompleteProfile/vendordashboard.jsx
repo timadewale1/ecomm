@@ -41,37 +41,51 @@ const VendorDashboard = () => {
 
   useEffect(() => {
     if (vendorData) {
-      // Fetch real-time statistics and activities only if vendor data exists
       fetchStatistics(vendorData.vendorId);
       fetchRecentActivities(vendorData.vendorId);
     }
-  });
+  }, [vendorData]);
 
   const filteredActivities = recentActivities.filter((activity) => {
     if (filterOptions === "All") return true;
     return activity.type === filterOptions;
   });
 
-  // Fetch vendor's products, orders, and sales statistics in real-time
+ 
   const fetchStatistics = (vendorId) => {
-    const productsRef = collection(db, "products");
-    const productsQuery = query(productsRef, where("vendorId", "==", vendorId));
+    const ordersRef = collection(db, "orders");
+    const ordersQuery = query(ordersRef, where("vendorId", "==", vendorId));
 
-    // Listen for real-time updates to products
-    const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
-      const totalProducts = snapshot.docs.length;
-      setTotalProducts(totalProducts);
+    const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
+      let fulfilledCount = 0;
+      let unfulfilledCount = 0;
+      let totalCount = 0;
 
-      // You can add similar logic for orders and sales
-      setTotalFulfilledOrders(0); // Placeholder for orders
-      setTotalRevenue("00.00"); // Placeholder for sales
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const { progressStatus } = data;
+
+        if (progressStatus === "Delivered") {
+          fulfilledCount++;
+        } else if (
+          ["In Progress", "Shipped", "Pending"].includes(progressStatus)
+        ) {
+          unfulfilledCount++;
+        }
+        totalCount++;
+      });
+
+      setTotalOrders(totalCount);
+      setTotalFulfilledOrders(fulfilledCount);
+      setTotalUnfulfilledOrders(unfulfilledCount);
     });
 
     return () => unsubscribe();
   };
 
   const textToCopy = `https://mythriftprod.vercel.app/${
-    vendorData && (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
+    vendorData &&
+    (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
   }/${vendorData.vendorId}`;
 
   const copyToClipboard = async () => {

@@ -6,6 +6,7 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
   setDoc,
   doc,
   deleteDoc,
@@ -27,6 +28,7 @@ import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
 import { AdvancedImage } from "@cloudinary/react";
 import { onAuthStateChanged } from "firebase/auth";
 import Typewriter from "typewriter-effect"; // Import Typewriter
+import { MdCancel } from "react-icons/md";
 
 // Cloudinary public IDs for images
 const imageSets = {
@@ -64,10 +66,9 @@ const CategoryPage = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [noResults, setNoResults] = useState(false);
 
-  // Initialize Cloudinary instance
   const cld = new Cloudinary({
     cloud: {
-      cloudName: "dtaqusjav", // Replace with your cloud name
+      cloudName: "dtaqusjav",
     },
   });
 
@@ -75,7 +76,7 @@ const CategoryPage = () => {
     onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser(user);
-        fetchFollowedVendors(user.uid); // Fetch followed vendors on user login
+        fetchFollowedVendors(user.uid);
       } else {
         setCurrentUser(null);
         setFollowedVendors({}); // Reset followed vendors if no user
@@ -110,82 +111,68 @@ const CategoryPage = () => {
       setCurrentImageIndex((prevIndex) =>
         prevIndex === imageSets[category]?.length - 1 ? 0 : prevIndex + 1
       );
-    }, 5000); // Change image every 5 seconds
+    }, 5000);
 
-    return () => clearInterval(imageInterval); // Cleanup on unmount
+    return () => clearInterval(imageInterval);
   }, [category]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
-      // Clear the current products and vendors
       setProducts([]);
       setVendors([]);
-      setLoading(true); // Set loading to true during data fetch
-  
-      // Check if data is available in localStorage for this category
-      const savedProducts = JSON.parse(localStorage.getItem(`${category}_products`) || '[]');
-      const savedVendors = JSON.parse(localStorage.getItem(`${category}_vendors`) || '[]');
-  
-      if (savedProducts.length > 0 && savedVendors.length > 0) {
-        // If data exists in localStorage, use it
-        setProducts(savedProducts);
-        setVendors(savedVendors);
-        setFilteredProducts(savedProducts);
-        setFilteredVendors(savedVendors);
-        setLoading(false);
-        return;
-      }
-  
-      // If no data in localStorage, fetch from Firestore
+      setLoading(true);
+
       try {
-        const normalizedCategory = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
-  
-        // Fetch first 25 vendors
+        // Fetch vendors
         const vendorsQuery = query(
           collection(db, "vendors"),
-          where("categories", "array-contains", normalizedCategory),
+          where("categories", "array-contains", category),
           where("isApproved", "==", true),
           where("isDeactivated", "==", false),
-          limit(25) // Fetch only 25 vendors
+          limit(25)
         );
         const vendorSnapshot = await getDocs(vendorsQuery);
-        const vendorsList = vendorSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        const vendorsList = vendorSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         setVendors(vendorsList);
         setFilteredVendors(vendorsList);
-        setLastVisibleVendor(vendorSnapshot.docs[vendorSnapshot.docs.length - 1]); // Track last vendor
-  
-        // Save vendors to localStorage
-        localStorage.setItem(`${category}_vendors`, JSON.stringify(vendorsList));
-  
-        // Fetch first 50 products
+        setLastVisibleVendor(
+          vendorSnapshot.docs[vendorSnapshot.docs.length - 1]
+        );
+
+        // Fetch products
         const productsQuery = query(
           collection(db, "products"),
-          where("category", "==", normalizedCategory),
-          limit(50) // Fetch only 50 products
+          where("category", "==", category),
+          where("published", "==", true),
+          limit(50)
         );
+
         const productSnapshot = await getDocs(productsQuery);
-        const productsList = productSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        const productsList = productSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         setProducts(productsList);
         setFilteredProducts(productsList);
-        setLastVisibleProduct(productSnapshot.docs[productSnapshot.docs.length - 1]); // Track last product
-  
-        // Save products to localStorage
-        localStorage.setItem(`${category}_products`, JSON.stringify(productsList));
+        setLastVisibleProduct(
+          productSnapshot.docs[productSnapshot.docs.length - 1]
+        );
       } catch (error) {
+        console.error("Error fetching initial products and vendors:", error);
         toast.error("Error fetching initial products and vendors.");
       } finally {
-        setLoading(false); // Set loading to false after data is fetched
+        setLoading(false);
       }
     };
-  
-    fetchInitialData();
-  }, [category]); // Dependencies ensure it only runs when category changes
-  
 
- 
+    fetchInitialData();
+  }, [category]);
 
   const fetchMoreData = useCallback(async () => {
-    if (isFetchingMore) return; // Prevent multiple fetches at once
+    if (isFetchingMore) return;
     setIsFetchingMore(true);
 
     const normalizedCategory =
@@ -219,9 +206,11 @@ const CategoryPage = () => {
         const nextProductsQuery = query(
           collection(db, "products"),
           where("category", "==", normalizedCategory),
-          startAfter(lastVisibleProduct), // Start after the last fetched product
+          where("published", "==", true),
+          startAfter(lastVisibleProduct),
           limit(50)
         );
+
         const productSnapshot = await getDocs(nextProductsQuery);
         const newProducts = productSnapshot.docs.map((doc) => ({
           id: doc.id,
@@ -256,8 +245,6 @@ const CategoryPage = () => {
   useEffect(() => {
     const fetchVendorsAndProducts = async () => {
       try {
-        console.log(`Fetching vendors and products for category: ${category}`);
-
         // Normalize the category for case consistency
         const normalizedCategory =
           category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
@@ -295,7 +282,6 @@ const CategoryPage = () => {
         setProducts(productsList); // Set products for the category
         setFilteredProducts(productsList); // Initialize filtered products
       } catch (error) {
-        console.error("Error fetching products and vendors:", error);
         toast.error("Error fetching products and vendors: " + error.message);
       } finally {
         setLoading(false);
@@ -338,11 +324,30 @@ const CategoryPage = () => {
     }
   };
 
-  // Navigate to vendor store page
-  const handleVendorClick = (vendorId) => {
-    navigate(`/store/${vendorId}`, { replace: false });
+  const handleVendorClick = async (vendorId) => {
+    try {
+      // Fetch vendor data from Firestore
+      const vendorRef = doc(db, "vendors", vendorId);
+      const vendorDoc = await getDoc(vendorRef);
+
+      if (vendorDoc.exists()) {
+        const vendorData = vendorDoc.data();
+
+        // Check marketplace type and navigate accordingly
+        if (vendorData.marketPlaceType === "virtual") {
+          navigate(`/store/${vendorId}`, { replace: false });
+        } else if (vendorData.marketPlaceType === "marketplace") {
+          navigate(`/marketstorepage/${vendorId}`, { replace: false });
+        } else {
+          console.warn("Unknown marketplace type for vendor:", vendorId);
+        }
+      } else {
+        console.error("Vendor not found:", vendorId);
+      }
+    } catch (error) {
+      console.error("Error fetching vendor data:", error);
+    }
   };
-  
 
   // Dynamic header styles based on category and slideshow image
   const getCategoryStyles = (category) => {
@@ -407,7 +412,6 @@ const CategoryPage = () => {
     setFilteredProducts(filteredProducts);
   };
 
-  // Clear search state and reset search box
   const resetSearch = () => {
     setSearchTerm("");
     setIsSearching(false);
@@ -430,19 +434,27 @@ const CategoryPage = () => {
             />
           </>
         ) : (
-          <>
+          <div className="flex items-center w-full relative">
             <GoChevronLeft
               className="text-3xl text-white cursor-pointer mr-2"
               onClick={resetSearch}
             />
-            <input
-              type="text"
-              className="w-full px-3 py-2 text-sm rounded-full focus:outline-none"
-              placeholder="Search categories..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-            />
-          </>
+            <div className="relative w-full">
+              <input
+                type="text"
+                className="w-full px-3 font-opensans text-black text-sm py-2 rounded-full focus:outline-none pr-8" // add padding-right to make room for the icon
+                placeholder="Search categories..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+              />
+              {searchTerm && (
+                <MdCancel
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xl text-gray-400 cursor-pointer"
+                  onClick={() => setSearchTerm("")}
+                />
+              )}
+            </div>
+          </div>
         )}
       </div>
 
@@ -480,9 +492,12 @@ const CategoryPage = () => {
 
       <div className="p-3">
         {noResults ? (
-          <h2 className="text-center text-lg font-semibold text-gray-500">
-            No results found
-          </h2>
+          <div className="flex items-center text-center flex-col justify-center">
+            <h2 className="text-center text-lg font-opensans font-semibold text-black">
+              Ooops! No results found
+            </h2>
+            <p className="font-opensans text-gray-800 text-sm">try searching for another product or vendor😊</p>
+          </div>
         ) : (
           <>
             {filteredVendors.length > 0 && (
@@ -521,7 +536,7 @@ const CategoryPage = () => {
                                     ? `${vendor.shopName.slice(0, 12)}...`
                                     : vendor.shopName}
                                 </h3>
-                                <div className="flex items-center text-xs">
+                                <div className="flex items-center font-opensans text-xs">
                                   <FaStar className="text-yellow-500 mr-1" />
                                   <span>{averageRating}</span>
                                   <span className="ml-1">
@@ -540,14 +555,16 @@ const CategoryPage = () => {
                                 {followedVendors[vendor.id] ? (
                                   <>
                                     <div className="flex">
-                                      <h2 className="text-xs">Followed</h2>
+                                      <h2 className="text-xs font-opensans">
+                                        Followed
+                                      </h2>
                                       <FaCheck className="ml-2 mt-0.5 text-xs" />
                                     </div>
                                   </>
                                 ) : (
                                   <>
                                     <div className="flex">
-                                      <h2 className="text-xs font-medium">
+                                      <h2 className="text-xs font-opensans font-medium">
                                         Follow
                                       </h2>
                                       <FaPlus className="ml-2 text-xs mt-0.5" />

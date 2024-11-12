@@ -127,7 +127,13 @@ const Profile = () => {
     <div className="py-4">
       {!showDetails && !showMetrics && !showFAQs && !showDonations ? (
         <div className="flex flex-col items-center">
-          <h1 className="font-poppins text-xl font-semibold "> My Profile</h1>
+
+
+          <h1 className="font-opensans text-xl font-semibold "> My Profile</h1>
+
+
+    
+
           <div className="flex border  rounded-full p-1 justify-center mt-4 relative">
             {loading ? (
               <Skeleton circle={true} height={144} width={144} />
@@ -152,58 +158,67 @@ const Profile = () => {
             />
           </div>
 
-          <p className="text-lg font-semibold text-black font-poppins capitalize mt-2">
+          <p className="text-lg font-semibold text-black font-opensans capitalize mt-2">
             {loading ? <Skeleton width={100} /> : userData?.username}
           </p>
 
           <div className="w-full mt-2">
             <div className="w-full h-14 flex">
-              <h1 className="text-base font-semibold mx-4 translate-y-3 text-black">
+              <h1 className="text-base font-semibold mx-4 font-opensans translate-y-3 text-black">
                 Account
               </h1>
             </div>
 
-            <div
-              className={`relative flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl transition-all duration-500 ease-in-out ${
-                showHighlight
-                  ? "highlight border-red-500 bg-red-100"
-                  : "bg-customGrey"
-              } mb-3`}
-              onClick={() => setShowDetails(true)}
-            >
-              <div className="flex items-center w-full">
-                <User className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal text-black capitalize">
-                  Personal information
-                </h2>
-                <ChevronRight className="text-black ml-auto" />
+
+            <div className="px-2">
+              {" "}
+             
+              <div
+                className={`relative flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl transition-all duration-500 ease-in-out ${
+                  showHighlight
+                    ? "highlight border-red-500 bg-red-100"
+                    : "bg-customGrey"
+                } mb-3`}
+                onClick={() => setShowDetails(true)}
+              >
+                <div className="flex items-center w-full">
+                  <User className="text-black text-xl mr-4" />
+                  <h2 className="text-size font-normal font-opensans text-black capitalize">
+                    Personal information
+                  </h2>
+                  <ChevronRight className="text-black ml-auto" />
+                </div>
+
+
+                {isIncomplete && showHighlight && (
+                  <span className="absolute top-1 right-4 font-opensans text-xs text-red-500 animate-pulse">
+                    Update profile here
+                  </span>
+                )}
               </div>
             </div>
 
-            {isIncomplete && showHighlight && (
-              <span className="absolute top-1 right-4 font-opensans text-xs text-red-500 animate-pulse">
-                Update profile here
-              </span>
-            )}
-          </div>
 
-          <div className="flex flex-col items-center w-full px-2">
-            <div
-              className="flex items-center justify-between w-full px-4 py-3 cursor-pointer  border-none rounded-xl bg-customGrey mb-2"
-              onClick={() => navigate("/favorites")}
-            >
-              <div className="flex items-center">
-                <FaHeart className="text-red-500  text-xl mr-4" />
-                <h2 className="text-size font-normal text-black capitalize">
-                  Favorites
-                </h2>
+            <div className="flex flex-col items-center w-full px-2">
+              <div
+                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer  border-none rounded-xl bg-customGrey mb-2"
+                onClick={() => navigate("/favorites")}
+              >
+                <div className="flex items-center">
+                  <FaHeart className="text-red-500  text-xl mr-4" />
+                  <h2 className="text-size font-normal font-opensans text-black capitalize">
+                    Favorites
+                  </h2>
+                </div>
+                <ChevronRight className="text-black" />
+
               </div>
-              <ChevronRight className="text-black" />
+             
             </div>
           </div>
 
           <div className="w-full h-14 flex">
-            <h1 className="text-base font-ubuntu font-semibold mx-4 translate-y-3 text-black">
+            <h1 className="text-base font-opensans font-semibold mx-4 translate-y-3 text-black">
               Data
             </h1>
           </div>
@@ -214,7 +229,7 @@ const Profile = () => {
             >
               <div className="flex items-center">
                 <AiOutlineDashboard className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal text-black capitalize">
+                <h2 className="text-size font-normal font-opensans text-black capitalize">
                   Metrics
                 </h2>
               </div>
@@ -228,7 +243,7 @@ const Profile = () => {
             >
               <div className="flex items-center">
                 <BsBoxSeam className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal text-black capitalize">
+                <h2 className="text-size font-normal font-opensans text-black capitalize">
                   Orders
                 </h2>
               </div>
@@ -236,7 +251,7 @@ const Profile = () => {
             </div>
           </div>
           <div className="w-full h-14 flex">
-            <h1 className="text-base font-ubuntu font-semibold mx-4 translate-y-3 text-black">
+            <h1 className="text-base font-opensans font-semibold mx-4 translate-y-3 text-black">
               More
             </h1>
           </div>
@@ -247,7 +262,7 @@ const Profile = () => {
             >
               <div className="flex items-center ">
                 <MdHelpOutline className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal text-black capitalize">
+                <h2 className="text-size font-normal font-opensans text-black capitalize">
                   FAQs
                 </h2>
               </div>
@@ -261,7 +276,7 @@ const Profile = () => {
             >
               <div className="flex items-center">
                 <CiMoneyBill className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal text-black capitalize">
+                <h2 className="text-size font-normal font-opensans text-black capitalize">
                   Donations
                 </h2>
               </div>
@@ -275,7 +290,7 @@ const Profile = () => {
             >
               <div className="flex items-center">
                 <GiClothes className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal text-black capitalize">
+                <h2 className="text-size font-normal font-opensans text-black capitalize">
                   Declutter
                 </h2>
               </div>
@@ -289,7 +304,7 @@ const Profile = () => {
           >
             <div className="flex items-center justify-between w-full px-4 py-3">
               <PiSignOutBold className="text-red-600 text-xl mr-4" />
-              <p className="text-size text-black w-full font-normal">
+              <p className="text-size text-black font-opensans w-full font-normal">
                 Sign Out
               </p>
 
@@ -298,7 +313,7 @@ const Profile = () => {
                   strokeColor="#f9531e"
                   strokeWidth="5"
                   animationDuration="0.75"
-                  width="24" // Adjust size as needed
+                  width="24"
                   visible={true}
                 />
               )}

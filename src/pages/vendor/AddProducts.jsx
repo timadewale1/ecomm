@@ -805,9 +805,9 @@ const AddProduct = ({ vendorId, closeModal }) => {
           required
         >
           <option value="">Select Category</option>
-          <option value="men">Men</option>
-          <option value="women">Women</option>
-          <option value="kids">Kids</option>
+          <option value="Mens">Men</option>
+          <option value="Womens">Women</option>
+          <option value="Kids">Kids</option>
           <option value="all">All</option>
         </select>
       </div>

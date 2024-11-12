@@ -302,7 +302,7 @@ const Signup = () => {
                     type="text"
                     placeholder="Username"
                     value={username}
-                    className={`w-full h-14 text-gray-500 mt-1 pl-14 rounded-full bg-gray-300 ${
+                    className={`w-full h-14 text-gray-500 mt-1 pl-14 rounded-md bg-gray-300 ${
                       isUsernameTaken
                         ? "border-2 border-red-500"
                         : isUsernameAvailable
@@ -353,7 +353,7 @@ const Signup = () => {
                     type="email"
                     placeholder="Enter your email"
                     value={email}
-                    className="w-full h-14 text-gray-500 pl-14 rounded-full bg-gray-300"
+                    className="w-full h-14 text-gray-500 pl-14 rounded-md bg-gray-300"
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </FormGroup>
@@ -366,7 +366,7 @@ const Signup = () => {
                   <input
                     required
                     type={showPassword ? "text" : "password"}
-                    className="w-full h-14 text-gray-500 pl-14 rounded-full bg-gray-300"
+                    className="w-full h-14 text-gray-500 pl-14 rounded-md bg-gray-300"
                     placeholder="Enter password"
                     value={password}
                     onFocus={() => setShowPasswordCriteria(true)}
@@ -418,7 +418,7 @@ const Signup = () => {
                   <input
                     required
                     type={showConfirmPassword ? "text" : "password"}
-                    className="w-full h-14 text-gray-500 pl-14 rounded-full bg-gray-300"
+                    className="w-full h-14 text-gray-500 pl-14 rounded-md bg-gray-300"
                     placeholder="Re-type password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}

@@ -10,6 +10,7 @@ import Skeleton from "react-loading-skeleton";
 import ReactStars from "react-rating-stars-component";
 import RoundedStar from "../components/Roundedstar";
 import { VendorContext } from "../components/Context/Vendorcontext";
+import { MdCancel } from "react-icons/md";
 
 const Marketpg = () => {
   const { vendors, setVendors } = useContext(VendorContext); // Use the context
@@ -101,6 +102,12 @@ const Marketpg = () => {
       navigate(`/store/${vendor.id}`);
     }
   };
+  const handleClearSearch = () => {
+    setSearchTerm("");
+    setFilteredVendors(
+      selectedTab === "local" ? vendors.local : vendors.online
+    );
+  };
 
   const defaultImageUrl =
     "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
@@ -119,24 +126,31 @@ const Marketpg = () => {
             </>
           )}
           {isSearching && (
-            <div className="flex items-center w-full">
+            <div className="flex items-center w-full relative">
               <GoChevronLeft
                 className="text-3xl cursor-pointer mr-2"
-                onClick={() => setIsSearching(false)}
+                onClick={() => {
+                  setIsSearching(false);
+                  handleClearSearch(); // Clear input when exiting search
+                }}
               />
               <input
                 type="text"
-                className="flex-1 border border-gray-300 rounded-full px-3 py-2 text-black focus:outline-none"
+                className="flex-1 border font-opensans text-black text-sm border-gray-300 rounded-full px-3 py-2 font-medium focus:outline-none"
                 value={searchTerm}
                 onChange={handleSearchChange}
                 placeholder="Search vendors..."
               />
+              {searchTerm && (
+                <MdCancel
+                  className="text-xl text-gray-500 cursor-pointer absolute right-3"
+                  onClick={handleClearSearch}
+                />
+              )}
             </div>
           )}
         </div>
         <div className="border-t border-gray-300 mt-6"></div>
-
-     
       </div>
       <div className="flex justify-between mb-3 w-full px-2 overflow-x-auto space-x-2 scrollbar-hide ">
         <button

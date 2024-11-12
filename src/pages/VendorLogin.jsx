@@ -11,9 +11,7 @@ import { FaRegEyeSlash, FaRegEye } from "react-icons/fa";
 import { MdEmail } from "react-icons/md";
 import { GrSecure } from "react-icons/gr";
 import VendorLoginAnimation from "../SignUpAnimation/SignUpAnimation";
-import { getToken } from "firebase/messaging";
-import { messaging } from "../firebase.config";
-
+// Removed the Loading component import since it's no longer needed
 import Typewriter from "typewriter-effect";
 import { FaAngleLeft } from "react-icons/fa6";
 import { RotatingLines } from "react-loader-spinner"; // Import the RotatingLines component
@@ -68,8 +66,8 @@ const VendorLogin = () => {
         toast.error(
           "Your vendor account is deactivated. Please contact support."
         );
-        await auth.signOut();
-        setLoading(false);
+        await auth.signOut(); // Log the vendor out
+        setLoading(false); // Stop loading indicator
         return;
       }
 
@@ -78,19 +76,6 @@ const VendorLogin = () => {
           toast("Please complete your profile.");
           navigate("/complete-profile");
         } else {
-          // Fetch and save the FCM token
-          const token = await getToken(messaging, {
-            vapidKey: process.env.REACT_APP_VAPID_KEY,
-          });
-
-          if (token) {
-            // Save the token to Firestore
-            await updateDoc(docRef, { notificationToken: token });
-            console.log("Notification token saved for vendor:", token);
-          } else {
-            console.warn("Failed to get FCM token.");
-          }
-
           toast.success("Login successful");
           navigate("/vendordashboard");
         }

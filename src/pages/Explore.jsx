@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
-import { IoChevronBackOutline, IoFilterOutline } from "react-icons/io5";
+import { IoChevronBackOutline } from "react-icons/io5";
 import { LuListFilter } from "react-icons/lu";
 import { CiSearch } from "react-icons/ci";
 import Loading from "../components/Loading/Loading";
@@ -167,7 +167,7 @@ const Explore = () => {
                 {selectedSubType
                   ? selectedSubType.name || selectedSubType
                   : selectedProductType
-                  ? selectedProductType.type
+                  ? selectedProductType.type 
                   : "Explore"}
               </h1>
             </div>

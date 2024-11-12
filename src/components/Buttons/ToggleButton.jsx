@@ -3,7 +3,7 @@ import { addDoc, collection, doc, onSnapshot, updateDoc } from 'firebase/firesto
 import { db } from '../../firebase.config';
 import toast from 'react-hot-toast';
 
-const ToggleButton = ({ itemId, initialIsOn, onColor = "bg-customOrange", offColor = "bg-gray-300", vendorId }) => {
+const ToggleButton = ({ itemId, initialIsOn, onColor = "bg-customOrange", offColor = "bg-gray-300", vendorId, name }) => {
   const [isOn, setIsOn] = useState(initialIsOn);
 
   // Real-time listener for keeping the toggle state in sync with the database
@@ -30,14 +30,14 @@ const ToggleButton = ({ itemId, initialIsOn, onColor = "bg-customOrange", offCol
 
       isOn ? (
         await addActivityNote(
-          "Drafted Product",
-          `You've hidden ${docRef.data().name}! Customers can not see or order this product while it is still drafted.`,
+          "Drafted Product 📂",
+          `You've hidden ${name}! Customers can not see or order this product while it is still drafted.`,
           "Product Update"
         )
       ) : (
         await addActivityNote(
-          "Published Product",
-          `You've made ${docRef.data().name} a visible product in your store! This will be part of the first products customers see in your store.`,
+          "Published Product ✨",
+          `You've made ${name} a visible product in your store! This will be part of the first products customers see in your store.`,
           "Product Update"
         )
       )

@@ -6,7 +6,14 @@ import Loading from "../Loading/Loading";
 import Lottie from "lottie-react";
 import LoadState from "../../Animations/loadinganimation.json";
 
-const ConfirmationDialog = ({ isOpen, title, message, onClose, onConfirm }) => {
+const ConfirmationDialog = ({
+  isOpen,
+  title,
+  message,
+  onClose,
+  onConfirm,
+  loading,
+}) => {
   if (!isOpen) return null;
 
   return (
@@ -19,13 +26,25 @@ const ConfirmationDialog = ({ isOpen, title, message, onClose, onConfirm }) => {
 
         <div className=" w-full h-24 px-3 py-1 flex flex-col items-center rounded-2xl bg-customSoftGray space-y-2">
           <div
-            className={`w-full items-center ${ title === "Delete Product" || "Delete Products" ?  "text-red-600" : "text-customOrange"} text-sm flex justify-between py-2 focus:outline-none`}
+            className={`w-full items-center ${
+              title === "Delete Product" || "Delete Products"
+                ? "text-red-600"
+                : "text-customOrange"
+            } text-sm flex justify-between py-2 focus:outline-none`}
             onClick={onConfirm}
           >
             {title}
-          
-            <IoTrashOutline className="w-4 h-4" />
-          
+
+            {loading ? (
+              <Lottie
+                className="w-4 h-4"
+                animationData={LoadState}
+                loop={true}
+                autoplay={true}
+              />
+            ) : (
+              <IoTrashOutline className="w-4 h-4" />
+            )}
           </div>
           <hr className="w-full text-slate-800" />
           <div

@@ -39,6 +39,7 @@ import Lottie from "lottie-react";
 import LoadState from "../../Animations/loadinganimation.json";
 import { ToastBar } from "react-hot-toast";
 
+
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,8 +51,11 @@ const VendorProducts = () => {
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [action, setAction] = useState("");
-  const [showRestockInput, setShowRestockInput] = useState(false);
-  const [restockQuantity, setRestockQuantity] = useState(0);
+  const [isRestocking, setIsRestocking] = useState(false); // New state
+  const [restockValues, setRestockValues] = useState({});
+  const [variantValues, setVariantValues] = useState({}) // New state
+  const [rLoading, setRLoading] = useState(false);
+  const [oLoading, setOLoading] = useState(false);
   const [buttonLoading, setButtonLoading] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
   const [productsLoading, setProductsLoading] = useState(false);
@@ -61,6 +65,74 @@ const VendorProducts = () => {
 
   const auth = getAuth();
   const navigate = useNavigate();
+
+  const renderVariants = (variants) => {
+    const groupedVariants = groupVariantsByColor(variants);
+    return Object.entries(groupedVariants).map(([color, variants], colorIndex) => (
+      <div key={colorIndex} className="bg-customSoftGray p-3 rounded-lg">
+        {/* Display the color name */}
+        <p className="text-black font-semibold text-sm mb-2">Color: {color}</p>
+
+        {/* Vertical table layout for sizes and quantities */}
+        <table className="w-custVCard text-left border-collapse">
+          <thead>
+            <tr className="space-x-8">
+              <th className="text-black font-semibold text-sm pb-2 border-b border-gray-300">Size</th>
+              <th className="text-black text-right font-semibold text-sm pb-2 border-b border-gray-300">Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {variants.map((variant) => {
+              const variantKey = `${variant.color}-${variant.size}`;
+              return (
+                <tr key={variantKey} className="space-x-8">
+                  <td className="py-2 text-sm font-normal border-b border-gray-200">{variant.size}</td>
+                  <td
+                    className={`py-2 text-sm text-right font-normal border-b border-gray-200 ${
+                      variant.stock < 1 ? "text-red-500" : ""
+                    }`}
+                  >
+                    {variant.stock > 0 ? variant.stock : "Out of stock"}
+                    {isRestocking && (
+                      <input
+                        type="number"
+                        placeholder="Restock"
+                        className="border p-1 ml-2 rounded-[10px]"
+                        value={restockValues[variantKey]?.quantity || ""}
+                        onChange={(e) => handleRestockInputChange("quantity", variantKey, e.target.value)}
+                      />
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    ));
+  };
+
+  useEffect(() => {
+    let unsubscribe;
+  
+    // Set up real-time listener for the selected product when the modal is open
+    if (selectedProduct && isViewProductModalOpen) {
+      const productRef = doc(db, "products", selectedProduct.id);
+  
+      unsubscribe = onSnapshot(productRef, (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          setSelectedProduct({ id: docSnapshot.id, ...docSnapshot.data() });
+        }
+      });
+    }
+  
+    // Clean up the listener when the modal closes
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [selectedProduct, isViewProductModalOpen]);
 
   useEffect(() => {
     // Only set the vendorId when authenticated, then call fetchVendorProducts
@@ -158,11 +230,14 @@ const VendorProducts = () => {
     );
     const isAllPublished = selectedProducts.every((p) => p.published);
     const isAllDrafted = selectedProducts.every((p) => !p.published);
-    return (tabOpt === "Active" && isAllPublished) ||
-           (tabOpt === "Drafts" && isAllDrafted);
+    return (
+      (tabOpt === "Active" && isAllPublished) ||
+      (tabOpt === "Drafts" && isAllDrafted)
+    );
   };
 
   const bulkPublishStateChange = async () => {
+    setOLoading(true);
     try {
       for (const productId of pickedProducts) {
         const productRef = doc(db, "products", productId);
@@ -178,17 +253,16 @@ const VendorProducts = () => {
       setPickedProducts([]);
       setPicking(false);
       setShowConfirmation(false);
-
-
     } catch (error) {
       console.error("Error changing publish state: ", error);
       toast.error("Error changing publish state: " + error.message);
+    } finally {
+      setOLoading(false);
     }
   };
 
-
   const confirmBulkDeleteProduct = async () => {
-    setLoading(true);
+    setOLoading(true);
     try {
       for (const productId of pickedProducts) {
         const productRef = doc(db, "products", productId);
@@ -204,12 +278,11 @@ const VendorProducts = () => {
         `You removed products from your store! These products no longer exist in your store and customers that have them in their carts will be notified.`,
         "Product Update"
       );
-
     } catch (error) {
       console.error("Error deleting products: ", error);
       toast.error("Error deleting products: " + error.message);
     } finally {
-      setLoading(false);
+      setOLoading(false);
     }
   };
 
@@ -221,8 +294,6 @@ const VendorProducts = () => {
     setIsViewProductModalOpen(false);
     setIsAddProductModalOpen(false);
     setSelectedProduct(null);
-    setRestockQuantity(0);
-    setShowRestockInput(false);
   };
 
   const pinProduct = async (product) => {
@@ -270,7 +341,7 @@ const VendorProducts = () => {
   };
 
   const confirmDeleteProduct = async () => {
-    setButtonLoading(true);
+    setOLoading(true);
     try {
       const productId = selectedProduct.id;
 
@@ -301,17 +372,89 @@ const VendorProducts = () => {
       console.error("Error deleting product: ", error);
       toast.error("Error deleting product: " + error.message);
     } finally {
-      setButtonLoading(false);
+      setOLoading(false);
       setShowConfirmation(false);
       fetchVendorProducts(vendorId);
     }
   };
 
+  // Toggle restock mode
+  const toggleRestockMode = () => {
+    setIsRestocking((prev) => !prev);
+    setRestockValues({}); // Reset restock values
+  };
+
+  // Handle restock input change
+  const handleRestockInputChange = (type, id, value) => {
+    setRestockValues((prev) => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        [type]: value,
+      },
+    }));
+  };
+
+  
+
+  // Submit restock changes to Firestore
+  const handleSubmitRestock = async () => {
+    setRLoading(true);
+    try {
+      // Ensure variants and subProducts are defined as arrays
+      const variants = selectedProduct.variants || [];
+      const subProducts = selectedProduct.subProducts || [];
+  
+      const productRef = doc(db, "products", selectedProduct.id);
+  
+      // Update variants with restock values
+      const updatedVariants = variants.map((variant) => {
+        const variantKey = `${variant.color}-${variant.size}`;
+        const restockQuantity = parseInt(restockValues[variantKey]?.quantity, 10);
+        if (!isNaN(restockQuantity)) {
+          return {
+            ...variant,
+            stock: variant.stock + restockQuantity,
+          };
+        }
+        return variant;
+      });
+  
+      // Update sub-products with restock values
+      const updatedSubProducts = subProducts.map((subProduct) => {
+        const restockQuantity = parseInt(restockValues[subProduct.subProductId]?.quantity, 10);
+        if (!isNaN(restockQuantity)) {
+          return {
+            ...subProduct,
+            stock: subProduct.stock + restockQuantity,
+          };
+        }
+        return subProduct;
+      });
+  
+      // Update Firestore with the modified stock quantities
+      await updateDoc(productRef, {
+        variants: updatedVariants,
+        subProducts: updatedSubProducts,
+      });
+  
+      toast.success("Product restocked successfully.");
+      setIsRestocking(false);
+      setRestockValues({});
+    } catch (error) {
+      console.error("Error restocking product:", error);
+      toast.error("Error restocking product: " + error.message);
+    } finally {
+      setRLoading(false);
+      }
+  };
+  
+
   const handleDeleteProduct = () => {
     setAction("delete");
     setShowConfirmation(true);
   };
-  
+
   const handleBulkDelete = () => {
     setAction("bulkDelete");
     setShowConfirmation(true);
@@ -327,31 +470,11 @@ const VendorProducts = () => {
     setShowConfirmation(true);
   };
 
-  const handleRestockProduct = async () => {
-    setButtonLoading(true);
-    try {
-      // Restocking product in the centralized 'products' collection
-      const productRef = doc(db, "products", selectedProduct.id);
-      await updateDoc(productRef, {
-        stockQuantity:
-          selectedProduct.stockQuantity + parseInt(restockQuantity, 10),
-      });
-      await addActivityNote(
-        `Restocked Product 📦`,
-        ` You’ve restocked ${selectedProduct.name}! Products are in stock and available for purchase.`,
-        "Product Update"
-      );
-      toast.success("Product restocked successfully.");
-      closeModals();
-    } catch (error) {
-      console.error("Error restocking product: ", error);
-      toast.error("Error restocking product: " + error.message);
-    } finally {
-      fetchVendorProducts(vendorId);
-      setButtonLoading(false);
-    }
-  };
-
+  // await addActivityNote(
+  //   `Restocked Product 📦`,
+  //   ` You’ve restocked ${selectedProduct.name}! Products are in stock and available for purchase.`,
+  //   "Product Update"
+  // );
   // Helper function to group variants by color
   const groupVariantsByColor = (variants) => {
     return variants.reduce((acc, variant) => {
@@ -407,7 +530,10 @@ const VendorProducts = () => {
             {!picking ? (
               <div className="relative rounded-full w-11 h-11 bg-customOrange bg-opacity-10 flex justify-center items-center">
                 <FiMoreHorizontal className="w-6 h-6" />
-                </div>) : (<p className="text-[16px] mx-2">Cancel</p>)}
+              </div>
+            ) : (
+              <p className="text-[16px] my-2.5">Cancel</p>
+            )}
           </div>
         </div>
 
@@ -517,7 +643,7 @@ const VendorProducts = () => {
                     }`}
                   >
                     <p className="text-xs font-semibold text-black">
-                      Size: {product.stockQuantity}
+                      Total Stock: {product.stockQuantity}
                     </p>
                     <p className="text-xs font-medium text-black">
                       &#x20a6;{formatNumber(product.price)}
@@ -577,23 +703,33 @@ const VendorProducts = () => {
           animate={{ y: 0 }}
           exit={{ x: "100%" }}
           transition={{ type: "spring", stiffness: 100, damping: 20 }}
-          className={`fixed bottom-0 z-[1001] flex px-4 ${canPublishOrUnpublish() ? "justify-between" : "justify-center"} py-3 bg-white text-white w-full h-[94px] shadow-lg focus:outline-none`}
-        >{canPublishOrUnpublish() && (
-          <p className="text-lg font-semibold text-customRichBrown">
-              {tabOpt === 'Active' ? (
-                <p className="text-lg font-semibold text-customRichBrown"
-                onClick={handleUnpublish}>
-                Unpublish
-            </p>
+          className={`fixed bottom-0 z-[1001] flex px-4 ${
+            canPublishOrUnpublish() ? "justify-between" : "justify-center"
+          } py-3 bg-white text-white w-full h-[94px] shadow-lg focus:outline-none`}
+        >
+          {canPublishOrUnpublish() && (
+            <p className="text-lg font-semibold text-customRichBrown">
+              {tabOpt === "Active" ? (
+                <p
+                  className="text-lg font-semibold text-customRichBrown"
+                  onClick={handleUnpublish}
+                >
+                  Unpublish
+                </p>
               ) : (
-                <p className="text-lg font-semibold text-customRichBrown"
-                onClick={handlePublish}>
+                <p
+                  className="text-lg font-semibold text-customRichBrown"
+                  onClick={handlePublish}
+                >
                   Publish
                 </p>
-              ) }
-          </p>)}
-          <p className="text-lg font-semibold text-customRichBrown mb-4"
-          onClick={() => handleBulkDelete()}>
+              )}
+            </p>
+          )}
+          <p
+            className="text-lg font-semibold text-customRichBrown mb-4"
+            onClick={() => handleBulkDelete()}
+          >
             Delete
           </p>
         </motion.div>
@@ -649,28 +785,12 @@ const VendorProducts = () => {
                 Quantity:{" "}
                 <span
                   className={`${
-                    selectedProduct.variants[0].stock < 1 && "text-red-500"
+                    selectedProduct.stockQuantity < 1 && "text-red-500"
                   }`}
                 >
-                  {selectedProduct.variants[0].stock > 0
-                    ? selectedProduct.variants[0].stock
+                  {selectedProduct.stockQuantity > 0
+                    ? selectedProduct.stockQuantity
                     : "Out of stock"}
-                </span>
-              </p>
-              <hr className="text-slate-400" />
-
-              <p className="text-black font-semibold text-sm">
-                Color:{" "}
-                <span className="font-normal">
-                  {selectedProduct.variants[0].color}
-                </span>
-              </p>
-              <hr className="text-slate-400" />
-
-              <p className="text-black font-semibold text-sm">
-                Size:{" "}
-                <span className="font-normal">
-                  {selectedProduct.variants[0].size}
                 </span>
               </p>
               <hr className="text-slate-400" />
@@ -704,55 +824,14 @@ const VendorProducts = () => {
                 </p>
               </div>
               {selectedProduct.variants.slice(1) && (
-                <p className="text-lg text-black font-semibold mb-4">
+                <p className="text-lg text-black font-semibold mb-2">
                   {selectedProduct.variants.slice(1).length === 1
                     ? "Product Variant"
                     : "Product Variants"}
                 </p>
               )}
               <div className="flex w-full overflow-x-auto space-x-4 snap-x snap-mandatory">
-                {Object.entries(
-                  groupVariantsByColor(selectedProduct.variants || [])
-                ).map(([color, variants], index) => (
-                  <div key={index} className="bg-customSoftGray p-3 rounded-lg">
-                    {/* Display the color name */}
-                    <p className="text-black font-semibold text-sm mb-2">
-                      Color: {color}
-                    </p>
-
-                    {/* Vertical table layout for sizes and quantities */}
-                    <table className="w-custVCard text-left border-collapse">
-                      <thead>
-                        <tr className="space-x-8">
-                          <th className="text-black font-semibold text-sm pb-2 border-b border-gray-300">
-                            Size
-                          </th>
-                          <th className="text-black text-right font-semibold text-sm pb-2 border-b border-gray-300">
-                            Quantity
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {variants.map((variant, i) => (
-                          <tr key={i} className="space-x-8">
-                            <td className="py-2 text-sm font-normal border-b border-gray-200">
-                              {variant.size}
-                            </td>
-                            <td
-                              className={`py-2 text-sm text-right font-normal border-b border-gray-200 ${
-                                variant.stock < 1 ? "text-red-500" : ""
-                              }`}
-                            >
-                              {variant.stock > 0
-                                ? variant.stock
-                                : "Out of stock"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ))}
+                {renderVariants(selectedProduct.variants || [])}
               </div>
             </div>
 
@@ -785,7 +864,27 @@ const VendorProducts = () => {
                     </p>
                     <hr className="text-slate-400" />
                     <p className="text-black font-semibold text-sm">
-                      Size: <span className="font-normal">{sp.size}</span>
+                      Size:{" "}
+                      <span className="font-normal">
+                        {sp.size}{" "}
+                        {isRestocking && (
+                          <input
+                            type="number"
+                            placeholder="Restock"
+                            className="border p-1 ml-2 rounded-[10px]"
+                            value={
+                              restockValues[sp.subProductId]?.quantity || ""
+                            }
+                            onChange={(e) =>
+                              handleRestockInputChange(
+                                "quantity",
+                                sp.subProductId,
+                                e.target.value
+                              )
+                            }
+                          />
+                        )}
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -804,6 +903,7 @@ const VendorProducts = () => {
                     itemId={selectedProduct.id}
                     initialIsOn={isPublished}
                     vendorId={vendorId}
+                    name={selectedProduct.name}
                   />
                 </div>
                 <hr className="text-slate-400" />
@@ -811,17 +911,39 @@ const VendorProducts = () => {
             )}
 
             <div className={`mt-10`}>
-              <motion.button
-                whileTap={{ scale: 1.1 }}
+              {isRestocking ? (
+                <motion.button
+                  onClick={handleSubmitRestock}
+                  whileTap={{ scale: 1.1 }}
+                  className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full"
+                >
+                  Submit Restock
+                </motion.button>
+              ) : (
+                <motion.button
+                  whileTap={{ scale: 1.1 }}
+                  onClick={toggleRestockMode}
+                  className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full"
+                >
+                 {rLoading ? (
+                  <Lottie
+                  className="w-10 h-10"
+                  animationData={LoadState}
+                  loop={true}
+                  autoplay={true}
+                />
+                 ) : "Restock Item"}
+                </motion.button>
+              )}
+              {/* <motion.button
                 className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full"
               >
                 Restock Item
-              </motion.button>
+              </motion.button> */}
             </div>
           </div>
         </VendorProductModal>
       )}
-
 
       {isAddProductModalOpen && (
         <Modal isOpen={isAddProductModalOpen} onClose={closeModals}>
@@ -833,15 +955,15 @@ const VendorProducts = () => {
         </Modal>
       )}
 
-      {showConfirmation && (
-        action === "delete" ? (
+      {showConfirmation &&
+        (action === "delete" ? (
           <ConfirmationDialog
             isOpen={showConfirmation}
             onClose={() => setShowConfirmation(false)}
             onConfirm={confirmDeleteProduct}
             message="Are you sure you want to delete this product?"
             title="Delete Product"
-            loading={loading}
+            loading={oLoading}
           />
         ) : action === "bulkDelete" ? (
           <ConfirmationDialog
@@ -850,7 +972,7 @@ const VendorProducts = () => {
             onConfirm={confirmBulkDeleteProduct}
             message="Are you sure you want to delete these products?"
             title="Delete Products"
-            loading={loading}
+            loading={oLoading}
           />
         ) : action === "publish" ? (
           <ConfirmationDialog
@@ -859,7 +981,7 @@ const VendorProducts = () => {
             onConfirm={bulkPublishStateChange}
             message="Are you sure you want to publish these products?"
             title="Publish Products"
-            loading={loading}
+            loading={oLoading}
           />
         ) : action === "unpublish" ? (
           <ConfirmationDialog
@@ -868,9 +990,9 @@ const VendorProducts = () => {
             onConfirm={bulkPublishStateChange}
             message="Are you sure you want to unpublish these products?"
             title="Unpublish Products"
-            loading={loading}
+            loading={oLoading}
           />
-        ) : null
+        ) : null)
 
         // <ConfirmationDialog
         //   isOpen={showConfirmation}
@@ -886,7 +1008,7 @@ const VendorProducts = () => {
         //   message="Are you sure you want to delete this product?"
         //   title="Delete Product"
         // />
-      )}
+      }
     </>
   );
 };

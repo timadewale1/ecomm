@@ -20,9 +20,53 @@ import { FaAngleLeft, FaPlus, FaCheck } from "react-icons/fa";
 import toast from "react-hot-toast";
 import ProductCard from "../components/Products/ProductCard";
 import Loading from "../components/Loading/Loading";
-import { FaStar } from "react-icons/fa6";
+import { FaSpinner, FaStar } from "react-icons/fa6";
 import { CiSearch } from "react-icons/ci";
+import { MdCancel, MdClose } from "react-icons/md";
+const ReviewBanner = () => {
+  const [isVisible, setIsVisible] = useState(false);
 
+  useEffect(() => {
+    const bannerShown = localStorage.getItem("reviewBannerShown");
+    if (!bannerShown) {
+      setIsVisible(true);
+      localStorage.setItem("reviewBannerShown", "true");
+
+      
+      const timer = setTimeout(() => {
+        setIsVisible(false);
+      }, 10000);
+
+     
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleClose = () => {
+    setIsVisible(false);
+  };
+
+  return (
+    <div
+      className={`absolute z-50 w-64 bg-customBrown text-white px-2 py-2 rounded-lg shadow-lg flex flex-col items-start space-y-1 transform -translate-x-1/2 translate-y-40 left-1/2 transition-opacity duration-500 ${
+        isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+      }`}
+      style={{ maxWidth: "99%" }}
+    >
+      <span className="font-semibold font-opensans text-sm">
+        Click here to rate vendor!
+      </span>
+      <span className="text-xs font-opensans">
+        Shopped from here? Share your experience with other shoppers!🧡
+      </span>
+      <button onClick={handleClose} className="absolute top-1 right-4">
+        <MdClose className="text-white text-lg" />
+      </button>
+      <div className="absolute bottom-[-7px] left-1/2 transform -translate-x-1/2 w-4 h-4 bg-customBrown rotate-45"></div>{" "}
+     
+    </div>
+  );
+};
 const StorePage = () => {
   const { id } = useParams();
   const [vendor, setVendor] = useState(null);
@@ -30,6 +74,7 @@ const StorePage = () => {
   const [favorites, setFavorites] = useState({});
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedType, setSelectedType] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
@@ -102,16 +147,17 @@ const StorePage = () => {
 
   const handleFollowClick = async () => {
     try {
+      setIsFollowLoading(true); // Start loading
       if (!vendor?.id) {
         throw new Error("Vendor ID is undefined");
       }
 
       const followRef = collection(db, "follows");
-      const followDoc = doc(followRef, `${currentUser.uid}_${vendor.id}`);
+      const followDocRef = doc(followRef, `${currentUser.uid}_${vendor.id}`);
 
       if (!isFollowing) {
         // Add follow entry
-        await setDoc(followDoc, {
+        await setDoc(followDocRef, {
           userId: currentUser.uid,
           vendorId: vendor.id,
           createdAt: new Date(),
@@ -119,7 +165,7 @@ const StorePage = () => {
         toast.success("You will be notified of new products and promos.");
       } else {
         // Unfollow
-        await deleteDoc(followDoc);
+        await deleteDoc(followDocRef);
         toast.success("Unfollowed");
       }
 
@@ -127,6 +173,8 @@ const StorePage = () => {
     } catch (error) {
       console.error("Error following/unfollowing:", error.message);
       toast.error(`Error following/unfollowing: ${error.message}`);
+    } finally {
+      setIsFollowLoading(false);
     }
   };
 
@@ -157,7 +205,6 @@ const StorePage = () => {
     try {
       const productsRef = collection(db, "products");
 
-     
       const productChunks = [];
       for (let i = 0; i < productIds.length; i += 10) {
         productChunks.push(productIds.slice(i, i + 10));
@@ -206,46 +253,58 @@ const StorePage = () => {
   if (!vendor) {
     return <div>No vendor found</div>;
   }
-
+  const handleClearSearch = () => {
+    setSearchTerm("");
+  };
   // Calculate the average rating
   const averageRating =
     vendor.ratingCount > 0 ? vendor.rating / vendor.ratingCount : 0;
+  const productTypes = [
+    "All",
+    ...new Set(products.map((product) => product.productType)),
+  ];
 
   return (
     <div className="p-3 mb-24">
-      <div className="sticky top-0 bg-white h-20 z-10 flex justify-between items-center border-b border-gray-300 w-full">
+      <ReviewBanner />
+      <div className="sticky top-0 bg-white h-20 z-10 flex items-center border-b border-gray-300 w-full">
         {isSearching ? (
-          <>
+          <div className="flex items-center w-full relative px-2">
             <FaAngleLeft
-              onClick={() => setIsSearching(false)}
-              className="cursor-pointer"
+              onClick={() => {
+                setIsSearching(false);
+                handleClearSearch(); // Clear input when exiting search
+              }}
+              className="cursor-pointer text-2xl mr-2"
             />
             <input
               type="text"
               value={searchTerm}
               onChange={handleSearchChange}
-              placeholder="Search products..."
-              className="border rounded-lg px-3 py-2 flex-1 mx-2"
+              placeholder="Search store..."
+              className="flex-1 border rounded-full font-opensans text-black text-sm border-gray-300 px-3 py-2 font-medium focus:outline-none"
             />
-            <div style={{ width: "24px" }} />
-          </>
+            {searchTerm && (
+              <MdCancel
+                className="text-xl text-gray-500 cursor-pointer absolute right-4"
+                onClick={handleClearSearch}
+              />
+            )}
+          </div>
         ) : (
-          <>
+          <div className="flex items-center justify-between w-full ">
             <GoChevronLeft
               onClick={() => navigate(-1)}
               className="cursor-pointer text-3xl"
             />
-            <h1 className="font-opensans text-lg font-semibold">
-              {vendor.shopName.length > 22
-                ? `${vendor.shopName.slice(0, 22)}...`
-                : vendor.shopName}
+            <h1 className="flex-grow text-center font-opensans text-lg font-semibold">
+              {vendor.shopName}
             </h1>
-
             <CiSearch
               className="text-black text-3xl cursor-pointer"
               onClick={() => setIsSearching(true)}
             />
-          </>
+          </div>
         )}
       </div>
 
@@ -309,14 +368,17 @@ const StorePage = () => {
           <Skeleton width={128} height={40} />
         ) : (
           <button
-            className={`w-full h-12 rounded-full border font-medium flex items-center justify-center transition-colors duration-200 ${
+            className={`w-full h-12 rounded-full border font-medium flex items-center font-opensans justify-center transition-colors duration-200 ${
               isFollowing
                 ? "bg-customOrange text-white"
                 : "bg-customOrange text-white"
             }`}
             onClick={handleFollowClick}
+            disabled={isFollowLoading}
           >
-            {isFollowing ? (
+            {isFollowLoading ? (
+              <FaSpinner className="animate-spin mr-2" />
+            ) : isFollowing ? (
               <>
                 <FaCheck className="mr-2" />
                 Following
@@ -334,20 +396,9 @@ const StorePage = () => {
         {loading ? <Skeleton count={2} /> : vendor.description}
       </p>
       <div className="p-2 mt-7">
-        <h1 className="font-opensans text-lg mb-3  font-semibold ">Products</h1>
+        <h1 className="font-opensans text-lg mb-3 font-semibold">Products</h1>
         <div className="flex justify-between mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
-          {[
-            "All",
-            "Cloth",
-            "Dress",
-            "Jewelry",
-            "Footwear",
-            "Pants",
-            "Shirts",
-            "Suits",
-            "Hats",
-            "Belts",
-          ].map((type) => (
+          {productTypes.map((type) => (
             <button
               key={type}
               onClick={() => handleTypeSelect(type)}
@@ -362,13 +413,15 @@ const StorePage = () => {
           ))}
         </div>
 
-        <div className="grid mt-2 grid-cols-2 gap-2">
-          {loading ? (
-            Array.from({ length: 6 }).map((_, index) => (
+        {loading ? (
+          <div className="grid mt-2 grid-cols-2 gap-2">
+            {Array.from({ length: 6 }).map((_, index) => (
               <Skeleton key={index} height={200} width="100%" />
-            ))
-          ) : filteredProducts.length > 0 ? (
-            filteredProducts.map((product) => (
+            ))}
+          </div>
+        ) : filteredProducts.length > 0 ? (
+          <div className="grid mt-2 grid-cols-2 gap-2">
+            {filteredProducts.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
@@ -377,14 +430,18 @@ const StorePage = () => {
                 onClick={() => {
                   navigate(`/product/${product.id}`);
                 }}
+                showVendorName={false}
               />
-            ))
-          ) : (
-            <p className=" flex justify-center text-center font-opensans text-gray-500">
-              No products available for this vendor.
+            ))}
+          </div>
+        ) : (
+          <div className="flex justify-center items-center  w-full text-center">
+            <p className="font-opensans text-gray-800 text-xs">
+              📭 <span className="font-semibold">{vendor.shopName}</span> hasn't
+              added any products to their online store yet. Follow this vendor and you will be notified when they upload products!
             </p>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

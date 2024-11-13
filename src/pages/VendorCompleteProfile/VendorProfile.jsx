@@ -246,7 +246,7 @@ const VendorProfile = () => {
             <div className="flex flex-col items-center w-full">
               <div
                 className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={() => navigate("")}
+                onClick={() => navigate("/vendor-reviews")}
               >
                 <div className="flex items-center">
                   <TbHomeStar className="text-black text-xl mr-4" />

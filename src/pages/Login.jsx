@@ -19,7 +19,7 @@ import { FaAngleLeft } from "react-icons/fa6";
 import { FcGoogle } from "react-icons/fc"; // Import Google icon
 import { useDispatch } from "react-redux";
 import { setCart } from "../redux/actions/action";
-import { RotatingLines } from "react-loader-spinner"; // Import the RotatingLines spinner
+import { RotatingLines } from "react-loader-spinner"; 
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -264,9 +264,9 @@ const Login = () => {
                       type="email"
                       placeholder="Enter your email"
                       value={email}
-                      className={`w-full h-14 ${
+                      className={`w-full h-12 ${
                         emailError ? "border-red-500" : "border-none"
-                      } bg-gray-300 px-14  font-semibold text- rounded-lg`}
+                      } w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange`}
                       onChange={handleEmailChange}
                     />
                   </FormGroup>
@@ -277,9 +277,9 @@ const Login = () => {
                     </div>
                     <input
                       type={showPassword ? "text" : "password"}
-                      className={`w-full h-14 ${
+                      className={`w-full h-12 ${
                         passwordError ? "border-red-500" : "border-none"
-                      } bg-gray-300 px-14 font-semibold text- rounded-lg`}
+                      } w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange`}
                       placeholder="Enter your password"
                       value={password}
                       onChange={handlePasswordChange}
@@ -336,6 +336,7 @@ const Login = () => {
                     Sign in with Google
                   </motion.button>
 
+                </Form>
                   <div className="text-center font-light font-lato mt-2 flex justify-center">
                     <p className="text-gray-900 text-sm">
                       Don't have an account?{" "}
@@ -344,7 +345,6 @@ const Login = () => {
                       </span>
                     </p>
                   </div>
-                </Form>
               </div>
             </div>
           </Row>

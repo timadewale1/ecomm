@@ -1,8 +1,11 @@
-// public/firebase-messaging-sw.js
-importScripts('https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js');
-importScripts('https://www.gstatic.com/firebasejs/9.6.10/firebase-messaging.js');
+importScripts(
+  "https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"
+);
+importScripts(
+  "https://www.gstatic.com/firebasejs/9.6.10/firebase-messaging-compat.js"
+);
 
-console.log('Service Worker: Registered');
+console.log("Service Worker: Registered");
 
 firebase.initializeApp({
   apiKey: "AIzaSyC7pOCYSGpYMUDiRxRN4nV4UUfd2tdx1Jg",
@@ -16,10 +19,14 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage(function (payload) {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
+  console.log(
+    "[firebase-messaging-sw.js] Received background message ",
+    payload
+  );
   const notificationTitle = payload.notification.title;
   const notificationOptions = {
     body: payload.notification.body,
+    icon: "/firebase-logo.png", // Adjust icon path if necessary
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);

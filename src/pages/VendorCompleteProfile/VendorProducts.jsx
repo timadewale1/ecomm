@@ -13,7 +13,7 @@ import {
   query,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import Modal from "../../components/layout/Modal";
 import ConfirmationDialog from "../../components/layout/ConfirmationDialog";
@@ -67,9 +67,7 @@ const VendorProducts = () => {
   const auth = getAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    toast.info("Testing toast visibility!");
-  }, []);
+  
   
   const renderVariants = (variants) => {
     const groupedVariants = groupVariantsByColor(variants);
@@ -1115,7 +1113,6 @@ const VendorProducts = () => {
           />
         ) : null)
       }
-      <ToastContainer />
     </>
   );
 };

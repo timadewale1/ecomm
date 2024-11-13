@@ -36,13 +36,13 @@ const VendorDashboard = () => {
   const [totalProducts, setTotalProducts] = useState(0);
   const [recentActivities, setRecentActivities] = useState([]);
   const [isModalOpen, setModalOpen] = useState(false);
-  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (vendorData) {
       fetchStatistics(vendorData.vendorId);
       fetchRecentActivities(vendorData.vendorId);
+      fetchInfo(vendorData.vendorId);
     }
   }, [vendorData]);
 
@@ -51,7 +51,18 @@ const VendorDashboard = () => {
     return activity.type === filterOptions;
   });
 
- 
+ const fetchInfo = (vendorId) => {
+  const productsRef = collection(db, "products");
+    const productsQuery = query(productsRef, where("vendorId", "==", vendorId));
+
+    const 
+    unsubscribe = onSnapshot(productsQuery, (snapshot) => {
+      setTotalProducts(snapshot.docs.length);
+    });
+
+    return () => unsubscribe();
+  };
+
   const fetchStatistics = (vendorId) => {
     const ordersRef = collection(db, "orders");
     const ordersQuery = query(ordersRef, where("vendorId", "==", vendorId));
@@ -199,17 +210,7 @@ const VendorDashboard = () => {
               </p>
             </div>
           </div>
-          <div>
-            <button className="relative border rounded-full p-1">
-              {hasUnreadNotifications && (
-                <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500"></span>
-              )}
-              <IoIosNotificationsOutline
-                onClick={() => navigate("/vendor-notifications")}
-                className="w-5 h-5 cursor-pointer"
-              />
-            </button>
-          </div>
+          
         </div>
 
         {!vendorData.isApproved && (

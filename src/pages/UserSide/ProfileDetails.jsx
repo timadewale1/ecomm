@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  updateProfile,
-  updatePassword,
-  reauthenticateWithCredential,
-  EmailAuthProvider,
-} from "firebase/auth";
+import { updateProfile } from "firebase/auth";
 import { auth, db } from "../../firebase.config";
 import toast from "react-hot-toast";
 import { doc, updateDoc, getDoc } from "firebase/firestore";
@@ -25,17 +20,22 @@ import { RotatingLines } from "react-loader-spinner";
 import { useNavigate } from "react-router-dom";
 import { FaRegTimesCircle } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
+import { updateUserData } from "../../redux/actions/useractions";
+
 import { CiLocationOn } from "react-icons/ci";
 import Loading from "../../components/Loading/Loading";
+import { GoChevronLeft } from "react-icons/go";
 
 const ProfileDetails = ({
   currentUser,
-  userData,
-  setUserData,
+
   setShowDetails,
 }) => {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const dispatch = useDispatch();
+  const userData = useSelector((state) => state.user.userData);
+
   const [editField, setEditField] = useState("");
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -44,40 +44,23 @@ const ProfileDetails = ({
   const [phoneNumber, setPhoneNumber] = useState("");
   const [birthday, setBirthday] = useState("");
   const [address, setAddress] = useState("");
-  const [password, setPassword] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (currentUser) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            setUserData(data);
-            setUsername(data.username || "");
-            setDisplayName(data.displayName || "");
-            setPhoneNumber(data.phoneNumber || "");
-            setBirthday(data.birthday || "");
-            setAddress(data.address || "");
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-          toast.error("Failed to load profile details. Please try again.");
-        } finally {
-          setLoading(false); // Set loading to false after data is fetched
-        }
-      } else {
-        setLoading(false); // Set loading to false if no current user
-      }
-    };
-
-    fetchData();
-  }, [currentUser, setUserData]);
+    if (userData) {
+      setUsername(userData.username || "");
+      setDisplayName(userData.displayName || "");
+      setPhoneNumber(userData.phoneNumber || "");
+      setBirthday(userData.birthday || "");
+      setAddress(userData.address || "");
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+  }, [userData]);
 
   if (loading) {
     return <Loading />;
@@ -138,10 +121,7 @@ const ProfileDetails = ({
       toast.error("Phone number must be at least 11 digits.");
       return false;
     }
-    if (editField === "password" && !currentPassword) {
-      toast.error("Please enter your current password to reset your password.");
-      return false;
-    }
+
     return true;
   };
 
@@ -155,6 +135,7 @@ const ProfileDetails = ({
     setIsLoading(true);
 
     try {
+      let updatedFields = {};
       if (editField === "username") {
         const formattedUsername = formatName(username);
         await updateProfile(auth.currentUser, {
@@ -163,7 +144,7 @@ const ProfileDetails = ({
         await updateDoc(doc(db, "users", currentUser.uid), {
           username: formattedUsername,
         });
-        setUserData((prev) => ({ ...prev, username: formattedUsername }));
+        updatedFields.username = formattedUsername;
         setUsername(formattedUsername);
       } else if (editField === "displayName") {
         const formattedFirstName = formatName(firstName);
@@ -173,35 +154,29 @@ const ProfileDetails = ({
         await updateDoc(doc(db, "users", currentUser.uid), {
           displayName: fullName,
         });
-        setUserData((prev) => ({ ...prev, displayName: fullName }));
+        updatedFields.displayName = fullName;
         setDisplayName(fullName);
-      } else if (editField === "password") {
-        const credential = EmailAuthProvider.credential(
-          auth.currentUser.email,
-          currentPassword
-        );
-        await reauthenticateWithCredential(auth.currentUser, credential);
-        await updatePassword(auth.currentUser, password);
       } else if (editField === "phoneNumber") {
         await updateDoc(doc(db, "users", currentUser.uid), { phoneNumber });
-        setUserData((prev) => ({ ...prev, phoneNumber }));
+        updatedFields.phoneNumber = phoneNumber;
         setPhoneNumber(phoneNumber);
       } else if (editField === "address") {
         await updateDoc(doc(db, "users", currentUser.uid), { address });
-        setUserData((prev) => ({ ...prev, address }));
-        setPhoneNumber(phoneNumber);
+        updatedFields.address = address;
+        setAddress(address);
       } else if (editField === "birthday") {
         await updateDoc(doc(db, "users", currentUser.uid), { birthday });
-        setUserData((prev) => ({ ...prev, birthday }));
+        updatedFields.birthday = birthday;
         setBirthday(birthday);
       }
 
+      // Update Redux store with new user data
+      dispatch(updateUserData(updatedFields));
+
       toast.success("Profile updated successfully");
       await checkProfileCompletion(currentUser.uid, {
-        username,
-        displayName,
-        phoneNumber,
-        address,
+        ...userData,
+        ...updatedFields,
       });
       setIsEditing(false);
     } catch (error) {
@@ -216,10 +191,9 @@ const ProfileDetails = ({
     <div className="flex flex-col p-2 items-center">
       <div className="sticky top-0 bg-white z-10 flex items-center -translate-y-4 justify-between h-24 w-full">
         <div className="flex items-center space-x-2">
-          <FaAngleLeft
+          <GoChevronLeft
             className="text-2xl text-black cursor-pointer"
             onClick={() => {
-              console.log("Closing Profile Details");
               setShowDetails(false);
             }}
           />
@@ -345,22 +319,6 @@ const ProfileDetails = ({
             />
           </div>
         </div>
-
-        <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-          <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-            Password
-          </h1>
-          <div className="flex items-center justify-between w-full px-4 py-3">
-            <GrSecure className="text-black text-xl mr-4" />
-            <p className="text-lg text-black w-full font-poppins font-normal">
-              *******
-            </p>
-            <RiEditFill
-              className="text-black cursor-pointer ml-2 text-2xl"
-              onClick={() => handleEdit("password")}
-            />
-          </div>
-        </div>
       </div>
 
       {isEditing && (
@@ -376,8 +334,6 @@ const ProfileDetails = ({
                 ? "Username"
                 : editField === "displayName"
                 ? "Account Name"
-                : editField === "password"
-                ? "Password"
                 : editField === "phoneNumber"
                 ? "Phone Number"
                 : editField === "address"
@@ -410,27 +366,7 @@ const ProfileDetails = ({
                 />
               </>
             )}
-            {editField === "password" && (
-              <div className="relative w-72">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  placeholder="New Password"
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded"
-                />
-                <span
-                  className="absolute right-3 top-3 cursor-pointer"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <FaEyeSlash /> : <FaEye />}
-                </span>
-                <small className="text-gray-500 text-xs">
-                  Password must be at least 8 characters long and include at
-                  least one uppercase letter.
-                </small>
-              </div>
-            )}
+
             {editField === "phoneNumber" && (
               <input
                 type="tel"
@@ -454,24 +390,6 @@ const ProfileDetails = ({
                 onChange={(e) => setAddress(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded"
               />
-            )}
-
-            {editField === "password" && (
-              <div className="relative w-full mt-4">
-                <input
-                  type="password"
-                  placeholder="Current Password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded"
-                />
-                <span
-                  className="absolute right-3 top-3 cursor-pointer"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <FaEyeSlash /> : <FaEye />}
-                </span>
-              </div>
             )}
 
             <div className="flex justify-end mt-4 relative">

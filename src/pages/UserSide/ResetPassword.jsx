@@ -6,8 +6,6 @@ import { MdOutlineLock } from "react-icons/md";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { RotatingLines } from "react-loader-spinner";
-import db from "../../firebase.config";
-import { getDoc, doc } from "firebase/firestore";
 import { AiOutlineInfoCircle } from "react-icons/ai";
 
 const ResetPassword = () => {
@@ -20,11 +18,9 @@ const ResetPassword = () => {
   const navigate = useNavigate();
   const oobCode = searchParams.get("oobCode");
 
-
   const handlePasswordReset = async (e) => {
     e.preventDefault();
-  
-    // Validate password criteria
+
     const passwordCriteria =
       /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
     if (!passwordCriteria.test(password)) {
@@ -37,30 +33,15 @@ const ResetPassword = () => {
       toast.error("Passwords do not match.");
       return;
     }
-  
+
     setLoading(true);
     try {
       // Confirm password reset with Firebase
       await confirmPasswordReset(auth, oobCode, password);
       toast.success("Your password has been reset successfully!");
-  
-      // Fetch user data from Firestore to check their role
-      const user = auth.currentUser;
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-  
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        const userRole = userData.role;
-  
-        // Navigate based on the role
-        if (userRole === "vendor") {
-          navigate("/vendor-login"); // Navigate to vendor login if user is a vendor
-        } else {
-          navigate("/login"); // Navigate to regular login if user is a standard user
-        }
-      } else {
-        throw new Error("User data not found.");
-      }
+
+      // Redirect to login page
+      navigate("/login");
     } catch (error) {
       toast.error(
         "Failed to reset password. Please try again or request a new reset email."
@@ -69,7 +50,6 @@ const ResetPassword = () => {
       setLoading(false);
     }
   };
-  
 
   return (
     <div className="flex items-center justify-center bg-white px-3 py-4 min-h-screen">

@@ -12,7 +12,11 @@ import { RotatingLines } from "react-loader-spinner";
 import { PiSignOutBold } from "react-icons/pi";
 import { GiClothes } from "react-icons/gi";
 import { MdHelpOutline, MdModeEdit } from "react-icons/md";
-
+import {
+  setUserData,
+  updateUserData,
+  resetUserData,
+} from "../redux/actions/useractions";
 import { CiMoneyBill } from "react-icons/ci";
 import { AiOutlineDashboard } from "react-icons/ai";
 import UserDashboard from "./UserDashboard";
@@ -25,18 +29,17 @@ import FAQs from "./UserSide/FAQs";
 import { IoMdContact } from "react-icons/io";
 import { clearCart } from "../redux/actions/action";
 import { useDispatch, useSelector } from "react-redux";
-import { resetUserData } from "../redux/actions/authactions";
 import Donate from "./Donate";
 const Profile = () => {
   const navigate = useNavigate();
 
   const location = useLocation();
   const { currentUser } = useAuth();
-  const [userData, setUserData] = useState(null);
+  const dispatch = useDispatch();
+  const userData = useSelector((state) => state.user.userData);
   const [showHighlight, setShowHighlight] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  // const [isIncomplete, setIsIncomplete] = useState(false);
-  const dispatch = useDispatch();
+
   const cart = useSelector((state) => state.cart);
   const [isIncomplete, setIsIncomplete] = useState(false);
   const [showMetrics, setShowMetrics] = useState(false);
@@ -52,25 +55,26 @@ const Profile = () => {
     setIsIncomplete(incompleteProfile);
     setShowHighlight(incompleteProfile);
 
-    // Fade out the highlight after 10 seconds
     if (incompleteProfile) {
       const highlightTimeout = setTimeout(() => setShowHighlight(false), 10000);
       return () => clearTimeout(highlightTimeout);
     }
 
     const fetchUserData = async () => {
-      if (currentUser) {
+      if (currentUser && !userData) {
         setLoading(true);
         try {
           const userDoc = await getDoc(doc(db, "users", currentUser.uid));
           if (userDoc.exists()) {
-            setUserData(userDoc.data());
+            dispatch(setUserData(userDoc.data()));
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
         } finally {
           setLoading(false);
         }
+      } else {
+        setLoading(false);
       }
     };
     fetchUserData();
@@ -80,7 +84,7 @@ const Profile = () => {
   // }, [currentUser, location.search];
 
   const handleAvatarChange = (newAvatar) => {
-    setUserData((prev) => ({ ...prev, photoURL: newAvatar }));
+    dispatch(updateUserData({ photoURL: newAvatar }));
   };
 
   const handleRemoveAvatar = async () => {
@@ -88,7 +92,7 @@ const Profile = () => {
       await updateDoc(doc(db, "users", currentUser.uid), {
         photoURL: "",
       });
-      setUserData((prev) => ({ ...prev, photoURL: "" }));
+      dispatch(updateUserData({ photoURL: "" }));
       toast.success("Avatar removed successfully", {
         className: "custom-toast",
       });
@@ -110,7 +114,7 @@ const Profile = () => {
       await signOut(auth);
       localStorage.removeItem("cart");
       dispatch(clearCart()); // Clear Redux cart state
-      dispatch(resetUserData()); // Reset user data
+      dispatch(resetUserData());
       console.log("Cart cleared in Redux and localStorage");
 
       toast.success("Successfully logged out", { className: "custom-toast" });
@@ -127,16 +131,11 @@ const Profile = () => {
     <div className="py-4">
       {!showDetails && !showMetrics && !showFAQs && !showDonations ? (
         <div className="flex flex-col items-center">
-
-
           <h1 className="font-opensans text-xl font-semibold "> My Profile</h1>
-
-
-    
 
           <div className="flex border  rounded-full p-1 justify-center mt-4 relative">
             {loading ? (
-              <Skeleton circle={true} height={144} width={144} />
+              <Skeleton circle={true} height={120} width={120} />
             ) : userData && userData.photoURL ? (
               <img
                 src={userData.photoURL}
@@ -169,10 +168,8 @@ const Profile = () => {
               </h1>
             </div>
 
-
             <div className="px-2">
               {" "}
-             
               <div
                 className={`relative flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl transition-all duration-500 ease-in-out ${
                   showHighlight
@@ -189,7 +186,6 @@ const Profile = () => {
                   <ChevronRight className="text-black ml-auto" />
                 </div>
 
-
                 {isIncomplete && showHighlight && (
                   <span className="absolute top-1 right-4 font-opensans text-xs text-red-500 animate-pulse">
                     Update profile here
@@ -197,7 +193,6 @@ const Profile = () => {
                 )}
               </div>
             </div>
-
 
             <div className="flex flex-col items-center w-full px-2">
               <div
@@ -211,9 +206,7 @@ const Profile = () => {
                   </h2>
                 </div>
                 <ChevronRight className="text-black" />
-
               </div>
-             
             </div>
           </div>
 

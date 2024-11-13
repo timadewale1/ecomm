@@ -336,6 +336,7 @@ const Login = () => {
                     Sign in with Google
                   </motion.button>
 
+                </Form>
                   <div className="text-center font-light font-lato mt-2 flex justify-center">
                     <p className="text-gray-900 text-sm">
                       Don't have an account?{" "}
@@ -344,7 +345,6 @@ const Login = () => {
                       </span>
                     </p>
                   </div>
-                </Form>
               </div>
             </div>
           </Row>

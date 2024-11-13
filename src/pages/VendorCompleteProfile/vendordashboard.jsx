@@ -6,6 +6,8 @@ import {
   onSnapshot,
   orderBy,
   limit,
+  doc,
+  getDoc
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 
@@ -24,10 +26,15 @@ import { BsBell, BsBoxSeam, BsCopy, BsEye, BsEyeSlash } from "react-icons/bs";
 import { CopyAllRounded } from "@mui/icons-material";
 import { LuListFilter } from "react-icons/lu";
 import NotApproved from "../../components/Infos/NotApproved";
+
+const defaultImageUrl = "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
+
+
 const VendorDashboard = () => {
   const { vendorData, loading } = useContext(VendorContext); // Get vendor data from context
   const [totalFulfilledOrders, setTotalFulfilledOrders] = useState(0);
   const [hide, setHide] = useState(false);
+  const [coverImageUrl, setCoverImageUrl] = useState(defaultImageUrl);
   const [filterOptions, setFilterOptions] = useState("All");
   const [viewOptions, setViewOptions] = useState(false);
   const [totalUnfulfilledOrders, setTotalUnfulfilledOrders] = useState(0);
@@ -43,8 +50,23 @@ const VendorDashboard = () => {
     if (vendorData) {
       fetchStatistics(vendorData.vendorId);
       fetchRecentActivities(vendorData.vendorId);
+      
     }
   }, [vendorData]);
+
+  const fetchCoverImage = async (vendorId) => {
+    try {
+      const vendorDocRef = doc(db, "vendors", vendorId);
+      const vendorDoc = await getDoc(vendorDocRef);
+
+      if (vendorDoc.exists() && vendorDoc.data().coverImageUrl) {
+        setCoverImageUrl(vendorDoc.data().coverImageUrl);
+      }
+    } catch (error) {
+      console.error("Error fetching cover image:", error);
+    }
+  };  
+
 
   const filteredActivities = recentActivities.filter((activity) => {
     if (filterOptions === "All") return true;
@@ -188,7 +210,7 @@ const VendorDashboard = () => {
           <div className="flex items-center">
             <div className="overflow-hidden w-11 h-11 rounded-full flex justify-center items-center mr-1">
               <img
-                src={vendorData.photoURL || vendorData.coverImageUrl}
+               src={coverImageUrl}
                 alt="Vendor profile"
                 className="rounded-full object-cover h-11 w-11"
               />

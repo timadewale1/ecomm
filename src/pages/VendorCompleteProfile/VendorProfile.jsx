@@ -3,7 +3,7 @@ import { signOut } from "firebase/auth";
 import { MdModeEdit } from "react-icons/md";
 import { auth, db } from "../../firebase.config";
 import { RotatingLines } from "react-loader-spinner";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, User, ChevronLeft } from "lucide-react";
 import {
@@ -79,29 +79,34 @@ const VendorProfile = () => {
 
   useEffect(() => {
     const fetchOrderData = async () => {
+      if (!currentUser?.uid) return; // Ensure currentUser is defined
+  
       try {
         const ordersRef = collection(db, "orders");
-
+  
         // Fulfilled Orders (Delivered)
         const fulfilledQuery = query(
           ordersRef,
-          where("progressStatus", "==", "Delivered")
+          where("progressStatus", "==", "Delivered"),
+          where("vendorId", "==", currentUser.uid)
         );
         const fulfilledSnapshot = await getDocs(fulfilledQuery);
         setFulfilledOrders(fulfilledSnapshot.size);
-
+  
         // Unfulfilled Orders (In Progress, Shipped, or Pending)
         const unfulfilledQuery = query(
           ordersRef,
-          where("progressStatus", "in", ["In Progress", "Shipped", "Pending"])
+          where("progressStatus", "in", ["In Progress", "Shipped", "Pending"]),
+          where("vendorId", "==", currentUser.uid)
         );
         const unfulfilledSnapshot = await getDocs(unfulfilledQuery);
         setUnfulfilledOrders(unfulfilledSnapshot.size);
-
+  
         // Incoming Orders
         const incomingQuery = query(
           ordersRef,
-          where("status", "==", "incoming")
+          where("status", "==", "incoming"),
+          where("vendorId", "==", currentUser.uid)
         );
         const incomingSnapshot = await getDocs(incomingQuery);
         setIncomingOrders(incomingSnapshot.size);
@@ -109,9 +114,9 @@ const VendorProfile = () => {
         console.error("Error fetching order data:", error);
       }
     };
-
+  
     fetchOrderData();
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -159,49 +164,23 @@ const VendorProfile = () => {
         <div>
           {/* Cover Image Section */}
           <div
-            className="relative w-full h-56 bg-cover bg-full flex"
-            style={{
-              backgroundImage: isLoading ? "none" : `url(${coverImageUrl})`,
-            }}
-          >
-            {isLoading && (
-              <Skeleton
-                height={144}
-                width="100%"
-                className="absolute top-0 left-0 w-full h-full"
-              />
-            )}
+        className="relative w-full h-56 bg-cover bg-full flex"
+        style={{
+          backgroundImage: isLoading ? "none" : `url(${coverImageUrl})`,
+        }}
+      >
+        {isLoading && (
+          <Skeleton
+            height={224} // Adjusted height to match the cover div height
+            width="100%"
+            className="absolute top-0 left-0 w-full h-full"
+          />
+        )}
+      </div>
 
-            {/* Avatar Container */}
-            <div className="flex border-5 border-white rounded-full absolute ml-2 bottom-0 transform translate-y-6">
-              {isLoading ? (
-                <Skeleton circle={true} height={144} width={144} />
-              ) : userData && userData.photoURL ? (
-                <img
-                  src={userData.photoURL}
-                  alt=""
-                  className="rounded-full object-cover h-24 w-24 bg-opacity-30"
-                  onClick={() => setIsAvatarModalOpen(true)}
-                />
-              ) : (
-                <div
-                  className="rounded-full h-20 w-20 flex items-center justify-center"
-                  onClick={() => setIsAvatarModalOpen(true)}
-                >
-                  <IoMdContact className="text-gray-500 text-2xl" />
-                </div>
-              )}
-              <MdModeEdit
-                className="absolute bottom-0 right-0 border text-black mr-2 text-xl p-1 rounded-full bg-white cursor-pointer shadow-md"
-                onClick={() => setIsAvatarModalOpen(true)}
-              />
-            </div>
-          </div>
-
-          <div className="p-2 text-2xl font-opensans font-bold text-black capitalize mt-8 items-start">
-            {shopName}
-          </div>
-
+      <div className="p-2 text-2xl font-opensans font-bold text-black capitalize mt-1 items-start">
+        {shopName}
+      </div>
           <div className="flex flex-col">
             {/* My Activity Chart */}
             <div className="my-4 w-full px-2">

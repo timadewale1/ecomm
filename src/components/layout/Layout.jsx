@@ -26,8 +26,10 @@ const Layout = () => {
     "/newcheckout/fulldelivery",
     "/user-dashboard",
     "/search",
+    "/vendor-reviews",
     "/notifications",
     "/favorites",
+    "/reset-password",
     "/market-vendors",
     "/online-vendors",
     "market-vendors",
@@ -60,6 +62,7 @@ const Layout = () => {
   const vendorPaths = [
     "/vendordashboard",
     "/vendor-orders",
+    "/vendor-reviews",
     "/vendor-products",
     "/vendor-profile",
   ];

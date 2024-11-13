@@ -16,18 +16,58 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { GoDotFill, GoChevronLeft } from "react-icons/go";
 import { FiSearch } from "react-icons/fi";
-import {
-  FaAngleLeft,
-  FaPlus,
-  FaCheck,
-  FaSpinner,
-  FaStar,
-} from "react-icons/fa";
+import { FaAngleLeft, FaPlus, FaCheck } from "react-icons/fa";
+
+import { FaSpinner, FaStar } from "react-icons/fa6";
 import toast from "react-hot-toast";
 import ProductCard from "../components/Products/ProductCard";
 import Loading from "../components/Loading/Loading";
 import { CiSearch } from "react-icons/ci";
+import { MdCancel, MdClose } from "react-icons/md";
+const ReviewBanner = () => {
+  const [isVisible, setIsVisible] = useState(false);
 
+  useEffect(() => {
+    const bannerShown = localStorage.getItem("reviewBannerShown");
+    if (!bannerShown) {
+      setIsVisible(true);
+      localStorage.setItem("reviewBannerShown", "true");
+
+      
+      const timer = setTimeout(() => {
+        setIsVisible(false);
+      }, 10000);
+
+     
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleClose = () => {
+    setIsVisible(false);
+  };
+
+  return (
+    <div
+      className={`absolute z-10 w-64 bg-customBrown text-white px-2 py-2 rounded-lg shadow-lg flex flex-col items-start space-y-1 transform -translate-x-1/2 translate-y-40 left-1/2 transition-opacity duration-500 ${
+        isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+      }`}
+      style={{ maxWidth: "99%" }}
+    >
+      <span className="font-semibold font-opensans text-sm">
+        Click here to rate vendor!
+      </span>
+      <span className="text-xs font-opensans">
+        Shopped from here? Share your experience with other shoppers!🧡
+      </span>
+      <button onClick={handleClose} className="absolute top-1 right-4">
+        <MdClose className="text-white text-lg" />
+      </button>
+      <div className="absolute bottom-[-7px] left-1/2 transform -translate-x-1/2 w-4 h-4 bg-customBrown rotate-45"></div>{" "}
+     
+    </div>
+  );
+};
 const MarketStorePage = () => {
   const { id } = useParams();
   const [vendor, setVendor] = useState(null);
@@ -36,49 +76,41 @@ const MarketStorePage = () => {
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState("All");
+
+  const [selectedType, setSelectedType] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
   const navigate = useNavigate();
 
- 
   useEffect(() => {
-
     setLoading(true);
     setVendor(null);
     setProducts([]);
 
     const fetchVendorData = async () => {
       try {
-       
         setLoading(true);
 
-      
         const vendorRef = doc(db, "vendors", id);
         const vendorDoc = await getDoc(vendorRef);
 
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
-          vendorData.id = vendorDoc.id; 
+          vendorData.id = vendorDoc.id;
           setVendor(vendorData);
 
-          
           if (vendorData.productIds && vendorData.productIds.length > 0) {
             await fetchVendorProducts(vendorData.productIds);
           } else {
-           
             setProducts([]);
           }
         } else {
-         
           toast.error("Vendor not found!");
         }
       } catch (error) {
-       
         toast.error("Error fetching vendor data: " + error.message);
       } finally {
-       
         setLoading(false);
       }
     };
@@ -87,7 +119,6 @@ const MarketStorePage = () => {
   }, [id]);
 
   useEffect(() => {
-   
     setIsFollowing(false);
 
     const checkIfFollowing = async () => {
@@ -101,9 +132,9 @@ const MarketStorePage = () => {
           const followSnapshot = await getDoc(followDocRef);
 
           if (followSnapshot.exists()) {
-            setIsFollowing(true); 
+            setIsFollowing(true);
           } else {
-            setIsFollowing(false); 
+            setIsFollowing(false);
           }
         } catch (error) {
           console.error("Error checking follow status:", error);
@@ -112,7 +143,7 @@ const MarketStorePage = () => {
     };
 
     checkIfFollowing();
-  }, [currentUser, vendor]); 
+  }, [currentUser, vendor]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -130,13 +161,11 @@ const MarketStorePage = () => {
     try {
       const productsRef = collection(db, "products");
 
-     
       if (!productIds || productIds.length === 0) {
         setProducts([]);
         return;
       }
 
-    
       const productChunks = [];
       for (let i = 0; i < productIds.length; i += 10) {
         productChunks.push(productIds.slice(i, i + 10));
@@ -147,7 +176,7 @@ const MarketStorePage = () => {
         const q = query(
           productsRef,
           where("__name__", "in", chunk),
-          where("published", "==", true) 
+          where("published", "==", true)
         );
         const productsSnapshot = await getDocs(q);
         const productsChunk = productsSnapshot.docs.map((doc) => ({
@@ -163,17 +192,14 @@ const MarketStorePage = () => {
       toast.error("Error fetching products.");
     }
   };
-
-  const filteredProducts = products.filter((product) => {
-    const matchesSearchTerm = product.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "All" ||
-      product.productType.toLowerCase() === selectedCategory.toLowerCase();
-
-    return matchesSearchTerm && matchesCategory;
-  });
+  const handleTypeSelect = (type) => {
+    setSelectedType(type);
+  };
+  const filteredProducts = products.filter(
+    (product) =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      (selectedType === "All" || product.productType === selectedType)
+  );
 
   // Handle follow/unfollow vendor
   const handleFollowClick = async () => {
@@ -209,32 +235,6 @@ const MarketStorePage = () => {
     }
   };
 
-  // Fetch all notifications for the current user
-  // const notifyFollowers = async (productOrPromoDetails) => {
-  //   try {
-  //     const followRef = collection(db, "follows");
-  //     const q = query(followRef, where("vendorId", "==", vendor.id));
-  //     const followersSnapshot = await getDocs(q);
-
-  //     const followerPromises = followersSnapshot.docs.map(async (doc) => {
-  //       const userId = doc.data().userId;
-
-  //       // Send notification to the user (storing it in the 'notifications' collection)
-  //       await setDoc(collection(db, "notifications"), {
-  //         userId,
-  //         message: `New product or promo from ${vendor.shopName}: ${productOrPromoDetails}`,
-  //         createdAt: new Date(),
-  //         seen: false,
-  //       });
-  //     });
-
-  //     await Promise.all(followerPromises);
-  //     toast.success("Followers have been notified.");
-  //   } catch (error) {
-  //     console.error("Error notifying followers:", error);
-  //   }
-  // };
-
   const handleFavoriteToggle = (productId) => {
     setFavorites((prevFavorites) => {
       const isFavorited = prevFavorites[productId];
@@ -255,10 +255,6 @@ const MarketStorePage = () => {
     navigate(`/reviews/${id}`);
   };
 
-  const handleCategorySelect = (category) => {
-    setSelectedCategory(category);
-  };
-
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
   };
@@ -274,46 +270,61 @@ const MarketStorePage = () => {
   if (!vendor) {
     return <div>No vendor found</div>;
   }
+  const handleClearSearch = () => {
+    setSearchTerm("");
+  };
 
   const DefaultImageUrl =
     "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 
-  // Calculate the average rating
   const averageRating =
     vendor.ratingCount > 0 ? vendor.rating / vendor.ratingCount : 0;
+  const productTypes = [
+    "All",
+    ...new Set(products.map((product) => product.productType)),
+  ];
 
   return (
     <div className="p-3 mb-24">
-      <div className="sticky top-0 bg-white h-20 z-10 flex justify-between items-center border-b border-gray-300 w-full">
+      <ReviewBanner />
+      <div className="sticky top-0 bg-white h-20 z-20 flex items-center border-b border-gray-300 w-full">
         {isSearching ? (
-          <>
+          <div className="flex items-center w-full relative px-2">
             <FaAngleLeft
-              onClick={() => setIsSearching(false)}
-              className="cursor-pointer"
+              onClick={() => {
+                setIsSearching(false);
+                handleClearSearch(); // Clear input when exiting search
+              }}
+              className="cursor-pointer text-2xl mr-2"
             />
             <input
               type="text"
               value={searchTerm}
               onChange={handleSearchChange}
-              placeholder="Search products..."
-              className="border rounded-lg px-3 py-2 flex-1 mx-2"
+              placeholder="Search store..."
+              className="flex-1 border rounded-full font-opensans text-black text-sm border-gray-300 px-3 py-2 font-medium focus:outline-none"
             />
-            <div style={{ width: "24px" }} />
-          </>
+            {searchTerm && (
+              <MdCancel
+                className="text-xl text-gray-500 cursor-pointer absolute right-4"
+                onClick={handleClearSearch}
+              />
+            )}
+          </div>
         ) : (
-          <>
+          <div className="flex items-center justify-between w-full ">
             <GoChevronLeft
               onClick={() => navigate(-1)}
               className="cursor-pointer text-3xl"
             />
-            <h1 className="font-opensans text-lg font-semibold">
+            <h1 className="flex-grow text-center font-opensans text-lg font-semibold">
               {vendor.shopName}
             </h1>
             <CiSearch
               className="text-black text-3xl cursor-pointer"
               onClick={() => setIsSearching(true)}
             />
-          </>
+          </div>
         )}
       </div>
 
@@ -336,11 +347,7 @@ const MarketStorePage = () => {
           )}
         </div>
       </div>
-      {/* <div className="flex justify-center mt-3 mb-2">
-        <div className="flex items-center text-black text-lg font-medium">
-          {vendor.socialMediaHandle}
-        </div>
-      </div> */}
+      
       <div
         className="flex justify-center mt-2"
         style={{ cursor: "pointer" }}
@@ -381,7 +388,7 @@ const MarketStorePage = () => {
           <Skeleton width={128} height={40} />
         ) : (
           <button
-            className={`w-full h-12 rounded-full border font-medium flex items-center justify-center transition-colors duration-200 ${
+            className={`w-full h-12 rounded-full border font-medium flex items-center font-opensans justify-center transition-colors duration-200 ${
               isFollowing
                 ? "bg-customOrange text-white"
                 : "bg-customOrange text-white"
@@ -410,40 +417,31 @@ const MarketStorePage = () => {
       </p>
       <div className="p-2 mt-7">
         <h1 className="font-opensans text-lg mb-3 font-semibold">Products</h1>
-        <div className="flex justify-between mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
-          {[
-            "All",
-            "Cloth",
-            "Dress",
-            "Jewelry",
-            "Footwear",
-            "Pants",
-            "Shirts",
-            "Suits",
-            "Hats",
-            "Belts",
-          ].map((category) => (
+        <div className="flex  mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
+          {productTypes.map((type) => (
             <button
-              key={category}
-              onClick={() => handleCategorySelect(category)}
+              key={type}
+              onClick={() => handleTypeSelect(type)}
               className={`flex-shrink-0 h-12 px-4 py-2 text-xs font-semibold font-opensans text-black border border-gray-400 rounded-full ${
-                selectedCategory === category
+                selectedType === type
                   ? "bg-customOrange text-white"
                   : "bg-transparent"
               }`}
             >
-              {category}
+              {type}
             </button>
           ))}
         </div>
 
-        <div className="grid mt-2 grid-cols-2 gap-2">
-          {loading ? (
-            Array.from({ length: 6 }).map((_, index) => (
+        {loading ? (
+          <div className="grid mt-2 grid-cols-2 gap-2">
+            {Array.from({ length: 6 }).map((_, index) => (
               <Skeleton key={index} height={200} width="100%" />
-            ))
-          ) : filteredProducts.length > 0 ? (
-            filteredProducts.map((product) => (
+            ))}
+          </div>
+        ) : filteredProducts.length > 0 ? (
+          <div className="grid mt-2 grid-cols-2 gap-2">
+            {filteredProducts.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
@@ -452,14 +450,18 @@ const MarketStorePage = () => {
                 onClick={() => {
                   navigate(`/product/${product.id}`);
                 }}
+                showVendorName={false}
               />
-            ))
-          ) : (
-            <p className=" flex justify-center text-center font-opensans text-gray-500">
-              No products available for this vendor.
+            ))}
+          </div>
+        ) : (
+          <div className="flex justify-center items-center  w-full text-center">
+            <p className="font-opensans text-xs text-gray-800">
+              📭 <span className="">{vendor.shopName}</span> hasn't added any
+              products to their online store yet. Check back soon for new items!
             </p>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

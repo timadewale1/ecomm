@@ -11,9 +11,7 @@ import { FaRegEyeSlash, FaRegEye } from "react-icons/fa";
 import { MdEmail } from "react-icons/md";
 import { GrSecure } from "react-icons/gr";
 import VendorLoginAnimation from "../SignUpAnimation/SignUpAnimation";
-import { getToken } from "firebase/messaging";
-import { messaging } from "../firebase.config";
-
+// Removed the Loading component import since it's no longer needed
 import Typewriter from "typewriter-effect";
 import { FaAngleLeft } from "react-icons/fa6";
 import { RotatingLines } from "react-loader-spinner"; // Import the RotatingLines component
@@ -68,8 +66,8 @@ const VendorLogin = () => {
         toast.error(
           "Your vendor account is deactivated. Please contact support."
         );
-        await auth.signOut();
-        setLoading(false);
+        await auth.signOut(); // Log the vendor out
+        setLoading(false); // Stop loading indicator
         return;
       }
 
@@ -78,19 +76,6 @@ const VendorLogin = () => {
           toast("Please complete your profile.");
           navigate("/complete-profile");
         } else {
-          // Fetch and save the FCM token
-          const token = await getToken(messaging, {
-            vapidKey: process.env.REACT_APP_VAPID_KEY,
-          });
-
-          if (token) {
-            // Save the token to Firestore
-            await updateDoc(docRef, { notificationToken: token });
-            console.log("Notification token saved for vendor:", token);
-          } else {
-            console.warn("Failed to get FCM token.");
-          }
-
           toast.success("Login successful");
           navigate("/vendordashboard");
         }
@@ -145,7 +130,7 @@ const VendorLogin = () => {
                 <FaAngleLeft className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>
               <VendorLoginAnimation />
-              <div className="flex justify-center text-xl text-customOrange -translate-y-1">
+              <div className="flex justify-center text-xl font-opensans text-customOrange -translate-y-1">
                 <Typewriter
                   options={{
                     strings: [
@@ -184,7 +169,7 @@ const VendorLogin = () => {
                       value={email}
                       className={`w-full h-14 ${
                         emailError ? "border-red-500" : "border-none"
-                      } bg-gray-300 px-10 mb-1 font-semibold text-gray-800 rounded-lg`}
+                      }w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange`}
                       onChange={handleEmailChange}
                     />
                   </FormGroup>
@@ -197,7 +182,7 @@ const VendorLogin = () => {
                       type={showPassword ? "text" : "password"}
                       className={`w-full h-14 ${
                         passwordError ? "border-red-500" : "border-none"
-                      } bg-gray-300 px-10 font-semibold text-gray-800 rounded-lg`}
+                      } w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange`}
                       placeholder="Enter your password"
                       value={password}
                       onChange={handlePasswordChange}

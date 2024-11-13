@@ -25,10 +25,11 @@ const ToggleButton = ({ itemId, initialIsOn, onColor = "bg-customOrange", offCol
 
     const docRef = doc(db, 'products', itemId);
     try {
-      await updateDoc(docRef, { published: newToggleValue });
+      await updateDoc(docRef, { published: newToggleValue, isFeatured: false });
+      
       toast.success(isOn ? "Product drafted successfully." : "Product published successfully.");
 
-      isOn ? (
+      isOn ? ( 
         await addActivityNote(
           "Drafted Product 📂",
           `You've hidden ${name}! Customers can not see or order this product while it is still drafted.`,

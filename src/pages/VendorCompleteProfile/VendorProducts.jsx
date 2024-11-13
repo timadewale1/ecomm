@@ -28,7 +28,7 @@ import {
 import { GrRadialSelected } from "react-icons/gr";
 import { RotatingLines } from "react-loader-spinner";
 import AddProduct from "../vendor/AddProducts";
-import { BsBox2Fill, BsPin, BsPinAngleFill } from "react-icons/bs";
+import { BsBox2Fill, BsPin, BsPinAngle, BsPinAngleFill } from "react-icons/bs";
 import { FaStar } from "react-icons/fa";
 import { Pin } from "@mui/icons-material";
 import { FiMoreHorizontal, FiPlus } from "react-icons/fi";
@@ -37,7 +37,8 @@ import ToggleButton from "../../components/Buttons/ToggleButton";
 import { motion } from "framer-motion";
 import Lottie from "lottie-react";
 import LoadState from "../../Animations/loadinganimation.json";
-import { FaXmark } from "react-icons/fa6";
+import { FaSpinner, FaXmark } from "react-icons/fa6";
+import Skeleton from "react-loading-skeleton";
 
 
 const VendorProducts = () => {
@@ -61,10 +62,15 @@ const VendorProducts = () => {
   const [showPinModal, setShowPinModal] = useState(false);
   const [picking, setPicking] = useState(false);
   const [pickedProducts, setPickedProducts] = useState([]);
+  const [pinnedCount, setPinnedCount] = useState(0);
 
   const auth = getAuth();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    toast.info("Testing toast visibility!");
+  }, []);
+  
   const renderVariants = (variants) => {
     const groupedVariants = groupVariantsByColor(variants);
     return Object.entries(groupedVariants).map(([color, variants], colorIndex) => (
@@ -154,6 +160,11 @@ const VendorProducts = () => {
     return () => unsubscribeAuth(); // Clean up on unmount
   }, [auth, navigate]);
 
+  useEffect(() => {
+    // Fetch pinned products count when component mounts
+    fetchPinnedProductsCount();
+  }, []);
+
   // Fetch and listen for vendor products based on vendorId
   useEffect(() => {
     if (!vendorId) return;
@@ -177,6 +188,7 @@ const VendorProducts = () => {
   }, [vendorId]);
 
   const fetchVendorProducts = (vendorId) => {
+    setProductsLoading(true)
     const productsQuery = query(
       collection(db, "products"),
       where("vendorId", "==", vendorId)
@@ -189,9 +201,20 @@ const VendorProducts = () => {
       }));
       setProducts(updatedProducts);
       setTotalProducts(updatedProducts.length);
+      setProductsLoading(false)
     });
 
     return unsubscribe;
+  };
+
+  const fetchPinnedProductsCount = () => {
+    const pinnedQuery = query(
+      collection(db, "products"),
+      where("isFeatured", "==", true)
+    );
+    onSnapshot(pinnedQuery, (snapshot) => {
+      setPinnedCount(snapshot.size); // Update count of pinned products
+    });
   };
 
   // Real-time listener to keep `isPublished` up-to-date
@@ -304,29 +327,49 @@ const VendorProducts = () => {
     }
   };
 
-  const pinProduct = async (product) => {
-    setButtonLoading(true);
+  const handlePinProduct = async (product) => {
+    if (!product.isFeatured && pinnedCount >= 3) {
+      toast.error("You can only pin up to 3 products.");
+      return;
+    }
+  
     try {
-      // Restocking product in the centralized 'products' collection
       const productRef = doc(db, "products", product.id);
+      const newIsFeaturedStatus = !product.isFeatured;
+  
+      // Update the product's `isFeatured` status in Firestore
       await updateDoc(productRef, {
-        isFeatured: !product.isFeatured,
+        isFeatured: newIsFeaturedStatus,
       });
-      await addActivityNote(
-        "Product Pinned 📌",
-        `You've made ${product.name} one of your featured products! This will be part of the first products customers see in your store.`,
-        "Product Update"
+  
+      // Update the local product state to reflect the new pin status
+      setProducts((prevProducts) =>
+        prevProducts.map((p) =>
+          p.id === product.id ? { ...p, isFeatured: newIsFeaturedStatus } : p
+        )
       );
-      toast.success("Product is now featured.");
-      closeModals();
+  
+      // If the product was just pinned (isFeatured set to true), add an activity note
+      if (newIsFeaturedStatus) {
+        await addActivityNote(
+          "Product Pinned 📌",
+          `You've made ${product.name} one of your featured products! This will be part of the first products customers see in your store.`,
+          "Product Update"
+        );
+        toast.success("Product pinned successfully.");
+      } else {
+        toast.success("Product unpinned successfully.");
+      }
+  
+      // Update the pinned count after the change
+      fetchPinnedProductsCount(); // Assuming this function recalculates the pinned count
+  
     } catch (error) {
-      console.error("Error pinning product: ", error);
-      toast.error("Error pinning product: " + error.message);
-    } finally {
-      fetchVendorProducts(vendorId);
-      setButtonLoading(false);
+      console.error("Error pinning/unpinning product:", error);
+      toast.error("Error pinning/unpinning product: " + error.message);
     }
   };
+  
 
   const addActivityNote = async (title, note, type) => {
     try {
@@ -494,16 +537,7 @@ const VendorProducts = () => {
     }, {});
   };
 
-  const handleEditProduct = async () => {
-    // Logic to open the edit modal or handle product edit functionality
-    console.log("Edit product:", selectedProduct);
-    await addActivityNote(
-      "Edited Product 📝",
-      `You edited ${selectedProduct.name}! Customers that have this in their cart will be notified of the changes you made.`,
-      "Product Update"
-    );
-  };
-
+  
   const filteredProducts = products.filter((p) => {
     if (tabOpt === "Active") {
       return p.published && p.stockQuantity > 0;
@@ -512,6 +546,11 @@ const VendorProducts = () => {
     } else {
       return !p.published;
     }
+})
+    .sort((a, b) => {
+      // Sort by isFeatured status first, so pinned products come first
+      if (a.isFeatured === b.isFeatured) return 0;
+      return a.isFeatured ? -1 : 1;
   });
 
   const formatNumber = (num) => {
@@ -553,8 +592,8 @@ const VendorProducts = () => {
             <img src="./Vector2.png" alt="" className="w-16 h-16" />
           </div>
           <div className="flex flex-col justify-center items-center space-y-3">
-            <p className="text-white text-lg">Total Products</p>
-            <p className="text-white text-3xl font-bold">{totalProducts}</p>
+            <p className="text-white text-lg">{tabOpt === "Active" ? tabOpt : tabOpt === "Drafts" ? "Drafted"  : "Out of Stock"} Products</p>
+            <p className="text-white text-3xl font-bold">{productsLoading ?(<FaSpinner className="animate-spin"/>) : filteredProducts.length}</p>
           </div>
         </div>
         <div className="flex justify-center space-x-5 items-center">
@@ -600,10 +639,9 @@ const VendorProducts = () => {
         </div>
         <div
           className={` ${
-            filteredProducts < 1 && !productsLoading
-              ? " justify-center items-center text-center"
-              : "grid grid-cols-2 gap-4"
-          }`}
+            filteredProducts < 1 
+            && " justify-center items-center text-center"
+          } ${filteredProducts.length > 0 && !productsLoading && "grid grid-cols-2 gap-4"}`}
         >
           {filteredProducts &&
           filteredProducts.length > 0 &&
@@ -616,7 +654,7 @@ const VendorProducts = () => {
               >
                 <div className="flex flex-col space-y-2">
                   <div className="relative w-44 h-44 rounded-xl bg-customSoftGray">
-                    {picking && (
+                    {picking ? (
                       <div
                         onClick={(e) => {
                           e.stopPropagation();
@@ -630,7 +668,22 @@ const VendorProducts = () => {
                           <FaRegCircle className="text-customOrange w-6 h-6" />
                         )}
                       </div>
-                    )}
+                    ) : (
+                      // Show pin icon only if there are less than 3 pinned products
+                tabOpt === "Active" && ((!product.isFeatured && pinnedCount < 3) || product.isFeatured) && (
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePinProduct(product);
+                    }}
+                    className="absolute top-2 left-2"
+                  >
+                    {product.isFeatured ? (
+                      <BsPinAngleFill className={`text-customOrange  w-5 h-5`} />
+                    ) : (<BsPinAngle className={`text-customOrange  w-5 h-5`} />)}
+                  </div>)
+                )}
+                    
                     <img
                       src={product.coverImageUrl}
                       alt={product.name}
@@ -675,15 +728,60 @@ const VendorProducts = () => {
               📦 You currently have no items marked as out of stock.
             </p>
           ) : productsLoading ? (
-            <div className="flex flex-col justify-center items-center space-y-2">
-              <Lottie
-                className="w-10 h-10"
-                animationData={LoadState}
-                loop={true}
-                autoplay={true}
-              />
-              <p className="text-xs">Loading products...</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col space-y-2">
+            <Skeleton  width={176} height={176} />
+            <Skeleton  width={120} height={12} />
+            <Skeleton  width={105} height={12} />
+            <Skeleton  width={70} height={12} />
             </div>
+              <div className="flex flex-col space-y-2">
+            <Skeleton  width={176} height={176} />
+            <Skeleton  width={78} height={12} />
+            <Skeleton  width={135} height={12} />
+            <Skeleton  width={98} height={12} />
+            </div>
+              <div className="flex flex-col space-y-2">
+            <Skeleton  width={176} height={176} />
+            <Skeleton  width={98} height={12} />
+            <Skeleton  width={155} height={12} />
+            <Skeleton  width={66} height={12} />
+            </div>
+              <div className="flex flex-col space-y-2">
+            <Skeleton  width={176} height={176} />
+            <Skeleton  width={78} height={12} />
+            <Skeleton  width={135} height={12} />
+            <Skeleton  width={98} height={12} />
+            </div>
+              <div className="flex flex-col space-y-2">
+            <Skeleton  width={176} height={176} />
+            <Skeleton  width={88} height={12} />
+            <Skeleton  width={105} height={12} />
+            <Skeleton  width={90} height={12} />
+            </div>
+              <div className="flex flex-col space-y-2">
+            <Skeleton  width={176} height={176} />
+            <Skeleton  width={68} height={12} />
+            <Skeleton  width={145} height={12} />
+            <Skeleton  width={88} height={12} />
+            </div>
+              <div className="flex flex-col space-y-2">
+            <Skeleton  width={176} height={176} />
+            <Skeleton  width={70} height={12} />
+            <Skeleton  width={115} height={12} />
+            <Skeleton  width={67} height={12} />
+            </div>
+            </div>
+            
+            // <div className="flex flex-col justify-center items-center space-y-2">
+            //   <Lottie
+            //     className="w-10 h-10"
+            //     animationData={LoadState}
+            //     loop={true}
+            //     autoplay={true}
+            //   />
+            //   <p className="text-xs">Loading products...</p>
+            // </div>
           ) : (
             !productsLoading && (
               <p className="text-xs mt-24">
@@ -851,17 +949,18 @@ const VendorProducts = () => {
               </p>
             )}
 
-            {selectedProduct.subProducts &&
+<div className="w-full">
+  {selectedProduct.subProducts &&
               selectedProduct.subProducts.map((sp) => (
-                <div key={sp.subProductId} className="flex w-full items-center">
-                  <div className="w-24 h-24">
+                <div key={sp.subProductId} className="flex items-center ">
+                  <div className="w-28 h-28">
                     <img
                       src={sp.images}
                       alt=""
                       className="object-cover bg-customSoftGray rounded-md w-full h-24"
                     />
                   </div>
-                  <div className="px-3 mb-4 flex flex-col justify-between space-y-3 w-full">
+                  <div className="px-3 mb-4 flex w-full flex-col justify-between space-y-3 ">
                     <p className="text-black font-semibold text-sm">
                       Color: <span className="font-normal">{sp.color}</span>
                     </p>
@@ -903,14 +1002,13 @@ const VendorProducts = () => {
                   </div>
                 </div>
               ))}
+</div>
+            
 
-            <p className="text-lg text-black font-semibold mb-4">
-              Make Product
-            </p>
             {selectedProduct && (
-              <div className="px-3 mb-4 flex flex-col justify-between space-y-3">
+              <div className="px-3 my-4 flex flex-col justify-between space-y-3">
                 <div className="flex justify-between">
-                  <p className="text-black text-sm">
+                  <p className="text-black text-sm font-bold">
                     Unpublish/Publish Product
                   </p>
                   <ToggleButton
@@ -920,7 +1018,6 @@ const VendorProducts = () => {
                     name={selectedProduct.name}
                   />
                 </div>
-                <hr className="text-customOrange opacity-40   " />
               </div>
             )}
 
@@ -944,9 +1041,9 @@ const VendorProducts = () => {
                 <motion.button
                 whileTap={{ scale: 1.1 }}
                 onClick={toggleRestockMode}
-                className="glow-button w-12 h-12 mt-7 ml-4 bg-customSoftGray font-semibold rounded-full text-black"
+                className="glow-button w-full h-12 mt-7 ml-4 bg-customSoftGray font-semibold rounded-full text-customRichBrown border border-customRichBrown"
                 >
-                  <FaXmark className="w-10 h-10" />
+                  Cancel
                 </motion.button>
                 </div>
                 
@@ -1017,22 +1114,8 @@ const VendorProducts = () => {
             loading={oLoading}
           />
         ) : null)
-
-        // <ConfirmationDialog
-        //   isOpen={showConfirmation}
-        //   onClose={() => setShowConfirmation(false)}
-        //   onConfirm={confirmDeleteProduct}
-        //   message="Are you sure you want to delete this product?"
-        //   title="Delete Product"
-        // />
-        // <ConfirmationDialog
-        //   isOpen={showConfirmation}
-        //   onClose={() => setShowConfirmation(false)}
-        //   onConfirm={confirmDeleteProduct}
-        //   message="Are you sure you want to delete this product?"
-        //   title="Delete Product"
-        // />
       }
+      <ToastContainer />
     </>
   );
 };

@@ -130,7 +130,7 @@ const VendorLogin = () => {
                 <FaAngleLeft className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>
               <VendorLoginAnimation />
-              <div className="flex justify-center text-xl text-customOrange -translate-y-1">
+              <div className="flex justify-center text-xl font-opensans text-customOrange -translate-y-1">
                 <Typewriter
                   options={{
                     strings: [
@@ -169,7 +169,7 @@ const VendorLogin = () => {
                       value={email}
                       className={`w-full h-14 ${
                         emailError ? "border-red-500" : "border-none"
-                      } bg-gray-300 px-10 mb-1 font-semibold text-gray-800 rounded-lg`}
+                      }w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange`}
                       onChange={handleEmailChange}
                     />
                   </FormGroup>
@@ -182,7 +182,7 @@ const VendorLogin = () => {
                       type={showPassword ? "text" : "password"}
                       className={`w-full h-14 ${
                         passwordError ? "border-red-500" : "border-none"
-                      } bg-gray-300 px-10 font-semibold text-gray-800 rounded-lg`}
+                      } w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange`}
                       placeholder="Enter your password"
                       value={password}
                       onChange={handlePasswordChange}

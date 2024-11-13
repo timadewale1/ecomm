@@ -39,7 +39,7 @@ import Lottie from "lottie-react";
 import LoadState from "../../Animations/loadinganimation.json";
 import { FaSpinner, FaXmark } from "react-icons/fa6";
 import Skeleton from "react-loading-skeleton";
-
+import "./vendor.css";
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
@@ -67,72 +67,95 @@ const VendorProducts = () => {
   const auth = getAuth();
   const navigate = useNavigate();
 
-  
-  
   const renderVariants = (variants) => {
     const groupedVariants = groupVariantsByColor(variants);
-    return Object.entries(groupedVariants).map(([color, variants], colorIndex) => (
-      <div key={colorIndex} className="bg-customSoftGray p-3 rounded-lg">
-        {/* Display the color name */}
-        <p className="text-black font-semibold text-sm mb-2">Color: {color}</p>
+    return Object.entries(groupedVariants).map(
+      ([color, variants], colorIndex) => (
+        <div key={colorIndex} className="bg-customSoftGray p-3 rounded-lg">
+          {/* Display the color name */}
+          <p className="text-black font-semibold text-sm mb-2">
+            Color: {color}
+          </p>
 
-        {/* Vertical table layout for sizes and quantities */}
-        <table className="w-custVCard text-left border-collapse">
-          <thead>
-            <tr className="space-x-8">
-              <th className="text-black font-semibold text-sm pb-2 border-b border-customOrange border-opacity-40">Size</th>
-              <th className="text-black text-right font-semibold text-sm pb-2 border-b border-customOrange border-opacity-40">Quantity</th>
-            </tr>
-          </thead>
-          
-          <tbody>
-            {variants.map((variant) => {
-              const variantKey = `${variant.color}-${variant.size}`;
-              return (
-                <>
-                <tr key={variantKey} className="space-x-8">
-                  <td className="py-2 text-sm font-normal border-b border-customOrange border-opacity-40">{variant.size}</td>
-                  <td
-                    className={`py-2 text-sm text-right font-normal border-b border-customOrange border-opacity-40 ${
-                      variant.stock < 1 ? "text-red-500" : ""
-                    }`}
-                  >
-                    
-                    {isRestocking ? (
-                      <input
-                        type="number"
-                        className="border p-1 ml-2 rounded-[10px] focus:outline-customOrange w-24"
-                        value={restockValues[variantKey]?.quantity || ""}
-                        onChange={(e) => handleRestockInputChange("quantity", variantKey, e.target.value)}
-                      />
-                    ) : (
-                      variant.stock > 0 ? variant.stock : "Out of stock"
-                    )}
-                  </td>
-                </tr>
-                </>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    ));
+          {/* Vertical table layout for sizes and quantities */}
+          <table className="w-custVCard text-left border-collapse">
+            <thead>
+              <tr className="space-x-8">
+                <th className="text-black font-semibold text-sm pb-2 border-b border-customOrange border-opacity-40">
+                  Size
+                </th>
+                <th className="text-black text-right font-semibold text-sm pb-2 border-b border-customOrange border-opacity-40">
+                  Quantity
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {variants.map((variant) => {
+                const variantKey = `${variant.color}-${variant.size}`;
+                return (
+                  <>
+                    <tr key={variantKey} className="space-x-8">
+                      <td className="py-2 text-sm font-normal border-b border-customOrange border-opacity-40">
+                        {variant.size}
+                      </td>
+                      <td
+                        className={`py-2 text-sm text-right font-normal border-b border-customOrange border-opacity-40 ${
+                          variant.stock < 1 ? "text-red-500" : ""
+                        }`}
+                      >
+                        {isRestocking ? (
+                          <input
+                            type="number"
+                            className="border no-spinner p-1 ml-2 rounded-[10px] focus:outline-customOrange w-24"
+                            value={restockValues[variantKey]?.quantity || ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              // Prevent negative values
+                              if (value >= 0) {
+                                handleRestockInputChange(
+                                  "quantity",
+                                  variantKey,
+                                  value
+                                );
+                              } else {
+                                toast.error(
+                                  "Please enter a non-negative value."
+                                );
+                              }
+                            }}
+                          />
+                        ) : variant.stock > 0 ? (
+                          variant.stock
+                        ) : (
+                          "Out of stock"
+                        )}
+                      </td>
+                    </tr>
+                  </>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )
+    );
   };
 
   useEffect(() => {
     let unsubscribe;
-  
+
     // Set up real-time listener for the selected product when the modal is open
     if (selectedProduct && isViewProductModalOpen) {
       const productRef = doc(db, "products", selectedProduct.id);
-  
+
       unsubscribe = onSnapshot(productRef, (docSnapshot) => {
         if (docSnapshot.exists()) {
           setSelectedProduct({ id: docSnapshot.id, ...docSnapshot.data() });
         }
       });
     }
-  
+
     // Clean up the listener when the modal closes
     return () => {
       if (unsubscribe) {
@@ -186,7 +209,7 @@ const VendorProducts = () => {
   }, [vendorId]);
 
   const fetchVendorProducts = (vendorId) => {
-    setProductsLoading(true)
+    setProductsLoading(true);
     const productsQuery = query(
       collection(db, "products"),
       where("vendorId", "==", vendorId)
@@ -199,7 +222,7 @@ const VendorProducts = () => {
       }));
       setProducts(updatedProducts);
       setTotalProducts(updatedProducts.length);
-      setProductsLoading(false)
+      setProductsLoading(false);
     });
 
     return unsubscribe;
@@ -330,23 +353,23 @@ const VendorProducts = () => {
       toast.error("You can only pin up to 3 products.");
       return;
     }
-  
+
     try {
       const productRef = doc(db, "products", product.id);
       const newIsFeaturedStatus = !product.isFeatured;
-  
+
       // Update the product's `isFeatured` status in Firestore
       await updateDoc(productRef, {
         isFeatured: newIsFeaturedStatus,
       });
-  
+
       // Update the local product state to reflect the new pin status
       setProducts((prevProducts) =>
         prevProducts.map((p) =>
           p.id === product.id ? { ...p, isFeatured: newIsFeaturedStatus } : p
         )
       );
-  
+
       // If the product was just pinned (isFeatured set to true), add an activity note
       if (newIsFeaturedStatus) {
         await addActivityNote(
@@ -358,16 +381,14 @@ const VendorProducts = () => {
       } else {
         toast.success("Product unpinned successfully.");
       }
-  
+
       // Update the pinned count after the change
       fetchPinnedProductsCount(); // Assuming this function recalculates the pinned count
-  
     } catch (error) {
       console.error("Error pinning/unpinning product:", error);
       toast.error("Error pinning/unpinning product: " + error.message);
     }
   };
-  
 
   const addActivityNote = async (title, note, type) => {
     try {
@@ -444,8 +465,6 @@ const VendorProducts = () => {
     }));
   };
 
-  
-
   // Submit restock changes to Firestore
   const handleSubmitRestock = async () => {
     setRLoading(true);
@@ -453,40 +472,58 @@ const VendorProducts = () => {
       // Ensure variants and subProducts are defined as arrays
       const variants = selectedProduct.variants || [];
       const subProducts = selectedProduct.subProducts || [];
-  
+
       const productRef = doc(db, "products", selectedProduct.id);
-  
+
       // Update variants with restock values
       const updatedVariants = variants.map((variant) => {
         const variantKey = `${variant.color}-${variant.size}`;
-        const restockQuantity = parseInt(restockValues[variantKey]?.quantity, 10);
+        const restockQuantity = parseInt(
+          restockValues[variantKey]?.quantity,
+          10
+        );
         if (!isNaN(restockQuantity)) {
           return {
             ...variant,
-            stock: variant.stock + restockQuantity,
+            stock: restockQuantity,
           };
         }
         return variant;
       });
-  
+
       // Update sub-products with restock values
       const updatedSubProducts = subProducts.map((subProduct) => {
-        const restockQuantity = parseInt(restockValues[subProduct.subProductId]?.quantity, 10);
+        const restockQuantity = parseInt(
+          restockValues[subProduct.subProductId]?.quantity,
+          10
+        );
         if (!isNaN(restockQuantity)) {
           return {
             ...subProduct,
-            stock: subProduct.stock + restockQuantity,
+            stock: restockQuantity,
           };
         }
         return subProduct;
       });
-  
-      // Update Firestore with the modified stock quantities
+
+      // Calculate the total stock quantity based on updated variants and sub-products
+      const totalStock =
+        updatedVariants.reduce(
+          (sum, variant) => sum + (variant.stock || 0),
+          0
+        ) +
+        updatedSubProducts.reduce(
+          (sum, subProduct) => sum + (subProduct.stock || 0),
+          0
+        );
+
+      // Update Firestore with the modified stock quantities and total stockQuantity
       await updateDoc(productRef, {
         variants: updatedVariants,
         subProducts: updatedSubProducts,
+        stockQuantity: totalStock, // Update the stockQuantity field with the new total
       });
-  
+
       toast.success("Product restocked successfully.");
       setIsRestocking(false);
       setRestockValues({});
@@ -495,9 +532,8 @@ const VendorProducts = () => {
       toast.error("Error restocking product: " + error.message);
     } finally {
       setRLoading(false);
-      }
+    }
   };
-  
 
   const handleDeleteProduct = () => {
     setAction("delete");
@@ -535,21 +571,21 @@ const VendorProducts = () => {
     }, {});
   };
 
-  
-  const filteredProducts = products.filter((p) => {
-    if (tabOpt === "Active") {
-      return p.published && p.stockQuantity > 0;
-    } else if (tabOpt === "OOS") {
-      return p.stockQuantity === 0;
-    } else {
-      return !p.published;
-    }
-})
+  const filteredProducts = products
+    .filter((p) => {
+      if (tabOpt === "Active") {
+        return p.published && p.stockQuantity > 0;
+      } else if (tabOpt === "OOS") {
+        return p.stockQuantity === 0;
+      } else {
+        return !p.published;
+      }
+    })
     .sort((a, b) => {
       // Sort by isFeatured status first, so pinned products come first
       if (a.isFeatured === b.isFeatured) return 0;
       return a.isFeatured ? -1 : 1;
-  });
+    });
 
   const formatNumber = (num) => {
     return num.toLocaleString("en-US", {
@@ -590,8 +626,21 @@ const VendorProducts = () => {
             <img src="./Vector2.png" alt="" className="w-16 h-16" />
           </div>
           <div className="flex flex-col justify-center items-center space-y-3">
-            <p className="text-white text-lg">{tabOpt === "Active" ? tabOpt : tabOpt === "Drafts" ? "Drafted"  : "Out of Stock"} Products</p>
-            <p className="text-white text-3xl font-bold">{productsLoading ?(<FaSpinner className="animate-spin"/>) : filteredProducts.length}</p>
+            <p className="text-white text-lg">
+              {tabOpt === "Active"
+                ? tabOpt
+                : tabOpt === "Drafts"
+                ? "Drafted"
+                : "Out of Stock"}{" "}
+              Products
+            </p>
+            <p className="text-white text-3xl font-bold">
+              {productsLoading ? (
+                <FaSpinner className="animate-spin" />
+              ) : (
+                filteredProducts.length
+              )}
+            </p>
           </div>
         </div>
         <div className="flex justify-center space-x-5 items-center">
@@ -605,7 +654,9 @@ const VendorProducts = () => {
               Active
             </p>
             <div className="h-1">
-              {tabOpt === "Active" && <hr className="text-customOrange opacity-40  w-11" />}
+              {tabOpt === "Active" && (
+                <hr className="text-customOrange opacity-40  w-11" />
+              )}
             </div>
           </div>
           <div className="flex flex-col justify-center items-center space-y-3">
@@ -618,7 +669,9 @@ const VendorProducts = () => {
               Out of Stock
             </p>
             <div className="h-1">
-              {tabOpt === "OOS" && <hr className="text-customOrange opacity-40  w-11" />}
+              {tabOpt === "OOS" && (
+                <hr className="text-customOrange opacity-40  w-11" />
+              )}
             </div>
           </div>
           <div className="flex flex-col justify-center items-center space-y-3">
@@ -631,15 +684,20 @@ const VendorProducts = () => {
               Drafts
             </p>
             <div className="h-1">
-              {tabOpt === "Drafts" && <hr className="text-customOrange opacity-40  w-11" />}
+              {tabOpt === "Drafts" && (
+                <hr className="text-customOrange opacity-40  w-11" />
+              )}
             </div>
           </div>
         </div>
         <div
           className={` ${
-            filteredProducts < 1 
-            && " justify-center items-center text-center"
-          } ${filteredProducts.length > 0 && !productsLoading && "grid grid-cols-2 gap-4"}`}
+            filteredProducts < 1 && " justify-center items-center text-center"
+          } ${
+            filteredProducts.length > 0 &&
+            !productsLoading &&
+            "grid grid-cols-2 gap-4"
+          }`}
         >
           {filteredProducts &&
           filteredProducts.length > 0 &&
@@ -668,20 +726,29 @@ const VendorProducts = () => {
                       </div>
                     ) : (
                       // Show pin icon only if there are less than 3 pinned products
-                tabOpt === "Active" && ((!product.isFeatured && pinnedCount < 3) || product.isFeatured) && (
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePinProduct(product);
-                    }}
-                    className="absolute top-2 left-2"
-                  >
-                    {product.isFeatured ? (
-                      <BsPinAngleFill className={`text-customOrange  w-5 h-5`} />
-                    ) : (<BsPinAngle className={`text-customOrange  w-5 h-5`} />)}
-                  </div>)
-                )}
-                    
+                      tabOpt === "Active" &&
+                      ((!product.isFeatured && pinnedCount < 3) ||
+                        product.isFeatured) && (
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePinProduct(product);
+                          }}
+                          className="absolute top-2 right-2 bg-white rounded-full p-1"
+                        >
+                          {product.isFeatured ? (
+                            <BsPinAngleFill
+                              className={`text-customOrange  w-5 h-5`}
+                            />
+                          ) : (
+                            <BsPinAngle
+                              className={`text-customOrange  w-5 h-5`}
+                            />
+                          )}
+                        </div>
+                      )
+                    )}
+
                     <img
                       src={product.coverImageUrl}
                       alt={product.name}
@@ -728,49 +795,49 @@ const VendorProducts = () => {
           ) : productsLoading ? (
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col space-y-2">
-            <Skeleton  width={176} height={176} />
-            <Skeleton  width={120} height={12} />
-            <Skeleton  width={105} height={12} />
-            <Skeleton  width={70} height={12} />
-            </div>
+                <Skeleton width={176} height={176} />
+                <Skeleton width={120} height={12} />
+                <Skeleton width={105} height={12} />
+                <Skeleton width={70} height={12} />
+              </div>
               <div className="flex flex-col space-y-2">
-            <Skeleton  width={176} height={176} />
-            <Skeleton  width={78} height={12} />
-            <Skeleton  width={135} height={12} />
-            <Skeleton  width={98} height={12} />
-            </div>
+                <Skeleton width={176} height={176} />
+                <Skeleton width={78} height={12} />
+                <Skeleton width={135} height={12} />
+                <Skeleton width={98} height={12} />
+              </div>
               <div className="flex flex-col space-y-2">
-            <Skeleton  width={176} height={176} />
-            <Skeleton  width={98} height={12} />
-            <Skeleton  width={155} height={12} />
-            <Skeleton  width={66} height={12} />
-            </div>
+                <Skeleton width={176} height={176} />
+                <Skeleton width={98} height={12} />
+                <Skeleton width={155} height={12} />
+                <Skeleton width={66} height={12} />
+              </div>
               <div className="flex flex-col space-y-2">
-            <Skeleton  width={176} height={176} />
-            <Skeleton  width={78} height={12} />
-            <Skeleton  width={135} height={12} />
-            <Skeleton  width={98} height={12} />
-            </div>
+                <Skeleton width={176} height={176} />
+                <Skeleton width={78} height={12} />
+                <Skeleton width={135} height={12} />
+                <Skeleton width={98} height={12} />
+              </div>
               <div className="flex flex-col space-y-2">
-            <Skeleton  width={176} height={176} />
-            <Skeleton  width={88} height={12} />
-            <Skeleton  width={105} height={12} />
-            <Skeleton  width={90} height={12} />
-            </div>
+                <Skeleton width={176} height={176} />
+                <Skeleton width={88} height={12} />
+                <Skeleton width={105} height={12} />
+                <Skeleton width={90} height={12} />
+              </div>
               <div className="flex flex-col space-y-2">
-            <Skeleton  width={176} height={176} />
-            <Skeleton  width={68} height={12} />
-            <Skeleton  width={145} height={12} />
-            <Skeleton  width={88} height={12} />
-            </div>
+                <Skeleton width={176} height={176} />
+                <Skeleton width={68} height={12} />
+                <Skeleton width={145} height={12} />
+                <Skeleton width={88} height={12} />
+              </div>
               <div className="flex flex-col space-y-2">
-            <Skeleton  width={176} height={176} />
-            <Skeleton  width={70} height={12} />
-            <Skeleton  width={115} height={12} />
-            <Skeleton  width={67} height={12} />
+                <Skeleton width={176} height={176} />
+                <Skeleton width={70} height={12} />
+                <Skeleton width={115} height={12} />
+                <Skeleton width={67} height={12} />
+              </div>
             </div>
-            </div>
-            
+          ) : (
             // <div className="flex flex-col justify-center items-center space-y-2">
             //   <Lottie
             //     className="w-10 h-10"
@@ -780,7 +847,6 @@ const VendorProducts = () => {
             //   />
             //   <p className="text-xs">Loading products...</p>
             // </div>
-          ) : (
             !productsLoading && (
               <p className="text-xs mt-24">
                 📝 You have no saved draft products yet. Start a new listing and
@@ -850,7 +916,7 @@ const VendorProducts = () => {
               <img
                 src={selectedProduct.coverImageUrl}
                 alt={selectedProduct.name}
-                className="w-full h-44 object-cover bg-customSoftGray rounded-md mb-3"
+                className="w-full h-72 p-1 object-cover bg-customSoftGray rounded-md mb-3"
               />
             )}
 
@@ -947,61 +1013,64 @@ const VendorProducts = () => {
               </p>
             )}
 
-<div className="w-full">
-  {selectedProduct.subProducts &&
-              selectedProduct.subProducts.map((sp) => (
-                <div key={sp.subProductId} className="flex items-center ">
-                  <div className="w-28 h-28">
-                    <img
-                      src={sp.images}
-                      alt=""
-                      className="object-cover bg-customSoftGray rounded-md w-full h-24"
-                    />
-                  </div>
-                  <div className="px-3 mb-4 flex w-full flex-col justify-between space-y-3 ">
-                    <p className="text-black font-semibold text-sm">
-                      Color: <span className="font-normal">{sp.color}</span>
-                    </p>
-                    <hr className="text-customOrange opacity-40   " />
-                    <p className="text-black font-semibold text-sm">
-                      Size:{" "}
-                      <span className="font-normal">
-                        {sp.size}{" "}
-                        
-                      </span>
-                    </p>
-                    <hr className="text-customOrange opacity-40   " />
-                    {isRestocking ? (
-                      <>
-                      <p className="text-customOrange text-sm">
-                        Stock Quantity
-                      </p> 
+            <div className="w-full">
+              {selectedProduct.subProducts &&
+                selectedProduct.subProducts.map((sp) => (
+                  <div key={sp.subProductId} className="flex items-center ">
+                    <div className="w-28 h-28">
+                      <img
+                        src={sp.images}
+                        alt=""
+                        className="object-cover bg-customSoftGray rounded-md w-full h-24"
+                      />
+                    </div>
+                    <div className="px-3 mb-4 flex w-full flex-col justify-between space-y-3 ">
+                      <p className="text-black font-semibold text-sm">
+                        Color: <span className="font-normal">{sp.color}</span>
+                      </p>
+                      <hr className="text-customOrange opacity-40   " />
+                      <p className="text-black font-semibold text-sm">
+                        Size: <span className="font-normal">{sp.size} </span>
+                      </p>
+                      <hr className="text-customOrange opacity-40   " />
+                      {isRestocking ? (
+                        <>
+                          <p className="text-customOrange text-sm">
+                            Stock Quantity
+                          </p>
                           <input
                             type="number"
-                            className="border p-1 ml-2 rounded-[10px] focus:outline-customOrange"
+                            className="border no-spinner p-1 ml-2 rounded-[10px] focus:outline-customOrange"
                             value={
                               restockValues[sp.subProductId]?.quantity || ""
                             }
-                            onChange={(e) =>
-                              handleRestockInputChange(
-                                "quantity",
-                                sp.subProductId,
-                                e.target.value
-                              )
-                            }/>
-                      
-                      
-                          </>
-                        ) : (
-                    <p className="text-black font-semibold text-sm">
-                      Quantity: <span className="font-normal">{sp.stock}</span>
-                    </p>
-                  )}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              // Prevent negative values
+                              if (value >= 0) {
+                                handleRestockInputChange(
+                                  "quantity",
+                                  sp.subProductId,
+                                  e.target.value
+                                );
+                              } else {
+                                toast.error(
+                                  "Please enter a non-negative value."
+                                );
+                              }
+                            }}
+                          />
+                        </>
+                      ) : (
+                        <p className="text-black font-semibold text-sm">
+                          Quantity:{" "}
+                          <span className="font-normal">{sp.stock}</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-</div>
-            
+                ))}
+            </div>
 
             {selectedProduct && (
               <div className="px-3 my-4 flex flex-col justify-between space-y-3">
@@ -1022,36 +1091,40 @@ const VendorProducts = () => {
             <div className={`mt-10`}>
               {isRestocking ? (
                 <div className="flex">
-                <motion.button
-                  onClick={handleSubmitRestock}
-                  whileTap={{ scale: 1.1 }}
-                  className={`glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full ${restockValues.length < 1 && "opacity-25"}`}
-                  disabled={restockValues.length === 0}
-                >{rLoading ? (
-                  <Lottie
-                  className="w-10 h-10"
-                  animationData={LoadState}
-                  loop={true}
-                  autoplay={true}
-                />
-                 ) : "Submit Restock"}
-                </motion.button>
-                <motion.button
-                whileTap={{ scale: 1.1 }}
-                onClick={toggleRestockMode}
-                className="glow-button w-full h-12 mt-7 ml-4 bg-customSoftGray font-semibold rounded-full text-customRichBrown border border-customRichBrown"
-                >
-                  Cancel
-                </motion.button>
+                  <motion.button
+                    onClick={handleSubmitRestock}
+                    whileTap={{ scale: 1.1 }}
+                    className={`glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full ${
+                      restockValues.length < 1 && "opacity-25"
+                    }`}
+                    disabled={restockValues.length === 0}
+                  >
+                    {rLoading ? (
+                      <Lottie
+                        className="w-10 h-10"
+                        animationData={LoadState}
+                        loop={true}
+                        autoplay={true}
+                      />
+                    ) : (
+                      "Submit Restock"
+                    )}
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 1.1 }}
+                    onClick={toggleRestockMode}
+                    className="glow-button w-full h-12 mt-7 ml-4 bg-customSoftGray font-semibold rounded-full text-customRichBrown border border-customRichBrown"
+                  >
+                    Cancel
+                  </motion.button>
                 </div>
-                
               ) : (
                 <motion.button
                   whileTap={{ scale: 1.1 }}
                   onClick={toggleRestockMode}
                   className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full"
                 >
-                 Restock Item
+                  Restock Item
                 </motion.button>
               )}
               {/* <motion.button
@@ -1111,8 +1184,7 @@ const VendorProducts = () => {
             title="Unpublish Products"
             loading={oLoading}
           />
-        ) : null)
-      }
+        ) : null)}
     </>
   );
 };

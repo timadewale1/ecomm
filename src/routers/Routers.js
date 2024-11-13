@@ -51,6 +51,7 @@ const Routers = () => {
       <Route path="market-vendors" element={<MarketVendors />} />
       <Route path="online-vendors" element={<OnlineVendors />} />
       <Route path="/forgetpassword" element={<ForgetPassword />} />
+      <Route path="reset-password" element={<ResetPassword />} />
       <Route path="/store/:id" element={<StorePage />} />
       <Route path="/category/:category" element={<CategoryPage />} />
       <Route path="notifications" element={<NotificationsPage />} />
@@ -75,7 +76,7 @@ const Routers = () => {
         />
         <Route path="market-card/:marketName" element={<Marketcardpage />} />
         <Route path="explore" element={<Explore />} />
-        <Route path="reset-password" element={<ResetPassword />} />
+
         <Route path="donate" element={<Donate />} />
         <Route path="payment-approve" element={<PaymentApprove />} />
         <Route path="/profile" element={<Profile />} />

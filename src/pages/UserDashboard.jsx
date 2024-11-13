@@ -71,30 +71,30 @@ const UserDashboard = () => {
     }
   }, [isSignedIn, isUser, loading, navigate]);
 
-  useEffect(() => {
-    if (!loading) {
-      gsap.from(circleRef.current, {
-        duration: 1.5,
-        x: -200,
-        opacity: 0,
-        ease: "power3.out",
-      });
+  // useEffect(() => {
+  //   if (!loading) {
+  //     gsap.from(circleRef.current, {
+  //       duration: 1.5,
+  //       x: -200,
+  //       opacity: 0,
+  //       ease: "power3.out",
+  //     });
 
-      gsap.from(graphRef.current, {
-        duration: 1.5,
-        opacity: 0,
-        y: 100,
-        ease: "power3.out",
-      });
+  //     gsap.from(graphRef.current, {
+  //       duration: 1.5,
+  //       opacity: 0,
+  //       y: 100,
+  //       ease: "power3.out",
+  //     });
 
-      gsap.from(progressBarRef.current, {
-        duration: 1.5,
-        x: -200,
-        opacity: 0,
-        ease: "power3.out",
-      });
-    }
-  }, [loading]);
+  //     gsap.from(progressBarRef.current, {
+  //       duration: 1.5,
+  //       x: -200,
+  //       opacity: 0,
+  //       ease: "power3.out",
+  //     });
+  //   }
+  // }, [loading]);
 
   useEffect(() => {
     const fetchAverageRating = async () => {
@@ -124,13 +124,13 @@ const UserDashboard = () => {
     fetchAverageRating();
   }, [loading]);
 
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [darkMode]);
+  // useEffect(() => {
+  //   if (darkMode) {
+  //     document.documentElement.classList.add("dark");
+  //   } else {
+  //     document.documentElement.classList.remove("dark");
+  //   }
+  // }, [darkMode]);
 
   const getCurrentGreeting = () => {
     const hour = new Date().getHours();
@@ -165,19 +165,14 @@ const UserDashboard = () => {
     (order) => order.status === "Delivered"
   );
 
-  const graphData = userOrders.map((order, index) => ({
-    name: `Order ${index + 1}`,
-    amount: order.totalAmount || 0,
-  }));
 
   const deliveryProgress = userOrders.length > 0 ? (deliveredOrders.length / userOrders.length) * 100 : 0;
 
   console.log("User Orders:", userOrders);
   console.log("Total Amount Spent:", totalAmountSpent);
-  console.log("Graph Data:", graphData);
 
   return (
-    <div className={`min-h-screen flex flex-col ${darkMode ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-gray-900"} pb-10`}>
+    <div className={`min-h-screen flex flex-col font-opensans ${darkMode ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-gray-900"} pb-10`}>
       <div className={`sticky top-0 ${darkMode ? "bg-gray-900" : "bg-white"} z-10 p-2 h-20 flex justify-between items-center shadow-md w-full`}>
         <FaAngleLeft
           onClick={() => navigate("/profile")}
@@ -198,53 +193,40 @@ const UserDashboard = () => {
               </div>
             )}
           </div>
-          <button
+          {/* <button
             onClick={toggleDarkMode}
             className={`ml-4 text-xl cursor-pointer ${darkMode ? "text-white" : ""}`}
           >
             {darkMode ? <FaSun /> : <FaMoon />}
-          </button>
+          </button> */}
         </div>
       </div>
       <div className="flex-grow p-3">
         <div className="mt-2">
-          <h1 className="font-ubuntu text-2xl font-semibold">
+          <h1 className="font-opensans text-2xl font-semibold">
             {getCurrentGreeting()}, {username}
           </h1>
         </div>
-        <div className="flex justify-center mt-4 items-center flex-col">
+        <div className="flex font-opensans justify-center mt-4 items-center flex-col">
           <div ref={circleRef}>
             <CircularProgress value={userOrders.length} maxValue={60} />
           </div>
-          <div className="flex text-center font-lato items-center mt-2">
+          <div className="flex text-center font-opensans items-center mt-2">
             <p className="text-customOrange dark:text-customYellow">
               *Reach higher order milestones to unlock coupons and badges.😊
             </p>
           </div>
         </div>
-        <div className="mt-8" ref={graphRef}>
+        
+        <div className="mt-9 relative" ref={progressBarRef}>
           <div className="flex items-center mb-4">
-            <GoDotFill className="text-blue-500 mr-2" />
-            <h2 className="text-xl text-start font-ubuntu font-bold">
-              Expenses Graph
-            </h2>
-          </div>
-          <p className="text-gray-400 dark:text-orange-700 translate-x-6 -translate-y-7 text-xs font-poppins font-normal">
-            ₦{totalAmountSpent.toLocaleString()}
-          </p>
-          <div>
-            <AmountSpentGraph data={graphData} />
-          </div>
-        </div>
-        <div className="mt-8 relative" ref={progressBarRef}>
-          <div className="flex items-center mb-4">
-            <GoDotFill className="text-blue-500 mr-2" />
-            <h2 className="text-xl text-start font-ubuntu font-bold">
+            {/* <GoDotFill className="text-blue-500 mr-2" /> */}
+            <h2 className="text-xl text-start font-opensans font-bold mb-4">
               Orders Completed
             </h2>
           </div>
           <div className="relative w-full">
-            <Progress value={deliveryProgress} className="mb-4" />
+            <Progress value={deliveryProgress} className="mb-2" />
             <span
               className="absolute"
               style={{
@@ -256,14 +238,15 @@ const UserDashboard = () => {
               🏡
             </span>
           </div>
-          <p className="text-gray-400 dark:text-white text-xs font-poppins font-normal">
+
+          <p className="text-black dark:text-white text-sm font-opensans font-normal">
             Delivered Orders: {deliveredOrders.length} / {userOrders.length}
           </p>
         </div>
         <div className="mt-8">
           <div className="flex items-center mb-4">
-            <GoDotFill className="text-blue-500 mr-2" />
-            <h2 className="text-xl text-start font-ubuntu font-bold">
+            {/* <GoDotFill className="text-blue-500 mr-2" /> */}
+            <h2 className="text-xl text-start font-opensans font-bold">
               Average Rating
             </h2>
           </div>
@@ -277,7 +260,7 @@ const UserDashboard = () => {
               filledIcon={<RoundedStar filled={true} />}
               edit={false}
             />
-            <span className="ml-2 text-gray-400 dark:text-white text-sm font-poppins font-bold">
+            <span className="ml-2 text-black dark:text-white text-sm  font-normal">
               ({averageRating.toFixed(2)})
             </span>
           </div>

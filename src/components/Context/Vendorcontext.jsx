@@ -14,14 +14,16 @@ export const VendorProvider = ({ children }) => {
 
   const [vendorData, setVendorData] = useState(null); // Store specific vendor data
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // If the user is authenticated, fetch vendor data from Firestore
         const vendorDoc = await getDoc(doc(db, "vendors", user.uid));
+
         if (vendorDoc.exists()) {
-          setVendorData({ vendorId: user.uid, ...vendorDoc.data() }); // Set vendor-specific data
+          // Successfully fetched vendor data
+          setVendorData({ vendorId: user.uid, ...vendorDoc.data() });
         } else {
           console.error("Vendor data not found");
         }
@@ -37,8 +39,8 @@ export const VendorProvider = ({ children }) => {
       value={{
         vendors,
         setVendors,
-        vendorData,   // Add vendorData to context
-        loading,      // Loading state for vendor data
+        vendorData, // Add vendorData to context
+        loading, // Loading state for vendor data
       }}
     >
       {children}

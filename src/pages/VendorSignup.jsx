@@ -6,15 +6,10 @@ import {
   getAuth,
   createUserWithEmailAndPassword,
   sendEmailVerification,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
 } from "firebase/auth";
-import {
-  doc,
-  setDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-} from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { db } from "../firebase.config";
 import bcrypt from "bcryptjs";
 import toast from "react-hot-toast";
@@ -24,8 +19,7 @@ import {
   FaRegEye,
   FaRegUser,
 } from "react-icons/fa";
-import { MdEmail } from "react-icons/md";
-import { MdPhone } from "react-icons/md";
+import { MdEmail, MdPhone } from "react-icons/md";
 import { GrSecure } from "react-icons/gr";
 import { motion } from "framer-motion";
 import Typewriter from "typewriter-effect";
@@ -44,31 +38,57 @@ const VendorSignup = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showOTP, setShowOTP] = useState(false);
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isPhoneSignup, setIsPhoneSignup] = useState(false);
+  const [isSendingOTP, setIsSendingOTP] = useState(false);
+  const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
 
   const navigate = useNavigate();
+  const auth = getAuth();
+
+  // Toggle between phone and email signup
+  const toggleSignupMethod = () => {
+    setIsPhoneSignup(!isPhoneSignup);
+    setShowOTP(false);
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setVendorData({ ...vendorData, [name]: value });
   };
 
-  const validateName = (name) => {
-    const regex = /^[A-Za-z]+$/;
-    return regex.test(name);
+  const validateName = (name) => /^[A-Za-z]+$/.test(name);
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validatePhoneNumber = (phone) => /^[0-9]{11}$/.test(phone);
+
+  const initializeRecaptchaVerifier = () => {
+    if (window.recaptchaVerifier) {
+      window.recaptchaVerifier.clear();
+    }
+    window.recaptchaVerifier = new RecaptchaVerifier(
+      auth,
+      "recaptcha-container",
+      {
+        size: "invisible",
+        callback: () => {
+          handlePhoneSignup();
+        },
+        "expired-callback": () => {
+          toast.error("reCAPTCHA expired. Please try again.");
+        },
+      }
+    );
+
+    window.recaptchaVerifier.render().catch((error) => {
+      console.error("reCAPTCHA render error:", error);
+      toast.error("Failed to load reCAPTCHA. Please refresh the page.");
+    });
   };
 
-  const validateEmail = (email) => {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
-  };
-
-  const validatePhoneNumber = (phone) => {
-    const regex = /^[0-9]{11}$/;
-    return regex.test(phone);
-  };
-
-  const handleSignup = async (e) => {
+  // Email-based signup handler
+  const handleEmailSignup = async (e) => {
     e.preventDefault();
     setLoading(true);
 
@@ -87,14 +107,6 @@ const VendorSignup = () => {
       return;
     }
 
-    if (!validatePhoneNumber(vendorData.phoneNumber)) {
-      toast.error(
-        "Invalid phone number format. It should be exactly 11 digits."
-      );
-      setLoading(false);
-      return;
-    }
-
     if (vendorData.password !== vendorData.confirmPassword) {
       toast.error("Passwords do not match.");
       setLoading(false);
@@ -102,20 +114,6 @@ const VendorSignup = () => {
     }
 
     try {
-      // Check if phone number already exists
-      const phoneQuery = query(
-        collection(db, "vendors"),
-        where("phoneNumber", "==", vendorData.phoneNumber)
-      );
-      const querySnapshot = await getDocs(phoneQuery);
-
-      if (!querySnapshot.empty) {
-        toast.error("This phone number is already registered.");
-        setLoading(false);
-        return;
-      }
-
-      const auth = getAuth();
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         vendorData.email,
@@ -125,22 +123,7 @@ const VendorSignup = () => {
       const hashedPassword = await bcrypt.hash(vendorData.password, 10);
       await sendEmailVerification(user);
 
-      const timestamp = new Date();
-
-      await setDoc(doc(db, "vendors", user.uid), {
-        uid: user.uid,
-        firstName: vendorData.firstName,
-        lastName: vendorData.lastName,
-        email: vendorData.email,
-        phoneNumber: vendorData.phoneNumber,
-        password: hashedPassword,
-        emailVerified: false,
-        role: "vendor",
-        profileComplete: false,
-        createdSince: timestamp,
-        lastUpdate: timestamp,
-        isApproved: false,
-      });
+      await saveVendorToDatabase(user.uid, hashedPassword);
 
       toast.success(
         "Account created successfully. Please check your email for verification."
@@ -153,10 +136,87 @@ const VendorSignup = () => {
     }
   };
 
+  // Phone-based signup handler
+  const handlePhoneSignup = async (e) => {
+    e.preventDefault();
+    setLoading(false);
+    setIsSendingOTP(true);
+
+    if (!validatePhoneNumber(vendorData.phoneNumber)) {
+      toast.error("Phone number should be exactly 11 digits.");
+      setLoading(false);
+      setIsSendingOTP(false);
+      return;
+    }
+
+    if (!window.recaptchaVerifier) {
+      initializeRecaptchaVerifier();
+    }
+
+    const appVerifier = window.recaptchaVerifier;
+    signInWithPhoneNumber(auth, "+234" + vendorData.phoneNumber, appVerifier)
+      .then((confirmationResult) => {
+        window.confirmationResult = confirmationResult;
+        setLoading(false);
+        setShowOTP(true);
+        setIsSendingOTP(false);
+        toast.success("OTP sent successfully!");
+      })
+      .catch((error) => {
+        console.log("OTP send error:", error);
+        setLoading(false);
+        setIsSendingOTP(false);
+        toast.error("Failed to send OTP. Check reCAPTCHA.");
+      });
+  };
+
+  const onOTPVerify = () => {
+    setIsVerifyingOTP(true);
+    setLoading(true);
+    window.confirmationResult
+      .confirm(otp)
+      .then(async (res) => {
+        const user = res.user;
+        await saveVendorToDatabase(user.uid);
+        toast.success("Account created successfully!");
+        navigate("/vendorlogin");
+      })
+      .catch((error) => {
+        handleSignupError(error);
+        console.log("OTP verification error:", error);
+        setLoading(false);
+        setIsVerifyingOTP(false);
+      });
+  };
+
+  const saveVendorToDatabase = async (uid, hashedPassword = null) => {
+    const timestamp = new Date();
+    const vendorInfo = {
+      uid,
+      firstName: vendorData.firstName,
+      lastName: vendorData.lastName,
+      email: vendorData.email,
+      phoneNumber: vendorData.phoneNumber,
+      role: "vendor",
+      profileComplete: false,
+      createdSince: timestamp,
+      lastUpdate: timestamp,
+      isApproved: false,
+    };
+    if (hashedPassword) vendorInfo.password = hashedPassword;
+    await setDoc(doc(db, "vendors", uid), vendorInfo);
+  };
+
   const handleSignupError = (error) => {
     switch (error.code) {
       case "auth/email-already-in-use":
         toast.error("This email is already registered. Please log in.");
+        break;
+      case "auth/invalid-verification-code":
+        toast.error("You have entered a wrong OTP code, please try again.");
+        break;
+      case "auth/phone-number-already-exists":
+        toast.error("This phone number is already registered. Please log in.");
         break;
       case "auth/weak-password":
         toast.error("Password should be at least 6 characters.");
@@ -193,6 +253,7 @@ const VendorSignup = () => {
                     }}
                   />
                 </div>
+
                 <div className="flex justify-center text-xs font-medium text-customOrange -translate-y-2">
                   <Typewriter
                     options={{
@@ -208,6 +269,7 @@ const VendorSignup = () => {
                     }}
                   />
                 </div>
+
                 <div className="translate-y-4">
                   <div className="mb-2">
                     <h1 className="font-ubuntu text-5xl flex font-semibold text-black">
@@ -220,7 +282,22 @@ const VendorSignup = () => {
                   <p className="text-black font-semibold">
                     Please sign up to continue
                   </p>
-                  <Form className="mt-4" onSubmit={handleSignup}>
+                </div>
+
+                <div className="translate-y-4">
+                  <motion.button
+                    className="glow-button w-full h-14 bg-customOrange text-white font-semibold rounded-full"
+                    onClick={toggleSignupMethod}
+                  >
+                    {isPhoneSignup ? "Signup with Email" : "Signup with Phone"}
+                  </motion.button>
+
+                  <Form
+                    className="mt-4"
+                    onSubmit={
+                      isPhoneSignup ? handlePhoneSignup : handleEmailSignup
+                    }
+                  >
                     <FormGroup className="relative mb-2">
                       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                         <FaRegUser className="text-gray-500 text-xl" />
@@ -249,91 +326,162 @@ const VendorSignup = () => {
                         required
                       />
                     </FormGroup>
-                    <FormGroup className="relative mb-2">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <MdEmail className="text-gray-500 text-xl" />
-                      </div>
-                      <input
-                        type="email"
-                        name="email"
-                        placeholder="Email"
-                        value={vendorData.email}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </FormGroup>
-                    <FormGroup className="relative mb-2">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <MdPhone className="text-gray-500 text-xl" />
-                      </div>
-                      <input
-                        type="text"
-                        name="phoneNumber"
-                        placeholder="Phone Number"
-                        value={vendorData.phoneNumber}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </FormGroup>
-                    <FormGroup className="relative mb-2">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <GrSecure className="text-gray-500 text-xl" />
-                      </div>
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        name="password"
-                        placeholder="Password"
-                        value={vendorData.password}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
-                        onChange={handleInputChange}
-                        required
-                      />
-                      <div
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-0 inset-y-0 flex items-center pr-3 cursor-pointer"
-                      >
-                        {showPassword ? (
-                          <FaRegEye className="text-gray-500 text-xl" />
-                        ) : (
-                          <FaRegEyeSlash className="text-gray-500 text-xl" />
-                        )}
-                      </div>
-                    </FormGroup>
-                    <FormGroup className="relative mb-2">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <GrSecure className="text-gray-500 text-xl" />
-                      </div>
-                      <input
-                        type={showConfirmPassword ? "text" : "password"}
-                        name="confirmPassword"
-                        placeholder="Confirm Password"
-                        value={vendorData.confirmPassword}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
-                        onChange={handleInputChange}
-                        required
-                      />
-                      <div
-                        onClick={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
-                        }
-                        className="absolute right-0 inset-y-0 flex items-center pr-3 cursor-pointer"
-                      >
-                        {showConfirmPassword ? (
-                          <FaRegEye className="text-gray-500 text-xl" />
-                        ) : (
-                          <FaRegEyeSlash className="text-gray-500 text-xl" />
-                        )}
-                      </div>
-                    </FormGroup>
-                    <motion.button
-                      whileTap={{ scale: 1.2 }}
-                      type="submit"
-                      className="w-full h-14 bg-customOrange text-white font-semibold rounded-full mt-4"
-                    >
-                      Sign Up
-                    </motion.button>
+
+                    {isPhoneSignup ? (
+                      <>
+                        <FormGroup className="relative mb-2">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <MdEmail className="text-gray-500 text-xl" />
+                          </div>
+                          <input
+                            type="email"
+                            name="email"
+                            placeholder="Email"
+                            value={vendorData.email}
+                            className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                            onChange={handleInputChange}
+                            required
+                          />
+                        </FormGroup>
+                        <FormGroup className="relative mb-2">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <MdPhone className="text-gray-500 text-xl" />
+                          </div>
+                          <input
+                            type="text"
+                            name="phoneNumber"
+                            placeholder="Phone Number"
+                            value={vendorData.phoneNumber}
+                            className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                            onChange={handleInputChange}
+                            required
+                          />
+                        </FormGroup>
+                        <div>
+                          {isPhoneSignup && isSendingOTP && (
+                            <RotatingLines
+                              width="30"
+                              height="30"
+                              strokeColor="gray"
+                              strokeWidth="5"
+                            />
+                          )}
+                          {isPhoneSignup && !isVerifyingOTP && showOTP && (
+                            <FormGroup className="relative mb-2">
+                              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <GrSecure className="text-gray-500 text-xl" />
+                              </div>
+
+                              <input
+                                type="text"
+                                name="otp"
+                                placeholder="Enter OTP"
+                                value={otp}
+                                className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                                onChange={(e) => setOtp(e.target.value)}
+                                required
+                              />
+                            </FormGroup>
+                          )}
+                          <motion.button
+                            whileTap={{ scale: 1.2 }}
+                            onClick={showOTP ? onOTPVerify : handlePhoneSignup}
+                            className="w-full h-14 bg-customOrange text-white font-semibold rounded-full mt-4"
+                          >
+                            {showOTP ? "Verify OTP" : "Send OTP"}
+                          </motion.button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <FormGroup className="relative mb-2">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <MdPhone className="text-gray-500 text-xl" />
+                          </div>
+                          <input
+                            type="text"
+                            name="phoneNumber"
+                            placeholder="Phone Number"
+                            value={vendorData.phoneNumber}
+                            className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                            onChange={handleInputChange}
+                            required
+                          />
+                        </FormGroup>
+                        <FormGroup className="relative mb-2">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <MdEmail className="text-gray-500 text-xl" />
+                          </div>
+                          <input
+                            type="email"
+                            name="email"
+                            placeholder="Email"
+                            value={vendorData.email}
+                            className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                            onChange={handleInputChange}
+                            required
+                          />
+                        </FormGroup>
+                        <FormGroup className="relative mb-2">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <GrSecure className="text-gray-500 text-xl" />
+                          </div>
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            name="password"
+                            placeholder="Password"
+                            value={vendorData.password}
+                            className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                            onChange={handleInputChange}
+                            required
+                          />
+                          <div
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-0 inset-y-0 flex items-center pr-3 cursor-pointer"
+                          >
+                            {showPassword ? (
+                              <FaRegEye className="text-gray-500 text-xl" />
+                            ) : (
+                              <FaRegEyeSlash className="text-gray-500 text-xl" />
+                            )}
+                          </div>
+                        </FormGroup>
+                        <FormGroup className="relative mb-2">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <GrSecure className="text-gray-500 text-xl" />
+                          </div>
+                          <input
+                            type={showConfirmPassword ? "text" : "password"}
+                            name="confirmPassword"
+                            placeholder="Confirm Password"
+                            value={vendorData.confirmPassword}
+                            className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                            onChange={handleInputChange}
+                            required
+                          />
+                          <div
+                            onClick={() =>
+                              setShowConfirmPassword(!showConfirmPassword)
+                            }
+                            className="absolute right-0 inset-y-0 flex items-center pr-3 cursor-pointer"
+                          >
+                            {showConfirmPassword ? (
+                              <FaRegEye className="text-gray-500 text-xl" />
+                            ) : (
+                              <FaRegEyeSlash className="text-gray-500 text-xl" />
+                            )}
+                          </div>
+                        </FormGroup>
+                        <motion.button
+                          whileTap={{ scale: 1.2 }}
+                          type="submit"
+                          className="w-full h-14 bg-customOrange text-white font-semibold rounded-full mt-4"
+                        >
+                          Sign Up
+                        </motion.button>
+                      </>
+                    )}
+
                     <p className="mt-3 text-center text-gray-500">
                       Already have an account?{" "}
                       <Link to="/vendorlogin" className="text-customOrange">
@@ -342,6 +490,7 @@ const VendorSignup = () => {
                     </p>
                   </Form>
                 </div>
+                <div id="recaptcha-container"></div>
               </div>
             )}
           </Row>

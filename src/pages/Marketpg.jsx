@@ -251,12 +251,12 @@ const Marketpg = () => {
             </div>
           ))
         ) : (
-          // Show "No results found" only if not loading and no vendors are found
+       
           <div className="text-center my-10">
-            <h2 className="text-2xl font-ubuntu font-medium">
-              No results found
+            <h2 className="text-2xl font-opensans font-medium">
+              ☹️No results found
             </h2>
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-sm font-opensans">
               Please try searching for another vendor.
             </p>
           </div>

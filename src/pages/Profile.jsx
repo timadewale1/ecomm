@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../firebase.config";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 import { ChevronRight, User, ChevronLeft } from "lucide-react";
 
 import { useNavigate, useLocation } from "react-router-dom";

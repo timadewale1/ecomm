@@ -3,7 +3,7 @@ import { signOut } from "firebase/auth";
 import { MdModeEdit } from "react-icons/md";
 import { auth, db } from "../../firebase.config";
 import { RotatingLines } from "react-loader-spinner";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, User, ChevronLeft } from "lucide-react";
 import {
@@ -13,6 +13,7 @@ import {
   query,
   where,
   getDocs,
+  updateDoc,
 } from "firebase/firestore";
 import useAuth from "../../custom-hooks/useAuth";
 import { IoMdContact } from "react-icons/io";
@@ -26,16 +27,17 @@ import VprofileDetails from "../vendor/VprofileDetails.jsx";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
+const defaultImageUrl =
+  "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
+
 const VendorProfile = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [userData, setUserData] = useState(null);
+  const [coverImageUrl, setCoverImageUrl] = useState(defaultImageUrl);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-
   const [displayName, setDisplayName] = useState("");
-
   const [email, setEmail] = useState("");
-
   const [shopName, setShopName] = useState("");
   const [showDetails, setShowDetails] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -77,29 +79,34 @@ const VendorProfile = () => {
 
   useEffect(() => {
     const fetchOrderData = async () => {
+      if (!currentUser?.uid) return; // Ensure currentUser is defined
+  
       try {
         const ordersRef = collection(db, "orders");
-
+  
         // Fulfilled Orders (Delivered)
         const fulfilledQuery = query(
           ordersRef,
-          where("progressStatus", "==", "Delivered")
+          where("progressStatus", "==", "Delivered"),
+          where("vendorId", "==", currentUser.uid)
         );
         const fulfilledSnapshot = await getDocs(fulfilledQuery);
         setFulfilledOrders(fulfilledSnapshot.size);
-
+  
         // Unfulfilled Orders (In Progress, Shipped, or Pending)
         const unfulfilledQuery = query(
           ordersRef,
-          where("progressStatus", "in", ["In Progress", "Shipped", "Pending"])
+          where("progressStatus", "in", ["In Progress", "Shipped", "Pending"]),
+          where("vendorId", "==", currentUser.uid)
         );
         const unfulfilledSnapshot = await getDocs(unfulfilledQuery);
         setUnfulfilledOrders(unfulfilledSnapshot.size);
-
-        // Incoming Orders (Adjust as needed based on actual criteria for "incoming")
+  
+        // Incoming Orders
         const incomingQuery = query(
           ordersRef,
-          where("status", "==", "incoming")
+          where("status", "==", "incoming"),
+          where("vendorId", "==", currentUser.uid)
         );
         const incomingSnapshot = await getDocs(incomingQuery);
         setIncomingOrders(incomingSnapshot.size);
@@ -107,15 +114,16 @@ const VendorProfile = () => {
         console.error("Error fetching order data:", error);
       }
     };
-
+  
     fetchOrderData();
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     setIsLoading(true);
     const fetchUserData = async () => {
       if (currentUser) {
         try {
+          // Fetch user document from Firestore
           const vendorDoc = await getDoc(doc(db, "vendors", currentUser.uid));
           if (vendorDoc.exists()) {
             const data = vendorDoc.data();
@@ -123,6 +131,9 @@ const VendorProfile = () => {
             setDisplayName(data.firstName + " " + data.lastName);
             setEmail(data.email || "");
             setShopName(data.shopName || "");
+
+            // Set cover image URL from Firestore or use default image
+            setCoverImageUrl(data.coverImageUrl || defaultImageUrl);
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
@@ -148,132 +159,134 @@ const VendorProfile = () => {
   };
 
   return (
-    <div className="py-4 px-2 font-opensans ">
+    <div className="font-opensans">
       {!showDetails && !showHistory ? (
-        <div className="flex flex-col items-center">
-          {/* Profile Picture and Name */}
-          <div className="flex border rounded-full p-1 justify-center mt-6 relative">
-            {isLoading ? (
-              <Skeleton circle={true} height={144} width={144} />
-            ) : userData && userData.photoURL ? (
-              <img
-                src={userData.photoURL}
-                alt=""
-                className="rounded-full object-cover h-28 w-28"
-                onClick={() => setIsAvatarModalOpen(true)}
-              />
-            ) : (
-              <div
-                className="rounded-full h-36 w-36 flex items-center justify-center"
-                onClick={() => setIsAvatarModalOpen(true)}
-              >
-                <IoMdContact className="text-gray-500 text-7xl" />
+        <div>
+          {/* Cover Image Section */}
+          <div
+        className="relative w-full h-56 bg-cover bg-full flex"
+        style={{
+          backgroundImage: isLoading ? "none" : `url(${coverImageUrl})`,
+        }}
+      >
+        {isLoading && (
+          <Skeleton
+            height={224} // Adjusted height to match the cover div height
+            width="100%"
+            className="absolute top-0 left-0 w-full h-full"
+          />
+        )}
+      </div>
+
+      <div className="p-2 text-2xl font-opensans font-bold text-black capitalize mt-1 items-start">
+        {shopName}
+      </div>
+          <div className="flex flex-col">
+            {/* My Activity Chart */}
+            <div className="my-4 w-full px-2">
+              <div className="w-full h-14 flex">
+                <h1 className="text-base font-semibold font-opensans mx-2 translate-y-4 text-black">
+                  Quick Stats
+                </h1>
               </div>
-            )}
-            <MdModeEdit
-              className="absolute bottom-0 right-0 border text-black mr-2 text-3xl p-2 rounded-full bg-white cursor-pointer shadow-md"
-              onClick={() => setIsAvatarModalOpen(true)}
-            />
-          </div>
-
-          <div className="text-lg font-semibold text-black capitalize mt-2">
-            {shopName}
-          </div>
-
-          {/* My Activity Chart */}
-          <div className=" my-4 w-full ">
-            <div className="w-full h-14 flex">
-              <h1 className="text-base font-semibold font-opensans mx-4 translate-y-3 text-black">
-                Quick Stats
-              </h1>
-            </div>
-            <div className="flex flex-col items-center rounded-xl bg-zinc-200">
-              <div className="w-40 h-40 relative">
-                {" "}
-                {/* Adjusted size for a semi-circle */}
-                <Doughnut data={activityData} options={activityOptions} />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center mt-5">
-                    <p className="text-xs text-black font-opensans font-medium">Total Orders</p>
-                    <p className="text-lg font-opensans text-black font-bold">{totalOrders}</p>
+              <div className="flex flex-col items-center rounded-xl bg-zinc-200">
+                <div className="w-40 h-40 relative">
+                  <Doughnut data={activityData} options={activityOptions} />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center mt-5">
+                      <p className="text-xs text-black font-opensans font-medium">
+                        Total Orders
+                      </p>
+                      <p className="text-lg font-opensans text-black font-bold">
+                        {totalOrders}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex mt-2 space-x-6 text-sm mb-3">
+                  <div className="flex items-center space-x-1">
+                    <span className="w-3 h-3 rounded-full bg-[#5CBF49]"></span>
+                    <span className="font-opensans text-black">
+                      Fulfilled ({fulfilledOrders})
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="w-3 h-3 rounded-full bg-[#d76230]"></span>
+                    <span className="font-opensans text-black">
+                      Unfulfilled ({unfulfilledOrders})
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="w-3 h-3 rounded-full bg-[#d8d333]"></span>
+                    <span className="font-opensans text-black">
+                      Incoming ({incomingOrders})
+                    </span>
                   </div>
                 </div>
               </div>
-              <div className="flex mt-2 space-x-6 text-sm mb-3">
-                <div className="flex items-center space-x-1">
-                  <span className="w-3 h-3 rounded-full bg-[#5CBF49]"></span>
-                  <span className="font-opensans text-black">Fulfilled ({fulfilledOrders})</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <span className="w-3 h-3 rounded-full bg-[#d76230]"></span>
-                  <span className="font-opensans text-black">Unfulfilled ({unfulfilledOrders})</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <span className="w-3 h-3 rounded-full bg-[#d8d333]"></span>
-                  <span className="font-opensans text-black">Incoming ({incomingOrders})</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Profile Options */}
-          <div className="w-full mt-2">
-            <div className="w-full h-14 flex">
-              <h1 className="text-base font-semibold mx-4 translate-y-3 text-black">
-                Personal
-              </h1>
-            </div>
-            <div className="flex flex-col items-center w-full">
-              <div
-                className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={() => setShowDetails(!showDetails)}
-              >
-                <div className="flex items-center">
-                  <User className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal text-black capitalize">
-                    Personal information
-                  </h2>
-                </div>
-                <ChevronRight className="text-black" />
-              </div>
             </div>
 
-            <div className="w-full h-14 flex">
-              <h1 className="text-base font-semibold mx-4 translate-y-3 text-black">
-                Data
-              </h1>
-            </div>
-            <div className="flex flex-col items-center w-full">
-              <div
-                className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={() => navigate("/vendor-reviews")}
-              >
-                <div className="flex items-center">
-                  <TbHomeStar className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal text-black capitalize">
-                    View Ratings
-                  </h2>
+            {/* Profile Options */}
+            <div className="w-full mt-2 px-2">
+              <div className="w-full h-14 flex">
+                <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
+                  Personal
+                </h1>
+              </div>
+              <div className="flex flex-col items-center w-full">
+                <div
+                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={() => setShowDetails(!showDetails)}
+                >
+                  <div className="flex items-center">
+                    <User className="text-black text-xl mr-4" />
+                    <h2 className="text-size font-normal text-black capitalize">
+                      Personal information
+                    </h2>
+                  </div>
+                  <ChevronRight className="text-black" />
                 </div>
-                <ChevronRight className="text-black" />
               </div>
 
-              <div
-                className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={handleLogout}
-              >
-                <div className="flex items-center ">
-                  <PiSignOutBold className="text-red-600 text-xl mr-4" />
-                  <p className="text-size text-black font-normal capitalize">
-                    Sign Out
-                  </p>
+              <div className="w-full h-14 flex">
+                <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
+                  Data
+                </h1>
+              </div>
+              <div className="flex flex-col items-center w-full">
+                <div
+                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={() => navigate("")}
+                >
+                  <div className="flex items-center">
+                    <TbHomeStar className="text-black text-xl mr-4" />
+                    <h2 className="text-size font-normal text-black capitalize">
+                      View Ratings
+                    </h2>
+                  </div>
+                  <ChevronRight className="text-black" />
+                </div>
+
+                <div
+                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={handleLogout}
+                >
+                  <div className="flex items-center">
+                    <PiSignOutBold className="text-red-600 text-xl mr-4" />
+                    <p className="text-size text-black font-normal capitalize">
+                      Sign Out
+                    </p>
+                  </div>
                   {isLoggingOut && (
-                    <RotatingLines
-                      strokeColor="#f9531e"
-                      strokeWidth="5"
-                      animationDuration="0.75"
-                      width="24"
-                      visible={true}
-                    />
+                    <div className="flex items-center ml-auto">
+                      <RotatingLines
+                        strokeColor="#f9531e"
+                        strokeWidth="5"
+                        animationDuration="0.75"
+                        width="24"
+                        visible={true}
+                      />
+                    </div>
                   )}
                 </div>
               </div>
@@ -308,6 +321,21 @@ const VendorProfile = () => {
           onAvatarChange={(newAvatar) =>
             setUserData((prev) => ({ ...prev, photoURL: newAvatar }))
           }
+          onRemoveAvatar={async () => {
+            try {
+              await updateDoc(doc(db, "vendors", currentUser.uid), {
+                photoURL: "",
+              });
+              setUserData((prev) => ({ ...prev, photoURL: "" }));
+              toast.success("Avatar removed successfully", {
+                className: "custom-toast",
+              });
+            } catch (error) {
+              toast.error("Error removing avatar. Please try again.", {
+                className: "custom-toast",
+              });
+            }
+          }}
         />
       )}
     </div>

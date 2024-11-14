@@ -38,7 +38,7 @@ const VendorSignup = () => {
     firstName: "",
     lastName: "",
     email: "",
-    phoneNumber: "",
+    // phoneNumber: "",
     password: "",
     confirmPassword: "",
   });
@@ -63,11 +63,7 @@ const VendorSignup = () => {
     return regex.test(email);
   };
 
-  const validatePhoneNumber = (phone) => {
-    const regex = /^[0-9]{11}$/;
-    return regex.test(phone);
-  };
-
+  
   const handleSignup = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -87,13 +83,7 @@ const VendorSignup = () => {
       return;
     }
 
-    if (!validatePhoneNumber(vendorData.phoneNumber)) {
-      toast.error(
-        "Invalid phone number format. It should be exactly 11 digits."
-      );
-      setLoading(false);
-      return;
-    }
+
 
     if (vendorData.password !== vendorData.confirmPassword) {
       toast.error("Passwords do not match.");
@@ -230,7 +220,7 @@ const VendorSignup = () => {
                         name="firstName"
                         placeholder="First Name"
                         value={vendorData.firstName}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                        className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
                         onChange={handleInputChange}
                         required
                       />
@@ -244,7 +234,7 @@ const VendorSignup = () => {
                         name="lastName"
                         placeholder="Last Name"
                         value={vendorData.lastName}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                        className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
                         onChange={handleInputChange}
                         required
                       />
@@ -258,12 +248,12 @@ const VendorSignup = () => {
                         name="email"
                         placeholder="Email"
                         value={vendorData.email}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                        className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
                         onChange={handleInputChange}
                         required
                       />
                     </FormGroup>
-                    <FormGroup className="relative mb-2">
+                    {/* <FormGroup className="relative mb-2">
                       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                         <MdPhone className="text-gray-500 text-xl" />
                       </div>
@@ -272,11 +262,11 @@ const VendorSignup = () => {
                         name="phoneNumber"
                         placeholder="Phone Number"
                         value={vendorData.phoneNumber}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                        className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
                         onChange={handleInputChange}
                         required
                       />
-                    </FormGroup>
+                    </FormGroup> */}
                     <FormGroup className="relative mb-2">
                       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                         <GrSecure className="text-gray-500 text-xl" />
@@ -286,7 +276,7 @@ const VendorSignup = () => {
                         name="password"
                         placeholder="Password"
                         value={vendorData.password}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                        className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
                         onChange={handleInputChange}
                         required
                       />
@@ -310,7 +300,7 @@ const VendorSignup = () => {
                         name="confirmPassword"
                         placeholder="Confirm Password"
                         value={vendorData.confirmPassword}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                        className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
                         onChange={handleInputChange}
                         required
                       />
@@ -328,13 +318,13 @@ const VendorSignup = () => {
                       </div>
                     </FormGroup>
                     <motion.button
-                      whileTap={{ scale: 1.2 }}
+                      // whileTap={{ scale: 1.2 }}
                       type="submit"
-                      className="w-full h-14 bg-customOrange text-white font-semibold rounded-full mt-4"
+                      className="w-full h-14 bg-customOrange text-white font-opensans font-semibold rounded-full mt-4"
                     >
                       Sign Up
                     </motion.button>
-                    <p className="mt-3 text-center text-gray-500">
+                    <p className="mt-3 text-center font-opensans text-gray-500">
                       Already have an account?{" "}
                       <Link to="/vendorlogin" className="text-customOrange">
                         Log In

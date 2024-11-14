@@ -99,7 +99,7 @@ const VendorProfile = () => {
         // Incoming Orders (Adjust as needed based on actual criteria for "incoming")
         const incomingQuery = query(
           ordersRef,
-          where("status", "==", "incoming")
+          where("status", "==", "pending")
         );
         const incomingSnapshot = await getDocs(incomingQuery);
         setIncomingOrders(incomingSnapshot.size);

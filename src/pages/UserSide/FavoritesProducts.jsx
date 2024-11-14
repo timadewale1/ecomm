@@ -18,26 +18,19 @@ const FavoritesPage = () => {
   useEffect(() => {
     const fetchFavoriteProducts = async () => {
       try {
-        console.log("Fetching favorite products...");
-
-       
         const favoriteProductIds = favorites.map((favorite) => favorite.id);
 
-
-              const productPromises = favoriteProductIds.map((productId) => {
-
+        const productPromises = favoriteProductIds.map((productId) => {
           return getDoc(doc(db, "products", productId));
         });
 
-       
         const productSnapshots = await Promise.all(productPromises);
 
-      
         const products = productSnapshots
           .map((productDoc) => {
             if (productDoc.exists()) {
               const productData = productDoc.data();
-              console.log("Fetched product data:", productData);
+
               return { id: productDoc.id, ...productData };
             } else {
               console.error(`No product found with ID: ${productDoc.id}`);
@@ -46,7 +39,6 @@ const FavoritesPage = () => {
           })
           .filter((product) => product !== null);
 
-        
         setFavoriteProducts(products);
       } catch (error) {
         toast.error("Error fetching favorite products:", error);
@@ -83,7 +75,12 @@ const FavoritesPage = () => {
           ))}
         </div>
       ) : (
-        <Faves />
+        <>
+          <Faves />
+          <p className="font-opensans text-center text-sm text-gray-800">
+            Your liked items would show here! 
+          </p>
+        </>
       )}
     </div>
   );

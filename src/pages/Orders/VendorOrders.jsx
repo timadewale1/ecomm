@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from "react";
-import useVendorOrders from "../../custom-hooks/vendororderhk";
+import React, { useState, useMemo, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { initializeOrderListener } from "../../custom-hooks/orderListener";
 import useAuth from "../../custom-hooks/useAuth";
 import Skeleton from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
 
 import PendingOrders from "./PendingOrders";
 import InProgressOrders from "./InProgressOrders";
@@ -12,17 +12,45 @@ import OrderDetailsModal from "./OrderDetailsModals";
 
 const VendorOrders = () => {
   const { currentUser } = useAuth();
+  const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState("Pending");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const { orders, loading } = useVendorOrders(currentUser?.uid);
+
+  // Adjusted useSelector to handle undefined state gracefully
+  const orders = useSelector((state) => state.orders?.orders);
+
+  // Set initial loading state to true
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (currentUser?.uid) {
+      initializeOrderListener(currentUser.uid);
+    }
+  }, [currentUser?.uid]);
+
+  useEffect(() => {
+    // Set loading to false only after orders have been fetched
+    if (orders !== undefined && orders !== null) {
+      setLoading(false);
+    }
+  }, [orders]);
 
   const filteredOrders = useMemo(() => {
-    return orders.filter((order) =>
-      activeTab === "Shipped"
-        ? ["Shipped", "Delivered"].includes(order.progressStatus)
-        : order.progressStatus === activeTab
-    );
+    const filtered = orders
+      ? orders.filter((order) =>
+          activeTab === "Shipped"
+            ? ["Shipped", "Delivered"].includes(order.progressStatus)
+            : order.progressStatus === activeTab
+        )
+      : [];
+
+    // Sort orders from latest to earliest based on createdAt timestamp
+    return filtered.sort((a, b) => {
+      const aTime = a.createdAt?.toMillis?.() || 0;
+      const bTime = b.createdAt?.toMillis?.() || 0;
+      return bTime - aTime;
+    });
   }, [orders, activeTab]);
 
   const openModal = (order) => {

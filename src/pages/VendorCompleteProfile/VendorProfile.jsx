@@ -105,7 +105,7 @@ const VendorProfile = () => {
         // Incoming Orders
         const incomingQuery = query(
           ordersRef,
-          where("status", "==", "incoming"),
+          where("status", "==", "pending"),
           where("vendorId", "==", currentUser.uid)
         );
         const incomingSnapshot = await getDocs(incomingQuery);

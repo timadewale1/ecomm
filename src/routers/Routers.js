@@ -36,7 +36,6 @@ import CategoryPage from "../pages/UserSide/CategoryPage.jsx";
 import VendorRatings from "../pages/vendor/VendorRatings.jsx";
 import SearchPage from "../pages/UserSide/Searchpage.jsx";
 import ErrorBoundary from "../components/Errorboundary.jsx";
-import VendorNotificationPage from "../pages/VendorNotificationPage.jsx";
 const Routers = () => {
   return (
     <Routes>
@@ -85,7 +84,6 @@ const Routers = () => {
         <Route path="vendor-profile" element={<VendorProfile />} />
         <Route path="vendor-reviews" element={<VendorReviews />} />
         <Route path="vendor-products" element={<VendorProducts />} />
-        <Route path="vendor-notifications" element={<VendorNotificationPage />} />
         <Route path="vendor-orders" element={<VendorOrders />} />
         <Route path="/reviews/:id" element={<VendorRatings />} />
       </Route>

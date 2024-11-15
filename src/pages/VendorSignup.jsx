@@ -144,7 +144,6 @@ const VendorSignup = () => {
 
     if (!validatePhoneNumber(vendorData.phoneNumber)) {
       toast.error("Phone number should be exactly 11 digits.");
-      setLoading(false);
       setIsSendingOTP(false);
       return;
     }
@@ -157,22 +156,19 @@ const VendorSignup = () => {
     signInWithPhoneNumber(auth, "+234" + vendorData.phoneNumber, appVerifier)
       .then((confirmationResult) => {
         window.confirmationResult = confirmationResult;
-        setLoading(false);
         setShowOTP(true);
         setIsSendingOTP(false);
         toast.success("OTP sent successfully!");
       })
       .catch((error) => {
         console.log("OTP send error:", error);
-        setLoading(false);
         setIsSendingOTP(false);
-        toast.error("Failed to send OTP. Check reCAPTCHA.");
+        toast.error("Failed to send OTP. Please reload the page.");
       });
   };
 
   const onOTPVerify = () => {
     setIsVerifyingOTP(true);
-    setLoading(true);
     window.confirmationResult
       .confirm(otp)
       .then(async (res) => {
@@ -184,7 +180,6 @@ const VendorSignup = () => {
       .catch((error) => {
         handleSignupError(error);
         console.log("OTP verification error:", error);
-        setLoading(false);
         setIsVerifyingOTP(false);
       });
   };

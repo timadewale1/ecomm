@@ -8,9 +8,15 @@ import {
   RecaptchaVerifier,
   signInWithPhoneNumber,
 } from "firebase/auth";
-import { collection, query, where, getDocs } from "firebase/firestore";
-
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { motion } from "framer-motion";
 import { db } from "../firebase.config";
 import { toast } from "react-hot-toast";
@@ -18,7 +24,6 @@ import { FaRegEyeSlash, FaRegEye } from "react-icons/fa";
 import { MdEmail, MdPhone } from "react-icons/md";
 import { GrSecure } from "react-icons/gr";
 import VendorLoginAnimation from "../SignUpAnimation/SignUpAnimation";
-// import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { RotatingLines } from "react-loader-spinner";
 import Typewriter from "typewriter-effect";
@@ -32,7 +37,7 @@ const VendorLogin = () => {
   const [otp, setOtp] = useState("");
   const [showOTP, setShowOTP] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isPhoneLogin, setIsPhoneLogin] = useState(false); // Toggle for phone/email login
+  const [isPhoneLogin, setIsPhoneLogin] = useState(false);
 
   const navigate = useNavigate();
   const auth = getAuth();
@@ -119,10 +124,9 @@ const VendorLogin = () => {
             toast.error(
               "Your vendor account is deactivated. Please contact support."
             );
-            await auth.signOut(); // Sign out the user if account is deactivated
+            await auth.signOut();
             return;
           }
-          // Check if the profile is complete
           if (!vendorData.profileComplete) {
             navigate("/complete-profile");
           } else {

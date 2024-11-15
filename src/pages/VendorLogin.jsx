@@ -381,15 +381,15 @@ const VendorLogin = () => {
                     )}
                   </motion.button>
                 </Form>
-                  <div className="text-center font-opensans font-light mt-2 flex justify-center">
-                    <p className="text-gray-700">
-                      Want to join our community?{" "}
-                      <span className="font-semibold underline text-black">
-                        <Link to="/vendor-signup">Sign Up</Link>
-                      </span>
-                    </p>
-                  </div>
-                </Form>
+                <div className="text-center font-opensans font-light mt-2 flex justify-center">
+                  <p className="text-gray-700">
+                    Want to join our community?{" "}
+                    <span className="font-semibold underline text-black">
+                      <Link to="/vendor-signup">Sign Up</Link>
+                    </span>
+                  </p>
+                </div>
+                <div id="recaptcha-container"></div>
               </div>
             </div>
           </Row>

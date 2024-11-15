@@ -267,10 +267,10 @@ const CategoryPage = () => {
         setVendors(vendorsList);
         setFilteredVendors(vendorsList); // Initialize filtered vendors
 
-        // Now fetch products from the centralized "products" collection
         const productsQuery = query(
           collection(db, "products"),
-          where("category", "==", normalizedCategory)
+          where("category", "==", normalizedCategory),
+          where("published", "==", true)
         );
 
         const productsSnapshot = await getDocs(productsQuery);
@@ -496,7 +496,9 @@ const CategoryPage = () => {
             <h2 className="text-center text-lg font-opensans font-semibold text-black">
               Ooops! No results found
             </h2>
-            <p className="font-opensans text-gray-800 text-sm">try searching for another product or vendor😊</p>
+            <p className="font-opensans text-gray-800 text-sm">
+              try searching for another product or vendor😊
+            </p>
           </div>
         ) : (
           <>

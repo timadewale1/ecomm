@@ -5,13 +5,13 @@ import Downshift from "downshift";
 import { IoChevronBackOutline } from "react-icons/io5";
 import { FaTimes } from "react-icons/fa";
 import { CiSearch } from "react-icons/ci";
-import { MdMyLocation } from "react-icons/md";
+import { MdCancel, MdMyLocation } from "react-icons/md";
 import { GoDotFill } from "react-icons/go";
 import { PiGenderMaleBold, PiGenderFemaleBold } from "react-icons/pi";
 import { FaGenderless, FaChildren } from "react-icons/fa6";
 import { AiFillProduct } from "react-icons/ai";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
-import {query, where} from "firebase/firestore";
+import { query, where } from "firebase/firestore";
 
 const SearchPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -33,62 +33,70 @@ const SearchPage = () => {
       try {
         // Fetch only approved and active vendors
         const vendorsSnapshot = await getDocs(
-          query(collection(db, "vendors"), where("isApproved", "==", true), where("isDeactivated", "==", false))
+          query(
+            collection(db, "vendors"),
+            where("isApproved", "==", true),
+            where("isDeactivated", "==", false)
+          )
         );
         const vendorsData = vendorsSnapshot.docs.map((doc) => ({
           ...doc.data(),
           id: doc.id,
         }));
         setVendors(vendorsData);
-    
+
         // Fetch all products (modify this to filter active vendors if needed)
         const productsSnapshot = await getDocs(collection(db, "products"));
         const productsData = productsSnapshot.docs.map((doc) => ({
           ...doc.data(),
           id: doc.id,
         }));
-    
+
         setProducts(productsData);
       } catch (error) {
         console.error("Error fetching data:", error);
       }
     };
-    
 
     fetchData();
   }, [db]);
 
-  // Adjusted search logic to also filter by category and product type
   const getFilteredItems = () => {
-    const capitalizeText = (text) =>
-      text.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+    const searchTermLower = searchTerm.toLowerCase();
 
-    const filteredProducts = products
-      .filter((product) => {
-        const searchTermLower = searchTerm.toLowerCase();
-        return (
-          product?.name?.toLowerCase().includes(searchTermLower) || // Match product name
-          product?.category?.toLowerCase().includes(searchTermLower) || // Match category
-          product?.productType?.toLowerCase().includes(searchTermLower) // Match product type
-        );
-      })
-      .map((product) => ({
-        ...product,
-        name: capitalizeText(product.name),
-        type: "product",
-      }));
+    // Function to calculate score based on match location
+    const calculateScore = (product) => {
+      let score = 0;
 
-    const filteredVendors = vendors
-      .filter((vendor) =>
-        vendor?.shopName?.toLowerCase().includes(searchTerm.toLowerCase())
+      // Check name match (highest priority)
+      if (product.name.toLowerCase().includes(searchTermLower)) score += 3;
+
+      // Check tags match (medium priority)
+      if (
+        product.tags &&
+        product.tags.some((tag) => tag.toLowerCase().includes(searchTermLower))
       )
-      .map((vendor) => ({
-        ...vendor,
-        shopName: capitalizeText(vendor.shopName),
-        type: "vendor",
-      }));
+        score += 2;
 
-    return [...filteredProducts, ...filteredVendors];
+      // Check productType match (lower priority)
+      if (product.productType.toLowerCase().includes(searchTermLower))
+        score += 1;
+
+      return score;
+    };
+
+    // Filter products and assign scores
+    const scoredProducts = products
+      .map((product) => ({ ...product, score: calculateScore(product) }))
+      .filter((product) => product.score > 0) // Only include products with a score
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name)); // Sort by score, then alphabetically if tied
+
+    // Capitalize product names and set type
+    return scoredProducts.map((product) => ({
+      ...product,
+      name: (product.name),
+      type: "product",
+    }));
   };
 
   const handleChange = (selectedItem) => {
@@ -98,10 +106,10 @@ const SearchPage = () => {
         ...searchHistory.filter((item) => item.id !== selectedItem.id),
         selectedItem, // Add the selected item at the end if not found in history
       ].slice(0, 8); // Keep the most recent 8 items
-  
+
       setSearchHistory(updatedHistory);
       localStorage.setItem("searchHistory", JSON.stringify(updatedHistory));
-  
+
       // Navigate based on whether it's a product or a vendor
       if (selectedItem.type === "product") {
         navigate(`/product/${selectedItem.id}`);
@@ -114,7 +122,7 @@ const SearchPage = () => {
       }
     }
   };
-  
+
   const getCategoryIcon = (category) => {
     switch (category?.toLowerCase()) {
       case "men":
@@ -165,7 +173,7 @@ const SearchPage = () => {
           <div className="relative w-full">
             <div className="flex items-center mb-4">
               <IoChevronBackOutline
-                className="text-2xl text-gray-500 cursor-pointer mr-2"
+                className="text-2xl text-black cursor-pointer mr-2"
                 onClick={() => {
                   clearSearch();
                   closeMenu();
@@ -185,80 +193,26 @@ const SearchPage = () => {
                     },
                   })}
                   value={searchTerm}
-                  className="w-full rounded-full bg-gray-200 p-2.5"
+                  className="w-full border font-opensans text-black text-sm border-gray-300 rounded-full px-3 py-2 font-medium focus:outline-customOrange"
                 />
                 <CiSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-2xl text-gray-400" />
+
+                {/* Add the cancel (X) button */}
+                {searchTerm && (
+                  <MdCancel
+                    className="absolute right-10 top-1/2 transform -translate-y-1/2 text-xl text-gray-400 cursor-pointer"
+                    onClick={() => setSearchTerm("")} // Clears the search term
+                  />
+                )}
               </div>
             </div>
             <ul
               {...getMenuProps()}
               className="absolute z-50 w-full bg-white rounded-lg mt-1"
             >
-              {isOpen &&
-                searchTerm &&
-                getFilteredItems().length > 0 &&
-                getFilteredItems().map((item, index) => (
-                  <li
-                    {...getItemProps({
-                      key: item.id,
-                      index,
-                      item,
-                      style: {
-                        backgroundColor:
-                          highlightedIndex === index
-                            ? "var(--custom-orange)"
-                            : "white",
-                        fontWeight: selectedItem === item ? "bold" : "normal",
-                        padding: "10px",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      },
-                    })}
-                  >
-                    <div className="flex items-center">
-                      <img
-                        src={item.coverImageUrl || defaultImageUrl}
-                        alt={item.name || item.shopName}
-                        style={{
-                          width: "40px",
-                          height: "40px",
-                          objectFit: "cover",
-                          borderRadius: "5px",
-                          marginRight: "10px",
-                        }}
-                      />
-                      <div className="flex flex-col">
-                        <span className="font-opensans mb-1 font-medium">
-                          {item.name || item.shopName}
-                        </span>
-                        {item.type === "product" && (
-                          <span className="text-gray-600 text-xs flex items-center">
-                            {getCategoryIcon(item.category)}
-                            {item.category}
-                            <GoDotFill className="mx-1 dot-size" />
-                            <AiFillProduct className="mr-1" />
-                            {item.productType}
-                          </span>
-                        )}
-                        {item.type === "vendor" && (
-                          <span className="text-black text-xs flex items-center">
-                            <MdMyLocation className="mr-1 ratings-text" />
-                            {item.marketPlaceType || "Online"}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-
-              {isOpen && !searchTerm && searchHistory.length > 0 && (
-                <>
-                  <li className="text-black font-medium text-sm px-3 py-2">
-                    Recent
-                  </li>
-                  {searchHistory.map((item, index) => (
+              {isOpen && searchTerm ? (
+                getFilteredItems().length > 0 ? (
+                  getFilteredItems().map((item, index) => (
                     <li
                       {...getItemProps({
                         key: item.id,
@@ -267,7 +221,7 @@ const SearchPage = () => {
                         style: {
                           backgroundColor:
                             highlightedIndex === index
-                              ? "var(--customOrange)"
+                              ? "var(--custom-orange)"
                               : "white",
                           fontWeight: selectedItem === item ? "bold" : "normal",
                           padding: "10px",
@@ -291,11 +245,11 @@ const SearchPage = () => {
                           }}
                         />
                         <div className="flex flex-col">
-                          <span className="font-opensans mb-1 font-medium">
+                          <span className="font-opensans text-gray-800 mb-1 font-medium">
                             {item.name || item.shopName}
                           </span>
                           {item.type === "product" && (
-                            <span className="text-gray-600 text-xs flex items-center">
+                            <span className="text-gray-800 font-opensans text-xs flex items-center">
                               {getCategoryIcon(item.category)}
                               {item.category}
                               <GoDotFill className="mx-1 dot-size" />
@@ -304,23 +258,95 @@ const SearchPage = () => {
                             </span>
                           )}
                           {item.type === "vendor" && (
-                            <span className="text-black text-xs flex items-center">
+                            <span className="text-gray-800 font-opensans text-xs flex items-center">
                               <MdMyLocation className="mr-1 ratings-text" />
                               {item.marketPlaceType || "Online"}
                             </span>
                           )}
                         </div>
                       </div>
-                      <FaTimes
-                        className="text-gray-400 cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeHistoryItem(item.id);
-                        }}
-                      />
                     </li>
-                  ))}
-                </>
+                  ))
+                ) : (
+                  // Show message only if searchTerm is present and no results are found
+                  <li className="text-center text-gray-600 text-sm py-4 font-opensans">
+                    ☹️ No results found, try searching for another vendor or
+                    product.
+                  </li>
+                )
+              ) : (
+                isOpen &&
+                !searchTerm &&
+                searchHistory.length > 0 && (
+                  <>
+                    <li className="text-black font-opensans font-medium text-sm px-3 py-2">
+                      Recent
+                    </li>
+                    {searchHistory.map((item, index) => (
+                      <li
+                        {...getItemProps({
+                          key: item.id,
+                          index,
+                          item,
+                          style: {
+                            backgroundColor:
+                              highlightedIndex === index
+                                ? "var(--customOrange)"
+                                : "white",
+                            fontWeight:
+                              selectedItem === item ? "bold" : "normal",
+                            padding: "10px",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                          },
+                        })}
+                      >
+                        <div className="flex items-center">
+                          <img
+                            src={item.coverImageUrl || defaultImageUrl}
+                            alt={item.name || item.shopName}
+                            style={{
+                              width: "40px",
+                              height: "40px",
+                              objectFit: "cover",
+                              borderRadius: "5px",
+                              marginRight: "10px",
+                            }}
+                          />
+                          <div className="flex flex-col">
+                            <span className="font-opensans text-gray-800 mb-1 font-medium">
+                              {item.name || item.shopName}
+                            </span>
+                            {item.type === "product" && (
+                              <span className="text-gray-800 text-xs flex items-center">
+                                {getCategoryIcon(item.category)}
+                                {item.category}
+                                <GoDotFill className="mx-1 dot-size" />
+                                <AiFillProduct className="mr-1" />
+                                {item.productType}
+                              </span>
+                            )}
+                            {item.type === "vendor" && (
+                              <span className="text-gray-800 font-opensans text-xs flex items-center">
+                                <MdMyLocation className="mr-1 ratings-text" />
+                                {item.marketPlaceType || "Online"}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <FaTimes
+                          className="text-gray-400 cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeHistoryItem(item.id);
+                          }}
+                        />
+                      </li>
+                    ))}
+                  </>
+                )
               )}
             </ul>
           </div>

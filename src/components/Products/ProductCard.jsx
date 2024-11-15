@@ -8,7 +8,7 @@ import { db } from "../../firebase.config"; // Ensure firebase is configured
 import { doc, getDoc } from "firebase/firestore"; // Firestore methods
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
 
-const ProductCard = ({ product, isLoading }) => {
+const ProductCard = ({ product, isLoading, showVendorName = true  }) => {
   const navigate = useNavigate();
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const favorite = isFavorite(product?.id);
@@ -161,9 +161,9 @@ const ProductCard = ({ product, isLoading }) => {
             )}
           </p>
         </div>
-        {product.vendorName && (
+        {showVendorName && product.vendorName && (
           <p
-            className="text-xs font-light text-gray-600 underline cursor-pointer"
+            className="text-xs font-opensans font-light text-gray-600 underline cursor-pointer"
             onClick={handleVendorClick}
           >
             {product.vendorName}

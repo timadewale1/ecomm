@@ -18,8 +18,6 @@ import { FaRegEyeSlash, FaRegEye } from "react-icons/fa";
 import { MdEmail, MdPhone } from "react-icons/md";
 import { GrSecure } from "react-icons/gr";
 import VendorLoginAnimation from "../SignUpAnimation/SignUpAnimation";
-import { getToken } from "firebase/messaging";
-import { messaging } from "../firebase.config";
 // import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { RotatingLines } from "react-loader-spinner";
@@ -100,7 +98,7 @@ const VendorLogin = () => {
       .catch((error) => {
         console.log(error);
         setLoading(false);
-        toast.error("Failed to send OTP.");
+        toast.error("Failed to send OTP. Please reload the page.");
       });
   };
   const onOTPVerify = () => {
@@ -186,10 +184,6 @@ const VendorLogin = () => {
             toast("Please complete your profile.");
             navigate("/complete-profile");
           } else {
-            const token = await getToken(messaging, {
-              vapidKey: process.env.REACT_APP_VAPID_KEY,
-            });
-            if (token) await updateDoc(docRef, { notificationToken: token });
             toast.success("Login successful");
             navigate("/vendordashboard");
           }
@@ -240,7 +234,7 @@ const VendorLogin = () => {
                 <FaAngleLeft className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>
               <VendorLoginAnimation />
-              <div className="flex justify-center text-xl text-customOrange -translate-y-1">
+              <div className="flex justify-center text-xl font-opensans text-customOrange -translate-y-1">
                 <Typewriter
                   options={{
                     strings: ["Showcase your goods", "Connect with buyers"],

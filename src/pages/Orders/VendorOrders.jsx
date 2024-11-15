@@ -65,7 +65,7 @@ const VendorOrders = () => {
         );
       default:
         return (
-          <div className="text-center text-gray-500 font-semibold">
+          <div className="text-center translate-y-20 text-gray-700 text-xs font-normal font-opensans">
             No orders found.
           </div>
         );

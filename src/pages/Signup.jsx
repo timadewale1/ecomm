@@ -302,7 +302,7 @@ const Signup = () => {
                     type="text"
                     placeholder="Username"
                     value={username}
-                    className={`w-full h-14 text-gray-500 mt-1 pl-14 rounded-md bg-gray-300 ${
+                    className={`w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange ${
                       isUsernameTaken
                         ? "border-2 border-red-500"
                         : isUsernameAvailable
@@ -353,7 +353,7 @@ const Signup = () => {
                     type="email"
                     placeholder="Enter your email"
                     value={email}
-                    className="w-full h-14 text-gray-500 pl-14 rounded-md bg-gray-300"
+                    className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </FormGroup>
@@ -366,7 +366,7 @@ const Signup = () => {
                   <input
                     required
                     type={showPassword ? "text" : "password"}
-                    className="w-full h-14 text-gray-500 pl-14 rounded-md bg-gray-300"
+                    className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
                     placeholder="Enter password"
                     value={password}
                     onFocus={() => setShowPasswordCriteria(true)}
@@ -418,7 +418,7 @@ const Signup = () => {
                   <input
                     required
                     type={showConfirmPassword ? "text" : "password"}
-                    className="w-full h-14 text-gray-500 pl-14 rounded-md bg-gray-300"
+                    className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
                     placeholder="Re-type password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}

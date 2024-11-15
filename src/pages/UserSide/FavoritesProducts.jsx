@@ -8,7 +8,7 @@ import Loading from "../../components/Loading/Loading";
 import { FaAngleLeft } from "react-icons/fa6";
 import { useNavigate } from "react-router-dom";
 import { GoChevronLeft } from "react-icons/go";
-
+import toast from "react-hot-toast";
 const FavoritesPage = () => {
   const { favorites } = useFavorites();
   const [favoriteProducts, setFavoriteProducts] = useState([]);
@@ -20,20 +20,19 @@ const FavoritesPage = () => {
       try {
         console.log("Fetching favorite products...");
 
-        // Collect all product IDs from favorites
+       
         const favoriteProductIds = favorites.map((favorite) => favorite.id);
 
 
-        // Fetch products from the centralized 'products' collection
-        const productPromises = favoriteProductIds.map((productId) => {
+              const productPromises = favoriteProductIds.map((productId) => {
 
           return getDoc(doc(db, "products", productId));
         });
 
-        // Await all product fetching promises
+       
         const productSnapshots = await Promise.all(productPromises);
 
-        // Extract product data and filter out null/undefined products
+      
         const products = productSnapshots
           .map((productDoc) => {
             if (productDoc.exists()) {
@@ -47,10 +46,10 @@ const FavoritesPage = () => {
           })
           .filter((product) => product !== null);
 
-        console.log("Products:", products);
+        
         setFavoriteProducts(products);
       } catch (error) {
-        console.error("Error fetching favorite products:", error);
+        toast.error("Error fetching favorite products:", error);
       } finally {
         setLoading(false);
       }
@@ -67,7 +66,7 @@ const FavoritesPage = () => {
             className="text-2xl text-black cursor-pointer"
             onClick={() => navigate(-1)}
           />
-          <h1 className="text-xl font-bold">Favorites</h1>
+          <h1 className="text-xl font-opensans font-bold">Favorites</h1>
         </div>
       </div>
       {loading ? (

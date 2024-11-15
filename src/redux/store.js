@@ -5,12 +5,14 @@ import { cartReducer } from "./reducers/reducer";
 import favoritesReducer from "./reducers/favouriteReducers";
 import productReducer from "./reducers/productreducers";
 import authReducer from "./reducers/authreducers";
+import orderReducer from "./reducers/orderreducer";
 import userReducer from "./reducers/userreducer";
 const rootReducer = combineReducers({
   auth: authReducer,
   cart: cartReducer,
   product: productReducer,
   user: userReducer,
+  orders: orderReducer,
   favorites: favoritesReducer,
 });
 

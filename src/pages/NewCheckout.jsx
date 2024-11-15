@@ -417,14 +417,14 @@ const Checkout = () => {
       const { orderId, total } = response.data;
 
       dispatch(clearCart(vendorId));
-      toast.success("Order placed successfully!");
+      toast.success("Order placed successfully! Thank you");
 
       navigate(`/payment-approve?orderId=${orderId}`);
       setTimeout(() => {
         navigate("/user-orders", { state: { fromPaymentApprove: true } });
       }, 2000);
     } catch (error) {
-      console.error("Error in handleProceedToPayment:", error);
+      console.error("Error in payment:", error);
       toast.error("Failed to create order. Please try again.");
     }
   };

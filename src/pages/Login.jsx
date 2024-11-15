@@ -9,7 +9,8 @@ import {
   signInWithPopup, // Import signInWithPopup for Google sign-in
 } from "firebase/auth";
 import { auth, db } from "../firebase.config";
-import { getDoc, doc, setDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, getDoc, doc, setDoc } from "firebase/firestore";
+
 import { FaRegEyeSlash, FaRegEye } from "react-icons/fa";
 import { MdOutlineEmail, MdOutlineLock } from "react-icons/md";
 import toast from "react-hot-toast";
@@ -19,7 +20,7 @@ import { FaAngleLeft } from "react-icons/fa6";
 import { FcGoogle } from "react-icons/fc"; // Import Google icon
 import { useDispatch } from "react-redux";
 import { setCart } from "../redux/actions/action";
-import { RotatingLines } from "react-loader-spinner"; 
+import { RotatingLines } from "react-loader-spinner";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -157,12 +158,41 @@ const Login = () => {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Firestore reference for the user document
+      // Check if the email exists in the 'vendors' collection
+      const vendorsRef = collection(db, "vendors");
+      const vendorQuery = query(vendorsRef, where("email", "==", user.email));
+      const vendorSnapshot = await getDocs(vendorQuery);
+
+      if (!vendorSnapshot.empty) {
+        // Email exists in vendors, prevent sign-in
+        await auth.signOut();
+        setLoading(false);
+        toast.error("This email is already used for a Vendor account!");
+        return;
+      }
+
+      // Check if the email exists in the 'users' collection with role 'vendor'
+      const usersRef = collection(db, "users");
+      const userQuery = query(usersRef, where("email", "==", user.email));
+      const userSnapshot = await getDocs(userQuery);
+
+      if (!userSnapshot.empty) {
+        const userData = userSnapshot.docs[0].data();
+        if (userData.role === "vendor") {
+          // Email exists in users with role 'vendor', prevent sign-in
+          await auth.signOut();
+          setLoading(false);
+          toast.error("This email is already used for a Vendor account!");
+          return;
+        }
+      }
+
+      // Proceed to create user document if it doesn't exist
       const userRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userRef);
 
       if (!userDoc.exists()) {
-        // Create user document in Firestore if it doesn't exist
+        // Create user document in Firestore
         await setDoc(userRef, {
           uid: user.uid,
           username: user.displayName,
@@ -173,7 +203,7 @@ const Login = () => {
         console.log("New user document created in Firestore");
       }
 
-      // Fetch user cart data or sync it with Firestore (explained below)
+      // Fetch user cart data or sync it with Firestore
       await fetchCartFromFirestore(user.uid);
 
       // Navigate to the homepage
@@ -193,6 +223,7 @@ const Login = () => {
       setLoading(false);
     }
   };
+
   const handleEmailChange = (e) => {
     setEmail(e.target.value);
     if (e.target.value) setEmailError(false);
@@ -335,16 +366,15 @@ const Login = () => {
                     <FcGoogle className="mr-2 text-2xl" />
                     Sign in with Google
                   </motion.button>
-
                 </Form>
-                  <div className="text-center font-light font-lato mt-2 flex justify-center">
-                    <p className="text-gray-900 text-sm">
-                      Don't have an account?{" "}
-                      <span className="font-normal  text-customOrange">
-                        <Link to="/signup">Sign up</Link>
-                      </span>
-                    </p>
-                  </div>
+                <div className="text-center font-light font-lato mt-2 flex justify-center">
+                  <p className="text-gray-900 text-sm">
+                    Don't have an account?{" "}
+                    <span className="font-normal  text-customOrange">
+                      <Link to="/signup">Sign up</Link>
+                    </span>
+                  </p>
+                </div>
               </div>
             </div>
           </Row>

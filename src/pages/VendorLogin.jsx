@@ -380,7 +380,8 @@ const VendorLogin = () => {
                       "Login"
                     )}
                   </motion.button>
-                  <div className="text-center font-light mt-2 flex justify-center">
+                </Form>
+                  <div className="text-center font-opensans font-light mt-2 flex justify-center">
                     <p className="text-gray-700">
                       Want to join our community?{" "}
                       <span className="font-semibold underline text-black">
@@ -389,7 +390,6 @@ const VendorLogin = () => {
                     </p>
                   </div>
                 </Form>
-                <div id="recaptcha-container"></div>
               </div>
             </div>
           </Row>

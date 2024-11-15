@@ -6,6 +6,8 @@ import {
   onSnapshot,
   orderBy,
   limit,
+  doc,
+  getDoc
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 
@@ -24,10 +26,15 @@ import { BsBell, BsBoxSeam, BsCopy, BsEye, BsEyeSlash } from "react-icons/bs";
 import { CopyAllRounded } from "@mui/icons-material";
 import { LuListFilter } from "react-icons/lu";
 import NotApproved from "../../components/Infos/NotApproved";
+
+const defaultImageUrl = "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
+
+
 const VendorDashboard = () => {
   const { vendorData, loading } = useContext(VendorContext); // Get vendor data from context
   const [totalFulfilledOrders, setTotalFulfilledOrders] = useState(0);
   const [hide, setHide] = useState(false);
+  const [coverImageUrl, setCoverImageUrl] = useState(defaultImageUrl);
   const [filterOptions, setFilterOptions] = useState("All");
   const [viewOptions, setViewOptions] = useState(false);
   const [totalUnfulfilledOrders, setTotalUnfulfilledOrders] = useState(0);
@@ -36,22 +43,49 @@ const VendorDashboard = () => {
   const [totalProducts, setTotalProducts] = useState(0);
   const [recentActivities, setRecentActivities] = useState([]);
   const [isModalOpen, setModalOpen] = useState(false);
-  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (vendorData) {
       fetchStatistics(vendorData.vendorId);
       fetchRecentActivities(vendorData.vendorId);
+
+      fetchInfo(vendorData.vendorId);
+
     }
   }, [vendorData]);
+
+  const fetchCoverImage = async (vendorId) => {
+    try {
+      const vendorDocRef = doc(db, "vendors", vendorId);
+      const vendorDoc = await getDoc(vendorDocRef);
+
+      if (vendorDoc.exists() && vendorDoc.data().coverImageUrl) {
+        setCoverImageUrl(vendorDoc.data().coverImageUrl);
+      }
+    } catch (error) {
+      console.error("Error fetching cover image:", error);
+    }
+  };  
+
 
   const filteredActivities = recentActivities.filter((activity) => {
     if (filterOptions === "All") return true;
     return activity.type === filterOptions;
   });
 
- 
+ const fetchInfo = (vendorId) => {
+  const productsRef = collection(db, "products");
+    const productsQuery = query(productsRef, where("vendorId", "==", vendorId));
+
+    const 
+    unsubscribe = onSnapshot(productsQuery, (snapshot) => {
+      setTotalProducts(snapshot.docs.length);
+    });
+
+    return () => unsubscribe();
+  };
+
   const fetchStatistics = (vendorId) => {
     const ordersRef = collection(db, "orders");
     const ordersQuery = query(ordersRef, where("vendorId", "==", vendorId));
@@ -188,7 +222,7 @@ const VendorDashboard = () => {
           <div className="flex items-center">
             <div className="overflow-hidden w-11 h-11 rounded-full flex justify-center items-center mr-1">
               <img
-                src={vendorData.photoURL || vendorData.coverImageUrl}
+               src={coverImageUrl}
                 alt="Vendor profile"
                 className="rounded-full object-cover h-11 w-11"
               />
@@ -199,17 +233,7 @@ const VendorDashboard = () => {
               </p>
             </div>
           </div>
-          <div>
-            <button className="relative border rounded-full p-1">
-              {hasUnreadNotifications && (
-                <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500"></span>
-              )}
-              <IoIosNotificationsOutline
-                onClick={() => navigate("/vendor-notifications")}
-                className="w-5 h-5 cursor-pointer"
-              />
-            </button>
-          </div>
+          
         </div>
 
         {!vendorData.isApproved && (

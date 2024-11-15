@@ -213,6 +213,9 @@ const VendorSignup = () => {
       case "auth/phone-number-already-exists":
         toast.error("This phone number is already registered. Please log in.");
         break;
+      case "auth/credential-already-in-use":
+        toast.error("This phone number is already registered. Please log in.");
+        break;
       case "auth/weak-password":
         toast.error("Password should be at least 6 characters.");
         break;

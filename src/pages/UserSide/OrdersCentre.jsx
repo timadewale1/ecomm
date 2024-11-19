@@ -10,8 +10,11 @@ import {
   doc,
   getDoc,
   limit,
+  documentId,
 } from "firebase/firestore";
+import { FaClipboardCheck } from "react-icons/fa";
 import { onAuthStateChanged } from "firebase/auth";
+import { MdPendingActions } from "react-icons/md";
 import moment from "moment";
 import { TbTruckDelivery } from "react-icons/tb";
 import { FaTimes } from "react-icons/fa";
@@ -34,11 +37,13 @@ const OrdersCentre = () => {
 
   const fromPaymentApprove = location.state?.fromPaymentApprove;
 
+  // Inside your useEffect where you fetch orders
   useEffect(() => {
     if (!userId || ordersFetched.current) return;
 
-    const fetchOrders = async () => {
+    const fetchOrdersAndProducts = async () => {
       try {
+        // Fetch orders
         const q = query(
           collection(db, "orders"),
           where("userId", "==", userId)
@@ -49,8 +54,10 @@ const OrdersCentre = () => {
           ...doc.data(),
         }));
 
+        // Sort orders by createdAt in descending order
         fetchedOrders.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
 
+        // Fetch vendor names
         const vendorIds = [
           ...new Set(fetchedOrders.map((order) => order.vendorId)),
         ];
@@ -66,17 +73,93 @@ const OrdersCentre = () => {
           return acc;
         }, {});
 
-        setOrders(fetchedOrders);
+        // Collect all unique productIds
+        const productIds = new Set();
+        fetchedOrders.forEach((order) => {
+          order.cartItems.forEach((item) => {
+            productIds.add(item.productId);
+          });
+        });
+
+        // Fetch product details
+        const productsRef = collection(db, "products");
+        const productsQuery = query(
+          productsRef,
+          where(documentId(), "in", Array.from(productIds))
+        );
+        const productsSnapshot = await getDocs(productsQuery);
+
+        const productsData = {};
+        productsSnapshot.forEach((doc) => {
+          productsData[doc.id] = doc.data();
+        });
+
+        // Attach product details to cartItems
+        const ordersWithProductDetails = fetchedOrders.map((order) => {
+          const cartItemsWithDetails = order.cartItems.map((item) => {
+            const productData = productsData[item.productId];
+            let imageUrl = "";
+            let name = "";
+            let price = 0;
+            let color = "";
+            let size = "";
+
+            if (productData) {
+              name = productData.name;
+              price = productData.price;
+
+              if (item.subProductId) {
+                // Handle subProduct
+                const subProduct = productData.subProducts?.find(
+                  (sp) => sp.subProductId === item.subProductId
+                );
+                if (subProduct) {
+                  imageUrl = subProduct.images?.[0] || "";
+                  color = subProduct.color || "";
+                  size = subProduct.size || "";
+                  // If subProduct has its own price, use it
+                  if (subProduct.price) {
+                    price = subProduct.price;
+                  }
+                }
+              } else if (item.variantAttributes) {
+                // Handle variant
+                imageUrl = productData.imageUrls?.[0] || "";
+                color = item.variantAttributes.color || "";
+                size = item.variantAttributes.size || "";
+              } else {
+                // Regular product
+                imageUrl = productData.coverImageUrl || "";
+              }
+            }
+
+            return {
+              ...item,
+              name,
+              price,
+              imageUrl,
+              color,
+              size,
+            };
+          });
+
+          return {
+            ...order,
+            cartItems: cartItemsWithDetails,
+          };
+        });
+
+        setOrders(ordersWithProductDetails);
         setVendors(vendorNames);
         ordersFetched.current = true;
       } catch (error) {
-        console.error("Error fetching orders:", error);
+        console.error("Error fetching orders and products:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchOrders();
+    fetchOrdersAndProducts();
   }, [userId]);
 
   useEffect(() => {
@@ -121,64 +204,37 @@ const OrdersCentre = () => {
       if (status === "All") return true;
       if (status === "Processing")
         return order.progressStatus === "In Progress";
+      if (status === "Pending")
+        return order.progressStatus === "Pending";
+      if (status === "Delivered")
+        return order.progressStatus === "Delivered";
       if (status === "Shipped")
-        return order.progressStatus === "Out for Delivery";
-      if (status === "Completed") return order.progressStatus === "Completed";
-      if (status === "Cancelled") return order.progressStatus === "Declined";
+        return order.progressStatus === "Shipped";
+      
+      if (status === "Declined") return order.progressStatus === "Declined";
       return false;
     });
   };
 
-  const mergeProductVariations = (products) => {
-    const mergedProducts = {};
-
-    products.forEach((product) => {
-      const key = product.id;
-
-      if (!mergedProducts[key]) {
-        mergedProducts[key] = {
-          name: product.name,
-          price: product.price,
-          coverImageUrl: product.coverImageUrl,
-          quantities: [],
-          sizes: [],
-          colors: [],
-        };
-      }
-
-      mergedProducts[key].quantities.push(product.quantity);
-      mergedProducts[key].sizes.push(product.size);
-      mergedProducts[key].colors.push(product.color);
-    });
-
-    return Object.values(mergedProducts).map((product) => ({
-      ...product,
-      quantity: product.quantities.reduce((acc, qty) => acc + qty, 0),
-      size: Array.from(new Set(product.sizes)).join(", "),
-      color: Array.from(new Set(product.colors)).join(", "),
-    }));
-  };
-
   const filteredOrders = filterOrdersByStatus(activeTab);
+
   const handleBackClick = () => {
     if (fromPaymentApprove) {
-    
       navigate("/profile");
     } else {
-      
       navigate(-1);
     }
   };
-  const tabButtons = ["All", "Processing", "Shipped", "Completed", "Cancelled"];
+
+  const tabButtons = ["All", "Processing", "Shipped", "Delivered", "Declined", "Pending"];
 
   return (
     <div>
       <div className="sticky top-0 pb-2 bg-white w-full z-10">
-   
         <div className="flex p-3 py-3 items-center bg-white h-20 mb-3 pb-2">
           <GoChevronLeft
             className="text-3xl cursor-pointer"
-            onClick={handleBackClick} 
+            onClick={handleBackClick}
           />
           <h1 className="text-xl font-opensans ml-5 font-semibold">Orders</h1>
         </div>
@@ -231,7 +287,7 @@ const OrdersCentre = () => {
               <div className="flex justify-between items-start mb-2">
                 <div className="flex flex-col">
                   <div className="flex items-center space-x-2">
-                    {order.progressStatus === "Out for Delivery" ? (
+                    {order.progressStatus === "Shipped" ? (
                       <>
                         <TbTruckDelivery className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
                         <span className="text-sm text-black font-semibold font-opensans">
@@ -250,6 +306,20 @@ const OrdersCentre = () => {
                         <IoTimeOutline className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
                         <span className="text-sm text-black font-semibold font-opensans">
                           In Progress
+                        </span>
+                      </>
+                    ) : order.progressStatus === "Pending" ? (
+                      <>
+                        <MdPendingActions className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
+                        <span className="text-sm text-black font-semibold font-opensans">
+                          Pending Approval
+                        </span>
+                      </>
+                    ) : order.progressStatus === "Delivered" ? (
+                      <>
+                        <FaClipboardCheck className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
+                        <span className="text-sm text-black font-semibold font-opensans">
+                          Delivered
                         </span>
                       </>
                     ) : !order.progressStatus ? (
@@ -291,60 +361,50 @@ const OrdersCentre = () => {
 
               <div className="border-t border-gray-300 my-2"></div>
 
-              {order.products ? (
-                mergeProductVariations(Object.values(order.products)).map(
-                  (product, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between py-2 border-b"
-                    >
-                      <div className="flex items-center">
-                        <img
-                          src={
-                            product.coverImageUrl ||
-                            "https://via.placeholder.com/150"
-                          }
-                          alt={product.name}
-                          className="w-16 h-16 object-cover rounded-lg mr-4"
-                          onError={(e) => {
-                            e.target.src = "https://via.placeholder.com/150";
-                          }}
-                        />
-                        <div>
-                          <h4 className="text-sm font-opensans">
-                            {product.name}
-                          </h4>
-                          <p className="font-opensans text-md mt-2 text-black font-bold">
-                            ₦
-                            {product.price
-                              ? product.price.toLocaleString()
-                              : "0"}
+              {order.cartItems ? (
+                order.cartItems.map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between py-2 border-b"
+                  >
+                    <div className="flex items-center">
+                      <img
+                        src={item.imageUrl || "https://via.placeholder.com/150"}
+                        alt={item.name}
+                        className="w-16 h-16 object-cover rounded-lg mr-4"
+                        onError={(e) => {
+                          e.target.src = "https://via.placeholder.com/150";
+                        }}
+                      />
+                      <div>
+                        <h4 className="text-sm font-opensans">{item.name}</h4>
+                        <p className="font-opensans text-md mt-2 text-black font-bold">
+                          ₦{item.price ? item.price.toLocaleString() : "0"}
+                        </p>
+                        <div className="flex items-center space-x-4 text-sm mt-2">
+                          <p className="text-black font-semibold font-opensans">
+                            <span className="font-normal text-gray-600">
+                              Size:
+                            </span>{" "}
+                            {item.size || "N/A"}
                           </p>
-                          <div className="flex items-center space-x-4 text-sm mt-2">
-                            <p className="text-black font-semibold font-opensans">
-                              <span className="font-normal text-gray-600">
-                                Size:
-                              </span>{" "}
-                              {product.size}
-                            </p>
-                            <p className="text-black font-semibold font-opensans">
-                              <span className="font-normal text-gray-600">
-                                Color:
-                              </span>{" "}
-                              {product.color || "N/A"}
-                            </p>
-                            <p className="text-black font-semibold font-opensans">
-                              <span className="font-normal text-gray-600">
-                                Qty:
-                              </span>{" "}
-                              {product.quantity}
-                            </p>
-                          </div>
+                          <p className="text-black font-semibold font-opensans">
+                            <span className="font-normal text-gray-600">
+                              Color:
+                            </span>{" "}
+                            {item.color || "N/A"}
+                          </p>
+                          <p className="text-black font-semibold font-opensans">
+                            <span className="font-normal text-gray-600">
+                              Qty:
+                            </span>{" "}
+                            {item.quantity}
+                          </p>
                         </div>
                       </div>
                     </div>
-                  )
-                )
+                  </div>
+                ))
               ) : (
                 <p className="text-xs text-red-500">
                   No products found in this order.
@@ -357,7 +417,10 @@ const OrdersCentre = () => {
                     Sub-Total:
                   </span>
                   <span className="text-sm font-semibold font-opensans ml-1">
-                    ₦ {order.subTotal ? order.subTotal.toLocaleString() : "0"}
+                    ₦{" "}
+                    {order.subtotal
+                      ? Number(order.subtotal).toLocaleString()
+                      : "0"}
                   </span>
                 </div>
                 {order.serviceFee && (
@@ -366,7 +429,7 @@ const OrdersCentre = () => {
                       Service Fee:
                     </span>
                     <span className="text-sm font-opensans font-semibold ml-1">
-                      ₦ {order.serviceFee.toLocaleString()}
+                      ₦ {Number(order.serviceFee).toLocaleString()}
                     </span>
                   </div>
                 )}
@@ -376,7 +439,7 @@ const OrdersCentre = () => {
                       Booking Fee:
                     </span>
                     <span className="text-sm font-opensans font-semibold ml-1">
-                      ₦ {order.bookingFee.toLocaleString()}
+                      ₦ {Number(order.bookingFee).toLocaleString()}
                     </span>
                   </div>
                 )}
@@ -385,7 +448,7 @@ const OrdersCentre = () => {
                     Order Total:
                   </span>
                   <span className="text-sm font-opensans font-semibold ml-1">
-                    ₦ {order.total ? order.total.toLocaleString() : "0"}
+                    ₦ {order.total ? Number(order.total).toLocaleString() : "0"}
                   </span>
                 </div>
               </div>

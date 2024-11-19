@@ -24,7 +24,8 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import AvatarSelectorModal from "../vendor/VendorAvatarSelect.jsx";
 import Skeleton from "react-loading-skeleton";
 import VprofileDetails from "../vendor/VprofileDetails.jsx";
-
+import { useDispatch } from "react-redux";
+import { clearOrders } from "../../redux/actions/orderaction.js";
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const defaultImageUrl =
@@ -32,6 +33,7 @@ const defaultImageUrl =
 
 const VendorProfile = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { currentUser } = useAuth();
   const [userData, setUserData] = useState(null);
   const [coverImageUrl, setCoverImageUrl] = useState(defaultImageUrl);
@@ -149,14 +151,20 @@ const VendorProfile = () => {
     try {
       setIsLoggingOut(true);
       await signOut(auth);
+
+      // Dispatch clearOrders action to clear orders from Redux store
+      dispatch(clearOrders());
+
       toast.success("Successfully logged out", { className: "custom-toast" });
       navigate("/vendorlogin");
     } catch (error) {
+      console.error("Error logging out:", error);
       toast.error("Error logging out", { className: "custom-toast" });
     } finally {
       setIsLoggingOut(false);
     }
   };
+
 
   return (
     <div className="font-opensans">

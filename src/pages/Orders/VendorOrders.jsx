@@ -1,6 +1,5 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { initializeOrderListener } from "../../custom-hooks/orderListener";
+import React, { useState, useMemo } from "react";
+import { useSelector } from "react-redux";
 import useAuth from "../../custom-hooks/useAuth";
 import Skeleton from "react-loading-skeleton";
 
@@ -12,29 +11,13 @@ import OrderDetailsModal from "./OrderDetailsModals";
 
 const VendorOrders = () => {
   const { currentUser } = useAuth();
-  const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState("Pending");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  // Adjusted useSelector to handle undefined state gracefully
+  // Get orders from Redux store
   const orders = useSelector((state) => state.orders?.orders);
-
-  // Set initial loading state to true
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (currentUser?.uid) {
-      initializeOrderListener(currentUser.uid);
-    }
-  }, [currentUser?.uid]);
-
-  useEffect(() => {
-    // Set loading to false only after orders have been fetched
-    if (orders !== undefined && orders !== null) {
-      setLoading(false);
-    }
-  }, [orders]);
+  const loading = orders === undefined || orders === null;
 
   const filteredOrders = useMemo(() => {
     const filtered = orders

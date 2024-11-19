@@ -856,7 +856,7 @@ const ProductDetailPage = () => {
           <Swiper
             modules={[FreeMode, Autoplay]}
             pagination={{ clickable: true }}
-            navigation
+            // navigation
             autoplay={{
               delay: 7500,
               disableOnInteraction: false,

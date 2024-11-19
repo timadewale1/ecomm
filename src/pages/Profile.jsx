@@ -29,7 +29,7 @@ import FAQs from "./UserSide/FAQs";
 import { IoMdContact } from "react-icons/io";
 import { clearCart } from "../redux/actions/action";
 import { useDispatch, useSelector } from "react-redux";
-import Donate from "./Donate";
+
 const Profile = () => {
   const navigate = useNavigate();
 
@@ -129,7 +129,7 @@ const Profile = () => {
 
   return (
     <div className="py-4">
-      {!showDetails && !showMetrics && !showFAQs && !showDonations ? (
+      {!showDetails && !showMetrics && !showFAQs ? (
         <div className="flex flex-col items-center">
           <h1 className="font-opensans text-xl font-semibold "> My Profile</h1>
 
@@ -263,31 +263,38 @@ const Profile = () => {
             </div>
           </div>
           <div className="flex flex-col items-center w-full px-2">
-            <div
-              className="flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl bg-customGrey mb-3"
-              onClick={() => setShowDonations(true)}
-            >
+            {/* Donations Section */}
+            <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-customGrey mb-3">
               <div className="flex items-center">
                 <CiMoneyBill className="text-black text-xl mr-4" />
                 <h2 className="text-size font-normal font-opensans text-black capitalize">
                   Donations
                 </h2>
               </div>
-              <ChevronRight className="text-black" />
+              {/* Coming Soon Message on the Far Right */}
+              <div className="flex items-center">
+                <MdHelpOutline className="text-customOrange text-lg mr-2" />
+                <span className="text-customOrange font-semibold text-xs">
+                  Coming Soon
+                </span>
+              </div>
             </div>
-          </div>
-          <div className="flex flex-col items-center w-full px-2">
-            <div
-              className="flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl bg-customGrey mb-3"
-              onClick={() => navigate("/explore")}
-            >
+
+            {/* Declutter Section */}
+            <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-customGrey mb-3">
               <div className="flex items-center">
                 <GiClothes className="text-black text-xl mr-4" />
                 <h2 className="text-size font-normal font-opensans text-black capitalize">
                   Declutter
                 </h2>
               </div>
-              <ChevronRight className="text-black" />
+              {/* Coming Soon Message on the Far Right */}
+              <div className="flex items-center">
+                <MdHelpOutline className="text-customOrange text-lg mr-2" />
+                <span className="text-customOrange font-semibold text-xs">
+                  Coming Soon
+                </span>
+              </div>
             </div>
           </div>
 
@@ -326,7 +333,7 @@ const Profile = () => {
 
           {showMetrics && <UserDashboard />}
           {showFAQs && <FAQs setShowFAQs={setShowFAQs} />}
-          {showDonations && (
+          {/* {showDonations && (
             <div className="flex flex-col items-center">
               <ChevronLeft
                 className="text-2xl text-black cursor-pointer self-start"
@@ -335,7 +342,7 @@ const Profile = () => {
               <h2 className="text-xl font-ubuntu">Donations</h2>
               <Donate />
             </div>
-          )}
+          )} */}
         </>
       )}
 

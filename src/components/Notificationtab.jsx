@@ -11,23 +11,25 @@ import { IoTimeOutline } from "react-icons/io5";
 import { TbTruckDelivery } from "react-icons/tb";
 import { db } from "../firebase.config";
 import { doc, getDoc } from "firebase/firestore";
+import { MdCancel } from "react-icons/md";
 
 const NotificationItem = ({
   notification,
   markAsRead,
   deleteNotification,
 }) => {
+  const defaultVendorImage = "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
   const [translateX, setTranslateX] = useState(0);
   const [swipeDirection, setSwipeDirection] = useState("");
   const [isRead, setIsRead] = useState(notification?.seen);
   const [isDeleted, setIsDeleted] = useState(false);
   const [hasSwiped, setHasSwiped] = useState(false);
   const [vendorName, setVendorName] = useState("Unknown Vendor");
+  const [vendorImage, setVendorImage] = useState(defaultVendorImage);
   const [productImage, setProductImage] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const defaultVendorImage =
-    "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
+  
 
   const navigate = useNavigate();
 
@@ -90,6 +92,10 @@ useEffect(() => {
             const vendorShopName =
               vendorDoc.data().shopName || "Unknown Vendor";
             setVendorName(vendorShopName);
+            const vendorstoreimg = vendorDoc.data().coverImageUrl;
+            if (vendorstoreimg) {
+              setVendorImage(vendorstoreimg);
+            } 
           }
         }
       }
@@ -134,32 +140,32 @@ useEffect(() => {
       </div>
     );
     notificationMessage = `${vendorName} has accepted your order with ID ${notification.orderId} and is packaging 🤝🏾.`;
-  } else if (notification.message.includes("Ready for Delivery")) {
+  } else if (notification.message.includes("Shipped")) {
     notificationIcon = (
       <div className="border rounded-full p-1">
         <IoTimeOutline className="text-3xl text-gray-500" />
       </div>
     );
     notificationMessage = `${vendorName} has packaged your order. It will be delivered within 3-7 working days 😊.`;
-  } else if (notification.message.includes("Out for Delivery")) {
+  } else if (notification.message.includes("Delivered")) {
     notificationIcon = (
       <div className="border rounded-full p-1">
         <TbTruckDelivery className="text-3xl text-gray-500" />
       </div>
     );
     notificationMessage = `Your order with ID ${notification.orderId} from ${vendorName} has been shipped 😁.`;
-  } else if (notification.message.includes("Declined")) {
+  } else if (notification.message.includes("Declined")) { 
     notificationIcon = (
       <div className="border rounded-full p-1">
         {/* You might want to use a different icon for cancellation */}
-        <TbTruckDelivery className="text-3xl text-gray-500" />
+        <MdCancel className="text-3xl text-gray-500" />
       </div>
     );
     notificationMessage = `Your order with ID ${notification.orderId} from ${vendorName} has been cancelled. We will process your refund shortly. 😔`;
   } else {
     notificationIcon = (
       <img
-        src={productImage || defaultVendorImage}
+        src={vendorImage}
         alt="Product"
         className="w-9 h-9 rounded-full object-cover mr-4 border-2 border-gray-300"
       />

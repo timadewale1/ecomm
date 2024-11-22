@@ -26,16 +26,18 @@ import Skeleton from "react-loading-skeleton";
 import VprofileDetails from "../vendor/VprofileDetails.jsx";
 import { useDispatch } from "react-redux";
 import { clearOrders } from "../../redux/actions/orderaction.js";
+import { FaStar } from "react-icons/fa6";
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const defaultImageUrl =
-  "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
+"https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 
 const VendorProfile = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { currentUser } = useAuth();
   const [userData, setUserData] = useState(null);
+  const [averageRating, setAverageRating] = useState(null)
   const [coverImageUrl, setCoverImageUrl] = useState(defaultImageUrl);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [displayName, setDisplayName] = useState("");
@@ -43,12 +45,62 @@ const VendorProfile = () => {
   const [shopName, setShopName] = useState("");
   const [showDetails, setShowDetails] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showRatings, setShowRatings] = useState(false)
   const [isLoading, setIsLoading] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [fulfilledOrders, setFulfilledOrders] = useState(0);
   const [unfulfilledOrders, setUnfulfilledOrders] = useState(0);
   const [incomingOrders, setIncomingOrders] = useState(0);
   const totalOrders = fulfilledOrders + unfulfilledOrders + incomingOrders;
+  const [reviews, setReviews] = useState([])
+  const [selectedRating, setSelectedRating] = useState("All");
+  const [ratingBreakdown, setRatingBreakdown] = useState({
+    5: 0,
+    4: 0,
+    3: 0,
+    2: 0,
+    1: 0,
+  });
+
+  const fetchReviews = async () => {
+    try {
+      const reviewsRef = collection(db, "vendors", currentUser.id, "reviews");
+      const reviewsSnapshot = await getDocs(reviewsRef);
+      const reviewsList = reviewsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Apply filter based on selectedRating
+      let filteredReviews = reviewsList;
+
+      if (selectedRating !== "All") {
+        filteredReviews = reviewsList.filter(
+          (review) => review.rating === selectedRating
+        );
+      }
+
+      // Separate text and non-text reviews
+      const textReviews = filteredReviews.filter((review) => review.reviewText);
+      setReviews(textReviews);
+
+      // Calculate rating breakdown including all reviews (with and without text)
+      const allReviews = reviewsList;
+      const breakdown = {
+        5: reviewsList.filter((r) => r.rating === 5).length,
+        4: reviewsList.filter((r) => r.rating === 4).length,
+        3: reviewsList.filter((r) => r.rating === 3).length,
+        2: reviewsList.filter((r) => r.rating === 2).length,
+        1: reviewsList.filter((r) => r.rating === 1).length,
+      };
+
+      setRatingBreakdown(breakdown); // Update the rating breakdown
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const activityData = {
     labels: ["Fulfilled", "Unfulfilled", "Incoming"],
@@ -78,6 +130,14 @@ const VendorProfile = () => {
       },
     },
   };
+
+  
+
+  const totalRatings = Object.values(ratingBreakdown).reduce(
+    (acc, value) => acc + value,
+    0
+  );
+
 
   useEffect(() => {
     const fetchOrderData = async () => {
@@ -133,6 +193,9 @@ const VendorProfile = () => {
             setDisplayName(data.firstName + " " + data.lastName);
             setEmail(data.email || "");
             setShopName(data.shopName || "");
+            const averageRating =
+    data.ratingCount > 0 ? data.rating / data.ratingCount : 0;
+    setAverageRating(averageRating)
 
             // Set cover image URL from Firestore or use default image
             setCoverImageUrl(data.coverImageUrl || defaultImageUrl);
@@ -168,7 +231,7 @@ const VendorProfile = () => {
 
   return (
     <div className="font-opensans">
-      {!showDetails && !showHistory ? (
+      {!showDetails && !showHistory && !showRatings ? (
         <div>
           {/* Cover Image Section */}
           <div
@@ -264,7 +327,7 @@ const VendorProfile = () => {
               <div className="flex flex-col items-center w-full">
                 <div
                   className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => navigate("")}
+                  onClick={() => setShowRatings(!showRatings)}
                 >
                   <div className="flex items-center">
                     <TbHomeStar className="text-black text-xl mr-4" />
@@ -318,6 +381,45 @@ const VendorProfile = () => {
               <h2 className="text-xl font-ubuntu mt-4">Recent Activities</h2>
               {/* Render History content here */}
             </div>
+          )}
+          {showRatings && (
+            <div className="flex flex-col items-center mt-4">
+            <ChevronLeft
+              className="text-6xl text-black cursor-pointer self-start"
+              onClick={() => setShowRatings(false)}
+            />
+            <h2 className="text-xl font-ubuntu mt-2">Ratings</h2>
+            {/* Render Rating content here */}
+            <div className="p-2">
+        {reviews.map((review) => (
+          <div key={review.id} className="mb-4">
+            <div className="flex items-center mb-1">
+              <img
+                src={review.userPhotoURL}
+                alt={review.userName}
+                className="w-11 h-11 rounded-full mr-3"
+              />
+              <div>
+                <h2 className="font-semibold text-xs">{review.userName}</h2>
+              </div>
+            </div>
+            <div className="flex space-x-3">
+              <div className="flex space-x-1">
+                {Array.from({ length: review.rating }, (_, index) => (
+                  <FaStar key={index} className="text-yellow-500" />
+                ))}
+              </div>
+              <span className="ratings-text font-medium font-opensans text-gray-500">
+                {new Date(review.createdAt.seconds * 1000).toLocaleDateString()}
+              </span>
+            </div>
+            <p className="mt-2 text-black font-opensans text-sm">
+              {review.reviewText}
+            </p>
+          </div>
+        ))}
+      </div>
+          </div>
           )}
         </>
       )}

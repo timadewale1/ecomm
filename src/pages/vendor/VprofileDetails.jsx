@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setVendorProfile, setLoading } from "../../redux/vendorProfileSlice";
 import { FaShop } from "react-icons/fa6";
@@ -7,6 +7,7 @@ import { ChevronLeft, User } from "lucide-react";
 
 import useAuth from "../../custom-hooks/useAuth";
 import { db } from "../../firebase.config";
+import { updateDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { doc, getDoc } from "firebase/firestore";
 import Loading from "../../components/Loading/Loading";
@@ -14,7 +15,9 @@ import { BsBank2 } from "react-icons/bs";
 import { BiSolidCategoryAlt } from "react-icons/bi";
 import { CiClock1, CiClock2 } from "react-icons/ci";
 import { FaBuilding, FaRegCalendarAlt, FaShippingFast } from "react-icons/fa";
-import { useStateManager } from "react-select";
+import { MdEdit } from "react-icons/md";
+import EditFieldModal from "./EditFieldModal"; // Import the modal component
+
 
 const VprofileDetails = ({ showDetails, setShowDetails }) => {
   const dispatch = useDispatch();
@@ -24,6 +27,10 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
   const { data: userData, loading } = useSelector(
     (state) => state.vendorProfile
   );
+
+  const [editingField, setEditingField] = useState(null); // Track the field being edited
+  const [editing, setEditing] = useState(false)
+  const [processing, setProcessing] = useState(false)
 
   // Fetch user data on mount if not already in Redux
   useEffect(() => {
@@ -77,6 +84,35 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
   const { accountName, accountNumber, bankName } = bankDetails;
   const categoriesList = categories.map((category) => category).join(", ");
   const daysAvailabilityList = daysAvailability.map((day) => day).join(", ");
+
+  const handleEdit = async (field, value) => {
+    if (!currentUser) {
+      toast.error("User not authenticated");
+      return;
+    }
+    setProcessing(true);
+    try {
+      const vendorDocRef = doc(db, "vendors", currentUser.uid);
+
+      // Update the specified field in Firestore
+      await updateDoc(vendorDocRef, { [field]: value });
+
+      // Update Redux state to reflect the changes
+      dispatch(setVendorProfile({ ...userData, [field]: value }));
+
+      toast.success(`${field} updated successfully!`, {
+        className: "custom-toast",
+      });
+    } catch (error) {
+      console.error("Error updating field:", error);
+      toast.error("Failed to update. Please try again later.", {
+        className: "custom-toast",
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+  
   return (
     <div>
       <div className="flex flex-col items-center mb-8">
@@ -120,7 +156,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
           </div>
 
           {/* Store description */}
-          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
+          <div className="relative flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Store Description
             </h1>
@@ -128,6 +164,10 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               <MdDescription className="text-customOrange text-xl mr-4" />
               <p className="text-lg text-black w-full">{description}</p>
             </div>
+            <MdEdit
+              className="absolute right-2 cursor-pointer"
+              onClick={() => setEditingField({ field: "description", value: description })}
+            />
           </div>
 
           {/* Conditional render if online */}
@@ -232,6 +272,16 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
           </div>
         </div>
       </div>
+      {/* Edit Modal */}
+      {editingField && (
+        <EditFieldModal
+          show={!!editingField}
+          handleClose={() => setEditingField(null)}
+          field={editingField.field}
+          currentValue={editingField.value}
+          onSave={handleEdit}
+        />
+      )}
     </div>
   );
 };

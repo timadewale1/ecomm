@@ -182,6 +182,10 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                   {complexNumber}
                 </p>
               </div>
+              <MdEdit
+              className="absolute right-2 cursor-pointer"
+              onClick={() => setEditingField({ field: "complexNumber", value: complexNumber })}
+            />
             </div>
           )}
           <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
@@ -224,7 +228,8 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
 
           {/* conditionally render, closing and opening time and complex no */}
           {marketPlaceType === "marketplace" 
-          && (<div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
+          && (
+          <div className="relative flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Opening Time
             </h1>
@@ -234,9 +239,14 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 {openTime}
               </p>
             </div>
-          </div>)}
-
-          {marketPlaceType === "marketplace" && (<div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
+            <MdEdit
+              className="absolute right-2 cursor-pointer"
+              onClick={() => setEditingField({ field: "openTime", value: openTime })}
+            />
+          </div>
+         )}
+{marketPlaceType === "marketplace" && (
+          <div className="relative flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Closing Time
             </h1>
@@ -246,9 +256,13 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 {closeTime}
               </p>
             </div>
-          </div>)}
-
-          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
+            <MdEdit
+              className="absolute right-2 cursor-pointer"
+              onClick={() => setEditingField({ field: "closeTime", value: closeTime })}
+            />
+          </div>
+ )}
+          <div className="relative flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Days of availability
             </h1>
@@ -258,6 +272,10 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 {daysAvailabilityList}
               </p>
             </div>
+            <MdEdit
+              className="absolute right-2 cursor-pointer"
+              onClick={() => setEditingField({ field: "daysAvailability", value: daysAvailability })}
+            />
           </div>
           <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
@@ -280,6 +298,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
           field={editingField.field}
           currentValue={editingField.value}
           onSave={handleEdit}
+          processing={processing}
         />
       )}
     </div>

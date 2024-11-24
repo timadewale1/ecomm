@@ -32,12 +32,10 @@ const ReviewBanner = () => {
       setIsVisible(true);
       localStorage.setItem("reviewBannerShown", "true");
 
-      
       const timer = setTimeout(() => {
         setIsVisible(false);
       }, 10000);
 
-     
       return () => clearTimeout(timer);
     }
   }, []);
@@ -63,7 +61,6 @@ const ReviewBanner = () => {
         <MdClose className="text-white text-lg" />
       </button>
       <div className="absolute bottom-[-7px] left-1/2 transform -translate-x-1/2 w-4 h-4 bg-customBrown rotate-45"></div>{" "}
-     
     </div>
   );
 };
@@ -397,7 +394,7 @@ const StorePage = () => {
       </p>
       <div className="p-2 mt-7">
         <h1 className="font-opensans text-lg mb-3 font-semibold">Products</h1>
-        <div className="flex justify-between mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
+        <div className="flex  mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
           {productTypes.map((type) => (
             <button
               key={type}
@@ -438,7 +435,8 @@ const StorePage = () => {
           <div className="flex justify-center items-center  w-full text-center">
             <p className="font-opensans text-gray-800 text-xs">
               📭 <span className="font-semibold">{vendor.shopName}</span> hasn't
-              added any products to their online store yet. Follow this vendor and you will be notified when they upload products!
+              added any products to their online store yet. Follow this vendor
+              and you will be notified when they upload products!
             </p>
           </div>
         )}

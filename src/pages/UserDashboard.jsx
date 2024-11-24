@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Progress } from "reactstrap";
 import { auth, db } from "../firebase.config";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, query, where } from "firebase/firestore";
 import { getUserRole } from "../admin/getUserRole";
 import useGetData from "../custom-hooks/useGetData";
 import { useNavigate } from "react-router-dom";
 import Loading from "./../components/Loading/Loading";
 import CircularProgress from "../components/CircularProgress/CircularBar";
 import AmountSpentGraph from "../components/CircularProgress/Graph";
-import { GoDotFill } from "react-icons/go";
+import { GoChevronLeft, GoDotFill } from "react-icons/go";
 import { FaAngleLeft, FaMoon, FaSun } from "react-icons/fa";
 import { gsap } from "gsap";
 import { IoMdContact } from "react-icons/io";
@@ -20,6 +20,9 @@ const UserDashboard = () => {
   const [isUser, setIsUser] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [deliveredOrders, setDeliveredOrders] = useState([]);
+  const [userOrders, setUserOrders] = useState([]);
+  const [deliveryProgress, setDeliveryProgress] = useState(0);
   const [averageRating, setAverageRating] = useState(0);
   const [profilePicture, setProfilePicture] = useState(null);
   const [username, setUsername] = useState(null);
@@ -70,7 +73,57 @@ const UserDashboard = () => {
       }
     }
   }, [isSignedIn, isUser, loading, navigate]);
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const user = auth.currentUser;
 
+        if (user) {
+          setIsSignedIn(true);
+
+          // Fetch user profile
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setProfilePicture(userData.photoURL || null);
+            setUsername(userData.username || "User");
+          }
+
+          // Fetch user's orders
+          const ordersRef = collection(db, "orders");
+          const q = query(ordersRef, where("userId", "==", user.uid));
+          const querySnapshot = await getDocs(q);
+
+          const fetchedOrders = [];
+          querySnapshot.forEach((doc) => {
+            fetchedOrders.push({ id: doc.id, ...doc.data() });
+          });
+
+          // Set orders and filter delivered orders
+          setUserOrders(fetchedOrders);
+          const delivered = fetchedOrders.filter(
+            (order) => order.progressStatus === "Delivered"
+          );
+          setDeliveredOrders(delivered);
+
+          // Calculate delivery progress
+          const progress =
+            fetchedOrders.length > 0
+              ? (delivered.length / fetchedOrders.length) * 100
+              : 0;
+          setDeliveryProgress(progress);
+        } else {
+          navigate("/login"); // Redirect to login if not signed in
+        }
+      } catch (error) {
+        console.error("Error fetching user data or orders:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [navigate]);
   // useEffect(() => {
   //   if (!loading) {
   //     gsap.from(circleRef.current, {
@@ -151,34 +204,29 @@ const UserDashboard = () => {
     return null;
   }
 
-  const userOrders = orders.filter((order) => order.userId === auth.currentUser.uid);
-
-  const totalAmountSpent = userOrders.reduce(
-    (total, order) => {
-      const amount = order.totalAmount || 0;
-      return total + amount;
-    },
-    0
-  );
-
-  const deliveredOrders = userOrders.filter(
-    (order) => order.status === "Delivered"
-  );
-
-
-  const deliveryProgress = userOrders.length > 0 ? (deliveredOrders.length / userOrders.length) * 100 : 0;
-
-  console.log("User Orders:", userOrders);
-  console.log("Total Amount Spent:", totalAmountSpent);
+  const totalAmountSpent = userOrders.reduce((total, order) => {
+    const amount = order.totalAmount || 0;
+    return total + amount;
+  }, 0);
 
   return (
-    <div className={`min-h-screen flex flex-col font-opensans ${darkMode ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-gray-900"} pb-10`}>
-      <div className={`sticky top-0 ${darkMode ? "bg-gray-900" : "bg-white"} z-10 p-2 h-20 flex justify-between items-center shadow-md w-full`}>
-        <FaAngleLeft
+    <div
+      className={`min-h-screen flex flex-col font-opensans ${
+        darkMode ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-gray-900"
+      } pb-10`}
+    >
+      <div
+        className={`sticky top-0 ${
+          darkMode ? "bg-gray-900" : "bg-white"
+        } z-10 p-2 h-20 flex justify-between items-center shadow-md w-full`}
+      >
+        <GoChevronLeft
           onClick={() => navigate("/profile")}
           className={`text-2xl cursor-pointer ${darkMode ? "text-white" : ""}`}
         />
-        <h1 className={`text-xl font-bold ${darkMode ? "text-white" : ""}`}>Metrics</h1>
+        <h1 className={`text-xl font-bold ${darkMode ? "text-white" : ""}`}>
+          Metrics
+        </h1>
         <div className="flex items-center">
           <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden">
             {profilePicture ? (
@@ -193,12 +241,14 @@ const UserDashboard = () => {
               </div>
             )}
           </div>
-          {/* <button
+          <button
             onClick={toggleDarkMode}
-            className={`ml-4 text-xl cursor-pointer ${darkMode ? "text-white" : ""}`}
+            className={`ml-4 text-xl cursor-pointer ${
+              darkMode ? "text-white" : ""
+            }`}
           >
             {darkMode ? <FaSun /> : <FaMoon />}
-          </button> */}
+          </button>
         </div>
       </div>
       <div className="flex-grow p-3">
@@ -217,35 +267,43 @@ const UserDashboard = () => {
             </p>
           </div>
         </div>
-        
-        <div className="mt-9 relative" ref={progressBarRef}>
-          <div className="flex items-center mb-4">
-            {/* <GoDotFill className="text-blue-500 mr-2" /> */}
-            <h2 className="text-xl text-start font-opensans font-bold mb-4">
-              Orders Completed
-            </h2>
-          </div>
-          <div className="relative w-full">
-            <Progress value={deliveryProgress} className="mb-2" />
-            <span
-              className="absolute"
-              style={{
-                top: "-35px",
-                left: `calc(${deliveryProgress}% - 5px)`,
-                fontSize: "24px",
-              }}
-            >
-              🏡
-            </span>
+
+                
+          <div className="mt-9 relative">
+            <div className="flex items-center mb-4">
+              <h2 className="text-xl text-start font-opensans font-bold mb-4">
+                Orders Completed
+              </h2>
+            </div>
+            <div className="relative w-full">
+              <Progress
+                value={deliveryProgress}
+                className="mb-2"
+                color="success"
+              />
+              {deliveryProgress > 0 && (
+                <span
+                  className="absolute"
+                  style={{
+                    top: "-35px",
+                    left: `calc(${deliveryProgress}% - 15px)`,
+                    fontSize: "24px",
+                  }}
+                >
+                  🏡
+                </span>
+              )}
+            </div>
+            <p className="text-black dark:text-white text-sm font-opensans font-normal">
+              Delivered Orders: {deliveredOrders.length} / {userOrders.length}
+            </p>
+           
           </div>
 
-          <p className="text-black dark:text-white text-sm font-opensans font-normal">
-            Delivered Orders: {deliveredOrders.length} / {userOrders.length}
-          </p>
-        </div>
-        <div className="mt-8">
+         
+        {/* <div className="mt-8">
           <div className="flex items-center mb-4">
-            {/* <GoDotFill className="text-blue-500 mr-2" /> */}
+            
             <h2 className="text-xl text-start font-opensans font-bold">
               Average Rating
             </h2>
@@ -264,7 +322,7 @@ const UserDashboard = () => {
               ({averageRating.toFixed(2)})
             </span>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

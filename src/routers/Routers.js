@@ -47,32 +47,34 @@ const Routers = () => {
       <Route path="complete-profile" element={<CompleteProfile />} />
       <Route path="vendor-signup" element={<VendorSignup />} />
       <Route path="login" element={<Login />} />
+      <Route
+        path="browse-markets"
+        element={
+          <ErrorBoundary>
+            <Marketpg />
+          </ErrorBoundary>
+        }
+      />
       <Route path="market-vendors" element={<MarketVendors />} />
       <Route path="online-vendors" element={<OnlineVendors />} />
       <Route path="/forgetpassword" element={<ForgetPassword />} />
       <Route path="reset-password" element={<ResetPassword />} />
       <Route path="/store/:id" element={<StorePage />} />
       <Route path="/category/:category" element={<CategoryPage />} />
-      <Route path="notifications" element={<NotificationsPage />} />
+
       <Route path="marketstorepage/:id" element={<MarketStorePage />} />
       <Route path="vendorlogin" element={<VendorLogin />} />
 
       {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>
         <Route path="newhome" element={<NewHome />} />
+        <Route path="notifications" element={<NotificationsPage />} />
         <Route path="latest-cart" element={<LatestCart />} />
         <Route path="newcheckout/:vendorId" element={<Checkout />} />
         <Route path="user-orders" element={<OrdersCentre />} />
         {/* <Route path="newcheckout/fulldelivery" element={<FullDelivery />} /> */}
         <Route path="favorites" element={<FavoritesPage />} />
-        <Route
-          path="browse-markets"
-          element={
-            <ErrorBoundary>
-              <Marketpg />
-            </ErrorBoundary>
-          }
-        />
+
         <Route path="market-card/:marketName" element={<Marketcardpage />} />
         <Route path="explore" element={<Explore />} />
 

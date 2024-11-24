@@ -187,24 +187,29 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
     const today = [];
     const yesterday = [];
     const thisWeek = [];
-
+    const older = [];
+  
     orders.forEach((order) => {
       const orderDate = moment(order.createdAt.seconds * 1000);
       const now = moment();
-
+  
       if (orderDate.isSame(now, "day")) {
         today.push(order);
       } else if (orderDate.isSame(now.clone().subtract(1, "day"), "day")) {
         yesterday.push(order);
       } else if (orderDate.isSame(now, "week")) {
         thisWeek.push(order);
+      } else {
+        older.push(order);
       }
     });
-
-    return { today, yesterday, thisWeek };
+  
+    return { today, yesterday, thisWeek, older };
   };
+  
 
-  const { today, yesterday, thisWeek } = groupOrdersByDate(orders);
+ 
+  const { today, yesterday, thisWeek, older } = groupOrdersByDate(orders);
 
   const renderOrderGroup = (title, ordersGroup) =>
     ordersGroup.length > 0 && (
@@ -362,13 +367,14 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
       </div>
     );
 
-  return (
-    <div>
-      {renderOrderGroup("Today", today)}
-      {renderOrderGroup("Yesterday", yesterday)}
-      {renderOrderGroup("This Week", thisWeek)}
-    </div>
-  );
+    return (
+      <div>
+        {renderOrderGroup("Today", today)}
+        {renderOrderGroup("Yesterday", yesterday)}
+        {renderOrderGroup("This Week", thisWeek)}
+        {renderOrderGroup("Older", older)}
+      </div>
+    );
 };
 
 export default InProgressOrders;

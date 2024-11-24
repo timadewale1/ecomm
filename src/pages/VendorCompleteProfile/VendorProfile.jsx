@@ -24,12 +24,14 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import AvatarSelectorModal from "../vendor/VendorAvatarSelect.jsx";
 import Skeleton from "react-loading-skeleton";
 import VprofileDetails from "../vendor/VprofileDetails.jsx";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { clearOrders } from "../../redux/actions/orderaction.js";
 import { FaStar } from "react-icons/fa";
 import { ProgressBar } from "react-bootstrap";
 import { GoChevronLeft } from "react-icons/go";
+import { setVendorProfile, setLoading } from "../../redux/vendorProfileSlice";
 ChartJS.register(ArcElement, Tooltip, Legend);
+
 
 const defaultImageUrl =
   "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
@@ -38,12 +40,9 @@ const VendorProfile = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { currentUser } = useAuth();
-  const [userData, setUserData] = useState(null);
-  const [coverImageUrl, setCoverImageUrl] = useState(defaultImageUrl);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
-  const [shopName, setShopName] = useState("");
   const [showDetails, setShowDetails] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showRatings, setShowRatings] = useState(false);
@@ -100,10 +99,48 @@ const VendorProfile = () => {
     },
   };
 
+  const { data: userData } = useSelector(
+    (state) => state.vendorProfile
+  );
+
+   // Fetch user data on mount if not already in Redux
+   useEffect(() => {
+    const fetchUserData = async () => {
+      if (currentUser) {
+        dispatch(setLoading(true)); // Set loading state
+        try {
+          const vendorDoc = await getDoc(doc(db, "vendors", currentUser.uid)); // Replace with actual UID
+          if (vendorDoc.exists()) {
+            dispatch(setVendorProfile(vendorDoc.data())); // Save data in Redux
+          } else {
+            console.error("No such document!");
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+          toast.error("Failed to fetch user data.", {
+            className: "custom-toast",
+          });
+        } finally {
+          dispatch(setLoading(false)); // Stop loading
+        }
+      }
+    };
+
+    fetchUserData();
+  }, [dispatch, currentUser]);
+
+  const {
+    shopName,
+    coverImageUrl,
+    uid,
+    ratingCount,
+    rating
+  } = userData || {}
+
   useEffect(() => {
     const fetchOrderData = async () => {
-      if (!currentUser?.uid) return; // Ensure currentUser is defined
-
+      if (!uid) return; // Ensure currentUser is defined
+      
       try {
         const ordersRef = collection(db, "orders");
 
@@ -111,7 +148,7 @@ const VendorProfile = () => {
         const fulfilledQuery = query(
           ordersRef,
           where("progressStatus", "==", "Delivered"),
-          where("vendorId", "==", currentUser.uid)
+          where("vendorId", "==", uid)
         );
         const fulfilledSnapshot = await getDocs(fulfilledQuery);
         setFulfilledOrders(fulfilledSnapshot.size);
@@ -120,7 +157,7 @@ const VendorProfile = () => {
         const unfulfilledQuery = query(
           ordersRef,
           where("progressStatus", "in", ["In Progress", "Shipped", "Pending"]),
-          where("vendorId", "==", currentUser.uid)
+          where("vendorId", "==", uid)
         );
         const unfulfilledSnapshot = await getDocs(unfulfilledQuery);
         setUnfulfilledOrders(unfulfilledSnapshot.size);
@@ -129,7 +166,7 @@ const VendorProfile = () => {
         const incomingQuery = query(
           ordersRef,
           where("status", "==", "pending"),
-          where("vendorId", "==", currentUser.uid)
+          where("vendorId", "==", uid)
         );
         const incomingSnapshot = await getDocs(incomingQuery);
         setIncomingOrders(incomingSnapshot.size);
@@ -141,40 +178,44 @@ const VendorProfile = () => {
     fetchOrderData();
   }, [currentUser]);
 
-  useEffect(() => {
-    setIsLoading(true);
-    const fetchUserData = async () => {
-      if (currentUser) {
-        try {
-          // Fetch user document from Firestore
-          const vendorDoc = await getDoc(doc(db, "vendors", currentUser.uid));
-          if (vendorDoc.exists()) {
-            const data = vendorDoc.data();
-            setUserData(data);
-            setDisplayName(data.firstName + " " + data.lastName);
-            setEmail(data.email || "");
-            setShopName(data.shopName || "");
+  // useEffect(() => {
+  //   setIsLoading(true);
+  //   const fetchUserData = async () => {
+  //     if (currentUser) {
+  //       try {
+  //         // Fetch user document from Firestore
+  //         const vendorDoc = await getDoc(doc(db, "vendors", currentUser.uid));
+  //         if (vendorDoc.exists()) {
+  //           const data = vendorDoc.data();
+  //           setUserData(data);
+  //           setDisplayName(data.firstName + " " + data.lastName);
+  //           setEmail(data.email || "");
+  //           setShopName(data.shopName || "");
 
-            // Set cover image URL from Firestore or use default image
-            setCoverImageUrl(data.coverImageUrl || defaultImageUrl);
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
-    fetchUserData();
-  }, [currentUser]);
+  //           // Set cover image URL from Firestore or use default image
+  //           setCoverImageUrl(data.coverImageUrl || defaultImageUrl);
+  //         }
+  //       } catch (error) {
+  //         console.error("Error fetching user data:", error);
+  //       } finally {
+  //         setIsLoading(false);
+  //       }
+  //     }
+  //   };
+  //   fetchUserData();
+  // }, [currentUser]);
 
   useEffect(() => {
     const fetchReviews = async () => {
-      try {
+      if (!uid) {
+        console.error("User not logged in or UID missing");
+        return; // Exit the function early if currentUser or UID is not available
+      } 
+        try {
         const reviewsRef = collection(
           db,
           "vendors",
-          currentUser.uid,
+          uid,
           "reviews"
         );
         const reviewsSnapshot = await getDocs(reviewsRef);
@@ -197,7 +238,7 @@ const VendorProfile = () => {
         const textReviews = filteredReviews.filter(
           (review) => review.reviewText
         );
-        setReviews(textReviews);
+        setReviews(textReviews); 
 
         // Calculate rating breakdown including all reviews (with and without text)
         const allReviews = reviewsList;
@@ -220,8 +261,8 @@ const VendorProfile = () => {
   }, [currentUser, selectedRating]); // Trigger on `selectedRating` change
 
   const averageRating =
-    currentUser?.ratingCount > 0
-      ? currentUser.rating / currentUser.ratingCount
+    ratingCount > 0
+      ? rating / ratingCount
       : 0;
 
   const handleLogout = async () => {
@@ -452,12 +493,12 @@ const VendorProfile = () => {
                           ))}
                         </div>
                         <span className="text-xs mt-1 font-poppins  text-gray-600">
-                          {currentUser.ratingCount}
+                          {ratingCount}
                         </span>
                       </>
                     )}
                   </div>
-                </div>
+                </div> 
 
                 <div className="my-4  w-full">
                   {[5, 4, 3, 2, 1].map((star) => (
@@ -535,7 +576,7 @@ const VendorProfile = () => {
         </>
       )}
 
-      {isAvatarModalOpen && (
+      {/* {isAvatarModalOpen && (
         <AvatarSelectorModal
           userId={currentUser.uid}
           onClose={() => setIsAvatarModalOpen(false)}
@@ -558,7 +599,7 @@ const VendorProfile = () => {
             }
           }}
         />
-      )}
+      )} */}
     </div>
   );
 };

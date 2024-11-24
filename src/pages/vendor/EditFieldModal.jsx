@@ -83,7 +83,7 @@ const EditFieldModal = ({ show, handleClose, field, currentValue, processing, on
             {PREDEFINED_OPTIONS.map((option) => (
               <button type="button"
                 key={option.value}
-                className={`px-3 py-2 rounded-lg text-sm font-medium mr-2 ${
+                className={`px-2 py-2 rounded-lg text-xs font-medium mr-1 ${
                   (option.value === "All Days" && value.length === 7) ||
                   (option.value === "Only Weekdays" &&
                     JSON.stringify(value) ===
@@ -107,7 +107,7 @@ const EditFieldModal = ({ show, handleClose, field, currentValue, processing, on
               {DAYS_OF_WEEK.map((day) => (
                 <button type="button"
                   key={day.value}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                  className={`px-3 py-2 rounded-lg text-xs font-medium ${
                     value.includes(day.value)
                       ? "bg-customOrange text-white"
                       : "bg-gray-200 text-black"
@@ -136,8 +136,10 @@ const EditFieldModal = ({ show, handleClose, field, currentValue, processing, on
   const title = field === "openTime" ? "Opening Time" : field === "closeTime" ? "Closing Time" : field === "daysAvailability" ? "Days of Availability" : field === "complexNumber" ? "Complex Number" : "Description"
 
   return (
-    <Modal className="h-fit" show={show} onHide={handleClose} centered>
-      <Modal.Header>
+    <Modal className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"  show={show} onHide={handleClose} centered >
+    <div className="relative bg-white rounded-lg shadow-lg max-w-lg w-full"
+    style={{ height: "190vh", overflowY: "auto" }}>
+      <Modal.Header> 
         <Modal.Title>Edit {title}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
@@ -171,7 +173,7 @@ const EditFieldModal = ({ show, handleClose, field, currentValue, processing, on
           )}
         </div>
       </Modal.Footer>
-    </Modal> 
+    </div> </Modal>
   );
 };
 

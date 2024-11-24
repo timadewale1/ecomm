@@ -56,7 +56,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
     };
 
     fetchUserData();
-  }, [dispatch, userData]);
+  }, [dispatch, currentUser]);
   // If user data is loading, show a loader
   if (loading && !userData) {
     return (

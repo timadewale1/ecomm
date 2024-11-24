@@ -5,7 +5,6 @@ import App from "./App";
 import { PersistGate } from "redux-persist/integration/react";
 import { BrowserRouter } from "react-router-dom";
 import store from "./redux/store";
-import vProfileStore, { persistor } from "./redux/vProfileStore"
 import { Provider } from "react-redux";
 import { Toaster } from "react-hot-toast";
 import { FavoritesProvider } from "./components/Context/FavoritesContext";
@@ -18,8 +17,6 @@ root.render(
     <BrowserRouter>
       <Provider store={store}>
         <NavigationProvider>
-          <Provider store={vProfileStore}>
-            <PersistGate loading={<div>Loading...</div>} persistor={persistor}>
               <VendorProvider>
                 <FavoritesProvider>
                   <Toaster
@@ -38,8 +35,6 @@ root.render(
                   <App />
                 </FavoritesProvider>
               </VendorProvider>
-            </PersistGate>
-          </Provider>
         </NavigationProvider>
       </Provider>
     </BrowserRouter>

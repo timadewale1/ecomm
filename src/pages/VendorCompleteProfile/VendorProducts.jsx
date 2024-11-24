@@ -350,7 +350,7 @@ const VendorProducts = () => {
   };
 
   const handlePinProduct = async (product) => {
-    if (!product.isFeatured && pinnedCount >= 3) {
+    if (!product.isFeatured && pinnedCount >= 4) {
       toast.error("You can only pin up to 3 products.");
       return;
     }
@@ -728,7 +728,7 @@ const VendorProducts = () => {
                     ) : (
                       // Show pin icon only if there are less than 3 pinned products
                       tabOpt === "Active" &&
-                      ((!product.isFeatured && pinnedCount < 3) ||
+                      ((!product.isFeatured && pinnedCount < 4) ||
                         product.isFeatured) && (
                         <div
                           onClick={(e) => {

@@ -1,8 +1,6 @@
-import React, { useState } from "react";
-import { Modal } from "react-bootstrap";
+import React, { useState, useEffect } from "react";
 import Lottie from "lottie-react";
 import LoadState from "../../Animations/loadinganimation.json";
-
 
 const DAYS_OF_WEEK = [
   { label: "Monday", value: "Monday" },
@@ -23,22 +21,24 @@ const PREDEFINED_OPTIONS = [
 const EditFieldModal = ({ show, handleClose, field, currentValue, processing, onSave }) => {
   const [value, setValue] = useState(currentValue);
 
+  useEffect(() => {
+    setValue(currentValue); // Reset value when modal opens
+  }, [currentValue]);
+
   const handleSave = () => {
     if (field === "daysAvailability" && value.length === 0) {
       alert("Please select at least one day.");
       return;
     }
-    onSave(field, value); // Pass the updated value to the parent handler
-    handleClose(); // Close the modal
+    onSave(field, value);
+    handleClose();
   };
 
-  // Time options for dropdown
   const timeOptions = Array.from({ length: 24 }, (_, hour) => {
     const formattedHour = hour < 10 ? `0${hour}` : hour;
     return [`${formattedHour}:00`, `${formattedHour}:30`];
   }).flat();
 
-  // Predefined options for days
   const handlePredefinedSelection = (option) => {
     if (option === "All Days") {
       setValue(DAYS_OF_WEEK.map((day) => day.value));
@@ -49,14 +49,12 @@ const EditFieldModal = ({ show, handleClose, field, currentValue, processing, on
     }
   };
 
-  // Toggle day selection for custom days
   const handleDayToggle = (day) => {
     setValue((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
     );
   };
 
-  // Render input dynamically based on the field
   const renderInputField = () => {
     if (field === "openTime" || field === "closeTime") {
       return (
@@ -77,11 +75,11 @@ const EditFieldModal = ({ show, handleClose, field, currentValue, processing, on
     if (field === "daysAvailability") {
       return (
         <>
-          {/* Predefined Options */}
           <div className="mb-4">
             <h6 className="font-medium mb-2">Predefined Options</h6>
             {PREDEFINED_OPTIONS.map((option) => (
-              <button type="button"
+              <button
+                type="button"
                 key={option.value}
                 className={`px-2 py-2 rounded-lg text-xs font-medium mr-1 ${
                   (option.value === "All Days" && value.length === 7) ||
@@ -100,12 +98,12 @@ const EditFieldModal = ({ show, handleClose, field, currentValue, processing, on
             ))}
           </div>
 
-          {/* Individual Day Selection */}
           <div>
             <h6 className="font-medium mb-2">Select Days</h6>
             <div className="grid grid-cols-3 gap-2">
               {DAYS_OF_WEEK.map((day) => (
-                <button type="button"
+                <button
+                  type="button"
                   key={day.value}
                   className={`px-3 py-2 rounded-lg text-xs font-medium ${
                     value.includes(day.value)
@@ -133,47 +131,56 @@ const EditFieldModal = ({ show, handleClose, field, currentValue, processing, on
     );
   };
 
-  const title = field === "openTime" ? "Opening Time" : field === "closeTime" ? "Closing Time" : field === "daysAvailability" ? "Days of Availability" : field === "complexNumber" ? "Complex Number" : "Description"
+  const title =
+    field === "openTime"
+      ? "Opening Time"
+      : field === "closeTime"
+      ? "Closing Time"
+      : field === "daysAvailability"
+      ? "Days of Availability"
+      : field === "complexNumber"
+      ? "Complex Number"
+      : "Description";
+
+  if (!show) return null;
 
   return (
-    <Modal className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"  show={show} onHide={handleClose} centered >
-    <div className="relative bg-white rounded-lg shadow-lg max-w-lg w-full"
-    style={{ height: "190vh", overflowY: "auto" }}>
-      <Modal.Header> 
-        <Modal.Title>Edit {title}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <form>
-          <label className="block mb-2 text-sm font-medium text-gray-700">
-            {title}
-          </label>
-          {renderInputField()} 
-        </form>
-      </Modal.Body>
-      <Modal.Footer>
-        <div
-          onClick={handleClose}
-          className="bg-customSoftGray text-black w-20 h-10 rounded-xl items-center justify-center flex"
-        >
-          Cancel
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="relative bg-white rounded-lg shadow-lg w-11/12 max-w-md p-6">
+        <div className="mb-4">
+          <h3 className="text-lg font-bold">{`Edit ${title}`}</h3>
         </div>
-        <div
-          onClick={handleSave}
-          className="bg-customOrange text-white w-20 h-10 rounded-xl items-center justify-center flex"
-        >
-          {processing ? (
-            <Lottie
-              className="w-4 h-4"
-              animationData={LoadState}
-              loop={true}
-              autoplay={true}
-            />
-          ) : (
-            "Save"
-          )}
+        <div className="mb-4">
+          <form>
+            <label className="block mb-2 text-sm font-medium text-gray-700">{title}</label>
+            {renderInputField()}
+          </form>
         </div>
-      </Modal.Footer>
-    </div> </Modal>
+        <div className="flex justify-end gap-4">
+          <button
+            onClick={handleClose}
+            className="bg-gray-200 text-black px-4 py-2 rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="bg-customOrange text-white px-4 py-2 rounded-lg"
+          >
+            {processing ? (
+              <Lottie
+                className="w-4 h-4"
+                animationData={LoadState}
+                loop={true}
+                autoplay={true}
+              />
+            ) : (
+              "Save"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 

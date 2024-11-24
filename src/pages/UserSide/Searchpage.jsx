@@ -45,8 +45,9 @@ const SearchPage = () => {
         }));
         setVendors(vendorsData);
 
-        // Fetch all products (modify this to filter active vendors if needed)
-        const productsSnapshot = await getDocs(collection(db, "products"));
+        const productsSnapshot = await getDocs(
+          query(collection(db, "products"), where("published", "==", true))
+        );
         const productsData = productsSnapshot.docs.map((doc) => ({
           ...doc.data(),
           id: doc.id,
@@ -94,7 +95,7 @@ const SearchPage = () => {
     // Capitalize product names and set type
     return scoredProducts.map((product) => ({
       ...product,
-      name: (product.name),
+      name: product.name,
       type: "product",
     }));
   };

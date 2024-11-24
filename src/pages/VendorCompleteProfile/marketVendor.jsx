@@ -1,6 +1,7 @@
 import React from "react";
 import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import { NigerianStates } from "../../services/states";
 import { FormGroup } from "reactstrap";
 import {
   AiOutlineIdcard,
@@ -8,9 +9,12 @@ import {
   AiOutlineBank,
   AiOutlineFileProtect,
 } from "react-icons/ai";
+
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../../firebase.config";
 import { useState } from "react";
 import { BiSolidImageAdd } from "react-icons/bi";
-import { FaTruck } from "react-icons/fa";
+import { FaCheckCircle, FaInfoCircle, FaTruck } from "react-icons/fa";
 import ProgressBar from "./ProgressBar";
 import { FaMinusCircle } from "react-icons/fa";
 import toast from "react-hot-toast";
@@ -43,9 +47,70 @@ const MarketVendor = ({
   setIdImage,
   isLoading,
 }) => {
-  const [searchTerm, setSearchTerm] = useState(""); // State to handle search input
-  const [showDaysDropdown, setShowDaysDropdown] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showStateDropdown, setShowStateDropdown] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(""); // Common for both dropdowns
+  const [selectedState, setSelectedState] = useState(""); // State for selected state
+  const [shopNameLoading, setShopNameLoading] = useState(false); // Loader for shop name
+  const [isShopNameTaken, setIsShopNameTaken] = useState(false);
+  const [isShopNameAvailable, setIsShopNameAvailable] = useState(false);
+  const toTitleCase = (str) => {
+    return str
+      .toLowerCase()
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
+  const handleStateChange = (e) => {
+    const state = e.target.value; // Get the selected state
+    setSelectedState(state);
 
+    // Handle Address field update
+    const currentAddress = vendorData.Address || ""; // Default to an empty string if undefined
+    const updatedAddress = currentAddress.includes(",")
+      ? `${currentAddress.split(",")[0]}, ${state}` // Replace the last part after the comma
+      : `${currentAddress} ${state}`.trim(); // Append state if no comma is present
+
+    setVendorData({
+      ...vendorData,
+      Address: updatedAddress, // Update Address with the new state
+    });
+  };
+  const [showDaysDropdown, setShowDaysDropdown] = useState(false);
+  useEffect(() => {
+    const checkShopNameAvailability = async () => {
+      const shopName = toTitleCase(vendorData.shopName.trim()); // Convert to title case
+
+      if (shopName.length >= 2) {
+        setShopNameLoading(true);
+        setIsShopNameTaken(false);
+        setIsShopNameAvailable(false);
+
+        try {
+          const q = query(
+            collection(db, "vendors"),
+            where("shopName", "==", shopName) // Query in title case
+          );
+          const querySnapshot = await getDocs(q);
+
+          if (!querySnapshot.empty) {
+            setIsShopNameTaken(true);
+          } else {
+            setIsShopNameAvailable(true);
+          }
+        } catch (error) {
+          console.error("Error checking shop name availability:", error);
+        } finally {
+          setShopNameLoading(false);
+        }
+      } else {
+        setIsShopNameTaken(false);
+        setIsShopNameAvailable(false);
+      }
+    };
+
+    checkShopNameAvailability();
+  }, [vendorData.shopName]);
   // Handle validation for vendor form (Step 1)
   const handleValidation = () => {
     if (!vendorData.shopName) {
@@ -158,18 +223,26 @@ const MarketVendor = ({
     return true;
   };
 
-  // You can define the "isFormComplete" logic to check the entire form completion:
-  const isFormComplete =
-    vendorData.shopName &&
-    vendorData.phoneNumber.length === 11 &&
-    vendorData.Address &&
-    vendorData.marketPlace &&
-    vendorData.complexNumber &&
-    vendorData.categories.length > 0 &&
-    vendorData.daysAvailability &&
-    vendorData.openTime &&
-    vendorData.closeTime;
+  
+  const checkFormCompletion = () => {
+    return (
+      vendorData.shopName &&
+      !isShopNameTaken &&
+      vendorData.phoneNumber.length === 11 &&
+      vendorData.Address &&
+      vendorData.marketPlace &&
+      vendorData.complexNumber &&
+      vendorData.categories.length > 0 &&
+      vendorData.daysAvailability &&
+      vendorData.openTime &&
+      vendorData.closeTime
+    );
+  };
+  
+  // Usage
+  const isFormComplete = () => checkFormCompletion();
 
+  
   const isFormBankComplete =
     bankDetails.bankName &&
     bankDetails.accountNumber.length === 10 &&
@@ -205,15 +278,100 @@ const MarketVendor = ({
                 Brand Info
               </h3>
 
-              <input
-                type="text"
-                name="shopName"
-                placeholder="Store Name"
-                value={vendorData.shopName}
-                onChange={handleInputChange}
-                className="w-full h-12 mb-3 p-3 border-2 font-opensans text-black rounded-lg hover:border-customOrange 
-                      focus:outline-none focus:border-customOrange"
-              />
+              <FormGroup className="relative mb-4">
+                <input
+                  type="text"
+                  name="shopName"
+                  placeholder="Brand Name"
+                  value={vendorData.shopName}
+                  onChange={async (e) => {
+                    const toTitleCase = (str) =>
+                      str
+                        .toLowerCase()
+                        .split(" ")
+                        .map(
+                          (word) => word.charAt(0).toUpperCase() + word.slice(1)
+                        )
+                        .join(" ");
+
+                    // Format the input value to title case
+                    const formattedShopName = toTitleCase(e.target.value);
+
+                    // Update the state with the formatted shop name
+                    setVendorData({
+                      ...vendorData,
+                      shopName: formattedShopName,
+                    });
+
+                    // Validate shop name availability
+                    if (formattedShopName.length >= 2) {
+                      try {
+                        setShopNameLoading(true);
+
+                        // Query Firestore for the formatted shop name
+                        const q = query(
+                          collection(db, "vendors"),
+                          where("shopName", "==", formattedShopName)
+                        );
+                        const querySnapshot = await getDocs(q);
+
+                        if (!querySnapshot.empty) {
+                          setIsShopNameTaken(true);
+                          setIsShopNameAvailable(false);
+                        } else {
+                          setIsShopNameTaken(false);
+                          setIsShopNameAvailable(true);
+                        }
+                      } catch (error) {
+                        console.error(
+                          "Error checking shop name availability:",
+                          error
+                        );
+                      } finally {
+                        setShopNameLoading(false);
+                      }
+                    } else {
+                      setIsShopNameTaken(false);
+                      setIsShopNameAvailable(false);
+                    }
+                  }}
+                  className={`w-full h-12 p-3 border-2 font-opensans text-neutral-800 rounded-lg hover:border-customOrange focus:outline-none focus:border-customOrange ${
+                    isShopNameTaken
+                      ? "border-red-500"
+                      : isShopNameAvailable
+                      ? "border-green-500"
+                      : ""
+                  }`}
+                />
+                {shopNameLoading && (
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <RotatingLines
+                      strokeColor="orange"
+                      strokeWidth="5"
+                      animationDuration="0.75"
+                      width="24"
+                      visible={true}
+                    />
+                  </div>
+                )}
+                {!shopNameLoading &&
+                  isShopNameAvailable &&
+                  !isShopNameTaken && (
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                      <FaCheckCircle
+                        className="text-green-500 rounded-full p-1"
+                        size={24}
+                      />
+                    </div>
+                  )}
+                {isShopNameTaken && (
+                  <div className="text-red-500 text-xs flex items-center">
+                    <FaInfoCircle className="mr-1" />
+                    Shop name is already taken. Please choose another one.
+                  </div>
+                )}
+              </FormGroup>
+
               <input
                 type="tel"
                 name="phoneNumber"
@@ -238,7 +396,63 @@ const MarketVendor = ({
                 onChange={handleInputChange}
                 className="w-full h-12 mb-3 p-3 border-2 rounded-lg font-opensans text-black focus:outline-none focus:border-customOrange hover:border-customOrange"
               />
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowStateDropdown(!showStateDropdown);
+                    setShowCategoryDropdown(false); // Close category dropdown
+                  }}
+                  className="w-full h-12 mb-3 p-3 border-2 rounded-lg bg-white font-opensans text-left flex items-center justify-between"
+                >
+                  {selectedState ? (
+                    <span className="text-neutral-800">{selectedState}</span>
+                  ) : (
+                    <span className="text-neutral-400">Choose a State</span>
+                  )}
+                  <svg
+                    className="fill-current h-4 w-4 text-neutral-400"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 1 1 1.06 1.06l-5.015 5.015a.75.75 0 0 1-1.06 0l-5.015-5.015a.75.75 0 1 1 1.06-1.06z" />
+                  </svg>
+                </button>
 
+                {showStateDropdown && (
+                  <div className="absolute w-full text-neutral-400 bg-white border rounded-lg z-10">
+                    <div className="p-2">
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search states..."
+                        className="w-full p-2 border rounded-lg focus:outline-none focus:border-customOrange"
+                      />
+                    </div>
+
+                    <div className="max-h-60 overflow-y-auto">
+                      {NigerianStates.filter((state) =>
+                        state.toLowerCase().includes(searchTerm.toLowerCase())
+                      ).map((state, index) => (
+                        <div key={index} className="p-2 h-12">
+                          <label className="flex items-center">
+                            <input
+                              type="radio"
+                              name="state"
+                              value={state}
+                              checked={selectedState === state}
+                              onChange={handleStateChange} // Call the corrected function
+                              className="mr-2 appearance-none h-4 w-4 border border-gray-300 checked:bg-customOrange checked:border-customOrange focus:outline-none focus:ring-2 focus:ring-customOrange focus:ring-opacity-50 rounded-lg"
+                            />
+                            <span className="text-neutral-800">{state}</span>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               {/* Location and Complex */}
               <FormGroup className="relative mb-4">
                 <select
@@ -509,7 +723,8 @@ const MarketVendor = ({
                     ? "bg-customOrange"
                     : "bg-customOrange opacity-50"
                 }`}
-                onClick={handleValidation} // Enable the button and handle validation on click
+                onClick={handleValidation}
+                disabled={!isFormComplete()} // Enable the button and handle validation on click
               >
                 Next
               </motion.button>

@@ -78,6 +78,16 @@ const Cart = () => {
                 `Product ${product.name} has been removed as it is no longer available.`,
                 { icon: "ℹ️" }
               );
+            } else {
+              const productData = productDoc.data();
+              if (!productData.published) {
+                dispatch(removeFromCart({ vendorId, productKey }));
+                toast.dismiss();
+                toast(
+                  `Product ${product.name} has been removed as it is unpublished by the vendor.`,
+                  { icon: "ℹ️" }
+                );
+              }
             }
           } catch (err) {
             console.error(`Error fetching product ${id}:`, err);
@@ -91,6 +101,7 @@ const Cart = () => {
       );
     }
   }, [cart, dispatch]);
+
   const fromProductDetail = location.state?.fromProductDetail || false;
   useEffect(() => {
     if (isModalOpen || isNoteModalOpen) {

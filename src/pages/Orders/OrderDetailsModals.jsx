@@ -18,6 +18,7 @@ import {
   IoColorPaletteSharp,
   IoLocationOutline,
 } from "react-icons/io5";
+import notifyOrderStatusChange from "../../services/notifyorderstatus";
 import { PiCoinsFill } from "react-icons/pi";
 import { IoIosBody, IoMdInformationCircleOutline } from "react-icons/io";
 import { FaShoppingBag } from "react-icons/fa";
@@ -45,8 +46,36 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
   const [declineLoading, setDeclineLoading] = useState(false);
   const [otherReasonText, setOtherReasonText] = useState("");
   const [isDeclineInfoModalOpen, setIsDeclineInfoModalOpen] = useState(false);
+  const userId = order?.userId; // Directly access userId from the order document
+
+  const [vendorName, setVendorName] = useState(
+    order?.vendorName || "Your Vendor Name"
+  );
 
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
+  useEffect(() => {
+    const fetchVendorName = async () => {
+      if (!order.vendorName && order.vendorId) {
+        const vendorRef = doc(db, "vendors", order.vendorId);
+        const vendorSnap = await getDoc(vendorRef);
+        if (vendorSnap.exists()) {
+          const vendorData = vendorSnap.data();
+          const fetchedVendorName = vendorData.shopName || "Unknown Vendor";
+
+          // Update the local state with the fetched vendor name
+          setVendorName(fetchedVendorName);
+        }
+      } else if (order.vendorName) {
+        // If vendorName is already present in the order, use it
+        setVendorName(order.vendorName);
+      }
+    };
+
+    if (isOpen && order) {
+      fetchVendorName();
+    }
+  }, [isOpen, order]);
+
   useEffect(() => {
     const fetchProductDetails = async () => {
       const images = {};
@@ -109,14 +138,58 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
       fetchProductDetails();
     }
   }, [isOpen, order]);
+
   const handleAccept = async () => {
     setAcceptLoading(true);
     try {
       const orderRef = doc(db, "orders", order.id);
       await updateDoc(orderRef, { progressStatus: "In Progress" });
+
+      // Fetch vendor cover image
+      let vendorCoverImage = null;
+      if (order.vendorId) {
+        const vendorRef = doc(db, "vendors", order.vendorId);
+        const vendorSnap = await getDoc(vendorRef);
+        if (vendorSnap.exists()) {
+          vendorCoverImage = vendorSnap.data().coverImageUrl || null;
+        }
+      }
+
+      // Fetch product image (assuming you want the first product's image)
+      let productImage = null;
+      if (order.cartItems && order.cartItems.length > 0) {
+        const firstItem = order.cartItems[0];
+        const productRef = doc(db, "products", firstItem.productId);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+          const productData = productSnap.data();
+          if (firstItem.subProductId) {
+            // If subProductId exists, fetch the sub-product image
+            const subProduct = productData.subProducts?.find(
+              (sp) => sp.subProductId === firstItem.subProductId
+            );
+            productImage = subProduct?.images?.[0] || null;
+          } else {
+            // Use the main product image
+            productImage = productData.imageUrls?.[0] || null;
+          }
+        }
+      }
+
+      // Send notification to the user
+      await notifyOrderStatusChange(
+        userId, // userId
+        order.id, // orderId
+        "In Progress", // newStatus
+        vendorName, // vendorName
+        vendorCoverImage, // vendorCoverImage
+        productImage // productImage
+      );
+
       toast.success("Order accepted successfully");
       onClose();
     } catch (error) {
+      console.error("Failed to accept the order:", error);
       toast.error("Failed to accept the order");
     } finally {
       setAcceptLoading(false);
@@ -129,11 +202,51 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
     setDeclineLoading(true);
     try {
       const orderRef = doc(db, "orders", order.id);
-      console.log("Decline reason:", reason);
       await updateDoc(orderRef, {
         progressStatus: "Declined",
-        declineReason: reason || "Reason not provided", // fallback reason
+        declineReason: reason || "Reason not provided",
       });
+
+      // Fetch vendor cover image
+      let vendorCoverImage = null;
+      if (order.vendorId) {
+        const vendorRef = doc(db, "vendors", order.vendorId);
+        const vendorSnap = await getDoc(vendorRef);
+        if (vendorSnap.exists()) {
+          vendorCoverImage = vendorSnap.data().coverImageUrl || null;
+        }
+      }
+
+      // Fetch product image
+      let productImage = null;
+      if (order.cartItems && order.cartItems.length > 0) {
+        const firstItem = order.cartItems[0];
+        const productRef = doc(db, "products", firstItem.productId);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+          const productData = productSnap.data();
+          if (firstItem.subProductId) {
+            const subProduct = productData.subProducts?.find(
+              (sp) => sp.subProductId === firstItem.subProductId
+            );
+            productImage = subProduct?.images?.[0] || null;
+          } else {
+            productImage = productData.imageUrls?.[0] || null;
+          }
+        }
+      }
+
+      // Send notification to the user
+      await notifyOrderStatusChange(
+        userId, // userId
+        order.id, // orderId
+        "Declined", // newStatus
+        vendorName, // vendorName
+        vendorCoverImage, // vendorCoverImage
+        productImage, // productImage
+        reason  
+      );
+
       toast.success("Order declined successfully");
       setIsDeclineModalOpen(false);
       onClose();
@@ -164,9 +277,50 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
     try {
       const orderRef = doc(db, "orders", order.id);
       await updateDoc(orderRef, { progressStatus: "Delivered" });
+
+      // Fetch vendor cover image
+      let vendorCoverImage = null;
+      if (order.vendorId) {
+        const vendorRef = doc(db, "vendors", order.vendorId);
+        const vendorSnap = await getDoc(vendorRef);
+        if (vendorSnap.exists()) {
+          vendorCoverImage = vendorSnap.data().coverImageUrl || null;
+        }
+      }
+
+      // Fetch product image
+      let productImage = null;
+      if (order.cartItems && order.cartItems.length > 0) {
+        const firstItem = order.cartItems[0];
+        const productRef = doc(db, "products", firstItem.productId);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+          const productData = productSnap.data();
+          if (firstItem.subProductId) {
+            const subProduct = productData.subProducts?.find(
+              (sp) => sp.subProductId === firstItem.subProductId
+            );
+            productImage = subProduct?.images?.[0] || null;
+          } else {
+            productImage = productData.imageUrls?.[0] || null;
+          }
+        }
+      }
+
+      // Send notification to the user
+      await notifyOrderStatusChange(
+        userId, // userId
+        order.id, // orderId
+        "Delivered", // newStatus
+        vendorName, // vendorName
+        vendorCoverImage, // vendorCoverImage
+        productImage // productImage
+      );
+
       toast.success("Order marked as delivered");
       onClose();
     } catch (error) {
+      console.error("Failed to mark as delivered:", error);
       toast.error("Failed to mark as delivered");
     } finally {
       setDeliverLoading(false);

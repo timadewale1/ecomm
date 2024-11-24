@@ -6,7 +6,7 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { db } from "../../firebase.config";
 import Modal from "react-modal";
-
+import notifyOrderStatusChange from "../../services/notifyorderstatus";
 import { FaTruck } from "react-icons/fa6";
 import { RotatingLines } from "react-loader-spinner";
 import { MdOutlineClose } from "react-icons/md";
@@ -145,8 +145,77 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
       });
       return;
     }
+
     setIsSending(true);
     try {
+      // Find the order in the orders array
+      const order = orders.find((o) => o.id === selectedOrderId);
+
+      if (!order) {
+        throw new Error("Order not found in orders array.");
+      }
+
+      // Retrieve userId from order.userId or order.userInfo.uid
+      const userId = order.userId || order.userInfo?.uid;
+
+      if (!userId) {
+        throw new Error("User ID is undefined.");
+      }
+
+      // Get vendorName
+      let vendorName = order.vendorName;
+
+      if (!vendorName) {
+        // Fetch vendor name from Firestore using order.vendorId
+        if (order.vendorId) {
+          const vendorRef = doc(db, "vendors", order.vendorId);
+          const vendorSnap = await getDoc(vendorRef);
+          if (vendorSnap.exists()) {
+            const vendorData = vendorSnap.data();
+            vendorName = vendorData.shopName || "Unknown Vendor";
+          } else {
+            vendorName = "Unknown Vendor";
+          }
+        } else {
+          vendorName = "Unknown Vendor";
+        }
+      }
+
+      // Fetch vendor cover image
+      let vendorCoverImage = null;
+      if (order.vendorId) {
+        const vendorRef = doc(db, "vendors", order.vendorId);
+        const vendorSnap = await getDoc(vendorRef);
+        if (vendorSnap.exists()) {
+          vendorCoverImage = vendorSnap.data().coverImageUrl || null;
+        }
+      }
+
+      // Fetch product image
+      let productImage = null;
+      if (order.cartItems && order.cartItems.length > 0) {
+        const firstItem = order.cartItems[0];
+        const productRef = doc(db, "products", firstItem.productId);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+          const productData = productSnap.data();
+          if (firstItem.subProductId) {
+            const subProduct = productData.subProducts?.find(
+              (sp) => sp.subProductId === firstItem.subProductId
+            );
+            productImage = subProduct?.images?.[0] || null;
+          } else {
+            productImage = productData.imageUrls?.[0] || null;
+          }
+        }
+      }
+      const riderInfoData = {
+        riderName,
+        riderNumber,
+        note,
+      };
+
+      // Update order status to "Shipped" in Firestore
       const orderRef = doc(db, "orders", selectedOrderId);
       await updateDoc(orderRef, {
         progressStatus: "Shipped",
@@ -156,6 +225,19 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
           note,
         },
       });
+
+      // Notify user about the status update
+      await notifyOrderStatusChange(
+        userId, // userId from the order
+        selectedOrderId, // orderId
+        "Shipped", // New status
+        vendorName, // Vendor name
+        vendorCoverImage, // Vendor cover image URL
+        productImage, // Product image URL
+        null, // declineReason is null
+        riderInfoData // riderInfo
+      );
+
       toast.success("Order successfully updated to 'Shipped'!");
       setIsRiderModalOpen(false);
       setRiderName("");
@@ -188,11 +270,11 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
     const yesterday = [];
     const thisWeek = [];
     const older = [];
-  
+
     orders.forEach((order) => {
       const orderDate = moment(order.createdAt.seconds * 1000);
       const now = moment();
-  
+
       if (orderDate.isSame(now, "day")) {
         today.push(order);
       } else if (orderDate.isSame(now.clone().subtract(1, "day"), "day")) {
@@ -203,12 +285,10 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
         older.push(order);
       }
     });
-  
+
     return { today, yesterday, thisWeek, older };
   };
-  
 
- 
   const { today, yesterday, thisWeek, older } = groupOrdersByDate(orders);
 
   const renderOrderGroup = (title, ordersGroup) =>
@@ -367,14 +447,14 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
       </div>
     );
 
-    return (
-      <div>
-        {renderOrderGroup("Today", today)}
-        {renderOrderGroup("Yesterday", yesterday)}
-        {renderOrderGroup("This Week", thisWeek)}
-        {renderOrderGroup("Older", older)}
-      </div>
-    );
+  return (
+    <div>
+      {renderOrderGroup("Today", today)}
+      {renderOrderGroup("Yesterday", yesterday)}
+      {renderOrderGroup("This Week", thisWeek)}
+      {renderOrderGroup("Older", older)}
+    </div>
+  );
 };
 
 export default InProgressOrders;

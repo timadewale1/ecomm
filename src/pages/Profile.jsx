@@ -264,10 +264,10 @@ const Profile = () => {
           </div>
           <div className="flex flex-col items-center w-full px-2">
             {/* Donations Section */}
-            <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-customGrey mb-3">
+            <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-gray-100 mb-3 opacity-60">
               <div className="flex items-center">
-                <CiMoneyBill className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal font-opensans text-black capitalize">
+                <CiMoneyBill className="text-gray-600 text-xl mr-4" />
+                <h2 className="text-size font-normal font-opensans text-gray-600 capitalize">
                   Donations
                 </h2>
               </div>
@@ -281,10 +281,10 @@ const Profile = () => {
             </div>
 
             {/* Declutter Section */}
-            <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-customGrey mb-3">
+            <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-gray-100 mb-3 opacity-60">
               <div className="flex items-center">
-                <GiClothes className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal font-opensans text-black capitalize">
+                <GiClothes className="text-gray-600 text-xl mr-4" />
+                <h2 className="text-size font-normal font-opensans text-gray-600 capitalize">
                   Declutter
                 </h2>
               </div>

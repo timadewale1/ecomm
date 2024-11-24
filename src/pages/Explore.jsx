@@ -85,6 +85,7 @@ const Explore = () => {
       const productsRef = collection(db, "products");
       let q = query(
         productsRef,
+        where("published", "==", true),
         where("productType", "==", productType),
         where("subType", "==", subType)
       );

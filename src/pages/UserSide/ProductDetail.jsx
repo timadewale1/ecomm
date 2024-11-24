@@ -83,6 +83,32 @@ const ProductDetailPage = () => {
 
   const cart = useSelector((state) => state.cart || {});
   useEffect(() => {
+    const fetchProductDetails = async () => {
+      try {
+        const productRef = doc(db, "products", id); // Fetch product by ID
+        const productSnap = await getDoc(productRef);
+
+        if (productSnap.exists()) {
+          const productData = productSnap.data();
+          if (!productData.published) {
+            toast.dismiss();
+            toast.error("This product is no longer available.");
+          } else {
+            dispatch(fetchProduct(id));
+          }
+        } else {
+          // toast.error("Product not found.");
+        }
+      } catch (err) {
+        console.error("Error fetching product details:", err);
+        toast.error("Failed to load product details.");
+      }
+    };
+
+    fetchProductDetails();
+  }, [id, dispatch, navigate, db]);
+
+  useEffect(() => {
     if (product && product.variants) {
       // Extract unique colors and sizes from product variants
       const uniqueColors = Array.from(
@@ -746,6 +772,26 @@ const ProductDetailPage = () => {
       </div>
     );
   }
+  if (!product?.published) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-4">
+        <Productnotofund />
+        <h1 className="text-2xl font-opensans font-bold text-red-600 mb-2">
+          Product Not Found
+        </h1>
+        <p className="text-lg text-gray-700 font-opensans mb-4">
+          It looks like this product has been removed or unpublished by the
+          vendor.
+        </p>
+        <button
+          className="w-32 bg-customOrange font-opensans text-xs px-2 h-10 text-white rounded-lg mt-12"
+          onClick={() => navigate("/newhome")} // Navigate to the homepage
+        >
+          Back Home
+        </button>
+      </div>
+    );
+  }
 
   const averageRating =
     vendor && vendor.ratingCount > 0
@@ -982,53 +1028,53 @@ const ProductDetailPage = () => {
         )}
 
         {/* Size Selection */}
-        {availableSizes.length > 0 && (
-          <div className="mt-3">
-            <p className="text-sm font-semibold text-black font-opensans mb-2">
-              Sizes
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {availableSizes.map((size, index) => {
-                const inStock = isSizeInStock(size);
-                const isSelected = selectedSize === size && inStock;
+        <div className="mt-3">
+          <p className="text-sm font-semibold text-black font-opensans mb-2">
+            Sizes
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {availableSizes.map((size, index) => {
+              const inStock = isSizeInStock(size);
+              const isSelected = selectedSize === size && inStock;
 
-                return (
-                  <div
-                    key={index}
-                    onClick={() => {
-                      if (inStock) {
-                        handleSizeClick(size);
-                      }
-                    }}
-                    className={`py-2 px-4 border rounded-lg ${
-                      isSelected
-                        ? "bg-customOrange text-white cursor-pointer"
-                        : inStock
-                        ? "bg-transparent text-black cursor-pointer"
-                        : "bg-transparent text-black opacity-50 cursor-not-allowed"
-                    }`}
-                    style={{ position: "relative" }}
-                  >
-                    <span className="text-xs font-semibold">{size}</span>
-                    {!inStock && (
-                      <span
-                        className="absolute inset-0 flex items-center justify-center text-black text-xs font-bold"
-                        style={{
-                          transform: "rotate(59deg) scaleX(0.3)",
-                          fontSize: "4.3rem",
-                          lineHeight: "0.1rem",
-                          fontWeight: "100",
-                        }}
-                      >
-                        /
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+              return (
+                <div
+                  key={index}
+                  onClick={() => {
+                    if (inStock) {
+                      handleSizeClick(size);
+                    }
+                  }}
+                  className={`relative py-2 px-4 border rounded-lg ${
+                    isSelected
+                      ? "bg-customOrange text-white cursor-pointer"
+                      : inStock
+                      ? "bg-transparent text-black cursor-pointer"
+                      : "bg-gray-200 text-black opacity-50 cursor-not-allowed"
+                  }`}
+                  style={{ position: "relative" }}
+                >
+                  <span className="text-xs font-opensans font-semibold">{size}</span>
+                  {!inStock && (
+                    <span
+                      className="absolute inset-0 animate-pulse flex items-center justify-center bg-gray-800 bg-opacity-50  text-customOrange font-opensans font-semibold text-xs text-center rounded-lg"
+                      style={{
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 10,
+                        pointerEvents: "none", // Prevents clicks on out-of-stock items
+                      }}
+                    >
+                      Out of Stock
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        )}
+        </div>
 
         <div
           className="flex justify-between items-center mt-4 mb-4 cursor-pointer"
@@ -1075,6 +1121,7 @@ const ProductDetailPage = () => {
             "linear-gradient(to top, white, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0) 97%)",
           zIndex: 9999,
         }}
+        onClick={(e) => e.stopPropagation()} // Prevents background clicks from propagating
       >
         {!selectedSize || !selectedColor ? (
           // Prompt user to select size and color

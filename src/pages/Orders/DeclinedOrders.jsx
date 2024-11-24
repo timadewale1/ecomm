@@ -9,6 +9,7 @@ const DeclinedOrders = ({ orders, openModal }) => {
     const today = [];
     const yesterday = [];
     const thisWeek = [];
+    const older = [];
 
     orders.forEach((order) => {
       const orderDate = moment(order.createdAt.seconds * 1000);
@@ -20,13 +21,14 @@ const DeclinedOrders = ({ orders, openModal }) => {
         yesterday.push(order);
       } else if (orderDate.isSame(now, "week")) {
         thisWeek.push(order);
+      } else {
+        older.push(order);
       }
     });
 
-    return { today, yesterday, thisWeek };
+    return { today, yesterday, thisWeek, older };
   };
-
-  const { today, yesterday, thisWeek } = groupOrdersByDate(orders);
+  const { today, yesterday, thisWeek, older } = groupOrdersByDate(orders);
 
   const renderOrderGroup = (title, ordersGroup) =>
     ordersGroup.length > 0 && (
@@ -77,6 +79,7 @@ const DeclinedOrders = ({ orders, openModal }) => {
       {renderOrderGroup("Today", today)}
       {renderOrderGroup("Yesterday", yesterday)}
       {renderOrderGroup("This Week", thisWeek)}
+      {renderOrderGroup("Older", older)}
     </div>
   );
 };

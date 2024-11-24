@@ -18,11 +18,14 @@ const BottomBar = React.memo(({ isSearchFocused }) => {
   const location = useLocation();
   const cart = useSelector((state) => state.cart);
   const cartItemCount = useMemo(() => {
+    if (!cart || typeof cart !== "object") return 0; // Handle undefined or null cart
     return Object.values(cart).reduce((vendorAcc, vendor) => {
+      if (!vendor.products || typeof vendor.products !== "object")
+        return vendorAcc;
       return (
         vendorAcc +
         Object.values(vendor.products).reduce((productAcc, product) => {
-          return productAcc + product.quantity;
+          return productAcc + (product.quantity || 0); // Ensure product.quantity is valid
         }, 0)
       );
     }, 0);

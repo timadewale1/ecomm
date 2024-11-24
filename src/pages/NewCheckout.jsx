@@ -21,9 +21,31 @@ import { MdOutlineLock, MdSupportAgent } from "react-icons/md";
 import { LiaShippingFastSolid, LiaTimesSolid } from "react-icons/lia";
 import { FaCheck } from "react-icons/fa6";
 import Skeleton from "react-loading-skeleton";
-import Serviceanimate from "../components/Loading/servicefees";
+import { NigerianStates } from "../services/states";
 
 const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
+  const [selectedState, setSelectedState] = useState("");
+  useEffect(() => {
+    if (userInfo.address) {
+      const stateInAddress = NigerianStates.find((state) =>
+        userInfo.address.endsWith(state)
+      );
+      if (stateInAddress) {
+        setSelectedState(stateInAddress);
+      }
+    }
+  }, [userInfo.address]);
+  const handleStateChange = (e) => {
+    const state = e.target.value;
+    setSelectedState(state);
+
+    // Append or replace the state in the address
+    const addressWithoutState = userInfo.address
+      .replace(new RegExp(`, ${selectedState}$`), "")
+      .trim();
+    setUserInfo({ ...userInfo, address: `${addressWithoutState}, ${state}` });
+  };
+
   useEffect(() => {
     // Disable background scrolling when modal is open
     if (isOpen) {
@@ -102,7 +124,23 @@ const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
             />
           </div>
         </div>
-
+        <div>
+          <label className="font-opensans mt-2">State</label>
+          <select
+            className="border bg-gray-100 py-2.5 mt-2 rounded-lg w-full px-2 font-opensans text-gray-600"
+            value={selectedState}
+            onChange={handleStateChange}
+          >
+            <option value="" disabled>
+              Select a State
+            </option>
+            {NigerianStates.map((state) => (
+              <option key={state} value={state}>
+                {state}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="border-t mt-4 border-gray-300 my-2"></div>
 
         <div className="flex mt-2 flex-col">
@@ -559,10 +597,10 @@ const Checkout = () => {
           />
           <div className="px-4 mt-4 flex-auto mb-4">
             <p className="text-sm font-opensans text-black z-10">
-              Service fees are nominal charges applied to transactions to
+              Service fees are dynamic charges applied to transactions to
               support the operational demands of our platform. These fees
               contribute to maintaining a seamless and efficient shopping
-              environment, ensuring reliability and the highest quality of
+              experience, ensuring reliability and the highest quality of
               service. We are committed to transparency and fairness, thus we
               cap the service fee at a maximum of 2,000. This policy is in place
               to minimize costs to our customers while upholding our dedication

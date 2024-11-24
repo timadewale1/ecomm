@@ -152,51 +152,54 @@ const CompleteProfile = () => {
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
-  
+
     if (!file) {
       toast.error("No file selected. Please choose an image.");
       return;
     }
-  
+
     if (file.size > 3 * 1024 * 1024) {
       toast.error("File size exceeds 3MB. Please upload a smaller image.");
       return;
     }
-  
+
     try {
       setIsCoverImageUploading(true); // Start loading
-  
+
       const auth = getAuth();
       const user = auth.currentUser;
-  
+
       if (!user) {
         throw new Error("User is not authenticated");
       }
-  
+
       const vendorId = user.uid; // Assuming vendorId is the same as user ID
-  
+
       console.log("Starting image upload for vendor:", vendorId);
-  
+
       const storage = getStorage();
       const storageRef = ref(storage, `vendorImages/${vendorId}/coverImage`);
-  
+
       // Upload file
       await uploadBytes(storageRef, file);
       console.log("File uploaded to Firebase Storage.");
-  
+
       // Get download URL
       const downloadURL = await getDownloadURL(storageRef);
       console.log("File available at:", downloadURL);
-  
+
       // Update local state with the new image URL
-      setVendorData((prevData) => ({ ...prevData, coverImageUrl: downloadURL }));
-  
+      setVendorData((prevData) => ({
+        ...prevData,
+        coverImageUrl: downloadURL,
+      }));
+
       // Update Firestore document with the new image URL
       const vendorDocRef = doc(db, "vendors", vendorId); // Reference to vendor document
       await updateDoc(vendorDocRef, {
         coverImageUrl: downloadURL,
       });
-  
+
       console.log("Firestore document updated with image URL:", downloadURL);
       toast.success("Image uploaded successfully!");
     } catch (error) {
@@ -206,9 +209,6 @@ const CompleteProfile = () => {
       setIsCoverImageUploading(false); // End loading
     }
   };
-  
-  
-  
 
   const handleVendorTypeSelection = (type) => {
     setVendorData({ ...vendorData, marketPlaceType: type });
@@ -296,9 +296,16 @@ const CompleteProfile = () => {
     }
   };
 
+  const toTitleCase = (str) => {
+    return str
+      .toLowerCase()
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
+
   const handleProfileCompletion = async (e) => {
     e.preventDefault();
-
     setIsLoading(true); // Set loading state to true at the start
 
     const missingFields = [];
@@ -306,7 +313,6 @@ const CompleteProfile = () => {
     // Check for missing fields
     if (!vendorData.marketPlaceType) missingFields.push("Marketplace Type");
 
-    // Check specific conditions for online vendors
     if (vendorData.marketPlaceType === "virtual") {
       if (!vendorData.shopName) missingFields.push("Shop Name");
       if (!vendorData.categories.length) missingFields.push("Categories");
@@ -337,7 +343,6 @@ const CompleteProfile = () => {
       return; // Exit the function early
     }
 
-    // Proceed if no missing fields
     try {
       const auth = getAuth();
       const user = auth.currentUser;
@@ -346,35 +351,35 @@ const CompleteProfile = () => {
         throw new Error("User is not authenticated");
       }
 
-      // Include coverImage in dataToStore
+      // Format the shopName to title case before saving
+      const formattedShopName = toTitleCase(vendorData.shopName);
+
+      // Prepare the data to store
       const dataToStore = {
         ...vendorData,
+        shopName: formattedShopName, // Save the formatted shop name
         profileComplete: true,
         bankDetails,
       };
 
       console.log("Data to store in Firestore:", dataToStore);
 
-      // Update Firestore document
+      // Save the vendor data to Firestore
       await setDoc(doc(db, "vendors", user.uid), dataToStore, { merge: true });
 
       console.log("Vendor data saved to Firestore.");
 
-      // Show success toast after successful submission
       toast.success("Profile completed successfully!", {
         className: "custom-toast",
       });
 
-      // Navigate to the vendor dashboard after successful completion
       navigate("/vendordashboard");
     } catch (error) {
-      // Show error toast in case of any issues
       toast.error("Error completing profile: " + error.message, {
         className: "custom-toast",
       });
       console.error("Error completing profile:", error);
     } finally {
-      // Always set loading to false at the end, even if there's an error
       setIsLoading(false);
     }
   };
@@ -491,7 +496,7 @@ const CompleteProfile = () => {
                 handleIdVerificationChange={handleIdVerificationChange}
                 idImage={idImage}
                 setIdImage={setIdImage}
-                isIdImageUploading={isIdImageUploading} 
+                isIdImageUploading={isIdImageUploading}
                 isCoverImageUploading={isCoverImageUploading}
                 handleIdImageUpload={handleIdImageUpload}
                 handleImageUpload={handleImageUpload}
@@ -523,7 +528,7 @@ const CompleteProfile = () => {
                 handleIdImageUpload={handleIdImageUpload}
                 isLoading={isLoading}
                 setIdImage={setIdImage}
-                isIdImageUploading={isIdImageUploading} 
+                isIdImageUploading={isIdImageUploading}
                 handleProfileCompletion={handleProfileCompletion}
                 banks={banks}
               />

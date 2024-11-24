@@ -21,7 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { FaRegTimesCircle } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { updateUserData } from "../../redux/actions/useractions";
-
+import { NigerianStates } from "../../services/states";
 import { CiLocationOn } from "react-icons/ci";
 import Loading from "../../components/Loading/Loading";
 import { GoChevronLeft } from "react-icons/go";
@@ -128,9 +128,19 @@ const ProfileDetails = ({
   const formatName = (name) => {
     return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
   };
-
   const handleSave = async () => {
     if (!validateFields()) return;
+
+    if (editField === "address") {
+      const stateInAddress = NigerianStates.some((state) =>
+        address.endsWith(state)
+      );
+
+      if (!stateInAddress) {
+        toast.error("Please select a state to complete your address.");
+        return;
+      }
+    }
 
     setIsLoading(true);
 
@@ -384,12 +394,45 @@ const ProfileDetails = ({
               />
             )}
             {editField === "address" && (
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded"
-              />
+              <>
+                {/* Address Input */}
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded mb-4"
+                  placeholder="Enter your address"
+                />
+
+                {/* State Dropdown */}
+                <label className="block mb-2 text-sm font-medium text-gray-600">
+                  Select State
+                </label>
+                <select
+                  className="w-full p-2 border border-gray-300 rounded mb-4"
+                  onChange={(e) => {
+                    const selectedState = e.target.value;
+
+                    // Ensure the state is appended or replaced correctly
+                    const addressWithoutState = address.replace(
+                      new RegExp(`,? ${selectedState}$`),
+                      ""
+                    );
+                    setAddress(
+                      `${addressWithoutState}, ${selectedState}`.trim()
+                    );
+                  }}
+                >
+                  <option value="" disabled selected>
+                    Choose your state
+                  </option>
+                  {NigerianStates.map((state) => (
+                    <option key={state} value={state}>
+                      {state}
+                    </option>
+                  ))}
+                </select>
+              </>
             )}
 
             <div className="flex justify-end mt-4 relative">

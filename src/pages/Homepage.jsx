@@ -6,6 +6,7 @@ import "swiper/css";
 import logo from "../Images/logo.png";
 import "swiper/css/free-mode";
 import { CiSearch } from "react-icons/ci";
+
 import { BsHeart } from "react-icons/bs";
 import "swiper/css/autoplay";
 import { Cloudinary } from "@cloudinary/url-gen";
@@ -19,6 +20,9 @@ import {
   doc,
   getDoc,
   query,
+  limit,
+  orderBy,
+  startAfter,
   where,
 } from "firebase/firestore";
 import { FreeMode, Autoplay } from "swiper/modules";
@@ -26,6 +30,7 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { IoIosNotificationsOutline } from "react-icons/io";
 import gsap from "gsap";
+import toast from "react-hot-toast";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import BottomBar from "../components/BottomBar/BottomBar";
 import "../styles/bottombar.css";
@@ -42,14 +47,20 @@ const Homepage = () => {
   const { setActiveNav } = useNavigation();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [userName, setUserName] = useState("User");
-  const [loading, setLoading] = useState(true);
+  // const [loading, setLoading] = useState(true);
   const location = useLocation();
   const [products, setProducts] = useState([]);
-  const [vendors, setVendors] = useState([]);
+  const [lastVisible, setLastVisible] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [approvedVendors, setApprovedVendors] = useState(new Set());
+
+  const [lastFetchedDoc, setLastFetchedDoc] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
   const productCardsRef = useRef([]); // For GSAP animations
   const [initialLoad, setInitialLoad] = useState(true);
+  // const [loadingMore, setLoadingMore] = useState(false);
+  const [loading, setLoading] = useState(true); // Ensure you have this state
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
 
   // Ref to store scroll position
@@ -100,11 +111,6 @@ const Homepage = () => {
     setFilteredProducts(products);
   };
 
-  const handleLoadMore = () => {
-    setActiveNav(3);
-    navigate("/market-vendors");
-  };
-
   // Save scroll position when leaving the page
   useEffect(() => {
     return () => {
@@ -144,53 +150,52 @@ const Homepage = () => {
 
   const fetchProductsAndVendors = async () => {
     try {
-      if (!prevProductsRef.current) {
-       
-        const [approvedVendorsSnapshot, productsSnapshot] = await Promise.all([
-          getDocs(
-            query(
-              collection(db, "vendors"),
-              where("isApproved", "==", true),
-              where("isDeactivated", "==", false)
-            )
-          ),
-          getDocs(
-            query(
-              collection(db, "products"),
-              where("published", "==", true)
-            )
-          ),
-        ]);
+      // Fetch approved vendors only once
+      const approvedVendorsSnapshot = await getDocs(
+        query(
+          collection(db, "vendors"),
+          where("isApproved", "==", true),
+          where("isDeactivated", "==", false)
+        )
+      );
 
-        // Store approved vendor IDs in a Set
-        const approvedVendors = new Set();
-        approvedVendorsSnapshot.forEach((vendorDoc) => {
-          approvedVendors.add(vendorDoc.id);
-        });
+      // Store approved vendor IDs in a Set
+      const approvedVendorsSet = new Set();
+      approvedVendorsSnapshot.forEach((vendorDoc) => {
+        approvedVendorsSet.add(vendorDoc.id);
+      });
+      setApprovedVendors(approvedVendorsSet);
 
-        // Create products list and vendor name list
-        const productsList = [];
-        const vendorList = new Set(); // Use a Set to ensure uniqueness of vendor names
+      // Fetch featured products with pagination
+      const productsQuery = query(
+        collection(db, "products"),
+        where("published", "==", true),
+        where("isFeatured", "==", true),
+        limit(20) // Limit to 20 products
+      );
 
-        productsSnapshot.forEach((productDoc) => {
-          const productData = productDoc.data();
-          if (approvedVendors.has(productData.vendorId)) {
-            productsList.push({
-              id: productDoc.id,
-              ...productData,
-            });
-            vendorList.add(productData.vendorName);
-          }
-        });
+      const productsSnapshot = await getDocs(productsQuery);
 
-        // Update state with results
-        setProducts(productsList);
-        prevProductsRef.current = productsList; // Cache for future renders
-        setFilteredProducts(productsList); // Initialize filtered products
-        setVendors(Array.from(vendorList)); // Convert Set to Array for vendors
-      } else {
-        setProducts(prevProductsRef.current);
-      }
+      // Save the last visible document for pagination
+      const lastVisibleDoc =
+        productsSnapshot.docs[productsSnapshot.docs.length - 1];
+      setLastVisible(lastVisibleDoc);
+
+      // Create products list
+      const productsList = [];
+      productsSnapshot.forEach((productDoc) => {
+        const productData = productDoc.data();
+        if (approvedVendorsSet.has(productData.vendorId)) {
+          productsList.push({
+            id: productDoc.id,
+            ...productData,
+          });
+        }
+      });
+
+      // Update state with results
+      setProducts(productsList);
+      setFilteredProducts(productsList);
     } catch (error) {
       console.error("Error fetching products and vendors:", error);
     } finally {
@@ -202,6 +207,55 @@ const Homepage = () => {
   useEffect(() => {
     fetchProductsAndVendors();
   }, []);
+
+  const handleLoadMore = async () => {
+    if (lastVisible) {
+      try {
+        setLoadingMore(true);
+
+        const nextProductsQuery = query(
+          collection(db, "products"),
+          where("published", "==", true),
+          where("isFeatured", "==", true),
+          startAfter(lastVisible),
+          limit(20)
+        );
+
+        const nextProductsSnapshot = await getDocs(nextProductsQuery);
+
+        if (!nextProductsSnapshot.empty) {
+          const newLastVisible =
+            nextProductsSnapshot.docs[nextProductsSnapshot.docs.length - 1];
+          setLastVisible(newLastVisible);
+
+          const newProducts = [];
+          nextProductsSnapshot.forEach((productDoc) => {
+            const productData = productDoc.data();
+            if (approvedVendors.has(productData.vendorId)) {
+              newProducts.push({
+                id: productDoc.id,
+                ...productData,
+              });
+            }
+          });
+
+          // Append new products to the existing list
+          setProducts((prevProducts) => [...prevProducts, ...newProducts]);
+          setFilteredProducts((prevProducts) => [
+            ...prevProducts,
+            ...newProducts,
+          ]);
+        } else {
+          // No more products to load
+          setLastVisible(null);
+        }
+      } catch (error) {
+        console.error("Error loading more products:", error);
+      } finally {
+        setLoadingMore(false);
+      }
+    }
+  };
 
   useEffect(() => {
     if (!loading && initialLoad) {
@@ -447,7 +501,7 @@ const Homepage = () => {
           <Market />
         </>
       )}
-      <div className="p-2">
+      <div className="p-2 mb-24">
         <h1 className="text-left mt-2 font-medium text-xl translate-y-2 font-ubuntu mb-4">
           Featured Products
         </h1>
@@ -457,7 +511,7 @@ const Homepage = () => {
               <Skeleton key={index} height={200} width="100%" />
             ))
           ) : filteredProducts.length > 0 ? (
-            filteredProducts.slice(0, 16).map((product, index) => (
+            filteredProducts.map((product, index) => (
               <div
                 ref={(el) => (productCardsRef.current[index] = el)}
                 key={product.id}
@@ -475,40 +529,20 @@ const Homepage = () => {
             </div>
           )}
         </div>
-        {!searchTerm && filteredProducts.length > 0 && (
+
+        {/* Load More Button */}
+        {lastVisible && (
           <button
             className="w-full mt-4 py-2 h-12 font-opensans font-medium bg-customOrange text-white rounded-full"
             onClick={handleLoadMore}
+            disabled={loadingMore}
           >
-            Load More
+            {loadingMore ? "Loading..." : "Load More"}
           </button>
         )}
       </div>
-      {!searchTerm && (
-        <div className="px-2 mt-6 mb-4">
-          <div
-            className="relative w-auto rounded-lg h-52 bg-green-700 overflow-hidden cursor-pointer"
-            onClick={() => navigate("/donate")}
-          >
-            <AdvancedImage
-              cldImg={donationImg}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute bottom-4 opacity-100 z-10 -translate-y-2 left-4">
-              <p className="text-xs text-white font-light  font-lato">
-                DONATIONS:
-              </p>
-              <p className="text-xl font-poppins mb-1 text-white font-medium">
-                LEND A HELPING HAND
-              </p>
-              <p className="text-xs font-lato underline font-light text-white  underline-offset-4">
-                DONATE
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-      <BottomBar isSearchFocused={isSearchFocused} />
+
+      {/* <BottomBar isSearchFocused={isSearchFocused} /> */}
     </>
   );
 };

@@ -514,7 +514,15 @@ const VendorProfile = () => {
                 </div> 
 
                 <div className="my-4  w-full">
-                  {[5, 4, 3, 2, 1].map((star) => (
+                  {isLoading ? (
+                    <div>
+                      <Skeleton square={true} height={20} width={200} />
+                      <Skeleton square={true} height={20} width={200} />
+                      <Skeleton square={true} height={20} width={200} />
+                      <Skeleton square={true} height={20} width={200} />
+                      <Skeleton square={true} height={20} width={200} />
+                    </div>
+                  ) : [5, 4, 3, 2, 1].map((star) => (
                     <div key={star} className="flex items-center mb-2">
                       <span className="w-6 text-xs  font-opensans font-light">
                         {star}

@@ -256,6 +256,7 @@ const VendorProfile = () => {
       } catch (error) {
         console.error("Error fetching reviews:", error);
       } finally {
+        setIsLoading(false);
       }
     };
     fetchReviews();

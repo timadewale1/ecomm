@@ -6,6 +6,7 @@ import TrashIcon from "./Loading/trash";
 import EnvelopeIcon from "./Loading/Envelope";
 import { PiPackage } from "react-icons/pi";
 import { TbTruckDelivery } from "react-icons/tb";
+
 import { FaRegSadCry, FaRegSmile } from "react-icons/fa"; // Import new icons
 import { MdCancel, MdOutlineClose } from "react-icons/md";
 import Modal from "react-modal";
@@ -16,11 +17,13 @@ const defaultVendorImage =
 const defaultProductImage = "https://via.placeholder.com/150"; // Replace with your default product image URL
 
 const NotificationItem = ({ notification, markAsRead, deleteNotification }) => {
+
   const [translateX, setTranslateX] = useState(0);
   const [swipeDirection, setSwipeDirection] = useState("");
   const [isRead, setIsRead] = useState(notification?.seen);
   const [isDeleted, setIsDeleted] = useState(false);
   const [hasSwiped, setHasSwiped] = useState(false);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -34,6 +37,7 @@ const NotificationItem = ({ notification, markAsRead, deleteNotification }) => {
     notification.vendorCoverImage && notification.vendorCoverImage !== ""
       ? notification.vendorCoverImage
       : defaultVendorImage;
+
 
   let notificationIcon;
   let notificationMessage = notification.message;
@@ -60,24 +64,30 @@ const NotificationItem = ({ notification, markAsRead, deleteNotification }) => {
         <TbTruckDelivery className="text-3xl text-gray-700" />
       </div>
     );
+
     notificationMessage = `Your order with ID ${notification.orderId} from ${vendorName} has been shipped. Click to see Rider's details 😁.`;
+
   } else if (notification.message.includes("Delivered")) {
     notificationIcon = (
       <div className="border rounded-full p-1">
         <FaRegSmile className="text-3xl text-gray-700" />
       </div>
     );
+
     notificationMessage = `${vendorName} has marked your order as delivered! 🥳 If you have a problem with this order, or you haven't received it, reach out to customer care immediately.`;
   } else if (notification.message.includes("Declined")) {
     notificationIcon = (
       <div className="border rounded-full p-1">
         <MdCancel className="text-3xl text-gray-700" />
+
       </div>
     );
     notificationMessage = `Your order with ID ${notification.orderId} from ${vendorName} has been cancelled. Click to see why 😢.`;
   } else {
+
     // For vendor notifications or other types, keep the vendor image and message as is
     notificationIcon = null; // No icon needed
+
     notificationMessage = notification.message;
   }
 

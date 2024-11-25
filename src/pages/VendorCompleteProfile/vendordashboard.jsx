@@ -117,7 +117,7 @@ const VendorDashboard = () => {
     return () => unsubscribe();
   };
 
-  const textToCopy = `https://mythriftprod.vercel.app/${
+  const textToCopy = vendorData.vendorId && `https://mythriftprod.vercel.app/${
     vendorData &&
     (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
   }/${vendorData.vendorId}`;

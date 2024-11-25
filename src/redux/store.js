@@ -7,6 +7,8 @@ import productReducer from "./reducers/productreducers";
 import authReducer from "./reducers/authreducers";
 import orderReducer from "./reducers/orderreducer";
 import userReducer from "./reducers/userreducer";
+import vendorProfileReducer from "./vendorProfileSlice"; // Adjust the path as needed
+
 const rootReducer = combineReducers({
   auth: authReducer,
   cart: cartReducer,
@@ -14,6 +16,7 @@ const rootReducer = combineReducers({
   user: userReducer,
   orders: orderReducer,
   favorites: favoritesReducer,
+  vendorProfile: vendorProfileReducer, // Add the slice to the root reducer
 });
 
 // Load cart state from local storage

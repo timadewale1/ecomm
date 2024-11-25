@@ -107,7 +107,7 @@ const VendorProducts = () => {
                         {isRestocking ? (
                           <input
                             type="number"
-                            className="border no-spinner p-1 ml-2 rounded-[10px] focus:outline-customOrange w-24"
+                            className="border text-right no-spinner p-1 ml-2 rounded-[10px] focus:outline-customOrange h-6 w-24"
                             value={restockValues[variantKey]?.quantity || ""}
                             onChange={(e) => {
                               const value = e.target.value;
@@ -290,6 +290,7 @@ const VendorProducts = () => {
         const productRef = doc(db, "products", productId);
         await updateDoc(productRef, {
           published: tabOpt === "Drafts",
+          isFeatured: false,
         });
       }
       toast.success(
@@ -349,7 +350,7 @@ const VendorProducts = () => {
   };
 
   const handlePinProduct = async (product) => {
-    if (!product.isFeatured && pinnedCount >= 3) {
+    if (!product.isFeatured && pinnedCount >= 4) {
       toast.error("You can only pin up to 3 products.");
       return;
     }
@@ -636,7 +637,7 @@ const VendorProducts = () => {
             </p>
             <p className="text-white text-3xl font-bold">
               {productsLoading ? (
-                <FaSpinner className="animate-spin" />
+                <Skeleton width={38} height={28} className="opacity-50" />
               ) : (
                 filteredProducts.length
               )}
@@ -727,7 +728,7 @@ const VendorProducts = () => {
                     ) : (
                       // Show pin icon only if there are less than 3 pinned products
                       tabOpt === "Active" &&
-                      ((!product.isFeatured && pinnedCount < 3) ||
+                      ((!product.isFeatured && pinnedCount < 4) ||
                         product.isFeatured) && (
                         <div
                           onClick={(e) => {
@@ -983,7 +984,7 @@ const VendorProducts = () => {
                 Product Sub-type:{" "}
                 <span className="font-normal">{selectedProduct.subType}</span>
               </p>
-              <hr className="text-customOrange opacity-40   " />
+              <hr className="text-customOrange opacity-40" />
 
               <div className="text-black font-semibold text-sm">
                 <p className="text-black font-semibold text-sm mb-2">
@@ -993,13 +994,28 @@ const VendorProducts = () => {
                   {selectedProduct.description}
                 </p>
               </div>
-              {selectedProduct.variants.slice(1) && (
-                <p className="text-lg text-black font-semibold mb-2">
-                  {selectedProduct.variants.slice(1).length === 1
-                    ? "Product Variant"
-                    : "Product Variants"}
-                </p>
+
+              {selectedProduct.condition === "Defect:" && (
+                <>
+                  {" "}
+                  <p className="text-red-400 font-semibold text-sm">
+                    Defect Description:{" "}
+                    <span className="font-normal">
+                      {selectedProduct.defectDescription}
+                    </span>
+                  </p>
+                  <hr className="text-customOrange opacity-40" />
+                </>
               )}
+            </div>
+            {selectedProduct.variants.slice(1) && (
+              <p className="text-lg text-black font-semibold mb-2">
+                {selectedProduct.variants.slice(1).length === 1
+                  ? "Product Variant"
+                  : "Product Variants"}
+              </p>
+            )}
+            <div className="px-2 ">
               <div className="flex w-full overflow-x-auto space-x-4 snap-x snap-mandatory">
                 {renderVariants(selectedProduct.variants || [])}
               </div>
@@ -1101,7 +1117,7 @@ const VendorProducts = () => {
                   >
                     {rLoading ? (
                       <Lottie
-                        className="w-10 h-10"
+                        className="w-10 h-10 text-white"
                         animationData={LoadState}
                         loop={true}
                         autoplay={true}

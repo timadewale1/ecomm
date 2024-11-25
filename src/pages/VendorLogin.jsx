@@ -38,6 +38,9 @@ const VendorLogin = () => {
   const [showOTP, setShowOTP] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isPhoneLogin, setIsPhoneLogin] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+
+  const [resendCooldown, setResendCooldown] = useState(0); // Cooldown timer
 
   const navigate = useNavigate();
   const auth = getAuth();
@@ -74,6 +77,10 @@ const VendorLogin = () => {
   };
 
   const onPhoneSignup = async () => {
+    if (otpSent) {
+      toast.error("OTP has already been sent. Please check your phone.");
+      return;
+    }
     setLoading(true);
     onCaptchVerify();
 
@@ -96,6 +103,8 @@ const VendorLogin = () => {
     signInWithPhoneNumber(auth, "+234" + phone, appVerifier) // Adding "+234" here for OTP sending
       .then((confirmationResult) => {
         window.confirmationResult = confirmationResult;
+        setOtpSent(true); // Set otpSent to true when OTP is sent
+
         setLoading(false);
         setShowOTP(true);
         toast.success("OTP sent successfully!");
@@ -114,6 +123,7 @@ const VendorLogin = () => {
         const user = res.user;
         setLoading(false);
         toast.success("Login successful!");
+        setOtpSent(false);
 
         const vendorDoc = await getDoc(doc(db, "vendors", user.uid));
 
@@ -206,7 +216,30 @@ const VendorLogin = () => {
       onPhoneSignup();
     }
   };
-
+  const handleResendOTP = async () => {
+    if (resendCooldown > 0) return;
+    try {
+      const appVerifier = window.recaptchaVerifier;
+      const confirmationResult = await signInWithPhoneNumber(
+        auth,
+        "+234" + phone,
+        appVerifier
+      );
+      window.confirmationResult = confirmationResult;
+      toast.success("OTP resent successfully!");
+      setResendCooldown(30); // Start 30-second cooldown
+    } catch (error) {
+      console.error("Resend OTP error:", error);
+      toast.error("Failed to resend OTP. Please try again.");
+    } finally {
+    }
+  };
+  const handleReloadToSignup = () => {
+    setLoading(true); // Show loading state
+    setTimeout(() => {
+      window.location.href = "/vendor-signup";
+    }, 500);
+  };
   const handleSigninError = (error) => {
     switch (error.code) {
       case "auth/user-not-found":
@@ -313,6 +346,19 @@ const VendorLogin = () => {
                             onChange={(e) => setOtp(e.target.value)}
                             className="form-control w-full h-14 bg-gray-300 px-10 font-semibold text-gray-800 rounded-lg"
                           />
+                          <button
+                            onClick={handleResendOTP}
+                            disabled={resendCooldown > 0}
+                            className={`mt-2 px-4 py-2 rounded-lg ${
+                              resendCooldown > 0
+                                ? "bg-gray-400 text-gray-600 cursor-not-allowed"
+                                : "bg-customOrange text-white hover:bg-orange-600"
+                            }`}
+                          >
+                            {resendCooldown > 0
+                              ? `Resend OTP in ${resendCooldown}s`
+                              : "Resend OTP"}
+                          </button>
                           <motion.button
                             onClick={onOTPVerify}
                             className="glow-button w-full h-14 mt-4 bg-customOrange text-white font-semibold rounded-full flex items-center justify-center"
@@ -372,7 +418,7 @@ const VendorLogin = () => {
                   <motion.button
                     type="submit"
                     className="glow-button w-full h-14 mt-7 bg-customOrange text-white font-semibold rounded-full flex items-center justify-center"
-                    disabled={loading}
+                    disabled={loading || otpSent}
                   >
                     {loading ? (
                       <RotatingLines
@@ -388,9 +434,12 @@ const VendorLogin = () => {
                 <div className="text-center font-opensans font-light mt-2 flex justify-center">
                   <p className="text-gray-700">
                     Want to join our community?{" "}
-                    <span className="font-semibold underline text-black">
-                      <Link to="/vendor-signup">Sign Up</Link>
-                    </span>
+                    <button
+                      onClick={handleReloadToSignup}
+                      className="font-semibold underline text-black"
+                    >
+                      Sign Up
+                    </button>
                   </p>
                 </div>
                 <div id="recaptcha-container"></div>

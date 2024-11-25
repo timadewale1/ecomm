@@ -206,7 +206,7 @@ const NotificationsPage = () => {
       </div>
 
       {/* Scrollable Notification List */}
-      <div className="overflow-y-auto h-[calc(100vh-150px)] px-2">
+      <div className="overflow-y-auto h-[calc(100vh-150px)] pb-16 px-2">
         {notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full mt-20">
             <img

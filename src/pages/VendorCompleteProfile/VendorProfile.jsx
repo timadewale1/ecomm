@@ -78,7 +78,7 @@ const VendorProfile = () => {
           totalOrders === 0
             ? [1, 1, 1]
             : [fulfilledOrders, unfulfilledOrders, incomingOrders],
-        backgroundColor: ["#5CBF49", "#d76230", "#d8d333"],
+        backgroundColor: ["#15803d", "#d8d333", "#3b82f6" ],
         hoverBackgroundColor: ["#D92CA0", "#F27D38", "#5CBF49"],
         borderWidth: 0,
       },
@@ -99,7 +99,7 @@ const VendorProfile = () => {
     },
   };
 
-  const { data: userData } = useSelector(
+  const { data: userData, loading } = useSelector(
     (state) => state.vendorProfile
   );
 
@@ -132,6 +132,7 @@ const VendorProfile = () => {
   const {
     shopName,
     coverImageUrl,
+    marketPlaceType,
     uid,
     ratingCount,
     rating
@@ -165,7 +166,7 @@ const VendorProfile = () => {
         // Incoming Orders
         const incomingQuery = query(
           ordersRef,
-          where("status", "==", "pending"),
+          where("progressStatus", "==", "Pending"),
           where("vendorId", "==", uid)
         );
         const incomingSnapshot = await getDocs(incomingQuery);
@@ -211,6 +212,7 @@ const VendorProfile = () => {
         console.error("User not logged in or UID missing");
         return; // Exit the function early if currentUser or UID is not available
       } 
+      setIsLoading(true)
         try {
         const reviewsRef = collection(
           db,
@@ -289,12 +291,12 @@ const VendorProfile = () => {
         <div>
           {/* Cover Image Section */}
           <div
-            className="relative w-full h-56 bg-cover bg-full flex"
+            className="relative w-full h-56 bg-cover bg-customSoftGray bg-full flex"
             style={{
-              backgroundImage: isLoading ? "none" : `url(${coverImageUrl})`,
-            }}
+              backgroundImage: loading ? "none" : marketPlaceType === "virtual" ? `url(${coverImageUrl})` : `url(${defaultImageUrl})`,
+            }} 
           >
-            {isLoading && (
+            {loading && (
               <Skeleton
                 height={224} // Adjusted height to match the cover div height
                 width="100%"
@@ -308,13 +310,19 @@ const VendorProfile = () => {
           </div>
           <div className="flex flex-col">
             {/* My Activity Chart */}
-            <div className="my-4 w-full px-2">
+            <div className=" my-4 w-full px-2">
+            
               <div className="w-full h-14 flex">
                 <h1 className="text-base font-semibold font-opensans mx-2 translate-y-4 text-black">
                   Quick Stats
                 </h1>
               </div>
-              <div className="flex flex-col items-center rounded-xl bg-zinc-200">
+              <div className="relative bg-customOrange flex flex-col items-center rounded-xl"><div className="absolute top-0 right-0">
+            <img src="./Vector.png" alt="" className="w-16 h-24" />
+          </div>
+          <div className="absolute bottom-0 left-0">
+            <img src="./Vector2.png" alt="" className="w-16 h-16" />
+          </div>
                 <div className="w-40 h-40 relative">
                   <Doughnut data={activityData} options={activityOptions} />
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -330,19 +338,19 @@ const VendorProfile = () => {
                 </div>
                 <div className="flex mt-2 space-x-6 text-sm mb-3">
                   <div className="flex items-center space-x-1">
-                    <span className="w-3 h-3 rounded-full bg-[#5CBF49]"></span>
+                    <span className="w-3 h-3 rounded-full bg-green-700"></span>
                     <span className="font-opensans text-black">
                       Fulfilled ({fulfilledOrders})
                     </span>
                   </div>
                   <div className="flex items-center space-x-1">
-                    <span className="w-3 h-3 rounded-full bg-[#d76230]"></span>
+                    <span className="w-3 h-3 rounded-full bg-[#d8d333]"></span>
                     <span className="font-opensans text-black">
                       Unfulfilled ({unfulfilledOrders})
                     </span>
                   </div>
                   <div className="flex items-center space-x-1">
-                    <span className="w-3 h-3 rounded-full bg-[#d8d333]"></span>
+                    <span className="w-3 h-3 rounded-full bg-blue-500"></span>
                     <span className="font-opensans text-black">
                       Incoming ({incomingOrders})
                     </span>
@@ -474,7 +482,12 @@ const VendorProfile = () => {
                 <div className="flex items-center justify-start my-4">
                   <div className=" rounded-full flex flex-col ">
                     {isLoading ? (
-                      <Skeleton square={true} height={80} width={80} />
+                      <div className="flex flex-col">
+                        <Skeleton square={true} height={80} width={80} />
+                        <Skeleton square={true} height={15} width={80} />
+                        <Skeleton square={true} height={15} width={20} />
+                        </div>
+                      
                     ) : (
                       <>
                         <span className="text-5xl font-opensans font-semibold">
@@ -501,7 +514,15 @@ const VendorProfile = () => {
                 </div> 
 
                 <div className="my-4  w-full">
-                  {[5, 4, 3, 2, 1].map((star) => (
+                  {isLoading ? (
+                    <div>
+                      <Skeleton square={true} height={20} width={200} />
+                      <Skeleton square={true} height={20} width={200} />
+                      <Skeleton square={true} height={20} width={200} />
+                      <Skeleton square={true} height={20} width={200} />
+                      <Skeleton square={true} height={20} width={200} />
+                    </div>
+                  ) : [5, 4, 3, 2, 1].map((star) => (
                     <div key={star} className="flex items-center mb-2">
                       <span className="w-6 text-xs  font-opensans font-light">
                         {star}
@@ -568,7 +589,7 @@ const VendorProfile = () => {
                     </div>
                   ))
                 ) : (
-                  <p>No reviews found for this filter.</p>
+                  <p className="text-center text-xl mt-6">No reviews found for this filter.</p>
                 )}
               </div>
             </div>

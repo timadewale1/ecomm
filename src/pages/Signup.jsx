@@ -34,7 +34,7 @@ import {
 import { MdOutlineEmail, MdOutlineLock } from "react-icons/md";
 import { Oval, RotatingLines } from "react-loader-spinner";
 import PasswordStrengthBar from "react-password-strength-bar";
-import useAuth from "../custom-hooks/useAuth";
+import {useAuth} from "../custom-hooks/useAuth";
 
 const Signup = () => {
   const [username, setUsername] = useState("");

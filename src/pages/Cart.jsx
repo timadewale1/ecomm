@@ -12,7 +12,7 @@ import toast from "react-hot-toast";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.config";
 import EmptyCart from "../components/Loading/EmptyCart";
-import useAuth from "../custom-hooks/useAuth";
+import {useAuth} from "../custom-hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { GoChevronLeft, GoChevronUp, GoChevronRight } from "react-icons/go";
 import Loading from "../components/Loading/Loading";

@@ -6,7 +6,7 @@ import { ChevronRight, User, ChevronLeft } from "lucide-react";
 
 import { useNavigate, useLocation } from "react-router-dom";
 import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
-import useAuth from "../custom-hooks/useAuth";
+import {useAuth} from "../custom-hooks/useAuth";
 import { FaHeart } from "react-icons/fa";
 import { RotatingLines } from "react-loader-spinner";
 import { PiSignOutBold } from "react-icons/pi";

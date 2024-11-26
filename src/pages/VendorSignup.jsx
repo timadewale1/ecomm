@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
@@ -29,7 +29,11 @@ import Typewriter from "typewriter-effect";
 import VendorLoginAnimation from "../SignUpAnimation/SignUpAnimation";
 import { RotatingLines } from "react-loader-spinner";
 import Loading from "../components/Loading/Loading";
-
+import { GoChevronLeft } from "react-icons/go";
+import { collection, where, query, getDocs } from "firebase/firestore";
+import { initializeRecaptchaVerifier } from "../services/recaptcha";
+import PhoneInput from "react-phone-input-2";
+import "react-phone-input-2/lib/style.css";
 const VendorSignup = () => {
   const [vendorData, setVendorData] = useState({
     firstName: "",
@@ -41,15 +45,48 @@ const VendorSignup = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showOTP, setShowOTP] = useState(false);
-  const [otp, setOtp] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [isSendingOTP, setIsSendingOTP] = useState(false);
-  const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
+  const [recaptchaVerifier, setRecaptchaVerifier] = useState(null);
+
   const [resendCooldown, setResendCooldown] = useState(0); // Cooldown timer
 
   const navigate = useNavigate();
   const auth = getAuth();
+
+  const initializeRecaptchaVerifier = () => {
+    // Clear existing reCAPTCHA verifier if it exists
+    if (window.recaptchaVerifier) {
+      window.recaptchaVerifier.clear();
+      delete window.recaptchaVerifier;
+    }
+
+    // Initialize new reCAPTCHA verifier
+    window.recaptchaVerifier = new RecaptchaVerifier(
+      auth, // <-- Pass auth as the first argument
+      "recaptcha-container-signup",
+      {
+        size: "invisible",
+        callback: (response) => {
+          // reCAPTCHA solved, allow signInWithPhoneNumber
+        },
+        "expired-callback": () => {
+          toast.error("reCAPTCHA expired. Please try again.");
+        },
+      }
+    );
+  };
+
+  useEffect(() => {
+    initializeRecaptchaVerifier();
+    return () => {
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear();
+        delete window.recaptchaVerifier;
+      }
+    };
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -58,149 +95,158 @@ const VendorSignup = () => {
 
   const validateName = (name) => /^[A-Za-z]+$/.test(name);
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const validatePhoneNumber = (phone) => /^[0-9]{11}$/.test(phone);
-
-  const initializeRecaptchaVerifier = () => {
-    if (window.recaptchaVerifier) {
-      window.recaptchaVerifier.clear();
-    }
-    window.recaptchaVerifier = new RecaptchaVerifier(
-      auth,
-      "recaptcha-container",
-      {
-        size: "invisible",
-        callback: () => {
-          handleSignup();
-        },
-        "expired-callback": () => {
-          toast.error("reCAPTCHA expired. Please try again.");
-        },
-      }
-    );
-
-    window.recaptchaVerifier.render().catch((error) => {
-      console.error("reCAPTCHA render error:", error);
-      toast.error("Failed to load reCAPTCHA. Please refresh the page.");
-    });
-  };
 
   const handleSignup = async (e) => {
     e.preventDefault();
     setLoading(false);
     setIsSendingOTP(true);
 
-    // Validation
+    // Validate Names
     if (
       !validateName(vendorData.firstName) ||
       !validateName(vendorData.lastName)
     ) {
-      toast.error("Names must only contain letters.");
-      setLoading(false);
+      toast.error("First and Last names must only contain letters.");
       setIsSendingOTP(false);
-
       return;
     }
+
+    // Validate Email
     if (!validateEmail(vendorData.email)) {
-      toast.error("Invalid email format.");
-      setLoading(false);
+      toast.error("Invalid email format. Please enter a valid email.");
       setIsSendingOTP(false);
-
       return;
     }
-    if (!validatePhoneNumber(vendorData.phoneNumber)) {
-      toast.error("Phone number should be exactly 11 digits.");
-      setLoading(false);
-      setIsSendingOTP(false);
 
-      return;
-    }
+    // Validate Password Match
     if (vendorData.password !== vendorData.confirmPassword) {
-      toast.error("Passwords do not match.");
-      setLoading(false);
+      toast.error("Passwords do not match. Please re-enter.");
       setIsSendingOTP(false);
-
       return;
     }
 
-    // Initialize reCAPTCHA
-    if (!window.recaptchaVerifier) {
-      initializeRecaptchaVerifier();
+    // Validate Phone Number Length
+    if (vendorData.phoneNumber.length < 10) {
+      toast.error(
+        "Phone number is incomplete. Please enter at least 10 digits."
+      );
+      setIsSendingOTP(false);
+      return;
     }
-
-    const appVerifier = window.recaptchaVerifier;
 
     try {
+      // Check if Email Already Exists in Firestore (users or vendors)
+      const emailQuery = query(
+        collection(db, "vendors"),
+        where("email", "==", vendorData.email)
+      );
+      const emailSnapshot = await getDocs(emailQuery);
+
+      if (!emailSnapshot.empty) {
+        toast.error(
+          "This email is already registered as a vendor. Please log in."
+        );
+        setIsSendingOTP(false);
+        return;
+      }
+
+      // Check for Email in User Collection (if applicable)
+      const userEmailQuery = query(
+        collection(db, "users"), // Replace with your user collection name
+        where("email", "==", vendorData.email)
+      );
+      const userEmailSnapshot = await getDocs(userEmailQuery);
+
+      if (!userEmailSnapshot.empty) {
+        toast.error(
+          "This email is already registered as a user. Please use a different email."
+        );
+        setIsSendingOTP(false);
+        return;
+      }
+
+      // Check if Phone Number Already Exists in Firestore (users or vendors)
+      const phoneQuery = query(
+        collection(db, "vendors"),
+        where("phoneNumber", "==", vendorData.phoneNumber)
+      );
+      const phoneSnapshot = await getDocs(phoneQuery);
+
+      if (!phoneSnapshot.empty) {
+        toast.error(
+          "This phone number is already registered as a vendor. Please log in."
+        );
+        setIsSendingOTP(false);
+        return;
+      }
+
+      // Check for Phone Number in User Collection (if applicable)
+      const userPhoneQuery = query(
+        collection(db, "users"), // Replace with your user collection name
+        where("phoneNumber", "==", vendorData.phoneNumber)
+      );
+      const userPhoneSnapshot = await getDocs(userPhoneQuery);
+
+      if (!userPhoneSnapshot.empty) {
+        toast.error(
+          "This phone number is already registered as a user. Please use a different phone number."
+        );
+        setIsSendingOTP(false);
+        return;
+      }
+
+      // Send OTP
+      const appVerifier = window.recaptchaVerifier;
       const confirmationResult = await signInWithPhoneNumber(
         auth,
-        "+234" + vendorData.phoneNumber,
+        vendorData.phoneNumber,
         appVerifier
       );
+
       window.confirmationResult = confirmationResult;
-      setShowOTP(true);
       toast.success("OTP sent successfully!");
+
+      // Navigate to OTP verification page with vendor data
+      navigate("/vendor-verify-otp", {
+        state: {
+          vendorData: {
+            email: vendorData.email,
+            password: vendorData.password,
+            phoneNumber: vendorData.phoneNumber,
+            firstName: vendorData.firstName,
+            lastName: vendorData.lastName,
+          },
+          mode: "signup",
+        },
+      });
     } catch (error) {
-      console.error("OTP send error:", error);
-      toast.error("Failed to send OTP. Please reload the page.");
+      console.error("Signup error:", error);
+
+      // Handle Firebase Authentication-specific errors
+      switch (error.code) {
+        case "auth/email-already-in-use":
+          toast.error("This email is already registered. Please log in.");
+          break;
+        case "auth/phone-number-already-exists":
+          toast.error(
+            "This phone number is already registered. Please log in."
+          );
+          break;
+        default:
+          toast.error(`Error signing up: ${error.message}`);
+      }
     } finally {
-      setLoading(false);
       setIsSendingOTP(false);
     }
   };
 
-  const onOTPVerify = async () => {
-    setIsVerifyingOTP(true);
-    try {
-      const confirmationResult = window.confirmationResult;
-      const phoneCredential = PhoneAuthProvider.credential(
-        confirmationResult.verificationId,
-        otp
-      );
-
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        vendorData.email,
-        vendorData.password
-      );
-      const user = userCredential.user;
-
-      await linkWithCredential(user, phoneCredential);
-
-      await sendEmailVerification(user);
-
-      await saveVendorToDatabase(user.uid);
-
-      toast.success(
-        "Account created successfully. Please verify your email and log in."
-      );
-      setLoading(true);
-      setTimeout(() => {
-        window.location.href = "/vendorlogin";
-      }, 500);
-    } catch (error) {
-      handleSignupError(error);
-      console.error("OTP verification error:", error);
-    } finally {
-      setIsVerifyingOTP(false);
-    }
+  const handleReloadToLogin = () => {
+    setLoading(true); // Show loading state
+    setTimeout(() => {
+      window.location.href = "/vendorlogin";
+    }, 500);
   };
-  const saveVendorToDatabase = async (uid) => {
-    const timestamp = new Date();
-    const vendorInfo = {
-      uid,
-      firstName: vendorData.firstName,
-      lastName: vendorData.lastName,
-      email: vendorData.email,
-      phoneNumber: vendorData.phoneNumber,
-      role: "vendor",
-      profileComplete: false,
-      createdSince: timestamp,
-      lastUpdate: timestamp,
-      isApproved: false,
-    };
-    try {
-      await setDoc(doc(db, "vendors", uid), vendorInfo);
-    } catch (error) {}
-  };
+
   useEffect(() => {
     let timer;
     if (resendCooldown > 0) {
@@ -211,56 +257,7 @@ const VendorSignup = () => {
     return () => clearTimeout(timer);
   }, [resendCooldown]);
 
-  const handleResendOTP = async () => {
-    if (resendCooldown > 0) return;
-    setIsSendingOTP(true);
-    try {
-      const appVerifier = window.recaptchaVerifier;
-      const confirmationResult = await signInWithPhoneNumber(
-        auth,
-        "+234" + vendorData.phoneNumber,
-        appVerifier
-      );
-      window.confirmationResult = confirmationResult;
-      toast.success("OTP resent successfully!");
-      setResendCooldown(30); // Start 30-second cooldown
-    } catch (error) {
-      console.error("Resend OTP error:", error);
-      toast.error("Failed to resend OTP. Please try again.");
-    } finally {
-      setIsSendingOTP(false);
-    }
-  };
-  const handleReloadToLogin = () => {
-    setLoading(true); // Show loading state
-    setTimeout(() => {
-      window.location.href = "/vendorlogin";
-    }, 500);
-  };
-  const handleSignupError = (error) => {
-    switch (error.code) {
-      case "auth/email-already-in-use":
-        toast.error("This email is already registered. Please log in.");
-        break;
-      case "auth/invalid-verification-code":
-        toast.error("You have entered a wrong OTP code, please try again.");
-        break;
-      case "auth/phone-number-already-exists":
-        toast.error("This phone number is already registered. Please log in.");
-        break;
-      case "auth/credential-already-in-use":
-        toast.error("This phone number is already registered. Please log in.");
-        break;
-      case "auth/weak-password":
-        toast.error("Password should be at least 6 characters.");
-        break;
-      case "auth/invalid-email":
-        toast.error("Invalid email format.");
-        break;
-      default:
-        toast.error("Error signing up vendor: " + error.message);
-    }
-  };
+ 
 
   return (
     <Helmet>
@@ -270,9 +267,9 @@ const VendorSignup = () => {
             {loading ? (
               <Loading />
             ) : (
-              <div className="px-3">
-                <Link to="/confirm-user-state">
-                  <FaAngleLeft className="text-3xl -translate-y-2 font-normal text-black" />
+              <div className="px-2">
+                <Link to="/vendorlogin">
+                  <GoChevronLeft className="text-3xl -translate-y-2 font-normal text-black" />
                 </Link>
                 <VendorLoginAnimation />
                 <div className="flex justify-center text-xl text-customOrange -translate-y-1">
@@ -312,11 +309,11 @@ const VendorSignup = () => {
                       </span>
                     </h1>
                   </div>
-                  <p className="text-black font-semibold">
+                  <p className="text-black text-sm font-semibold">
                     Please sign up to continue
                   </p>
                 </div>
-                <div className="translate-y-4">
+                <div className="translate-y-6">
                   <Form onSubmit={handleSignup}>
                     <FormGroup className="relative mb-2">
                       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -328,7 +325,7 @@ const VendorSignup = () => {
                         placeholder="First Name"
                         value={vendorData.firstName}
                         onChange={handleInputChange}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                        className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
                         required
                       />
                     </FormGroup>
@@ -342,7 +339,7 @@ const VendorSignup = () => {
                         placeholder="Last Name"
                         value={vendorData.lastName}
                         onChange={handleInputChange}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                        className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
                         required
                       />
                     </FormGroup>
@@ -356,22 +353,26 @@ const VendorSignup = () => {
                         placeholder="Email"
                         value={vendorData.email}
                         onChange={handleInputChange}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                        className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
                         required
                       />
                     </FormGroup>
                     <FormGroup className="relative mb-2">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <MdPhone className="text-gray-500 text-xl" />
-                      </div>{" "}
-                      <input
-                        type="text"
-                        name="phoneNumber"
-                        placeholder="Phone Number"
+                      <PhoneInput
+                        country={"ng"}
+                        countryCodeEditable={false}
                         value={vendorData.phoneNumber}
-                        onChange={handleInputChange}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
-                        required
+                        onChange={(phone) => {
+                          handleInputChange({
+                            target: { name: "phoneNumber", value: `+${phone}` }, // Ensure the `+` is added
+                          });
+                        }}
+                        inputProps={{
+                          name: "phoneNumber",
+                          required: true,
+                          className:
+                            "w-full h-12 bg-gray-100 text-black font-opensans rounded-md text-sm focus:outline-none pl-12 focus:ring-2 focus:ring-customOrange",
+                        }}
                       />
                     </FormGroup>
                     <FormGroup className="relative mb-2">
@@ -384,7 +385,7 @@ const VendorSignup = () => {
                         placeholder="Password"
                         value={vendorData.password}
                         onChange={handleInputChange}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                        className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
                         required
                       />
                       <motion.button
@@ -406,7 +407,7 @@ const VendorSignup = () => {
                         placeholder="Confirm Password"
                         value={vendorData.confirmPassword}
                         onChange={handleInputChange}
-                        className="w-full h-14 text-gray-800 pl-10 rounded-lg bg-gray-300"
+                        className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange0"
                         required
                       />
                       <motion.button
@@ -420,55 +421,11 @@ const VendorSignup = () => {
                         {showConfirmPassword ? <FaRegEye /> : <FaRegEyeSlash />}
                       </motion.button>
                     </FormGroup>
-                    {showOTP && (
-                      <FormGroup className="relative mb-2">
-                        <input
-                          type="text"
-                          name="otp"
-                          placeholder="Enter OTP"
-                          value={otp}
-                          onChange={(e) => setOtp(e.target.value)}
-                          className="w-full h-14 text-gray-800 pl-3 rounded-lg bg-gray-300"
-                          required
-                        />
-                        <motion.button
-                          whileTap={{ scale: 1.2 }}
-                          type="button"
-                          className="absolute right-3 top-4 text-customOrange"
-                          onClick={onOTPVerify}
-                          disabled={isVerifyingOTP}
-                        >
-                          {isVerifyingOTP ? (
-                            <RotatingLines
-                              width="25"
-                              height="25"
-                              strokeColor="gray"
-                              strokeWidth="4"
-                            />
-                          ) : (
-                            "Verify OTP"
-                          )}
-                        </motion.button>
-                        <button
-                          onClick={handleResendOTP}
-                          disabled={resendCooldown > 0 || isSendingOTP}
-                          className={`mt-2 px-4 py-2 rounded-lg ${
-                            resendCooldown > 0
-                              ? "bg-gray-400 text-gray-600 cursor-not-allowed"
-                              : "bg-customOrange text-white hover:bg-orange-600"
-                          }`}
-                        >
-                          {resendCooldown > 0
-                            ? `Resend OTP in ${resendCooldown}s`
-                            : "Resend OTP"}
-                        </button>
-                      </FormGroup>
-                    )}
 
                     <button
                       type="submit"
                       disabled={isSendingOTP}
-                      className="w-full h-14 mt-4 rounded-lg bg-customOrange text-white text-lg font-semibold hover:bg-orange-600"
+                      className="w-full h-12 mt-4 rounded-full bg-customOrange text-white  font-semibold font-opensans text-sm hover:bg-orange-600"
                     >
                       {isSendingOTP ? (
                         <RotatingLines
@@ -481,9 +438,12 @@ const VendorSignup = () => {
                         "Sign Up"
                       )}{" "}
                     </button>
-                    <div id="recaptcha-container" />
+                    <div
+                      id="recaptcha-container-signup"
+                      style={{ display: "none" }}
+                    />
                   </Form>
-                  <p className="mt-3 text-center text-gray-700">
+                  <p className="mt-3 text-center font-opensans  text-gray-700">
                     Already have an account?{" "}
                     <button
                       onClick={handleReloadToLogin}

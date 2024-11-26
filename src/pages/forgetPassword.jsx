@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { auth, db } from "../firebase.config";
 import { FaAngleLeft } from "react-icons/fa6";
-import { sendPasswordResetEmail } from "firebase/auth";
 import toast from "react-hot-toast";
 import { Form, FormGroup } from "reactstrap";
 import { motion } from "framer-motion";
@@ -11,6 +10,22 @@ import { Container, Row } from "reactstrap";
 import { MdOutlineEmail } from "react-icons/md";
 import { getDocs, collection, query, where } from "firebase/firestore";
 import { RotatingLines } from "react-loader-spinner";
+import { sendPasswordResetEmail } from "firebase/auth";
+
+// Function to send password reset email with custom redirect URL
+const sendPasswordReset = async (email) => {
+  const actionCodeSettings = {
+    url: "https://mythriftprod.vercel.app/reset-password", // Redirect URL
+    handleCodeInApp: true,
+  };
+  try {
+    await sendPasswordResetEmail(auth, email, actionCodeSettings);
+    toast.success("Password reset email sent successfully!");
+  } catch (error) {
+    console.error("Error sending password reset email:", error);
+    toast.error("Failed to send password reset email. Please try again.");
+  }
+};
 
 const ForgetPassword = () => {
   const [email, setEmail] = useState("");
@@ -33,14 +48,29 @@ const ForgetPassword = () => {
     setLoading(true);
 
     try {
-      const q = query(collection(db, "users"), where("email", "==", email));
-      const querySnapshot = await getDocs(q);
+      // Query multiple collections for the email
+      const userCollections = ["users", "vendors"]; // Add other collections if necessary
+      let emailExists = false;
 
-      if (querySnapshot.empty) {
-        toast.error("We couldn't find an account with that email. Please try again.");
+      for (const collectionName of userCollections) {
+        const q = query(
+          collection(db, collectionName),
+          where("email", "==", email)
+        );
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          emailExists = true;
+          break;
+        }
+      }
+
+      if (!emailExists) {
+        toast.error(
+          "We couldn't find an account with that email. Please try again."
+        );
       } else {
-        await sendPasswordResetEmail(auth, email);
-        toast.success("A password reset link has been sent to your email. Please check your inbox.");
+        await sendPasswordReset(email); // Call the new function with custom redirect
         navigate("/login");
       }
     } catch (error) {

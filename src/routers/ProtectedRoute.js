@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import useAuth from "../custom-hooks/useAuth";
+import {useAuth} from "../custom-hooks/useAuth";
 import { getUserRole } from "../admin/getUserRole";
 import Loading from "../components/Loading/Loading";
 

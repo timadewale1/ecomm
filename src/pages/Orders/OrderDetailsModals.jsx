@@ -182,7 +182,9 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
         order.id, // orderId
         "In Progress", // newStatus
         vendorName, // vendorName
-        vendorCoverImage, // vendorCoverImage
+        vendorCoverImage,
+        userInfo.email, // Pass user email
+        userInfo.displayName, 
         productImage // productImage
       );
 
@@ -243,7 +245,9 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
         "Declined", // newStatus
         vendorName, // vendorName
         vendorCoverImage, // vendorCoverImage
-        productImage, // productImage
+        productImage, 
+        userInfo.email, // Pass user email
+        userInfo.displayName, // Pass user name// productImage
         reason  
       );
 
@@ -312,7 +316,9 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
         userId, // userId
         order.id, // orderId
         "Delivered", // newStatus
-        vendorName, // vendorName
+        vendorName,
+        userInfo.email, // Pass user email
+        userInfo.displayName, // Pass user name // vendorName
         vendorCoverImage, // vendorCoverImage
         productImage // productImage
       );

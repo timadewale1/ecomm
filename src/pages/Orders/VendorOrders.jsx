@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useSelector } from "react-redux";
-import useAuth from "../../custom-hooks/useAuth";
+import {useAuth} from "../../custom-hooks/useAuth";
 import Skeleton from "react-loading-skeleton";
 
 import PendingOrders from "./PendingOrders";

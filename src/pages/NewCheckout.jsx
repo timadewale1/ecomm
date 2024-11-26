@@ -5,7 +5,7 @@ import { toast } from "react-hot-toast";
 import { clearCart } from "../redux/actions/action";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase.config";
-import useAuth from "../custom-hooks/useAuth";
+import {useAuth} from "../custom-hooks/useAuth";
 import { FaPen } from "react-icons/fa";
 import serviceimage from "../Images/servicemodal.jpg";
 import bookingimage from "../Images/bookingfee.jpg";

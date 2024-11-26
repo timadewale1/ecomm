@@ -3,7 +3,7 @@ import { useLocation, matchPath } from "react-router-dom";
 import Routers from "../../routers/Routers";
 import BottomBar from "../BottomBar/BottomBar";
 import VendorBottomBar from "../BottomBar/VendorBottomBar";
-import useAuth from "../../custom-hooks/useAuth";
+import {useAuth} from "../../custom-hooks/useAuth";
 import { NavigationProvider } from "../Context/Bottombarcontext";
 import { VendorNavigationProvider } from "../Context/VendorBottomBarCtxt";
 
@@ -33,6 +33,7 @@ const Layout = () => {
     "/market-vendors",
     "/online-vendors",
     "market-vendors",
+    "/vendor-verify-otp",
     "/payment-approve",
   ];
 

@@ -7,6 +7,7 @@ import NotificationsPage from "../pages/UserSide/Notifications.jsx";
 import ForgetPassword from "../pages/forgetPassword.jsx";
 import Donate from "../pages/Donate.jsx";
 import VendorSignup from "../pages/VendorSignup";
+import AuthActionHandler from "../custom-hooks/Authhandler.jsx";
 import VendorOrders from "../pages/Orders/VendorOrders.jsx";
 import VendorLogin from "../pages/VendorLogin";
 import VendorDashboard from "../pages/VendorCompleteProfile/vendordashboard.jsx";
@@ -20,7 +21,9 @@ import ResetPassword from "../pages/UserSide/ResetPassword.jsx";
 import PaymentApprove from "../pages/PaymentApprove.jsx";
 import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfile.jsx";
 import NewHome from "../pages/Homepage";
+import EmailVerification from "../pages/UserSide/ConfirmEmail.jsx";
 import LatestCart from "../pages/Cart.jsx";
+import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
 import OrdersCentre from "../pages/UserSide/OrdersCentre.jsx";
 import VendorReviews from "../pages/vendor/VendorReviews.jsx";
 import Checkout from "../pages/NewCheckout.jsx";
@@ -59,9 +62,11 @@ const Routers = () => {
       <Route path="online-vendors" element={<OnlineVendors />} />
       <Route path="/forgetpassword" element={<ForgetPassword />} />
       <Route path="reset-password" element={<ResetPassword />} />
+      <Route path="/confirm-email" element={<EmailVerification />} />
+      <Route path="/auth-action" element={<AuthActionHandler />} />
       <Route path="/store/:id" element={<StorePage />} />
       <Route path="/category/:category" element={<CategoryPage />} />
-
+      <Route path="/vendor-verify-otp" element={<VendorVerifyOTP />} />
       <Route path="marketstorepage/:id" element={<MarketStorePage />} />
       <Route path="vendorlogin" element={<VendorLogin />} />
 

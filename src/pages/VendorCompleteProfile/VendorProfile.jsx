@@ -15,7 +15,7 @@ import {
   getDocs,
   updateDoc,
 } from "firebase/firestore";
-import useAuth from "../../custom-hooks/useAuth";
+import {useAuth} from "../../custom-hooks/useAuth";
 import { IoMdContact } from "react-icons/io";
 import { TbHomeStar } from "react-icons/tb";
 import { PiSignOutBold } from "react-icons/pi";

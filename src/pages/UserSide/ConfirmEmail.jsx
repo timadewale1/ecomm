@@ -35,15 +35,15 @@ const EmailVerification = () => {
   return (
     <div className="flex items-center justify-center bg-white px-3 py-4 min-h-screen">
       <div className="w-full max-w-md text-center">
-        <h2 className="text-2xl font-semibold font-poppins text-black mb-4">
+        <h2 className="text-3xl font-semibold font-ubuntu text-black mb-4">
           Verifying your email...
         </h2>
         {loading ? (
-          <p className="text-gray-600 font-light">
+          <p className="text-gray-600 font-opensans text-xs font-light">
             Please wait while we verify your email.
           </p>
         ) : (
-          <p className="text-green-600 font-light">
+          <p className="text-green-600  font-opensans font-normal">
             Email verification completed! Redirecting to login...
           </p>
         )}

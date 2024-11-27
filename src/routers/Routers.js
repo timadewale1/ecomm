@@ -58,6 +58,7 @@ const Routers = () => {
           </ErrorBoundary>
         }
       />
+      
       <Route path="market-vendors" element={<MarketVendors />} />
       <Route path="online-vendors" element={<OnlineVendors />} />
       <Route path="/forgetpassword" element={<ForgetPassword />} />

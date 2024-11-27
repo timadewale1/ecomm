@@ -282,7 +282,7 @@ const VendorVerifyOTP = () => {
         </p>
       </div>
 
-      <div className="mb-28">
+      <div className="mb-28 flex justify-center items-center flex-col">
         <OtpInput
           value={otp}
           onChange={handleOTPChange}
@@ -300,17 +300,20 @@ const VendorVerifyOTP = () => {
                 border: "none",
                 boxShadow: "0 0 0 1px #ccc",
                 outline: "none",
-                textAlign: "center",
-                lineHeight: "3rem",
+                textAlign: "center", // Horizontally centers the text
+                lineHeight: "3rem", // Matches the height for vertical alignment
+                verticalAlign: "middle", // Ensures text is vertically aligned
+                padding: "0", // Removes any padding that might cause misalignment
               }}
               onFocus={(e) => (e.target.style.boxShadow = "0 0 0 2px #E26A2C")}
               onBlur={(e) => (e.target.style.boxShadow = "0 0 0 1px #ccc")}
             />
           )}
         />
+
         <p
           onClick={handleResendOTP}
-          className={`mt-4 text-sm font-opensans text-center font-semibold ${
+          className={`mt-4 text-sm font-opensans  font-semibold ${
             resendCooldown > 0 || isResendingOTP
               ? "text-gray-400 cursor-not-allowed"
               : "text-customOrange cursor-pointer"

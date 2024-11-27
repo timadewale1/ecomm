@@ -9,7 +9,15 @@ import {
   signInWithPopup, // Import signInWithPopup for Google sign-in
 } from "firebase/auth";
 import { auth, db } from "../firebase.config";
-import { collection, query, where, getDocs, getDoc, doc, setDoc } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  getDoc,
+  doc,
+  setDoc,
+} from "firebase/firestore";
 
 import { FaRegEyeSlash, FaRegEye } from "react-icons/fa";
 import { MdOutlineEmail, MdOutlineLock } from "react-icons/md";
@@ -21,6 +29,7 @@ import { FcGoogle } from "react-icons/fc"; // Import Google icon
 import { useDispatch } from "react-redux";
 import { setCart } from "../redux/actions/action";
 import { RotatingLines } from "react-loader-spinner";
+import { GoChevronLeft } from "react-icons/go";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -265,7 +274,7 @@ const Login = () => {
           <Row>
             <div className="px-3 md:hidden">
               <Link to="/confirm-user-state">
-                <FaAngleLeft className="text-3xl -translate-y-2 font-normal text-black" />
+                <GoChevronLeft className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>
               <LoginAnimation />
               <div className="flex transform text-customOrange -translate-y-10 mb-2 justify-center">
@@ -334,17 +343,19 @@ const Login = () => {
 
                   <motion.button
                     type="submit"
-                    className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-medium rounded-full flex justify-center items-center"
+                    className="w-full h-12 mt-4 flex items-center justify-center rounded-full bg-customOrange text-white font-semibold font-opensans text-sm hover:bg-orange-600"
                     disabled={!email || !password}
                   >
                     {loading ? (
-                      <RotatingLines
-                        strokeColor="white"
-                        strokeWidth="5"
-                        animationDuration="0.75"
-                        width="30"
-                        visible={true}
-                      />
+                      <div className="flex items-center justify-center">
+                        <RotatingLines
+                          strokeColor="white"
+                          strokeWidth="5"
+                          animationDuration="0.75"
+                          width="30"
+                          visible={true}
+                        />
+                      </div>
                     ) : (
                       "Sign In"
                     )}

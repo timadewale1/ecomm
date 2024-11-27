@@ -139,7 +139,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               Display Name
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
-              <User className="text-customOrange text-xl mr-4" />
+              <User className="text-black text-xl mr-4" />
               <p className="font-normal font-poppins text-black w-full">
                 {displayName}
               </p>
@@ -152,7 +152,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               Store Name
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
-              <FaShop className="text-customOrange text-xl mr-4" />
+              <FaShop className="text-black text-xl mr-4" />
               <p className="font-normal font-poppins text-black w-full">
                 {shopName}
               </p>
@@ -165,7 +165,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               Store Description
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
-              <MdDescription className="text-customOrange text-xl mr-4" />
+              <MdDescription className="text-black text-xl mr-4" />
               <p className="font-normal font-poppins text-black w-full">
                 {description}
               </p>
@@ -185,7 +185,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 Complex Number
               </h1>
               <div className="flex items-center justify-between w-full px-4 py-3">
-                <FaBuilding className="text-customOrange text-xl mr-4" />
+                <FaBuilding className="text-black text-xl mr-4" />
                 <p className="font-normal font-poppins text-black w-full">
                   {complexNumber}
                 </p>
@@ -206,7 +206,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               Email
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
-              <MdEmail className="text-customOrange text-xl mr-4" />
+              <MdEmail className="text-black text-xl mr-4" />
               <p className="font-normal font-poppins text-black w-full">
                 {email}
               </p>
@@ -219,7 +219,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               Bank Details
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
-              <BsBank2 className="text-customOrange text-xl mr-4" />
+              <BsBank2 className="text-black text-xl mr-4" />
               <p className="font-normal font-poppins text-black w-full">
                 <p className="font-normal font-poppins text-black w-full">
                   {bankName}
@@ -240,7 +240,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               Categories
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
-              <BiSolidCategoryAlt className="text-customOrange text-xl mr-4" />
+              <BiSolidCategoryAlt className="text-black text-xl mr-4" />
               <p className="font-normal font-poppins text-black w-full">
                 {categoriesList}
               </p>
@@ -254,7 +254,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 Opening Time
               </h1>
               <div className="flex items-center justify-between w-full px-4 py-3">
-                <CiClock1 className="text-customOrange text-xl mr-4" />
+                <CiClock1 className="text-black text-xl mr-4" />
                 <p className="font-normal font-poppins text-black w-full">
                   {openTime}
                 </p>
@@ -273,7 +273,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 Closing Time
               </h1>
               <div className="flex items-center justify-between w-full px-4 py-3">
-                <CiClock2 className="text-customOrange text-xl mr-4" />
+                <CiClock2 className="text-black text-xl mr-4" />
                 <p className="font-normal font-poppins text-black w-full">
                   {closeTime}
                 </p>
@@ -292,7 +292,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 Days of availability
               </h1>
               <div className="flex items-center justify-between w-full px-4 py-3">
-                <FaRegCalendarAlt className="text-customOrange text-xl mr-4" />
+                <FaRegCalendarAlt className="text-black text-xl mr-4" />
                 <p className="font-normal font-poppins text-black w-full">
                   {daysAvailabilityList}
                 </p>
@@ -313,7 +313,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               Delivery Mode
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
-              <FaShippingFast className="text-customOrange text-xl mr-4" />
+              <FaShippingFast className="text-black text-xl mr-4" />
               <p className="font-normal font-poppins text-black w-full">
                 {deliveryMode}
               </p>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { signOut } from "firebase/auth";
 import { MdModeEdit } from "react-icons/md";
 import { auth, db } from "../../firebase.config";
@@ -15,7 +15,7 @@ import {
   getDocs,
   updateDoc,
 } from "firebase/firestore";
-import {useAuth} from "../../custom-hooks/useAuth";
+import { useAuth } from "../../custom-hooks/useAuth";
 import { IoMdContact } from "react-icons/io";
 import { TbHomeStar } from "react-icons/tb";
 import { PiSignOutBold } from "react-icons/pi";
@@ -31,7 +31,6 @@ import { ProgressBar } from "react-bootstrap";
 import { GoChevronLeft } from "react-icons/go";
 import { setVendorProfile, setLoading } from "../../redux/vendorProfileSlice";
 ChartJS.register(ArcElement, Tooltip, Legend);
-
 
 const defaultImageUrl =
   "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
@@ -78,7 +77,7 @@ const VendorProfile = () => {
           totalOrders === 0
             ? [1, 1, 1]
             : [fulfilledOrders, unfulfilledOrders, incomingOrders],
-        backgroundColor: ["#15803d", "#d8d333", "#3b82f6" ],
+        backgroundColor: ["#15803d", "#d8d333", "#3b82f6"],
         hoverBackgroundColor: ["#D92CA0", "#F27D38", "#5CBF49"],
         borderWidth: 0,
       },
@@ -103,8 +102,8 @@ const VendorProfile = () => {
     (state) => state.vendorProfile
   );
 
-   // Fetch user data on mount if not already in Redux
-   useEffect(() => {
+  // Fetch user data on mount if not already in Redux
+  useEffect(() => {
     const fetchUserData = async () => {
       if (currentUser) {
         dispatch(setLoading(true)); // Set loading state
@@ -129,18 +128,13 @@ const VendorProfile = () => {
     fetchUserData();
   }, [dispatch, currentUser]);
 
-  const {
-    shopName,
-    coverImageUrl,
-    marketPlaceType,
-    ratingCount,
-    rating
-  } = userData || {}
+  const { shopName, coverImageUrl, marketPlaceType, ratingCount, rating } =
+    userData || {};
 
   useEffect(() => {
     const fetchOrderData = async () => {
       if (!currentUser.uid) return; // Ensure currentUser is defined
-      
+
       try {
         const ordersRef = collection(db, "orders");
 
@@ -210,9 +204,9 @@ const VendorProfile = () => {
       if (!currentUser.uid) {
         console.error("User not logged in or UID missing");
         return; // Exit the function early if currentUser or UID is not available
-      } 
-      setIsLoading(true)
-        try {
+      }
+      setIsLoading(true);
+      try {
         const reviewsRef = collection(
           db,
           "vendors",
@@ -239,7 +233,7 @@ const VendorProfile = () => {
         const textReviews = filteredReviews.filter(
           (review) => review.reviewText
         );
-        setReviews(textReviews); 
+        setReviews(textReviews);
 
         // Calculate rating breakdown including all reviews (with and without text)
         const allReviews = reviewsList;
@@ -261,10 +255,7 @@ const VendorProfile = () => {
     fetchReviews();
   }, [currentUser, selectedRating]); // Trigger on `selectedRating` change
 
-  const averageRating =
-    ratingCount > 0
-      ? rating / ratingCount
-      : 0;
+  const averageRating = ratingCount > 0 ? rating / ratingCount : 0;
 
   const handleLogout = async () => {
     try {
@@ -292,8 +283,12 @@ const VendorProfile = () => {
           <div
             className="relative w-full h-56 bg-cover bg-customSoftGray bg-full flex"
             style={{
-              backgroundImage: loading ? "none" : marketPlaceType === "virtual" ? `url(${coverImageUrl})` : `url(${defaultImageUrl})`,
-            }} 
+              backgroundImage: loading
+                ? "none"
+                : marketPlaceType === "virtual"
+                ? `url(${coverImageUrl})`
+                : `url(${defaultImageUrl})`,
+            }}
           >
             {loading && (
               <Skeleton
@@ -310,18 +305,18 @@ const VendorProfile = () => {
           <div className="flex flex-col">
             {/* My Activity Chart */}
             <div className=" my-4 w-full px-2">
-            
               <div className="w-full h-14 flex">
                 <h1 className="text-base font-semibold font-opensans mx-2 translate-y-4 text-black">
                   Quick Stats
                 </h1>
               </div>
-              <div className="relative bg-customOrange flex flex-col items-center rounded-xl"><div className="absolute top-0 right-0">
-            <img src="./Vector.png" alt="" className="w-16 h-24" />
-          </div>
-          <div className="absolute bottom-0 left-0">
-            <img src="./Vector2.png" alt="" className="w-16 h-16" />
-          </div>
+              <div className="relative bg-customOrange flex flex-col items-center rounded-xl">
+                <div className="absolute top-0 right-0">
+                  <img src="./Vector.png" alt="" className="w-16 h-24" />
+                </div>
+                <div className="absolute bottom-0 left-0">
+                  <img src="./Vector2.png" alt="" className="w-16 h-16" />
+                </div>
                 <div className="w-40 h-40 relative">
                   <Doughnut data={activityData} options={activityOptions} />
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -485,8 +480,7 @@ const VendorProfile = () => {
                         <Skeleton square={true} height={80} width={80} />
                         <Skeleton square={true} height={15} width={80} />
                         <Skeleton square={true} height={15} width={20} />
-                        </div>
-                      
+                      </div>
                     ) : (
                       <>
                         <span className="text-5xl font-opensans font-semibold">
@@ -510,50 +504,77 @@ const VendorProfile = () => {
                       </>
                     )}
                   </div>
-                </div> 
+                </div>
 
                 <div className="my-4  w-full">
                   {isLoading ? (
                     <div>
-                      <Skeleton square={true} height={20} width={200} />
-                      <Skeleton square={true} height={20} width={200} />
-                      <Skeleton square={true} height={20} width={200} />
-                      <Skeleton square={true} height={20} width={200} />
-                      <Skeleton square={true} height={20} width={200} />
+                      <Skeleton
+                        square={true}
+                        height={20}
+                        width={300}
+                        className="my-1 ml-3"
+                      />
+                      <Skeleton
+                        square={true}
+                        height={20}
+                        width={300}
+                        className="my-1 ml-3"
+                      />
+                      <Skeleton
+                        square={true}
+                        height={20}
+                        width={300}
+                        className="my-1 ml-3"
+                      />
+                      <Skeleton
+                        square={true}
+                        height={20}
+                        width={300}
+                        className="my-1 ml-3"
+                      />
+                      <Skeleton
+                        square={true}
+                        height={20}
+                        width={300}
+                        className="my-1 ml-3"
+                      />
                     </div>
-                  ) : [5, 4, 3, 2, 1].map((star) => (
-                    <div key={star} className="flex items-center mb-2">
-                      <span className="w-6 text-xs  font-opensans font-light">
-                        {star}
-                      </span>
-                      <ProgressBar
-                        now={calculatePercentage(ratingBreakdown[star])}
-                        className="flex-1 mx-2"
-                        style={{
-                          height: "14px",
-                          backgroundColor: "#f5f3f2",
-                          borderRadius: "10px",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <div
+                  ) : (
+                    [5, 4, 3, 2, 1].map((star) => (
+                      <div key={star} className="flex items-center mb-2">
+                        <span className="w-6 text-xs  font-opensans font-light">
+                          {star}
+                        </span>
+                        <ProgressBar
+                          now={calculatePercentage(ratingBreakdown[star])}
+                          className="flex-1 mx-2"
                           style={{
-                            backgroundColor: "#f9531e",
-                            height: "100%",
-                            width: `${calculatePercentage(
-                              ratingBreakdown[star]
-                            )}%`,
+                            height: "14px",
+                            backgroundColor: "#f5f3f2",
                             borderRadius: "10px",
+                            overflow: "hidden",
                           }}
-                        />
-                      </ProgressBar>
-                    </div>
-                  ))}
+                        >
+                          <div
+                            style={{
+                              backgroundColor: "#f9531e",
+                              height: "100%",
+                              width: `${calculatePercentage(
+                                ratingBreakdown[star]
+                              )}%`,
+                              borderRadius: "10px",
+                            }}
+                          />
+                        </ProgressBar>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
               <div className="p-2">
-                {filterReviews.length > 0 ? (
+                {filterReviews.length > 0 && !isLoading ? (
                   filterReviews.map((review) => (
                     <div key={review.id} className="mb-4">
                       <div className="flex items-center mb-1">
@@ -568,7 +589,7 @@ const VendorProfile = () => {
                           </h2>
                         </div>
                       </div>
-                      <div className="flex space-x-3">
+                      <div className="flex space-x-3 items-center">
                         <div className="flex space-x-1">
                           {Array.from({ length: review.rating }).map(
                             (_, index) => (
@@ -587,39 +608,121 @@ const VendorProfile = () => {
                       </p>
                     </div>
                   ))
+                ) : isLoading ? (
+                  <>
+                    <div>
+                      <div className="mb-4">
+                        <div className="flex items-center mb-1">
+                          <Skeleton
+                            circle={true}
+                            className="w-11 h-11 rounded-full mr-3"
+                          />
+                          <div>
+                            <Skeleton square={true} width={50} height={20} />
+                          </div>
+                        </div>
+                        <div className="flex space-x-3 items-center">
+                          <Skeleton square={true} width={70} height={30} />
+                          <Skeleton square={true} width={50} height={20} />
+                        </div>
+                        <Skeleton square={true} width={330} height={20} />
+                      </div>
+                      <div className="mb-4">
+                        <div className="flex items-center mb-1">
+                          <Skeleton
+                            circle={true}
+                            className="w-11 h-11 rounded-full mr-3"
+                          />
+                          <div>
+                            <Skeleton square={true} width={50} height={20} />
+                          </div>
+                        </div>
+                        <div className="flex space-x-3 items-center">
+                          <Skeleton square={true} width={90} height={30} />
+                          <Skeleton square={true} width={50} height={20} />
+                        </div>
+                        <Skeleton square={true} width={330} height={20} />
+                        <Skeleton square={true} width={110} height={20} />
+                      </div>
+                      <div className="mb-4">
+                        <div className="flex items-center mb-1">
+                          <Skeleton
+                            circle={true}
+                            className="w-11 h-11 rounded-full mr-3"
+                          />
+                          <div>
+                            <Skeleton square={true} width={50} height={20} />
+                          </div>
+                        </div>
+                        <div className="flex space-x-3 items-center">
+                          <Skeleton square={true} width={60} height={30} />
+                          <Skeleton square={true} width={50} height={20} />
+                        </div>
+                        <Skeleton square={true} width={330} height={20} />
+                        <Skeleton square={true} width={330} height={20} />
+                        <Skeleton square={true} width={90} height={20} />
+                      </div>
+                      <div className="mb-4">
+                        <div className="flex items-center mb-1">
+                          <Skeleton
+                            circle={true}
+                            className="w-11 h-11 rounded-full mr-3"
+                          />
+                          <div>
+                            <Skeleton square={true} width={65} height={20} />
+                          </div>
+                        </div>
+                        <div className="flex space-x-3 items-center">
+                          <Skeleton square={true} width={65} height={30} />
+                          <Skeleton square={true} width={50} height={20} />
+                        </div>
+                        <Skeleton square={true} width={230} height={20} />
+                      </div>
+                      <div className="mb-4">
+                        <div className="flex items-center mb-1">
+                          <Skeleton
+                            circle={true}
+                            className="w-11 h-11 rounded-full mr-3"
+                          />
+                          <div>
+                            <Skeleton square={true} width={90} height={20} />
+                          </div>
+                        </div>
+                        <div className="flex space-x-3 items-center">
+                          <Skeleton square={true} width={70} height={30} />
+                          <Skeleton square={true} width={50} height={20} />
+                        </div>
+                        <Skeleton square={true} width={330} height={20} />
+                        <Skeleton square={true} width={200} height={20} />
+                      </div>
+                      <div className="mb-4">
+                        <div className="flex items-center mb-1">
+                          <Skeleton
+                            circle={true}
+                            className="w-11 h-11 rounded-full mr-3"
+                          />
+                          <div>
+                            <Skeleton square={true} width={40} height={20} />
+                          </div>
+                        </div>
+                        <div className="flex space-x-3 items-center">
+                          <Skeleton square={true} width={70} height={30} />
+                          <Skeleton square={true} width={50} height={20} />
+                        </div>
+                        <Skeleton square={true} width={330} height={20} />
+                      </div>
+                    </div>
+                  </>
                 ) : (
-                  <p className="text-center text-xl mt-6">No reviews found for this filter.</p>
+                  <div className="text-2xl text-center mt-8">
+                    No reviews here yet...
+                  </div>
                 )}
               </div>
             </div>
           )}
         </>
       )}
-
-      {/* {isAvatarModalOpen && (
-        <AvatarSelectorModal
-          userId={currentUser.uid}
-          onClose={() => setIsAvatarModalOpen(false)}
-          onAvatarChange={(newAvatar) =>
-            setUserData((prev) => ({ ...prev, photoURL: newAvatar }))
-          }
-          onRemoveAvatar={async () => {
-            try {
-              await updateDoc(doc(db, "vendors", currentUser.uid), {
-                photoURL: "",
-              });
-              setUserData((prev) => ({ ...prev, photoURL: "" }));
-              toast.success("Avatar removed successfully", {
-                className: "custom-toast",
-              });
-            } catch (error) {
-              toast.error("Error removing avatar. Please try again.", {
-                className: "custom-toast",
-              });
-            }
-          }}
-        />
-      )} */}
     </div>
   );
 };

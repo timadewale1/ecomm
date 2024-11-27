@@ -133,14 +133,13 @@ const VendorProfile = () => {
     shopName,
     coverImageUrl,
     marketPlaceType,
-    uid,
     ratingCount,
     rating
   } = userData || {}
 
   useEffect(() => {
     const fetchOrderData = async () => {
-      if (!uid) return; // Ensure currentUser is defined
+      if (!currentUser.uid) return; // Ensure currentUser is defined
       
       try {
         const ordersRef = collection(db, "orders");
@@ -149,7 +148,7 @@ const VendorProfile = () => {
         const fulfilledQuery = query(
           ordersRef,
           where("progressStatus", "==", "Delivered"),
-          where("vendorId", "==", uid)
+          where("vendorId", "==", currentUser.uid)
         );
         const fulfilledSnapshot = await getDocs(fulfilledQuery);
         setFulfilledOrders(fulfilledSnapshot.size);
@@ -158,7 +157,7 @@ const VendorProfile = () => {
         const unfulfilledQuery = query(
           ordersRef,
           where("progressStatus", "in", ["In Progress", "Shipped", "Pending"]),
-          where("vendorId", "==", uid)
+          where("vendorId", "==", currentUser.uid)
         );
         const unfulfilledSnapshot = await getDocs(unfulfilledQuery);
         setUnfulfilledOrders(unfulfilledSnapshot.size);
@@ -167,7 +166,7 @@ const VendorProfile = () => {
         const incomingQuery = query(
           ordersRef,
           where("progressStatus", "==", "Pending"),
-          where("vendorId", "==", uid)
+          where("vendorId", "==", currentUser.uid)
         );
         const incomingSnapshot = await getDocs(incomingQuery);
         setIncomingOrders(incomingSnapshot.size);
@@ -208,7 +207,7 @@ const VendorProfile = () => {
 
   useEffect(() => {
     const fetchReviews = async () => {
-      if (!uid) {
+      if (!currentUser.uid) {
         console.error("User not logged in or UID missing");
         return; // Exit the function early if currentUser or UID is not available
       } 
@@ -217,7 +216,7 @@ const VendorProfile = () => {
         const reviewsRef = collection(
           db,
           "vendors",
-          uid,
+          currentUser.uid,
           "reviews"
         );
         const reviewsSnapshot = await getDocs(reviewsRef);

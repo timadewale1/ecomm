@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setVendorProfile, setLoading } from "../../redux/vendorProfileSlice";
 import { FaShop } from "react-icons/fa6";
 import { MdDescription, MdEmail } from "react-icons/md";
-import { ChevronLeft, User } from "lucide-react";
+import { User } from "lucide-react";
 
 import useAuth from "../../custom-hooks/useAuth";
 import { db } from "../../firebase.config";
@@ -17,6 +17,7 @@ import { CiClock1, CiClock2 } from "react-icons/ci";
 import { FaBuilding, FaRegCalendarAlt, FaShippingFast } from "react-icons/fa";
 import { MdEdit } from "react-icons/md";
 import EditFieldModal from "./EditFieldModal"; // Import the modal component
+import { GoChevronLeft } from "react-icons/go";
 
 const VprofileDetails = ({ showDetails, setShowDetails }) => {
   const dispatch = useDispatch();
@@ -28,7 +29,6 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
   );
 
   const [editingField, setEditingField] = useState(null); // Track the field being edited
-  const [editing, setEditing] = useState(false);
   const [processing, setProcessing] = useState(false);
 
   // Fetch user data on mount if not already in Redux
@@ -114,30 +114,33 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
 
   return (
     <div>
-      <div className="flex flex-col items-center mb-8">
+      <div className="flex flex-col font-opensans  items-center">
         {/* Header */}
-        <div className="sticky top-0 bg-white z-10 flex -translate-y-4 w-full">
-          <div className="flex mt-8 items-center space-x-2">
-            <ChevronLeft
-              className="text-2xl text-black cursor-pointer"
-              onClick={() => setShowDetails(false)}
-            />
-            <h1 className="text-xl font-medium font-ubuntu text-black">
-              Profile Details
-            </h1>
-          </div>
+        <div className="sticky top-0 bg-white z-10 flex items-center -translate-y-4 justify-between h-24 w-full">
+        <div className="flex items-center space-x-2">
+          <GoChevronLeft
+            className="text-2xl text-black cursor-pointer"
+            onClick={() => {
+              setShowDetails(false);
+            }}
+          />
+          <h1 className="text-xl font-medium text-black   ">
+            Profile Details
+          </h1>
         </div>
+      </div>
+
 
         {/* Profile Information */}
-        <div className="w-full mt-3">
+        <div className="w-full">
           {/* Display Name */}
           <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-              User Name
+              Display Name
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <User className="text-customOrange w-5 h-5 mr-4" />
-              <p className="text-lg text-black capitalize w-full">
+              <p className="font-normal font-poppins text-black w-full">
                 {displayName}
               </p>
             </div>
@@ -150,7 +153,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <FaShop className="text-customOrange w-5 h-5 mr-4" />
-              <p className="text-lg text-black w-full">{shopName}</p>
+              <p className="font-normal font-poppins text-black w-full">{shopName}</p>
             </div>
           </div>
 
@@ -161,7 +164,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <MdDescription className="text-customOrange w-5 h-5 mr-4" />
-              <p className="text-lg text-black w-full">{description}</p>
+              <p className="font-normal font-poppins text-black w-full">{description}</p>
             </div>
             <MdEdit
               className="absolute right-2 cursor-pointer"
@@ -179,7 +182,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               </h1>
               <div className="flex items-center justify-between w-full px-4 py-3">
                 <FaBuilding className="text-customOrange w-5 h-5 mr-4" />
-                <p className="text-size text-black w-full overflow-x-auto">
+                <p className="font-normal font-poppins text-black w-full">
                   {complexNumber}
                 </p>
               </div>
@@ -200,7 +203,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <MdEmail className="text-customOrange w-5 h-5 mr-4" />
-              <p className="text-size text-black w-full overflow-x-auto">
+              <p className="font-normal font-poppins text-black w-full">
                 {email}
               </p>
             </div>
@@ -213,7 +216,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <BsBank2 className="text-customOrange w-5 h-5 mr-4" />
-              <p className="text-size text-black w-full font-medium overflow-x-auto">
+              <p className="font-normal font-poppins text-black w-full">
                 <p>{bankName}</p>
                 <p>{accountName}</p>
                 <p>{accountNumber}</p>
@@ -228,7 +231,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <BiSolidCategoryAlt className="text-customOrange w-5 h-5 mr-4" />
-              <p className="text-black w-full font-medium overflow-x-auto">{categoriesList}</p>
+              <p className="font-normal font-poppins text-black w-full">{categoriesList}</p>
             </div>
           </div>
 
@@ -240,7 +243,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               </h1>
               <div className="flex items-center justify-between w-full px-4 py-3">
                 <CiClock1 className="text-customOrange w-5 h-5 mr-4" />
-                <p className="text-size text-black w-full font-medium overflow-x-auto">
+                <p className="font-normal font-poppins text-black w-full">
                   {openTime}
                 </p>
               </div>
@@ -259,7 +262,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               </h1>
               <div className="flex items-center justify-between w-full px-4 py-3">
                 <CiClock2 className="text-customOrange w-5 h-5 mr-4" />
-                <p className="text-size text-black w-full font-medium overflow-x-auto">
+                <p className="font-normal font-poppins text-black w-full">
                   {closeTime}
                 </p>
               </div>
@@ -278,7 +281,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               </h1>
               <div className="flex items-center justify-between w-full px-4 py-3">
                 <FaRegCalendarAlt className="text-customOrange w-5 h-5 mr-4" />
-                <p className="text-size text-black w-full font-medium overflow-x-auto">
+                <p className="font-normal font-poppins text-black w-full">
                   {daysAvailabilityList}
                 </p>
               </div>
@@ -299,7 +302,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <FaShippingFast className="text-customOrange w-5 h-5 mr-4" />
-              <p className="text-size text-black w-full font-medium overflow-x-auto">
+              <p className="font-normal font-poppins text-black w-full">
                 {deliveryMode}
               </p>
             </div>

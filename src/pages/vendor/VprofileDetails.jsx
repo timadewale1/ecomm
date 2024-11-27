@@ -8,7 +8,7 @@ import { User } from "lucide-react";
 import { useAuth } from "../../custom-hooks/useAuth";
 import { db } from "../../firebase.config";
 import { updateDoc } from "firebase/firestore";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 import { doc, getDoc } from "firebase/firestore";
 import Loading from "../../components/Loading/Loading";
 import { BsBank2 } from "react-icons/bs";
@@ -67,7 +67,8 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
   }
 
   const {
-    displayName = "",
+    firstName = "",
+    lastName = "",
     shopName = "",
     email = "",
     bankDetails = {},
@@ -141,7 +142,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             <div className="flex items-center justify-between w-full px-4 py-3">
               <User className="text-black text-xl mr-4" />
               <p className="font-normal font-poppins text-black w-full">
-                {displayName}
+                {firstName + " " + lastName }
               </p>
             </div>
           </div>

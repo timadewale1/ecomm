@@ -128,6 +128,12 @@ const VendorProfile = () => {
     fetchUserData();
   }, [dispatch, currentUser]);
 
+  useEffect(() => {
+    if (showRatings) {
+      window.scrollTo(0, 0);
+    }
+  }, [showRatings]); 
+
   const { shopName, coverImageUrl, marketPlaceType, ratingCount, rating } =
     userData || {};
 
@@ -715,7 +721,7 @@ const VendorProfile = () => {
                   </>
                 ) : (
                   <div className="text-2xl text-center mt-8">
-                    No reviews here yet...
+                    No reviews here yet 😗...
                   </div>
                 )}
               </div>

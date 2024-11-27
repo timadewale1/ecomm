@@ -26,6 +26,7 @@ import { BsBell, BsBoxSeam, BsCopy, BsEye, BsEyeSlash } from "react-icons/bs";
 import { CopyAllRounded } from "@mui/icons-material";
 import { LuListFilter } from "react-icons/lu";
 import NotApproved from "../../components/Infos/NotApproved";
+import Skeleton from "react-loading-skeleton";
 
 const defaultImageUrl = "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 
@@ -424,7 +425,7 @@ const VendorDashboard = () => {
           </div>
 
           <div className="flex flex-col space-y-2 text-black">
-            {recentActivities ? (
+            {recentActivities && filteredActivities.length > 0 && !loading ? (
               <>
                 {filteredActivities.map((activity) => (
                   <div
@@ -444,6 +445,29 @@ const VendorDashboard = () => {
                   </div>
                 ))}
               </>
+            ) : loading ? (
+              <>
+                <Skeleton square={true} height={84} className="w-full mb-2" />
+                <Skeleton square={true} height={84} className="w-full mb-2" />
+                <Skeleton square={true} height={84} className="w-full mb-2" />
+                <Skeleton square={true} height={84} className="w-full mb-2" />
+              </>
+            ) : filterOptions === "All" ? (
+              <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
+                🕘 No actions taken yet. Your recent activities will appear here once you start managing your store...
+              </div>
+            ) : filterOptions === "Recent Transactions" ? (
+              <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
+                📲 You have no recent transactions yet...
+              </div>
+            ) : filterOptions === "Orders" ? (
+              <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
+                🛒 You have no order updates yet...
+              </div>
+            ) : filterOptions === "Product Update" ? (
+              <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
+                📦 You have no product updates yet...
+              </div>
             ) : (
               <div>
                 <img src="./Note.png" alt="" />

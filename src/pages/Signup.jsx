@@ -34,7 +34,7 @@ import {
 import { MdOutlineEmail, MdOutlineLock } from "react-icons/md";
 import { Oval, RotatingLines } from "react-loader-spinner";
 import PasswordStrengthBar from "react-password-strength-bar";
-import {useAuth} from "../custom-hooks/useAuth";
+import { useAuth } from "../custom-hooks/useAuth";
 
 const Signup = () => {
   const [username, setUsername] = useState("");
@@ -133,7 +133,14 @@ const Signup = () => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
   };
+  const validatePassword = (password) => {
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasSpecialCharacter = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    const hasNumeric = /[0-9]/.test(password);
+    const isValidLength = password.length >= 8 && password.length <= 24;
 
+    return hasUppercase && hasSpecialCharacter && hasNumeric && isValidLength;
+  };
   const formatUsername = (name) => {
     return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
   };
@@ -148,6 +155,12 @@ const Signup = () => {
 
     if (username.length < 2) {
       toast.error("Username must be at least 2 characters long.");
+      return;
+    }
+    if (!validatePassword(password)) {
+      toast.error(
+        "Password must be at least 8 characters long, include an uppercase letter, a special character, and a numeric character."
+      );
       return;
     }
 
@@ -384,10 +397,62 @@ const Signup = () => {
                     )}
                   </div>
                 </FormGroup>
+                {showPasswordCriteria && (
+                  <ul className="text-xs text-gray-600 mt-2">
+                    <li
+                      className={`${
+                        /[A-Z]/.test(password)
+                          ? "text-green-500"
+                          : "text-red-500"
+                      }`}
+                    >
+                      {/[A-Z]/.test(password) ? "✔" : "✘"} At least one
+                      uppercase letter
+                    </li>
+                    <li
+                      className={`${
+                        /[0-9]/.test(password)
+                          ? "text-green-500"
+                          : "text-red-500"
+                      }`}
+                    >
+                      {/[0-9]/.test(password) ? "✔" : "✘"} At least one numeric
+                      character
+                    </li>
+                    <li
+                      className={`${
+                        /[!@#$%^&*(),.?":{}|<>]/.test(password)
+                          ? "text-green-500"
+                          : "text-red-500"
+                      }`}
+                    >
+                      {/[!@#$%^&*(),.?":{}|<>]/.test(password) ? "✔" : "✘"} At
+                      least one special character
+                    </li>
+                    <li
+                      className={`${
+                        password.length >= 8 ? "text-green-500" : "text-red-500"
+                      }`}
+                    >
+                      {password.length >= 8 ? "✔" : "✘"} Minimum length of 8
+                      characters
+                    </li>
+                    {/* <li
+                      className={`${
+                        password.length <= 24
+                          ? "text-green-500"
+                          : "text-red-500"
+                      }`}
+                    >
+                      {password.length <= 24 ? "✔" : "✘"} Maximum length of 24
+                      characters
+                    </li> */}
+                  </ul>
+                )}
 
                 {/* Password strength bar */}
-                {showPasswordCriteria && (
-                  <div className="mt-1">
+                {/* {showPasswordCriteria && (
+                  <div className="mt-1 font-opensans text-xs">
                     <PasswordStrengthBar
                       password={password}
                       minLength={8}
@@ -399,16 +464,22 @@ const Signup = () => {
                         "#25c281",
                       ]}
                       scoreWords={[
-                        "Too short",
+                        "Too weak",
                         "Weak",
-                        "Okay",
-                        "Very Good",
+                        "Medium",
                         "Strong",
+                        "Very strong",
                       ]}
                       shortScoreWord="Too short"
+                      score={
+                        (/[A-Z]/.test(password) ? 1 : 0) +
+                        (/[0-9]/.test(password) ? 1 : 0) +
+                        (/[!@#$%^&*(),.?":{}|<>]/.test(password) ? 1 : 0) +
+                        (password.length >= 8 ? 1 : 0)
+                      }
                     />
                   </div>
-                )}
+                )} */}
 
                 {/* Confirm password input */}
                 <FormGroup className="relative mt-4">

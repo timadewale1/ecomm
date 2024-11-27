@@ -30,6 +30,7 @@ import Typewriter from "typewriter-effect";
 import { FaAngleLeft } from "react-icons/fa6";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
+import { GoChevronLeft } from "react-icons/go";
 
 const VendorLogin = () => {
   const [email, setEmail] = useState("");
@@ -79,8 +80,11 @@ const VendorLogin = () => {
       }
     };
   }, []);
+  useEffect(() => {
+    setIsPhoneLogin(true);
+  }, []);
 
-    const handleLogin = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
 
@@ -135,9 +139,7 @@ const VendorLogin = () => {
             navigate("/vendordashboard");
           }
         } else {
-          toast.error(
-            "This account is registered as a user. Please log in as a user."
-          );
+          toast.error("This account is already registered.");
           await auth.signOut();
         }
       } catch (error) {
@@ -224,15 +226,15 @@ const VendorLogin = () => {
       <section>
         <Container>
           <Row>
-            <div className="px-3">
+            <div className="px-2">
               <Link to="/confirm-user-state">
-                <FaAngleLeft className="text-3xl -translate-y-2 font-normal text-black" />
+                <GoChevronLeft className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>
               <VendorLoginAnimation />
-              <div className="flex justify-center text-xl font-opensans text-customOrange -translate-y-1">
+              <div className="flex justify-center text-xl font-ubuntu text-customOrange -translate-y-1">
                 <Typewriter
                   options={{
-                    strings: ["Showcase your goods", "Connect with buyers"],
+                    strings: ["Showcase your products", "Connect with buyers"],
                     autoStart: true,
                     loop: true,
                     delay: 100,
@@ -266,21 +268,38 @@ const VendorLogin = () => {
                     </span>
                   </h1>
                 </div>
-                <p className="text-black font-semibold">
+                <p className="text-black text-sm font-opensans font-semibold">
                   Please sign in to continue
                 </p>
               </div>
-              <div className="translate-y-4">
+              <div className="translate-y-1">
                 <div className="flex justify-center my-4">
-                  <motion.button
-                    className="glow-button w-full h-14 bg-customOrange text-white font-semibold rounded-full flex items-center justify-center"
-                    onClick={toggleLoginMethod}
-                  >
-                    {isPhoneLogin ? "Login with Email" : "Login with Phone"}
-                  </motion.button>
+                  <div className="flex space-x-4 bg-gray-100 rounded-full p-1 shadow-sm">
+                    {/* Tab Headers */}
+                    <button
+                      className={`px-6 py-2 text-sm font-opensans font-semibold rounded-full transition ${
+                        isPhoneLogin
+                          ? "bg-customOrange text-white shadow-lg"
+                          : "bg-transparent text-gray-800 hover:bg-gray-200"
+                      }`}
+                      onClick={() => setIsPhoneLogin(true)}
+                    >
+                      Phone Login
+                    </button>
+                    <button
+                      className={`px-6 py-2 text-sm font-opensans font-semibold rounded-full transition ${
+                        !isPhoneLogin
+                          ? "bg-customOrange text-white shadow-lg"
+                          : "bg-transparent text-gray-800 hover:bg-gray-200"
+                      }`}
+                      onClick={() => setIsPhoneLogin(false)}
+                    >
+                      Email Login
+                    </button>
+                  </div>
                 </div>
 
-                <Form className="mt-4" onSubmit={handleLogin}>
+                <Form className="mt-6 px-4" onSubmit={handleLogin}>
                   {isPhoneLogin ? (
                     <>
                       <FormGroup className="relative mb-3">
@@ -293,14 +312,14 @@ const VendorLogin = () => {
                             name: "phoneNumber",
                             required: true,
                             className:
-                              "w-full h-12 bg-gray-100 text-black font-opensans rounded-md text-sm focus:outline-none pl-12 focus:ring-2 focus:ring-customOrange",
+                              "w-full h-12 bg-white shadow-sm text-black font-opensans rounded-md text-sm border border-gray-200 focus:outline-none pl-12 focus:ring-2 focus:ring-customOrange",
                           }}
                         />
                       </FormGroup>
                     </>
                   ) : (
                     <>
-                      <FormGroup className="relative mb-2">
+                      <FormGroup className="relative mb-3">
                         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                           <MdEmail className="text-gray-500 text-xl" />
                         </div>
@@ -309,11 +328,11 @@ const VendorLogin = () => {
                           placeholder="Enter your email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          className="w-full h-14 bg-gray-300 px-10 font-semibold text-gray-800 rounded-lg"
+                          className="w-full h-12 bg-white  text-black font-opensans rounded-md text-sm border border-gray-200 pl-14 focus:outline-none focus:ring-2 focus:ring-customOrange"
                           required
                         />
                       </FormGroup>
-                      <FormGroup className="relative mb-2">
+                      <FormGroup className="relative mb-3">
                         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                           <GrSecure className="text-gray-500 text-xl" />
                         </div>
@@ -322,7 +341,7 @@ const VendorLogin = () => {
                           placeholder="Enter your password"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          className="w-full h-14 bg-gray-300 px-10 font-semibold text-gray-800 rounded-lg"
+                          className="w-full h-12 bg-white  text-black font-opensans rounded-md text-sm border border-gray-200 pl-14 focus:outline-none focus:ring-2 focus:ring-customOrange"
                           required
                         />
                         <div
@@ -336,10 +355,10 @@ const VendorLogin = () => {
                           )}
                         </div>
                       </FormGroup>
-                      <div className="flex justify-end font-semibold">
+                      <div className="flex justify-end ">
                         <Link
                           to="/forgetpassword"
-                          className="text-black underline text-xs"
+                          className="text-customOrange font-lato text-xs"
                         >
                           Forgot password?
                         </Link>
@@ -348,7 +367,7 @@ const VendorLogin = () => {
                   )}
                   <motion.button
                     type="submit"
-                    className="glow-button w-full h-14 mt-7 bg-customOrange text-white font-semibold rounded-full flex items-center justify-center"
+                    className="w-full h-12 mt-4 rounded-full flex items-center justify-center bg-customOrange text-white font-semibold font-opensans text-sm hover:bg-orange-600 shadow-md"
                     disabled={loading}
                   >
                     {loading ? (
@@ -362,12 +381,12 @@ const VendorLogin = () => {
                     )}
                   </motion.button>
                 </Form>
-                <div className="text-center font-opensans font-light mt-2 flex justify-center">
-                  <p className="text-gray-700">
-                    Want to join our community?{" "}
+                <div className="text-center font-opensans text-xs font-light mt-4">
+                  <p className="text-gray-900 ">
+                    Want to become a vendor?{" "}
                     <button
                       onClick={() => navigate("/vendor-signup")}
-                      className="font-semibold underline text-black"
+                      className="font-normal text-customOrange"
                     >
                       Sign Up
                     </button>

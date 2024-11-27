@@ -25,77 +25,61 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log("AuthProvider useEffect triggered");
-    console.log("isOTPVerifying:", isOTPVerifying);
-  
     if (isOTPVerifying) {
-      console.log("Skipping auth state check due to OTP verification in progress");
       return;
     }
-  
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log("onAuthStateChanged fired. User:", user);
-  
       if (user) {
         try {
           const userRef = doc(db, "users", user.uid);
-          console.log("Fetching user document:", userRef);
           const userDoc = await retryGetDoc(userRef);
-  
+
           if (userDoc && userDoc.exists()) {
-            console.log("User document found:", userDoc.data());
-  
             if (userDoc.data().isDeactivated) {
-              console.warn("User account is deactivated. Signing out...");
               await signOut(auth);
               navigate("/login");
             } else {
-              console.log("Setting current user to:", user);
               setCurrentUser(user);
             }
           } else {
-            console.warn("User document not found. Checking vendors...");
             const vendorRef = doc(db, "vendors", user.uid);
             const vendorDoc = await retryGetDoc(vendorRef);
-  
+
             if (vendorDoc && vendorDoc.exists()) {
-              console.log("Vendor document found:", vendorDoc.data());
-  
               if (vendorDoc.data().isDeactivated) {
-                console.warn("Vendor account is deactivated. Signing out...");
                 await signOut(auth);
                 navigate("/vendorlogin");
               } else {
-                console.log("Setting current user to:", user);
                 setCurrentUser(user);
               }
             } else {
-              console.error(
-                "No user or vendor document found. Unauthorized access."
-              );
               toast.error("Unauthorized access. Please contact support.");
               await signOut(auth);
               navigate("/login");
             }
           }
         } catch (error) {
-          console.error("Error during authentication check:", error);
-          toast.error("Authentication error. Please try again.");
+          if (error.code === "auth/network-request-failed") {
+            toast.error(
+              "Network error. Please check your internet connection and try again."
+            );
+          } else {
+            toast.error("Authentication error. Please try again.");
+          }
         }
       } else {
-        console.log("No user is authenticated. Setting current user to null.");
         setCurrentUser(null);
       }
-  
+
       setLoading(false);
     });
-  
+
     return () => {
-      console.log("Cleaning up AuthProvider subscription");
       unsubscribe();
     };
   }, [isOTPVerifying, navigate]);
-  
+
   const startOTPVerification = () => setIsOTPVerifying(true);
   const endOTPVerification = () => setIsOTPVerifying(false);
 

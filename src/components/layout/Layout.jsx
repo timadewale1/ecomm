@@ -34,6 +34,8 @@ const Layout = () => {
     "/online-vendors",
     "market-vendors",
     "/vendor-verify-otp",
+    "/confirm-email",
+    "network-error",
     "/payment-approve",
   ];
 

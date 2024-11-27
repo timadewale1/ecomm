@@ -45,6 +45,7 @@ const VendorSignup = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPasswordCriteria, setShowPasswordCriteria] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [isSendingOTP, setIsSendingOTP] = useState(false);
@@ -87,10 +88,41 @@ const VendorSignup = () => {
       }
     };
   }, []);
+  useEffect(() => {
+    const handleFocus = () => {
+      document.body.classList.add("scroll-lock");
+    };
+
+    const handleBlur = () => {
+      document.body.classList.remove("scroll-lock");
+    };
+
+    const inputs = document.querySelectorAll("input");
+
+    inputs.forEach((input) => {
+      input.addEventListener("focus", handleFocus);
+      input.addEventListener("blur", handleBlur);
+    });
+
+    return () => {
+      inputs.forEach((input) => {
+        input.removeEventListener("focus", handleFocus);
+        input.removeEventListener("blur", handleBlur);
+      });
+    };
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setVendorData({ ...vendorData, [name]: value });
+  };
+  const validatePassword = (password) => {
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasSpecialCharacter = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    const hasNumeric = /[0-9]/.test(password);
+    const isValidLength = password.length >= 8 && password.length <= 24;
+
+    return hasUppercase && hasSpecialCharacter && hasNumeric && isValidLength;
   };
 
   const validateName = (name) => /^[A-Za-z]+$/.test(name);
@@ -114,6 +146,13 @@ const VendorSignup = () => {
     // Validate Email
     if (!validateEmail(vendorData.email)) {
       toast.error("Invalid email format. Please enter a valid email.");
+      setIsSendingOTP(false);
+      return;
+    }
+    if (!validatePassword(vendorData.password)) {
+      toast.error(
+        "Password must be at least 8 characters long, include an uppercase letter, a special character, and a numeric character."
+      );
       setIsSendingOTP(false);
       return;
     }
@@ -240,13 +279,6 @@ const VendorSignup = () => {
     }
   };
 
-  const handleReloadToLogin = () => {
-    setLoading(true); // Show loading state
-    setTimeout(() => {
-      window.location.href = "/vendorlogin";
-    }, 500);
-  };
-
   useEffect(() => {
     let timer;
     if (resendCooldown > 0) {
@@ -256,8 +288,6 @@ const VendorSignup = () => {
     }
     return () => clearTimeout(timer);
   }, [resendCooldown]);
-
- 
 
   return (
     <Helmet>
@@ -275,7 +305,7 @@ const VendorSignup = () => {
                 <div className="flex justify-center text-xl text-customOrange -translate-y-1">
                   <Typewriter
                     options={{
-                      strings: ["Showcase your goods", "Connect with buyers"],
+                      strings: ["Showcase your products", "Connect with buyers"],
                       autoStart: true,
                       loop: true,
                       delay: 100,
@@ -284,7 +314,7 @@ const VendorSignup = () => {
                   />
                 </div>
 
-                <div className="flex justify-center text-xs font-medium text-customOrange -translate-y-2">
+                <div className="flex justify-center font-ubuntu text-xs font-medium text-customOrange -translate-y-2">
                   <Typewriter
                     options={{
                       strings: [
@@ -378,7 +408,7 @@ const VendorSignup = () => {
                     <FormGroup className="relative mb-2">
                       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                         <GrSecure className="text-gray-500 text-xl" />
-                      </div>{" "}
+                      </div>
                       <input
                         type={showPassword ? "text" : "password"}
                         name="password"
@@ -387,6 +417,8 @@ const VendorSignup = () => {
                         onChange={handleInputChange}
                         className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
                         required
+                        onFocus={() => setShowPasswordCriteria(true)}
+                        onBlur={() => setShowPasswordCriteria(false)}
                       />
                       <motion.button
                         whileTap={{ scale: 1.2 }}
@@ -396,18 +428,67 @@ const VendorSignup = () => {
                       >
                         {showPassword ? <FaRegEye /> : <FaRegEyeSlash />}
                       </motion.button>
+
+                      {/* Password Criteria Feedback */}
                     </FormGroup>
+                      {showPasswordCriteria && (
+                        <ul className="text-xs text-gray-600 mt-2 mb-2">
+                          <li
+                            className={`${
+                              /[A-Z]/.test(vendorData.password)
+                                ? "text-green-500"
+                                : "text-red-500"
+                            }`}
+                          >
+                            {/[A-Z]/.test(vendorData.password) ? "✔" : "✘"} At
+                            least one uppercase letter
+                          </li>
+                          <li
+                            className={`${
+                              /[0-9]/.test(vendorData.password)
+                                ? "text-green-500"
+                                : "text-red-500"
+                            }`}
+                          >
+                            {/[0-9]/.test(vendorData.password) ? "✔" : "✘"} At
+                            least one numeric character
+                          </li>
+                          <li
+                            className={`${
+                              /[!@#$%^&*(),.?":{}|<>]/.test(vendorData.password)
+                                ? "text-green-500"
+                                : "text-red-500"
+                            }`}
+                          >
+                            {/[!@#$%^&*(),.?":{}|<>]/.test(vendorData.password)
+                              ? "✔"
+                              : "✘"}{" "}
+                            At least one special character
+                          </li>
+                          <li
+                            className={`${
+                              vendorData.password.length >= 8
+                                ? "text-green-500"
+                                : "text-red-500"
+                            }`}
+                          >
+                            {vendorData.password.length >= 8 ? "✔" : "✘"}{" "}
+                            Minimum length of 8 characters
+                          </li>
+                        </ul>
+                      )}
+
                     <FormGroup className="relative mb-2">
                       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                         <GrSecure className="text-gray-500 text-xl" />
-                      </div>{" "}
+                      </div>
                       <input
                         type={showConfirmPassword ? "text" : "password"}
                         name="confirmPassword"
                         placeholder="Confirm Password"
                         value={vendorData.confirmPassword}
                         onChange={handleInputChange}
-                        className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange0"
+                        className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
                         required
                       />
                       <motion.button
@@ -425,7 +506,7 @@ const VendorSignup = () => {
                     <button
                       type="submit"
                       disabled={isSendingOTP}
-                      className="w-full h-12 mt-4 rounded-full bg-customOrange text-white  font-semibold font-opensans text-sm hover:bg-orange-600"
+                      className="w-full h-12 mt-4 rounded-full flex justify-center items-center bg-customOrange text-white  font-semibold font-opensans text-sm hover:bg-orange-600"
                     >
                       {isSendingOTP ? (
                         <RotatingLines
@@ -443,15 +524,17 @@ const VendorSignup = () => {
                       style={{ display: "none" }}
                     />
                   </Form>
-                  <p className="mt-3 text-center font-opensans  text-gray-700">
-                    Already have an account?{" "}
-                    <button
-                      onClick={handleReloadToLogin}
-                      className="text-customOrange underline"
-                    >
-                      Log in
-                    </button>
-                  </p>
+                  <div className="text-center font-light font-lato mt-2 flex justify-center">
+                    <p className=" text-center   text-gray-700">
+                      Already have an account?{" "}
+                      <button
+                        onClick={() => navigate("/vendorlogin")}
+                        className="font-normal text-customOrange"
+                      >
+                        Login
+                      </button>
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

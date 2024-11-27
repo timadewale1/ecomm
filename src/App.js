@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import useAuth from "./custom-hooks/useAuth";
+import {useAuth} from "./custom-hooks/useAuth";
 import Layout from "./components/layout/Layout";
 import { initializeOrderListener, removeOrderListener } from "./custom-hooks/orderListener";
 import "./App.css";

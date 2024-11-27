@@ -235,6 +235,7 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
         vendorCoverImage, // Vendor cover image URL
         productImage, // Product image URL
         null, // declineReason is null
+        
         riderInfoData // riderInfo
       );
 

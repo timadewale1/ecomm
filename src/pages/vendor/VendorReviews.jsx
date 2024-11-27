@@ -16,7 +16,7 @@ import { FaStar } from "react-icons/fa";
 import { ProgressBar } from "react-bootstrap";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import useAuth from "../../custom-hooks/useAuth";
+import {useAuth} from "../../custom-hooks/useAuth";
 
 const VendorReviews = () => {
   const { currentUser, loading: authLoading } = useAuth();

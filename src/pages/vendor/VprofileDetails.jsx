@@ -5,7 +5,7 @@ import { FaShop } from "react-icons/fa6";
 import { MdDescription, MdEmail } from "react-icons/md";
 import { User } from "lucide-react";
 
-import useAuth from "../../custom-hooks/useAuth";
+import {useAuth} from "../../custom-hooks/useAuth";
 import { db } from "../../firebase.config";
 import { updateDoc } from "firebase/firestore";
 import { toast } from "react-toastify";

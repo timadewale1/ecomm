@@ -10,32 +10,34 @@ import { Toaster } from "react-hot-toast";
 import { FavoritesProvider } from "./components/Context/FavoritesContext";
 import { VendorProvider } from "./components/Context/Vendorcontext";
 import { NavigationProvider } from "./components/Context/Bottombarcontext";
-
+import { AuthProvider } from "./custom-hooks/useAuth";
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
     <BrowserRouter>
       <Provider store={store}>
-        <NavigationProvider>
-              <VendorProvider>
-                <FavoritesProvider>
-                  <Toaster
-                    position="top-center"
-                    reverseOrder={false}
-                    toastOptions={{
-                      duration: 2000,
-                      style: {
-                        minWidth: "220px", // Make toast wider
-                        fontSize: "12px", // Reduce text size
-                        padding: "10px 20px", // Adjust padding if needed
-                        fontFamily: "Poppins, sans-serif", // Use Poppins font
-                      },
-                    }}
-                  />
-                  <App />
-                </FavoritesProvider>
-              </VendorProvider>
-        </NavigationProvider>
+        <AuthProvider>
+          <NavigationProvider>
+            <VendorProvider>
+              <FavoritesProvider>
+                <Toaster
+                  position="top-center"
+                  reverseOrder={false}
+                  toastOptions={{
+                    duration: 2000,
+                    style: {
+                      minWidth: "220px", // Make toast wider
+                      fontSize: "12px", // Reduce text size
+                      padding: "10px 20px", // Adjust padding if needed
+                      fontFamily: "Poppins, sans-serif", // Use Poppins font
+                    },
+                  }}
+                />
+                <App />
+              </FavoritesProvider>
+            </VendorProvider>
+          </NavigationProvider>
+        </AuthProvider>
       </Provider>
     </BrowserRouter>
   </React.StrictMode>

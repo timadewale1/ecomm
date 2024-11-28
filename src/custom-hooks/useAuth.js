@@ -1,8 +1,8 @@
+// AuthContext.js
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase.config";
-import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 const AuthContext = createContext();
@@ -20,9 +20,10 @@ const retryGetDoc = async (ref, retries = 3, delay = 1000) => {
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
+  const [currentUserData, setCurrentUserData] = useState(null); // New state for user data and role
   const [loading, setLoading] = useState(true);
   const [isOTPVerifying, setIsOTPVerifying] = useState(false);
-  const navigate = useNavigate();
+  const [accountDeactivated, setAccountDeactivated] = useState(false); // New state to indicate deactivated account
 
   useEffect(() => {
     if (isOTPVerifying) {
@@ -30,6 +31,9 @@ export const AuthProvider = ({ children }) => {
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setLoading(true); // Start loading
+      setAccountDeactivated(false); // Reset deactivated account status
+
       if (user) {
         try {
           const userRef = doc(db, "users", user.uid);
@@ -38,9 +42,10 @@ export const AuthProvider = ({ children }) => {
           if (userDoc && userDoc.exists()) {
             if (userDoc.data().isDeactivated) {
               await signOut(auth);
-              navigate("/login");
+              setAccountDeactivated(true); // Indicate account is deactivated
             } else {
               setCurrentUser(user);
+              setCurrentUserData({ ...userDoc.data(), role: "user" });
             }
           } else {
             const vendorRef = doc(db, "vendors", user.uid);
@@ -49,14 +54,15 @@ export const AuthProvider = ({ children }) => {
             if (vendorDoc && vendorDoc.exists()) {
               if (vendorDoc.data().isDeactivated) {
                 await signOut(auth);
-                navigate("/vendorlogin");
+                setAccountDeactivated(true); // Indicate account is deactivated
               } else {
                 setCurrentUser(user);
+                setCurrentUserData({ ...vendorDoc.data(), role: "vendor" });
               }
             } else {
+              // Account doesn't exist in either collection
               toast.error("Unauthorized access. Please contact support.");
               await signOut(auth);
-              navigate("/login");
             }
           }
         } catch (error) {
@@ -70,15 +76,16 @@ export const AuthProvider = ({ children }) => {
         }
       } else {
         setCurrentUser(null);
+        setCurrentUserData(null);
       }
 
-      setLoading(false);
+      setLoading(false); // Stop loading
     });
 
     return () => {
       unsubscribe();
     };
-  }, [isOTPVerifying, navigate]);
+  }, [isOTPVerifying]);
 
   const startOTPVerification = () => setIsOTPVerifying(true);
   const endOTPVerification = () => setIsOTPVerifying(false);
@@ -87,7 +94,9 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{
         currentUser,
+        currentUserData,
         loading,
+        accountDeactivated, // Provide this state to components
         startOTPVerification,
         endOTPVerification,
       }}

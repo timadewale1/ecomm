@@ -6,7 +6,7 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { db } from "../../firebase.config";
 import Modal from "react-modal";
-import notifyOrderStatusChange from "../../services/notifyorderstatus";
+import notifyOrderStatusChange from "../../styles/services/notifyorderstatus";
 import { FaTruck } from "react-icons/fa6";
 import { RotatingLines } from "react-loader-spinner";
 import { MdOutlineClose } from "react-icons/md";
@@ -235,7 +235,7 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
         vendorCoverImage, // Vendor cover image URL
         productImage, // Product image URL
         null, // declineReason is null
-        
+
         riderInfoData // riderInfo
       );
 

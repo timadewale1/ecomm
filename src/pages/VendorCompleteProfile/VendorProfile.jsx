@@ -415,7 +415,7 @@ const VendorProfile = () => {
               <div className="flex flex-col items-center w-full">
                 <div
                   className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => setShowTsAndCs(!showTsAndCs)}
+                  onClick={() => navigate('/terms-and-conditions')}
                 >
                   <div className="flex items-center">
                     <FaFileContract className="text-black text-xl mr-4" />
@@ -428,7 +428,7 @@ const VendorProfile = () => {
 
                 <div
                   className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => setShowPrivacyPolicy(!showPrivacyPolicy)}
+                  onClick={() => navigate('/privacy-policy')}
                 >
                   <div className="flex items-center">
                     <BsShieldFillCheck className="text-black text-xl mr-4" />
@@ -465,15 +465,7 @@ const VendorProfile = () => {
             </div>
           </div>
         </div>
-      ) : showTsAndCs ? (
-        <TermsAndConditions
-        className="z-[1000]" 
-        setShow={setShowTsAndCs}/>
-      ) : showPrivacyPolicy ? (
-        <PrivacyPolicy 
-        className="z-[1000]"
-        setShow={setShowPrivacyPolicy}/>
-        ) : (
+      )  : (
         <>
           {showDetails && (
             <VprofileDetails

@@ -345,7 +345,7 @@ const PrivacyPolicy = () => {
             <p className="leading-relaxed text-black">
               <span className="text-customOrange">6.3</span> You may lodge a
               complaint if you feel we have gone against or violated your
-              privacy rights. Formal complaints should be sent to us at <a className="text-customOrange" href="mailto:Mythriftnigeria@gmail.com">Mythriftnigeria@gmail.com</a>.
+              privacy rights. Formal complaints should be sent to us at <a className="text-customOrange" href="mailto:hello@shopmythrift.online">hello@shopmythrift.online</a>.
             </p>
           </section>
 
@@ -371,7 +371,7 @@ const PrivacyPolicy = () => {
                   <GoDotFill className="text-customOrange text-lg mr-2 mt-1" />
                 </div>
                 <p className="text-black">
-                  Inquiry Email: <a className="text-customOrange" href="mailto:Mythriftnigeria@gmail.com">Mythriftnigeria@gmail.com</a>
+                  Inquiry Email: <a className="text-customOrange" href="mailto:hello@shopmythrift.online">hello@shopmythrift.online</a>
                 </p>
               </li>
             </ul>

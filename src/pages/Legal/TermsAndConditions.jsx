@@ -114,7 +114,7 @@ const TermsAndConditions = () => {
               website and mobile application, together with the payment
               infrastructures in place and supporting logistics, is owned and
               controlled by My Thrift Clothing Ltd, which has the following
-              mailing address: <a className="text-customOrange" href="mailto:Mythriftnigeria@gmail.com">Mythriftnigeria@gmail.com</a>.
+              mailing address: <a className="text-customOrange" href="mailto:hello@shopmythrift.online">hello@shopmythrift.online</a>.
             </p>
             <p className="leading-relaxed text-black">
               <span className="text-customOrange">1.2</span> These terms and
@@ -123,7 +123,7 @@ const TermsAndConditions = () => {
               ”company,” “we,” “us,” and “our” shall be used to refer to My
               Thrift. Ltd, and “you,” “your,” or “user/s” shall collectively or
               respectively refer to vendors and buyers).
-            </p>
+            </p> 
             <p className="leading-relaxed text-black">
               <span className="text-customOrange">1.3</span> By using our
               platform, you fully agree to our general terms and conditions. Any

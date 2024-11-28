@@ -23,6 +23,7 @@ import { MdOutlinePendingActions } from "react-icons/md";
 import Loading from "../../components/Loading/Loading";
 import Orderpic from "../../Images/orderpic.svg";
 import RelatedProducts from "./SimilarProducts";
+import ScrollToTop from "../../components/layout/ScrollToTop";
 
 const OrdersCentre = () => {
   const navigate = useNavigate();
@@ -36,6 +37,10 @@ const OrdersCentre = () => {
   const location = useLocation();
 
   const fromPaymentApprove = location.state?.fromPaymentApprove;
+
+  useEffect(() => {
+      window.scrollTo(0, 0);
+  })
 
   // Inside your useEffect where you fetch orders
   useEffect(() => {
@@ -230,6 +235,7 @@ const OrdersCentre = () => {
 
   return (
     <div>
+          <ScrollToTop />
       <div className="sticky top-0 pb-2 bg-white w-full z-10">
         <div className="flex p-3 py-3 items-center bg-white h-20 mb-3 pb-2">
           <GoChevronLeft
@@ -241,7 +247,7 @@ const OrdersCentre = () => {
         <div className="border-t border-gray-300 my-2"></div>
         {/* Tabs Section (Inside Header) */}
         <div className="flex px-3 py-2 overflow-x-auto">
-          <div className="flex space-x-3">
+          <div className="flex space-x-3"> 
             {tabButtons.map((tab) => (
               <button
                 key={tab}
@@ -250,8 +256,8 @@ const OrdersCentre = () => {
                   activeTab === tab
                     ? "bg-customOrange text-xs font-opensans text-white"
                     : "bg-white text-xs font-opensans text-black"
-                }`}
-              >
+                  }`}
+                  >
                 {tab}
               </button>
             ))}

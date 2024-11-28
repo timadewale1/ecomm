@@ -1,0 +1,26 @@
+.custom-card {
+    position: relative;
+    z-index: 1;
+    overflow: hidden; /* Ensures content stays inside the curved area */
+    background: white;
+  }
+  
+  .custom-card::after {
+    content: '';
+  position: absolute;
+  bottom: -40px; /* Push it below the card */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120%; /* Make it wider than the main card */
+  height: 150px; /* Control the height of the secondary curve */
+  background: rgba(255, 102, 0, 0.2); /* Light orange color */
+  border-radius: 0 0 300px 300px; /* Fully rounded bottom corners */
+  z-index: -8; /* Ensure it's behind the main card */
+  }
+  
+  .custom-list li::marker {
+    color: #f9531e;
+    font-size: 1.25rem; /* Tailwind's text-lg equivalent */
+    font-weight: bold; 
+  }
+  

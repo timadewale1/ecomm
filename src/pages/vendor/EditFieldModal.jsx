@@ -169,7 +169,7 @@ const EditFieldModal = ({ show, handleClose, field, currentValue, processing, on
           >
             {processing ? (
               <Lottie
-                className="w-4 h-4"
+                className="w-4 h-4 text-white"
                 animationData={LoadState}
                 loop={true}
                 autoplay={true}

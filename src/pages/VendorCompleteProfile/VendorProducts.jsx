@@ -40,6 +40,7 @@ import LoadState from "../../Animations/loadinganimation.json";
 import { FaSpinner, FaXmark } from "react-icons/fa6";
 import Skeleton from "react-loading-skeleton";
 import "./vendor.css";
+import ScrollToTop from "../../components/layout/ScrollToTop";
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
@@ -182,8 +183,7 @@ const VendorProducts = () => {
   }, [auth, navigate]);
 
   useEffect(() => {
-    // Fetch pinned products count when component mounts
-    fetchPinnedProductsCount();
+    
   }, []);
 
   // Fetch and listen for vendor products based on vendorId
@@ -199,7 +199,8 @@ const VendorProducts = () => {
     };
 
     fetchProducts();
-
+// Fetch pinned products count when component mounts
+    fetchPinnedProductsCount();
     // Return cleanup function to remove listener on unmount
     return () => {
       if (unsubscribe) {
@@ -231,7 +232,8 @@ const VendorProducts = () => {
   const fetchPinnedProductsCount = () => {
     const pinnedQuery = query(
       collection(db, "products"),
-      where("isFeatured", "==", true)
+      where("isFeatured", "==", true),
+      where("vendorId", "==", vendorId) // Ensure only the vendor's products are counted
     );
     onSnapshot(pinnedQuery, (snapshot) => {
       setPinnedCount(snapshot.size); // Update count of pinned products
@@ -350,10 +352,10 @@ const VendorProducts = () => {
   };
 
   const handlePinProduct = async (product) => {
-    if (!product.isFeatured && pinnedCount >= 4) {
-      toast.error("You can only pin up to 3 products.");
-      return;
-    }
+    // if (!product.isFeatured && pinnedCount >= 4) {
+    //   toast.error("You can only pin up to 3 products.");
+    //   return;
+    // }
 
     try {
       const productRef = doc(db, "products", product.id);
@@ -370,6 +372,11 @@ const VendorProducts = () => {
           p.id === product.id ? { ...p, isFeatured: newIsFeaturedStatus } : p
         )
       );
+
+      // Update pinned count locally
+    setPinnedCount((prevCount) =>
+      newIsFeaturedStatus ? prevCount + 1 : prevCount - 1
+    );
 
       // If the product was just pinned (isFeatured set to true), add an activity note
       if (newIsFeaturedStatus) {
@@ -598,23 +605,25 @@ const VendorProducts = () => {
   return (
     <>
       <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-5 font-opensans ">
+        <ScrollToTop />
         <div className="flex justify-end">
           <div
             className="relative flex justify-center items-center"
-            onClick={handleTogglePicking}
           >
             {picking && pickedProducts.length < 1 && (
               <div className="absolute top-10 right-[28px] items-center flex justify-between w-[300px] h-[52px] p-4 bg-white shadow-lg rounded-2xl z-50 text-[16px]">
-                <p className=" font-semibold text-black">Select Product</p>
+                <p className=" font-semibold text-black">Select a Product</p>
                 <FaRegCheckCircle />
               </div>
             )}
             {!picking ? (
-              <div className="relative rounded-full w-11 h-11 bg-customOrange bg-opacity-10 flex justify-center items-center">
+              <div className="cursor-pointer relative rounded-full w-11 h-11 bg-customOrange bg-opacity-10 flex justify-center items-center"
+            onClick={handleTogglePicking}>
                 <FiMoreHorizontal className="w-6 h-6" />
               </div>
             ) : (
-              <p className="text-[16px] my-2.5">Cancel</p>
+              <p className="cursor-pointer text-[16px] my-2.5"
+            onClick={handleTogglePicking}>Cancel</p>
             )}
           </div>
         </div>
@@ -726,7 +735,7 @@ const VendorProducts = () => {
                         )}
                       </div>
                     ) : (
-                      // Show pin icon only if there are less than 3 pinned products
+                      // Show pin icon only if there are less than 4 pinned products
                       tabOpt === "Active" &&
                       ((!product.isFeatured && pinnedCount < 4) ||
                         product.isFeatured) && (

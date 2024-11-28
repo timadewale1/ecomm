@@ -869,6 +869,7 @@ const VendorProducts = () => {
       {!picking && (
         <button
           onClick={openAddProductModal}
+          
           className={`fixed bottom-24 right-5 flex justify-center items-center bg-customOrange text-white rounded-full w-11 h-11 shadow-lg focus:outline-none`}
         >
           <span className="text-3xl">

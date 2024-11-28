@@ -32,7 +32,7 @@ const CompleteProfile = () => {
       twitter: "", // Twitter link
       facebook: "", // Facebook link
     },
-    phoneNumber: "", // Vendor's phone number
+   
     Address: "", // Vendor's address (could be for personal or business)
 
     // Market vendor specific fields
@@ -369,12 +369,12 @@ const CompleteProfile = () => {
         bankDetails,
       };
 
-      console.log("Data to store in Firestore:", dataToStore);
+      // console.log("Data to store in Firestore:", dataToStore);
 
       // Save the vendor data to Firestore
       await setDoc(doc(db, "vendors", user.uid), dataToStore, { merge: true });
 
-      console.log("Vendor data saved to Firestore.");
+      // console.log("Vendor data saved to Firestore.");
 
       toast.success("Profile completed successfully!", {
         className: "custom-toast",

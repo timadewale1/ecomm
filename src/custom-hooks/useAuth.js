@@ -13,36 +13,32 @@ const retryGetDoc = async (ref, retries = 3, delay = 1000) => {
     if (docSnap.exists()) {
       return docSnap;
     }
-    await new Promise((res) => setTimeout(res, delay)); // Wait for delay
+    await new Promise((res) => setTimeout(res, delay));
   }
   return null;
 };
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [currentUserData, setCurrentUserData] = useState(null); // New state for user data and role
+  const [currentUserData, setCurrentUserData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isOTPVerifying, setIsOTPVerifying] = useState(false);
-  const [accountDeactivated, setAccountDeactivated] = useState(false); // New state to indicate deactivated account
+  const [accountDeactivated, setAccountDeactivated] = useState(false);
 
   useEffect(() => {
-    if (isOTPVerifying) {
-      return;
-    }
-
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setLoading(true); // Start loading
       setAccountDeactivated(false); // Reset deactivated account status
 
       if (user) {
         try {
+          // Fetch user data
           const userRef = doc(db, "users", user.uid);
           const userDoc = await retryGetDoc(userRef);
 
           if (userDoc && userDoc.exists()) {
             if (userDoc.data().isDeactivated) {
               await signOut(auth);
-              setAccountDeactivated(true); // Indicate account is deactivated
+              setAccountDeactivated(true);
             } else {
               setCurrentUser(user);
               setCurrentUserData({ ...userDoc.data(), role: "user" });
@@ -54,41 +50,42 @@ export const AuthProvider = ({ children }) => {
             if (vendorDoc && vendorDoc.exists()) {
               if (vendorDoc.data().isDeactivated) {
                 await signOut(auth);
-                setAccountDeactivated(true); // Indicate account is deactivated
+                setAccountDeactivated(true);
               } else {
                 setCurrentUser(user);
                 setCurrentUserData({ ...vendorDoc.data(), role: "vendor" });
               }
             } else {
-              // Account doesn't exist in either collection
               toast.error("Unauthorized access. Please contact support.");
               await signOut(auth);
             }
           }
+
+          // After setting currentUserData
+          setLoading(false);
         } catch (error) {
-          if (error.code === "auth/network-request-failed") {
-            toast.error(
-              "Network error. Please check your internet connection and try again."
-            );
-          } else {
-            toast.error("Authentication error. Please try again.");
-          }
+          console.error("Error fetching user data:", error);
+          setLoading(false);
         }
       } else {
         setCurrentUser(null);
         setCurrentUserData(null);
+        setLoading(false); // Stop loading
       }
-
-      setLoading(false); // Stop loading
     });
 
     return () => {
       unsubscribe();
     };
-  }, [isOTPVerifying]);
+  }, []);
 
-  const startOTPVerification = () => setIsOTPVerifying(true);
-  const endOTPVerification = () => setIsOTPVerifying(false);
+  const startOTPVerification = () => {
+    // If needed, you can set an OTP verification state here
+  };
+
+  const endOTPVerification = () => {
+    // If needed, you can clear the OTP verification state here
+  };
 
   return (
     <AuthContext.Provider
@@ -96,7 +93,7 @@ export const AuthProvider = ({ children }) => {
         currentUser,
         currentUserData,
         loading,
-        accountDeactivated, // Provide this state to components
+        accountDeactivated,
         startOTPVerification,
         endOTPVerification,
       }}

@@ -30,7 +30,7 @@ const VendorVerifyOTP = () => {
 
   const auth = getAuth();
 
-  const { startOTPVerification, endOTPVerification } = useAuth();
+  // const { startOTPVerification, endOTPVerification } = useAuth();
 
   // Countdown timer for resend OTP
   useEffect(() => {
@@ -99,7 +99,7 @@ const VendorVerifyOTP = () => {
       return;
     }
 
-    startOTPVerification();
+    // startOTPVerification();
     setIsVerifyingOTP(true);
 
     try {
@@ -110,7 +110,7 @@ const VendorVerifyOTP = () => {
         console.error("No confirmation result available. OTP session expired.");
         toast.error("Your OTP session has expired. Please resend the OTP.");
         setIsVerifyingOTP(false);
-        endOTPVerification();
+        // endOTPVerification();
         return;
       }
 
@@ -193,7 +193,7 @@ const VendorVerifyOTP = () => {
       }
     } finally {
       setIsVerifyingOTP(false);
-      endOTPVerification();
+      // endOTPVerification();
     }
   };
 

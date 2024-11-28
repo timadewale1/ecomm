@@ -115,7 +115,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
   };
 
   return (
-    <div className="flex flex-col p-2 items-center font-opensans">
+    <div className="flex flex-col px-3 items-center font-opensans">
       <div className="flex flex-col font-opensans  items-center">
         {/* Header */}
         <div className="sticky top-0 bg-white z-10 flex items-center -translate-y-4 justify-between h-24 w-full">
@@ -126,7 +126,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 setShowDetails(false);
               }}
             />
-            <h1 className="text-xl font-medium text-black   ">
+            <h1 className="text-lg font-medium text-black   ">
               Profile Details
             </h1>
           </div>
@@ -141,7 +141,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <User className="text-black text-xl mr-4" />
-              <p className="font-normal font-poppins text-black w-full">
+              <p className="font-normal font-poppins text-sm text-black w-full">
                 {firstName + " " + lastName }
               </p>
             </div>
@@ -154,7 +154,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <FaShop className="text-black text-xl mr-4" />
-              <p className="font-normal font-poppins text-black w-full">
+              <p className="font-normal font-poppins text-sm text-black w-full">
                 {shopName}
               </p>
             </div>
@@ -167,7 +167,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <MdDescription className="text-black text-xl mr-4" />
-              <p className="font-normal font-poppins text-black w-full">
+              <p className="font-normal font-poppins text-sm text-black w-full">
                 {description}
               </p>
               <RiEditFill
@@ -187,7 +187,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               </h1>
               <div className="flex items-center justify-between w-full px-4 py-3">
                 <FaBuilding className="text-black text-xl mr-4" />
-                <p className="font-normal font-poppins text-black w-full">
+                <p className="font-normal font-poppins text-sm text-black w-full">
                   {complexNumber}
                 </p>
                 <RiEditFill
@@ -208,7 +208,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <MdEmail className="text-black text-xl mr-4" />
-              <p className="font-normal font-poppins text-black w-full">
+              <p className="font-normal font-poppins text-sm text-black w-full">
                 {email}
               </p>
             </div>
@@ -222,13 +222,13 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             <div className="flex items-center justify-between w-full px-4 py-3">
               <BsBank2 className="text-black text-xl mr-4" />
               <p className="font-normal font-poppins text-black w-full">
-                <p className="font-normal font-poppins text-black w-full">
+                <p className="font-normal font-poppins text-sm text-black w-full">
                   {bankName}
                 </p>
-                <p className="font-normal font-poppins text-black w-full">
+                <p className="font-normal font-poppins text-sm text-black w-full">
                   {accountName}
                 </p>
-                <p className="font-normal font-poppins text-black w-full">
+                <p className="font-normal font-poppins text-sm text-black w-full">
                   {accountNumber}
                 </p>
               </p>
@@ -242,7 +242,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <BiSolidCategoryAlt className="text-black text-xl mr-4" />
-              <p className="font-normal font-poppins text-black w-full">
+              <p className="font-normal font-poppins text-sm text-black w-full">
                 {categoriesList}
               </p>
             </div>
@@ -256,7 +256,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               </h1>
               <div className="flex items-center justify-between w-full px-4 py-3">
                 <CiClock1 className="text-black text-xl mr-4" />
-                <p className="font-normal font-poppins text-black w-full">
+                <p className="font-normal text-sm font-poppins text-black w-full">
                   {openTime}
                 </p>
                 <RiEditFill
@@ -315,7 +315,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <FaShippingFast className="text-black text-xl mr-4" />
-              <p className="font-normal font-poppins text-black w-full">
+              <p className="font-normal  text-sm font-poppins text-black w-full">
                 {deliveryMode}
               </p>
             </div>

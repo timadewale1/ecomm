@@ -3,7 +3,7 @@ import { useLocation, matchPath } from "react-router-dom";
 import Routers from "../../routers/Routers";
 import BottomBar from "../BottomBar/BottomBar";
 import VendorBottomBar from "../BottomBar/VendorBottomBar";
-import {useAuth} from "../../custom-hooks/useAuth";
+import { useAuth } from "../../custom-hooks/useAuth";
 import { NavigationProvider } from "../Context/Bottombarcontext";
 import { VendorNavigationProvider } from "../Context/VendorBottomBarCtxt";
 
@@ -56,10 +56,12 @@ const Layout = () => {
 
   // Check if bottom bar should be hidden
   const hideBottomBar =
-    noBottomBarPaths.includes(location.pathname) ||
+    noBottomBarPaths.some((path) =>
+      matchPath({ path, end: true }, location.pathname)
+    ) || // Exact match
     isDynamicPath(location.pathname) ||
     !currentUser ||
-    location.state?.fromProductDetail;  // Check if navigating from ProductDetail
+    location.state?.fromProductDetail;
 
   // List of vendor paths
   const vendorPaths = [
@@ -78,11 +80,12 @@ const Layout = () => {
         <div>
           <Routers />
         </div>
-        {!hideBottomBar && (isVendorPath ? (
-          <VendorBottomBar />
-        ) : (
-          <BottomBar isSearchFocused={false} />
-        ))}
+        {!hideBottomBar &&
+          (isVendorPath ? (
+            <VendorBottomBar />
+          ) : (
+            <BottomBar isSearchFocused={false} />
+          ))}
       </VendorNavigationProvider>
     </NavigationProvider>
   );

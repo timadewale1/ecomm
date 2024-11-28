@@ -21,7 +21,7 @@ import { AiOutlineProduct } from "react-icons/ai";
 import Select from "react-select";
 import makeAnimated from "react-select/animated";
 import { GiRegeneration } from "react-icons/gi";
-import notifyFollowers from "../../styles/services/notifyfollowers";
+import notifyFollowers from "../../services/notifyfollowers";
 import { GoTrash } from "react-icons/go";
 import { BiSolidImageAdd } from "react-icons/bi";
 import { TiCameraOutline } from "react-icons/ti";

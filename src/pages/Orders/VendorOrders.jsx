@@ -8,6 +8,7 @@ import InProgressOrders from "./InProgressOrders";
 import ShippedOrders from "./ShippedOrders";
 import DeclinedOrders from "./DeclinedOrders";
 import OrderDetailsModal from "./OrderDetailsModals";
+import ScrollToTop from "../../components/layout/ScrollToTop";
 
 const VendorOrders = () => {
   const { currentUser } = useAuth();
@@ -86,6 +87,7 @@ const VendorOrders = () => {
   return (
     <div className="p-3 bg-white min-h-screen flex flex-col items-center">
       {/* Top Card Banner for Selected Tab */}
+      <ScrollToTop />
       <div className="bg-customDeepOrange rounded-xl w-full h-28 text-center mb-4 flex items-center justify-center relative">
         <div className="absolute top-0 right-0">
           <img src="./Vector.png" alt="icon" className="w-16 h-20" />

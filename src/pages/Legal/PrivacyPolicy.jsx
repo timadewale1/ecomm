@@ -6,11 +6,11 @@ import { useNavigate } from "react-router-dom";
 
 const PrivacyPolicy = () => {
   const navigate = useNavigate();
-  
+
   return (
     <div className="flex flex-col items-center bg-gray-50 min-h-screen pb-4 font-opensans text-gray-800">
       {/* Header */}
-      <div className="sticky top-0 bg-white z-10 flex items-center justify-between w-full p-4 border-b shadow-sm">
+      <div className="sticky top-0 bg-white z-10 flex items-center justify-between w-full px-3 py-4 border-b shadow-sm">
         <div className="flex items-center space-x-2">
           <GoChevronLeft
             className="text-2xl text-black cursor-pointer"
@@ -32,59 +32,61 @@ const PrivacyPolicy = () => {
           <div className="absolute bottom-0 left-0">
             <img src="./Vector2.png" alt="" className="w-16 h-16" />
           </div>
-          <h2 className="text-6xl text-white font-bold ">
-             Privacy Policy
-          </h2>
+          <h2 className="text-6xl text-white font-bold ">Privacy Policy</h2>
         </div>
+        <div className="px-3">
           <p className="text-xs text-gray-500 my-3">
             ©2024 My Thrift Clothing. Ltd, ALL RIGHTS RESERVED. Kindly refer to
             the legal notice below for our Privacy Policy.
           </p>
 
-        <div className="flex flex-col">
-          <p className="text-black font-bold text-lg">My Thrift's Privacy Policy</p>
-          <a
-            href="#1"
-            className="text-black hover:text-customSoftGray underline cursor-pointer"
-          >
-            1. Overview
-          </a>
-          <a
-            href="#2"
-            className="text-black hover:text-customSoftGray underline cursor-pointer"
-          >
-            2. Introduction
-          </a>
-          <a
-            href="#3"
-            className="text-black hover:text-customSoftGray underline cursor-pointer"
-          >
-            3. User Data We Collect and Purpose
-          </a>
-          <a
-            href="#4"
-            className="text-black hover:text-customSoftGray underline cursor-pointer"
-          >
-            4. User Data We May Share
-          </a>
-          <a
-            href="#5"
-            className="text-black hover:text-customSoftGray underline cursor-pointer"
-          >
-            5. Use of Cookies
-          </a>
-          <a
-            href="#6"
-            className="text-black hover:text-customSoftGray underline cursor-pointer"
-          >
-            6. Rights of Users
-          </a>
-          <a
-            href="#7"
-            className="text-black hover:text-customSoftGray underline cursor-pointer"
-          >
-            7. Contact Details
-          </a>
+          <div className="flex flex-col">
+            <p className="text-black font-bold text-lg">
+              My Thrift's Privacy Policy
+            </p>
+            <a
+              href="#1"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
+            >
+              1. Overview
+            </a>
+            <a
+              href="#2"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
+            >
+              2. Introduction
+            </a>
+            <a
+              href="#3"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
+            >
+              3. User Data We Collect and Purpose
+            </a>
+            <a
+              href="#4"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
+            >
+              4. User Data We May Share
+            </a>
+            <a
+              href="#5"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
+            >
+              5. Use of Cookies
+            </a>
+            <a
+              href="#6"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
+            >
+              6. Rights of Users
+            </a>
+            <a
+              href="#7"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
+            >
+              7. Contact Details
+            </a>
+          </div>
         </div>
 
         <div className="space-y-6 text-sm py-6 px-3">
@@ -345,7 +347,14 @@ const PrivacyPolicy = () => {
             <p className="leading-relaxed text-black">
               <span className="text-customOrange">6.3</span> You may lodge a
               complaint if you feel we have gone against or violated your
-              privacy rights. Formal complaints should be sent to us at <a className="text-customOrange" href="mailto:hello@shopmythrift.online">hello@shopmythrift.online</a>.
+              privacy rights. Formal complaints should be sent to us at{" "}
+              <a
+                className="text-customOrange"
+                href="mailto:hello@shopmythrift.online"
+              >
+                hello@shopmythrift.online
+              </a>
+              .
             </p>
           </section>
 
@@ -371,7 +380,13 @@ const PrivacyPolicy = () => {
                   <GoDotFill className="text-customOrange text-lg mr-2 mt-1" />
                 </div>
                 <p className="text-black">
-                  Inquiry Email: <a className="text-customOrange" href="mailto:hello@shopmythrift.online">hello@shopmythrift.online</a>
+                  Inquiry Email:{" "}
+                  <a
+                    className="text-customOrange"
+                    href="mailto:hello@shopmythrift.online"
+                  >
+                    hello@shopmythrift.online
+                  </a>
                 </p>
               </li>
             </ul>

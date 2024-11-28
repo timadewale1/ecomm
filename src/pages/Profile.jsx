@@ -6,8 +6,8 @@ import { ChevronRight, User, ChevronLeft } from "lucide-react";
 
 import { useNavigate, useLocation } from "react-router-dom";
 import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
-import {useAuth} from "../custom-hooks/useAuth";
-import {  FaHeart } from "react-icons/fa";
+import { useAuth } from "../custom-hooks/useAuth";
+import { FaHeart } from "react-icons/fa";
 import { RotatingLines } from "react-loader-spinner";
 import { PiSignOutBold } from "react-icons/pi";
 import { GiClothes } from "react-icons/gi";
@@ -29,7 +29,7 @@ import FAQs from "./UserSide/FAQs";
 import { IoMdContact } from "react-icons/io";
 import { clearCart } from "../redux/actions/action";
 import { useDispatch, useSelector } from "react-redux";
-import { FaFileContract } from 'react-icons/fa6';
+import { FaFileContract } from "react-icons/fa6";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -300,37 +300,37 @@ const Profile = () => {
           </div>
 
           <div className="w-full h-14 flex">
-                <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
-                  Legal
-                </h1>
+            <h1 className="text-base font-semibold mx-4 font-opensans translate-y-3 text-black">
+              Legal
+            </h1>
+          </div>
+          <div className="flex flex-col items-center px-2 w-full">
+            <div
+              className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+              onClick={() => navigate("/terms-and-conditions")}
+            >
+              <div className="flex items-center">
+                <FaFileContract className="text-black text-xl mr-4" />
+                <h2 className="text-size font-normal font-opensans text-black capitalize">
+                  Terms and Conditions
+                </h2>
               </div>
-              <div className="flex flex-col items-center w-full">
-                <div
-                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => navigate('/terms-and-conditions')}
-                >
-                  <div className="flex items-center">
-                    <FaFileContract className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal text-black capitalize">
-                      Terms and Conditions
-                    </h2>
-                  </div>
-                  <ChevronRight className="text-black" />
-                </div>
+              <ChevronRight className="text-black" />
+            </div>
 
-                <div
-                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => navigate('/privacy-policy')}
-                >
-                  <div className="flex items-center">
-                    <BsShieldFillCheck className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal text-black capitalize">
-                      Privacy Policy
-                    </h2>
-                  </div>
-                  <ChevronRight className="text-black" />
-                </div>
+            <div
+              className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+              onClick={() => navigate("/privacy-policy")}
+            >
+              <div className="flex items-center">
+                <BsShieldFillCheck className="text-black text-xl mr-4" />
+                <h2 className="text-size font-normal font-opensans text-black capitalize">
+                  Privacy Policy
+                </h2>
               </div>
+              <ChevronRight className="text-black" />
+            </div>
+          </div>
 
           <div
             className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"

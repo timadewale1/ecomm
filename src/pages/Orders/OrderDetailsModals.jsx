@@ -18,7 +18,7 @@ import {
   IoColorPaletteSharp,
   IoLocationOutline,
 } from "react-icons/io5";
-import notifyOrderStatusChange from "../../styles/services/notifyorderstatus";
+import notifyOrderStatusChange from "../../services/notifyorderstatus";
 import { PiCoinsFill } from "react-icons/pi";
 import { IoIosBody, IoMdInformationCircleOutline } from "react-icons/io";
 import { FaShoppingBag } from "react-icons/fa";

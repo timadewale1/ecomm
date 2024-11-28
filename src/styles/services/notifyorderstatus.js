@@ -1,6 +1,6 @@
 // services/notifyorderstatus.js
 import { collection, addDoc, doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase.config";
+import { db } from "../../firebase.config";
 
 const notifyOrderStatusChange = async (
   userId,
@@ -10,7 +10,7 @@ const notifyOrderStatusChange = async (
   vendorCoverImage, // New parameter
   productImage,
   declineReason = null,
-  riderInfo = null  
+  riderInfo = null
 ) => {
   try {
     // Check if userId is valid
@@ -39,16 +39,15 @@ const notifyOrderStatusChange = async (
     const notificationData = {
       userId,
       vendorName,
-      vendorCoverImage, 
-      productImage, 
+      vendorCoverImage,
+      productImage,
       message: `Your order with ${vendorName} has been updated to: ${newStatus}`,
       orderId,
-      declineReason, 
-      riderInfo, 
+      declineReason,
+      riderInfo,
       createdAt: new Date(),
       seen: false,
       type: "order",
-
     };
 
     // Add the notification to Firestore

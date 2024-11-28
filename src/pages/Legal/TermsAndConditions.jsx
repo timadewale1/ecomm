@@ -36,7 +36,7 @@ const TermsAndConditions = () => {
           <div className="absolute bottom-0 left-0">
             <img src="./Vector2.png" alt="" className="w-16 h-16" />
           </div>
-          <h2 className="text-xl text-white font-bold mb-4">
+          <h2 className="text-6xl text-white font-bold mb-4">
             Terms and Conditions
           </h2>
         </div>

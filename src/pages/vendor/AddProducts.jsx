@@ -21,7 +21,7 @@ import { AiOutlineProduct } from "react-icons/ai";
 import Select from "react-select";
 import makeAnimated from "react-select/animated";
 import { GiRegeneration } from "react-icons/gi";
-import notifyFollowers from "../../services/notifyfollowers";
+import notifyFollowers from "../../styles/services/notifyfollowers";
 import { GoTrash } from "react-icons/go";
 import { BiSolidImageAdd } from "react-icons/bi";
 import { TiCameraOutline } from "react-icons/ti";
@@ -490,7 +490,11 @@ const AddProduct = ({ vendorId, closeModal }) => {
       });
 
       // Log activity and notify followers
-      await logActivity("Added New Product 📦", `You've added ${productName} to your store! You can now view and feature it in your store products section.`, 'Product Update');
+      await logActivity(
+        "Added New Product 📦",
+        `You've added ${productName} to your store! You can now view and feature it in your store products section.`,
+        "Product Update"
+      );
       await notifyFollowers(vendorId, {
         name: productName,
         shopName: vendorData.shopName,

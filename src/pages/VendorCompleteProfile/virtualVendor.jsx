@@ -8,7 +8,7 @@ import { CiFacebook } from "react-icons/ci";
 import { AiOutlineBank } from "react-icons/ai";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../../firebase.config";
-import { NigerianStates } from "../../services/states";
+import { NigerianStates } from "../../styles/services/states";
 import { BiSolidImageAdd } from "react-icons/bi";
 import { PiIdentificationCardThin } from "react-icons/pi";
 import { FaIdCard, FaMinusCircle } from "react-icons/fa";
@@ -627,7 +627,7 @@ const VirtualVendor = ({
                     ? "bg-customOrange"
                     : "bg-customOrange opacity-50"
                 }`}
-                onClick={handleValidation} 
+                onClick={handleValidation}
                 disabled={!isFormComplete()} // Enable the button and handle validation on click
               >
                 Next

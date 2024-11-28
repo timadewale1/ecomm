@@ -18,7 +18,7 @@ import {
   IoColorPaletteSharp,
   IoLocationOutline,
 } from "react-icons/io5";
-import notifyOrderStatusChange from "../../services/notifyorderstatus";
+import notifyOrderStatusChange from "../../styles/services/notifyorderstatus";
 import { PiCoinsFill } from "react-icons/pi";
 import { IoIosBody, IoMdInformationCircleOutline } from "react-icons/io";
 import { FaShoppingBag } from "react-icons/fa";
@@ -184,7 +184,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
         vendorName, // vendorName
         vendorCoverImage,
         userInfo.email, // Pass user email
-        userInfo.displayName, 
+        userInfo.displayName,
         productImage // productImage
       );
 
@@ -245,10 +245,10 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
         "Declined", // newStatus
         vendorName, // vendorName
         vendorCoverImage, // vendorCoverImage
-        productImage, 
+        productImage,
         userInfo.email, // Pass user email
         userInfo.displayName, // Pass user name// productImage
-        reason  
+        reason
       );
 
       toast.success("Order declined successfully");

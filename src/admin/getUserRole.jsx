@@ -12,11 +12,11 @@ const getUserRole = async (uid) => {
       return userData.role || "user"; 
     } else {
      
-      return "user"; // Default to "user" role
+      return "user"; 
     }
   } catch (error) {
     console.error("Error getting user role:", error);
-    return "user"; // Default to "user" role in case of an error
+    return "user";
   }
 };
 

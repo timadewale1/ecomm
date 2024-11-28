@@ -1,7 +1,7 @@
 import React from "react";
 import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { NigerianStates } from "../../services/states";
+import { NigerianStates } from "../../styles/services/states";
 import { FormGroup } from "reactstrap";
 import {
   AiOutlineIdcard,
@@ -223,7 +223,6 @@ const MarketVendor = ({
     return true;
   };
 
-  
   const checkFormCompletion = () => {
     return (
       vendorData.shopName &&
@@ -238,11 +237,10 @@ const MarketVendor = ({
       vendorData.closeTime
     );
   };
-  
+
   // Usage
   const isFormComplete = () => checkFormCompletion();
 
-  
   const isFormBankComplete =
     bankDetails.bankName &&
     bankDetails.accountNumber.length === 10 &&

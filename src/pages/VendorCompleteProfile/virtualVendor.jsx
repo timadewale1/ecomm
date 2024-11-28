@@ -45,8 +45,25 @@ const VirtualVendor = ({
   isIdImageUploading,
   isLoading,
 }) => {
+  const isValidURL = (string) => {
+    try {
+      // Automatically prepend 'https://' if missing
+      if (
+        string &&
+        !string.startsWith("http://") &&
+        !string.startsWith("https://")
+      ) {
+        string = `https://${string}`;
+      }
+      new URL(string);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
   const handleValidation = () => {
-    // Check each required field and show a specific toast error if not filled (for Step 2)
+    // Check required fields for Step 2
     if (step === 2) {
       if (!vendorData.shopName) {
         toast.error("Please fill in the shop name");
@@ -54,10 +71,6 @@ const VirtualVendor = ({
       }
       if (!vendorData.Address) {
         toast.error("Please fill in Address");
-        return false;
-      }
-      if (!vendorData.phoneNumber || vendorData.phoneNumber.length !== 11) {
-        toast.error("Phone number must be 11 digits");
         return false;
       }
       if (vendorData.categories.length === 0) {
@@ -68,12 +81,18 @@ const VirtualVendor = ({
         toast.error("Please upload a cover image");
         return false;
       }
+
+      // Validate social media links
+      const { instagram, facebook, twitter } = vendorData.socialMediaHandle;
       if (
-        !vendorData.socialMediaHandle.instagram &&
-        !vendorData.socialMediaHandle.facebook &&
-        !vendorData.socialMediaHandle.twitter
+        (!instagram && !facebook && !twitter) || // At least one handle is required
+        (instagram && !isValidURL(instagram)) ||
+        (facebook && !isValidURL(facebook)) ||
+        (twitter && !isValidURL(twitter))
       ) {
-        toast.error("Please provide at least one social media handle");
+        toast.error(
+          "Please provide valid social media links. Include https://"
+        );
         return false;
       }
     }
@@ -97,10 +116,11 @@ const VirtualVendor = ({
       }
     }
 
-    // If everything is valid, call handleNextStep
+    // If everything is valid, proceed to the next step
     handleNextStep();
     return true;
   };
+
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [shopNameLoading, setShopNameLoading] = useState(false); // Loader for shop name
   const [isShopNameTaken, setIsShopNameTaken] = useState(false);
@@ -151,18 +171,13 @@ const VirtualVendor = ({
   }, [vendorData.shopName]);
 
   const handleStateChange = (e) => {
-    const state = e.target.value; // Get the selected state
+    const state = e.target.value;
     setSelectedState(state);
 
-    // Handle Address field update
-    const currentAddress = vendorData.Address || ""; // Default to an empty string if undefined
-    const updatedAddress = currentAddress.includes(",")
-      ? `${currentAddress.split(",")[0]}, ${state}` // Replace the last part after the comma
-      : `${currentAddress} ${state}`.trim(); // Append state if no comma is present
-
+    // Update vendorData with the new state
     setVendorData({
       ...vendorData,
-      Address: updatedAddress, // Update Address with the new state
+      state: state,
     });
   };
 
@@ -172,8 +187,8 @@ const VirtualVendor = ({
         vendorData.shopName &&
         !isShopNameTaken &&
         vendorData.Address &&
-        vendorData.phoneNumber &&
-        vendorData.phoneNumber.length === 11 &&
+        // vendorData.phoneNumber &&
+        // vendorData.phoneNumber.length === 11 &&
         vendorData.categories.length > 0 &&
         vendorData.coverImageUrl &&
         (vendorData.socialMediaHandle.instagram ||
@@ -392,7 +407,7 @@ const VirtualVendor = ({
                   </div>
                 )}
               </div>
-              <input
+              {/* <input
                 type="tel"
                 name="phoneNumber"
                 placeholder=" Phone Number"
@@ -406,7 +421,7 @@ const VirtualVendor = ({
                   }
                 }}
                 className="w-full h-12 mb-3 p-3 border-2 rounded-lg font-opensans text-neutral-800 focus:outline-none focus:border-customOrange hover:border-customOrange"
-              />
+              /> */}
               {/* Category Dropdown with Search */}
               <div className="relative">
                 <button
@@ -504,22 +519,32 @@ const VirtualVendor = ({
               />
               {/* Categories */}
               {/* Social Media */}
-              <h3 className="text-md font-semibold mb-4 font-opensans flex items-center">
+              <h3 className="text-md font-semibold mb-1 font-opensans flex items-center">
                 <IoShareSocial className="w-5 h-5 mr-2 text-header" />
                 Social Media
               </h3>
+              <h4 className="font-opensans text-gray-700 mb-3 text-xs">
+                Your social media handles are collected for security reasons
+                best known to us(minimum of one link must be attached).
+              </h4>
               <div className="relative w-full mb-4">
                 {/* Instagram Icon */}
                 <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                   <FaInstagram className="text-gray-500 text-xl" />
                 </div>
+
                 <input
                   type="text"
                   name="instagram"
                   placeholder="Instagram Link"
                   value={vendorData.socialMediaHandle.instagram}
                   onChange={handleSocialMediaChange}
-                  className="w-full h-12 pl-12 pr-3 border-2 rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
+                  className={`w-full h-12 pl-12 pr-3 border-2 rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange ${
+                    vendorData.socialMediaHandle.instagram &&
+                    !isValidURL(vendorData.socialMediaHandle.instagram)
+                      ? "border-red-500"
+                      : ""
+                  }`}
                 />
               </div>
               <div className="relative w-full mb-4">
@@ -533,7 +558,12 @@ const VirtualVendor = ({
                   placeholder="Facebook Link"
                   value={vendorData.socialMediaHandle.facebook}
                   onChange={handleSocialMediaChange}
-                  className="w-full h-12 pl-12 pr-3 border-2 rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange "
+                  className={`w-full h-12 pl-12 pr-3 border-2 rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange ${
+                    vendorData.socialMediaHandle.facebook &&
+                    !isValidURL(vendorData.socialMediaHandle.facebook)
+                      ? "border-red-500"
+                      : ""
+                  }`}
                 />
               </div>
               <div className="relative w-full mb-4">
@@ -543,11 +573,16 @@ const VirtualVendor = ({
                 </div>
                 <input
                   type="text"
-                  name="twitter"
-                  placeholder="X (Twitter) Link"
+                  name="Twitter"
+                  placeholder="Twitter(X) Link"
                   value={vendorData.socialMediaHandle.twitter}
                   onChange={handleSocialMediaChange}
-                  className="w-full h-12 pl-12 pr-3 border-2 rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange "
+                  className={`w-full h-12 pl-12 pr-3 border-2 rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange ${
+                    vendorData.socialMediaHandle.twitter &&
+                    !isValidURL(vendorData.socialMediaHandle.twitter)
+                      ? "border-red-500"
+                      : ""
+                  }`}
                 />
               </div>
               {/* Upload Image */}

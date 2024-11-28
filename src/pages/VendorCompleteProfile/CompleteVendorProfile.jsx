@@ -229,11 +229,18 @@ const CompleteProfile = () => {
 
   const handleSocialMediaChange = (e) => {
     const { name, value } = e.target;
+  
+    
+    let formattedValue = value;
+    if (value && !value.startsWith('http://') && !value.startsWith('https://')) {
+      formattedValue = 'https://' + value;
+    }
+  
     setVendorData({
       ...vendorData,
       socialMediaHandle: {
         ...vendorData.socialMediaHandle,
-        [name]: value,
+        [name]: formattedValue,
       },
     });
   };
@@ -324,7 +331,7 @@ const CompleteProfile = () => {
       ) {
         missingFields.push("Social Media Handles");
       }
-      if (!vendorData.phoneNumber) missingFields.push("Phone Number");
+      // if (!vendorData.phoneNumber) missingFields.push("Phone Number");
       if (!vendorData.coverImageUrl) missingFields.push("Cover Image");
       if (!vendorData.deliveryMode) missingFields.push("Delivery Mode");
       if (!vendorData.idVerification) missingFields.push("ID Verification");
@@ -438,22 +445,13 @@ const CompleteProfile = () => {
                     </div>
                   </div>
                   <div
-                    className={`border-0 p-3 mb-4 rounded-lg cursor-pointer flex justify-between items-center ${
-                      vendorData.marketPlaceType === "marketplace"
-                        ? "border-customOrange"
-                        : "border-customOrange"
-                    } bg-gray-50 px-10 text-gray-800 rounded-lg`}
-                    onClick={() => handleVendorTypeSelection("marketplace")}
+                    className={`border-0 p-3 mb-4 rounded-lg cursor-not-allowed flex justify-between items-center bg-gray-50 px-10 text-gray-800  opacity-50`}
                   >
                     <span className="font-opensans text-neutral-800">
                       Market Vendor
                     </span>
                     <div
-                      className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
-                        vendorData.marketPlaceType === "marketplace"
-                          ? "border-customOrange"
-                          : "border-customOrange"
-                      }`}
+                      className={`w-6 h-6 rounded-full border-2 flex justify-center items-center`}
                     >
                       {vendorData.marketPlaceType === "marketplace" && (
                         <div className="w-3 h-3 rounded-full bg-orange-500" />

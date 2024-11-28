@@ -31,7 +31,7 @@ import { RotatingLines } from "react-loader-spinner";
 import Loading from "../components/Loading/Loading";
 import { GoChevronLeft } from "react-icons/go";
 import { collection, where, query, getDocs } from "firebase/firestore";
-import { initializeRecaptchaVerifier } from "../services/recaptcha";
+import { initializeRecaptchaVerifier } from "../styles/services/recaptcha";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 const VendorSignup = () => {
@@ -305,7 +305,10 @@ const VendorSignup = () => {
                 <div className="flex justify-center text-xl text-customOrange -translate-y-1">
                   <Typewriter
                     options={{
-                      strings: ["Showcase your products", "Connect with buyers"],
+                      strings: [
+                        "Showcase your products",
+                        "Connect with buyers",
+                      ],
                       autoStart: true,
                       loop: true,
                       delay: 100,
@@ -431,52 +434,52 @@ const VendorSignup = () => {
 
                       {/* Password Criteria Feedback */}
                     </FormGroup>
-                      {showPasswordCriteria && (
-                        <ul className="text-xs text-gray-600 mt-2 mb-2">
-                          <li
-                            className={`${
-                              /[A-Z]/.test(vendorData.password)
-                                ? "text-green-500"
-                                : "text-red-500"
-                            }`}
-                          >
-                            {/[A-Z]/.test(vendorData.password) ? "✔" : "✘"} At
-                            least one uppercase letter
-                          </li>
-                          <li
-                            className={`${
-                              /[0-9]/.test(vendorData.password)
-                                ? "text-green-500"
-                                : "text-red-500"
-                            }`}
-                          >
-                            {/[0-9]/.test(vendorData.password) ? "✔" : "✘"} At
-                            least one numeric character
-                          </li>
-                          <li
-                            className={`${
-                              /[!@#$%^&*(),.?":{}|<>]/.test(vendorData.password)
-                                ? "text-green-500"
-                                : "text-red-500"
-                            }`}
-                          >
-                            {/[!@#$%^&*(),.?":{}|<>]/.test(vendorData.password)
-                              ? "✔"
-                              : "✘"}{" "}
-                            At least one special character
-                          </li>
-                          <li
-                            className={`${
-                              vendorData.password.length >= 8
-                                ? "text-green-500"
-                                : "text-red-500"
-                            }`}
-                          >
-                            {vendorData.password.length >= 8 ? "✔" : "✘"}{" "}
-                            Minimum length of 8 characters
-                          </li>
-                        </ul>
-                      )}
+                    {showPasswordCriteria && (
+                      <ul className="text-xs text-gray-600 mt-2 mb-2">
+                        <li
+                          className={`${
+                            /[A-Z]/.test(vendorData.password)
+                              ? "text-green-500"
+                              : "text-red-500"
+                          }`}
+                        >
+                          {/[A-Z]/.test(vendorData.password) ? "✔" : "✘"} At
+                          least one uppercase letter
+                        </li>
+                        <li
+                          className={`${
+                            /[0-9]/.test(vendorData.password)
+                              ? "text-green-500"
+                              : "text-red-500"
+                          }`}
+                        >
+                          {/[0-9]/.test(vendorData.password) ? "✔" : "✘"} At
+                          least one numeric character
+                        </li>
+                        <li
+                          className={`${
+                            /[!@#$%^&*(),.?":{}|<>]/.test(vendorData.password)
+                              ? "text-green-500"
+                              : "text-red-500"
+                          }`}
+                        >
+                          {/[!@#$%^&*(),.?":{}|<>]/.test(vendorData.password)
+                            ? "✔"
+                            : "✘"}{" "}
+                          At least one special character
+                        </li>
+                        <li
+                          className={`${
+                            vendorData.password.length >= 8
+                              ? "text-green-500"
+                              : "text-red-500"
+                          }`}
+                        >
+                          {vendorData.password.length >= 8 ? "✔" : "✘"} Minimum
+                          length of 8 characters
+                        </li>
+                      </ul>
+                    )}
 
                     <FormGroup className="relative mb-2">
                       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">

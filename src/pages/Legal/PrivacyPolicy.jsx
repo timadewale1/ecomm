@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 const PrivacyPolicy = () => {
   const navigate = useNavigate();
+  
   return (
     <div className="flex flex-col items-center bg-gray-50 min-h-screen pb-4 font-opensans text-gray-800">
       {/* Header */}
@@ -24,63 +25,63 @@ const PrivacyPolicy = () => {
       {/* Content */}
       <div className="w-full max-w-3xl bg-white rounded-lg shadow-md ">
         <ScrollToTop />
-        <div className="bg-customOrange relative text-center bg-white6 p-10  rounded-md overflow-hidden justify-center items-center shadow-gray-700 shadow-xl">
+        <div className="bg-customOrange flex relative text-center p-10  rounded-md justify-center items-center h-72">
           <div className="absolute top-0 right-0">
             <img src="./Vector.png" alt="" className="w-16 h-24" />
           </div>
           <div className="absolute bottom-0 left-0">
             <img src="./Vector2.png" alt="" className="w-16 h-16" />
           </div>
-          <h2 className="text-4xl text-white font-bold ">
+          <h2 className="text-6xl text-white font-bold ">
              Privacy Policy
           </h2>
         </div>
-          <p className="text-sm text-black text-center my-6">
+          <p className="text-xs text-gray-500 my-3">
             ©2024 My Thrift Clothing. Ltd, ALL RIGHTS RESERVED. Kindly refer to
             the legal notice below for our Privacy Policy.
           </p>
 
-        <div className="flex flex-col text-center items-center">
-          <p className="text-blue-600">My Thrift's Privacy Policy</p>
+        <div className="flex flex-col">
+          <p className="text-black font-bold text-lg">My Thrift's Privacy Policy</p>
           <a
             href="#1"
-            className="text-customOrange hover:text-customRichBrown hover:underline cursor-pointer"
+            className="text-black hover:text-customSoftGray underline cursor-pointer"
           >
             1. Overview
           </a>
           <a
             href="#2"
-            className="text-customOrange hover:text-customRichBrown hover:underline cursor-pointer"
+            className="text-black hover:text-customSoftGray underline cursor-pointer"
           >
             2. Introduction
           </a>
           <a
             href="#3"
-            className="text-customOrange hover:text-customRichBrown hover:underline cursor-pointer"
+            className="text-black hover:text-customSoftGray underline cursor-pointer"
           >
             3. User Data We Collect and Purpose
           </a>
           <a
             href="#4"
-            className="text-customOrange hover:text-customRichBrown hover:underline cursor-pointer"
+            className="text-black hover:text-customSoftGray underline cursor-pointer"
           >
             4. User Data We May Share
           </a>
           <a
             href="#5"
-            className="text-customOrange hover:text-customRichBrown hover:underline cursor-pointer"
+            className="text-black hover:text-customSoftGray underline cursor-pointer"
           >
             5. Use of Cookies
           </a>
           <a
             href="#6"
-            className="text-customOrange hover:text-customRichBrown hover:underline cursor-pointer"
+            className="text-black hover:text-customSoftGray underline cursor-pointer"
           >
             6. Rights of Users
           </a>
           <a
             href="#7"
-            className="text-customOrange hover:text-customRichBrown hover:underline cursor-pointer"
+            className="text-black hover:text-customSoftGray underline cursor-pointer"
           >
             7. Contact Details
           </a>
@@ -344,8 +345,7 @@ const PrivacyPolicy = () => {
             <p className="leading-relaxed text-black">
               <span className="text-customOrange">6.3</span> You may lodge a
               complaint if you feel we have gone against or violated your
-              privacy rights. Formal complaints should be sent to us at -enter
-              email address-.
+              privacy rights. Formal complaints should be sent to us at <a className="text-customOrange" href="mailto:Mythriftnigeria@gmail.com">Mythriftnigeria@gmail.com</a>.
             </p>
           </section>
 
@@ -371,7 +371,7 @@ const PrivacyPolicy = () => {
                   <GoDotFill className="text-customOrange text-lg mr-2 mt-1" />
                 </div>
                 <p className="text-black">
-                  Inquiry Email: -input email address-
+                  Inquiry Email: <a className="text-customOrange" href="mailto:Mythriftnigeria@gmail.com">Mythriftnigeria@gmail.com</a>
                 </p>
               </li>
             </ul>

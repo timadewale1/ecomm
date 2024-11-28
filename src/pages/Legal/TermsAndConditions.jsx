@@ -27,8 +27,7 @@ const TermsAndConditions = () => {
       <div className="w-full max-w-3xl bg-white rounded-lg shadow-md">
         <ScrollToTop />
         <div
-          id="banner"
-          className="bg-customOrange relative text-center bg-white6 p-10 justify-center items-center rounded-md overflow-hidden shadow-gray-700 shadow-xl h-72"
+          className="flex bg-customOrange relative text-center items-center rounded-md h-72"
         >
           <div className="absolute top-0 right-0">
             <img src="./Vector.png" alt="" className="w-16 h-24" />
@@ -36,69 +35,69 @@ const TermsAndConditions = () => {
           <div className="absolute bottom-0 left-0">
             <img src="./Vector2.png" alt="" className="w-16 h-16" />
           </div>
-          <h2 className="text-6xl text-white font-bold mb-4">
+          <h2 className="text-6xl text-white font-bold">
             Terms and Conditions
           </h2>
         </div>
-          <p className="text-sm text-white mb-6">
+          <p className="text-xs text-gray mb-3 mt-3">
             ©2024 My Thrift Clothing. Ltd, ALL RIGHTS RESERVED. Kindly refer to
             the legal notice below for our Terms and Conditions.
           </p>
           <div className="flex flex-col">
-            <p className="text-blue-600">
+            <p className="text-black text-lg font-bold mb-3">
               Terms and Conditions of My Thrift Clothing, Ltd.
             </p>
             <a
               href="#1"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
             >
               1. Introduction
             </a>
             <a
               href="#2"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
             >
               2. Account Creation & Registration
             </a>
             <a
               href="#3"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
             >
               3. Payments & Service Fees
             </a>
             <a
               href="#4"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
             >
               4. Sales Agreement
             </a>
             <a
               href="#5"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
             >
               5. Logistic Terms
             </a>
             <a
               href="#6"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
             >
               6. Refund and Return Policy
             </a>
             <a
               href="#7"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
             >
               7. Intellectual Property Disputes
             </a>
             <a
               href="#8"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
             >
               8. Limited Liability
             </a>
             <a
               href="#9"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
+              className="text-black hover:text-customSoftGray underline cursor-pointer"
             >
               9. Governing Law
             </a>
@@ -106,7 +105,7 @@ const TermsAndConditions = () => {
 
         <div className="space-y-6 text-sm py-6 px-3">
           {/* Introduction */}
-          <section id="1" className="pt-4 scroll-mt-14">
+          <section id="1" className="pt-4 scroll-mt-14 space-y-3">
             <h3 className="text-customOrange text-lg font-semibold mb-2">
               1. Introduction
             </h3>
@@ -115,7 +114,7 @@ const TermsAndConditions = () => {
               website and mobile application, together with the payment
               infrastructures in place and supporting logistics, is owned and
               controlled by My Thrift Clothing Ltd, which has the following
-              mailing address: (Insert Company/Business Address Here).
+              mailing address: <a className="text-customOrange" href="mailto:Mythriftnigeria@gmail.com">Mythriftnigeria@gmail.com</a>.
             </p>
             <p className="leading-relaxed text-black">
               <span className="text-customOrange">1.2</span> These terms and

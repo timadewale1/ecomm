@@ -66,6 +66,8 @@ const Routers = () => {
           </ErrorBoundary>
         }
       />
+      <Route path="terms-and-conditions" element={<TermsAndConditions />}/>
+      <Route path="privacy-policy" element={<PrivacyPolicy />}/>
       <Route path="market-vendors" element={<MarketVendors />} />
       <Route path="online-vendors" element={<OnlineVendors />} />
       <Route path="/forgetpassword" element={<ForgetPassword />} />

@@ -1,13 +1,13 @@
 // services/notifyorderstatus.js
 import { collection, addDoc, doc, getDoc } from "firebase/firestore";
-import { db } from "../../firebase.config";
+import { db } from "../firebase.config";
 
 const notifyOrderStatusChange = async (
   userId,
   orderId,
   newStatus,
   vendorName,
-  vendorCoverImage, // New parameter
+  vendorCoverImage, 
   productImage,
   declineReason = null,
   riderInfo = null

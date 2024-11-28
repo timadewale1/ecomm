@@ -31,7 +31,7 @@ import { RotatingLines } from "react-loader-spinner";
 import Loading from "../components/Loading/Loading";
 import { GoChevronLeft } from "react-icons/go";
 import { collection, where, query, getDocs } from "firebase/firestore";
-import { initializeRecaptchaVerifier } from "../styles/services/recaptcha";
+import { initializeRecaptchaVerifier } from "../services/recaptcha";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 const VendorSignup = () => {

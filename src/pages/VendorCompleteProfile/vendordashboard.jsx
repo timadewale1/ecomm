@@ -7,7 +7,7 @@ import {
   orderBy,
   limit,
   doc,
-  getDoc
+  getDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 
@@ -29,14 +29,14 @@ import NotApproved from "../../components/Infos/NotApproved";
 import Skeleton from "react-loading-skeleton";
 import ScrollToTop from "../../components/layout/ScrollToTop";
 
-const defaultImageUrl = "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
-
+const defaultImageUrl =
+  "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 
 const VendorDashboard = () => {
   const { vendorData, loading } = useContext(VendorContext); // Get vendor data from context
   const [totalFulfilledOrders, setTotalFulfilledOrders] = useState(0);
   const [hide, setHide] = useState(false);
-  const [coverImageUrl, setCoverImageUrl] = useState(defaultImageUrl);
+  // const [coverImageUrl, setCoverImageUrl] = useState(defaultImageUrl);
   const [filterOptions, setFilterOptions] = useState("All");
   const [viewOptions, setViewOptions] = useState(false);
   const [totalUnfulfilledOrders, setTotalUnfulfilledOrders] = useState(0);
@@ -53,35 +53,32 @@ const VendorDashboard = () => {
       fetchRecentActivities(vendorData.vendorId);
 
       fetchInfo(vendorData.vendorId);
-
     }
   }, [vendorData]);
 
-  const fetchCoverImage = async (vendorId) => {
-    try {
-      const vendorDocRef = doc(db, "vendors", vendorId);
-      const vendorDoc = await getDoc(vendorDocRef);
+  // const fetchCoverImage = async (vendorId) => {
+  //   try {
+  //     const vendorDocRef = doc(db, "vendors", vendorId);
+  //     const vendorDoc = await getDoc(vendorDocRef);
 
-      if (vendorDoc.exists() && vendorDoc.data().coverImageUrl) {
-        setCoverImageUrl(vendorDoc.data().coverImageUrl);
-      }
-    } catch (error) {
-      console.error("Error fetching cover image:", error);
-    }
-  };  
-
+  //     if (vendorDoc.exists() && vendorDoc.data().coverImageUrl) {
+  //       setCoverImageUrl(vendorDoc.data().coverImageUrl);
+  //     }
+  //   } catch (error) {
+  //     console.error("Error fetching cover image:", error);
+  //   }
+  // };
 
   const filteredActivities = recentActivities.filter((activity) => {
     if (filterOptions === "All") return true;
     return activity.type === filterOptions;
   });
 
- const fetchInfo = (vendorId) => {
-  const productsRef = collection(db, "products");
+  const fetchInfo = (vendorId) => {
+    const productsRef = collection(db, "products");
     const productsQuery = query(productsRef, where("vendorId", "==", vendorId));
 
-    const 
-    unsubscribe = onSnapshot(productsQuery, (snapshot) => {
+    const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
       setTotalProducts(snapshot.docs.length);
     });
 
@@ -119,10 +116,12 @@ const VendorDashboard = () => {
     return () => unsubscribe();
   };
 
-  const textToCopy = vendorData.vendorId && `https://mythriftprod.vercel.app/${
-    vendorData &&
-    (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
-  }/${vendorData.vendorId}`;
+  const textToCopy =
+    vendorData.vendorId &&
+    `https://mythriftprod.vercel.app/${
+      vendorData &&
+      (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
+    }/${vendorData.vendorId}`;
 
   const copyToClipboard = async () => {
     console.log("Clicked");
@@ -225,7 +224,7 @@ const VendorDashboard = () => {
           <div className="flex items-center">
             <div className="overflow-hidden w-11 h-11 rounded-full flex justify-center items-center mr-1">
               <img
-               src={coverImageUrl}
+                src={vendorData.coverImageUrl || defaultImageUrl}
                 alt="Vendor profile"
                 className="rounded-full object-cover h-11 w-11"
               />
@@ -236,7 +235,6 @@ const VendorDashboard = () => {
               </p>
             </div>
           </div>
-          
         </div>
 
         {!vendorData.isApproved && (
@@ -456,7 +454,8 @@ const VendorDashboard = () => {
               </>
             ) : filterOptions === "All" && !loading ? (
               <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
-                🕘 No actions taken yet. Your recent activities will appear here once you start managing your store...
+                🕘 No actions taken yet. Your recent activities will appear here
+                once you start managing your store...
               </div>
             ) : filterOptions === "Recent Transactions" && !loading ? (
               <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">

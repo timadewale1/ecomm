@@ -10,7 +10,7 @@ const TermsAndConditions = () => {
       {/* Header */}
       <div
         id="header"
-        className="sticky transition-colors duration-300 top-0 bg-white z-10 flex items-center justify-between w-full p-4 border-b shadow-sm"
+        className="sticky transition-colors duration-300 top-0 bg-white z-10 flex items-center justify-between w-full py-4 px-3 border-b shadow-sm"
       >
         <div className="flex items-center space-x-2">
           <GoChevronLeft
@@ -39,6 +39,8 @@ const TermsAndConditions = () => {
             Terms and Conditions
           </h2>
         </div>
+        <div className="px-3">
+
           <p className="text-xs text-gray mb-3 mt-3">
             ©2024 My Thrift Clothing. Ltd, ALL RIGHTS RESERVED. Kindly refer to
             the legal notice below for our Terms and Conditions.
@@ -102,6 +104,7 @@ const TermsAndConditions = () => {
               9. Governing Law
             </a>
           </div>
+        </div>
 
         <div className="space-y-6 text-sm py-6 px-3">
           {/* Introduction */}

@@ -21,7 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { FaRegTimesCircle } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { updateUserData } from "../../redux/actions/useractions";
-import { NigerianStates } from "../../styles/services/states";
+import { NigerianStates } from "../../services/states";
 import { CiLocationOn } from "react-icons/ci";
 import Loading from "../../components/Loading/Loading";
 import { GoChevronLeft } from "react-icons/go";

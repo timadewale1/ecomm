@@ -7,6 +7,10 @@ import toast from "react-hot-toast";
 const ProtectedRoute = ({ requiredRole }) => {
   const { currentUser, currentUserData, loading } = useAuth();
   const location = useLocation();
+  if (loading) {
+    return <Loading />;
+  }
+  
 
   // Wait until loading is false and currentUserData is available
   if (loading || (currentUser && !currentUserData)) {
@@ -26,13 +30,11 @@ const ProtectedRoute = ({ requiredRole }) => {
   if (requiredRole && currentUserData?.role !== requiredRole) {
     // User does not have the required role
     if (currentUserData.role === "vendor") {
-      // If a vendor tries to access a user-only route
       toast.error("You do not have access to this page.");
-      return <Navigate to="/vendordashboard" />;
+      return <Navigate to="/vendorlogin" />;
     } else if (currentUserData.role === "user") {
-      // If a user tries to access a vendor-only route
       toast.error("You do not have access to this page.");
-      return <Navigate to="/newhome" />; // Redirect to user dashboard
+      return <Navigate to="/login" />; // Redirect to user dashboard
     } else {
       // If role is undefined or unrecognized
       return <Navigate to="/login" />;

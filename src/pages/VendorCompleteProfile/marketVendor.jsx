@@ -1,7 +1,7 @@
 import React from "react";
 import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { NigerianStates } from "../../styles/services/states";
+import { NigerianStates } from "../../services/states";
 import { FormGroup } from "reactstrap";
 import {
   AiOutlineIdcard,

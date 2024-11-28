@@ -10,7 +10,7 @@ import { FaPen } from "react-icons/fa";
 import serviceimage from "../Images/servicemodal.jpg";
 import bookingimage from "../Images/bookingfee.jpg";
 import Modal from "react-modal";
-import { createOrderAndReduceStock } from "../styles/services/Services";
+// import { createOrderAndReduceStock } from "../styles/services/Services";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.config";
 import Loading from "../components/Loading/Loading";
@@ -21,7 +21,7 @@ import { MdOutlineLock, MdSupportAgent } from "react-icons/md";
 import { LiaShippingFastSolid, LiaTimesSolid } from "react-icons/lia";
 import { FaCheck } from "react-icons/fa6";
 import Skeleton from "react-loading-skeleton";
-import { NigerianStates } from "../styles/services/states";
+import { NigerianStates } from "../services/states";
 
 const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
   const [selectedState, setSelectedState] = useState("");

@@ -39,6 +39,8 @@ import CategoryPage from "../pages/UserSide/CategoryPage.jsx";
 import VendorRatings from "../pages/vendor/VendorRatings.jsx";
 import SearchPage from "../pages/UserSide/Searchpage.jsx";
 import ErrorBoundary from "../components/Errorboundary.jsx";
+import TermsAndConditions from "../pages/Legal/TermsAndConditions.jsx";
+import PrivacyPolicy from "../pages/Legal/PrivacyPolicy.jsx";
 import NotFound from "../pages/NotFound"; // Import the NotFound component
 
 const Routers = () => {
@@ -64,6 +66,8 @@ const Routers = () => {
           </ErrorBoundary>
         }
       />
+      <Route path="terms-and-conditions" element={<TermsAndConditions />}/>
+      <Route path="privacy-policy" element={<PrivacyPolicy />}/>
       <Route path="market-vendors" element={<MarketVendors />} />
       <Route path="online-vendors" element={<OnlineVendors />} />
       <Route path="/forgetpassword" element={<ForgetPassword />} />

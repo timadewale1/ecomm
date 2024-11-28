@@ -40,6 +40,7 @@ import LoadState from "../../Animations/loadinganimation.json";
 import { FaSpinner, FaXmark } from "react-icons/fa6";
 import Skeleton from "react-loading-skeleton";
 import "./vendor.css";
+import ScrollToTop from "../../components/layout/ScrollToTop";
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
@@ -604,6 +605,7 @@ const VendorProducts = () => {
   return (
     <>
       <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-5 font-opensans ">
+        <ScrollToTop />
         <div className="flex justify-end">
           <div
             className="relative flex justify-center items-center"

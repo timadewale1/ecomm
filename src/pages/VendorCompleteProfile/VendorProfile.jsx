@@ -30,6 +30,10 @@ import { FaStar } from "react-icons/fa";
 import { ProgressBar } from "react-bootstrap";
 import { GoChevronLeft } from "react-icons/go";
 import { setVendorProfile, setLoading } from "../../redux/vendorProfileSlice";
+import { FaFileContract } from "react-icons/fa6";
+import { BsShieldFillCheck } from "react-icons/bs";
+import TermsAndConditions from "../Legal/TermsAndConditions.jsx";
+import PrivacyPolicy from "../Legal/PrivacyPolicy.jsx";
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const defaultImageUrl =
@@ -45,6 +49,8 @@ const VendorProfile = () => {
   const [showDetails, setShowDetails] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showRatings, setShowRatings] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false)
+  const [showTsAndCs, setShowTsAndCs] = useState(false)
   const [isLoading, setIsLoading] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [fulfilledOrders, setFulfilledOrders] = useState(0);
@@ -132,7 +138,7 @@ const VendorProfile = () => {
     if (showRatings) {
       window.scrollTo(0, 0);
     }
-  }, [showRatings]); 
+  }, [showRatings]);
 
   const { shopName, coverImageUrl, marketPlaceType, ratingCount, rating } =
     userData || {};
@@ -283,7 +289,7 @@ const VendorProfile = () => {
 
   return (
     <div className="font-opensans">
-      {!showDetails && !showHistory && !showRatings ? (
+      {!showDetails && !showHistory && !showRatings && !showTsAndCs && !showPrivacyPolicy ? (
         <div>
           {/* Cover Image Section */}
           <div
@@ -399,34 +405,75 @@ const VendorProfile = () => {
                   </div>
                   <ChevronRight className="text-black" />
                 </div>
+              </div>
+
+              <div className="w-full h-14 flex">
+                <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
+                  Legal
+                </h1>
+              </div>
+              <div className="flex flex-col items-center w-full">
+                <div
+                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={() => setShowTsAndCs(!showTsAndCs)}
+                >
+                  <div className="flex items-center">
+                    <FaFileContract className="text-black text-xl mr-4" />
+                    <h2 className="text-size font-normal text-black capitalize">
+                      Terms and Conditions
+                    </h2>
+                  </div>
+                  <ChevronRight className="text-black" />
+                </div>
 
                 <div
                   className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={handleLogout}
+                  onClick={() => setShowPrivacyPolicy(!showPrivacyPolicy)}
                 >
                   <div className="flex items-center">
-                    <PiSignOutBold className="text-red-600 text-xl mr-4" />
-                    <p className="text-size text-black font-normal capitalize">
-                      Sign Out
-                    </p>
+                    <BsShieldFillCheck className="text-black text-xl mr-4" />
+                    <h2 className="text-size font-normal text-black capitalize">
+                      Privacy Policy
+                    </h2>
                   </div>
-                  {isLoggingOut && (
-                    <div className="flex items-center ml-auto">
-                      <RotatingLines
-                        strokeColor="#f9531e"
-                        strokeWidth="5"
-                        animationDuration="0.75"
-                        width="24"
-                        visible={true}
-                      />
-                    </div>
-                  )}
+                  <ChevronRight className="text-black" />
                 </div>
+              </div>
+
+              <div
+                className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                onClick={handleLogout}
+              >
+                <div className="flex items-center">
+                  <PiSignOutBold className="text-red-600 text-xl mr-4" />
+                  <p className="text-size text-black font-normal capitalize">
+                    Sign Out
+                  </p>
+                </div>
+                {isLoggingOut && (
+                  <div className="flex items-center ml-auto">
+                    <RotatingLines
+                      strokeColor="#f9531e"
+                      strokeWidth="5"
+                      animationDuration="0.75"
+                      width="24"
+                      visible={true}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
-      ) : (
+      ) : showTsAndCs ? (
+        <TermsAndConditions
+        className="z-[1000]" 
+        setShow={setShowTsAndCs}/>
+      ) : showPrivacyPolicy ? (
+        <PrivacyPolicy 
+        className="z-[1000]"
+        setShow={setShowPrivacyPolicy}/>
+        ) : (
         <>
           {showDetails && (
             <VprofileDetails

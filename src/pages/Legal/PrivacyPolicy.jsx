@@ -2,8 +2,10 @@ import React from "react";
 import { GoChevronLeft, GoDotFill } from "react-icons/go";
 import ScrollToTop from "./../../components/layout/ScrollToTop";
 import "./design.css";
+import { useNavigate } from "react-router-dom";
 
-const PrivacyPolicy = ({ setShow }) => {
+const PrivacyPolicy = () => {
+  const navigate = useNavigate();
   return (
     <div className="flex flex-col items-center bg-gray-50 min-h-screen pb-4 font-opensans text-gray-800">
       {/* Header */}
@@ -11,7 +13,7 @@ const PrivacyPolicy = ({ setShow }) => {
         <div className="flex items-center space-x-2">
           <GoChevronLeft
             className="text-2xl text-black cursor-pointer"
-            onClick={() => setShow(false)}
+            onClick={() => navigate(-1)}
           />
           <h1 className="text-lg font-semibold text-gray-900">
             Privacy Policy
@@ -22,59 +24,66 @@ const PrivacyPolicy = ({ setShow }) => {
       {/* Content */}
       <div className="w-full max-w-3xl bg-white rounded-lg shadow-md ">
         <ScrollToTop />
-        <div className="bg-customOrange relative text-center bg-white6 p-10 pb-16 rounded-md rounded-br-[160px] rounded-bl-[240px] overflow-hidden shadow-gray-700 shadow-xl">
-          <h2 className="text-xl text-white font-bold mb-4">
-            My Thrift’s Privacy Policy
+        <div className="bg-customOrange relative text-center bg-white6 p-10  rounded-md overflow-hidden justify-center items-center shadow-gray-700 shadow-xl">
+          <div className="absolute top-0 right-0">
+            <img src="./Vector.png" alt="" className="w-16 h-24" />
+          </div>
+          <div className="absolute bottom-0 left-0">
+            <img src="./Vector2.png" alt="" className="w-16 h-16" />
+          </div>
+          <h2 className="text-4xl text-white font-bold ">
+             Privacy Policy
           </h2>
-          <p className="text-sm text-white mb-6">
+        </div>
+          <p className="text-sm text-black text-center my-6">
             ©2024 My Thrift Clothing. Ltd, ALL RIGHTS RESERVED. Kindly refer to
             the legal notice below for our Privacy Policy.
           </p>
-          <div className="flex flex-col">
-            <p className="text-blue-600">My Thrift's Privacy Policy</p>
-            <a
-              href="#1"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
-            >
-              1. Overview
-            </a>
-            <a
-              href="#2"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
-            >
-              2. Introduction
-            </a>
-            <a
-              href="#3"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
-            >
-              3. User Data We Collect and Purpose
-            </a>
-            <a
-              href="#4"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
-            >
-              4. User Data We May Share
-            </a>
-            <a
-              href="#5"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
-            >
-              5. Use of Cookies
-            </a>
-            <a
-              href="#6"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
-            >
-              6. Rights of Users
-            </a>
-            <a
-              href="#7"
-              className="text-white hover:text-customRichBrown hover:underline cursor-pointer"
-            >
-              7. Contact Details
-            </a>
-          </div>
+
+        <div className="flex flex-col text-center items-center">
+          <p className="text-blue-600">My Thrift's Privacy Policy</p>
+          <a
+            href="#1"
+            className="text-customOrange hover:text-customRichBrown hover:underline cursor-pointer"
+          >
+            1. Overview
+          </a>
+          <a
+            href="#2"
+            className="text-customOrange hover:text-customRichBrown hover:underline cursor-pointer"
+          >
+            2. Introduction
+          </a>
+          <a
+            href="#3"
+            className="text-customOrange hover:text-customRichBrown hover:underline cursor-pointer"
+          >
+            3. User Data We Collect and Purpose
+          </a>
+          <a
+            href="#4"
+            className="text-customOrange hover:text-customRichBrown hover:underline cursor-pointer"
+          >
+            4. User Data We May Share
+          </a>
+          <a
+            href="#5"
+            className="text-customOrange hover:text-customRichBrown hover:underline cursor-pointer"
+          >
+            5. Use of Cookies
+          </a>
+          <a
+            href="#6"
+            className="text-customOrange hover:text-customRichBrown hover:underline cursor-pointer"
+          >
+            6. Rights of Users
+          </a>
+          <a
+            href="#7"
+            className="text-customOrange hover:text-customRichBrown hover:underline cursor-pointer"
+          >
+            7. Contact Details
+          </a>
         </div>
 
         <div className="space-y-6 text-sm py-6 px-3">
@@ -232,61 +241,61 @@ const PrivacyPolicy = ({ setShow }) => {
             <ul className="list-disc leading-relaxed space-y-2 mt-2">
               <li className="flex w-full">
                 <div>
-                    <GoDotFill className="text-customOrange text-lg mr-2 mt-2"/>
+                  <GoDotFill className="text-customOrange text-lg mr-2 mt-2" />
                 </div>
                 <div>
-                    <strong>Within Our Company:</strong> We may share your personal
-                information with our subsidiaries or group companies in
-                existence at present or at a later date to onboard users on new
-                services they consent to or improve platform operations.
-                </div>
-                
-              </li>
-              <li className="flex w-full">
-                <div>
-                    <GoDotFill className="text-customOrange text-lg mr-2 mt-2"/>
-                </div>
-                <div>
-                <strong>Customer Service Providers:</strong> We may outsource
-                our customer services to competent industry professionals to
-                improve customer relations and communications, this will require
-                us to share personal information such as phone numbers and email
-                addresses.
+                  <strong>Within Our Company:</strong> We may share your
+                  personal information with our subsidiaries or group companies
+                  in existence at present or at a later date to onboard users on
+                  new services they consent to or improve platform operations.
                 </div>
               </li>
               <li className="flex w-full">
                 <div>
-                    <GoDotFill className="text-customOrange text-lg mr-2 mt-2"/>
+                  <GoDotFill className="text-customOrange text-lg mr-2 mt-2" />
                 </div>
                 <div>
-                <strong>Cybersecurity Professionals:</strong> We may share your
-                personal information with third-party cybersecurity companies to
-                better protect our platform from security breaches and fraud,
-                better verify user identities, and reduce credit risk.
-                </div>
-              </li>
-              <li className="flex w-full">
-                <div>
-                    <GoDotFill className="text-customOrange text-lg mr-2 mt-2"/>
-                </div>
-                <div>
-                <strong>IT Service Providers:</strong> We may share your
-                personal information with IT service providers and certain
-                software services providers, such as system maintenance and web
-                hosting services, customer relationship management software, and
-                mobile application services.
+                  <strong>Customer Service Providers:</strong> We may outsource
+                  our customer services to competent industry professionals to
+                  improve customer relations and communications, this will
+                  require us to share personal information such as phone numbers
+                  and email addresses.
                 </div>
               </li>
               <li className="flex w-full">
                 <div>
-                    <GoDotFill className="text-customOrange text-lg mr-2 mt-2"/>
+                  <GoDotFill className="text-customOrange text-lg mr-2 mt-2" />
                 </div>
                 <div>
-                <strong>Regulators or Government Agencies:</strong> We have the
-                right to share your personal information with state-owned
-                regulators or government agencies in compliance with court
-                orders or any other legal demand and to protect our corporate
-                interests from judicial proceedings or lawsuits.
+                  <strong>Cybersecurity Professionals:</strong> We may share
+                  your personal information with third-party cybersecurity
+                  companies to better protect our platform from security
+                  breaches and fraud, better verify user identities, and reduce
+                  credit risk.
+                </div>
+              </li>
+              <li className="flex w-full">
+                <div>
+                  <GoDotFill className="text-customOrange text-lg mr-2 mt-2" />
+                </div>
+                <div>
+                  <strong>IT Service Providers:</strong> We may share your
+                  personal information with IT service providers and certain
+                  software services providers, such as system maintenance and
+                  web hosting services, customer relationship management
+                  software, and mobile application services.
+                </div>
+              </li>
+              <li className="flex w-full">
+                <div>
+                  <GoDotFill className="text-customOrange text-lg mr-2 mt-2" />
+                </div>
+                <div>
+                  <strong>Regulators or Government Agencies:</strong> We have
+                  the right to share your personal information with state-owned
+                  regulators or government agencies in compliance with court
+                  orders or any other legal demand and to protect our corporate
+                  interests from judicial proceedings or lawsuits.
                 </div>
               </li>
             </ul>
@@ -303,10 +312,17 @@ const PrivacyPolicy = ({ setShow }) => {
               5. Use of Cookies
             </h3>
             <p className="leading-relaxed text-black">
-                <span className="text-customOrange">5.1</span> We may use cookies or other tracking technologies to collect information across all our platforms automatically. Cookies are bits of code or small text files that allow us or our site providers to recognize your browser and collect/remember information that typically does not directly identify you. 
+              <span className="text-customOrange">5.1</span> We may use cookies
+              or other tracking technologies to collect information across all
+              our platforms automatically. Cookies are bits of code or small
+              text files that allow us or our site providers to recognize your
+              browser and collect/remember information that typically does not
+              directly identify you.
             </p>
             <p className="leading-relaxed text-black">
-                <span className="text-customOrange">5.2</span> Your browser or device may provide you with the option to reject some or all of our site cookies. 
+              <span className="text-customOrange">5.2</span> Your browser or
+              device may provide you with the option to reject some or all of
+              our site cookies.
             </p>
           </section>
 
@@ -316,13 +332,20 @@ const PrivacyPolicy = ({ setShow }) => {
               6. Rights of Users
             </h3>
             <p className="leading-relaxed text-black">
-                <span className="text-customOrange">6.1</span> You have the right to access, correct, change, or delete the personal information you provide us with. 
+              <span className="text-customOrange">6.1</span> You have the right
+              to access, correct, change, or delete the personal information you
+              provide us with.
             </p>
             <p className="leading-relaxed text-black">
-                <span className="text-customOrange">6.2</span> You may withdraw your consent to the processing of your personal information if we provide you with the option.
+              <span className="text-customOrange">6.2</span> You may withdraw
+              your consent to the processing of your personal information if we
+              provide you with the option.
             </p>
             <p className="leading-relaxed text-black">
-                <span className="text-customOrange">6.3</span> You may lodge a complaint if you feel we have gone against or violated your privacy rights. Formal complaints should be sent to us at -enter email address-.
+              <span className="text-customOrange">6.3</span> You may lodge a
+              complaint if you feel we have gone against or violated your
+              privacy rights. Formal complaints should be sent to us at -enter
+              email address-.
             </p>
           </section>
 
@@ -332,23 +355,23 @@ const PrivacyPolicy = ({ setShow }) => {
               7. Contact Details
             </h3>
             <p className="leading-relaxed text-black">
-            If you have any queries or questions regarding the information provided in our Privacy Policy, contact the following customer lines and email addresses
+              If you have any queries or questions regarding the information
+              provided in our Privacy Policy, contact the following customer
+              lines and email addresses
             </p>
             <ul className="list-disc list-inside leading-relaxed space-y-2">
-            <li className="flex w-full">
+              <li className="flex w-full">
                 <div>
-                    <GoDotFill className="text-customOrange text-lg mr-2 mt-1"/>
+                  <GoDotFill className="text-customOrange text-lg mr-2 mt-1" />
                 </div>
-                <p className="text-black">
-                MyThrift Hotline: +234___________
-                </p>
+                <p className="text-black">MyThrift Hotline: +234___________</p>
               </li>
               <li className="flex w-full">
                 <div>
-                    <GoDotFill className="text-customOrange text-lg mr-2 mt-1"/>
+                  <GoDotFill className="text-customOrange text-lg mr-2 mt-1" />
                 </div>
                 <p className="text-black">
-                Inquiry Email: -input email address-
+                  Inquiry Email: -input email address-
                 </p>
               </li>
             </ul>

@@ -37,6 +37,8 @@ const Layout = () => {
     "/confirm-email",
     "network-error",
     "/payment-approve",
+    "/terms-and-conditions",
+    "/privacy-policy"
   ];
 
   // Paths with dynamic segments

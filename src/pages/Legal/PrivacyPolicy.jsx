@@ -1,11 +1,29 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { GoChevronLeft, GoDotFill } from "react-icons/go";
 import ScrollToTop from "./../../components/layout/ScrollToTop";
 import "./design.css";
 import { useNavigate } from "react-router-dom";
 
 const PrivacyPolicy = () => {
-  const navigate = useNavigate();
+    const navigate = useNavigate();
+
+    //Basically, this logic checks if there's any previous history in the browser that also comes from this domain, if both checks return false then the handleBack function redirects to the login page, else it goes to the previous page
+    const [checkOne, setCheckOne] = useState(false)
+    const [checkTwo, setCheckTwo] = useState(false)
+  
+    useEffect(() => {
+      setCheckOne(window.history.length > 1)
+      setCheckTwo(document.referrer?.startsWith(window.location.origin))
+    }, [])
+  
+    const handleBack = () => {
+      // Check if there's a history stack and referrer is from the same origin
+      if (checkOne && checkTwo) {
+          navigate(-1);
+        } else {
+          navigate("/confirm-user-state");
+        }
+    };
 
   return (
     <div className="flex flex-col items-center bg-gray-50 min-h-screen pb-4 font-opensans text-gray-800">
@@ -14,7 +32,7 @@ const PrivacyPolicy = () => {
         <div className="flex items-center space-x-2">
           <GoChevronLeft
             className="text-2xl text-black cursor-pointer"
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
           />
           <h1 className="text-lg font-semibold text-gray-900">
             Privacy Policy

@@ -1,7 +1,7 @@
 import React from "react";
 
 const Helmet = (props) => {
-  document.title = "Adetmart - " + props.title;
+  document.title = "My Thrift - " + props.title;
   return <div className="w-100">{props.children}</div>;
 };
 

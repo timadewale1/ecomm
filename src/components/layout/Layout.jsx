@@ -20,7 +20,7 @@ const Layout = () => {
     "/forgetpassword",
     "/admin",
     "/user-orders",
-    "/confirm-user-state",
+    "/confirm-state",
     "/vendorlogin",
     "/vendor-signup",
     "/complete-profile",
@@ -28,6 +28,7 @@ const Layout = () => {
     "/newcheckout/fulldelivery",
     "/user-dashboard",
     "/search",
+    "/",
     "/vendor-reviews",
     "/notifications",
     "/favorites",
@@ -73,6 +74,7 @@ const Layout = () => {
     "/vendordashboard",
     "/vendor-orders",
     "/vendor-reviews",
+    // "/ confirm-user-state",
     "/vendor-products",
     "/vendor-profile",
   ];
@@ -114,7 +116,7 @@ const Layout = () => {
           autoplay={true}
         />
             <div className="text-center text-xl font-opensans p-20">
-            We're currently optimizing our website for this screen size. For the best experience, we recommend accessing it on your mobile device.
+            We're currently optimizing our website for this screen size. For the best experience, we recommend accessing it on your mobile device.🤦‍♀️
             </div>
             </div>
           )}

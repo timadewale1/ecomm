@@ -48,11 +48,11 @@ const Routers = () => {
   return (
     <Routes>
       {/* Default Route */}
-      <Route path="/" element={<ConfirmUserState />} />{" "}
+      <Route path="/" element={<ConfirmUserState />} />
       {/* Updated default route */}
       {/* Public Routes */}
       <Route path="/search" element={<SearchPage />} />
-      <Route path="/confirm-user-state" element={<ConfirmUserState />} />
+      <Route path="/confirm-state" element={<ConfirmUserState />} />
       <Route path="product/:id" element={<ProductDetailPage />} />
       <Route path="signup" element={<Signup />} />
       <Route path="vendor-signup" element={<VendorSignup />} />

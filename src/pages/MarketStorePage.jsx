@@ -449,13 +449,13 @@ const MarketStorePage = () => {
         {loading ? <Skeleton count={2} /> : vendor.description}
       </p>
       <div className="p-2 mt-7">
-        <div className="flex justify-between">
-          <h1 className="font-opensans text-lg mb-3 font-semibold">Products</h1>
+        <div className="flex items-center mb-3 justify-between">
+          <h1 className="font-opensans text-lg  font-semibold">Products</h1>
           <div className="relative">
             {viewOptions && (
               <div className="z-50 absolute bg-white w-44 h-20 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-24 top-2 p-3 flex flex-col justify-between">
                 <span
-                  className={`text-xs ml-2 cursor-pointer ${
+                  className={`text-xs font-opensans ml-2 cursor-pointer ${
                     sortOption === "priceAsc"
                       ? "text-customOrange"
                       : "text-black"
@@ -469,7 +469,7 @@ const MarketStorePage = () => {
                 </span>
                 <hr className="text-slate-300" />
                 <span
-                  className={`text-xs ml-2 cursor-pointer ${
+                  className={`text-xs ml-2 font-opensans cursor-pointer ${
                     sortOption === "priceDesc"
                       ? "text-customOrange"
                       : "text-black"
@@ -483,7 +483,7 @@ const MarketStorePage = () => {
                 </span>
               </div>
             )}
-            <span className="flex text-xs items-center">
+            <span className="flex text-xs font-opensans items-center">
               Sort by Price:{" "}
               <LuListFilter
                 className="text-customOrange cursor-pointer ml-1"

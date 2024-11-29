@@ -375,7 +375,7 @@ const StoreReviews = () => {
                     </div>
                   </>
                 ) : (
-                  <div className="text-2xl text-center mt-8">
+                  <div className="text-xs font-opensans text-gray-800 text-center mt-8">
                     No reviews here yet. Reviews will appear here when customers post them 🌟...
                   </div>
                 )}

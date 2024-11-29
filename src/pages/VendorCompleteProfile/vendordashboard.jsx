@@ -214,7 +214,7 @@ const VendorDashboard = () => {
   }
 
   if (!vendorData) {
-    return <p>Unable to load vendor data. Please try again later.</p>;
+    return <p className="">Unable to load vendor data. Please try again later.</p>;
   }
   return (
     <>

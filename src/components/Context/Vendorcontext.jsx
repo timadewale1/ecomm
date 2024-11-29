@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase.config";
 
 export const VendorContext = createContext();
@@ -14,24 +14,32 @@ export const VendorProvider = ({ children }) => {
 
   const [vendorData, setVendorData] = useState(null); // Store specific vendor data
   const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let unsubscribeVendorDoc;
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // If the user is authenticated, fetch vendor data from Firestore
-        const vendorDoc = await getDoc(doc(db, "vendors", user.uid));
-
-        if (vendorDoc.exists()) {
-          // Successfully fetched vendor data
-          setVendorData({ vendorId: user.uid, ...vendorDoc.data() });
-        } else {
-          console.error("Vendor data not found");
-        }
+        const vendorDocRef = doc(db, "vendors", user.uid);
+        unsubscribeVendorDoc = onSnapshot(vendorDocRef, (doc) => {
+          if (doc.exists()) {
+            setVendorData({ vendorId: user.uid, ...doc.data() });
+          } else {
+            console.error("Vendor data not found");
+            setVendorData(null);
+          }
+          setLoading(false);
+        });
+      } else {
+        setVendorData(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribeVendorDoc) unsubscribeVendorDoc();
+      unsubscribeAuth();
+    };
   }, []);
 
   return (

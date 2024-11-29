@@ -76,6 +76,9 @@ const StorePage = () => {
   const [selectedType, setSelectedType] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  // Add this line along with your other useState declarations
+  const [sortOption, setSortOption] = useState(null); // 'priceAsc' or 'priceDesc'
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -233,11 +236,21 @@ const StorePage = () => {
     setSearchTerm(event.target.value);
   };
 
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (selectedType === "All" || product.productType === selectedType)
-  );
+  const filteredProducts = products
+    .filter(
+      (product) =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        (selectedType === "All" || product.productType === selectedType)
+    )
+    .sort((a, b) => {
+      if (sortOption === "priceAsc") {
+        return parseFloat(a.price) - parseFloat(b.price);
+      } else if (sortOption === "priceDesc") {
+        return parseFloat(b.price) - parseFloat(a.price);
+      } else {
+        return 0; // No sorting applied
+      }
+    });
 
   if (loading) {
     return (
@@ -408,6 +421,32 @@ const StorePage = () => {
               {type}
             </button>
           ))}
+        </div>
+        {/* Sorting Buttons */}
+        <h1 className="font-opensans text-lg mb-3 font-semibold">
+          Sort by Price
+        </h1>
+        <div className="flex mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
+          <button
+            onClick={() => setSortOption("priceAsc")}
+            className={`flex-shrink-0 h-12 px-4 py-2 text-xs font-semibold font-opensans text-black border border-gray-400 rounded-full ${
+              sortOption === "priceAsc"
+                ? "bg-customOrange text-white"
+                : "bg-transparent"
+            }`}
+          >
+            Low to High
+          </button>
+          <button
+            onClick={() => setSortOption("priceDesc")}
+            className={`flex-shrink-0 h-12 px-4 py-2 text-xs font-semibold font-opensans text-black border border-gray-400 rounded-full ${
+              sortOption === "priceDesc"
+                ? "bg-customOrange text-white"
+                : "bg-transparent"
+            }`}
+          >
+            High to Low
+          </button>
         </div>
 
         {loading ? (

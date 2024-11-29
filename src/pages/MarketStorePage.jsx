@@ -33,12 +33,10 @@ const ReviewBanner = () => {
       setIsVisible(true);
       localStorage.setItem("reviewBannerShown", "true");
 
-      
       const timer = setTimeout(() => {
         setIsVisible(false);
       }, 10000);
 
-     
       return () => clearTimeout(timer);
     }
   }, []);
@@ -64,7 +62,6 @@ const ReviewBanner = () => {
         <MdClose className="text-white text-lg" />
       </button>
       <div className="absolute bottom-[-7px] left-1/2 transform -translate-x-1/2 w-4 h-4 bg-customBrown rotate-45"></div>{" "}
-     
     </div>
   );
 };
@@ -76,6 +73,7 @@ const MarketStorePage = () => {
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [sortOption, setSortOption] = useState(null); // Add this line
 
   const [selectedType, setSelectedType] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
@@ -195,11 +193,21 @@ const MarketStorePage = () => {
   const handleTypeSelect = (type) => {
     setSelectedType(type);
   };
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (selectedType === "All" || product.productType === selectedType)
-  );
+  const filteredProducts = products
+    .filter(
+      (product) =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        (selectedType === "All" || product.productType === selectedType)
+    )
+    .sort((a, b) => {
+      if (sortOption === "priceAsc") {
+        return parseFloat(a.price) - parseFloat(b.price);
+      } else if (sortOption === "priceDesc") {
+        return parseFloat(b.price) - parseFloat(a.price);
+      } else {
+        return 0; // No sorting applied
+      }
+    });
 
   // Handle follow/unfollow vendor
   const handleFollowClick = async () => {
@@ -347,7 +355,7 @@ const MarketStorePage = () => {
           )}
         </div>
       </div>
-      
+
       <div
         className="flex justify-center mt-2"
         style={{ cursor: "pointer" }}
@@ -431,6 +439,32 @@ const MarketStorePage = () => {
               {type}
             </button>
           ))}
+        </div>
+        {/* Sorting Buttons */}
+        <h1 className="font-opensans text-lg mb-3 font-semibold">
+          Sort by Price
+        </h1>
+        <div className="flex mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
+          <button
+            onClick={() => setSortOption("priceAsc")}
+            className={`flex-shrink-0 h-12 px-4 py-2 text-xs font-semibold font-opensans text-black border border-gray-400 rounded-full ${
+              sortOption === "priceAsc"
+                ? "bg-customOrange text-white"
+                : "bg-transparent"
+            }`}
+          >
+            Low to High
+          </button>
+          <button
+            onClick={() => setSortOption("priceDesc")}
+            className={`flex-shrink-0 h-12 px-4 py-2 text-xs font-semibold font-opensans text-black border border-gray-400 rounded-full ${
+              sortOption === "priceDesc"
+                ? "bg-customOrange text-white"
+                : "bg-transparent"
+            }`}
+          >
+            High to Low
+          </button>
         </div>
 
         {loading ? (

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, matchPath } from "react-router-dom";
 import Routers from "../../routers/Routers";
 import BottomBar from "../BottomBar/BottomBar";
@@ -6,6 +6,8 @@ import VendorBottomBar from "../BottomBar/VendorBottomBar";
 import { useAuth } from "../../custom-hooks/useAuth";
 import { NavigationProvider } from "../Context/Bottombarcontext";
 import { VendorNavigationProvider } from "../Context/VendorBottomBarCtxt";
+import phoneTransition from '../../Animations/PhoneTransitionScene.json'
+import Lottie from "lottie-react";
 
 const Layout = () => {
   const location = useLocation();
@@ -38,7 +40,8 @@ const Layout = () => {
     "network-error",
     "/payment-approve",
     "/terms-and-conditions",
-    "/privacy-policy"
+    "/privacy-policy",
+    "/store-reviews"
   ];
 
   // Paths with dynamic segments
@@ -76,9 +79,23 @@ const Layout = () => {
 
   const isVendorPath = vendorPaths.includes(location.pathname);
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 880);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 880);
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      // Cleanup listener on unmount
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
   return (
     <NavigationProvider>
       <VendorNavigationProvider>
+        {isMobile ? (<>
         <div>
           <Routers />
         </div>
@@ -88,6 +105,19 @@ const Layout = () => {
           ) : (
             <BottomBar isSearchFocused={false} />
           ))}
+          </>) : (
+            <div className="flex flex-col items-center justify-center w-full h-96 mt-20"> 
+            <Lottie
+          className="w-full h-full"
+          animationData={phoneTransition}
+          loop={true}
+          autoplay={true}
+        />
+            <div className="text-center text-xl font-opensans p-20">
+            We're currently optimizing our website for this screen size. For the best experience, we recommend accessing it on your mobile device.
+            </div>
+            </div>
+          )}
       </VendorNavigationProvider>
     </NavigationProvider>
   );

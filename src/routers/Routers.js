@@ -42,6 +42,7 @@ import ErrorBoundary from "../components/Errorboundary.jsx";
 import TermsAndConditions from "../pages/Legal/TermsAndConditions.jsx";
 import PrivacyPolicy from "../pages/Legal/PrivacyPolicy.jsx";
 import NotFound from "../pages/NotFound"; // Import the NotFound component
+import StoreReviews from "../pages/vendor/StoreReviews.jsx";
 
 const Routers = () => {
   return (
@@ -85,9 +86,10 @@ const Routers = () => {
         <Route path="vendor-reviews" element={<VendorReviews />} />
         <Route path="vendor-products" element={<VendorProducts />} />
         <Route path="vendor-orders" element={<VendorOrders />} />
+        <Route path="/store-reviews" element={<StoreReviews />} />
         {/* Add any other vendor-specific protected routes here */}
       </Route>
-      {/* User Protected Routes */}
+      {/* User Protected Routes */} 
       <Route element={<ProtectedRoute requiredRole="user" />}>
         <Route path="newhome" element={<NewHome />} />
         <Route path="notifications" element={<NotificationsPage />} />

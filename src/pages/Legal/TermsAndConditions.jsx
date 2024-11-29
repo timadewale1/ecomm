@@ -7,21 +7,23 @@ const TermsAndConditions = () => {
   const navigate = useNavigate();
 
   //Basically, this logic checks if there's any previous history in the browser that also comes from this domain, if both checks return false then the handleBack function redirects to the login page, else it goes to the previous page
-  const [checkOne, setCheckOne] = useState(false)
-  const [checkTwo, setCheckTwo] = useState(false)
+  const [checkOne, setCheckOne] = useState(false);
+  const [checkTwo, setCheckTwo] = useState(false);
 
   useEffect(() => {
-    setCheckOne(window.history.length > 1)
-    setCheckTwo(document.referrer?.startsWith(window.location.origin))
-  }, [])
+    setCheckOne(window.history.length > 1);
+    setCheckTwo(
+      !document.referrer || document.referrer.startsWith(window.location.origin)
+    );
+  }, []);
 
   const handleBack = () => {
     // Check if there's a history stack and referrer is from the same origin
     if (checkOne && checkTwo) {
-        navigate(-1);
-      } else {
-        navigate("/confirm-user-state");
-      }
+      window.history.back();
+    } else {
+      navigate("/confirm-user-state");
+    }
   };
 
   return (
@@ -45,9 +47,7 @@ const TermsAndConditions = () => {
       {/* Content */}
       <div className="w-full max-w-3xl bg-white rounded-lg shadow-md">
         <ScrollToTop />
-        <div
-          className="flex bg-customOrange relative text-center items-center rounded-md h-72"
-        >
+        <div className="flex bg-customOrange relative text-center items-center rounded-md h-72">
           <div className="absolute top-0 right-0">
             <img src="./Vector.png" alt="" className="w-16 h-24" />
           </div>
@@ -59,7 +59,6 @@ const TermsAndConditions = () => {
           </h2>
         </div>
         <div className="px-3">
-
           <p className="text-xs text-gray mb-3 mt-3">
             ©2024 My Thrift Clothing. Ltd, ALL RIGHTS RESERVED. Kindly refer to
             the legal notice below for our Terms and Conditions.
@@ -136,7 +135,14 @@ const TermsAndConditions = () => {
               website and mobile application, together with the payment
               infrastructures in place and supporting logistics, is owned and
               controlled by My Thrift Clothing Ltd, which has the following
-              mailing address: <a className="text-customOrange" href="mailto:hello@shopmythrift.online">hello@shopmythrift.online</a>.
+              mailing address:{" "}
+              <a
+                className="text-customOrange"
+                href="mailto:hello@shopmythrift.online"
+              >
+                hello@shopmythrift.online
+              </a>
+              .
             </p>
             <p className="leading-relaxed text-black">
               <span className="text-customOrange">1.2</span> These terms and
@@ -145,7 +151,7 @@ const TermsAndConditions = () => {
               ”company,” “we,” “us,” and “our” shall be used to refer to My
               Thrift. Ltd, and “you,” “your,” or “user/s” shall collectively or
               respectively refer to vendors and buyers).
-            </p> 
+            </p>
             <p className="leading-relaxed text-black">
               <span className="text-customOrange">1.3</span> By using our
               platform, you fully agree to our general terms and conditions. Any

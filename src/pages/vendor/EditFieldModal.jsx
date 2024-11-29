@@ -122,7 +122,7 @@ const EditFieldModal = ({ show, handleClose, field, currentValue, processing, on
     }
 
     return (
-      <input
+      <textarea
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}

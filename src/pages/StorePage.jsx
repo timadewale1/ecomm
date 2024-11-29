@@ -17,12 +17,15 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { GoChevronLeft, GoDotFill } from "react-icons/go";
 import { FiSearch } from "react-icons/fi";
 import { FaAngleLeft, FaPlus, FaCheck } from "react-icons/fa";
+import Productnotfund from "../Animations/productnotfound.json";
 import toast from "react-hot-toast";
 import ProductCard from "../components/Products/ProductCard";
 import Loading from "../components/Loading/Loading";
 import { FaSpinner, FaStar } from "react-icons/fa6";
 import { CiSearch } from "react-icons/ci";
 import { MdCancel, MdClose } from "react-icons/md";
+import { LuListFilter } from "react-icons/lu";
+import Lottie from "lottie-react";
 const ReviewBanner = () => {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -76,6 +79,10 @@ const StorePage = () => {
   const [selectedType, setSelectedType] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [viewOptions, setViewOptions] = useState(false)
+  // Add this line along with your other useState declarations
+  const [sortOption, setSortOption] = useState(null); // 'priceAsc' or 'priceDesc'
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -233,11 +240,21 @@ const StorePage = () => {
     setSearchTerm(event.target.value);
   };
 
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (selectedType === "All" || product.productType === selectedType)
-  );
+  const filteredProducts = products
+    .filter(
+      (product) =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        (selectedType === "All" || product.productType === selectedType)
+    )
+    .sort((a, b) => {
+      if (sortOption === "priceAsc") {
+        return parseFloat(a.price) - parseFloat(b.price);
+      } else if (sortOption === "priceDesc") {
+        return parseFloat(b.price) - parseFloat(a.price);
+      } else {
+        return 0; // No sorting applied
+      }
+    });
 
   if (loading) {
     return (
@@ -248,7 +265,30 @@ const StorePage = () => {
   }
 
   if (!vendor) {
-    return <div>No vendor found</div>;
+    return (
+      <div className="flex flex-col justify-center items-center h-3/6">
+        <Lottie
+          className="w-full h-full"
+          animationData={Productnotfund}
+          loop={true}
+          autoplay={true}
+        />
+        <h1 className="text-xl text-center font-bold text-red-500">
+          Vendor is not found. You entered a wrong link or the vendor is not
+          available.
+        </h1>
+        <button
+          className={`w-full mt-4 h-12 rounded-full border font-medium flex items-center font-opensans justify-center transition-colors duration-200 bg-customOrange text-white`}
+          onClick={() => {
+            if (currentUser) {
+              navigate("/browse-markets");
+            } else {
+              navigate("/confirm-user-state");
+            }
+          }} // Disable button when loading
+        > Go Back</button>
+      </div>
+    );
   }
   const handleClearSearch = () => {
     setSearchTerm("");
@@ -393,7 +433,49 @@ const StorePage = () => {
         {loading ? <Skeleton count={2} /> : vendor.description}
       </p>
       <div className="p-2 mt-7">
-        <h1 className="font-opensans text-lg mb-3 font-semibold">Products</h1>
+      <div className="flex justify-between">
+          <h1 className="font-opensans text-lg mb-3 font-semibold">Products</h1>
+          <div className="relative">
+              {viewOptions && (
+                <div className="z-50 absolute bg-white w-44 h-20 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-24 top-2 p-3 flex flex-col justify-between">
+                  <span
+                    className={`text-xs ml-2 cursor-pointer ${
+                      sortOption === "priceAsc"
+                        ? "text-customOrange"
+                        : "text-black"
+                    }`}
+                    onClick={() => {
+                      setSortOption("priceAsc");
+                      setViewOptions(!viewOptions);
+                    }}
+                  >
+                    Low to High
+                  </span>
+                  <hr className="text-slate-300" />
+                  <span
+                    className={`text-xs ml-2 cursor-pointer ${
+                      sortOption === "priceDesc"
+                        ? "text-customOrange"
+                        : "text-black"
+                    }`}
+                    onClick={() => {
+                      setSortOption("priceDesc");
+                      setViewOptions(!viewOptions);
+                    }}
+                  >
+                    High to Low
+                  </span>
+                </div>
+              )}
+              <span className="flex text-xs items-center">
+                Sort by Price: {" "}
+              <LuListFilter
+                className="text-customOrange cursor-pointer ml-1"
+                onClick={() => setViewOptions(!viewOptions)}
+              />
+              </span>
+            </div>
+        </div>
         <div className="flex  mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
           {productTypes.map((type) => (
             <button
@@ -409,6 +491,7 @@ const StorePage = () => {
             </button>
           ))}
         </div>
+        
 
         {loading ? (
           <div className="grid mt-2 grid-cols-2 gap-2">

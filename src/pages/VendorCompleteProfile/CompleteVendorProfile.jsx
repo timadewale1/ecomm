@@ -366,6 +366,7 @@ const CompleteProfile = () => {
         ...vendorData,
         shopName: formattedShopName, // Save the formatted shop name
         profileComplete: true,
+        isDeactivated: false,
         bankDetails,
       };
 

@@ -114,19 +114,22 @@ const Marketpg = () => {
 
   return (
     <div className="mb-1 ">
-      <div className="sticky py-4 px-2 w-full top-0  bg-white z-10">
-        <div className="flex items-center justify-between mb-3 pb-2 px-2.5">
+      <div className="sticky py-3 px-2 w-full top-0  bg-white z-10">
+        <div className="flex flex-col   mb-3 pb-2 px-2.5">
           {!isSearching && (
             <>
+            <div className="flex justify-between mb-4">
+
               <h1 className="text-xl font-opensans font-semibold">Stores</h1>
               <CiSearch
                 className="text-3xl cursor-pointer"
                 onClick={() => setIsSearching(true)}
               />
+            </div>
             </>
           )}
           {isSearching && (
-            <div className="flex items-center w-full relative">
+            <div className="flex items-center w-full mb-4 relative">
               <GoChevronLeft
                 className="text-3xl cursor-pointer mr-2"
                 onClick={() => {
@@ -149,10 +152,7 @@ const Marketpg = () => {
               )}
             </div>
           )}
-        </div>
-        <div className="border-t border-gray-300 mt-6"></div>
-      </div>
-      <div className="flex justify-between mb-3 w-full px-2 overflow-x-auto space-x-2 scrollbar-hide ">
+      <div className="flex  justify-between mb-1 w-full px-2 overflow-x-auto space-x-2 scrollbar-hide ">
         <button
           onClick={() => handleTabChange("online")}
           className={`flex-1 h-12 text-center text-sm font-medium font-opensans  rounded-full ${
@@ -174,7 +174,10 @@ const Marketpg = () => {
           Local Vendors
         </button>
       </div>
-      <div className="vendor-list px-2 -mx-2 translate-y-1">
+        </div>
+        <div className="border-t border-gray-300 mt-6"></div>
+      </div>
+      <div className="vendor-list px-2 pb-24 -mx-2 translate-y-1">
         {loading ? (
           // Show skeleton loader when loading
           Array.from({ length: 5 }).map((_, index) => (

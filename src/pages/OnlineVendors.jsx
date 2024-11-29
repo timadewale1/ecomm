@@ -16,7 +16,7 @@ const OnlineVendors = () => {
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [loading, setLoading] = useState(true);
   const [searchResults, setSearchResults] = useState({
     vendorResults: [],
@@ -85,62 +85,33 @@ const OnlineVendors = () => {
     const term = e.target.value.toLowerCase();
     setSearchTerm(term);
 
-    if (term.length < 2 && selectedCategories.length === 0) {
-      setSearchResults({ vendorResults: [], productResults: [] });
-    } else {
-      const vendorResults = vendors.filter(
-        (vendor) =>
-          vendor.shopName.toLowerCase().includes(term) &&
-          (selectedCategories.length === 0 ||
-            selectedCategories.some((category) =>
-              vendor.categories.includes(category)
-            ))
-      );
-      const productResults = products.filter(
-        (product) =>
-          product.name.toLowerCase().includes(term) &&
-          (selectedCategories.length === 0 ||
-            selectedCategories.some((category) =>
-              product.categories.includes(category)
-            ))
-      );
-      setSearchResults({ vendorResults, productResults });
-    }
+    const vendorResults = vendors.filter((vendor) => {
+      const matchesSearchTerm = vendor.shopName.toLowerCase().includes(term);
+      const matchesCategory =
+        !selectedCategory || vendor.categories.includes(selectedCategory);
+      return matchesSearchTerm && matchesCategory;
+    });
+    setSearchResults(vendorResults);
   };
 
   const handleCategoryClick = (category) => {
-    const updatedCategories = selectedCategories.includes(category)
-      ? selectedCategories.filter((cat) => cat !== category)
-      : [...selectedCategories, category];
+    const updatedCategory = selectedCategory === category ? "" : category;
+    setSelectedCategory(updatedCategory);
 
-    setSelectedCategories(updatedCategories);
-
-    if (searchTerm.length < 2 && updatedCategories.length === 0) {
-      setSearchResults({ vendorResults: [], productResults: [] });
-    } else {
-      const vendorResults = vendors.filter(
-        (vendor) =>
-          vendor.shopName.toLowerCase().includes(searchTerm) &&
-          (updatedCategories.length === 0 ||
-            updatedCategories.some((category) =>
-              vendor.categories.includes(category)
-            ))
-      );
-      const productResults = products.filter(
-        (product) =>
-          product.name.toLowerCase().includes(searchTerm) &&
-          (updatedCategories.length === 0 ||
-            updatedCategories.some((category) =>
-              product.categories.includes(category)
-            ))
-      );
-      setSearchResults({ vendorResults, productResults });
-    }
+    const vendorResults = vendors.filter((vendor) => {
+      const matchesSearchTerm = vendor.shopName
+        .toLowerCase()
+        .includes(searchTerm);
+      const matchesCategory =
+        !updatedCategory || vendor.categories.includes(updatedCategory);
+      return matchesSearchTerm && matchesCategory;
+    });
+    setSearchResults(vendorResults);
   };
 
   const handleRefresh = () => {
     setSearchTerm("");
-    setSelectedCategories([]);
+    setSelectedCategory("");
     setIsSearching(false);
     setSearchResults({ vendorResults: [], productResults: [] });
   };
@@ -195,7 +166,7 @@ const OnlineVendors = () => {
                 key={category}
                 onClick={() => handleCategoryClick(category)}
                 className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-bold font-opensans text-black border border-gray-400 rounded-full ${
-                  selectedCategories.includes(category)
+                  selectedCategory === category
                     ? "bg-customOrange text-white"
                     : "bg-transparent"
                 }`}
@@ -222,7 +193,7 @@ const OnlineVendors = () => {
               </div>
             </div>
           ))
-        ) : searchTerm.length < 2 && selectedCategories.length === 0 ? (
+        ) : searchTerm.length < 2 && selectedCategory.length === 0 ? (
           vendors.map((vendor) => (
             <div key={vendor.id} className="vendor-item">
               <div

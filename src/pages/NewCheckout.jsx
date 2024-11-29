@@ -21,6 +21,7 @@ import { MdOutlineLock, MdSupportAgent } from "react-icons/md";
 import { LiaShippingFastSolid, LiaTimesSolid } from "react-icons/lia";
 import { FaCheck } from "react-icons/fa6";
 import Skeleton from "react-loading-skeleton";
+import { calculateDeliveryFee } from "../services/states";
 import { NigerianStates } from "../services/states";
 
 const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
@@ -403,7 +404,7 @@ const Checkout = () => {
 
         setTimeout(() => {
           setShowServiceFee(true);
-        }, 2000);
+        }, 50);
       } catch (error) {
         toast.error("Failed to load order preview. Please try again.");
       }
@@ -466,6 +467,30 @@ const Checkout = () => {
       toast.error("Failed to create order. Please try again.");
     }
   };
+  useEffect(() => {
+    const calculateFee = () => {
+      if (!vendorsInfo[vendorId] || !userInfo.address) return;
+
+      const vendorState = vendorsInfo[vendorId]?.state;
+      const userState = userInfo.address.split(", ").pop();
+      const subtotal = previewedOrder.subtotal || 0;
+      const isWeekend = [0, 6].includes(new Date().getDay());
+
+      try {
+        const estimatedFee = calculateDeliveryFee(
+          vendorState,
+          userState,
+          subtotal,
+          isWeekend
+        );
+        setDeliveryEstimate(estimatedFee);
+      } catch (error) {
+        console.error("Error calculating delivery fee:", error.message);
+      }
+    };
+
+    calculateFee();
+  }, [vendorsInfo, userInfo, previewedOrder, vendorId]);
 
   const handleDeliveryModeSelection = (mode) => {
     setSelectedDeliveryMode(mode);
@@ -611,94 +636,94 @@ const Checkout = () => {
       </Modal>
     );
   };
-  const DeliveryInfoModal = ({ isOpen, onClose }) => {
-    useEffect(() => {
-      // Prevent background scrolling when modal is open
-      if (isOpen) {
-        document.body.style.overflow = "hidden";
-      } else {
-        document.body.style.overflow = "unset";
-      }
-      return () => {
-        // Clean up when modal is closed
-        document.body.style.overflow = "unset";
-      };
-    }, [isOpen]);
+  // const DeliveryInfoModal = ({ isOpen, onClose }) => {
+  //   useEffect(() => {
+  //     // Prevent background scrolling when modal is open
+  //     if (isOpen) {
+  //       document.body.style.overflow = "hidden";
+  //     } else {
+  //       document.body.style.overflow = "unset";
+  //     }
+  //     return () => {
+  //       // Clean up when modal is closed
+  //       document.body.style.overflow = "unset";
+  //     };
+  //   }, [isOpen]);
 
-    return (
-      <Modal
-        isOpen={isOpen}
-        onRequestClose={onClose}
-        className="bg-white p-6 rounded-t-2xl w-full max-w-md h-[85vh] shadow-lg relative overflow-y-scroll"
-        overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
-        ariaHideApp={false}
-      >
-        {/* Close Icon */}
-        <LiaTimesSolid
-          className="absolute top-5 right-4 text-2xl text-gray-500 cursor-pointer"
-          onClick={onClose}
-        />
+  //   return (
+  //     <Modal
+  //       isOpen={isOpen}
+  //       onRequestClose={onClose}
+  //       className="bg-white p-6 rounded-t-2xl w-full max-w-md h-[85vh] shadow-lg relative overflow-y-scroll"
+  //       overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
+  //       ariaHideApp={false}
+  //     >
+  //       {/* Close Icon */}
+  //       <LiaTimesSolid
+  //         className="absolute top-5 right-4 text-2xl text-gray-500 cursor-pointer"
+  //         onClick={onClose}
+  //       />
 
-        <h2 className="text-lg font-semibold font-opensans text-black mb-4">
-          Delivery Options
-        </h2>
+  //       <h2 className="text-lg font-semibold font-opensans text-black mb-4">
+  //         Delivery Options
+  //       </h2>
 
-        <div className="mb-4">
-          <h3 className="font-opensans font-semibold text-md text-black">
-            Pick-up
-          </h3>
-          <p className="text-sm font-opensans font-light text-black">
-            For{" "}
-            <span className="font-semibold text-black text-xs">
-              market vendors only
-            </span>
-            , Pick-up ensures that on payment of your booking fee, the vendor
-            will securely reserve your purchased items and package them for you
-            in their inventory. Once you have paid, the vendor will hold the
-            items for pick-up at your convenience. (Orders are null after 5
-            working days if not picked up).
-            <br /> <br />
-            <span className="font-semibold">Note:</span> This option is
-            currently only available to customers purchasing from market
-            vendors.
-          </p>
-        </div>
+  //       <div className="mb-4">
+  //         <h3 className="font-opensans font-semibold text-md text-black">
+  //           Pick-up
+  //         </h3>
+  //         <p className="text-sm font-opensans font-light text-black">
+  //           For{" "}
+  //           <span className="font-semibold text-black text-xs">
+  //             market vendors only
+  //           </span>
+  //           , Pick-up ensures that on payment of your booking fee, the vendor
+  //           will securely reserve your purchased items and package them for you
+  //           in their inventory. Once you have paid, the vendor will hold the
+  //           items for pick-up at your convenience. (Orders are null after 5
+  //           working days if not picked up).
+  //           <br /> <br />
+  //           <span className="font-semibold">Note:</span> This option is
+  //           currently only available to customers purchasing from market
+  //           vendors.
+  //         </p>
+  //       </div>
 
-        <div className="border-t border-gray-300 my-3"></div>
+  //       <div className="border-t border-gray-300 my-3"></div>
 
-        <div>
-          <h3 className="font-opensans font-semibold text-md text-black">
-            Door Delivery
-          </h3>
-          <p className="text-sm text-black font-opensans">
-            Estimated Delivery rates are structured as follows: <br />-{" "}
-            <span className="font-semibold">Within the same state</span>: ₦2,000
-            - ₦4,000 <br />-{" "}
-            <span className="font-semibold">Across different states</span>:
-            ₦3,000 - ₦7,000
-          </p>
-          <p className="text-sm text-black font-light font-opensans mt-2">
-            After completing your payment, the vendor will reach out to discuss
-            logistics. You’ll receive the rider’s contact details (name and
-            phone number) via email and SMS, ensuring a smooth delivery process.
-          </p>
-          <p className="text-xs mt-4 text-gray-500 italic">
-            <span className="font-semibold">Note:</span> Delivery charges are
-            not included in this order. The final delivery fee will be discussed
-            with the vendor directly and paid at the time of delivery.
-          </p>
-        </div>
+  //       <div>
+  //         <h3 className="font-opensans font-semibold text-md text-black">
+  //           Door Delivery
+  //         </h3>
+  //         <p className="text-sm text-black font-opensans">
+  //           Estimated Delivery rates are structured as follows: <br />-{" "}
+  //           <span className="font-semibold">Within the same state</span>: ₦2,000
+  //           - ₦4,000 <br />-{" "}
+  //           <span className="font-semibold">Across different states</span>:
+  //           ₦3,000 - ₦7,000
+  //         </p>
+  //         <p className="text-sm text-black font-light font-opensans mt-2">
+  //           After completing your payment, the vendor will reach out to discuss
+  //           logistics. You’ll receive the rider’s contact details (name and
+  //           phone number) via email and SMS, ensuring a smooth delivery process.
+  //         </p>
+  //         <p className="text-xs mt-4 text-gray-500 italic">
+  //           <span className="font-semibold">Note:</span> Delivery charges are
+  //           not included in this order. The final delivery fee will be discussed
+  //           with the vendor directly and paid at the time of delivery.
+  //         </p>
+  //       </div>
 
-        <p className="text-xs font-opensans mt-4 text-gray-600">
-          If you have concerns or need more information, please{" "}
-          <span className="text-customOrange cursor-pointer font-semibold">
-            check our policies
-          </span>{" "}
-          for detailed guidelines.
-        </p>
-      </Modal>
-    );
-  };
+  //       <p className="text-xs font-opensans mt-4 text-gray-600">
+  //         If you have concerns or need more information, please{" "}
+  //         <span className="text-customOrange cursor-pointer font-semibold">
+  //           check our policies
+  //         </span>{" "}
+  //         for detailed guidelines.
+  //       </p>
+  //     </Modal>
+  //   );
+  // };
 
   const formatColorText = (color) => {
     if (!color) return "";
@@ -711,6 +736,13 @@ const Checkout = () => {
   // };
 
   if (loading) {
+    return (
+      <div>
+        <Loading />
+      </div>
+    );
+  }
+  if (loading || isFetchingOrderPreview) {
     return (
       <div>
         <Loading />
@@ -990,6 +1022,30 @@ const Checkout = () => {
               <p className="ml-12 text-black font-light font-opensans text-xs -translate-y-9">
                 2-7 working days
               </p>
+              <div className="px-4 w-full py-2 rounded-lg bg-customCream">
+                <h1 className="text-black font-semibold font-opensans text-xs">
+                  Estimated Delivery Fee
+                </h1>
+                <div className="border-t border-gray-700 my-2"></div>
+                {deliveryEstimate ? (
+                  <p className="text-sm font-opensans text-black font-semibold">
+                    ₦{deliveryEstimate.toLocaleString()}
+                  </p>
+                ) : !vendorsInfo[vendorId]?.state ||
+                  !userInfo.address.split(", ").pop() ? (
+                  <p className="text-sm font-opensans text-red-500 font-bold">
+                    No estimate available ☹️
+                  </p>
+                ) : (
+                  <Skeleton width={80} />
+                )}
+                <p className="text-xs font-opensans text-gray-600 mt-2">
+                  <span className="font-semibold">Note:</span> The delivery fee
+                  displayed is an estimate based on your location and will not
+                  be charged at checkout. The vendor will contact you with the
+                  exact delivery fee details before your order is shipped.
+                </p>
+              </div>
             </>
           )}
         </div>
@@ -1049,10 +1105,10 @@ const Checkout = () => {
         isOpen={showShopSafelyModal}
         onClose={() => setShowShopSafelyModal(false)}
       />
-      <DeliveryInfoModal
+      {/* <DeliveryInfoModal
         isOpen={showDeliveryInfoModal}
         onClose={() => setShowDeliveryInfoModal(false)}
-      />
+      /> */}
       <ServiceFeeModal
         isOpen={showServiceFeeModal}
         onClose={() => setShowServiceFeeModal(false)}

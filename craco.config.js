@@ -10,7 +10,10 @@ module.exports = {
         ? [
             new JavaScriptObfuscator({
               rotateStringArray: true,
-            }),
+            },
+            // Exclude specific files or folders from obfuscation
+            ["**/node_modules/**", "**/*.json", "**/*.config.js"]
+          ),
           ]
         : []),
     ],

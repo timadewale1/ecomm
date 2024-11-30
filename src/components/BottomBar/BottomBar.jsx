@@ -86,7 +86,7 @@ const BottomBar = React.memo(({ isSearchFocused }) => {
   );
 
   return (
-    <div class="bottom-bar-wrapper" onClick={(e) => e.stopPropagation()}>
+    <div className="bottom-bar-wrapper" onClick={(e) => e.stopPropagation()}>
       <div className={`bottom-bar  ${isSearchFocused ? "under-keypad" : ""}`}>
         {navItems.map((item, index) => (
           <Link

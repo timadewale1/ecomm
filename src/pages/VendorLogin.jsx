@@ -108,7 +108,7 @@ const VendorLogin = () => {
         if (!user.emailVerified) {
           // Resend verification email if not verified
           await sendEmailVerification(user, {
-            url: "https://mythriftprod.vercel.app/confirm-email", // Update to your confirm email route
+            url: "https://shopmythrift.store/confirm-email", // Update to your confirm email route
             handleCodeInApp: true,
           });
           toast.error(

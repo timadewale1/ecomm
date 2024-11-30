@@ -118,7 +118,7 @@ const VendorDashboard = () => {
 
   const textToCopy =
     vendorData.vendorId &&
-    `https://mythriftprod.vercel.app/${
+    `https://shopmythrift.store/${
       vendorData &&
       (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
     }/${vendorData.vendorId}`;

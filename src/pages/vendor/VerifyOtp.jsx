@@ -138,7 +138,7 @@ const VendorVerifyOTP = () => {
         console.log("Email/password credential linked to user account.");
 
         const actionCodeSettings = {
-          url: "https://mythriftprod.vercel.app/confirm-email", // Replace with your email verification link
+          url: "https://shopmythrift.store/confirm-email", // Replace with your email verification link
           handleCodeInApp: true,
         };
         await sendEmailVerification(user, actionCodeSettings);

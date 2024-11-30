@@ -15,7 +15,7 @@ import { sendPasswordResetEmail } from "firebase/auth";
 // Function to send password reset email with custom redirect URL
 const sendPasswordReset = async (email) => {
   const actionCodeSettings = {
-    url: "https://mythriftprod.vercel.app/reset-password", // Redirect URL
+    url: "https://shopmythrift.store/reset-password", // Redirect URL
     handleCodeInApp: true,
   };
   try {

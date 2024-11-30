@@ -26,7 +26,7 @@ module.exports = {
             [
               "transform-remove-console",
               {
-                exclude: ["error", "warn"], // Optional: Keep error and warn logs
+                exclude: ["error", "warn", "log"], // Optional: Keep error and warn logs
               },
             ],
           ]

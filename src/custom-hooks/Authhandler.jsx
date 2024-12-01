@@ -11,35 +11,36 @@ const AuthActionHandler = () => {
   const continueUrl = searchParams.get("continueUrl"); // Optional, for post-completion navigation
 
   useEffect(() => {
-    const mode = searchParams.get("mode"); // Determines the action type
-    const oobCode = searchParams.get("oobCode"); // Action code (if applicable)
-    const apiKey = searchParams.get("apiKey"); // Firebase API key
-    const providerId = searchParams.get("providerId"); // OAuth provider (e.g., Google)
-    const redirectUrl = searchParams.get("redirectUrl"); // Redirect URL after auth
+    const providerId = searchParams.get("providerId");
+    const redirectUrl = searchParams.get("redirectUrl");
 
-    // Check if this is an OAuth sign-in flow
-    if (providerId && redirectUrl) {
+    if (providerId === "google.com" && redirectUrl) {
+      // Redirect to the app after sign-in
+      window.location.href = redirectUrl;
       return;
     }
-    if (!mode || !oobCode) {
+
+    // Handle other Firebase actions (e.g., email verification, password reset)
+    const mode = searchParams.get("mode");
+    const oobCode = searchParams.get("oobCode");
+
+    if (mode && oobCode) {
+      switch (mode) {
+        case "resetPassword":
+          navigate(`/reset-password?oobCode=${oobCode}`);
+          break;
+        case "verifyEmail":
+          navigate(`/confirm-email?oobCode=${oobCode}`);
+          break;
+        default:
+          toast.error("Unsupported action type.");
+          navigate("/");
+      }
+    } else {
       toast.error("Invalid or missing parameters in the URL.");
-      navigate("/");
-      return;
+      navigate("/login");
     }
-
-    // Redirect based on the action type
-    switch (mode) {
-      case "resetPassword":
-        navigate(`/reset-password?oobCode=${oobCode}`);
-        break;
-      case "verifyEmail":
-        navigate(`/confirm-email?oobCode=${oobCode}`);
-        break;
-      default:
-        toast.error("Unsupported action type.");
-        navigate("/");
-    }
-  }, [mode, oobCode, navigate]);
+  }, [searchParams, navigate]);
 
   return (
     <div className="flex items-center justify-center h-screen">

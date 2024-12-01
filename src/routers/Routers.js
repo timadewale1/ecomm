@@ -67,14 +67,15 @@ const Routers = () => {
           </ErrorBoundary>
         }
       />
-      <Route path="terms-and-conditions" element={<TermsAndConditions />}/>
-      <Route path="privacy-policy" element={<PrivacyPolicy />}/>
+      <Route path="terms-and-conditions" element={<TermsAndConditions />} />
+      <Route path="privacy-policy" element={<PrivacyPolicy />} />
       <Route path="market-vendors" element={<MarketVendors />} />
       <Route path="online-vendors" element={<OnlineVendors />} />
       <Route path="/forgetpassword" element={<ForgetPassword />} />
       <Route path="reset-password" element={<ResetPassword />} />
       <Route path="/confirm-email" element={<EmailVerification />} />
       <Route path="/auth-action" element={<AuthActionHandler />} />
+      <Route path="/__/auth/handler" element={<AuthActionHandler />} />
       <Route path="/store/:id" element={<StorePage />} />
       <Route path="/category/:category" element={<CategoryPage />} />
       <Route path="/vendor-verify-otp" element={<VendorVerifyOTP />} />
@@ -89,7 +90,7 @@ const Routers = () => {
         <Route path="/store-reviews" element={<StoreReviews />} />
         {/* Add any other vendor-specific protected routes here */}
       </Route>
-      {/* User Protected Routes */} 
+      {/* User Protected Routes */}
       <Route element={<ProtectedRoute requiredRole="user" />}>
         <Route path="newhome" element={<NewHome />} />
         <Route path="notifications" element={<NotificationsPage />} />

@@ -86,20 +86,21 @@ const StorePage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    
     const fetchVendorData = async () => {
       try {
         // Set loading state to true
         setLoading(true);
-
+        
         // Fetch vendor data using the vendor ID
         const vendorRef = doc(db, "vendors", id);
         const vendorDoc = await getDoc(vendorRef);
-
+        
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
           vendorData.id = vendorDoc.id; // Ensure we have the vendor's document ID
           setVendor(vendorData);
-
+          
           // If the vendor has productIds, use them to fetch products
           if (vendorData.productIds && vendorData.productIds.length > 0) {
             await fetchVendorProducts(vendorData.productIds); // Fetch the vendor's products
@@ -120,22 +121,37 @@ const StorePage = () => {
       }
     };
 
-    const checkIfFollowing = async (vendorId) => {
-      if (currentUser) {
+    
+    
+    fetchVendorData(); // Fetch vendor data on mount
+  }, [id]); // Depend on vendor ID and current user state
+
+  useEffect(() => {
+    setIsFollowing(false);
+
+    const checkIfFollowing = async () => {
+      if (currentUser && vendor) {
         try {
           const followRef = collection(db, "follows");
-          const followDoc = doc(followRef, `${currentUser.uid}_${vendorId}`);
-          const followSnapshot = await getDoc(followDoc);
+          const followDocRef = doc(
+            followRef,
+            `${currentUser.uid}_${vendor.id}`
+          );
+          const followSnapshot = await getDoc(followDocRef);
 
-          setIsFollowing(followSnapshot.exists()); // Set follow state based on document existence
+          if (followSnapshot.exists()) {
+            setIsFollowing(true);
+          } else {
+            setIsFollowing(false);
+          }
         } catch (error) {
           console.error("Error checking follow status:", error);
         }
       }
     };
 
-    fetchVendorData(); // Fetch vendor data on mount
-  }, [id, currentUser]); // Depend on vendor ID and current user state
+    checkIfFollowing();
+  }, [currentUser, vendor]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {

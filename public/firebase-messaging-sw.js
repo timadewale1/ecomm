@@ -9,7 +9,7 @@ console.log("Service Worker: Registered");
 
 firebase.initializeApp({
   apiKey: "AIzaSyC7pOCYSGpYMUDiRxRN4nV4UUfd2tdx1Jg",
-  authDomain: "ecommerce-ba520.firebaseapp.com",
+  authDomain: "shopmythrift.store",
   projectId: "ecommerce-ba520",
   storageBucket: "ecommerce-ba520.appspot.com",
   messagingSenderId: "620187458799",

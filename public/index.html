@@ -82,10 +82,31 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>My Thrift</title>
+    <style>
+      .splash {
+        width: 100vw; height: 100vh; object-fit: cover;
+      }
+    
+      #custom-loading-screen {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: #fff;
+        z-index: 9999;
+      }
+    
+    </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+    <div id="custom-loading-screen" >
+      <img class="splash" src="./apple-splash-2532-1170.jpg" alt="Splash Screen" >
+    </div>
+    
     <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.
@@ -96,6 +117,37 @@
       To begin the development, run `npm start` or `yarn start`.
       To create a production bundle, use `npm run build` or `yarn build`.
     -->
+    <script>
+      function isChromeOnIOS() {
+        const ua = navigator.userAgent.toLowerCase();
+        return /crios/.test(ua) && /iphone|ipad|ipod/.test(ua);
+      }
+    
+      // Show the loading screen only for iOS Chrome
+      if (isChromeOnIOS()) {
+        const loadingScreen = document.getElementById("custom-loading-screen");
+        if (loadingScreen) {
+          loadingScreen.style.display = "block";
+        }
+      }
+
+      // Ensure the loading screen is hidden when the app is ready
+      document.addEventListener("DOMContentLoaded", () => {
+        const loadingScreen = document.getElementById("custom-loading-screen");
+        if (loadingScreen) {
+          loadingScreen.style.display = "none";
+        }
+      });
+
+      // Fallback to hide the loading screen after 5 seconds
+      setTimeout(() => {
+        const loadingScreen = document.getElementById("custom-loading-screen");
+        if (loadingScreen) {
+          loadingScreen.style.display = "none";
+        }
+      }, 5000);
+    </script>
+    
     <script
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBICThXpl7hpROS8dj3mK4tXP84fs7aTwo&libraries=places"
     async

@@ -11,25 +11,36 @@ const AuthActionHandler = () => {
   const continueUrl = searchParams.get("continueUrl"); // Optional, for post-completion navigation
 
   useEffect(() => {
-    if (!mode || !oobCode) {
-      toast.error("Invalid or missing parameters in the URL.");
-      navigate("/");
+    const providerId = searchParams.get("providerId");
+    const redirectUrl = searchParams.get("redirectUrl");
+
+    if (providerId === "google.com" && redirectUrl) {
+      // Redirect to the app after sign-in
+      window.location.href = redirectUrl;
       return;
     }
 
-    // Redirect based on the action type
-    switch (mode) {
-      case "resetPassword":
-        navigate(`/reset-password?oobCode=${oobCode}`);
-        break;
-      case "verifyEmail":
-        navigate(`/confirm-email?oobCode=${oobCode}`);
-        break;
-      default:
-        toast.error("Unsupported action type.");
-        navigate("/");
+    // Handle other Firebase actions (e.g., email verification, password reset)
+    const mode = searchParams.get("mode");
+    const oobCode = searchParams.get("oobCode");
+
+    if (mode && oobCode) {
+      switch (mode) {
+        case "resetPassword":
+          navigate(`/reset-password?oobCode=${oobCode}`);
+          break;
+        case "verifyEmail":
+          navigate(`/confirm-email?oobCode=${oobCode}`);
+          break;
+        default:
+          toast.error("Unsupported action type.");
+          navigate("/");
+      }
+    } else {
+      toast.error("Invalid or missing parameters in the URL.");
+      navigate("/login");
     }
-  }, [mode, oobCode, navigate]);
+  }, [searchParams, navigate]);
 
   return (
     <div className="flex items-center justify-center h-screen">

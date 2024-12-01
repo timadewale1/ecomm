@@ -21,8 +21,7 @@ const ResetPassword = () => {
   const handlePasswordReset = async (e) => {
     e.preventDefault();
 
-    const passwordCriteria =
-      /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    const passwordCriteria = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
     if (!passwordCriteria.test(password)) {
       toast.error(
         "Password must be at least 8 characters long, include an uppercase letter, a number, and a special character."

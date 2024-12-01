@@ -15,9 +15,10 @@ const AuthActionHandler = () => {
     const oobCode = searchParams.get("oobCode"); // Action code (if applicable)
     const apiKey = searchParams.get("apiKey"); // Firebase API key
     const providerId = searchParams.get("providerId"); // OAuth provider (e.g., Google)
+    const redirectUrl = searchParams.get("redirectUrl"); // Redirect URL after auth
 
     // Check if this is an OAuth sign-in flow
-    if (providerId) {
+    if (providerId && redirectUrl) {
       return;
     }
     if (!mode || !oobCode) {

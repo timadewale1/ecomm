@@ -118,13 +118,19 @@
       To create a production bundle, use `npm run build` or `yarn build`.
     -->
     <script>
+      // Detect if the app is running in PWA standalone mode
+      function isPWAMode() {
+        return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+      }
+
+      // Function to detect if it's iOS Chrome
       function isChromeOnIOS() {
         const ua = navigator.userAgent.toLowerCase();
         return /crios/.test(ua) && /iphone|ipad|ipod/.test(ua);
       }
-    
-      // Show the loading screen only for iOS Chrome
-      if (isChromeOnIOS()) {
+
+      // Show loading screen only if it's in PWA mode and iOS Chrome
+      if (isPWAMode() && isChromeOnIOS()) {
         const loadingScreen = document.getElementById("custom-loading-screen");
         if (loadingScreen) {
           loadingScreen.style.display = "block";
@@ -139,7 +145,7 @@
         }
       });
 
-      // Fallback to hide the loading screen after 5 seconds
+      // Fallback: hide the loading screen after 5 seconds
       setTimeout(() => {
         const loadingScreen = document.getElementById("custom-loading-screen");
         if (loadingScreen) {

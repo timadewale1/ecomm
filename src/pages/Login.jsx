@@ -6,8 +6,7 @@ import { motion } from "framer-motion";
 import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithPopup,
-  signInWithRedirect, // Import signInWithPopup for Google sign-in
+  signInWithPopup, // Import signInWithPopup for Google sign-in
 } from "firebase/auth";
 import { auth, db } from "../firebase.config";
 import {
@@ -165,7 +164,7 @@ const Login = () => {
     const provider = new GoogleAuthProvider();
     try {
       setLoading(true);
-      const result = await signInWithRedirect(auth, provider);
+      const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
       // Check if the email exists in the 'vendors' collection

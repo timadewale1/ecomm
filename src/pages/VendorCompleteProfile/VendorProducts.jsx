@@ -11,6 +11,7 @@ import {
   onSnapshot,
   where,
   query,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { toast } from "react-hot-toast";
@@ -216,16 +217,28 @@ const VendorProducts = () => {
       where("vendorId", "==", vendorId)
     );
 
-    const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
-      const updatedProducts = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+    const unsubscribe = onSnapshot(productsQuery, async (snapshot) => {
+      const updatedProducts = [];
+      const batch = writeBatch(db); // Use batch to optimize updates
+  
+      snapshot.docs.forEach((doc) => {
+        const product = { id: doc.id, ...doc.data() };
+        if (product.stockQuantity === 0 && product.isFeatured) {
+          // If the product is out of stock but still featured, set isFeatured to false
+          batch.update(doc.ref, { isFeatured: false });
+          product.isFeatured = false; // Update locally as well
+        }
+        updatedProducts.push(product);
+      });
+  
+      if (!batch.isEmpty) {
+        await batch.commit(); // Commit the batch updates
+      }
+  
       setProducts(updatedProducts);
       setTotalProducts(updatedProducts.length);
       setProductsLoading(false);
     });
-
     return unsubscribe;
   };
 

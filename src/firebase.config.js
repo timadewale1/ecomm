@@ -6,7 +6,7 @@ import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { getFunctions } from "firebase/functions";
 const firebaseConfig = {
   apiKey: "AIzaSyC7pOCYSGpYMUDiRxRN4nV4UUfd2tdx1Jg",
-  authDomain: "shopmythrift.store",
+  authDomain: "ecommerce-ba520.firebaseapp.com",
   projectId: "ecommerce-ba520",
   storageBucket: "ecommerce-ba520.appspot.com",
   messagingSenderId: "620187458799",

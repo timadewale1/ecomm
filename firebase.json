@@ -10,9 +10,15 @@
         "firebase-debug.*.log",
         "*.local"
       ],
-      "predeploy": [
-        "npm --prefix \"$RESOURCE_DIR\" run lint"
-      ]
+      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run lint"]
     }
-  ]
+  ],
+  "hosting": {
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "https://www.shopmythrift.store/"
+      }
+    ]
+  }
 }

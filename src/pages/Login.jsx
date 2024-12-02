@@ -165,7 +165,7 @@ const Login = () => {
     const provider = new GoogleAuthProvider();
     try {
       setLoading(true);
-      const result = await signInWithRedirect(auth, provider);
+      const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
       // Check if the email exists in the 'vendors' collection

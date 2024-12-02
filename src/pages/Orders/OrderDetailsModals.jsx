@@ -139,67 +139,6 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
     }
   }, [isOpen, order]);
 
-  const handleAccept = async () => {
-    setAcceptLoading(true);
-    try {
-      const orderRef = doc(db, "orders", order.id);
-      await updateDoc(orderRef, { progressStatus: "In Progress" });
-
-      // Fetch vendor cover image
-      let vendorCoverImage = null;
-      if (order.vendorId) {
-        const vendorRef = doc(db, "vendors", order.vendorId);
-        const vendorSnap = await getDoc(vendorRef);
-        if (vendorSnap.exists()) {
-          vendorCoverImage = vendorSnap.data().coverImageUrl || null;
-        }
-      }
-
-      // Fetch product image (assuming you want the first product's image)
-      let productImage = null;
-      if (order.cartItems && order.cartItems.length > 0) {
-        const firstItem = order.cartItems[0];
-        const productRef = doc(db, "products", firstItem.productId);
-        const productSnap = await getDoc(productRef);
-        if (productSnap.exists()) {
-          const productData = productSnap.data();
-          if (firstItem.subProductId) {
-            // If subProductId exists, fetch the sub-product image
-            const subProduct = productData.subProducts?.find(
-              (sp) => sp.subProductId === firstItem.subProductId
-            );
-            productImage = subProduct?.images?.[0] || null;
-          } else {
-            // Use the main product image
-            productImage = productData.imageUrls?.[0] || null;
-          }
-        }
-      }
-
-      // Send notification to the user
-      await notifyOrderStatusChange(
-        userId, // userId
-        order.id, // orderId
-        "In Progress", // newStatus
-        vendorName, // vendorName
-        vendorCoverImage,
-        userInfo.email, // Pass user email
-        userInfo.displayName,
-        productImage // productImage
-      );
-
-      toast.success("Order accepted successfully");
-      onClose();
-    } catch (error) {
-      console.error("Failed to accept the order:", error);
-      toast.error("Failed to accept the order");
-    } finally {
-      setAcceptLoading(false);
-    }
-  };
-  const handleDeclineInfoModal = () => {
-    setIsDeclineInfoModalOpen(true);
-  };
   const handleDecline = async (reason) => {
     setDeclineLoading(true);
     try {
@@ -208,7 +147,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
         progressStatus: "Declined",
         declineReason: reason || "Reason not provided",
       });
-
+  
       // Fetch vendor cover image
       let vendorCoverImage = null;
       if (order.vendorId) {
@@ -218,7 +157,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
           vendorCoverImage = vendorSnap.data().coverImageUrl || null;
         }
       }
-
+  
       // Fetch product image
       let productImage = null;
       if (order.cartItems && order.cartItems.length > 0) {
@@ -237,20 +176,19 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
           }
         }
       }
-
-      // Send notification to the user
+  
+      // Send notification
       await notifyOrderStatusChange(
         userId, // userId
         order.id, // orderId
         "Declined", // newStatus
         vendorName, // vendorName
         vendorCoverImage, // vendorCoverImage
-        productImage,
-        userInfo.email, // Pass user email
-        userInfo.displayName, // Pass user name// productImage
-        reason
+        productImage, // productImage
+        reason, // declineReason
+        null // riderInfo
       );
-
+  
       toast.success("Order declined successfully");
       setIsDeclineModalOpen(false);
       onClose();
@@ -261,6 +199,67 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
       setDeclineLoading(false);
     }
   };
+  
+  const handleDeclineInfoModal = () => {
+    setIsDeclineInfoModalOpen(true);
+  };
+  const handleAccept = async () => {
+    setAcceptLoading(true);
+    try {
+      const orderRef = doc(db, "orders", order.id);
+      await updateDoc(orderRef, { progressStatus: "In Progress" });
+  
+      // Fetch vendor cover image
+      let vendorCoverImage = null;
+      if (order.vendorId) {
+        const vendorRef = doc(db, "vendors", order.vendorId);
+        const vendorSnap = await getDoc(vendorRef);
+        if (vendorSnap.exists()) {
+          vendorCoverImage = vendorSnap.data().coverImageUrl || null;
+        }
+      }
+  
+      // Fetch product image
+      let productImage = null;
+      if (order.cartItems && order.cartItems.length > 0) {
+        const firstItem = order.cartItems[0];
+        const productRef = doc(db, "products", firstItem.productId);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+          const productData = productSnap.data();
+          if (firstItem.subProductId) {
+            const subProduct = productData.subProducts?.find(
+              (sp) => sp.subProductId === firstItem.subProductId
+            );
+            productImage = subProduct?.images?.[0] || null;
+          } else {
+            productImage = productData.imageUrls?.[0] || null;
+          }
+        }
+      }
+  
+      // Send notification
+      await notifyOrderStatusChange(
+        userId, // userId
+        order.id, // orderId
+        "In Progress", // newStatus
+        vendorName, // vendorName
+        vendorCoverImage, // vendorCoverImage
+        productImage, // productImage
+        null, // declineReason
+        null // riderInfo
+      );
+  
+      toast.success("Order accepted successfully");
+      onClose();
+    } catch (error) {
+      console.error("Failed to accept the order:", error);
+      toast.error("Failed to accept the order");
+    } finally {
+      setAcceptLoading(false);
+    }
+  };
+  
 
   const handleSend = () => {
     if (!declineReason || (declineReason === "Other" && !otherReasonText)) {

@@ -6,8 +6,7 @@ import { motion } from "framer-motion";
 import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithPopup,
-  signInWithRedirect, // Import signInWithPopup for Google sign-in
+  signInWithPopup, // Import signInWithPopup for Google sign-in
 } from "firebase/auth";
 import { auth, db } from "../firebase.config";
 import {

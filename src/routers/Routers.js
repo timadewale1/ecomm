@@ -75,7 +75,6 @@ const Routers = () => {
       <Route path="reset-password" element={<ResetPassword />} />
       <Route path="/confirm-email" element={<EmailVerification />} />
       <Route path="/auth-action" element={<AuthActionHandler />} />
-      <Route path="/__/auth/handler" element={<AuthActionHandler />} />
       <Route path="/store/:id" element={<StorePage />} />
       <Route path="/category/:category" element={<CategoryPage />} />
       <Route path="/vendor-verify-otp" element={<VendorVerifyOTP />} />

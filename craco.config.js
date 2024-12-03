@@ -1,19 +1,17 @@
-import JavaScriptObfuscator from "webpack-obfuscator";
+const JavaScriptObfuscator = await import('webpack-obfuscator'); // Dynamic import
 
 const isProduction = process.env.NODE_ENV === "production";
 
-// Define the configuration object
-const webpackConfig = {
+const config = {
   webpack: {
     plugins: [
-      // Apply the obfuscator plugin only in production
       ...(isProduction
         ? [
             new JavaScriptObfuscator(
               {
-                rotateStringArray: true, // Obfuscation options
+                rotateStringArray: true,
               },
-              ["**/node_modules/**", "**/*.json", "**/*.config.js"] // Exclude these
+              ["**/node_modules/**", "**/*.json", "**/*.config.js"]
             ),
           ]
         : []),
@@ -21,13 +19,12 @@ const webpackConfig = {
   },
   babel: {
     plugins: [
-      // Remove console logs only in production
       ...(isProduction
         ? [
             [
               "transform-remove-console",
               {
-                exclude: ["error", "warn", "log"], // Optional: Keep these
+                exclude: ["error", "warn", "log"],
               },
             ],
           ]
@@ -36,5 +33,4 @@ const webpackConfig = {
   },
 };
 
-// Export the configuration as the default export
-export default webpackConfig;
+export default config;

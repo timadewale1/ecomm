@@ -1,12 +1,24 @@
 {
     "routes": [
       {
-        "src": "/api/(.*)",
+        "src": "/api/(.*)", 
         "dest": "/api/$1"
       },
       {
-        "src": "/(.*)",
+        "src": "/product/(.*)", 
         "dest": "/api/prerender"
+      },
+      {
+        "src": "/store/(.*)", 
+        "dest": "/api/prerender"
+      },
+      {
+        "src": "/marketstorepage/(.*)", 
+        "dest": "/api/prerender"
+      },
+      {
+        "src": "/(.*)", 
+        "dest": "/index.html"
       }
     ]
   }

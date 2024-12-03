@@ -19,6 +19,8 @@ export default async function handler(req, res) {
       const html = await snapshot.text();
 
       res.setHeader("Content-Type", "text/html");
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+
       return res.status(200).send(html);
     } catch (error) {
       console.error("Error fetching prerendered content:", error);

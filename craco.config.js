@@ -1,4 +1,4 @@
-const JavaScriptObfuscator = await import('webpack-obfuscator'); // Dynamic import
+const JavaScriptObfuscator = import('webpack-obfuscator'); // Dynamic import
 
 const isProduction = process.env.NODE_ENV === "production";
 

@@ -1,23 +1,32 @@
 {
     "routes": [
       {
-        "src": "/api/(.*)", 
+        "src": "/api/(.*)",
         "dest": "/api/$1"
       },
       {
-        "src": "/product/(.*)", 
+        "src": "/product/(.*)",
+        "has": [
+          { "type": "header", "key": "user-agent", "value": "(bot|crawler|spider|crawling)" }
+        ],
         "dest": "/api/prerender"
       },
       {
-        "src": "/store/(.*)", 
+        "src": "/store/(.*)",
+        "has": [
+          { "type": "header", "key": "user-agent", "value": "(bot|crawler|spider|crawling)" }
+        ],
         "dest": "/api/prerender"
       },
       {
-        "src": "/marketstorepage/(.*)", 
+        "src": "/marketstorepage/(.*)",
+        "has": [
+          { "type": "header", "key": "user-agent", "value": "(bot|crawler|spider|crawling)" }
+        ],
         "dest": "/api/prerender"
       },
       {
-        "src": "/(.*)", 
+        "src": "/(.*)",
         "dest": "/index.html"
       }
     ]

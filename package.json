@@ -39,6 +39,7 @@
     "lottie-react": "^2.4.0",
     "lucide-react": "^0.454.0",
     "moment": "^2.30.1",
+    "node-fetch": "^3.3.2",
     "otp-input-react": "^0.3.0",
     "prerender-node": "^3.8.0",
     "react": "^18.2.0",

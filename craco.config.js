@@ -1,9 +1,7 @@
 const JavaScriptObfuscator = require('webpack-obfuscator');
-
-
 const isProduction = process.env.NODE_ENV === "production";
 
-const config = {
+module.exports = {
   webpack: {
     plugins: [
       ...(isProduction
@@ -33,5 +31,3 @@ const config = {
     ],
   },
 };
-
-export default config;

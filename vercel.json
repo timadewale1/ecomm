@@ -24,10 +24,6 @@
           { "type": "header", "key": "user-agent", "value": "(bot|crawler|spider|crawling)" }
         ],
         "dest": "/api/prerender"
-      },
-      {
-        "src": "/(.*)",
-        "dest": "/index.html"
       }
     ]
   }

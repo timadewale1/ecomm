@@ -1,6 +1,6 @@
-import fetch from "node-fetch";
+const fetch = require("node-fetch");
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const userAgent = req.headers["user-agent"] || "";
   const isBot = /bot|crawler|spider|crawling/i.test(userAgent);
 
@@ -30,4 +30,4 @@ export default async function handler(req, res) {
 
   // If not a bot, return the original React app
   res.status(200).sendFile("index.html", { root: "./public" });
-}
+};

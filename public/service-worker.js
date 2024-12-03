@@ -19,18 +19,22 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    event.respondWith(
-      caches.match(event.request).then((response) => {
-        // Return the cached response if available
-        if (response) {
-          return response;
-        }
-  
-        // Attempt to fetch the resource from the network
-        return fetch(event.request).catch(() => {
-          // Optionally, return a fallback resource if fetch fails
-          return caches.match('/index.html'); // Ensure fallback.html is cached
-        });
-      })
-    );
-  });
+  const userAgent = event.request.headers.get('User-Agent') || '';
+  const isBot = /bot|crawler|spider|crawling/i.test(userAgent);
+
+  if (isBot) {
+    // Do not interfere with bot requests, let them hit the network directly
+    return;
+  }
+
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      if (response) {
+        return response;
+      }
+
+      return fetch(event.request).catch(() => caches.match('/index.html'));
+    })
+  );
+});
+

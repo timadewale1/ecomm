@@ -1,4 +1,4 @@
-const JavaScriptObfuscator = require("webpack-obfuscator");
+import JavaScriptObfuscator from "webpack-obfuscator"
 
 const isProduction = process.env.NODE_ENV === "production";
 

@@ -22,7 +22,6 @@ import "swiper/css/free-mode";
 import "swiper/css/autoplay";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
-import { Helmet, HelmetProvider } from "react-helmet-async";
 import SwiperCore, { Pagination, Navigation } from "swiper";
 import { FreeMode, Autoplay } from "swiper/modules";
 import { doc, getDoc, getFirestore } from "firebase/firestore";
@@ -879,32 +878,7 @@ const ProductDetailPage = () => {
   );
 
   return (
-    <HelmetProvider>
-       {/* Helmet for setting meta tags */}
-       <Helmet>
-          {/* General meta tags */}
-          <title>{metaTitle}</title>
-          <meta name="description" content={metaDescription} />
-          <link rel="canonical" href={metaUrl} />
-          <link rel="preload" href={metaImage} as="image" />
-          <meta name="robots" content="index, follow" />
-
-
-          {/* Open Graph meta tags */}
-          <meta property="og:title" content={metaTitle} />
-          <meta property="og:description" content={metaDescription} />
-          <meta property="og:image" content={metaImage} />
-          <meta property="og:url" content={metaUrl} />
-          <meta property="og:type" content="product" />
-          <meta property="og:site_name" content="My Thrift" />
-
-          {/* Twitter Card meta tags */}
-          <meta name="twitter:card" content="summary_large_image" />
-          <meta name="twitter:title" content={metaTitle} />
-          <meta name="twitter:description" content={metaDescription} />
-          <meta name="twitter:image" content={metaImage} />
-          <meta name="twitter:url" content={metaUrl} />
-        </Helmet>
+    
 
       <div className="relative pb-20">
       <div
@@ -1222,7 +1196,6 @@ const ProductDetailPage = () => {
         )}
       </div>
     </div>
-    </HelmetProvider>
     
   );
 };

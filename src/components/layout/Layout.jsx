@@ -6,7 +6,7 @@ import VendorBottomBar from "../BottomBar/VendorBottomBar";
 import { useAuth } from "../../custom-hooks/useAuth";
 import { NavigationProvider } from "../Context/Bottombarcontext";
 import { VendorNavigationProvider } from "../Context/VendorBottomBarCtxt";
-import phoneTransition from '../../Animations/PhoneTransitionScene.json'
+import phoneTransition from "../../Animations/PhoneTransitionScene.json";
 import Lottie from "lottie-react";
 
 const Layout = () => {
@@ -28,7 +28,7 @@ const Layout = () => {
     "/newcheckout/fulldelivery",
     "/user-dashboard",
     "/search",
-    "/",
+
     "/vendor-reviews",
     "/notifications",
     "/favorites",
@@ -42,7 +42,7 @@ const Layout = () => {
     "/payment-approve",
     "/terms-and-conditions",
     "/privacy-policy",
-    "/store-reviews"
+    "/store-reviews",
   ];
 
   // Paths with dynamic segments
@@ -65,9 +65,8 @@ const Layout = () => {
     noBottomBarPaths.some((path) =>
       matchPath({ path, end: true }, location.pathname)
     ) || // Exact match
-    isDynamicPath(location.pathname) ||
-    !currentUser ||
-    location.state?.fromProductDetail;
+    isDynamicPath(location.pathname) || // Match dynamic paths
+    location.state?.fromProductDetail; // Hide when navigated from product detail
 
   // List of vendor paths
   const vendorPaths = [
@@ -97,29 +96,33 @@ const Layout = () => {
   return (
     <NavigationProvider>
       <VendorNavigationProvider>
-        {isMobile ? (<>
-        <div>
-          <Routers />
-        </div>
-        {!hideBottomBar &&
-          (isVendorPath ? (
-            <VendorBottomBar />
-          ) : (
-            <BottomBar isSearchFocused={false} />
-          ))}
-          </>) : (
-            <div className="flex flex-col items-center justify-center w-full h-96 mt-20"> 
+        {isMobile ? (
+          <>
+            <div>
+              <Routers />
+            </div>
+            {!hideBottomBar &&
+              (isVendorPath ? (
+                <VendorBottomBar />
+              ) : (
+                <BottomBar isSearchFocused={false} />
+              ))}
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center w-full h-96 mt-20">
             <Lottie
-          className="w-full h-full"
-          animationData={phoneTransition}
-          loop={true}
-          autoplay={true}
-        />
+              className="w-full h-full"
+              animationData={phoneTransition}
+              loop={true}
+              autoplay={true}
+            />
             <div className="text-center text-xl font-opensans p-20">
-            We're currently optimizing our website for this screen size. For the best experience, we recommend accessing it on your mobile device.🤦‍♀️
+              We're currently optimizing our website for this screen size. For
+              the best experience, we recommend accessing it on your mobile
+              device.🤦‍♀️
             </div>
-            </div>
-          )}
+          </div>
+        )}
       </VendorNavigationProvider>
     </NavigationProvider>
   );

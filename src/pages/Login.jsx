@@ -55,20 +55,56 @@ const Login = () => {
       console.error("Error syncing cart with Firestore: ", error);
     }
   };
+  const mergeCarts = (cart1, cart2) => {
+    const mergedCart = { ...cart1 };
 
-  const fetchCartFromFirestore = async (userId) => {
+    for (const vendorId in cart2) {
+      if (mergedCart[vendorId]) {
+        // Merge products for the same vendor
+        const vendorCart1 = mergedCart[vendorId].products;
+        const vendorCart2 = cart2[vendorId].products;
+
+        for (const productKey in vendorCart2) {
+          if (vendorCart1[productKey]) {
+            // If product exists in both carts, sum quantities
+            vendorCart1[productKey].quantity +=
+              vendorCart2[productKey].quantity;
+          } else {
+            // Add new product to vendor's cart
+            vendorCart1[productKey] = vendorCart2[productKey];
+          }
+        }
+      } else {
+        // Add new vendor to merged cart
+        mergedCart[vendorId] = cart2[vendorId];
+      }
+    }
+
+    return mergedCart;
+  };
+
+  const fetchCartFromFirestore = async (userId, localCart) => {
     try {
       const cartDoc = await getDoc(doc(db, "carts", userId));
+      let firestoreCart = {};
       if (cartDoc.exists()) {
-        const cart = cartDoc.data().cart;
-        console.log("Fetched cart from Firestore: ", cart);
-        dispatch(setCart(cart));
+        firestoreCart = cartDoc.data().cart;
+        console.log("Fetched cart from Firestore: ", firestoreCart);
       } else {
         console.log("No cart found in Firestore, initializing empty cart");
-        dispatch(setCart({}));
       }
+
+      // Merge the carts
+      const mergedCart = mergeCarts(firestoreCart, localCart);
+      console.log("Merged cart: ", mergedCart);
+
+      // Save the merged cart back to Firestore
+      await setDoc(doc(db, "carts", userId), { cart: mergedCart });
+
+      // Update the Redux store and localStorage
+      dispatch(setCart(mergedCart));
     } catch (error) {
-      console.error("Error fetching cart from Firestore: ", error);
+      console.error("Error fetching or merging cart from Firestore: ", error);
     }
   };
 
@@ -122,7 +158,15 @@ const Login = () => {
         return;
       }
 
-      await fetchCartFromFirestore(user.uid);
+      // Retrieve local cart
+      const localCart = JSON.parse(localStorage.getItem("cart")) || {};
+
+      // Fetch Firestore cart and merge with local cart
+      await fetchCartFromFirestore(user.uid, localCart);
+
+      // Clear localStorage cart since it's now merged and stored in Redux and Firestore
+      localStorage.removeItem("cart");
+
       const Name = userData?.username || "User";
       setLoading(false);
       toast.success(`Hello ${Name}, welcome!`);

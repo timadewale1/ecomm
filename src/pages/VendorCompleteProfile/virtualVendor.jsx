@@ -13,6 +13,7 @@ import { BiSolidImageAdd } from "react-icons/bi";
 import { PiIdentificationCardThin } from "react-icons/pi";
 import { FaIdCard, FaMinusCircle } from "react-icons/fa";
 import { TbTruckDelivery } from "react-icons/tb";
+import { fetchBankList, resolveBankName } from "../../services/bankutils";
 import { IoShareSocial } from "react-icons/io5";
 import ProgressBar from "./ProgressBar";
 import toast from "react-hot-toast"; // Import from react-hot-toast
@@ -39,7 +40,9 @@ const VirtualVendor = ({
   handleProfileCompletion,
   handleImageUpload,
   handleSocialMediaChange,
-  banks,
+
+  setBankDetails,
+
   setIdImage,
   isCoverImageUploading,
   isIdImageUploading,
@@ -128,6 +131,19 @@ const VirtualVendor = ({
   const [showStateDropdown, setShowStateDropdown] = useState(false);
   const [searchTerm, setSearchTerm] = useState(""); // Common for both dropdowns
   const [selectedState, setSelectedState] = useState("");
+  const [banks, setBanks] = useState([]);
+  const [isResolving, setIsResolving] = useState(false); // Loader for account resolution
+  const [token] = useState(process.env.REACT_APP_PAYSTACK_SECRET_KEY);
+  useEffect(() => {
+    const fetchBanks = async () => {
+      console.log("Fetching banks...");
+      const bankList = await fetchBankList(token);
+      console.log("Bank list received in VirtualVendor:", bankList);
+      setBanks(bankList);
+    };
+
+    fetchBanks();
+  }, [token]);
   const toTitleCase = (str) => {
     return str
       .toLowerCase()
@@ -220,6 +236,69 @@ const VirtualVendor = ({
   const filteredCategories = categories.filter((category) =>
     category.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const handleResolveAccount = async () => {
+    const { accountNumber } = bankDetails;
+
+    if (!accountNumber || accountNumber.length !== 10) {
+      toast.error("Please enter a valid 10-digit account number.");
+      console.error("Validation Error: Invalid account number provided.");
+      return;
+    }
+
+    try {
+      setIsResolving(true);
+      console.log("Resolving account for account number:", accountNumber);
+
+      const payload = JSON.stringify({ accountNumber });
+      console.log("Payload sent:", payload);
+
+      console.log("Token used:", token);
+
+      const response = await fetch(
+        `https://mythrift-payments.fly.dev/api/v1/resolveAccount`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: payload,
+        }
+      );
+
+      console.log("Resolve account response:", response);
+
+      const data = await response.json();
+      console.log("Parsed response data for account resolution:", data);
+
+      if (response.ok && data.status) {
+        console.log("Account resolved successfully:");
+        console.log("Account Number:", data.data.account_number);
+        console.log("Account Name:", data.data.account_name);
+        console.log("Bank ID:", data.data.bank_id);
+
+        // Update bankDetails with fetched data
+        setBankDetails((prev) => ({
+          ...prev,
+          accountName: data.data.account_name,
+          bankId: data.data.bank_id,
+        }));
+
+        toast.success("Account resolved successfully!");
+      } else {
+        console.error("Account resolution failed:", data.message);
+        toast.error(data.message || "Failed to resolve account.");
+      }
+    } catch (error) {
+      console.error("Error occurred during account resolution:", error);
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setIsResolving(false);
+      console.log("Account resolution process completed.");
+    }
+  };
+
+  // Debugging resolveBankName function
 
   return (
     <div>
@@ -684,7 +763,7 @@ const VirtualVendor = ({
               </h3>
 
               {/* Bank Name Dropdown */}
-              <FormGroup className="relative mb-2">
+              {/* <FormGroup className="relative mb-2">
                 <div className="relative font-opensans">
                   <select
                     name="bankName"
@@ -707,33 +786,34 @@ const VirtualVendor = ({
                     ))}
                   </select>
                 </div>
-              </FormGroup>
+              </FormGroup> */}
 
               {/* Account Number Field */}
               <input
-                type="tel"
+                type="text"
                 name="accountNumber"
-                placeholder="Account Number"
-                value={bankDetails.accountNumber}
-                maxLength="10" // Limits the input to 10 digits
+                value={bankDetails.accountNumber || ""} // Fallback to empty string if undefined
                 onChange={(e) => {
-                  const re = /^[0-9\b]+$/; // Regular expression to allow only numbers
-                  if (e.target.value === "" || re.test(e.target.value)) {
-                    handleBankDetailsChange(e); // Only update state if the input is valid
+                  const value = e.target.value;
+
+                  // Allow only numbers and restrict to 10 characters
+                  if (/^\d*$/.test(value) && value.length <= 10) {
+                    // Use the handleBankDetailsChange prop
+                    handleBankDetailsChange(e);
                   }
                 }}
-                className="w-full h-10 mb-4 p-4 border-2 font-opensans text-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-customOrange"
+                placeholder="Enter Account Number"
+                className="w-full h-12 px-3 border-2 font-opensans text-neutral-800 rounded-lg hover:border-customOrange focus:outline-none focus:border-customOrange"
               />
 
-              {/* Account Name Field */}
-              <input
-                type="text"
-                name="accountName"
-                placeholder="Account Name"
-                value={bankDetails.accountName}
-                onChange={handleBankDetailsChange}
-                className="w-full h-10 mb-4 p-4 border-2 font-opensans text-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-customOrange"
-              />
+              <button onClick={handleResolveAccount} disabled={isResolving}>
+                {isResolving ? "Resolving..." : "Resolve Account"}
+              </button>
+
+              {bankDetails.accountName && (
+                <p>Account Name: {bankDetails.accountName}</p>
+              )}
+              {bankDetails.bankName && <p>Bank Name: {bankDetails.bankName}</p>}
 
               {/* Next Button */}
               <div className="">

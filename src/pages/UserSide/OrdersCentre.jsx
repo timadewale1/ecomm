@@ -32,6 +32,8 @@ const OrdersCentre = () => {
   const [activeTab, setActiveTab] = useState("All");
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
+
   const [sampleProduct, setSampleProduct] = useState(null);
   const ordersFetched = useRef(false);
   const location = useLocation();
@@ -39,8 +41,8 @@ const OrdersCentre = () => {
   const fromPaymentApprove = location.state?.fromPaymentApprove;
 
   useEffect(() => {
-      window.scrollTo(0, 0);
-  })
+    window.scrollTo(0, 0);
+  });
 
   // Inside your useEffect where you fetch orders
   useEffect(() => {
@@ -197,25 +199,26 @@ const OrdersCentre = () => {
         setUserId(user.uid);
       } else {
         setUserId(null);
-        navigate("/login");
       }
+      setIsAuthChecked(true); // Authentication state has been determined
     });
 
     return () => unsubscribe();
-  }, [navigate]);
+  }, []);
+  if (!isAuthChecked) {
+    // Authentication state is not yet known show a loading indicator
+    return <Loading />;
+  }
 
   const filterOrdersByStatus = (status) => {
     return orders.filter((order) => {
       if (status === "All") return true;
       if (status === "Processing")
         return order.progressStatus === "In Progress";
-      if (status === "Pending")
-        return order.progressStatus === "Pending";
-      if (status === "Delivered")
-        return order.progressStatus === "Delivered";
-      if (status === "Shipped")
-        return order.progressStatus === "Shipped";
-      
+      if (status === "Pending") return order.progressStatus === "Pending";
+      if (status === "Delivered") return order.progressStatus === "Delivered";
+      if (status === "Shipped") return order.progressStatus === "Shipped";
+
       if (status === "Declined") return order.progressStatus === "Declined";
       return false;
     });
@@ -231,11 +234,18 @@ const OrdersCentre = () => {
     }
   };
 
-  const tabButtons = ["All", "Processing", "Shipped", "Delivered", "Declined", "Pending"];
+  const tabButtons = [
+    "All",
+    "Processing",
+    "Shipped",
+    "Delivered",
+    "Declined",
+    "Pending",
+  ];
 
   return (
     <div>
-          <ScrollToTop />
+      <ScrollToTop />
       <div className="sticky top-0 pb-2 bg-white w-full z-10">
         <div className="flex p-3 py-3 items-center bg-white h-20 mb-3 pb-2">
           <GoChevronLeft
@@ -247,7 +257,7 @@ const OrdersCentre = () => {
         <div className="border-t border-gray-300 my-2"></div>
         {/* Tabs Section (Inside Header) */}
         <div className="flex px-3 py-2 overflow-x-auto">
-          <div className="flex space-x-3"> 
+          <div className="flex space-x-3">
             {tabButtons.map((tab) => (
               <button
                 key={tab}
@@ -256,8 +266,8 @@ const OrdersCentre = () => {
                   activeTab === tab
                     ? "bg-customOrange text-xs font-opensans text-white"
                     : "bg-white text-xs font-opensans text-black"
-                  }`}
-                  >
+                }`}
+              >
                 {tab}
               </button>
             ))}
@@ -265,202 +275,233 @@ const OrdersCentre = () => {
         </div>
       </div>
 
-      {loading ? (
-        <Loading />
-      ) : filteredOrders.length === 0 ? (
+      {userId === null ? (
         <div className="flex flex-col items-center justify-center mt-10">
           <div className="bg-gray-200 flex justify-center rounded-full w-32 h-32 p-2">
             <img src={Orderpic} alt="Order" />
           </div>
-          <div className="mt-20">
+          <div className="mt-20 flex items-center flex-col justify-center">
             <p className="text-gray-600 font-opensans text-center text-xs">
-              No order available
+              Please login to view your order progress status and history.
             </p>
             <button
-              className="text-white font-opensans font-semibold h-12 mt-3 mb-14 bg-customOrange rounded-full w-32"
-              onClick={() => navigate("/browse-markets")}
+              className="text-white font-opensans font-semibold h-11 mt-3 mb-14 bg-customOrange rounded-full w-32"
+              onClick={() => navigate("/login")}
             >
-              Shop Now
+              Login
             </button>
           </div>
-          {/* Render RelatedProducts when there are no orders */}
+          {/* Render RelatedProducts when user is not authenticated */}
           {sampleProduct && <RelatedProducts product={sampleProduct} />}
         </div>
       ) : (
-        filteredOrders.map((order) => (
-          <div key={order.id} className="px-3 py-2">
-            <div className="bg-white shadow-lg px-3 py-4 rounded-lg">
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex flex-col">
-                  <div className="flex items-center space-x-2">
-                    {order.progressStatus === "Shipped" ? (
-                      <>
-                        <TbTruckDelivery className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
-                        <span className="text-sm text-black font-semibold font-opensans">
-                          Shipped
-                        </span>
-                      </>
-                    ) : order.progressStatus === "Declined" ? (
-                      <>
-                        <FaTimes className="text-white bg-gray-200 h-7 w-7 rounded-full p-1 text-lg" />
-                        <span className="text-sm text-black font-semibold font-opensans">
-                          Cancelled
-                        </span>
-                      </>
-                    ) : order.progressStatus === "In Progress" ? (
-                      <>
-                        <IoTimeOutline className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
-                        <span className="text-sm text-black font-semibold font-opensans">
-                          In Progress
-                        </span>
-                      </>
-                    ) : order.progressStatus === "Pending" ? (
-                      <>
-                        <MdPendingActions className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
-                        <span className="text-sm text-black font-semibold font-opensans">
-                          Pending Approval
-                        </span>
-                      </>
-                    ) : order.progressStatus === "Delivered" ? (
-                      <>
-                        <FaClipboardCheck className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
-                        <span className="text-sm text-black font-semibold font-opensans">
-                          Delivered
-                        </span>
-                      </>
-                    ) : !order.progressStatus ? (
-                      <>
-                        <MdOutlinePendingActions className="text-white bg-yellow-300 h-7 w-7 rounded-full p-1 text-lg" />
-                        <span className="text-sm text-black font-semibold font-opensans">
-                          Pending Approval
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-sm text-black font-semibold font-opensans">
-                        {order.progressStatus}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Aligning date under the order status */}
-                  <div className="ml-9">
-                    <span className="text-xs text-gray-700 font-opensans">
-                      {order.createdAt
-                        ? moment(order.createdAt.seconds * 1000).format(
-                            "HH:mm, DD/MM/YYYY"
-                          )
-                        : "Date not available"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Vendor name aligned on the right */}
-                <h1 className="text-sm font-opensans">
-                  <span className="text-gray-400 text-sm font-opensans">
-                    From:{" "}
-                  </span>
-                  {vendors[order.vendorId]?.length > 12
-                    ? `${vendors[order.vendorId].slice(0, 12)}...`
-                    : vendors[order.vendorId] || "Unknown Vendor"}
-                </h1>
+        // Existing code to display orders when user is authenticated
+        <>
+          {loading ? (
+            <Loading />
+          ) : filteredOrders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center mt-10">
+              <div className="bg-gray-200 flex justify-center rounded-full w-32 h-32 p-2">
+                <img src={Orderpic} alt="Order" />
               </div>
+              <div className="mt-20">
+                <p className="text-gray-600 font-opensans text-center text-xs">
+                  No order available
+                </p>
+                <button
+                  className="text-white font-opensans font-semibold h-12 mt-3 mb-14 bg-customOrange rounded-full w-32"
+                  onClick={() => navigate("/browse-markets")}
+                >
+                  Shop Now
+                </button>
+              </div>
+              {/* Render RelatedProducts when there are no orders */}
+              {sampleProduct && <RelatedProducts product={sampleProduct} />}
+            </div>
+          ) : (
+            filteredOrders.map((order) => (
+              <div key={order.id} className="px-3 py-2">
+                <div className="bg-white shadow-lg px-3 py-4 rounded-lg">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex flex-col">
+                      <div className="flex items-center space-x-2">
+                        {order.progressStatus === "Shipped" ? (
+                          <>
+                            <TbTruckDelivery className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
+                            <span className="text-sm text-black font-semibold font-opensans">
+                              Shipped
+                            </span>
+                          </>
+                        ) : order.progressStatus === "Declined" ? (
+                          <>
+                            <FaTimes className="text-white bg-gray-200 h-7 w-7 rounded-full p-1 text-lg" />
+                            <span className="text-sm text-black font-semibold font-opensans">
+                              Cancelled
+                            </span>
+                          </>
+                        ) : order.progressStatus === "In Progress" ? (
+                          <>
+                            <IoTimeOutline className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
+                            <span className="text-sm text-black font-semibold font-opensans">
+                              In Progress
+                            </span>
+                          </>
+                        ) : order.progressStatus === "Pending" ? (
+                          <>
+                            <MdPendingActions className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
+                            <span className="text-sm text-black font-semibold font-opensans">
+                              Pending Approval
+                            </span>
+                          </>
+                        ) : order.progressStatus === "Delivered" ? (
+                          <>
+                            <FaClipboardCheck className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
+                            <span className="text-sm text-black font-semibold font-opensans">
+                              Delivered
+                            </span>
+                          </>
+                        ) : !order.progressStatus ? (
+                          <>
+                            <MdOutlinePendingActions className="text-white bg-yellow-300 h-7 w-7 rounded-full p-1 text-lg" />
+                            <span className="text-sm text-black font-semibold font-opensans">
+                              Pending Approval
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-sm text-black font-semibold font-opensans">
+                            {order.progressStatus}
+                          </span>
+                        )}
+                      </div>
 
-              <div className="border-t border-gray-300 my-2"></div>
-
-              {order.cartItems ? (
-                order.cartItems.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between py-2 border-b"
-                  >
-                    <div className="flex items-center">
-                      <img
-                        src={item.imageUrl || "https://via.placeholder.com/150"}
-                        alt={item.name}
-                        className="w-16 h-16 object-cover rounded-lg mr-4"
-                        onError={(e) => {
-                          e.target.src = "https://via.placeholder.com/150";
-                        }}
-                      />
-                      <div>
-                        <h4 className="text-sm font-opensans">{item.name}</h4>
-                        <p className="font-opensans text-md mt-2 text-black font-bold">
-                          ₦{item.price ? item.price.toLocaleString() : "0"}
-                        </p>
-                        <div className="flex items-center space-x-4 text-sm mt-2">
-                          <p className="text-black font-semibold font-opensans">
-                            <span className="font-normal text-gray-600">
-                              Size:
-                            </span>{" "}
-                            {item.size || "N/A"}
-                          </p>
-                          <p className="text-black font-semibold font-opensans">
-                            <span className="font-normal text-gray-600">
-                              Color:
-                            </span>{" "}
-                            {item.color || "N/A"}
-                          </p>
-                          <p className="text-black font-semibold font-opensans">
-                            <span className="font-normal text-gray-600">
-                              Qty:
-                            </span>{" "}
-                            {item.quantity}
-                          </p>
-                        </div>
+                      {/* Aligning date under the order status */}
+                      <div className="ml-9">
+                        <span className="text-xs text-gray-700 font-opensans">
+                          {order.createdAt
+                            ? moment(order.createdAt.seconds * 1000).format(
+                                "HH:mm, DD/MM/YYYY"
+                              )
+                            : "Date not available"}
+                        </span>
                       </div>
                     </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-red-500">
-                  No products found in this order.
-                </p>
-              )}
 
-              <div className="mt-2">
-                <div className="flex justify-end">
-                  <span className="text-sm font-opensans font-normal">
-                    Sub-Total:
-                  </span>
-                  <span className="text-sm font-semibold font-opensans ml-1">
-                    ₦{" "}
-                    {order.subtotal
-                      ? Number(order.subtotal).toLocaleString()
-                      : "0"}
-                  </span>
-                </div>
-                {order.serviceFee && (
-                  <div className="flex justify-end">
-                    <span className="text-sm font-opensans font-normal">
-                      Service Fee:
-                    </span>
-                    <span className="text-sm font-opensans font-semibold ml-1">
-                      ₦ {Number(order.serviceFee).toLocaleString()}
-                    </span>
+                    {/* Vendor name aligned on the right */}
+                    <h1 className="text-sm font-opensans">
+                      <span className="text-gray-400 text-sm font-opensans">
+                        From:{" "}
+                      </span>
+                      {vendors[order.vendorId]?.length > 12
+                        ? `${vendors[order.vendorId].slice(0, 12)}...`
+                        : vendors[order.vendorId] || "Unknown Vendor"}
+                    </h1>
                   </div>
-                )}
-                {order.bookingFee && (
-                  <div className="flex justify-end">
-                    <span className="text-sm font-opensans font-normal">
-                      Booking Fee:
-                    </span>
-                    <span className="text-sm font-opensans font-semibold ml-1">
-                      ₦ {Number(order.bookingFee).toLocaleString()}
-                    </span>
+
+                  <div className="border-t border-gray-300 my-2"></div>
+
+                  {order.cartItems ? (
+                    order.cartItems.map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between py-2 border-b"
+                      >
+                        <div className="flex items-center">
+                          <img
+                            src={
+                              item.imageUrl || "https://via.placeholder.com/150"
+                            }
+                            alt={item.name}
+                            className="w-16 h-16 object-cover rounded-lg mr-4"
+                            onError={(e) => {
+                              e.target.src = "https://via.placeholder.com/150";
+                            }}
+                          />
+                          <div>
+                            <h4 className="text-sm font-opensans">
+                              {item.name}
+                            </h4>
+                            <p className="font-opensans text-md mt-2 text-black font-bold">
+                              ₦{item.price ? item.price.toLocaleString() : "0"}
+                            </p>
+                            <div className="flex items-center space-x-4 text-sm mt-2">
+                              <p className="text-black font-semibold font-opensans">
+                                <span className="font-normal text-gray-600">
+                                  Size:
+                                </span>{" "}
+                                {item.size || "N/A"}
+                              </p>
+                              <p className="text-black font-semibold font-opensans">
+                                <span className="font-normal text-gray-600">
+                                  Color:
+                                </span>{" "}
+                                {item.color || "N/A"}
+                              </p>
+                              <p className="text-black font-semibold font-opensans">
+                                <span className="font-normal text-gray-600">
+                                  Qty:
+                                </span>{" "}
+                                {item.quantity}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-red-500">
+                      No products found in this order.
+                    </p>
+                  )}
+
+                  <div className="mt-2">
+                    <div className="flex justify-end">
+                      <span className="text-sm font-opensans font-normal">
+                        Sub-Total:
+                      </span>
+                      <span className="text-sm font-semibold font-opensans ml-1">
+                        ₦{" "}
+                        {order.subtotal
+                          ? Number(order.subtotal).toLocaleString()
+                          : "0"}
+                      </span>
+                    </div>
+                    {order.serviceFee && (
+                      <div className="flex justify-end">
+                        <span className="text-sm font-opensans font-normal">
+                          Service Fee:
+                        </span>
+                        <span className="text-sm font-opensans font-semibold ml-1">
+                          ₦ {Number(order.serviceFee).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {order.bookingFee && (
+                      <div className="flex justify-end">
+                        <span className="text-sm font-opensans font-normal">
+                          Booking Fee:
+                        </span>
+                        <span className="text-sm font-opensans font-semibold ml-1">
+                          ₦ {Number(order.bookingFee).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-end">
+                      <span className="text-sm font-opensans font-normal">
+                        Order Total:
+                      </span>
+                      <span className="text-sm font-opensans font-semibold ml-1">
+                        ₦{" "}
+                        {order.total
+                          ? Number(order.total).toLocaleString()
+                          : "0"}
+                      </span>
+                    </div>
                   </div>
-                )}
-                <div className="flex justify-end">
-                  <span className="text-sm font-opensans font-normal">
-                    Order Total:
-                  </span>
-                  <span className="text-sm font-opensans font-semibold ml-1">
-                    ₦ {order.total ? Number(order.total).toLocaleString() : "0"}
-                  </span>
                 </div>
               </div>
-            </div>
-          </div>
-        ))
+            ))
+          )}
+        </>
       )}
     </div>
   );

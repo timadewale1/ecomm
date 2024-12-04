@@ -177,7 +177,7 @@ const Marketpg = () => {
         </div>
         <div className="border-t border-gray-300 mt-6"></div>
       </div>
-      <div className="vendor-list px-2 pb-24 -mx-2 translate-y-1">
+      <div className="vendor-list px-2 pb-24  translate-y-1">
         {loading ? (
           // Show skeleton loader when loading
           Array.from({ length: 5 }).map((_, index) => (

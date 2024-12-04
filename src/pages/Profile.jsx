@@ -129,7 +129,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="py-4">
+    <div className="py-6  pb-24">
       {!showDetails && !showMetrics && !showFAQs ? (
         <div className="flex flex-col items-center">
           <h1 className="font-opensans text-xl font-semibold "> My Profile</h1>
@@ -149,13 +149,15 @@ const Profile = () => {
                 className="rounded-full h-36 w-36 flex items-center justify-center "
                 onClick={() => setIsAvatarModalOpen(true)}
               >
-                <IoMdContact className="text-gray-500 text-7xl" />
+                <IoMdContact className="text-gray-500 text-8xl" />
               </div>
             )}
-            <MdModeEdit
-              className="absolute bottom-0 right-0 border text-black  mr-2 text-3xl p-2 rounded-full bg-white cursor-pointer shadow-md"
-              onClick={() => setIsAvatarModalOpen(true)}
-            />
+            {currentUser && (
+              <MdModeEdit
+                className="absolute bottom-0 right-0 border text-black  mr-2 text-3xl p-2 rounded-full bg-white cursor-pointer shadow-md"
+                onClick={() => setIsAvatarModalOpen(true)}
+              />
+            )}
           </div>
 
           <p className="text-lg font-semibold text-black font-opensans capitalize mt-2">
@@ -216,20 +218,25 @@ const Profile = () => {
               Data
             </h1>
           </div>
-          <div className="flex flex-col items-center px-2 w-full ">
-            <div
-              className="flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl bg-customGrey mb-3"
-              onClick={() => navigate("/user-dashboard")}
-            >
-              <div className="flex items-center">
-                <AiOutlineDashboard className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal font-opensans text-black capitalize">
-                  Metrics
-                </h2>
+          {currentUser && (
+            <>
+              <div className="flex flex-col items-center px-2 w-full">
+                <div
+                  className="flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl bg-customGrey mb-3"
+                  onClick={() => navigate("/user-dashboard")}
+                >
+                  <div className="flex items-center">
+                    <AiOutlineDashboard className="text-black text-xl mr-4" />
+                    <h2 className="text-size font-normal font-opensans text-black capitalize">
+                      Metrics
+                    </h2>
+                  </div>
+                  <ChevronRight className="text-black" />
+                </div>
               </div>
-              <ChevronRight className="text-black" />
-            </div>
-          </div>
+            </>
+          )}
+
           <div className="flex flex-col items-center w-full px-2">
             <div
               className="flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl bg-customGrey mb-3"
@@ -332,27 +339,42 @@ const Profile = () => {
             </div>
           </div>
 
-          <div
-            className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
-            onClick={handleLogout}
-          >
-            <div className="flex items-center justify-between w-full px-4 py-3">
-              <PiSignOutBold className="text-red-600 text-xl mr-4" />
-              <p className="text-size text-black font-opensans w-full font-normal">
-                Sign Out
-              </p>
+          {currentUser && (
+            <div
+              className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
+              onClick={handleLogout}
+            >
+              <div className="flex items-center justify-between w-full px-4 py-3">
+                <PiSignOutBold className="text-red-600 text-xl mr-4" />
+                <p className="text-size text-black font-opensans w-full font-normal">
+                  Sign Out
+                </p>
 
-              {isLoggingOut && (
-                <RotatingLines
-                  strokeColor="#f9531e"
-                  strokeWidth="5"
-                  animationDuration="0.75"
-                  width="24"
-                  visible={true}
-                />
-              )}
+                {isLoggingOut && (
+                  <RotatingLines
+                    strokeColor="#f9531e"
+                    strokeWidth="5"
+                    animationDuration="0.75"
+                    width="24"
+                    visible={true}
+                  />
+                )}
+              </div>
             </div>
-          </div>
+          )}
+          {!currentUser && (
+            <div
+              className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
+              onClick={() => navigate("/login")}
+            >
+              <div className="flex items-center justify-between w-full px-4 py-3">
+                <PiSignOutBold className="text-green-600 text-xl mr-4" />
+                <p className="text-size text-black font-opensans w-full font-normal">
+                  Login
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <>

@@ -80,7 +80,7 @@ const ProductCard = ({ product, isLoading, showVendorName = true  }) => {
 
     switch (condition.toLowerCase()) {
       case "defect:":
-        return <p className="text-xs text-red-500">{condition}</p>;
+        return <p className="text-xs text-red-500 ">{condition}</p>;
       case "brand new":
         return <p className="text-xs text-green-500">Brand New</p>;
       case "thrift":

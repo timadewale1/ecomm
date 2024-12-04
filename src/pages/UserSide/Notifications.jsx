@@ -55,15 +55,13 @@ const NotificationsPage = () => {
         setCurrentUser(user);
         fetchNotifications(user.uid);
       } else {
-        // Only navigate after auth check completes and user is confirmed as null
-        if (!user && !loadingAuth) {
-          navigate("/login");
-        }
+        setCurrentUser(null);
+        setLoading(false); // Stop loading when user is not logged in
       }
     });
 
     return () => unsubscribe();
-  }, [navigate]);
+  }, []);
 
   if (loadingAuth || loading) {
     return (
@@ -207,7 +205,30 @@ const NotificationsPage = () => {
 
       {/* Scrollable Notification List */}
       <div className="overflow-y-auto h-[calc(100vh-150px)] pb-16 px-2">
-        {notifications.length === 0 ? (
+        {!currentUser ? (
+          // User not logged in
+          <div className="flex flex-col px-3 items-center justify-center h-full mt-20">
+            <img
+              src={notifspic}
+              alt="Not logged in"
+              className="w-36 h-32 mb-4"
+            />
+            <h2 className="text-lg font-opensans font-semibold">
+              You are not logged in
+            </h2>
+            <p className="text-gray-500 text-xs font-opensans text-center mt-2">
+             Hey there, we can see you are not logged in, so you can't view notifications from
+              vendors you follow or check order status.
+            </p>
+            <button
+              onClick={() => navigate("/login")}
+              className="mt-4 bg-customOrange text-white text-xs font-opensans py-2 px-4 rounded-full"
+            >
+              Login
+            </button>
+          </div>
+        ) : notifications.length === 0 ? (
+          // User is logged in but no notifications
           <div className="flex flex-col items-center justify-center h-full mt-20">
             <img
               src={notifspic}
@@ -223,6 +244,7 @@ const NotificationsPage = () => {
             </p>
           </div>
         ) : (
+          // User is logged in and has notifications
           <div>
             {renderNotificationsSection("Today", groupedNotifications.today)}
             {renderNotificationsSection(
@@ -239,7 +261,6 @@ const NotificationsPage = () => {
       </div>
     </div>
   );
-  
 };
 
 export default NotificationsPage;

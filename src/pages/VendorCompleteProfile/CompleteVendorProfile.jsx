@@ -494,6 +494,7 @@ const CompleteProfile = () => {
                 idVerification={idVerification}
                 handleIdVerificationChange={handleIdVerificationChange}
                 idImage={idImage}
+                
                 setIdImage={setIdImage}
                 isIdImageUploading={isIdImageUploading}
                 isCoverImageUploading={isCoverImageUploading}

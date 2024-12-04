@@ -25,6 +25,8 @@ import { NigerianStates } from "../../services/states";
 import { CiLocationOn } from "react-icons/ci";
 import Loading from "../../components/Loading/Loading";
 import { GoChevronLeft } from "react-icons/go";
+import Waiting from "../../components/Loading/Waiting";
+import Productnotofund from "../../components/Loading/Productnotofund";
 
 const ProfileDetails = ({
   currentUser,
@@ -57,10 +59,14 @@ const ProfileDetails = ({
       setBirthday(userData.birthday || "");
       setAddress(userData.address || "");
       setLoading(false);
+    } else if (!currentUser) {
+      // User is not authenticated
+      setLoading(false);
     } else {
+      // User is authenticated but userData is not yet available
       setLoading(true);
     }
-  }, [userData]);
+  }, [userData, currentUser]);
 
   if (loading) {
     return <Loading />;
@@ -83,7 +89,35 @@ const ProfileDetails = ({
     }
   };
   if (!currentUser) {
-    return <div>Loading profile...</div>;
+    return (
+      <div className="flex flex-col items-center p-2 justify-center ">
+        <div className="sticky top-0 bg-white z-10 flex items-center -translate-y-4 justify-between h-24 w-full">
+          <div className="flex items-center space-x-2">
+            <GoChevronLeft
+              className="text-2xl text-black cursor-pointer"
+              onClick={() => {
+                setShowDetails(false);
+              }}
+            />
+            <h1 className="text-xl font-medium font-ubuntu text-black   ">
+              Profile Details
+            </h1>
+          </div>
+        </div>
+        <div className="px-20 flex-col flex justify-center items-center">
+          <Productnotofund />
+          <p className="text-center text-sm text-gray-800 font-opensans mb-4">
+           Oops! You cannot view profile details at the moment because no user is logged in.
+          </p>
+          <button
+            className="bg-customOrange font-opensans text-white px-4 py-2 rounded-full"
+            onClick={() => navigate("/login")}
+          >
+            Login
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const handleEdit = (field) => {

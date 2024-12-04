@@ -25,7 +25,7 @@ import EmailVerification from "../pages/UserSide/ConfirmEmail.jsx";
 import LatestCart from "../pages/Cart.jsx";
 import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
 import OrdersCentre from "../pages/UserSide/OrdersCentre.jsx";
-import VendorReviews from "../pages/vendor/VendorReviews.jsx";
+// import VendorReviews from "../pages/vendor/VendorReviews.jsx";
 import Checkout from "../pages/NewCheckout.jsx";
 import MarketVendors from "../pages/MarketVendors.jsx";
 import Profile from "../pages/Profile.jsx";
@@ -48,7 +48,7 @@ const Routers = () => {
   return (
     <Routes>
       {/* Default Route */}
-      <Route path="/" element={<ConfirmUserState />} />
+      <Route path="/" element={<NewHome />} />
       {/* Updated default route */}
       {/* Public Routes */}
       <Route path="/search" element={<SearchPage />} />
@@ -56,6 +56,15 @@ const Routers = () => {
       <Route path="product/:id" element={<ProductDetailPage />} />
       <Route path="signup" element={<Signup />} />
       <Route path="vendor-signup" element={<VendorSignup />} />
+      <Route path="/profile" element={<Profile />} />
+      <Route path="favorites" element={<FavoritesPage />} />
+      <Route path="market-card/:marketName" element={<Marketcardpage />} />
+      <Route path="explore" element={<Explore />} />
+      <Route path="/reviews/:id" element={<VendorRatings />} />
+      <Route path="latest-cart" element={<LatestCart />} />
+      <Route path="notifications" element={<NotificationsPage />} />
+      <Route path="newhome" element={<NewHome />} />
+      <Route path="user-orders" element={<OrdersCentre />} />
       <Route path="login" element={<Login />} />
       <Route path="vendorlogin" element={<VendorLogin />} />
       <Route path="complete-profile" element={<CompleteProfile />} />
@@ -67,8 +76,8 @@ const Routers = () => {
           </ErrorBoundary>
         }
       />
-      <Route path="terms-and-conditions" element={<TermsAndConditions />}/>
-      <Route path="privacy-policy" element={<PrivacyPolicy />}/>
+      <Route path="terms-and-conditions" element={<TermsAndConditions />} />
+      <Route path="privacy-policy" element={<PrivacyPolicy />} />
       <Route path="market-vendors" element={<MarketVendors />} />
       <Route path="online-vendors" element={<OnlineVendors />} />
       <Route path="/forgetpassword" element={<ForgetPassword />} />
@@ -83,28 +92,25 @@ const Routers = () => {
       <Route element={<ProtectedRoute requiredRole="vendor" />}>
         <Route path="vendordashboard" element={<VendorDashboard />} />
         <Route path="vendor-profile" element={<VendorProfile />} />
-        <Route path="vendor-reviews" element={<VendorReviews />} />
+        {/* <Route path="vendor-reviews" element={<VendorReviews />} /> */}
         <Route path="vendor-products" element={<VendorProducts />} />
         <Route path="vendor-orders" element={<VendorOrders />} />
         <Route path="/store-reviews" element={<StoreReviews />} />
         {/* Add any other vendor-specific protected routes here */}
       </Route>
-      {/* User Protected Routes */} 
+      {/* User Protected Routes */}
       <Route element={<ProtectedRoute requiredRole="user" />}>
-        <Route path="newhome" element={<NewHome />} />
-        <Route path="notifications" element={<NotificationsPage />} />
-        <Route path="latest-cart" element={<LatestCart />} />
+        
+
         <Route path="newcheckout/:vendorId" element={<Checkout />} />
-        <Route path="user-orders" element={<OrdersCentre />} />
+      
         {/* <Route path="newcheckout/fulldelivery" element={<FullDelivery />} /> */}
-        <Route path="favorites" element={<FavoritesPage />} />
-        <Route path="market-card/:marketName" element={<Marketcardpage />} />
-        <Route path="explore" element={<Explore />} />
+
         <Route path="donate" element={<Donate />} />
         <Route path="payment-approve" element={<PaymentApprove />} />
-        <Route path="/profile" element={<Profile />} />
+
         <Route path="user-dashboard" element={<UserDashboard />} />
-        <Route path="/reviews/:id" element={<VendorRatings />} />
+       
         {/* Add any other user-specific protected routes here */}
       </Route>
       {/* Catch-all Route for NotFound */}

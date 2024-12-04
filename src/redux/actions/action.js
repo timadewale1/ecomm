@@ -1,5 +1,7 @@
+// action.js
 import { db } from "../../firebase.config";
 import { doc, setDoc, getDoc } from "firebase/firestore";
+import { auth } from "../../firebase.config"; // Import auth to get the current user
 
 export const ADD_TO_CART = "ADD_TO_CART";
 export const REMOVE_FROM_CART = "REMOVE_FROM_CART";
@@ -16,7 +18,12 @@ const saveCartToLocalStorage = (cart) => {
 // Save cart to Firestore
 const saveCartToFirestore = async (userId, cart) => {
   console.log("Saving cart to Firestore for user:", userId, cart);
-  await setDoc(doc(db, "carts", userId), { cart });
+  try {
+    await setDoc(doc(db, "carts", userId), { cart });
+    console.log("Cart successfully saved to Firestore");
+  } catch (error) {
+    console.error("Error saving cart to Firestore:", error);
+  }
 };
 
 // Add to Cart (Vendor-specific)
@@ -81,47 +88,73 @@ export const addToCart =
       },
     });
 
-    const userId = getState().auth.currentUser?.uid;
+    // Save cart to Firestore if user is authenticated
+    const userId = auth.currentUser?.uid;
+    console.log("Current user ID:", userId);
     if (userId) {
       await saveCartToFirestore(userId, updatedCart);
+    } else {
+      console.log("User not authenticated; cart not saved to Firestore.");
     }
+
     saveCartToLocalStorage(updatedCart);
   };
 
 // Remove from Cart (Vendor-specific)
 export const removeFromCart =
   ({ vendorId, productKey }) =>
-  (dispatch, getState) => {
+  async (dispatch, getState) => {
     console.log("Removing product:", productKey, "from vendor:", vendorId);
 
-    // Dispatch the action
     dispatch({
       type: REMOVE_FROM_CART,
       payload: { vendorId, productKey },
     });
 
     const updatedCart = getState().cart;
+
+    // Save cart to Firestore if user is authenticated
+    const userId = auth.currentUser?.uid;
+    console.log("Current user ID:", userId);
+    if (userId) {
+      await saveCartToFirestore(userId, updatedCart);
+    } else {
+      console.log("User not authenticated; cart not saved to Firestore.");
+    }
+
     saveCartToLocalStorage(updatedCart);
   };
 
 // Clear Cart (Vendor-specific or All)
-export const clearCart = (vendorId) => (dispatch, getState) => {
-  if (vendorId) {
-    console.log("Clearing cart for vendor:", vendorId);
-    dispatch({ type: CLEAR_CART, payload: { vendorId } });
-  } else {
-    console.log("Clearing entire cart");
-    dispatch({ type: CLEAR_CART, payload: {} });
-  }
+export const clearCart =
+  (vendorId) =>
+  async (dispatch, getState) => {
+    if (vendorId) {
+      console.log("Clearing cart for vendor:", vendorId);
+      dispatch({ type: CLEAR_CART, payload: { vendorId } });
+    } else {
+      console.log("Clearing entire cart");
+      dispatch({ type: CLEAR_CART, payload: {} });
+    }
 
-  const updatedCart = getState().cart;
-  saveCartToLocalStorage(updatedCart);
-};
+    const updatedCart = getState().cart;
+
+    // Save cart to Firestore if user is authenticated
+    const userId = auth.currentUser?.uid;
+    console.log("Current user ID:", userId);
+    if (userId) {
+      await saveCartToFirestore(userId, updatedCart);
+    } else {
+      console.log("User not authenticated; cart not saved to Firestore.");
+    }
+
+    saveCartToLocalStorage(updatedCart);
+  };
 
 // Increase Quantity (Vendor-specific)
 export const increaseQuantity =
   ({ vendorId, productKey }) =>
-  (dispatch, getState) => {
+  async (dispatch, getState) => {
     dispatch({
       type: INCREASE_QUANTITY,
       payload: {
@@ -131,13 +164,23 @@ export const increaseQuantity =
     });
 
     const updatedCart = getState().cart;
+
+    // Save cart to Firestore if user is authenticated
+    const userId = auth.currentUser?.uid;
+    console.log("Current user ID:", userId);
+    if (userId) {
+      await saveCartToFirestore(userId, updatedCart);
+    } else {
+      console.log("User not authenticated; cart not saved to Firestore.");
+    }
+
     saveCartToLocalStorage(updatedCart);
   };
 
 // Decrease Quantity (Vendor-specific)
 export const decreaseQuantity =
   ({ vendorId, productKey }) =>
-  (dispatch, getState) => {
+  async (dispatch, getState) => {
     console.log(
       "Dispatching DECREASE_QUANTITY for product:",
       productKey,
@@ -154,6 +197,16 @@ export const decreaseQuantity =
     });
 
     const updatedCart = getState().cart;
+
+    // Save cart to Firestore if user is authenticated
+    const userId = auth.currentUser?.uid;
+    console.log("Current user ID:", userId);
+    if (userId) {
+      await saveCartToFirestore(userId, updatedCart);
+    } else {
+      console.log("User not authenticated; cart not saved to Firestore.");
+    }
+
     saveCartToLocalStorage(updatedCart);
   };
 
@@ -167,13 +220,17 @@ export const setCart = (cart) => (dispatch) => {
 // Fetch Cart from Firestore
 export const fetchCartFromFirestore = (userId) => async (dispatch) => {
   console.log("Fetching cart for user:", userId);
-  const cartDoc = await getDoc(doc(db, "carts", userId));
-  if (cartDoc.exists()) {
-    const cart = cartDoc.data().cart;
-    console.log("Cart found in Firestore:", cart);
-    dispatch(setCart(cart));
-  } else {
-    console.log("No cart found in Firestore, initializing empty cart");
-    dispatch(setCart({}));
+  try {
+    const cartDoc = await getDoc(doc(db, "carts", userId));
+    if (cartDoc.exists()) {
+      const cart = cartDoc.data().cart;
+      console.log("Cart found in Firestore:", cart);
+      dispatch(setCart(cart));
+    } else {
+      console.log("No cart found in Firestore, initializing empty cart");
+      dispatch(setCart({}));
+    }
+  } catch (error) {
+    console.error("Error fetching cart from Firestore:", error);
   }
 };

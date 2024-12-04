@@ -12,7 +12,8 @@ import toast from "react-hot-toast";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.config";
 import EmptyCart from "../components/Loading/EmptyCart";
-import {useAuth} from "../custom-hooks/useAuth";
+import { useAuth } from "../custom-hooks/useAuth";
+import { CiLogin } from "react-icons/ci";
 import { useNavigate, useLocation } from "react-router-dom";
 import { GoChevronLeft, GoChevronUp, GoChevronRight } from "react-icons/go";
 import Loading from "../components/Loading/Loading";
@@ -44,7 +45,19 @@ const Cart = () => {
   const [vendorsInfo, setVendorsInfo] = useState({});
   const location = useLocation();
   const [checkoutLoading, setCheckoutLoading] = useState({});
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
+  useEffect(() => {
+    if (isModalOpen || isNoteModalOpen || isLoginModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isModalOpen, isNoteModalOpen, isLoginModalOpen]);
   const formatPrice = (price) => {
     return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
@@ -193,11 +206,15 @@ const Cart = () => {
     }
 
     // Check if user is logged in
+    // if (!currentUser) {
+    //   setCheckoutLoading(false);
+    //   return;
+    // }
     if (!currentUser) {
-      setCheckoutLoading(false);
+      setIsLoginModalOpen(true);
+      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
-
     let profileComplete = currentUser.profileComplete;
 
     if (profileComplete === undefined) {
@@ -322,6 +339,11 @@ const Cart = () => {
       setIsModalOpen(false);
     }
   };
+  const handleLoginOverlayClick = (e) => {
+    if (e.target === e.currentTarget) {
+      setIsLoginModalOpen(false);
+    }
+  };
 
   const handleNoteOverlayClick = (e) => {
     if (e.target === e.currentTarget) {
@@ -337,9 +359,9 @@ const Cart = () => {
     );
   }
 
-  if (!currentUser) {
-    return <div>Please log in to view your cart.</div>;
-  }
+  // if (!currentUser) {
+  //   return <div>Please log in to view your cart.</div>;
+  // }
 
   return (
     <div className="flex flex-col h-screen justify-between pb-24 bg-gray-200">
@@ -678,6 +700,58 @@ const Cart = () => {
             >
               Send Note
             </button>
+          </div>
+        </div>
+      )}
+      {isLoginModalOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+          onClick={handleLoginOverlayClick}
+        >
+          <div
+            className="bg-white w-9/12 max-w-md rounded-lg px-3 py-4 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex space-x-4">
+                <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
+                  <CiLogin className="text-customRichBrown" />
+                </div>
+                <h2 className="text-lg font-opensans font-semibold">
+                  Please Log In
+                </h2>
+              </div>
+              <LiaTimesSolid
+                onClick={() => setIsLoginModalOpen(false)}
+                className="text-black text-xl mb-6 cursor-pointer"
+              />
+            </div>
+            <p className="mb-6 text-xs font-opensans text-gray-800 ">
+              You need to be logged in to proceed to checkout. Please log in to
+              your account, or create a new account if you don’t have one, to
+              continue.
+            </p>
+            <div className="flex space-x-16">
+              <button
+                onClick={() => {
+                  navigate("/signup");
+                  setIsLoginModalOpen(false);
+                }}
+                className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans  border-customRichBrown border-1   rounded-full"
+              >
+                Sign Up
+              </button>
+              <button
+                onClick={() => {
+                  navigate("/login");
+                  setIsLoginModalOpen(false);
+                }}
+                className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
+              >
+                Login
+              </button>
+            </div>
           </div>
         </div>
       )}

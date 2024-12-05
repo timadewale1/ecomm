@@ -5,13 +5,10 @@ const admin = require("firebase-admin");
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.applicationDefault(),
-    databaseURL: "https://<your-project-id>.firebaseio.com",
   });
 }
 
 const db = admin.firestore();
-
-const defaultImage = "./public/logo512.png";
 
 module.exports = async function handler(req, res) {
   const userAgent = req.headers["user-agent"] || "";
@@ -19,10 +16,9 @@ module.exports = async function handler(req, res) {
 
   if (isBot) {
     const path = req.url.split("/");
-    const resourceType = path[1]; // 'product', 'store', or 'marketstore'
+    const resourceType = path[1];
     const resourceId = path[2];
 
-    // Map resourceType to Firestore collection
     const collectionMap = {
       product: "products",
       store: "vendors",
@@ -36,7 +32,6 @@ module.exports = async function handler(req, res) {
     }
 
     try {
-      // Fetch the document from Firestore
       const doc = await db.collection(collectionName).doc(resourceId).get();
 
       if (!doc.exists) {
@@ -51,7 +46,7 @@ module.exports = async function handler(req, res) {
             <meta name="description" content="${data.description || "Default Description"}" />
             <meta property="og:title" content="${data.title || "Default Title"}" />
             <meta property="og:description" content="${data.description || "Default Description"}" />
-            <meta property="og:image" content="${data.coverImageUrl || defaultImage}" />
+            <meta property="og:image" content="${data.coverImageUrl || "/logo512.png"}" />
           </head>
           <body>
             <p>Loading...</p>
@@ -65,8 +60,8 @@ module.exports = async function handler(req, res) {
       console.error("Error fetching metadata:", error);
       return res.status(500).send("Internal Server Error");
     }
+  } else {
+    // If not a bot, do nothing (handled by React)
+    res.status(404).send("Not Found");
   }
-
-  // Serve the React app for regular users
-  return res.end();
 };

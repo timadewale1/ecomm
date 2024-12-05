@@ -20,6 +20,10 @@
       "destination": "/api/middleware"
     },
     {
+      "source": "/product/:path*",
+      "destination": "/index.html"
+    },
+    {
       "source": "/store/:path*",
       "has": [
         {
@@ -31,6 +35,10 @@
       "destination": "/api/middleware"
     },
     {
+      "source": "/store/:path*",
+      "destination": "/index.html"
+    },
+    {
       "source": "/marketstorepage/:path*",
       "has": [
         {
@@ -40,6 +48,14 @@
         }
       ],
       "destination": "/api/middleware"
+    },
+    {
+      "source": "/marketstorepage/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/index.html"
     }
   ]
 }

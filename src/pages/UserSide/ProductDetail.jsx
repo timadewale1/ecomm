@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart, removeFromCart } from "../../redux/actions/action";
 import { fetchProduct } from "../../redux/actions/productaction";
@@ -22,14 +22,12 @@ import "swiper/css/free-mode";
 import "swiper/css/autoplay";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
-import { Helmet, HelmetProvider } from "react-helmet-async";
 import SwiperCore, { Pagination, Navigation } from "swiper";
 import { FreeMode, Autoplay } from "swiper/modules";
 import { doc, getDoc, getFirestore } from "firebase/firestore";
 import RelatedProducts from "./SimilarProducts";
 import Productnotofund from "../../components/Loading/Productnotofund";
 import { decreaseQuantity, increaseQuantity } from "../../redux/actions/action";
-import { LiaHomeSolid } from "react-icons/lia";
 Modal.setAppElement("#root");
 
 const debounce = (func, delay) => {
@@ -48,9 +46,6 @@ const ProductDetailPage = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const location = useLocation();
-  const queryParams = new URLSearchParams(location.search);
-  const isSharedLink = queryParams.get("shared") === "true";
 
   // Fetch product from Redux store
   const { product, loading, error } = useSelector((state) => state.product);
@@ -347,6 +342,7 @@ const ProductDetailPage = () => {
     ? product.coverImageUrl
     : `${window.location.origin}/logo512.png`;
   const metaUrl = encodeURI(`${window.location.origin}/product/${id}`);
+
 
   const handleDisclaimer = () => {
     const userAgreed = window.confirm(
@@ -740,14 +736,10 @@ const ProductDetailPage = () => {
     product && product.color
       ? product.color.split(",").map((color) => color.trim())
       : [];
-  const handleBuyNow = () => {
-    navigate("/latest-cart");
-  };
 
   const copyProductLink = async () => {
     try {
-      // Append a query parameter to indicate the link is shared
-      const shareableLink = `${window.location.origin}/product/${id}?shared=true`;
+      const shareableLink = `${window.location.origin}/product/${id}`;
       await navigator.clipboard.writeText(
         `Hey, check out this item I saw on ${vendor.shopName}'s store on My Thrift: ${shareableLink}`
       );
@@ -886,383 +878,325 @@ const ProductDetailPage = () => {
   );
 
   return (
-    <HelmetProvider>
-      {/* Helmet for setting meta tags */}
-      <Helmet>
-        {/* General meta tags */}
-        <title>{metaTitle}</title>
-        <meta name="description" content={metaDescription} />
-        <link rel="canonical" href={metaUrl} />
-        <link rel="preload" href={metaImage} as="image" />
-        <meta name="robots" content="index, follow" />
-
-        {/* Open Graph meta tags */}
-        <meta property="og:title" content={metaTitle} />
-        <meta property="og:description" content={metaDescription} />
-        <meta property="og:image" content={metaImage} />
-        <meta property="og:url" content={metaUrl} />
-        <meta property="og:type" content="product" />
-        <meta property="og:site_name" content="My Thrift" />
-
-        {/* Twitter Card meta tags */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={metaTitle} />
-        <meta name="twitter:description" content={metaDescription} />
-        <meta name="twitter:image" content={metaImage} />
-        <meta name="twitter:url" content={metaUrl} />
-      </Helmet>
+    
 
       <div className="relative pb-20">
-        <div
-          className={`fixed top-0 px-2 py-2 bg-white left-0 h-24 w-full z-20 shadow-md flex items-center justify-between`}
-        >
+      <div
+        className={`fixed top-0 px-2 py-4 bg-white left-0 h-20 w-full z-20 shadow-md`} // Added shadow here
+      >
+        <div className="flex items-center justify-between">
           <div className="flex items-center">
-            {isSharedLink ? (
-              <>
-                <img
-                  src="/logo512.png"
-                  onClick={() => navigate("/newhome")}
-                  alt="Company Logo"
-                  className="ml-4 h-full -translate-y-1 cursor-pointer object-contain"
-                />
-              </>
-            ) : (
-              <>
-                {/* Original GoChevronLeft button */}
-                <GoChevronLeft
-                  onClick={() => navigate(-1)}
-                  className="text-3xl cursor-pointer"
-                />
-                {/* "Details" text */}
-                <span className="ml-4 text-lg font-opensans font-semibold">
-                  Details
-                </span>
-              </>
-            )}
-          </div>
-          <div className="flex items-center">
-            {isSharedLink ? (
-              // Show "Buy Now" button when the link is shared
-              <button
-                onClick={handleBuyNow}
-                className="bg-transparent border-1 border-customRichBrown text-sm text-customRichBrown px-4 py-1 rounded-full font-opensans font-normal mr-4"
-              >
-                Buy Now
-              </button>
-            ) : (
-              <>
-                {isLinkCopied ? (
-                  <LuCopyCheck className="text-2xl mr-4 cursor-pointer" />
-                ) : (
-                  <LuCopy
-                    onClick={copyProductLink}
-                    className="text-2xl mr-4 cursor-pointer"
-                  />
-                )}
-                <PiShoppingCartBold
-                  onClick={() =>
-                    navigate("/latest-cart", {
-                      state: { fromProductDetail: true },
-                    })
-                  }
-                  className="text-2xl cursor-pointer"
-                />
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="flex justify-center h-[540px]">
-          {/* Only show Swiper if there's more than one image */}
-          {allImages.length > 1 ? (
-            <Swiper
-              modules={[FreeMode, Autoplay]}
-              pagination={{ clickable: true }}
-              // navigation
-              autoplay={{
-                delay: 7500,
-                disableOnInteraction: false,
-              }}
-              className="product-images-swiper mt-20"
-              style={{ width: "100%", height: "" }}
-            >
-              {allImages.map((image, index) => (
-                <SwiperSlide key={index}>
-                  <img
-                    src={image}
-                    alt={`${product.name} image ${index + 1}`}
-                    className="object-cover w-full h-full"
-                    style={{ borderBottom: "6px solid white" }} // White line separator
-                  />
-                </SwiperSlide>
-              ))}
-            </Swiper>
-          ) : (
-            // If there's only one image, display it without the Swiper
-            <img
-              src={allImages[0]}
-              alt={`${product.name} image`}
-              className="object-cover w-full h-full rounded-b-lg"
+            <GoChevronLeft
+              onClick={() => navigate(-1)}
+              className="text-3xl cursor-pointer"
             />
-          )}
-        </div>
-        <div className="px-3 mt-2">
-          <div className="flex items-center justify-between">
-            <h1 className="text-sm font-opensans text-black font-normal ">
-              {product.name}
-            </h1>
-            <div className="">
-              {product.condition &&
-              product.condition.toLowerCase().includes("defect") ? (
-                <div className="flex items-center mt-2">
-                  <TbInfoTriangle
-                    className="text-red-500 cursor-pointer"
-                    onClick={handleDisclaimer} // Optional: Add an actual function for handling disclaimers
-                    title="Click for important information about product defects"
-                  />
-                  <p className="ml-2 text-xs  text-red-500">
-                    {product.condition}
-                    {product.defectDescription
-                      ? ` ${product.defectDescription}`
-                      : ""}
-                  </p>
-                </div>
-              ) : product.condition.toLowerCase() === "brand new" ? (
-                <div className="flex items-center mt-2">
-                  <TbSquareRoundedCheck className="text-green-700" />
-                  <p className="ml-2 text-xs text-green-700">Brand New</p>
-                </div>
-              ) : product.condition.toLowerCase() === "thrift" ? (
-                <div className="flex items-center mt-2">
-                  <TbSquareRoundedCheck className="text-yellow-500" />
-                  <p className="ml-2 text-xs text-yellow-500">Thrift</p>
-                </div>
-              ) : null}
-            </div>
+            <span className="ml-4 text-lg font-opensans font-semibold">
+              Details
+            </span>
           </div>
-
-          <p className="text-2xl font-opensans font-semibold text-black">
-            ₦{formatPrice(product.price)}
-          </p>
-
-          {vendorLoading ? (
-            <LoadProducts className="mr-20" />
-          ) : vendor ? (
-            <div className="flex items-center mt-1">
-              <p className="text-sm font-opensans text-red-600 mr-2">
-                {vendor.shopName}
-              </p>
-              {vendor.ratingCount > 0 && (
-                <div className="flex items-center">
-                  <span className="mr-1 text-black  font-opensans font-medium ratings-text">
-                    {averageRating}
-                  </span>
-                  <FaStar className="text-yellow-500 ratings-text" />
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-xs text-gray-500">
-              Vendor information not available
-            </p>
-          )}
-
-          {/* Color Options */}
-          {availableColors.length > 0 && (
-            <div className="mt-3">
-              <p className="text-sm font-semibold text-black font-opensans mb-2">
-                {selectedColor
-                  ? capitalizeFirstLetter(selectedColor)
-                  : "Colors"}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {availableColors.map((color, index) => (
-                  <div
-                    key={index}
-                    onClick={() => {
-                      if (!selectedSubProduct) {
-                        handleColorClick(color);
-                      }
-                    }}
-                    className={`w-8 h-8 flex items-center justify-center rounded-full ${
-                      selectedSubProduct
-                        ? "cursor-not-allowed opacity-50"
-                        : "cursor-pointer"
-                    } ${selectedColor === color ? "border-2" : ""}`}
-                    style={{
-                      padding: "3px",
-                      borderColor:
-                        selectedColor === color ? color : "transparent",
-                      backgroundColor: "#f0f0f0",
-                    }}
-                    title={color}
-                  >
-                    <div
-                      style={{ backgroundColor: color }}
-                      className="w-6 h-6 rounded-full"
-                    ></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Size Selection */}
-          <div className="mt-3">
-            <p className="text-sm font-semibold text-black font-opensans mb-2">
-              Sizes
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {availableSizes.map((size, index) => {
-                const inStock = isSizeInStock(size);
-                const isSelected = selectedSize === size && inStock;
-
-                return (
-                  <div
-                    key={index}
-                    onClick={() => {
-                      if (inStock) {
-                        handleSizeClick(size);
-                      }
-                    }}
-                    className={`relative py-2 px-4 border rounded-lg ${
-                      isSelected
-                        ? "bg-customOrange text-white cursor-pointer"
-                        : inStock
-                        ? "bg-transparent text-black cursor-pointer"
-                        : "bg-gray-200 text-black opacity-50 cursor-not-allowed"
-                    }`}
-                    style={{ position: "relative" }}
-                  >
-                    <span className="text-xs font-opensans font-semibold">
-                      {size}
-                    </span>
-                    {!inStock && (
-                      <span
-                        className="absolute inset-0 animate-pulse flex items-center justify-center bg-gray-800 bg-opacity-50  text-customOrange font-opensans font-semibold text-xs text-center rounded-lg"
-                        style={{
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          zIndex: 10,
-                          pointerEvents: "none", // Prevents clicks on out-of-stock items
-                        }}
-                      >
-                        Out of Stock
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div
-            className="flex justify-between items-center mt-4 mb-4 cursor-pointer"
-            onClick={() => setIsModalOpen(true)}
-          >
-            <p className="text-black text-md font-opensans ">Product Details</p>
-            <GoChevronRight className="text-3xl -mx-2" />
-          </div>
-
-          <Modal
-            isOpen={isModalOpen}
-            onRequestClose={() => setIsModalOpen(false)}
-            className="modal-content"
-            overlayClassName="modal-overlay"
-          >
-            <div className="p-2 relative">
-              <MdOutlineCancel
-                onClick={() => setIsModalOpen(false)}
-                className="absolute top-2 right-2 text-gray-600 cursor-pointer text-2xl"
+          <div className="flex items-center">
+            {isLinkCopied ? (
+              <LuCopyCheck className="text-2xl mr-4 cursor-pointer" />
+            ) : (
+              <LuCopy
+                onClick={copyProductLink}
+                className="text-2xl mr-4 cursor-pointer"
               />
-              <h2 className="text-lg mt-3 font-bold">Product Description</h2>
-              <p className="text-gray-600 mt-2 font-poppins text-sm">
-                {product.description}
-              </p>
-            </div>
-          </Modal>
-        </div>
-
-        {shouldShowAlikeProducts && (
-          <>
-            <div className="border-t-8 border-gray-100 mt-4"></div>
-            <AlikeProducts />
-          </>
-        )}
-
-        <div className="border-t-8 border-gray-100 mt-4"></div>
-
-        <RelatedProducts product={product} />
-
-        <div
-          className="fixed bottom-0 left-0 right-0 z-50 p-3 flex justify-between items-center"
-          style={{
-            background:
-              "linear-gradient(to top, white, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0) 97%)",
-            zIndex: 9999,
-          }}
-          onClick={(e) => e.stopPropagation()} // Prevents background clicks from propagating
-        >
-          {!selectedSize || !selectedColor ? (
-            // Prompt user to select size and color
-            <button
-              onClick={() => {
-                toast.error("Please select size and color");
-              }}
-              className={`bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out`}
-            >
-              Add to Cart
-            </button>
-          ) : !isAddedToCart ? (
-            // The "Add to Cart" button
-            <button
-              onClick={() => {
-                handleAddToCart();
-                setAnimateCart(true); // Trigger the animation
-              }}
-              className={`bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out`}
-            >
-              Add to Cart
-            </button>
-          ) : (
-            // The Remove and Quantity controls
-            <div
-              className={`flex w-full justify-between transition-all duration-500 ease-in-out transform ${
-                animateCart
-                  ? "translate-x-0 opacity-100"
-                  : "translate-x-full opacity-0"
-              }`}
-            >
-              <button
-                onClick={handleRemoveFromCart}
-                className="text-black open-sans mr-4 bg-gray-100 rounded-full h-14 w-52 text-md font-bold"
-              >
-                Remove
-              </button>
-              <div className="flex space-x-4 items-center">
-                <button
-                  onClick={handleDecreaseQuantity}
-                  className="flex items-center justify-center w-12 h-12 opacity-40 bg-customOrange text-white text-3xl rounded-full"
-                >
-                  <FiMinus />
-                </button>
-                <span className="font-opensans font-semibold text-lg">
-                  {quantity}
-                </span>
-                <button
-                  onClick={handleIncreaseQuantity}
-                  className="flex items-center justify-center w-12 h-12 bg-customOrange text-white text-3xl rounded-full"
-                >
-                  <FiPlus />
-                </button>
-              </div>
-            </div>
-          )}
+            )}
+            <PiShoppingCartBold
+              onClick={() =>
+                navigate("/latest-cart", { state: { fromProductDetail: true } })
+              }
+              className="text-2xl cursor-pointer "
+            />
+          </div>
         </div>
       </div>
-    </HelmetProvider>
+      <div className="flex justify-center h-[540px]">
+        {/* Only show Swiper if there's more than one image */}
+        {allImages.length > 1 ? (
+          <Swiper
+            modules={[FreeMode, Autoplay]}
+            pagination={{ clickable: true }}
+            // navigation
+            autoplay={{
+              delay: 7500,
+              disableOnInteraction: false,
+            }}
+            className="product-images-swiper mt-20"
+            style={{ width: "100%", height: "" }}
+          >
+            {allImages.map((image, index) => (
+              <SwiperSlide key={index}>
+                <img
+                  src={image}
+                  alt={`${product.name} image ${index + 1}`}
+                  className="object-cover w-full h-full"
+                  style={{ borderBottom: "6px solid white" }} // White line separator
+                />
+              </SwiperSlide>
+            ))}
+          </Swiper>
+        ) : (
+          // If there's only one image, display it without the Swiper
+          <img
+            src={allImages[0]}
+            alt={`${product.name} image`}
+            className="object-cover w-full h-full rounded-b-lg"
+          />
+        )}
+      </div>
+      <div className="px-3 mt-2">
+        <div className="flex items-center justify-between">
+          <h1 className="text-sm font-opensans text-black font-normal ">
+            {product.name}
+          </h1>
+          <div className="">
+            {product.condition &&
+            product.condition.toLowerCase().includes("defect") ? (
+              <div className="flex items-center mt-2">
+                <TbInfoTriangle
+                  className="text-red-500 cursor-pointer"
+                  onClick={handleDisclaimer} // Optional: Add an actual function for handling disclaimers
+                  title="Click for important information about product defects"
+                />
+                <p className="ml-2 text-xs text-red-500">
+                  {product.condition}
+                  {product.defectDescription
+                    ? ` ${product.defectDescription}`
+                    : ""}
+                </p>
+              </div>
+            ) : product.condition.toLowerCase() === "brand new" ? (
+              <div className="flex items-center mt-2">
+                <TbSquareRoundedCheck className="text-green-700" />
+                <p className="ml-2 text-xs text-green-700">Brand New</p>
+              </div>
+            ) : product.condition.toLowerCase() === "thrift" ? (
+              <div className="flex items-center mt-2">
+                <TbSquareRoundedCheck className="text-yellow-500" />
+                <p className="ml-2 text-xs text-yellow-500">Thrift</p>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <p className="text-2xl font-opensans font-semibold text-black">
+          ₦{formatPrice(product.price)}
+        </p>
+
+        {vendorLoading ? (
+          <LoadProducts className="mr-20" />
+        ) : vendor ? (
+          <div className="flex items-center mt-1">
+            <p className="text-sm text-red-600 mr-2">{vendor.shopName}</p>
+            {vendor.ratingCount > 0 && (
+              <div className="flex items-center">
+                <span className="mr-1 text-black font-medium ratings-text">
+                  {averageRating}
+                </span>
+                <FaStar className="text-yellow-500 ratings-text" />
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500">
+            Vendor information not available
+          </p>
+        )}
+
+        {/* Color Options */}
+        {availableColors.length > 0 && (
+          <div className="mt-3">
+            <p className="text-sm font-semibold text-black font-opensans mb-2">
+              {selectedColor ? capitalizeFirstLetter(selectedColor) : "Colors"}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {availableColors.map((color, index) => (
+                <div
+                  key={index}
+                  onClick={() => {
+                    if (!selectedSubProduct) {
+                      handleColorClick(color);
+                    }
+                  }}
+                  className={`w-8 h-8 flex items-center justify-center rounded-full ${
+                    selectedSubProduct
+                      ? "cursor-not-allowed opacity-50"
+                      : "cursor-pointer"
+                  } ${selectedColor === color ? "border-2" : ""}`}
+                  style={{
+                    padding: "3px",
+                    borderColor:
+                      selectedColor === color ? color : "transparent",
+                    backgroundColor: "#f0f0f0",
+                  }}
+                  title={color}
+                >
+                  <div
+                    style={{ backgroundColor: color }}
+                    className="w-6 h-6 rounded-full"
+                  ></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Size Selection */}
+        <div className="mt-3">
+          <p className="text-sm font-semibold text-black font-opensans mb-2">
+            Sizes
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {availableSizes.map((size, index) => {
+              const inStock = isSizeInStock(size);
+              const isSelected = selectedSize === size && inStock;
+
+              return (
+                <div
+                  key={index}
+                  onClick={() => {
+                    if (inStock) {
+                      handleSizeClick(size);
+                    }
+                  }}
+                  className={`relative py-2 px-4 border rounded-lg ${
+                    isSelected
+                      ? "bg-customOrange text-white cursor-pointer"
+                      : inStock
+                      ? "bg-transparent text-black cursor-pointer"
+                      : "bg-gray-200 text-black opacity-50 cursor-not-allowed"
+                  }`}
+                  style={{ position: "relative" }}
+                >
+                  <span className="text-xs font-opensans font-semibold">{size}</span>
+                  {!inStock && (
+                    <span
+                      className="absolute inset-0 animate-pulse flex items-center justify-center bg-gray-800 bg-opacity-50  text-customOrange font-opensans font-semibold text-xs text-center rounded-lg"
+                      style={{
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 10,
+                        pointerEvents: "none", // Prevents clicks on out-of-stock items
+                      }}
+                    >
+                      Out of Stock
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div
+          className="flex justify-between items-center mt-4 mb-4 cursor-pointer"
+          onClick={() => setIsModalOpen(true)}
+        >
+          <p className="text-black text-md font-opensans ">Product Details</p>
+          <GoChevronRight className="text-3xl -mx-2" />
+        </div>
+
+        <Modal
+          isOpen={isModalOpen}
+          onRequestClose={() => setIsModalOpen(false)}
+          className="modal-content"
+          overlayClassName="modal-overlay"
+        >
+          <div className="p-2 relative">
+            <MdOutlineCancel
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-2 right-2 text-gray-600 cursor-pointer text-2xl"
+            />
+            <h2 className="text-lg mt-3 font-bold">Product Description</h2>
+            <p className="text-gray-600 mt-2 font-poppins text-sm">
+              {product.description}
+            </p>
+          </div>
+        </Modal>
+      </div>
+
+      {shouldShowAlikeProducts && (
+        <>
+          <div className="border-t-8 border-gray-100 mt-4"></div>
+          <AlikeProducts />
+        </>
+      )}
+
+      <div className="border-t-8 border-gray-100 mt-4"></div>
+
+      <RelatedProducts product={product} />
+
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 p-3 flex justify-between items-center"
+        style={{
+          background:
+            "linear-gradient(to top, white, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0) 97%)",
+          zIndex: 9999,
+        }}
+        onClick={(e) => e.stopPropagation()} // Prevents background clicks from propagating
+      >
+        {!selectedSize || !selectedColor ? (
+          // Prompt user to select size and color
+          <button
+            onClick={() => {
+              toast.error("Please select size and color");
+            }}
+            className={`bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out`}
+          >
+            Add to Cart
+          </button>
+        ) : !isAddedToCart ? (
+          // The "Add to Cart" button
+          <button
+            onClick={() => {
+              handleAddToCart();
+              setAnimateCart(true); // Trigger the animation
+            }}
+            className={`bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out`}
+          >
+            Add to Cart
+          </button>
+        ) : (
+          // The Remove and Quantity controls
+          <div
+            className={`flex w-full justify-between transition-all duration-500 ease-in-out transform ${
+              animateCart
+                ? "translate-x-0 opacity-100"
+                : "translate-x-full opacity-0"
+            }`}
+          >
+            <button
+              onClick={handleRemoveFromCart}
+              className="text-black open-sans mr-4 bg-gray-100 rounded-full h-14 w-52 text-md font-bold"
+            >
+              Remove
+            </button>
+            <div className="flex space-x-4 items-center">
+              <button
+                onClick={handleDecreaseQuantity}
+                className="flex items-center justify-center w-12 h-12 opacity-40 bg-customOrange text-white text-3xl rounded-full"
+              >
+                <FiMinus />
+              </button>
+              <span className="font-opensans font-semibold text-lg">
+                {quantity}
+              </span>
+              <button
+                onClick={handleIncreaseQuantity}
+                className="flex items-center justify-center w-12 h-12 bg-customOrange text-white text-3xl rounded-full"
+              >
+                <FiPlus />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+    
   );
 };
 

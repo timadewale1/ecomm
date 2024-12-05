@@ -1,26 +1,49 @@
 {
-    "routes": [
-      {
-        "src": "/product/(.*)",
-        "has": [
-          { "type": "header", "key": "user-agent", "value": "(bot|crawler|spider|crawling)" }
-        ],
-        "dest": "/api/middleware"
-      },
-      {
-        "src": "/store/(.*)",
-        "has": [
-          { "type": "header", "key": "user-agent", "value": "(bot|crawler|spider|crawling)" }
-        ],
-        "dest": "/api/middleware"
-      },
-      {
-        "src": "/marketstorepage/(.*)",
-        "has": [
-          { "type": "header", "key": "user-agent", "value": "(bot|crawler|spider|crawling)" }
-        ],
-        "dest": "/api/middleware"
-      }
-    ]
-  }
-  
+  "rewrites": [
+    {
+      "source": "/product/:path*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(bot|crawler|spider|crawling)"
+        }
+      ],
+      "destination": "/api/middleware"
+    },
+    {
+      "source": "/store/:path*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(bot|crawler|spider|crawling)"
+        }
+      ],
+      "destination": "/api/middleware"
+    },
+    {
+      "source": "/marketstorepage/:path*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(bot|crawler|spider|crawling)"
+        }
+      ],
+      "destination": "/api/middleware"
+    },
+    {
+      "source": "/static/:path*",
+      "destination": "/static/:path*"
+    },
+    {
+      "source": "/manifest.json",
+      "destination": "/manifest.json"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/index.html"
+    }
+  ]
+}

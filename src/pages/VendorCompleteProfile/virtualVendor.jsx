@@ -133,17 +133,17 @@ const VirtualVendor = ({
   const [selectedState, setSelectedState] = useState("");
   const [banks, setBanks] = useState([]);
   const [isResolving, setIsResolving] = useState(false); // Loader for account resolution
-  const [token] = useState(process.env.REACT_APP_PAYSTACK_SECRET_KEY);
-  useEffect(() => {
-    const fetchBanks = async () => {
-      console.log("Fetching banks...");
-      const bankList = await fetchBankList(token);
-      console.log("Bank list received in VirtualVendor:", bankList);
-      setBanks(bankList);
-    };
 
-    fetchBanks();
-  }, [token]);
+  // useEffect(() => {
+  //   const fetchBanks = async () => {
+  //     console.log("Fetching banks...");
+  //     const bankList = await fetchBankList(token);
+  //     console.log("Bank list received in VirtualVendor:", bankList);
+  //     setBanks(bankList);
+  //   };
+
+  //   fetchBanks();
+  // }, [token]);
   const toTitleCase = (str) => {
     return str
       .toLowerCase()
@@ -238,7 +238,8 @@ const VirtualVendor = ({
   );
   const handleResolveAccount = async () => {
     const { accountNumber } = bankDetails;
-
+    const token =
+      "d4f6f60628bfc7bdc540b58dda56067333685de482d8ec416581bc5bbb65aaa2";
     if (!accountNumber || accountNumber.length !== 10) {
       toast.error("Please enter a valid 10-digit account number.");
       console.error("Validation Error: Invalid account number provided.");
@@ -249,22 +250,16 @@ const VirtualVendor = ({
       setIsResolving(true);
       console.log("Resolving account for account number:", accountNumber);
 
-      const payload = JSON.stringify({ accountNumber });
-      console.log("Payload sent:", payload);
+      // Correct the URL to use the account number directly in the path
+      const url = `https://mythrift-payments.fly.dev/api/v1/resolveAccount/${accountNumber}`;
 
-      console.log("Token used:", token);
-
-      const response = await fetch(
-        `https://mythrift-payments.fly.dev/api/v1/resolveAccount`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: payload,
-        }
-      );
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`, // Include your bearer token here
+          // No need for 'Content-Type' header in a GET request
+        },
+      });
 
       console.log("Resolve account response:", response);
 

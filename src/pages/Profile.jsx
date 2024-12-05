@@ -119,7 +119,7 @@ const Profile = () => {
       console.log("Cart cleared in Redux and localStorage");
 
       toast.success("Successfully logged out", { className: "custom-toast" });
-      navigate("/login");
+      navigate("/newhome");
     } catch (error) {
       console.error("Error logging out:", error);
       toast.error("Error logging out", { className: "custom-toast" });
@@ -338,43 +338,44 @@ const Profile = () => {
               <ChevronRight className="text-black" />
             </div>
           </div>
+          <div className="flex flex-col items-center px-2 w-full">
+            {currentUser && (
+              <div
+                className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
+                onClick={handleLogout}
+              >
+                <div className="flex items-center justify-between w-full px-4 py-3">
+                  <PiSignOutBold className="text-red-600 text-xl mr-4" />
+                  <p className="text-size text-black font-opensans w-full font-normal">
+                    Sign Out
+                  </p>
 
-          {currentUser && (
-            <div
-              className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
-              onClick={handleLogout}
-            >
-              <div className="flex items-center justify-between w-full px-4 py-3">
-                <PiSignOutBold className="text-red-600 text-xl mr-4" />
-                <p className="text-size text-black font-opensans w-full font-normal">
-                  Sign Out
-                </p>
-
-                {isLoggingOut && (
-                  <RotatingLines
-                    strokeColor="#f9531e"
-                    strokeWidth="5"
-                    animationDuration="0.75"
-                    width="24"
-                    visible={true}
-                  />
-                )}
+                  {isLoggingOut && (
+                    <RotatingLines
+                      strokeColor="#f9531e"
+                      strokeWidth="5"
+                      animationDuration="0.75"
+                      width="24"
+                      visible={true}
+                    />
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-          {!currentUser && (
-            <div
-              className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
-              onClick={() => navigate("/login")}
-            >
-              <div className="flex items-center justify-between w-full px-4 py-3">
-                <PiSignOutBold className="text-green-600 text-xl mr-4" />
-                <p className="text-size text-black font-opensans w-full font-normal">
-                  Login
-                </p>
+            )}
+            {!currentUser && (
+              <div
+                className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
+                onClick={() => navigate("/login")}
+              >
+                <div className="flex items-center justify-between w-full px-4 py-3">
+                  <PiSignOutBold className="text-green-600 text-xl mr-4" />
+                  <p className="text-size text-black font-opensans w-full font-normal">
+                    Login
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       ) : (
         <>

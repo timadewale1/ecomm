@@ -21,6 +21,20 @@
         ],
         "dest": "/api/middleware"
       }
-    ]
+    ],
+    "rewrites": [
+    {
+      "source": "/static/*",
+      "destination": "/static/*"
+    },
+    {
+      "source": "/manifest.json",
+      "destination": "/manifest.json"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
   }
   

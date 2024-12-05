@@ -68,5 +68,5 @@ module.exports = async function handler(req, res) {
   }
 
   // Serve the React app for regular users
-  res.status(200).sendFile("index.html", { root: "./public" });
+  return res.end();
 };

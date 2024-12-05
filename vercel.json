@@ -1,0 +1,26 @@
+{
+    "routes": [
+      {
+        "src": "/product/(.*)",
+        "has": [
+          { "type": "header", "key": "user-agent", "value": "(bot|crawler|spider|crawling)" }
+        ],
+        "dest": "/api/middleware"
+      },
+      {
+        "src": "/store/(.*)",
+        "has": [
+          { "type": "header", "key": "user-agent", "value": "(bot|crawler|spider|crawling)" }
+        ],
+        "dest": "/api/middleware"
+      },
+      {
+        "src": "/marketstorepage/(.*)",
+        "has": [
+          { "type": "header", "key": "user-agent", "value": "(bot|crawler|spider|crawling)" }
+        ],
+        "dest": "/api/middleware"
+      }
+    ]
+  }
+  

@@ -32,18 +32,6 @@
         }
       ],
       "destination": "/api/middleware"
-    },
-    {
-      "source": "/static/:path*",
-      "destination": "/static/:path*"
-    },
-    {
-      "source": "/manifest.json",
-      "destination": "/manifest.json"
-    },
-    {
-      "source": "/:path*",
-      "destination": "/index.html"
     }
   ]
 }

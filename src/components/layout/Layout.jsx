@@ -8,6 +8,7 @@ import { NavigationProvider } from "../Context/Bottombarcontext";
 import { VendorNavigationProvider } from "../Context/VendorBottomBarCtxt";
 import phoneTransition from "../../Animations/PhoneTransitionScene.json";
 import Lottie from "lottie-react";
+import ScrollToTop from "./ScrollToTop";
 
 const Layout = () => {
   const location = useLocation();
@@ -98,7 +99,8 @@ const Layout = () => {
       <VendorNavigationProvider>
         {isMobile ? (
           <>
-            <div>
+            <div className="pb-1">
+              <ScrollToTop />
               <Routers />
             </div>
             {!hideBottomBar &&

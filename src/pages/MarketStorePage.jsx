@@ -22,10 +22,12 @@ import { FaSpinner, FaStar } from "react-icons/fa6";
 import toast from "react-hot-toast";
 import ProductCard from "../components/Products/ProductCard";
 import Loading from "../components/Loading/Loading";
-import { CiSearch } from "react-icons/ci";
+import { CiLogin, CiSearch } from "react-icons/ci";
+import { useAuth } from "../custom-hooks/useAuth";
 import { MdCancel, MdClose } from "react-icons/md";
 import { LuListFilter } from "react-icons/lu";
 import Lottie from "lottie-react";
+import { LiaTimesSolid } from "react-icons/lia";
 const ReviewBanner = () => {
   const [isVisible, setIsVisible] = useState(false);
   useEffect(() => {
@@ -73,9 +75,10 @@ const MarketStorePage = () => {
   const [favorites, setFavorites] = useState({});
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  // const [currentUser, setCurrentUser] = useState(null);
+  const { currentUser } = useAuth();
   const [sortOption, setSortOption] = useState(null); // Add this line
-
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false); // Add this line
   const [selectedType, setSelectedType] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -145,17 +148,17 @@ const MarketStorePage = () => {
     checkIfFollowing();
   }, [currentUser, vendor]);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setCurrentUser(user);
-      } else {
-        setCurrentUser(null);
-      }
-    });
+  // useEffect(() => {
+  //   const unsubscribe = onAuthStateChanged(auth, (user) => {
+  //     if (user) {
+  //       setCurrentUser(user);
+  //     } else {
+  //       setCurrentUser(null);
+  //     }
+  //   });
 
-    return () => unsubscribe();
-  }, []);
+  //   return () => unsubscribe();
+  // }, []);
 
   const fetchVendorProducts = async (productIds) => {
     try {
@@ -212,7 +215,44 @@ const MarketStorePage = () => {
     });
 
   // Handle follow/unfollow vendor
+  // const handleFollowClick = async () => {
+  //   try {
+  //     setIsFollowLoading(true); // Start loading
+  //     if (!vendor?.id) {
+  //       throw new Error("Vendor ID is undefined");
+  //     }
+
+  //     const followRef = collection(db, "follows");
+  //     const followDocRef = doc(followRef, `${currentUser.uid}_${vendor.id}`);
+
+  //     if (!isFollowing) {
+  //       // Add follow entry
+  //       await setDoc(followDocRef, {
+  //         userId: currentUser.uid,
+  //         vendorId: vendor.id,
+  //         createdAt: new Date(),
+  //       });
+  //       toast.success("You will be notified of new products and promos.");
+  //     } else {
+  //       // Unfollow
+  //       await deleteDoc(followDocRef);
+  //       toast.success("Unfollowed");
+  //     }
+
+  //     setIsFollowing(!isFollowing);
+  //   } catch (error) {
+  //     console.error("Error following/unfollowing:", error.message);
+  //     toast.error(`Error following/unfollowing: ${error.message}`);
+  //   } finally {
+  //     setIsFollowLoading(false); // End loading
+  //   }
+  // };
   const handleFollowClick = async () => {
+    if (!currentUser) {
+      setIsLoginModalOpen(true); // Show login modal
+      return; // Exit the function early
+    }
+
     try {
       setIsFollowLoading(true); // Start loading
       if (!vendor?.id) {
@@ -244,7 +284,17 @@ const MarketStorePage = () => {
       setIsFollowLoading(false); // End loading
     }
   };
+  useEffect(() => {
+    if (isLoginModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
 
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isLoginModalOpen]);
   const handleFavoriteToggle = (productId) => {
     setFavorites((prevFavorites) => {
       const isFavorited = prevFavorites[productId];
@@ -299,7 +349,10 @@ const MarketStorePage = () => {
               navigate("/confirm-user-state");
             }
           }} // Disable button when loading
-        > Go Back</button>
+        >
+          {" "}
+          Go Back
+        </button>
       </div>
     );
   }
@@ -539,6 +592,62 @@ const MarketStorePage = () => {
           </div>
         )}
       </div>
+      {isLoginModalOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsLoginModalOpen(false);
+            }
+          }}
+        >
+          <div
+            className="bg-white w-9/12 max-w-md rounded-lg px-3 py-4 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex space-x-4">
+                <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
+                  <CiLogin className="text-customRichBrown" />
+                </div>
+                <h2 className="text-lg font-opensans font-semibold">
+                  Please Log In
+                </h2>
+              </div>
+              <LiaTimesSolid
+                onClick={() => setIsLoginModalOpen(false)}
+                className="text-black text-xl mb-6 cursor-pointer"
+              />
+            </div>
+            <p className="mb-6 text-xs font-opensans text-gray-800 ">
+              You need to be logged in to follow this vendor to recieve notifications. Please log in to
+              your account, or create a new account if you don’t have one, to
+              continue.
+            </p>
+            <div className="flex space-x-16">
+              <button
+                onClick={() => {
+                  navigate("/signup");
+                  setIsLoginModalOpen(false);
+                }}
+                className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border-1 rounded-full"
+              >
+                Sign Up
+              </button>
+              <button
+                onClick={() => {
+                  navigate("/login");
+                  setIsLoginModalOpen(false);
+                }}
+                className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
+              >
+                Login
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

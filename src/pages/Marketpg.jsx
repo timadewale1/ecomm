@@ -171,7 +171,7 @@ const Marketpg = () => {
               : "bg-transparent border-gray-200 font-medium border-2 text-black"
           }`}
         >
-          Local Vendors
+          Market Vendors
         </button>
       </div>
         </div>

@@ -21,11 +21,13 @@ import Productnotfund from "../Animations/productnotfound.json";
 import toast from "react-hot-toast";
 import ProductCard from "../components/Products/ProductCard";
 import Loading from "../components/Loading/Loading";
+import { useAuth } from "../custom-hooks/useAuth";
 import { FaSpinner, FaStar } from "react-icons/fa6";
-import { CiSearch } from "react-icons/ci";
+import { CiLogin, CiSearch } from "react-icons/ci";
 import { MdCancel, MdClose } from "react-icons/md";
 import { LuListFilter } from "react-icons/lu";
 import Lottie from "lottie-react";
+import { LiaTimesSolid } from "react-icons/lia";
 const ReviewBanner = () => {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -72,35 +74,37 @@ const StorePage = () => {
   const [vendor, setVendor] = useState(null);
   const [products, setProducts] = useState([]);
   const [favorites, setFavorites] = useState({});
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  const { currentUser } = useAuth();
+  // const [currentUser, setCurrentUser] = useState(null);
+
   const [selectedType, setSelectedType] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [viewOptions, setViewOptions] = useState(false)
+  const [viewOptions, setViewOptions] = useState(false);
   // Add this line along with your other useState declarations
   const [sortOption, setSortOption] = useState(null); // 'priceAsc' or 'priceDesc'
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    
     const fetchVendorData = async () => {
       try {
         // Set loading state to true
         setLoading(true);
-        
+
         // Fetch vendor data using the vendor ID
         const vendorRef = doc(db, "vendors", id);
         const vendorDoc = await getDoc(vendorRef);
-        
+
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
           vendorData.id = vendorDoc.id; // Ensure we have the vendor's document ID
           setVendor(vendorData);
-          
+
           // If the vendor has productIds, use them to fetch products
           if (vendorData.productIds && vendorData.productIds.length > 0) {
             await fetchVendorProducts(vendorData.productIds); // Fetch the vendor's products
@@ -121,8 +125,6 @@ const StorePage = () => {
       }
     };
 
-    
-    
     fetchVendorData(); // Fetch vendor data on mount
   }, [id]); // Depend on vendor ID and current user state
 
@@ -153,19 +155,24 @@ const StorePage = () => {
     checkIfFollowing();
   }, [currentUser, vendor]);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setCurrentUser(user);
-      } else {
-        setCurrentUser(null);
-      }
-    });
+  // useEffect(() => {
+  //   const unsubscribe = onAuthStateChanged(auth, (user) => {
+  //     if (user) {
+  //       setCurrentUser(user);
+  //     } else {
+  //       setCurrentUser(null);
+  //     }
+  //   });
 
-    return () => unsubscribe();
-  }, []);
+  //   return () => unsubscribe();
+  // }, []);
 
   const handleFollowClick = async () => {
+    if (!currentUser) {
+      setIsLoginModalOpen(true); // Show login modal
+      return; // Exit the function early
+    }
+
     try {
       setIsFollowLoading(true); // Start loading
       if (!vendor?.id) {
@@ -194,9 +201,20 @@ const StorePage = () => {
       console.error("Error following/unfollowing:", error.message);
       toast.error(`Error following/unfollowing: ${error.message}`);
     } finally {
-      setIsFollowLoading(false);
+      setIsFollowLoading(false); // End loading
     }
   };
+  useEffect(() => {
+    if (isLoginModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isLoginModalOpen]);
 
   const handleFavoriteToggle = (productId) => {
     setFavorites((prevFavorites) => {
@@ -302,7 +320,10 @@ const StorePage = () => {
               navigate("/confirm-user-state");
             }
           }} // Disable button when loading
-        > Go Back</button>
+        >
+          {" "}
+          Go Back
+        </button>
       </div>
     );
   }
@@ -449,48 +470,48 @@ const StorePage = () => {
         {loading ? <Skeleton count={2} /> : vendor.description}
       </p>
       <div className="p-2 mt-7">
-      <div className="flex items-center mb-3 justify-between">
+        <div className="flex items-center mb-3 justify-between">
           <h1 className="font-opensans text-lg  font-semibold">Products</h1>
           <div className="relative">
-              {viewOptions && (
-                <div className="z-50 absolute bg-white w-44 h-20 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-24 top-2 p-3 flex flex-col justify-between">
-                  <span
-                    className={`text-xs font-opensans ml-2 cursor-pointer ${
-                      sortOption === "priceAsc"
-                        ? "text-customOrange"
-                        : "text-black"
-                    }`}
-                    onClick={() => {
-                      setSortOption("priceAsc");
-                      setViewOptions(!viewOptions);
-                    }}
-                  >
-                    Low to High
-                  </span>
-                  <hr className="text-slate-300" />
-                  <span
-                    className={`text-xs font-opensans ml-2 cursor-pointer ${
-                      sortOption === "priceDesc"
-                        ? "text-customOrange"
-                        : "text-black"
-                    }`}
-                    onClick={() => {
-                      setSortOption("priceDesc");
-                      setViewOptions(!viewOptions);
-                    }}
-                  >
-                    High to Low
-                  </span>
-                </div>
-              )}
-              <span className="flex text-xs font-opensans items-center">
-                Sort by Price: {" "}
+            {viewOptions && (
+              <div className="z-50 absolute bg-white w-44 h-20 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-24 top-2 p-3 flex flex-col justify-between">
+                <span
+                  className={`text-xs font-opensans ml-2 cursor-pointer ${
+                    sortOption === "priceAsc"
+                      ? "text-customOrange"
+                      : "text-black"
+                  }`}
+                  onClick={() => {
+                    setSortOption("priceAsc");
+                    setViewOptions(!viewOptions);
+                  }}
+                >
+                  Low to High
+                </span>
+                <hr className="text-slate-300" />
+                <span
+                  className={`text-xs font-opensans ml-2 cursor-pointer ${
+                    sortOption === "priceDesc"
+                      ? "text-customOrange"
+                      : "text-black"
+                  }`}
+                  onClick={() => {
+                    setSortOption("priceDesc");
+                    setViewOptions(!viewOptions);
+                  }}
+                >
+                  High to Low
+                </span>
+              </div>
+            )}
+            <span className="flex text-xs font-opensans items-center">
+              Sort by Price:{" "}
               <LuListFilter
                 className="text-customOrange cursor-pointer ml-1"
                 onClick={() => setViewOptions(!viewOptions)}
               />
-              </span>
-            </div>
+            </span>
+          </div>
         </div>
         <div className="flex  mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
           {productTypes.map((type) => (
@@ -507,7 +528,6 @@ const StorePage = () => {
             </button>
           ))}
         </div>
-        
 
         {loading ? (
           <div className="grid mt-2 grid-cols-2 gap-2">
@@ -540,6 +560,62 @@ const StorePage = () => {
           </div>
         )}
       </div>
+      {isLoginModalOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsLoginModalOpen(false);
+            }
+          }}
+        >
+          <div
+            className="bg-white w-9/12 max-w-md rounded-lg px-3 py-4 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex space-x-4">
+                <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
+                  <CiLogin className="text-customRichBrown" />
+                </div>
+                <h2 className="text-lg font-opensans font-semibold">
+                  Please Log In
+                </h2>
+              </div>
+              <LiaTimesSolid
+                onClick={() => setIsLoginModalOpen(false)}
+                className="text-black text-xl mb-6 cursor-pointer"
+              />
+            </div>
+            <p className="mb-6 text-xs font-opensans text-gray-800 ">
+              You need to be logged in to follow this vendor to recieve
+              notifications. Please log in to your account, or create a new
+              account if you don’t have one, to continue.
+            </p>
+            <div className="flex space-x-16">
+              <button
+                onClick={() => {
+                  navigate("/signup");
+                  setIsLoginModalOpen(false);
+                }}
+                className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border-1 rounded-full"
+              >
+                Sign Up
+              </button>
+              <button
+                onClick={() => {
+                  navigate("/login");
+                  setIsLoginModalOpen(false);
+                }}
+                className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
+              >
+                Login
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { useLocation, matchPath } from "react-router-dom";
 import Routers from "../../routers/Routers";
 import BottomBar from "../BottomBar/BottomBar";
@@ -8,7 +8,11 @@ import { NavigationProvider } from "../Context/Bottombarcontext";
 import { VendorNavigationProvider } from "../Context/VendorBottomBarCtxt";
 import phoneTransition from "../../Animations/PhoneTransitionScene.json";
 import Lottie from "lottie-react";
+
+import { AccessContext } from "../Context/AccesContext";
+
 import ScrollToTop from "./ScrollToTop";
+
 
 const Layout = () => {
   const location = useLocation();
@@ -29,7 +33,7 @@ const Layout = () => {
     "/newcheckout/fulldelivery",
     "/user-dashboard",
     "/search",
-
+    "*/",
     "/vendor-reviews",
     "/notifications",
     "/favorites",
@@ -43,7 +47,7 @@ const Layout = () => {
     "/payment-approve",
     "/terms-and-conditions",
     "/privacy-policy",
-    "/store-reviews",
+    "/store-reviews"
   ];
 
   // Paths with dynamic segments
@@ -69,14 +73,19 @@ const Layout = () => {
     isDynamicPath(location.pathname) || // Match dynamic paths
     location.state?.fromProductDetail; // Hide when navigated from product detail
 
+  // Get hideBottomBar from AccessContext
+  const { hideBottomBar: hideBottomBarFromContext } = useContext(AccessContext);
+
+  // Combine local and context hideBottomBar
+  const shouldHideBottomBar = hideBottomBar || hideBottomBarFromContext;
+
   // List of vendor paths
   const vendorPaths = [
     "/vendordashboard",
     "/vendor-orders",
-    "/vendor-reviews",
-    // "/ confirm-user-state",
-    "/vendor-products",
+    "/store-reviews",
     "/vendor-profile",
+    "/vendor-products"
   ];
 
   const isVendorPath = vendorPaths.includes(location.pathname);
@@ -103,7 +112,7 @@ const Layout = () => {
               <ScrollToTop />
               <Routers />
             </div>
-            {!hideBottomBar &&
+            {!shouldHideBottomBar &&
               (isVendorPath ? (
                 <VendorBottomBar />
               ) : (

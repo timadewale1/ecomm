@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { updateProfile } from "firebase/auth";
 import { auth, db } from "../../firebase.config";
 import toast from "react-hot-toast";
-import { doc, updateDoc, getDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc, collection } from "firebase/firestore";
 import {
   FaTimes,
   FaEye,
@@ -52,19 +52,36 @@ const ProfileDetails = ({
   const navigate = useNavigate();
 
   useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const userRef = doc(db, "users", currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          // Update Redux store with fetched user data
+          dispatch(updateUserData(data));
+          setLoading(false);
+        } else {
+          // Handle case where user data does not exist in Firestore
+          console.error("No such user data!");
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        setLoading(false);
+      }
+    };
+
     if (userData) {
       setUsername(userData.username || "");
-      setDisplayName(userData.displayName || "");
-      setPhoneNumber(userData.phoneNumber || "");
-      setBirthday(userData.birthday || "");
-      setAddress(userData.address || "");
+      // ... other fields
       setLoading(false);
     } else if (!currentUser) {
       // User is not authenticated
       setLoading(false);
     } else {
       // User is authenticated but userData is not yet available
-      setLoading(true);
+      fetchUserData();
     }
   }, [userData, currentUser]);
 
@@ -107,7 +124,8 @@ const ProfileDetails = ({
         <div className="px-20 flex-col flex justify-center items-center">
           <Productnotofund />
           <p className="text-center text-sm text-gray-800 font-opensans mb-4">
-           Oops! You cannot view profile details at the moment because no user is logged in.
+            Oops! You cannot view profile details at the moment because no user
+            is logged in.
           </p>
           <button
             className="bg-customOrange font-opensans text-white px-4 py-2 rounded-full"

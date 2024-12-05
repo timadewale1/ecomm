@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import ProductDetailPage from "../pages/UserSide/ProductDetail";
 import Login from "../pages/Login";
 import Signup from "../pages/Signup";
@@ -25,7 +25,6 @@ import EmailVerification from "../pages/UserSide/ConfirmEmail.jsx";
 import LatestCart from "../pages/Cart.jsx";
 import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
 import OrdersCentre from "../pages/UserSide/OrdersCentre.jsx";
-// import VendorReviews from "../pages/vendor/VendorReviews.jsx";
 import Checkout from "../pages/NewCheckout.jsx";
 import MarketVendors from "../pages/MarketVendors.jsx";
 import Profile from "../pages/Profile.jsx";
@@ -41,78 +40,183 @@ import SearchPage from "../pages/UserSide/Searchpage.jsx";
 import ErrorBoundary from "../components/Errorboundary.jsx";
 import TermsAndConditions from "../pages/Legal/TermsAndConditions.jsx";
 import PrivacyPolicy from "../pages/Legal/PrivacyPolicy.jsx";
-import NotFound from "../pages/NotFound"; // Import the NotFound component
+import NotFound from "../pages/NotFound";
 import StoreReviews from "../pages/vendor/StoreReviews.jsx";
+import RoleBasedAccess from "../custom-hooks/Rbac.jsx"; // Assuming this is the RoleBasedAccess component
 
 const Routers = () => {
   return (
     <Routes>
       {/* Default Route */}
       <Route path="/" element={<NewHome />} />
-      {/* Updated default route */}
+
       {/* Public Routes */}
-      <Route path="/search" element={<SearchPage />} />
+
       <Route path="/confirm-state" element={<ConfirmUserState />} />
       <Route path="product/:id" element={<ProductDetailPage />} />
       <Route path="signup" element={<Signup />} />
       <Route path="vendor-signup" element={<VendorSignup />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="favorites" element={<FavoritesPage />} />
-      <Route path="market-card/:marketName" element={<Marketcardpage />} />
-      <Route path="explore" element={<Explore />} />
-      <Route path="/reviews/:id" element={<VendorRatings />} />
-      <Route path="latest-cart" element={<LatestCart />} />
-      <Route path="notifications" element={<NotificationsPage />} />
-      <Route path="newhome" element={<NewHome />} />
-      <Route path="user-orders" element={<OrdersCentre />} />
       <Route path="login" element={<Login />} />
       <Route path="vendorlogin" element={<VendorLogin />} />
       <Route path="complete-profile" element={<CompleteProfile />} />
-      <Route
-        path="browse-markets"
-        element={
-          <ErrorBoundary>
-            <Marketpg />
-          </ErrorBoundary>
-        }
-      />
-      <Route path="terms-and-conditions" element={<TermsAndConditions />} />
-      <Route path="privacy-policy" element={<PrivacyPolicy />} />
-      <Route path="market-vendors" element={<MarketVendors />} />
-      <Route path="online-vendors" element={<OnlineVendors />} />
       <Route path="/forgetpassword" element={<ForgetPassword />} />
       <Route path="reset-password" element={<ResetPassword />} />
       <Route path="/confirm-email" element={<EmailVerification />} />
       <Route path="/auth-action" element={<AuthActionHandler />} />
-      <Route path="/store/:id" element={<StorePage />} />
-      <Route path="/category/:category" element={<CategoryPage />} />
-      <Route path="/vendor-verify-otp" element={<VendorVerifyOTP />} />
-      <Route path="marketstorepage/:id" element={<MarketStorePage />} />
+      <Route path="terms-and-conditions" element={<TermsAndConditions />} />
+      <Route path="privacy-policy" element={<PrivacyPolicy />} />
+
+      {/* Apply Role-Based Access to Specific Routes */}
+      <Route
+        path="/profile"
+        element={
+          <RoleBasedAccess allowedRoles={["user"]}>
+            <Profile />
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="/newhome"
+        element={
+          <RoleBasedAccess allowedRoles={["user"]}>
+            <NewHome />
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="favorites"
+        element={
+          <RoleBasedAccess allowedRoles={["user"]}>
+            <FavoritesPage />
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="search"
+        element={
+          <RoleBasedAccess allowedRoles={["user"]}>
+            <SearchPage />
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="user-orders"
+        element={
+          <RoleBasedAccess allowedRoles={["user"]}>
+            <OrdersCentre />
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="latest-cart"
+        element={
+          <RoleBasedAccess allowedRoles={["user"]}>
+            <LatestCart />
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="notifications"
+        element={
+          <RoleBasedAccess allowedRoles={["user"]}>
+            <NotificationsPage />
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="marketstorepage/:id"
+        element={
+          <RoleBasedAccess allowedRoles={["user", null]}>
+            <MarketStorePage />
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="/store/:id"
+        element={
+          <RoleBasedAccess allowedRoles={["user", null]}>
+            <StorePage />
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="/category/:category"
+        element={
+          <RoleBasedAccess allowedRoles={["user", null]}>
+            <CategoryPage />
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="market-vendors"
+        element={
+          <RoleBasedAccess allowedRoles={["user", null]}>
+            <MarketVendors />
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="online-vendors"
+        element={
+          <RoleBasedAccess allowedRoles={["user", null]}>
+            <OnlineVendors />
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="browse-markets"
+        element={
+          <RoleBasedAccess allowedRoles={["user", null]}>
+            <ErrorBoundary>
+              <Marketpg />
+            </ErrorBoundary>
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="market-card/:marketName"
+        element={
+          <RoleBasedAccess allowedRoles={["user", null]}>
+            <Marketcardpage />
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="explore"
+        element={
+          <RoleBasedAccess allowedRoles={["user", null]}>
+            <Explore />
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="/reviews/:id"
+        element={
+          <RoleBasedAccess allowedRoles={["user", null]}>
+            <VendorRatings />
+          </RoleBasedAccess>
+        }
+      />
+
       {/* Vendor Protected Routes */}
       <Route element={<ProtectedRoute requiredRole="vendor" />}>
         <Route path="vendordashboard" element={<VendorDashboard />} />
         <Route path="vendor-profile" element={<VendorProfile />} />
-        {/* <Route path="vendor-reviews" element={<VendorReviews />} /> */}
         <Route path="vendor-products" element={<VendorProducts />} />
         <Route path="vendor-orders" element={<VendorOrders />} />
         <Route path="/store-reviews" element={<StoreReviews />} />
         {/* Add any other vendor-specific protected routes here */}
       </Route>
+
       {/* User Protected Routes */}
       <Route element={<ProtectedRoute requiredRole="user" />}>
-        
-
         <Route path="newcheckout/:vendorId" element={<Checkout />} />
-      
-        {/* <Route path="newcheckout/fulldelivery" element={<FullDelivery />} /> */}
-
         <Route path="donate" element={<Donate />} />
         <Route path="payment-approve" element={<PaymentApprove />} />
-
         <Route path="user-dashboard" element={<UserDashboard />} />
-       
         {/* Add any other user-specific protected routes here */}
       </Route>
+
       {/* Catch-all Route for NotFound */}
       <Route path="*" element={<NotFound />} />
     </Routes>

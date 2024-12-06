@@ -17,6 +17,7 @@ import Modal from "react-modal";
 import { FiPlus } from "react-icons/fi";
 import { FiMinus } from "react-icons/fi";
 import { TbSquareRoundedCheck } from "react-icons/tb";
+import Badge from "../../components/Badge/Badge";
 import { MdOutlineCancel } from "react-icons/md";
 import "swiper/css/free-mode";
 import "swiper/css/autoplay";
@@ -343,7 +344,6 @@ const ProductDetailPage = () => {
     : `${window.location.origin}/logo512.png`;
   const metaUrl = encodeURI(`${window.location.origin}/product/${id}`);
 
-
   const handleDisclaimer = () => {
     const userAgreed = window.confirm(
       "Important Disclaimer: By agreeing to purchase this product, you acknowledge that it may have defects as described by the vendor. My Thrift does not assume any responsibility for any damages or defects associated with the product. The vendor has disclosed the condition of the product, and by proceeding with the purchase, you agree to accept the product in its current condition."
@@ -612,7 +612,18 @@ const ProductDetailPage = () => {
       (variant) => variant.size === selectedSize && variant.color === color
     );
   };
-
+  const cartItemCount = Object.values(cart || {}).reduce(
+    (vendorAcc, vendor) => {
+      if (!vendor.products) return vendorAcc;
+      return (
+        vendorAcc +
+        Object.values(vendor.products).reduce((productAcc, product) => {
+          return productAcc + (product.quantity || 0);
+        }, 0)
+      );
+    },
+    0
+  );
   // Handle color selection
 
   const updateSizes = (color) => {
@@ -878,9 +889,7 @@ const ProductDetailPage = () => {
   );
 
   return (
-    
-
-      <div className="relative pb-20">
+    <div className="relative pb-20">
       <div
         className={`fixed top-0 px-2 py-4 bg-white left-0 h-20 w-full z-20 shadow-md`} // Added shadow here
       >
@@ -909,6 +918,9 @@ const ProductDetailPage = () => {
               }
               className="text-2xl cursor-pointer "
             />
+            <div className="top-6 absolute right-0">
+              <Badge count={cartItemCount} />
+            </div>
           </div>
         </div>
       </div>
@@ -1070,7 +1082,9 @@ const ProductDetailPage = () => {
                   }`}
                   style={{ position: "relative" }}
                 >
-                  <span className="text-xs font-opensans font-semibold">{size}</span>
+                  <span className="text-xs font-opensans font-semibold">
+                    {size}
+                  </span>
                   {!inStock && (
                     <span
                       className="absolute inset-0 animate-pulse flex items-center justify-center bg-gray-800 bg-opacity-50  text-customOrange font-opensans font-semibold text-xs text-center rounded-lg"
@@ -1196,7 +1210,6 @@ const ProductDetailPage = () => {
         )}
       </div>
     </div>
-    
   );
 };
 

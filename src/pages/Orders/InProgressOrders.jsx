@@ -10,7 +10,7 @@ import notifyOrderStatusChange from "../../services/notifyorderstatus";
 import { FaTruck } from "react-icons/fa6";
 import { RotatingLines } from "react-loader-spinner";
 import { MdOutlineClose } from "react-icons/md";
-
+import addActivityNote from "../../services/activityNotes";
 const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
   const [productImages, setProductImages] = useState({});
   const [imageIndexes, setImageIndexes] = useState({});
@@ -136,10 +136,10 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
 
     return () => clearInterval(interval);
   }, [orders, productImages]);
+
   const handleSend = async () => {
     if (!riderName || !riderNumber) {
       toast.dismiss();
-
       toast.error("Please fill in both Rider's Name and Rider's Number.", {
         duration: 3000,
       });
@@ -148,40 +148,32 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
 
     setIsSending(true);
     try {
-      // Find the order in the orders array
+      console.log("Fetching order details...");
       const order = orders.find((o) => o.id === selectedOrderId);
 
       if (!order) {
+        console.error("Order not found in the provided orders array.");
         throw new Error("Order not found in orders array.");
       }
 
-      // Retrieve userId from order.userId or order.userInfo.uid
       const userId = order.userId || order.userInfo?.uid;
-
       if (!userId) {
+        console.error("User ID is undefined in the order:", order);
         throw new Error("User ID is undefined.");
       }
 
-      // Get vendorName
+      console.log("Fetching vendor name...");
       let vendorName = order.vendorName;
-
-      if (!vendorName) {
-        // Fetch vendor name from Firestore using order.vendorId
-        if (order.vendorId) {
-          const vendorRef = doc(db, "vendors", order.vendorId);
-          const vendorSnap = await getDoc(vendorRef);
-          if (vendorSnap.exists()) {
-            const vendorData = vendorSnap.data();
-            vendorName = vendorData.shopName || "Unknown Vendor";
-          } else {
-            vendorName = "Unknown Vendor";
-          }
-        } else {
-          vendorName = "Unknown Vendor";
+      if (!vendorName && order.vendorId) {
+        const vendorRef = doc(db, "vendors", order.vendorId);
+        const vendorSnap = await getDoc(vendorRef);
+        if (vendorSnap.exists()) {
+          const vendorData = vendorSnap.data();
+          vendorName = vendorData.shopName || "Unknown Vendor";
         }
       }
 
-      // Fetch vendor cover image
+      console.log("Fetching vendor cover image...");
       let vendorCoverImage = null;
       if (order.vendorId) {
         const vendorRef = doc(db, "vendors", order.vendorId);
@@ -191,7 +183,7 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
         }
       }
 
-      // Fetch product image
+      console.log("Fetching product image...");
       let productImage = null;
       if (order.cartItems && order.cartItems.length > 0) {
         const firstItem = order.cartItems[0];
@@ -209,13 +201,8 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
           }
         }
       }
-      const riderInfoData = {
-        riderName,
-        riderNumber,
-        note,
-      };
 
-      // Update order status to "Shipped" in Firestore
+      console.log("Updating order status to 'Shipped'...");
       const orderRef = doc(db, "orders", selectedOrderId);
       await updateDoc(orderRef, {
         progressStatus: "Shipped",
@@ -226,17 +213,24 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
         },
       });
 
-      // Notify user about the status update
+      console.log("Sending order status notification...");
       await notifyOrderStatusChange(
-        userId, // userId from the order
-        selectedOrderId, // orderId
-        "Shipped", // New status
-        vendorName, // Vendor name
-        vendorCoverImage, // Vendor cover image URL
-        productImage, // Product image URL
-        null, // declineReason is null
+        userId,
+        selectedOrderId,
+        "Shipped",
+        vendorName,
+        vendorCoverImage,
+        productImage,
+        null,
+        { riderName, riderNumber, note }
+      );
 
-        riderInfoData // riderInfo
+      console.log("Adding activity note...");
+      await addActivityNote(
+        order.vendorId,
+        "Order Shipped 🚚",
+        `Order has been shipped. Rider's name is ${riderName}, and they are reachable at ${riderNumber}.`,
+        "order"
       );
 
       toast.success("Order successfully updated to 'Shipped'!");
@@ -247,7 +241,7 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
       setIsDropdownOpen(null);
       setSelectedOrderId(null);
     } catch (error) {
-      console.error("Error updating order:", error);
+      console.error("Failed to update order status:", error);
       toast.error("Failed to update the order. Please try again.");
     } finally {
       setIsSending(false);

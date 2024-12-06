@@ -18,7 +18,7 @@ import { TbBell, TbCurrencyNaira } from "react-icons/tb";
 import Modal from "../../components/layout/Modal";
 import AddProduct from "../vendor/AddProducts";
 import { useNavigate } from "react-router-dom";
-import Loading from "../../components/Loading/Loading";
+// import Loading from "../../components/Loading/Loading";
 import { VendorContext } from "../../components/Context/Vendorcontext";
 import { FiPlus } from "react-icons/fi";
 import { IoIosNotificationsOutline } from "react-icons/io"; // Use the existing VendorContext
@@ -31,9 +31,10 @@ import ScrollToTop from "../../components/layout/ScrollToTop";
 
 const defaultImageUrl =
   "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
-
 const VendorDashboard = () => {
-  const { vendorData, loading } = useContext(VendorContext); // Get vendor data from context
+  const { vendorData, loading } = useContext(VendorContext);
+  console.log("VendorDashboard render:", { vendorData, loading });
+
   const [totalFulfilledOrders, setTotalFulfilledOrders] = useState(0);
   const [hide, setHide] = useState(false);
   // const [coverImageUrl, setCoverImageUrl] = useState(defaultImageUrl);
@@ -179,7 +180,7 @@ const VendorDashboard = () => {
     const recentActivityQuery = query(
       activityRef,
       orderBy("timestamp", "desc"),
-      limit(4)
+      limit(15)
     );
 
     // Listen for real-time updates to recent activities
@@ -207,14 +208,80 @@ const VendorDashboard = () => {
 
   if (loading) {
     return (
-      <div>
-        <Loading />
+      <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-1 font-opensans">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center">
+            <div className="overflow-hidden w-11 h-11 rounded-full flex justify-center items-center mr-1">
+              <Skeleton circle={true} height={44} width={44} />
+            </div>
+            <div className="ml-1 space-y-2">
+              <Skeleton width={120} height={20} />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-center items-center mt-4">
+          <div className="relative bg-customDeepOrange w-full h-36 rounded-2xl flex flex-col justify-between px-4 py-2">
+            <div className="flex flex-col justify-center items-center space-y-4">
+              <Skeleton width={120} height={20} />
+              <Skeleton width={100} height={30} />
+            </div>
+            <div>
+              <Skeleton width={"80%"} height={20} />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-center mt-4">
+          <p className="text-black text-lg text-start font-semibold mb-3">
+            <Skeleton width={80} height={20} />
+          </p>
+
+          <div className="grid grid-cols-2 gap-2 justify-center">
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2"
+              >
+                <div className="flex justify-between items-center">
+                  <Skeleton width={30} height={30} />
+                  <Skeleton width={100} height={15} />
+                </div>
+                <Skeleton width={40} height={20} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-center mt-4">
+          <div className="flex justify-between mb-3">
+            <Skeleton width={100} height={20} />
+            <Skeleton width={30} height={20} />
+          </div>
+
+          <div className="flex flex-col space-y-2 text-black">
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="mb-2 bg-customSoftGray rounded-2xl px-4 py-2"
+              >
+                <div className="flex justify-between mb-2">
+                  <Skeleton width={100} height={15} />
+                  <Skeleton width={50} height={15} />
+                </div>
+                <Skeleton width={"90%"} height={15} />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
-    ); // You can show a loading spinner or skeleton here
+    );
   }
 
   if (!vendorData) {
-    return <p className="">Unable to load vendor data. Please try again later.</p>;
+    return (
+      <p className="">Unable to load vendor data. Please try again later.</p>
+    );
   }
   return (
     <>
@@ -399,7 +466,7 @@ const VendorDashboard = () => {
                   <span
                     className="text-xs ml-2 cursor-pointer"
                     onClick={() => {
-                      setFilterOptions("Orders");
+                      setFilterOptions("order");
                       setViewOptions(!viewOptions);
                     }}
                   >

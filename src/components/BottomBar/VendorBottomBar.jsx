@@ -1,23 +1,19 @@
 import React, { useEffect } from "react";
-import { FaUser, FaRegUser } from "react-icons/fa";
-import {
-  MdDashboardCustomize,
-  MdOutlineDashboardCustomize,
-} from "react-icons/md";
-import { MdReorder } from "react-icons/md";
-import { AiFillProduct } from "react-icons/ai";
-import { AiOutlineProduct } from "react-icons/ai";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useVendorNavigation } from "../Context/VendorBottomBarCtxt"; // Updated import
-import "../../styles/bottombar.css";
+import { GoHome } from "react-icons/go";
 import { HiOutlineUser } from "react-icons/hi2";
 import { BsBoxSeam } from "react-icons/bs";
-import { GoHome } from 'react-icons/go';
+import { AiFillProduct, AiOutlineProduct } from "react-icons/ai";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useVendorNavigation } from "../Context/VendorBottomBarCtxt"; // Updated import
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { db } from "../../firebase.config";
+import "../../styles/bottombar.css";
 
 const VendorBottomBar = ({ isSearchFocused }) => {
   const { activeNav, setActiveNav } = useVendorNavigation();
   const navigate = useNavigate();
   const location = useLocation();
+  const [pendingOrdersCount, setPendingOrdersCount] = React.useState(0);
 
   const navItems = [
     {
@@ -38,7 +34,6 @@ const VendorBottomBar = ({ isSearchFocused }) => {
       label: "Products",
       route: "/vendor-products",
     },
-
     {
       icon: HiOutlineUser,
       activeIcon: HiOutlineUser,
@@ -57,6 +52,20 @@ const VendorBottomBar = ({ isSearchFocused }) => {
     }
   }, [location.pathname, setActiveNav]);
 
+  useEffect(() => {
+    // Fetch the count of pending orders
+    const fetchPendingOrdersCount = () => {
+      const ordersRef = collection(db, "orders");
+      const q = query(ordersRef, where("progressStatus", "==", "Pending"));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        setPendingOrdersCount(snapshot.docs.length);
+      });
+      return () => unsubscribe();
+    };
+
+    fetchPendingOrdersCount();
+  }, []);
+
   const handleClick = (index, route) => {
     setActiveNav(index);
     navigate(route);
@@ -64,25 +73,28 @@ const VendorBottomBar = ({ isSearchFocused }) => {
 
   return (
     <div className="bottom-bar-wrapper">
-      
-    <div className={`bottom-bar ${isSearchFocused ? "under-keypad" : ""}`}>
-      {navItems.map((item, index) => (
-        <div
-          key={index}
-          className={`bottom-nav-icon ${activeNav === index ? "active" : ""}`}
-          onClick={() => handleClick(index, item.route)}
-        >
-          {activeNav === index ? (
-            <>
-              <item.activeIcon className="w-8 h-6" />
-              <span className="nav-label">{item.label}</span>
-            </>
-          ) : (
-            <item.icon className="w-8 text-white opacity-50 h-6" />
-          )}
-        </div>
-      ))}
-    </div>
+      <div className={`bottom-bar ${isSearchFocused ? "under-keypad" : ""}`}>
+        {navItems.map((item, index) => (
+          <div
+            key={index}
+            className={`bottom-nav-icon ${activeNav === index ? "active" : ""}`}
+            onClick={() => handleClick(index, item.route)}
+          >
+            {activeNav === index ? (
+              <>
+                <item.activeIcon className="w-8 h-6" />
+                <span className="nav-label">{item.label}</span>
+              </>
+            ) : (
+              <item.icon className="w-8 text-white opacity-50 h-6" />
+            )}
+            {/* Add badge for pending orders count */}
+            {item.label === "Orders" && pendingOrdersCount > 0 && (
+              <div className="badge">{pendingOrdersCount}</div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

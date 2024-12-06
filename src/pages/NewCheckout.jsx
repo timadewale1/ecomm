@@ -21,6 +21,7 @@ import { MdOutlineLock, MdSupportAgent } from "react-icons/md";
 import { LiaShippingFastSolid, LiaTimesSolid } from "react-icons/lia";
 import { FaCheck } from "react-icons/fa6";
 import Skeleton from "react-loading-skeleton";
+import { IoSettingsOutline } from "react-icons/io5";
 import { calculateDeliveryFee } from "../services/states";
 import { NigerianStates } from "../services/states";
 
@@ -493,6 +494,11 @@ const Checkout = () => {
   }, [vendorsInfo, userInfo, previewedOrder, vendorId]);
 
   const handleDeliveryModeSelection = (mode) => {
+    if (mode === "Pickup" && vendorsInfo[vendorId]?.deliveryMode !== "Pickup") {
+      toast.error("Vendor does not offer pick-up ☹️");
+      return;
+    }
+
     setSelectedDeliveryMode(mode);
   };
 
@@ -605,31 +611,28 @@ const Checkout = () => {
       <Modal
         isOpen={isOpen}
         onRequestClose={onClose}
-        className="bg-white w-full max-w-md h-[60vh] rounded-t-2xl shadow-lg overflow-y-scroll relative flex flex-col"
-        overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
+        className="bg-white w-full max-w-md h-[30vh] rounded-t-2xl shadow-lg overflow-y-scroll relative flex flex-col"
+        overlayClassName="fixed inset-0 bg-gray-900  backdrop-blur-sm bg-opacity-50 flex justify-center items-end z-50"
         ariaHideApp={false}
       >
-        <div className="relative h-full overflow-y-scroll">
+        <div className="relative h-full ">
           {" "}
-          <LiaTimesSolid
-            className="text-2xl cursor-pointer modals absolute top-4 right-4"
-            onClick={onClose}
-          />
-          <img
-            src={serviceimage}
-            alt="Service Fee Details"
-            className="w-full h-40 object-cover"
-          />
-          <div className="px-4 mt-4 flex-auto mb-4">
-            <p className="text-sm font-opensans text-black z-10">
+          <div className="mt-6 flex items-center px-4 font-semibold  justify-between">
+            <h1 className="font-ubuntu text-2xl text-black">
+              Why do we charge this?
+            </h1>
+            <LiaTimesSolid
+              className="text-2xl cursor-pointer modals absolute top-4 right-4"
+              onClick={onClose}
+            />
+          </div>
+          <div className="px-4  flex items-center mb-4">
+            <IoSettingsOutline className="text-9xl text-black" />
+            <p className="text-xs ml-4 font-opensans font-light text-black z-10">
               Service fees are dynamic charges applied to transactions to
-              support the operational demands of our platform. These fees
-              contribute to maintaining a seamless and efficient shopping
-              experience, ensuring reliability and the highest quality of
-              service. We are committed to transparency and fairness, thus we
-              cap the service fee at a maximum of 2,000. This policy is in place
-              to minimize costs to our customers while upholding our dedication
-              to excellence.
+              support the app's operations and customer support teams. These
+              fees are capped at a fixed amount, so no need to worry about
+              excessive charges.
             </p>
           </div>
         </div>
@@ -735,17 +738,114 @@ const Checkout = () => {
   //   handleVendorPayment("full");
   // };
 
-  if (loading) {
-    return (
-      <div>
-        <Loading />
-      </div>
-    );
-  }
   if (loading || isFetchingOrderPreview) {
+    // Show skeleton placeholders instead of the Loading component
     return (
-      <div>
-        <Loading />
+      <div className="bg-gray-100 pb-12">
+        <div className="flex p-3 py-3 items-center sticky top-0 bg-white w-full h-20 shadow-md z-10 mb-3 pb-2">
+          <Skeleton circle={true} width={30} height={30} />
+          <Skeleton width={100} height={20} className="ml-5" />
+        </div>
+        <div className="px-3">
+          {/* Order Summary Skeleton */}
+          <div className="mt-4 px-4 w-full py-4 rounded-lg bg-white ">
+            <Skeleton width={120} height={20} />
+            <div className="border-t border-gray-300 my-2"></div>
+            <div className="flex justify-between">
+              <Skeleton width={80} height={20} />
+              <Skeleton width={60} height={20} />
+            </div>
+            <div className="flex justify-between mt-2">
+              <Skeleton width={80} height={20} />
+              <Skeleton width={60} height={20} />
+            </div>
+            <div className="flex justify-between mt-2">
+              <Skeleton width={80} height={20} />
+              <Skeleton width={60} height={20} />
+            </div>
+            <div className="border-t mt-3 border-gray-300 my-2"></div>
+            <div className="flex justify-between mt-2">
+              <Skeleton width={40} height={20} />
+              <Skeleton width={60} height={20} />
+            </div>
+          </div>
+
+          {/* Delivery Information Skeleton */}
+          <div className="mt-2">
+            <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
+              <Skeleton width={150} height={20} />
+              <div className="border-t border-gray-300 my-2"></div>
+              <Skeleton height={20} />
+              <Skeleton height={20} />
+              <Skeleton height={20} />
+              <Skeleton height={20} />
+            </div>
+          </div>
+
+          {/* Shipment Skeleton */}
+          <div className="bg-white mt-3 p-3 rounded-lg shadow-md">
+            <Skeleton width={100} height={20} />
+            <div className="mt-2 border-t ">
+              {[...Array(2)].map((_, i) => (
+                <div
+                  className="flex items-center justify-between py-4 border-b"
+                  key={i}
+                >
+                  <Skeleton width={64} height={64} className="mr-4" />
+                  <div>
+                    <Skeleton width={100} height={15} />
+                    <Skeleton width={50} height={15} />
+                    <div className="flex space-x-4 mt-2">
+                      <Skeleton width={50} height={10} />
+                      <Skeleton width={50} height={10} />
+                      <Skeleton width={50} height={10} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Delivery Method Skeleton */}
+          <div className="bg-white mt-3 p-3 rounded-lg shadow-md">
+            <Skeleton width={120} height={20} />
+            <div className="border-t border-gray-300 my-3"></div>
+            <div className="p-3 mb-4 flex items-center space-x-2">
+              <Skeleton circle={true} width={24} height={24} />
+              <Skeleton width={60} height={15} />
+            </div>
+            <div className="border-t border-gray-300"></div>
+            <div className="p-3 mb-4 flex items-center space-x-2">
+              <Skeleton circle={true} width={24} height={24} />
+              <Skeleton width={60} height={15} />
+            </div>
+            <div className="px-4 w-full py-2 rounded-lg bg-customCream">
+              <Skeleton width={80} height={15} />
+              <div className="border-t border-gray-700 my-2"></div>
+              <Skeleton width={60} height={15} />
+              <Skeleton width={"80%"} height={10} />
+            </div>
+          </div>
+
+          {/* Shop Safely Skeleton */}
+          <div className="mt-2">
+            <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
+              <Skeleton width={150} height={20} />
+              <div className="border-t border-gray-300 my-2"></div>
+              <div className="flex mt-3 space-x-2">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex flex-col items-center space-y-1">
+                    <Skeleton circle={true} width={24} height={24} />
+                    <Skeleton width={60} height={10} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="fixed bottom-0 left-0 right-0 p-3 bg-white shadow-lg">
+          <Skeleton width={"100%"} height={48} className="rounded-full" />
+        </div>
       </div>
     );
   }
@@ -958,10 +1058,10 @@ const Checkout = () => {
                 <h1 className="text-black font-medium font-opensans text-lg">
                   Delivery Method
                 </h1>
-                <CiCircleInfo
+                {/* <CiCircleInfo
                   className="text-customOrange ml-2 cursor-pointer text-xl"
                   onClick={() => setShowDeliveryInfoModal(true)}
-                />
+                /> */}
               </div>
 
               <div className="border-t border-gray-300 my-3"></div>
@@ -1041,9 +1141,10 @@ const Checkout = () => {
                 )}
                 <p className="text-xs font-opensans text-gray-600 mt-2">
                   <span className="font-semibold">Note:</span> The delivery fee
-                  displayed is an estimate based on your location and will not
-                  be charged at checkout. The vendor will contact you with the
-                  exact delivery fee details before your order is shipped.
+                  displayed is an estimate based on your location and items in
+                  the cart. This fee will not be charged at checkout. The vendor
+                  will contact you with the exact delivery fee details before
+                  your order is shipped.
                 </p>
               </div>
             </>

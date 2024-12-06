@@ -1,30 +1,61 @@
 {
-    "routes": [
-      {
-        "src": "/api/(.*)",
-        "dest": "/api/$1"
-      },
-      {
-        "src": "/product/(.*)",
-        "has": [
-          { "type": "header", "key": "user-agent", "value": "(bot|crawler|spider|crawling)" }
-        ],
-        "dest": "/api/prerender"
-      },
-      {
-        "src": "/store/(.*)",
-        "has": [
-          { "type": "header", "key": "user-agent", "value": "(bot|crawler|spider|crawling)" }
-        ],
-        "dest": "/api/prerender"
-      },
-      {
-        "src": "/marketstorepage/(.*)",
-        "has": [
-          { "type": "header", "key": "user-agent", "value": "(bot|crawler|spider|crawling)" }
-        ],
-        "dest": "/api/prerender"
-      }
-    ]
-  }
-  
+  "rewrites": [
+    {
+      "source": "/static/:path*",
+      "destination": "/static/:path*"
+    },
+    {
+      "source": "/manifest.json",
+      "destination": "/manifest.json"
+    },
+    {
+      "source": "/product/:path*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(bot|crawler|spider|crawling)"
+        }
+      ],
+      "destination": "/api/middleware"
+    },
+    {
+      "source": "/product/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/store/:path*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(bot|crawler|spider|crawling)"
+        }
+      ],
+      "destination": "/api/middleware"
+    },
+    {
+      "source": "/store/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/marketstorepage/:path*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(bot|crawler|spider|crawling)"
+        }
+      ],
+      "destination": "/api/middleware"
+    },
+    {
+      "source": "/marketstorepage/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/index.html"
+    }
+  ]
+}

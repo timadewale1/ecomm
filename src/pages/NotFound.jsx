@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router-dom';
 const NotFound = () => {
   const navigate = useNavigate(); 
 
-  const handleBackToHome = () => {
-    navigate('/confirm-user-state'); 
-  };
+  // const handleBackToHome = () => {
+  //   navigate(''); 
+  // };
 
   return (
     <div>
@@ -17,7 +17,7 @@ const NotFound = () => {
         </p>
         <button
           className='h-12 px-4 font-opensans bg-customOrange text-white rounded-lg'
-          onClick={handleBackToHome}
+          onClick= {() => navigate('/confirm-state')}
         >
           Back to Home
         </button>

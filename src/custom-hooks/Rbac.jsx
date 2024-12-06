@@ -26,7 +26,7 @@ const RoleBasedAccess = ({ allowedRoles, children }) => {
         </p>
         <button
           className="bg-customOrange text-xs font-medium text-white py-2 px-2 rounded-lg"
-          onClick={() => navigate("/vendor-dashboard")} // Navigate to vendor-dashboard on click
+          onClick={() => navigate("/vendordashboard")} // Navigate to vendor-dashboard on click
         >
           Back to Dashboard
         </button>

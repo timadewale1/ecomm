@@ -21,6 +21,7 @@ import Badge from "../../components/Badge/Badge";
 import { MdOutlineCancel } from "react-icons/md";
 import "swiper/css/free-mode";
 import "swiper/css/autoplay";
+import { useLocation } from "react-router-dom";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import SwiperCore, { Pagination, Navigation } from "swiper";
@@ -29,6 +30,7 @@ import { doc, getDoc, getFirestore } from "firebase/firestore";
 import RelatedProducts from "./SimilarProducts";
 import Productnotofund from "../../components/Loading/Productnotofund";
 import { decreaseQuantity, increaseQuantity } from "../../redux/actions/action";
+import { AiOutlineHome } from "react-icons/ai";
 Modal.setAppElement("#root");
 
 const debounce = (func, delay) => {
@@ -58,6 +60,10 @@ const ProductDetailPage = () => {
   const [vendorLoading, setVendorLoading] = useState(true);
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const isShared = searchParams.has("shared");
+
   const [subProducts, setSubProducts] = useState([]);
   const [selectedSubProduct, setSelectedSubProduct] = useState(null);
 
@@ -750,7 +756,8 @@ const ProductDetailPage = () => {
 
   const copyProductLink = async () => {
     try {
-      const shareableLink = `${window.location.origin}/product/${id}`;
+      const shareableLink = `${window.location.origin}/product/${id}?shared=true`;
+
       await navigator.clipboard.writeText(
         `Hey, check out this item I saw on ${vendor.shopName}'s store on My Thrift: ${shareableLink}`
       );
@@ -890,40 +897,81 @@ const ProductDetailPage = () => {
 
   return (
     <div className="relative pb-20">
-      <div
-        className={`fixed top-0 px-2 py-4 bg-white left-0 h-20 w-full z-20 shadow-md`} // Added shadow here
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <GoChevronLeft
-              onClick={() => navigate(-1)}
-              className="text-3xl cursor-pointer"
-            />
-            <span className="ml-4 text-lg font-opensans font-semibold">
-              Details
-            </span>
-          </div>
-          <div className="flex items-center">
-            {isLinkCopied ? (
-              <LuCopyCheck className="text-2xl mr-4 cursor-pointer" />
-            ) : (
-              <LuCopy
-                onClick={copyProductLink}
-                className="text-2xl mr-4 cursor-pointer"
-              />
-            )}
-            <PiShoppingCartBold
-              onClick={() =>
-                navigate("/latest-cart", { state: { fromProductDetail: true } })
-              }
-              className="text-2xl cursor-pointer "
-            />
-            <div className="top-6 absolute right-0">
-              <Badge count={cartItemCount} />
-            </div>
-          </div>
+      <div className="fixed top-0 px-2 py-4 bg-white left-0 h-20 w-full z-20 shadow-md">
+        <div className="flex items-center justify-between h-full">
+          {isShared ? (
+            <>
+              <div className="flex items-center">
+                <AiOutlineHome
+                  onClick={() => navigate("/newhome")}
+                  className="text-2xl cursor-pointer"
+                />
+              </div>
+
+              {/* Centered logo container uses flex-1 to take remaining space and flex to center content */}
+              <div className="flex-1 flex justify-center items-center">
+                <img
+                  src="/logo512.png"
+                  alt="Logo"
+                  className="object-contain max-h-20"
+                />
+              </div>
+
+              <div className="flex items-center mr-2 relative">
+                <PiShoppingCartBold
+                  onClick={() =>
+                    navigate("/latest-cart", {
+                      state: { fromProductDetail: true },
+                    })
+                  }
+                  className="text-2xl cursor-pointer"
+                />
+                {cartItemCount > 0 && (
+                  <div className="-top-1 absolute right-0">
+                    <Badge count={cartItemCount} />
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center">
+                <GoChevronLeft
+                  onClick={() => navigate(-1)}
+                  className="text-3xl cursor-pointer"
+                />
+                <span className="ml-4 text-lg font-opensans font-semibold">
+                  Details
+                </span>
+              </div>
+              <div className="flex items-center mr-2 relative">
+                {isLinkCopied ? (
+                  <LuCopyCheck className="text-2xl mr-4 cursor-pointer" />
+                ) : (
+                  <LuCopy
+                    onClick={copyProductLink}
+                    className="text-2xl mr-4 cursor-pointer"
+                  />
+                )}
+                <PiShoppingCartBold
+                  onClick={() =>
+                    navigate("/latest-cart", {
+                      state: { fromProductDetail: true },
+                    })
+                  }
+                  className="text-2xl cursor-pointer"
+                />
+                {cartItemCount > 0 && (
+                  <div className="top-6 absolute right-0">
+                    <Badge count={cartItemCount} />
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
+
       <div className="flex justify-center h-[540px]">
         {/* Only show Swiper if there's more than one image */}
         {allImages.length > 1 ? (

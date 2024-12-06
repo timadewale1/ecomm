@@ -200,7 +200,8 @@ const Routers = () => {
 
       {/* Vendor Protected Routes */}
       <Route element={<ProtectedRoute requiredRole="vendor" />}>
-        <Route path="vendordashboard" element={<VendorDashboard />} />
+       
+      <Route path="vendordashboard" element={<VendorDashboard />} />
         <Route path="vendor-profile" element={<VendorProfile />} />
         <Route path="vendor-products" element={<VendorProducts />} />
         <Route path="vendor-orders" element={<VendorOrders />} />
@@ -216,6 +217,7 @@ const Routers = () => {
         <Route path="user-dashboard" element={<UserDashboard />} />
         {/* Add any other user-specific protected routes here */}
       </Route>
+      
       <Route path="/not-found" element={<NotFound />} />
       {/* Catch-all Route for NotFound */}
       <Route path="*" element={<Navigate to="/not-found" />} />

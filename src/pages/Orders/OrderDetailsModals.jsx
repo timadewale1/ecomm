@@ -29,6 +29,7 @@ import toast from "react-hot-toast";
 import { IoMdCheckmark } from "react-icons/io";
 import { RotatingLines } from "react-loader-spinner";
 import { BiCoinStack } from "react-icons/bi";
+import addActivityNote from "../../services/activityNotes";
 import { GiStarsStack } from "react-icons/gi";
 const OrderDetailsModal = ({ isOpen, onClose, order }) => {
   const [productImages, setProductImages] = useState({});
@@ -147,7 +148,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
         progressStatus: "Declined",
         declineReason: reason || "Reason not provided",
       });
-  
+
       // Fetch vendor cover image
       let vendorCoverImage = null;
       if (order.vendorId) {
@@ -157,7 +158,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
           vendorCoverImage = vendorSnap.data().coverImageUrl || null;
         }
       }
-  
+
       // Fetch product image
       let productImage = null;
       if (order.cartItems && order.cartItems.length > 0) {
@@ -176,7 +177,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
           }
         }
       }
-  
+
       // Send notification
       await notifyOrderStatusChange(
         userId, // userId
@@ -188,7 +189,15 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
         reason, // declineReason
         null // riderInfo
       );
-  
+
+      // Add activity note
+      await addActivityNote(
+        order.vendorId,
+        "Order Declined 🛑",
+        `Order with ID: ${order.id} was declined by ${vendorName}. Reason: ${reason}.`,
+        "order"
+      );
+
       toast.success("Order declined successfully");
       setIsDeclineModalOpen(false);
       onClose();
@@ -199,7 +208,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
       setDeclineLoading(false);
     }
   };
-  
+
   const handleDeclineInfoModal = () => {
     setIsDeclineInfoModalOpen(true);
   };
@@ -208,7 +217,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
     try {
       const orderRef = doc(db, "orders", order.id);
       await updateDoc(orderRef, { progressStatus: "In Progress" });
-  
+
       // Fetch vendor cover image
       let vendorCoverImage = null;
       if (order.vendorId) {
@@ -218,7 +227,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
           vendorCoverImage = vendorSnap.data().coverImageUrl || null;
         }
       }
-  
+
       // Fetch product image
       let productImage = null;
       if (order.cartItems && order.cartItems.length > 0) {
@@ -237,7 +246,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
           }
         }
       }
-  
+
       // Send notification
       await notifyOrderStatusChange(
         userId, // userId
@@ -249,7 +258,15 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
         null, // declineReason
         null // riderInfo
       );
-  
+
+      // Add activity note
+      await addActivityNote(
+        order.vendorId,
+        "Order Accepted ✅",
+        `Order with ID: ${order.id} was accepted by ${vendorName}.`,
+        "order"
+      );
+
       toast.success("Order accepted successfully");
       onClose();
     } catch (error) {
@@ -259,7 +276,6 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
       setAcceptLoading(false);
     }
   };
-  
 
   const handleSend = () => {
     if (!declineReason || (declineReason === "Other" && !otherReasonText)) {
@@ -315,11 +331,17 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
         userId, // userId
         order.id, // orderId
         "Delivered", // newStatus
-        vendorName,
-        userInfo.email, // Pass user email
-        userInfo.displayName, // Pass user name // vendorName
+        vendorName, // vendorName
         vendorCoverImage, // vendorCoverImage
         productImage // productImage
+      );
+
+      // Add activity note
+      await addActivityNote(
+        order.vendorId,
+        "Order Delivered 😊",
+        `You have marked this order as delivered. You will recieve your remaining percentage shortly. If this was a mistake reach out to us immediately!`,
+        "order"
       );
 
       toast.success("Order marked as delivered");

@@ -364,7 +364,7 @@ const Cart = () => {
   // }
 
   return (
-    <div className="flex flex-col h-screen justify-between pb-24 bg-gray-200">
+    <div className="flex flex-col h-screen justify-between mb-14 bg-gray-200">
       <div className="sticky top-0 bg-white w-full h-24 flex items-center p-3 shadow-md z-10">
         {fromProductDetail && (
           <GoChevronLeft

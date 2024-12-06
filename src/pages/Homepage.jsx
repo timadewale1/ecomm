@@ -39,6 +39,7 @@ import Market from "../components/Market/Market";
 import { db } from "../firebase.config";
 import ProductCard from "../components/Products/ProductCard";
 import SearchDropdown from "../components/Search/SearchDropdown";
+import Amazingdeals from "../components/Amazingdeals";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -540,9 +541,8 @@ const Homepage = () => {
             {loadingMore ? "Loading..." : "Load More"}
           </button>
         )}
+        <Amazingdeals />
       </div>
-
-      {/* <BottomBar isSearchFocused={isSearchFocused} /> */}
     </>
   );
 };

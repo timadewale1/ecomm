@@ -19,18 +19,27 @@ export const VendorProvider = ({ children }) => {
     const auth = getAuth();
     let unsubscribeVendorDoc;
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      console.log("VendorProvider: onAuthStateChanged fired", { user });
       if (user) {
         const vendorDocRef = doc(db, "vendors", user.uid);
-        unsubscribeVendorDoc = onSnapshot(vendorDocRef, (doc) => {
-          if (doc.exists()) {
-            setVendorData({ vendorId: user.uid, ...doc.data() });
+        unsubscribeVendorDoc = onSnapshot(vendorDocRef, (docSnap) => {
+          console.log("VendorProvider: vendor doc snapshot", {
+            docSnapData: docSnap.data(),
+          });
+          if (docSnap.exists()) {
+            setVendorData({ vendorId: user.uid, ...docSnap.data() });
           } else {
             console.error("Vendor data not found");
             setVendorData(null);
           }
           setLoading(false);
+          console.log("VendorProvider: after fetching vendorData", {
+            vendorData,
+            loading,
+          });
         });
       } else {
+        console.log("VendorProvider: no user logged in");
         setVendorData(null);
         setLoading(false);
       }
@@ -41,6 +50,9 @@ export const VendorProvider = ({ children }) => {
       unsubscribeAuth();
     };
   }, []);
+
+  // In the return:
+  console.log("VendorProvider render:", { vendorData, loading });
 
   return (
     <VendorContext.Provider

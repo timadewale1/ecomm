@@ -43,7 +43,7 @@ import PrivacyPolicy from "../pages/Legal/PrivacyPolicy.jsx";
 import NotFound from "../pages/NotFound";
 import StoreReviews from "../pages/vendor/StoreReviews.jsx";
 import RoleBasedAccess from "../custom-hooks/Rbac.jsx"; // Assuming this is the RoleBasedAccess component
-
+import { Navigate } from "react-router-dom";
 const Routers = () => {
   return (
     <Routes>
@@ -216,9 +216,9 @@ const Routers = () => {
         <Route path="user-dashboard" element={<UserDashboard />} />
         {/* Add any other user-specific protected routes here */}
       </Route>
-
+      <Route path="/not-found" element={<NotFound />} />
       {/* Catch-all Route for NotFound */}
-      <Route path="*" element={<NotFound />} />
+      <Route path="*" element={<Navigate to="/not-found" />} />
     </Routes>
   );
 };

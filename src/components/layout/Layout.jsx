@@ -29,7 +29,7 @@ const Layout = () => {
     "/newcheckout/fulldelivery",
     "/user-dashboard",
     "/search",
-    "*/",
+    
     "/vendor-reviews",
     "/notifications",
     "/favorites",
@@ -38,6 +38,7 @@ const Layout = () => {
     "/online-vendors",
     "market-vendors",
     "/vendor-verify-otp",
+    "/not-found",
     "/confirm-email",
     "network-error",
     "/payment-approve",

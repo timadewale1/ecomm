@@ -13,7 +13,7 @@ const ConfirmUserState = () => {
     if (selectedRole === "vendor") {
       navigate("/vendorlogin");
     } else if (selectedRole === "customer") {
-      navigate("/login");
+      navigate("/newhome");
     }
   };
 

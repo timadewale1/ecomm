@@ -365,24 +365,35 @@ const VendorProducts = () => {
   };
 
   const handlePinProduct = async (product) => {
-    // if (!product.isFeatured && pinnedCount >= 4) {
-    //   toast.error("You can only pin up to 3 products.");
-    //   return;
-    // }
-
+    const currentTime = new Date().getTime(); // Get current time in milliseconds
+  
+    // If the product is already pinned, check if it can be unpinned
+    if (product.isFeatured) {
+      const pinnedAt = product.pinnedAt || 0; // Ensure we have a pinnedAt timestamp
+      const timeElapsed = currentTime - pinnedAt; // Calculate time elapsed since pinned
+      const twelveHoursInMilliseconds = 12 * 60 * 60 * 1000;
+  
+      if (timeElapsed < twelveHoursInMilliseconds) {
+        // Prevent unpinning if less than 12 hours have passed
+        toast.error("You cannot unpin a product within 12 hours of pinning it.");
+        return;
+      }
+    }
+  
     try {
       const productRef = doc(db, "products", product.id);
       const newIsFeaturedStatus = !product.isFeatured;
-
-      // Update the product's `isFeatured` status in Firestore
+  
+      // Update Firestore with the new `isFeatured` status and timestamp if pinned
       await updateDoc(productRef, {
         isFeatured: newIsFeaturedStatus,
+        ...(newIsFeaturedStatus && { pinnedAt: currentTime }), // Add pinnedAt timestamp if pinning
       });
-
+  
       // Update the local product state to reflect the new pin status
       setProducts((prevProducts) =>
         prevProducts.map((p) =>
-          p.id === product.id ? { ...p, isFeatured: newIsFeaturedStatus } : p
+          p.id === product.id ? { ...p, isFeatured: newIsFeaturedStatus, pinnedAt: newIsFeaturedStatus ? currentTime : null } : p
         )
       );
 

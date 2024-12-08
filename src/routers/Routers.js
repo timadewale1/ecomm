@@ -23,7 +23,6 @@ import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfil
 import NewHome from "../pages/Homepage";
 import EmailVerification from "../pages/UserSide/ConfirmEmail.jsx";
 import LatestCart from "../pages/Cart.jsx";
-import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
 import OrdersCentre from "../pages/UserSide/OrdersCentre.jsx";
 import Checkout from "../pages/NewCheckout.jsx";
 import MarketVendors from "../pages/MarketVendors.jsx";
@@ -39,6 +38,8 @@ import VendorRatings from "../pages/vendor/VendorRatings.jsx";
 import SearchPage from "../pages/UserSide/Searchpage.jsx";
 import ErrorBoundary from "../components/Errorboundary.jsx";
 import TermsAndConditions from "../pages/Legal/TermsAndConditions.jsx";
+import CallGuide from "../pages/Legal/CallGuide.jsx";
+import DeliveryGuide from "../pages/Legal/DeliveryGuide.jsx";
 import PrivacyPolicy from "../pages/Legal/PrivacyPolicy.jsx";
 import NotFound from "../pages/NotFound";
 import StoreReviews from "../pages/vendor/StoreReviews.jsx";
@@ -206,6 +207,8 @@ const Routers = () => {
         <Route path="vendor-products" element={<VendorProducts />} />
         <Route path="vendor-orders" element={<VendorOrders />} />
         <Route path="/store-reviews" element={<StoreReviews />} />
+        <Route path="/call-guidelines" element={<CallGuide />} />
+        <Route path="/delivery-guidelines" element={<DeliveryGuide />} />
         {/* Add any other vendor-specific protected routes here */}
       </Route>
 

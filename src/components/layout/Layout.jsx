@@ -48,7 +48,9 @@ const Layout = () => {
     "/payment-approve",
     "/terms-and-conditions",
     "/privacy-policy",
-    "/store-reviews"
+    "/store-reviews",
+    "/call-guidelines",
+    "/delivery-guidelines",
   ];
 
   // Paths with dynamic segments

@@ -1,5 +1,5 @@
 export const fetchBankList = async (token) => {
-  console.log("Fetching bank list with token:", token); // Debug log
+  // console.log("Fetching bank list with token:", token); // Debug log
 
   try {
     const response = await fetch(
@@ -13,13 +13,13 @@ export const fetchBankList = async (token) => {
       }
     );
 
-    console.log("Fetch bank list response:", response); // Log response object
+    // console.log("Fetch bank list response:", response); // Log response object
 
     const data = await response.json();
     console.log("Parsed bank list data:", data); // Log parsed data
 
     if (response.ok && data.status) {
-      console.log("Bank list fetched successfully:", data.data);
+      // console.log("Bank list fetched successfully:", data.data);
       return data.data; // List of banks
     } else {
       console.error("Failed to fetch bank list:", data.message);
@@ -32,16 +32,8 @@ export const fetchBankList = async (token) => {
 };
 
 export const resolveBankName = (banks, bankId) => {
-    console.log("Resolving bank name for bankId:", bankId, "from banks:", banks);
-  
-    const matchedBank = banks.find((bank) => bank.id === bankId);
-  
-    if (matchedBank) {
-      console.log("Bank resolved successfully:", matchedBank.name);
-      return matchedBank.name;
-    } else {
-      console.warn("Bank ID not found:", bankId);
-      return "Unknown Bank";
-    }
-  };
-  
+  const matchedBank = banks.find(
+    (bank) => bank.id === bankId || bank.code === bankId
+  );
+  return matchedBank ? matchedBank.name : "Unknown Bank";
+};

@@ -962,7 +962,7 @@ const ProductDetailPage = () => {
                   className="text-2xl cursor-pointer"
                 />
                 {cartItemCount > 0 && (
-                  <div className="top-6 absolute right-0">
+                  <div className="-top-1 absolute right-0">
                     <Badge count={cartItemCount} />
                   </div>
                 )}

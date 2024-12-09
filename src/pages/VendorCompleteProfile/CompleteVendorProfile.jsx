@@ -32,7 +32,7 @@ const CompleteProfile = () => {
       twitter: "", // Twitter link
       facebook: "", // Facebook link
     },
-   
+
     Address: "", // Vendor's address (could be for personal or business)
 
     // Market vendor specific fields
@@ -229,13 +229,16 @@ const CompleteProfile = () => {
 
   const handleSocialMediaChange = (e) => {
     const { name, value } = e.target;
-  
-    
+
     let formattedValue = value;
-    if (value && !value.startsWith('http://') && !value.startsWith('https://')) {
-      formattedValue = 'https://' + value;
+    if (
+      value &&
+      !value.startsWith("http://") &&
+      !value.startsWith("https://")
+    ) {
+      formattedValue = "https://" + value;
     }
-  
+
     setVendorData({
       ...vendorData,
       socialMediaHandle: {
@@ -313,7 +316,7 @@ const CompleteProfile = () => {
 
   const handleProfileCompletion = async (e) => {
     e.preventDefault();
-    setIsLoading(true); // Set loading state to true at the start
+    setIsLoading(true);
 
     const missingFields = [];
 
@@ -331,7 +334,6 @@ const CompleteProfile = () => {
       ) {
         missingFields.push("Social Media Handles");
       }
-      // if (!vendorData.phoneNumber) missingFields.push("Phone Number");
       if (!vendorData.coverImageUrl) missingFields.push("Cover Image");
       if (!vendorData.deliveryMode) missingFields.push("Delivery Mode");
       if (!vendorData.idVerification) missingFields.push("ID Verification");
@@ -347,7 +349,7 @@ const CompleteProfile = () => {
         }
       );
       setIsLoading(false);
-      return; // Exit the function early
+      return;
     }
 
     try {
@@ -361,21 +363,60 @@ const CompleteProfile = () => {
       // Format the shopName to title case before saving
       const formattedShopName = toTitleCase(vendorData.shopName);
 
-      // Prepare the data to store
+      // Make POST request to createTransferRec
+      const createTransferRecData = {
+        vendorId: user.uid,
+        name: formattedShopName,
+        accountNumber: bankDetails.accountNumber,
+      };
+
+      let recipientCode = null;
+      const token = process.env.REACT_APP_RESOLVE_TOKEN;
+      try {
+        const response = await fetch(
+          "https://mythrift-payments.fly.dev/api/v1/createTransferRec",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`, 
+            },
+            body: JSON.stringify(createTransferRecData),
+          }
+        );
+
+        const result = await response.json();
+        if (!response.ok || !result || !result.recipientCode) {
+          throw new Error(
+            result.message || "Failed to create transfer recipient"
+          );
+        }
+
+        // Extract recipientCode
+        recipientCode = result.recipientCode;
+      } catch (error) {
+        toast.error("Error creating transfer recipient: " + error.message, {
+          className: "custom-toast",
+        });
+        setIsLoading(false);
+        return; // Stop further execution if the recipient creation fails
+      }
+
+      // Prepare the data to store in Firestore
       const dataToStore = {
         ...vendorData,
         shopName: formattedShopName, // Save the formatted shop name
         profileComplete: true,
         isDeactivated: false,
-        bankDetails,
+        bankDetails: {
+          ...bankDetails,
+          // accountName, bankName, accountNumber are already included
+        },
+        recipientCode: recipientCode, // Store the recipient code in Firestore
       };
-
-      // console.log("Data to store in Firestore:", dataToStore);
 
       // Save the vendor data to Firestore
       await setDoc(doc(db, "vendors", user.uid), dataToStore, { merge: true });
-
-      // console.log("Vendor data saved to Firestore.");
 
       toast.success("Profile completed successfully!", {
         className: "custom-toast",
@@ -494,7 +535,6 @@ const CompleteProfile = () => {
                 idVerification={idVerification}
                 handleIdVerificationChange={handleIdVerificationChange}
                 idImage={idImage}
-                
                 setIdImage={setIdImage}
                 isIdImageUploading={isIdImageUploading}
                 isCoverImageUploading={isCoverImageUploading}
@@ -503,7 +543,7 @@ const CompleteProfile = () => {
                 handleSocialMediaChange={handleSocialMediaChange}
                 isLoading={isLoading}
                 handleProfileCompletion={handleProfileCompletion}
-                banks={banks}
+                setBankDetails={setBankDetails} // <--- Add this line
               />
             )}
 

@@ -5,16 +5,31 @@ import { useNavigate } from "react-router-dom";
 const CallGuide = () => {
   const navigate = useNavigate();
   return (
-    <div className="p-2 font-opensans">
-      <GoChevronLeft
-        className="text-3xl cursor-pointer"
-        onClick={() => navigate(-1)}
-      />
-      <div className="p-2 space-y-3">
-        <h1 className="text-customOrange text-[16px] underline mb-3">
-          Guidelines for Speaking with Customers to Confirm Orders or Request
-          Delivery Fee Payment
-        </h1>
+    <div className="flex flex-col items-center bg-gray-50 min-h-screen pb-4 font-opensans text-gray-800">
+      {/* Header */}
+      <div className="sticky top-0 bg-white z-10 flex items-center justify-between w-full px-3 py-4 border-b shadow-sm">
+        <div className="flex items-center space-x-2">
+          <GoChevronLeft
+            className="text-2xl text-black cursor-pointer"
+            onClick={() => navigate(-1)}
+          />
+          <h1 className="text-lg font-semibold text-gray-900">
+            Call Guidelines
+          </h1>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="w-full max-w-3xl bg-white rounded-lg shadow-md p-2">
+        <div className="bg-customOrange flex relative text-center p-10  rounded-md justify-center items-center h-72 mb-3">
+          <div className="absolute top-0 right-0">
+            <img src="./Vector.png" alt="" className="w-16 h-24" />
+          </div>
+          <div className="absolute bottom-0 left-0">
+            <img src="./Vector2.png" alt="" className="w-16 h-16" />
+          </div>
+          <h2 className="text-2xl text-white font-bold ">Guidelines for Speaking with Customers to Confirm Orders or Request Delivery Fee Payment</h2>
+        </div>
         <p className="text-black text-sm">
           <span className="text-customOrange">Dear Vendor,</span>
           <br />

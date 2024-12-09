@@ -543,10 +543,10 @@ const VendorDashboard = () => {
               className="mb-2 bg-customSoftGray rounded-2xl px-4 py-2"
             >
               <div className="flex justify-between mb-2">
-                <p className="text-customOrange font-semibold text-xs">
+                <p className="text-black font-semibold text-xs">
                   {activity.title}
                 </p>
-                <p className="text-customOrange font-semibold text-xs">
+                <p className="text-black font-semibold text-xs">
                   {formatDateOrTime(activity.timestamp)}
                 </p>
               </div>

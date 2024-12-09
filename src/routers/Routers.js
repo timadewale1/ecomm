@@ -64,6 +64,7 @@ const Routers = () => {
       <Route path="reset-password" element={<ResetPassword />} />
       <Route path="/confirm-email" element={<EmailVerification />} />
       <Route path="/auth-action" element={<AuthActionHandler />} />
+      <Route path="/vendor-verify-otp" element={<VendorVerifyOTP />} />
       <Route path="terms-and-conditions" element={<TermsAndConditions />} />
       <Route path="privacy-policy" element={<PrivacyPolicy />} />
 

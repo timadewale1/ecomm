@@ -8,6 +8,8 @@ import { functions } from "../firebase.config";
 import { useAuth } from "../custom-hooks/useAuth";
 import { FaPen } from "react-icons/fa";
 import serviceimage from "../Images/servicemodal.jpg";
+import PaystackPop from "@paystack/inline-js";
+
 import bookingimage from "../Images/bookingfee.jpg";
 import Modal from "react-modal";
 // import { createOrderAndReduceStock } from "../styles/services/Services";
@@ -21,6 +23,7 @@ import { MdOutlineLock, MdSupportAgent } from "react-icons/md";
 import { LiaShippingFastSolid, LiaTimesSolid } from "react-icons/lia";
 import { FaCheck } from "react-icons/fa6";
 import Skeleton from "react-loading-skeleton";
+import { RotatingLines } from "react-loader-spinner";
 import { IoSettingsOutline } from "react-icons/io5";
 import { calculateDeliveryFee } from "../services/states";
 import { NigerianStates } from "../services/states";
@@ -297,18 +300,17 @@ const Checkout = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showShopSafelyModal, setShowShopSafelyModal] = useState(false);
   const [previewedOrder, setPreviewedOrder] = useState({
-    subtotal: null, // set to null initially to check loading
+    subtotal: null,
     bookingFee: null,
-    serviceFee: "Calculating fees...", // leave as text initially for the service fee
+    serviceFee: "Calculating fees...",
     total: null,
   });
   const [showBookingFeeModal, setShowBookingFeeModal] = useState(false);
   const [showServiceFeeModal, setShowServiceFeeModal] = useState(false);
-
+  const [isLoading, setIsLoading] = useState(false);
   const [showServiceFee, setShowServiceFee] = useState(false);
-  // const [isCalculatingServiceFee, setIsCalculatingServiceFee] = useState(true); // Track service fee calculation
   const [isFetchingOrderPreview, setIsFetchingOrderPreview] = useState(true);
-  // const note = searchParams.get("note") || "";
+
   const prepareOrderData = (isPreview = false) => {
     const vendorCart = cart[vendorId]?.products;
 
@@ -448,26 +450,41 @@ const Checkout = () => {
 
   const handleProceedToPayment = async () => {
     try {
+      setIsLoading(true); // Start loader
       const orderData = prepareOrderData();
-      if (!orderData) return;
+      if (!orderData) {
+        setIsLoading(false); // Stop loader
+        return;
+      }
 
       const processOrder = httpsCallable(functions, "processOrder");
       const response = await processOrder(orderData);
 
-      const { orderId, total } = response.data;
+      console.log("Backend Response:", response.data); // Debug backend response
 
-      dispatch(clearCart(vendorId));
-      toast.success("Order placed successfully! Thank you");
+      const { authorization_url } = response.data;
 
-      navigate(`/payment-approve?orderId=${orderId}`);
-      setTimeout(() => {
-        navigate("/user-orders", { state: { fromPaymentApprove: true } });
-      }, 2000);
+      if (!authorization_url) {
+        throw new Error("Missing authorization URL from Paystack.");
+      }
+
+      console.log(
+        "Redirecting to Paystack authorization URL:",
+        authorization_url
+      );
+
+      // Redirect the user to the Paystack payment page
+      window.location.href = authorization_url;
+
+      // The user will be redirected to the callback_url after completing the payment
+      setIsLoading(false); // Stop loader
     } catch (error) {
-      console.error("Error in payment:", error);
-      toast.error("Failed to create order. Please try again.");
+      console.error("Error in payment process:", error.message || error);
+      toast.error("Failed to initialize payment. Please try again.");
+      setIsLoading(false); // Stop loader
     }
   };
+
   useEffect(() => {
     const calculateFee = () => {
       if (!vendorsInfo[vendorId] || !userInfo.address) return;
@@ -639,94 +656,6 @@ const Checkout = () => {
       </Modal>
     );
   };
-  // const DeliveryInfoModal = ({ isOpen, onClose }) => {
-  //   useEffect(() => {
-  //     // Prevent background scrolling when modal is open
-  //     if (isOpen) {
-  //       document.body.style.overflow = "hidden";
-  //     } else {
-  //       document.body.style.overflow = "unset";
-  //     }
-  //     return () => {
-  //       // Clean up when modal is closed
-  //       document.body.style.overflow = "unset";
-  //     };
-  //   }, [isOpen]);
-
-  //   return (
-  //     <Modal
-  //       isOpen={isOpen}
-  //       onRequestClose={onClose}
-  //       className="bg-white p-6 rounded-t-2xl w-full max-w-md h-[85vh] shadow-lg relative overflow-y-scroll"
-  //       overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
-  //       ariaHideApp={false}
-  //     >
-  //       {/* Close Icon */}
-  //       <LiaTimesSolid
-  //         className="absolute top-5 right-4 text-2xl text-gray-500 cursor-pointer"
-  //         onClick={onClose}
-  //       />
-
-  //       <h2 className="text-lg font-semibold font-opensans text-black mb-4">
-  //         Delivery Options
-  //       </h2>
-
-  //       <div className="mb-4">
-  //         <h3 className="font-opensans font-semibold text-md text-black">
-  //           Pick-up
-  //         </h3>
-  //         <p className="text-sm font-opensans font-light text-black">
-  //           For{" "}
-  //           <span className="font-semibold text-black text-xs">
-  //             market vendors only
-  //           </span>
-  //           , Pick-up ensures that on payment of your booking fee, the vendor
-  //           will securely reserve your purchased items and package them for you
-  //           in their inventory. Once you have paid, the vendor will hold the
-  //           items for pick-up at your convenience. (Orders are null after 5
-  //           working days if not picked up).
-  //           <br /> <br />
-  //           <span className="font-semibold">Note:</span> This option is
-  //           currently only available to customers purchasing from market
-  //           vendors.
-  //         </p>
-  //       </div>
-
-  //       <div className="border-t border-gray-300 my-3"></div>
-
-  //       <div>
-  //         <h3 className="font-opensans font-semibold text-md text-black">
-  //           Door Delivery
-  //         </h3>
-  //         <p className="text-sm text-black font-opensans">
-  //           Estimated Delivery rates are structured as follows: <br />-{" "}
-  //           <span className="font-semibold">Within the same state</span>: ₦2,000
-  //           - ₦4,000 <br />-{" "}
-  //           <span className="font-semibold">Across different states</span>:
-  //           ₦3,000 - ₦7,000
-  //         </p>
-  //         <p className="text-sm text-black font-light font-opensans mt-2">
-  //           After completing your payment, the vendor will reach out to discuss
-  //           logistics. You’ll receive the rider’s contact details (name and
-  //           phone number) via email and SMS, ensuring a smooth delivery process.
-  //         </p>
-  //         <p className="text-xs mt-4 text-gray-500 italic">
-  //           <span className="font-semibold">Note:</span> Delivery charges are
-  //           not included in this order. The final delivery fee will be discussed
-  //           with the vendor directly and paid at the time of delivery.
-  //         </p>
-  //       </div>
-
-  //       <p className="text-xs font-opensans mt-4 text-gray-600">
-  //         If you have concerns or need more information, please{" "}
-  //         <span className="text-customOrange cursor-pointer font-semibold">
-  //           check our policies
-  //         </span>{" "}
-  //         for detailed guidelines.
-  //       </p>
-  //     </Modal>
-  //   );
-  // };
 
   const formatColorText = (color) => {
     if (!color) return "";
@@ -1222,9 +1151,22 @@ const Checkout = () => {
       <div className="fixed bottom-0 left-0 right-0 p-3  bg-white shadow-lg">
         <button
           onClick={handleProceedToPayment}
-          className="w-full bg-customOrange h-12 text-white text-lg font-semibold font-opensans rounded-full"
+          className={`w-full h-12 text-white text-lg font-semibold font-opensans rounded-full flex items-center justify-center ${
+            isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-customOrange"
+          }`}
+          disabled={isLoading} // Disable button while loading
         >
-          Proceed to Payment
+          {isLoading ? (
+            <RotatingLines
+              strokeColor="white"
+              strokeWidth="5"
+              animationDuration="0.75"
+              width="24"
+              visible={true}
+            />
+          ) : (
+            "Proceed to Payment"
+          )}
         </button>
       </div>
     </div>

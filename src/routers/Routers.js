@@ -14,6 +14,7 @@ import VendorDashboard from "../pages/VendorCompleteProfile/vendordashboard.jsx"
 import FavoritesPage from "../pages/UserSide/FavoritesProducts.jsx";
 import VendorProducts from "../pages/VendorCompleteProfile/VendorProducts.jsx";
 import VendorProfile from "../pages/VendorCompleteProfile/VendorProfile.jsx";
+import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
 import MarketStorePage from "../pages/MarketStorePage.jsx";
 import UserDashboard from "../pages/UserDashboard";
 import Marketpg from "../pages/Marketpg";

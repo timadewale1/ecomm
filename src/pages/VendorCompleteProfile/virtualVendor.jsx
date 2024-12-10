@@ -134,9 +134,24 @@ const VirtualVendor = ({
   // const [banks, setBanks] = useState([]);
   const [isResolving, setIsResolving] = useState(false); // Loader for account resolution
 
+  // const [banks, setBanks] = useState([]);
   const [banks, setBanks] = useState([]);
 
-  
+  useEffect(() => {
+    const loadBankList = async () => {
+      try {
+        const bankList = await fetchBankList();
+        setBanks(bankList); // Store the fetched bank list
+        console.log("Bank list loaded:", bankList);
+      } catch (error) {
+        console.error("Error loading bank list:", error);
+        toast.error("Failed to load bank list. Please try again later.");
+      }
+    };
+
+    loadBankList();
+  }, []);
+
   const toTitleCase = (str) => {
     return str
       .toLowerCase()
@@ -788,6 +803,8 @@ const VirtualVendor = ({
 
                     // Allow only numbers, up to 10 digits
                     if (/^\d*$/.test(value) && value.length <= 10) {
+                      console.log("Account number input:", value);
+
                       setBankDetails((prevDetails) => ({
                         ...prevDetails,
                         accountNumber: value,
@@ -803,11 +820,16 @@ const VirtualVendor = ({
 
                       if (value.length === 10) {
                         const token = process.env.REACT_APP_RESOLVE_TOKEN;
-                        const accountNumber = value;
+                        console.log(
+                          "Resolving account number with token:",
+                          token
+                        );
 
+                        const accountNumber = value;
                         try {
                           setIsResolving(true);
                           const url = `https://mythrift-payments.fly.dev/api/v1/resolveAccount/${accountNumber}`;
+                          console.log("Resolving account number via URL:", url);
 
                           const res = await fetch(url, {
                             method: "GET",
@@ -818,12 +840,19 @@ const VirtualVendor = ({
                           });
 
                           const data = await res.json();
+                          console.log("Account resolve response:", data);
 
                           if (res.ok && data.status === true && data.data) {
                             const { account_number, account_name, bank_id } =
                               data.data;
+                            console.log("Resolved account data:", {
+                              account_number,
+                              account_name,
+                              bank_id,
+                            });
 
                             if (banks.length === 0) {
+                              console.error("Bank list not available.");
                               toast.error(
                                 "Bank list not available. Please try again later."
                               );
@@ -841,6 +870,10 @@ const VirtualVendor = ({
                               banks,
                               bank_id
                             );
+                            console.log(
+                              "Resolved bank name:",
+                              resolvedBankName
+                            );
 
                             setBankDetails((prevDetails) => ({
                               ...prevDetails,
@@ -853,6 +886,10 @@ const VirtualVendor = ({
 
                             toast.success("Account resolved successfully");
                           } else {
+                            console.error(
+                              "Failed to resolve account:",
+                              data.message
+                            );
                             toast.error(
                               data.message || "Failed to resolve account number"
                             );
@@ -865,6 +902,10 @@ const VirtualVendor = ({
                             }));
                           }
                         } catch (error) {
+                          console.error(
+                            "Error resolving account number:",
+                            error.message || error
+                          );
                           toast.error(
                             "Error resolving account number. Please try again."
                           );

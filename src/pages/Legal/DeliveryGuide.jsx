@@ -6,13 +6,31 @@ const DeliveryGuide = () => {
   const navigate = useNavigate()
 
   return (
-    <div className="p-2 font-opensans">
-      <GoChevronLeft
-        className="text-3xl cursor-pointer"
-        onClick={() => navigate(-1)}
-      />
-      <div className="p-2 space-y-3">
-      <h1 className='text-customOrange text-lg'>Order Delivery Guide for Vendors</h1>
+    <div className="flex flex-col items-center bg-gray-50 min-h-screen pb-4 font-opensans text-gray-800">
+      {/* Header */}
+      <div className="sticky top-0 bg-white z-10 flex items-center justify-between w-full px-3 py-4 border-b shadow-sm">
+        <div className="flex items-center space-x-2">
+          <GoChevronLeft
+            className="text-2xl text-black cursor-pointer"
+            onClick={() => navigate(-1)}
+          />
+          <h1 className="text-lg font-semibold text-gray-900">
+            Delivery Guidelines
+          </h1>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="w-full max-w-3xl space-y-3 bg-white rounded-lg shadow-md p-2">
+        <div className="bg-customOrange mb-3 flex relative text-center p-10  rounded-md justify-center items-center h-72">
+          <div className="absolute top-0 right-0">
+            <img src="./Vector.png" alt="" className="w-16 h-24" />
+          </div>
+          <div className="absolute bottom-0 left-0">
+            <img src="./Vector2.png" alt="" className="w-16 h-16" />
+          </div>
+          <h2 className="text-3xl text-white font-bold ">Order Delivery Guide for Vendors</h2>
+        </div>
       <p className="text-black text-sm">
         <span className="text-customOrange">Dear Vendor,</span>
         <br />

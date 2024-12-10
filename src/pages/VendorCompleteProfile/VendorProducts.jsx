@@ -565,7 +565,7 @@ const VendorProducts = () => {
       toast.success("Product restocked successfully.");
       await addActivityNote(
         "Restocked Product 🔄",
-        `You restocked ${selectedProduct.name}! Customers can now buy more of this product from your store.`,
+        `You restocked ${selectedProduct.name}! Customers can now buy more of this product from your store.` ,
         "Product Update"
       );
       setIsRestocking(false);

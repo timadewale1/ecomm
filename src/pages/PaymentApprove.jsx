@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { db, functions } from "../firebase.config";
 import { httpsCallable } from "firebase/functions";
+import { useDispatch } from "react-redux";
+import { clearCart } from "../redux/actions/action";
 import Loading from "../components/Loading/Loading";
+import { functions } from "../firebase.config";
 
 const PaymentApprove = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,7 +25,7 @@ const PaymentApprove = () => {
       console.log("handlePaymentVerification: Extracted reference:", reference);
 
       if (!reference) {
-        console.error("handlePaymentVerification: No reference found in URL.");
+        console.error("handlePaymentVerification: No reference in URL.");
         setStatus("error");
         setLoading(false);
         return;
@@ -47,7 +50,7 @@ const PaymentApprove = () => {
       });
 
       console.log(
-        "handlePaymentVerification: Response received:",
+        "handlePaymentVerification: Response received from API:",
         response.data
       );
       const { status: payStatus } = response.data;
@@ -71,6 +74,26 @@ const PaymentApprove = () => {
           console.log(
             "handlePaymentVerification: Order creation and stock adjustment successful!"
           );
+
+          // Extract vendorId from the result
+          const vendorId = result.data.vendorId;
+          console.log(
+            `handlePaymentVerification: Extracted vendorId: ${vendorId}`
+          );
+
+          if (vendorId) {
+            console.log(
+              `handlePaymentVerification: Dispatching clearCart for vendorId: ${vendorId}`
+            );
+            dispatch(clearCart(vendorId));
+
+            console.log("handlePaymentVerification: clearCart dispatched");
+          } else {
+            console.warn(
+              "handlePaymentVerification: No vendorId received from backend response"
+            );
+          }
+
           setStatus("success");
         } else {
           console.error(
@@ -113,7 +136,7 @@ const PaymentApprove = () => {
     handlePaymentVerification();
   }, [hasVerified, location.search]);
 
-  // New useEffect to handle navigation on success
+  // Handle navigation on success
   useEffect(() => {
     if (status === "success") {
       console.log("Navigating to /user-orders because status is success");
@@ -140,7 +163,7 @@ const PaymentApprove = () => {
     return (
       <div className="font-opensans justify-center flex items-center text-center px-12">
         <p className="text-sm translate-y-60 text-gray-800">
-          Payment succesfull. Order placed successfully.
+          Payment successful. Order placed successfully.
         </p>
       </div>
     );
@@ -150,7 +173,7 @@ const PaymentApprove = () => {
     return (
       <div className="font-opensans justify-center flex items-center text-center px-12">
         <p className="text-sm translate-y-60 text-gray-800">
-          Payment failed please try again.
+          Payment failed, please try again.
         </p>
       </div>
     );
@@ -159,7 +182,7 @@ const PaymentApprove = () => {
   return (
     <div className="font-opensans justify-center flex items-center text-center px-12">
       <p className="text-sm translate-y-60 text-gray-800">
-        An error occurred. Order flow was lost, Please contact support.
+        An error occurred. Order flow was lost. Please contact support.
       </p>
     </div>
   );

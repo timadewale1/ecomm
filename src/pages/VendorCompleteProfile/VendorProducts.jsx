@@ -486,6 +486,12 @@ const VendorProducts = () => {
     setRestockValues({}); // Reset restock values
   };
 
+  const hasValidRestockValues = () => {
+    return Object.values(restockValues).some((value) => {
+      return value?.quantity && parseInt(value.quantity, 10) > 0;
+    });
+  };
+  
   // Handle restock input change
   const handleRestockInputChange = (type, id, value) => {
     setRestockValues((prev) => ({
@@ -557,6 +563,11 @@ const VendorProducts = () => {
       });
 
       toast.success("Product restocked successfully.");
+      await addActivityNote(
+        "Restocked Product 🔄",
+        `You restocked ${selectedProduct.name}! Customers can now buy more of this product from your store.`,
+        "Product Update"
+      );
       setIsRestocking(false);
       setRestockValues({});
     } catch (error) {
@@ -1144,18 +1155,19 @@ const VendorProducts = () => {
                   <motion.button
                     onClick={handleSubmitRestock}
                     whileTap={{ scale: 1.1 }}
-                    className={`glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full ${
-                      restockValues.length < 1 && "opacity-25"
+                    className={`flex glow-button justify-center items-center w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full ${
+                      !hasValidRestockValues() && "opacity-25"
                     }`}
-                    disabled={restockValues.length === 0}
+                    disabled={!hasValidRestockValues()}
                   >
                     {rLoading ? (
-                      <Lottie
-                        className="w-10 h-10 text-white"
-                        animationData={LoadState}
-                        loop={true}
-                        autoplay={true}
-                      />
+                      <RotatingLines
+                      strokeColor="white"
+                      strokeWidth="5"
+                      animationDuration="0.75"
+                      width="20"
+                      visible={true}
+                    />
                     ) : (
                       "Submit Restock"
                     )}

@@ -85,7 +85,7 @@ const Routers = () => {
         }
       />
       <Route
-        path="favorites"
+        path="/favorites"
         element={
           <RoleBasedAccess allowedRoles={["user"]}>
             <FavoritesPage />
@@ -93,7 +93,7 @@ const Routers = () => {
         }
       />
       <Route
-        path="search"
+        path="/search"
         element={
           <RoleBasedAccess allowedRoles={["user"]}>
             <SearchPage />
@@ -101,7 +101,7 @@ const Routers = () => {
         }
       />
       <Route
-        path="user-orders"
+        path="/user-orders"
         element={
           <RoleBasedAccess allowedRoles={["user"]}>
             <OrdersCentre />
@@ -109,7 +109,7 @@ const Routers = () => {
         }
       />
       <Route
-        path="latest-cart"
+        path="/latest-cart"
         element={
           <RoleBasedAccess allowedRoles={["user"]}>
             <LatestCart />
@@ -117,7 +117,7 @@ const Routers = () => {
         }
       />
       <Route
-        path="notifications"
+        path="/notifications"
         element={
           <RoleBasedAccess allowedRoles={["user"]}>
             <NotificationsPage />
@@ -125,7 +125,7 @@ const Routers = () => {
         }
       />
       <Route
-        path="marketstorepage/:id"
+        path="/marketstorepage/:id"
         element={
           <RoleBasedAccess allowedRoles={["user", null]}>
             <MarketStorePage />
@@ -149,7 +149,7 @@ const Routers = () => {
         }
       />
       <Route
-        path="market-vendors"
+        path="/market-vendors"
         element={
           <RoleBasedAccess allowedRoles={["user", null]}>
             <MarketVendors />
@@ -157,7 +157,7 @@ const Routers = () => {
         }
       />
       <Route
-        path="online-vendors"
+        path="/online-vendors"
         element={
           <RoleBasedAccess allowedRoles={["user", null]}>
             <OnlineVendors />
@@ -165,7 +165,7 @@ const Routers = () => {
         }
       />
       <Route
-        path="browse-markets"
+        path="/browse-markets"
         element={
           <RoleBasedAccess allowedRoles={["user", null]}>
             <ErrorBoundary>
@@ -175,7 +175,7 @@ const Routers = () => {
         }
       />
       <Route
-        path="market-card/:marketName"
+        path="/market-card/:marketName"
         element={
           <RoleBasedAccess allowedRoles={["user", null]}>
             <Marketcardpage />
@@ -183,7 +183,7 @@ const Routers = () => {
         }
       />
       <Route
-        path="explore"
+        path="/explore"
         element={
           <RoleBasedAccess allowedRoles={["user", null]}>
             <Explore />
@@ -201,24 +201,27 @@ const Routers = () => {
 
       {/* Vendor Protected Routes */}
       <Route element={<ProtectedRoute requiredRole="vendor" />}>
-       
-      <Route path="vendordashboard" element={<VendorDashboard />} />
-        <Route path="vendor-profile" element={<VendorProfile />} />
-        <Route path="vendor-products" element={<VendorProducts />} />
-        <Route path="vendor-orders" element={<VendorOrders />} />
+        <Route path="/vendordashboard" element={<VendorDashboard />} />
+        <Route path="/vendor-profile" element={<VendorProfile />} />
+        <Route path="/vendor-products" element={<VendorProducts />} />
+        <Route path="/vendor-orders" element={<VendorOrders />} />
         <Route path="/store-reviews" element={<StoreReviews />} />
         {/* Add any other vendor-specific protected routes here */}
       </Route>
 
       {/* User Protected Routes */}
       <Route element={<ProtectedRoute requiredRole="user" />}>
-        <Route path="newcheckout/:vendorId" element={<Checkout />} />
-        <Route path="donate" element={<Donate />} />
-        <Route path="payment-approve" element={<PaymentApprove />} />
-        <Route path="user-dashboard" element={<UserDashboard />} />
+        <Route path="/newcheckout/:vendorId" element={<Checkout />} />
+        <Route path="/donate" element={<Donate />} />
+        <Route
+          path="/payment-approve/:reference"
+          element={<PaymentApprove />}
+        />
+
+        <Route path="/user-dashboard" element={<UserDashboard />} />
         {/* Add any other user-specific protected routes here */}
       </Route>
-      
+
       <Route path="/not-found" element={<NotFound />} />
       {/* Catch-all Route for NotFound */}
       <Route path="*" element={<Navigate to="/not-found" />} />

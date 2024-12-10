@@ -250,7 +250,7 @@ const OrdersCentre = () => {
         <div className="flex p-3 py-3 items-center bg-white h-20 mb-3 pb-2">
           <GoChevronLeft
             className="text-3xl cursor-pointer"
-            onClick={handleBackClick}
+            onClick={() => navigate("/profile")} 
           />
           <h1 className="text-xl font-opensans ml-5 font-semibold">Orders</h1>
         </div>

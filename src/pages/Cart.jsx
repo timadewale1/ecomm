@@ -255,7 +255,7 @@ const Cart = () => {
           );
           if (!subProduct || subProduct.stock < product.quantity) {
             outOfStockItems.push(
-              `${product.name} (Sub-product ID: ${product.subProductId})`
+              `${product.name}`
             );
           }
         } else if (product.selectedColor && product.selectedSize) {

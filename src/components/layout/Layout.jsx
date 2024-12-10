@@ -58,6 +58,7 @@ const Layout = () => {
     "/product/:id",
     "/reviews/:id",
     "/store/:id",
+    "/payment-approve/:reference",
     "category/:id",
     "marketstorepage/:id",
     "/newcheckout/:vendorId",

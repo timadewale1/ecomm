@@ -45,6 +45,7 @@ import NotFound from "../pages/NotFound";
 import StoreReviews from "../pages/vendor/StoreReviews.jsx";
 import RoleBasedAccess from "../custom-hooks/Rbac.jsx"; // Assuming this is the RoleBasedAccess component
 import { Navigate } from "react-router-dom";
+import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
 const Routers = () => {
   return (
     <Routes>

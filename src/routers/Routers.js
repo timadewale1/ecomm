@@ -46,6 +46,7 @@ import StoreReviews from "../pages/vendor/StoreReviews.jsx";
 import RoleBasedAccess from "../custom-hooks/Rbac.jsx"; // Assuming this is the RoleBasedAccess component
 import { Navigate } from "react-router-dom";
 import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
+import SubmitFeedback from "../pages/SubmitFeedback.jsx";
 const Routers = () => {
   return (
     <Routes>
@@ -68,7 +69,7 @@ const Routers = () => {
       <Route path="/vendor-verify-otp" element={<VendorVerifyOTP />} />
       <Route path="terms-and-conditions" element={<TermsAndConditions />} />
       <Route path="privacy-policy" element={<PrivacyPolicy />} />
-
+      <Route path="/send-us-feedback" element={<SubmitFeedback />} />
       {/* Apply Role-Based Access to Specific Routes */}
       <Route
         path="/profile"

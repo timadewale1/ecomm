@@ -28,6 +28,8 @@ import { FaCartShopping, FaFileContract } from "react-icons/fa6";
 import { BsShieldFillCheck } from "react-icons/bs";
 import { IoBook } from "react-icons/io5";
 import { IoIosCall } from "react-icons/io";
+import { AiOutlineExperiment } from "react-icons/ai";
+import { MdOutlineFeedback } from "react-icons/md";
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const defaultImageUrl =
@@ -353,6 +355,27 @@ const VendorProfile = () => {
                     <IoBook className="text-black text-xl mr-4" />
                     <h2 className="text-size font-normal text-black capitalize">
                       Guidelines
+                    </h2>
+                  </div>
+                  <ChevronRight className="text-black" />
+                </div>
+              </div>
+              
+              <div className="w-full h-14 flex">
+                <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
+                  Beta 
+                </h1>
+                <AiOutlineExperiment  className="font-semibold text-lg translate-y-[14px] text-black"/>
+              </div>
+              <div className="flex flex-col items-center w-full">
+                <div
+                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={() => navigate("/send-us-feedback")}
+                >
+                  <div className="flex items-center">
+                    <MdOutlineFeedback className="text-black text-xl mr-4" />
+                    <h2 className="text-size font-normal text-black capitalize">
+                      Send us your feedback! 📣
                     </h2>
                   </div>
                   <ChevronRight className="text-black" />

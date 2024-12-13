@@ -306,7 +306,7 @@ const OrderDetailsModal = ({
 
         if (!smsUsername || !smsPassword) {
           console.error("BetaSMS credentials are missing.");
-          toast.error("Configuration error: Missing SMS credentials.");
+          // toast.error("Configuration error: Missing SMS credentials.");
           setDeclineLoading(false);
           return;
         }
@@ -343,7 +343,7 @@ const OrderDetailsModal = ({
           }
         } catch (smsError) {
           console.error("Error sending SMS:", smsError);
-          toast.error("Failed to send SMS notification.");
+          // toast.error("Failed to send SMS notification.");
         }
       } else {
         console.warn("User phone number not available, skipping SMS.");
@@ -824,7 +824,7 @@ const OrderDetailsModal = ({
         })
         .catch(() => {
           console.error("Failed to refresh vendor revenue.");
-          toast.error("Failed to refresh revenue. Please try again later.");
+          // toast.error("Failed to refresh revenue. Please try again later.");
         });
 
       if (userPhoneNumber) {
@@ -867,11 +867,11 @@ const OrderDetailsModal = ({
             console.log(`SMS sent successfully to user: ${userPhoneNumber}`);
           } else {
             console.warn("SMS sending failed:", smsResult);
-            toast.warn("SMS sending failed.");
+            // toast.warn("SMS sending failed.");
           }
         } catch (smsError) {
           console.error("Error sending SMS:", smsError);
-          toast.error("Failed to send SMS notification.");
+          // toast.error("Failed to send SMS notification.");
         }
       } else {
         console.warn("User phone number not available, skipping SMS.");

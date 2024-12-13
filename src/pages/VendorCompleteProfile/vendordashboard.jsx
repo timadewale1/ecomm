@@ -115,7 +115,7 @@ const VendorDashboard = () => {
       setTotalRevenue(data.revenue);
     } catch (error) {
       console.error("Error fetching vendor revenue:", error);
-      toast.error("Failed to fetch revenue. Please try again later.");
+      // toast.error("Failed to fetch revenue. Please try again later.");
     }
   };
 

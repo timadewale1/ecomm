@@ -142,19 +142,23 @@ const Profile = () => {
                 src={userData.photoURL}
                 alt=""
                 className="rounded-full object-cover h-28 w-28"
-                onClick={() => setIsAvatarModalOpen(true)}
+                onClick={() => {
+                  if (currentUser) setIsAvatarModalOpen(true);
+                }}
               />
             ) : (
               <div
-                className="rounded-full h-36 w-36 flex items-center justify-center "
-                onClick={() => setIsAvatarModalOpen(true)}
+                className="rounded-full h-36 w-36 flex items-center justify-center"
+                onClick={() => {
+                  if (currentUser) setIsAvatarModalOpen(true);
+                }}
               >
                 <IoMdContact className="text-gray-500 text-8xl" />
               </div>
             )}
             {currentUser && (
               <MdModeEdit
-                className="absolute bottom-0 right-0 border text-black  mr-2 text-3xl p-2 rounded-full bg-white cursor-pointer shadow-md"
+                className="absolute bottom-0 right-0 border text-black mr-2 text-3xl p-2 rounded-full bg-white cursor-pointer shadow-md"
                 onClick={() => setIsAvatarModalOpen(true)}
               />
             )}
@@ -337,28 +341,27 @@ const Profile = () => {
               </div>
               <ChevronRight className="text-black" />
             </div>
-          <div className="w-full h-14 flex ml-4">
-            <h1 className="text-base font-semibold mx-2 font-opensans translate-y-3 text-black">
-                  Beta 
-                </h1>
-                <AiOutlineExperiment  className="font-semibold text-lg translate-y-[14px] text-black"/>
-              </div>
-              <div className="flex flex-col items-center w-full">
-                <div
-                  className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => navigate("/send-us-feedback")}
-                >
-                  <div className="flex items-center">
-                    <MdOutlineFeedback className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal text-black capitalize">
-                      Send us your feedback! ❤
-                    </h2>
-                  </div>
-                  <ChevronRight className="text-black" />
+            <div className="w-full h-14 flex ml-4">
+              <h1 className="text-base font-semibold mx-2 font-opensans translate-y-3 text-black">
+                Beta
+              </h1>
+              <AiOutlineExperiment className="font-semibold text-lg translate-y-[14px] text-black" />
+            </div>
+            <div className="flex flex-col items-center w-full">
+              <div
+                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                onClick={() => navigate("/send-us-feedback")}
+              >
+                <div className="flex items-center">
+                  <MdOutlineFeedback className="text-black text-xl mr-4" />
+                  <h2 className="text-size font-normal text-black capitalize">
+                    Send us your feedback! ❤
+                  </h2>
                 </div>
+                <ChevronRight className="text-black" />
               </div>
+            </div>
           </div>
-          
 
           <div className="flex flex-col items-center px-2 w-full">
             {currentUser && (
@@ -397,6 +400,9 @@ const Profile = () => {
                 </div>
               </div>
             )}
+          </div>
+          <div className="w-full text-center mt-2">
+            <p className="text-sm font-medium text-gray-500">Beta v.1.0</p>
           </div>
         </div>
       ) : (

@@ -104,7 +104,7 @@ const SubmitFeedback = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col items-center bg-gray-50 min-h-screen pb-4 font-opensans text-gray-800">
+    <div className="flex flex-col items-center bg-gray-50  pb-4 font-opensans text-gray-800">
       {/* Header */}
       <div className="sticky top-0 bg-white z-10 flex items-center justify-between w-full px-3 py-4 border-b shadow-sm">
         <div className="flex items-center space-x-2">
@@ -119,7 +119,7 @@ const SubmitFeedback = () => {
       </div>
 
       {/* Content */}
-      <div className="w-full max-w-3xl bg-white rounded-lg shadow-md p-2">
+      <div className="w-full max-w-3xl bg-white  px-2">
         <div className="bg-customOrange flex flex-col relative text-center p-10  rounded-md justify-center items-center h-32 mb-3">
           <div className="absolute top-0 right-0">
             <img src="./Vector.png" alt="" className="w-16 h-24" />
@@ -133,8 +133,8 @@ const SubmitFeedback = () => {
         </div>
 
         <div className="flex flex-col space-y-4">
-          <label className="text-sm font-medium text-gray-700">
-            Feedback Type:
+          <label className="text-sm font-medium font-opensans text-gray-700">
+            Whats the issue?
             <select
               value={feedbackType}
               onChange={(e) => setFeedbackType(e.target.value)}
@@ -144,15 +144,17 @@ const SubmitFeedback = () => {
               <option value="Complaint">Complaint</option>
               <option value="Suggestion">Suggestion</option>
               <option value="General">General</option>
+              <option value="Bug">Noticed a Bug</option>
+              <option value="Payment">Payment Issues</option>
             </select>
           </label>
 
           <label className="text-sm font-medium text-gray-700">
-            Feedback:
+            Explain better:
             <textarea
               value={feedbackText}
               onChange={(e) => setFeedbackText(e.target.value)}
-              className="w-full p-2 border focus:outline-customOrange border-gray-300 rounded mt-1"
+              className="w-full p-2 border focus:outline-customOrange border-gray-300 rounded mt-1 resize-none"
               rows="5"
               placeholder="Describe your feedback here..."
             />
@@ -177,37 +179,36 @@ const SubmitFeedback = () => {
             Attach up to 3 pictures or screenshots to help us better understand
             you (Optional):
           </div>
-           {/* Attachments */}
-           <div className="overflow-x-auto ">
+          {/* Attachments */}
+          <div className="overflow-x-auto ">
             <div className="flex space-x-4">
-            {attachments.map((file, index) => (
-              <div key={index} className="relative w-36 h-36">
-                <img
-                  src={URL.createObjectURL(file)}
-                  alt="Preview"
-                  className="w-full h-full object-cover rounded-lg border-2 border-dashed border-customOrange"
-                />
-                <button
-                  onClick={() => handleRemoveAttachment(index)}
-                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs w-7 h-7"
-                >
-                  &#8722;
-                </button>
-              </div>
-            ))}
-            {attachments.length < 3 && (
-              <label className="w-36 h-36 rounded-lg border-2 border-dashed border-customOrange flex items-center justify-center cursor-pointer">
-                <span className="text-customOrange">+</span>
-                <input
-                  type="file"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-              </label>
-            )}
+              {attachments.map((file, index) => (
+                <div key={index} className="relative w-36 h-36">
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt="Preview"
+                    className="w-full h-full object-cover rounded-lg border-2 border-dashed border-customOrange"
+                  />
+                  <button
+                    onClick={() => handleRemoveAttachment(index)}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs w-7 h-7"
+                  >
+                    &#8722;
+                  </button>
+                </div>
+              ))}
+              {attachments.length < 3 && (
+                <label className="w-36 h-36 rounded-lg border-2 border-dashed border-customOrange flex items-center justify-center cursor-pointer">
+                  <span className="text-customOrange">+</span>
+                  <input
+                    type="file"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
           </div>
-           </div>
-           
         </div>
 
         <div className="mt-6">
@@ -228,9 +229,9 @@ const SubmitFeedback = () => {
             )}
           </button>
         </div>
-        <div className="my-3 text-center text-sm text-customOrange">
+        <div className="my-3 text-center text-xs text-customOrange">
           ⓘ Your feedback helps us improve our service. Thank you for taking the
-          time to share your thoughts with us.😁♥
+          time to share your thoughts with us.😁🧡
         </div>
       </div>
     </div>

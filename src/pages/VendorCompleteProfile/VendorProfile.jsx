@@ -360,12 +360,12 @@ const VendorProfile = () => {
                   <ChevronRight className="text-black" />
                 </div>
               </div>
-              
+
               <div className="w-full h-14 flex">
                 <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
-                  Beta 
+                  Beta
                 </h1>
-                <AiOutlineExperiment  className="font-semibold text-lg translate-y-[14px] text-black"/>
+                <AiOutlineExperiment className="font-semibold text-lg translate-y-[14px] text-black" />
               </div>
               <div className="flex flex-col items-center w-full">
                 <div
@@ -380,6 +380,7 @@ const VendorProfile = () => {
                   </div>
                   <ChevronRight className="text-black" />
                 </div>
+                {/* Beta version text */}
               </div>
 
               <div
@@ -403,6 +404,9 @@ const VendorProfile = () => {
                     />
                   </div>
                 )}
+              </div>
+              <div className="w-full text-center mt-2">
+                <p className="text-sm font-medium text-gray-500">Beta v.1.0</p>
               </div>
             </div>
           </div>

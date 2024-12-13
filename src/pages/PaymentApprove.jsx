@@ -35,8 +35,8 @@ const PaymentApprove = () => {
         "handlePaymentVerification: Proceeding with verification for reference:",
         reference
       );
-
-      const verifyUrl = `https://mythrift-payments.fly.dev/api/v1/orderStatus/${reference}`;
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+      const verifyUrl = `${API_BASE_URL}/orderStatus/${reference}`;
       console.log(
         "handlePaymentVerification: Making GET request to:",
         verifyUrl
@@ -123,18 +123,25 @@ const PaymentApprove = () => {
 
   useEffect(() => {
     console.log("useEffect: Checking hasVerified state");
+
     if (hasVerified) {
       console.log(
         "useEffect: Already verified, not calling handlePaymentVerification again"
       );
       return;
     }
-    console.log(
-      "useEffect: Setting hasVerified to true and calling handlePaymentVerification"
-    );
-    setHasVerified(true);
-    handlePaymentVerification();
-  }, [hasVerified, location.search]);
+
+    const verifyPayment = async () => {
+      console.log(
+        "useEffect: Setting hasVerified to true and calling handlePaymentVerification"
+      );
+      setHasVerified(true);
+      await handlePaymentVerification();
+    };
+
+    verifyPayment();
+    // Only trigger this once when the component mounts
+  }, []); // Empty dependency array ensures this runs only once
 
   // Handle navigation on success
   useEffect(() => {

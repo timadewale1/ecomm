@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { GoHome } from "react-icons/go";
 import { HiOutlineUser } from "react-icons/hi2";
 import { BsBoxSeam } from "react-icons/bs";
@@ -7,13 +7,15 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useVendorNavigation } from "../Context/VendorBottomBarCtxt"; // Updated import
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase.config";
+import { useAuth } from "../../custom-hooks/useAuth";
 import "../../styles/bottombar.css";
 
 const VendorBottomBar = ({ isSearchFocused }) => {
   const { activeNav, setActiveNav } = useVendorNavigation();
   const navigate = useNavigate();
   const location = useLocation();
-  const [pendingOrdersCount, setPendingOrdersCount] = React.useState(0);
+  const { currentUser } = useAuth(); // Get the current logged-in user
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
 
   const navItems = [
     {
@@ -53,18 +55,27 @@ const VendorBottomBar = ({ isSearchFocused }) => {
   }, [location.pathname, setActiveNav]);
 
   useEffect(() => {
-    // Fetch the count of pending orders
+    if (!currentUser?.uid) return; // Ensure the vendor is logged in
+
+    // Fetch the count of pending orders for the current vendor
     const fetchPendingOrdersCount = () => {
       const ordersRef = collection(db, "orders");
-      const q = query(ordersRef, where("progressStatus", "==", "Pending"));
+      const q = query(
+        ordersRef,
+        where("progressStatus", "==", "Pending"),
+        where("vendorId", "==", currentUser.uid) // Filter by the current vendor ID
+      );
+
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        setPendingOrdersCount(snapshot.docs.length);
+        setPendingOrdersCount(snapshot.docs.length); // Update the count dynamically
       });
+
       return () => unsubscribe();
     };
 
-    fetchPendingOrdersCount();
-  }, []);
+    const unsubscribe = fetchPendingOrdersCount();
+    return unsubscribe; // Cleanup listener on unmount
+  }, [currentUser]);
 
   const handleClick = (index, route) => {
     setActiveNav(index);

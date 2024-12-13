@@ -52,23 +52,72 @@ const VendorDashboard = () => {
     if (vendorData) {
       fetchStatistics(vendorData.vendorId);
       fetchRecentActivities(vendorData.vendorId);
-
+      fetchVendorRevenue(vendorData.vendorId);
       fetchInfo(vendorData.vendorId);
     }
   }, [vendorData]);
 
-  // const fetchCoverImage = async (vendorId) => {
-  //   try {
-  //     const vendorDocRef = doc(db, "vendors", vendorId);
-  //     const vendorDoc = await getDoc(vendorDocRef);
+  const formatRevenue = (revenue) => {
+    return revenue.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
 
-  //     if (vendorDoc.exists() && vendorDoc.data().coverImageUrl) {
-  //       setCoverImageUrl(vendorDoc.data().coverImageUrl);
-  //     }
-  //   } catch (error) {
-  //     console.error("Error fetching cover image:", error);
-  //   }
-  // };
+  // Fetch vendor revenue with caching
+  const fetchVendorRevenue = async (vendorId) => {
+    const cacheKey = `vendorRevenue_${vendorId}`;
+    const cacheTimeKey = `vendorRevenue_time_${vendorId}`;
+    const cachedRevenue = localStorage.getItem(cacheKey);
+    const lastFetchTime = localStorage.getItem(cacheTimeKey);
+
+    // Check if data exists in cache and is less than 30 minutes old
+    const thirtyMinutes = 30 * 60 * 1000;
+    if (
+      cachedRevenue &&
+      lastFetchTime &&
+      Date.now() - lastFetchTime < thirtyMinutes
+    ) {
+      console.log("Using cached revenue data.");
+      setTotalRevenue(parseFloat(cachedRevenue));
+      return;
+    }
+
+    try {
+      console.log("Fetching vendor revenue for vendorId:", vendorId);
+
+      const token = process.env.REACT_APP_RESOLVE_TOKEN; // Fetch token from environment variables
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+      const response = await fetch(
+        `${API_BASE_URL}/vendorRevenue/${vendorId}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Failed to fetch vendor revenue:", errorData);
+        throw new Error("Failed to fetch vendor revenue");
+      }
+
+      const data = await response.json();
+      console.log("Vendor revenue data fetched:", data);
+
+      // Cache the revenue and current timestamp
+      localStorage.setItem(cacheKey, data.revenue);
+      localStorage.setItem(cacheTimeKey, Date.now());
+
+      setTotalRevenue(data.revenue);
+    } catch (error) {
+      console.error("Error fetching vendor revenue:", error);
+      toast.error("Failed to fetch revenue. Please try again later.");
+    }
+  };
 
   const filteredActivities = recentActivities.filter((activity) => {
     if (filterOptions === "All") return true;
@@ -337,13 +386,7 @@ const VendorDashboard = () => {
                 </p>
               </p>
               <p className="text-white text-3xl font-bold">
-                {!hide ? (
-                  <p className="text-white text-3xl font-bold">
-                    &#x20a6;{totalRevenue}
-                  </p>
-                ) : (
-                  <p className="text-white text-3xl font-bold">{"**.**"}</p>
-                )}
+                {hide ? "**.**" : `₦${formatRevenue(totalRevenue)}`}
               </p>
             </div>
             <div>
@@ -456,7 +499,7 @@ const VendorDashboard = () => {
                   <span
                     className="text-xs ml-2 cursor-pointer"
                     onClick={() => {
-                      setFilterOptions("Recent Transactions");
+                      setFilterOptions("transactions");
                       setViewOptions(!viewOptions);
                     }}
                   >

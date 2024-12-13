@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {
   collection,
@@ -42,6 +42,7 @@ import { FaSpinner, FaXmark } from "react-icons/fa6";
 import Skeleton from "react-loading-skeleton";
 import "./vendor.css";
 import ScrollToTop from "../../components/layout/ScrollToTop";
+import { VendorContext } from "../../components/Context/Vendorcontext";
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
@@ -63,6 +64,9 @@ const VendorProducts = () => {
   const [productsLoading, setProductsLoading] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [picking, setPicking] = useState(false);
+
+  const { vendorData } = useContext(VendorContext);
+
   const [pickedProducts, setPickedProducts] = useState([]);
   const [pinnedCount, setPinnedCount] = useState(0);
 
@@ -183,9 +187,7 @@ const VendorProducts = () => {
     return () => unsubscribeAuth(); // Clean up on unmount
   }, [auth, navigate]);
 
-  useEffect(() => {
-    
-  }, []);
+  useEffect(() => {}, []);
 
   // Fetch and listen for vendor products based on vendorId
   useEffect(() => {
@@ -200,7 +202,7 @@ const VendorProducts = () => {
     };
 
     fetchProducts();
-// Fetch pinned products count when component mounts
+    // Fetch pinned products count when component mounts
     fetchPinnedProductsCount();
     // Return cleanup function to remove listener on unmount
     return () => {
@@ -220,7 +222,7 @@ const VendorProducts = () => {
     const unsubscribe = onSnapshot(productsQuery, async (snapshot) => {
       const updatedProducts = [];
       const batch = writeBatch(db); // Use batch to optimize updates
-  
+
       snapshot.docs.forEach((doc) => {
         const product = { id: doc.id, ...doc.data() };
         if (product.stockQuantity === 0 && product.isFeatured) {
@@ -230,11 +232,11 @@ const VendorProducts = () => {
         }
         updatedProducts.push(product);
       });
-  
+
       if (!batch.isEmpty) {
         await batch.commit(); // Commit the batch updates
       }
-  
+
       setProducts(updatedProducts);
       setTotalProducts(updatedProducts.length);
       setProductsLoading(false);
@@ -387,9 +389,9 @@ const VendorProducts = () => {
       );
 
       // Update pinned count locally
-    setPinnedCount((prevCount) =>
-      newIsFeaturedStatus ? prevCount + 1 : prevCount - 1
-    );
+      setPinnedCount((prevCount) =>
+        newIsFeaturedStatus ? prevCount + 1 : prevCount - 1
+      );
 
       // If the product was just pinned (isFeatured set to true), add an activity note
       if (newIsFeaturedStatus) {
@@ -620,9 +622,7 @@ const VendorProducts = () => {
       <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-5 font-opensans ">
         <ScrollToTop />
         <div className="flex justify-end">
-          <div
-            className="relative flex justify-center items-center"
-          >
+          <div className="relative flex justify-center items-center">
             {picking && pickedProducts.length < 1 && (
               <div className="absolute top-10 right-[28px] items-center flex justify-between w-[300px] h-[52px] p-4 bg-white shadow-lg rounded-2xl z-50 text-[16px]">
                 <p className=" font-semibold text-black">Select a Product</p>
@@ -630,13 +630,19 @@ const VendorProducts = () => {
               </div>
             )}
             {!picking ? (
-              <div className="cursor-pointer relative rounded-full w-11 h-11 bg-customOrange bg-opacity-10 flex justify-center items-center"
-            onClick={handleTogglePicking}>
+              <div
+                className="cursor-pointer relative rounded-full w-11 h-11 bg-customOrange bg-opacity-10 flex justify-center items-center"
+                onClick={handleTogglePicking}
+              >
                 <FiMoreHorizontal className="w-6 h-6" />
               </div>
             ) : (
-              <p className="cursor-pointer text-[16px] my-2.5"
-            onClick={handleTogglePicking}>Cancel</p>
+              <p
+                className="cursor-pointer text-[16px] my-2.5"
+                onClick={handleTogglePicking}
+              >
+                Cancel
+              </p>
             )}
           </div>
         </div>
@@ -882,8 +888,12 @@ const VendorProducts = () => {
       {!picking && (
         <button
           onClick={openAddProductModal}
-          
-          className={`fixed bottom-24 right-5 flex justify-center items-center bg-customOrange text-white rounded-full w-11 h-11 shadow-lg focus:outline-none`}
+          className={`fixed bottom-24 right-5 flex justify-center items-center ${
+            vendorData?.isApproved
+              ? "bg-customOrange"
+              : "bg-customOrange opacity-35 cursor-not-allowed"
+          } text-white rounded-full w-11 h-11 shadow-lg focus:outline-none`}
+          disabled={!vendorData?.isApproved}
         >
           <span className="text-3xl">
             <FiPlus />

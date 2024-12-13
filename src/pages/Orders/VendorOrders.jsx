@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useSelector } from "react-redux";
-import {useAuth} from "../../custom-hooks/useAuth";
+import { useAuth } from "../../custom-hooks/useAuth";
 import Skeleton from "react-loading-skeleton";
 
 import PendingOrders from "./PendingOrders";
@@ -15,7 +15,7 @@ const VendorOrders = () => {
   const [activeTab, setActiveTab] = useState("Pending");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-
+  const [totalRevenue, setTotalRevenue] = useState(0); // Add totalRevenue state
   // Get orders from Redux store
   const orders = useSelector((state) => state.orders?.orders);
   const loading = orders === undefined || orders === null;
@@ -36,6 +36,33 @@ const VendorOrders = () => {
       return bTime - aTime;
     });
   }, [orders, activeTab]);
+  const fetchVendorRevenue = async (vendorId) => {
+    try {
+      const token = process.env.REACT_APP_RESOLVE_TOKEN;
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL; // Ensure the token is correctly set
+      const response = await fetch(
+        `${API_BASE_URL}/vendorRevenue/${vendorId}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch vendor revenue");
+      }
+
+      const data = await response.json();
+      setTotalRevenue(data.revenue); // Set total revenue
+      return data.revenue;
+    } catch (error) {
+      console.error("Error fetching vendor revenue:", error);
+      throw error;
+    }
+  };
 
   const openModal = (order) => {
     setSelectedOrder(order);
@@ -145,6 +172,8 @@ const VendorOrders = () => {
         isOpen={isModalOpen}
         onClose={closeModal}
         order={selectedOrder}
+        fetchVendorRevenue={fetchVendorRevenue} // Pass function as prop
+        setTotalRevenue={setTotalRevenue} // Pass state updater as prop
       />
     </div>
   );

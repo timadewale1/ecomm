@@ -620,10 +620,11 @@ const AddProduct = ({ vendorId, closeModal }) => {
     }
   };
   const generateDescription = async () => {
+    const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
     setIsGeneratingDescription(true);
     try {
       const response = await axios.post(
-        "https://mythrift.fly.dev/api/v1/description",
+        `${API_BASE_URL}/description`,
         {
           name: productName,
           category,

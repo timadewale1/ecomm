@@ -168,6 +168,19 @@ li::marker {
   outline: none;
   transition: height 0.3s ease; /* Smooth height transition */
 }
+.modal-content-charge {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  height: 40%;
+  background-color: white;
+  border-radius: 10px;
+  padding: 10px;
+  outline: none;
+  transition: height 0.3s ease; /* Smooth height transition */
+}
 
 .modal-content-order {
   position: fixed;

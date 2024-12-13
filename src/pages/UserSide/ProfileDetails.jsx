@@ -58,11 +58,17 @@ const ProfileDetails = ({
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
           const data = userSnap.data();
+          // Update all state variables
+          setUsername(data.username || "");
+          setDisplayName(data.displayName || "");
+          setPhoneNumber(data.phoneNumber || "");
+          setBirthday(data.birthday || "");
+          setAddress(data.address || "");
+
           // Update Redux store with fetched user data
           dispatch(updateUserData(data));
           setLoading(false);
         } else {
-          // Handle case where user data does not exist in Firestore
           console.error("No such user data!");
           setLoading(false);
         }
@@ -73,17 +79,19 @@ const ProfileDetails = ({
     };
 
     if (userData) {
+      // If userData from Redux exists, populate all fields
       setUsername(userData.username || "");
-      // ... other fields
+      setDisplayName(userData.displayName || "");
+      setPhoneNumber(userData.phoneNumber || "");
+      setBirthday(userData.birthday || "");
+      setAddress(userData.address || "");
       setLoading(false);
     } else if (!currentUser) {
-      // User is not authenticated
       setLoading(false);
     } else {
-      // User is authenticated but userData is not yet available
       fetchUserData();
     }
-  }, [userData, currentUser]);
+  }, [userData, currentUser, dispatch]);
 
   if (loading) {
     return <Loading />;

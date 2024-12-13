@@ -345,10 +345,10 @@ const Homepage = () => {
     .resize(auto().gravity(autoGravity()).width(5000).height(3000));
 
   const promoImages = [
-    "black-friday-composition-with-post-its_1_clwua4",
-    "4929101_na7pyp",
-    "4991116_bwrxkh",
-    "4395311_hcqoss",
+    "BOTM_xvkkud",
+    // "4929101_na7pyp",
+    // "4991116_bwrxkh",
+    // "4395311_hcqoss",
   ];
 
   return (
@@ -428,7 +428,7 @@ const Homepage = () => {
                                 .width(5000)
                                 .height(3000)
                             )}
-                          className="w-full h-full object-cover rounded-lg"
+                          className="w-full h-full object-cover object-center rounded-lg"
                         />
                       </div>
                     </SwiperSlide>

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { getAuth } from "firebase/auth";
-import { doc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, setDoc, updateDoc, query, where, collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -67,7 +67,8 @@ const CompleteProfile = () => {
   const [idImage, setIdImage] = useState(null); // ID Image
   const [isIdImageUploading, setIsIdImageUploading] = useState(false);
   const [isCoverImageUploading, setIsCoverImageUploading] = useState(false);
-
+  const [showBankDropdown, setShowBankDropdown] = useState(false);
+  const [selectedBank, setSelectedBank] = useState(null);
   const [loading, setLoading] = useState(false); // Updated loading state
   const navigate = useNavigate();
 
@@ -122,32 +123,6 @@ const CompleteProfile = () => {
     "Heels",
     "Crossbody Bags",
     "Rings",
-  ];
-
-  const banks = [
-    "Access Bank",
-    "Citibank",
-    "Diamond Bank",
-    "Ecobank Nigeria",
-    "Fidelity Bank",
-    "First Bank of Nigeria",
-    "First City Monument Bank (FCMB)",
-    "Globus Bank",
-    "Guaranty Trust Bank (GTBank)",
-    "Heritage Bank",
-    "Keystone Bank",
-    "Kuda Bank",
-    "Providus Bank",
-    "Polaris Bank",
-    "Stanbic IBTC Bank",
-    "Standard Chartered Bank",
-    "Sterling Bank",
-    "Suntrust Bank",
-    "Union Bank of Nigeria",
-    "United Bank for Africa (UBA)",
-    "Unity Bank",
-    "Wema Bank",
-    "Zenith Bank",
   ];
 
   const handleImageUpload = async (e) => {
@@ -249,6 +224,7 @@ const CompleteProfile = () => {
   };
 
   const handleBankDetailsChange = (e) => {
+    console.log("Event triggered:", e.target.name, e.target.value);
     const { name, value } = e.target;
     setBankDetails({ ...bankDetails, [name]: value });
   };
@@ -363,29 +339,56 @@ const CompleteProfile = () => {
       // Format the shopName to title case before saving
       const formattedShopName = toTitleCase(vendorData.shopName);
 
+      // Check shop name availability
+      console.log("Validating shop name availability...");
+      const shopNameQuery = query(
+        collection(db, "vendors"),
+        where("shopName", "==", formattedShopName)
+      );
+      const querySnapshot = await getDocs(shopNameQuery);
+
+      if (!querySnapshot.empty) {
+        toast.error("Shop name is already taken. Please choose another one.", {
+          className: "custom-toast",
+        });
+        setIsLoading(false);
+        return; // Stop execution if shop name is not available
+      }
+
+      console.log("Shop name is available.");
+
       // Make POST request to createTransferRec
       const createTransferRecData = {
         vendorId: user.uid,
         name: formattedShopName,
         accountNumber: bankDetails.accountNumber,
+        bankCode: bankDetails.bankCode, // Include bankCode in camel case
       };
+
+      console.log(
+        "Data being sent to createTransferRec API:",
+        createTransferRecData
+      );
 
       let recipientCode = null;
       const token = process.env.REACT_APP_RESOLVE_TOKEN;
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
       try {
         const response = await fetch(
-          "https://mythrift-payments.fly.dev/api/v1/createTransferRec",
+          `${API_BASE_URL}/createTransferRec`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`, 
+              Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify(createTransferRecData),
           }
         );
 
         const result = await response.json();
+        console.log("API Response from createTransferRec:", result);
+
         if (!response.ok || !result || !result.recipientCode) {
           throw new Error(
             result.message || "Failed to create transfer recipient"
@@ -395,6 +398,7 @@ const CompleteProfile = () => {
         // Extract recipientCode
         recipientCode = result.recipientCode;
       } catch (error) {
+        console.error("Error during createTransferRec API call:", error);
         toast.error("Error creating transfer recipient: " + error.message, {
           className: "custom-toast",
         });
@@ -410,10 +414,11 @@ const CompleteProfile = () => {
         isDeactivated: false,
         bankDetails: {
           ...bankDetails,
-          // accountName, bankName, accountNumber are already included
         },
         recipientCode: recipientCode, // Store the recipient code in Firestore
       };
+
+      console.log("Data being saved to Firestore:", dataToStore);
 
       // Save the vendor data to Firestore
       await setDoc(doc(db, "vendors", user.uid), dataToStore, { merge: true });
@@ -424,10 +429,10 @@ const CompleteProfile = () => {
 
       navigate("/vendordashboard");
     } catch (error) {
+      console.error("Error during profile completion:", error);
       toast.error("Error completing profile: " + error.message, {
         className: "custom-toast",
       });
-      console.error("Error completing profile:", error);
     } finally {
       setIsLoading(false);
     }
@@ -543,7 +548,11 @@ const CompleteProfile = () => {
                 handleSocialMediaChange={handleSocialMediaChange}
                 isLoading={isLoading}
                 handleProfileCompletion={handleProfileCompletion}
-                setBankDetails={setBankDetails} // <--- Add this line
+                setBankDetails={setBankDetails}
+                showBankDropdown={showBankDropdown}
+                setShowBankDropdown={setShowBankDropdown}
+                selectedBank={selectedBank}
+                setSelectedBank={setSelectedBank}
               />
             )}
 
@@ -570,7 +579,6 @@ const CompleteProfile = () => {
                 setIdImage={setIdImage}
                 isIdImageUploading={isIdImageUploading}
                 handleProfileCompletion={handleProfileCompletion}
-                banks={banks}
               />
             )}
           </Form>

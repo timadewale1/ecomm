@@ -13,7 +13,8 @@ import { BiSolidImageAdd } from "react-icons/bi";
 import { PiIdentificationCardThin } from "react-icons/pi";
 import { FaIdCard, FaMinusCircle } from "react-icons/fa";
 import { TbTruckDelivery } from "react-icons/tb";
-import { fetchBankList, resolveBankName } from "../../services/bankutils";
+// import { fetchBankList, resolveBankName } from "../../services/bankutils";
+import banks from "../../services/banks";
 import { IoShareSocial } from "react-icons/io5";
 import ProgressBar from "./ProgressBar";
 import toast from "react-hot-toast"; // Import from react-hot-toast
@@ -42,7 +43,10 @@ const VirtualVendor = ({
   handleSocialMediaChange,
 
   setBankDetails,
-
+  showBankDropdown,
+  setShowBankDropdown,
+  selectedBank,
+  setSelectedBank,
   setIdImage,
   isCoverImageUploading,
   isIdImageUploading,
@@ -134,23 +138,11 @@ const VirtualVendor = ({
   // const [banks, setBanks] = useState([]);
   const [isResolving, setIsResolving] = useState(false); // Loader for account resolution
 
-  // const [banks, setBanks] = useState([]);
-  const [banks, setBanks] = useState([]);
+  const [searchBankTerm, setSearchBankTerm] = useState(""); // For bank search input
 
-  useEffect(() => {
-    const loadBankList = async () => {
-      try {
-        const bankList = await fetchBankList();
-        setBanks(bankList); // Store the fetched bank list
-        console.log("Bank list loaded:", bankList);
-      } catch (error) {
-        console.error("Error loading bank list:", error);
-        toast.error("Failed to load bank list. Please try again later.");
-      }
-    };
-
-    loadBankList();
-  }, []);
+  const filteredBanks = banks.filter((bank) =>
+    bank.name.toLowerCase().includes(searchBankTerm.toLowerCase())
+  );
 
   const toTitleCase = (str) => {
     return str
@@ -204,88 +196,7 @@ const VirtualVendor = ({
       state: state,
     });
   };
-  // const handleResolveAccount = async () => {
-  //   const accountNumber = bankDetails.accountNumber;
-  //   const token = process.env.REACT_APP_RESOLVE_TOKEN;
-
-  //   // Validate account number
-  //   if (!accountNumber || accountNumber.length !== 10) {
-  //     toast.error("Please enter a valid 10-digit account number");
-  //     return;
-  //   }
-
-  //   try {
-  //     setIsResolving(true);
-  //     console.log("Fetching account details...");
-  //     const url = `https://mythrift-payments.fly.dev/api/v1/resolveAccount/${accountNumber}`;
-
-  //     // API Call
-  //     const res = await fetch(url, {
-  //       method: "GET",
-  //       headers: {
-  //         Authorization: `Bearer ${token}`,
-  //         Accept: "application/json",
-  //       },
-  //     });
-
-  //     console.log("Response Status:", res.status);
-
-  //     const data = await res.json(); // Parse the JSON response
-  //     console.log("Parsed Data:", data);
-
-  //     // Debugging data structure
-  //     console.log(
-  //       "typeof data.status:",
-  //       typeof data.status,
-  //       "value:",
-  //       data.status
-  //     );
-  //     console.log("typeof data.data:", typeof data.data, "value:", data.data);
-
-  //     // Handle successful response
-  //     if (res.ok && data.status === true && data.data) {
-  //       const { account_number, account_name, bank_id } = data.data;
-
-  //       console.log("Account Number:", account_number);
-  //       console.log("Account Name:", account_name);
-  //       console.log("Bank ID:", bank_id);
-
-  //       // Ensure the banks array is populated
-  //       if (banks.length === 0) {
-  //         toast.error("Bank list not available. Please try again later.");
-  //         return;
-  //       }
-
-  //       // Resolve the bank name using bank_id
-  //       const resolvedBankName = resolveBankName(banks, bank_id);
-  //       console.log("Resolved Bank Name:", resolvedBankName);
-
-  //       // Update bankDetails state with resolved data
-  //       setBankDetails((prevDetails) => {
-  //         const updatedDetails = {
-  //           ...prevDetails,
-  //           accountNumber: account_number,
-  //           accountName: account_name,
-  //           bankId: bank_id,
-  //           bankName: resolvedBankName,
-  //         };
-  //         console.log("Updated bankDetails:", updatedDetails);
-  //         return updatedDetails;
-  //       });
-
-  //       toast.success("Account resolved successfully");
-  //     } else {
-  //       console.error("Failed to resolve account number. Response:", data);
-  //       toast.error(data.message || "Failed to resolve account number");
-  //     }
-  //   } catch (error) {
-  //     console.error("Error occurred during account resolution:", error);
-  //     toast.error("Error resolving account number. Please try again.");
-  //   } finally {
-  //     setIsResolving(false); // Ensure the loading state is reset
-  //   }
-  // };
-
+ 
   const isFormComplete = () => {
     if (step === 2) {
       return (
@@ -328,6 +239,16 @@ const VirtualVendor = ({
   // Remove the hardcoded accountNumber and use state
 
   // Debugging resolveBankName function
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!event.target.closest(".dropdown-container")) {
+        setShowBankDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
 
   return (
     <div>
@@ -681,7 +602,7 @@ const VirtualVendor = ({
                 </div>
                 <input
                   type="text"
-                  name="Twitter"
+                  name="twitter"
                   placeholder="Twitter(X) Link"
                   value={vendorData.socialMediaHandle.twitter}
                   onChange={handleSocialMediaChange}
@@ -792,6 +713,52 @@ const VirtualVendor = ({
                 Bank Details
               </h3>
 
+              {/* Bank Dropdown */}
+              <div className="relative w-full mb-4">
+                <label
+                  htmlFor="bank-select"
+                  className="block text-sm font-opensans font-medium text-gray-700"
+                >
+                  Select Bank
+                </label>
+                <select
+                  id="bank-select"
+                  name="bankName"
+                  value={bankDetails.bankCode} // Use the bank code as the value
+                  onChange={(e) => {
+                    const selectedBankCode = e.target.value;
+                    console.log("Selected Bank Code:", selectedBankCode); // Log the selected bank code
+
+                    const selectedBank = banks.find(
+                      (bank) => bank.code === selectedBankCode
+                    );
+
+                    if (selectedBank) {
+                      console.log("Selected Bank Details:", selectedBank); // Log the selected bank object
+
+                      // Update bank details state directly
+                      setBankDetails({
+                        ...bankDetails,
+                        bankName: selectedBank.name,
+                        bankCode: selectedBank.code, // Update bankCode as well
+                      });
+
+                      setSelectedBank(selectedBank); // Optional: Set selected bank for further use
+                    }
+                  }}
+                  className="w-full h-12 px-3 border-2 rounded-lg font-opensans text-gray-800 hover:border-customOrange focus:outline-none focus:border-customOrange"
+                >
+                  <option value="" disabled>
+                    Select Bank
+                  </option>
+                  {banks.map((bank) => (
+                    <option key={bank.code} value={bank.code}>
+                      {bank.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Account Number Field */}
               <div className="relative w-full">
                 <input
@@ -801,35 +768,36 @@ const VirtualVendor = ({
                   onChange={async (e) => {
                     const value = e.target.value;
 
-                    // Allow only numbers, up to 10 digits
-                    if (/^\d*$/.test(value) && value.length <= 10) {
-                      console.log("Account number input:", value);
+                    console.log(`Account Number Entered: ${value}`); // Log the entered value
 
+                    if (/^\d*$/.test(value) && value.length <= 10) {
                       setBankDetails((prevDetails) => ({
                         ...prevDetails,
                         accountNumber: value,
                         ...(value.length < 10
                           ? {
                               accountName: "",
-                              bankName: "",
-                              bankId: "",
                               error: "",
                             }
                           : {}),
                       }));
 
-                      if (value.length === 10) {
-                        const token = process.env.REACT_APP_RESOLVE_TOKEN;
+                      if (value.length === 10 && selectedBank) {
                         console.log(
-                          "Resolving account number with token:",
-                          token
+                          `Starting API call with account number: ${value}`
                         );
+                        console.log(`Selected Bank Code: ${selectedBank.code}`);
 
+                        const token = process.env.REACT_APP_RESOLVE_TOKEN;
+                        const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
                         const accountNumber = value;
+
                         try {
                           setIsResolving(true);
-                          const url = `https://mythrift-payments.fly.dev/api/v1/resolveAccount/${accountNumber}`;
-                          console.log("Resolving account number via URL:", url);
+
+                          // Build URL using query parameters
+                          const url = `${API_BASE_URL}/resolveAccount?accountNumber=${accountNumber}&bankCode=${selectedBank.code}`;
+                          console.log(`API URL: ${url}`);
 
                           const res = await fetch(url, {
                             method: "GET",
@@ -840,80 +808,39 @@ const VirtualVendor = ({
                           });
 
                           const data = await res.json();
-                          console.log("Account resolve response:", data);
+                          console.log(`API Response:`, data);
 
                           if (res.ok && data.status === true && data.data) {
-                            const { account_number, account_name, bank_id } =
-                              data.data;
-                            console.log("Resolved account data:", {
-                              account_number,
-                              account_name,
-                              bank_id,
-                            });
-
-                            if (banks.length === 0) {
-                              console.error("Bank list not available.");
-                              toast.error(
-                                "Bank list not available. Please try again later."
-                              );
-                              setBankDetails((prevDetails) => ({
-                                ...prevDetails,
-                                accountName: "",
-                                bankName: "",
-                                bankId: "",
-                                error: "Bank list not available.",
-                              }));
-                              return;
-                            }
-
-                            const resolvedBankName = resolveBankName(
-                              banks,
-                              bank_id
-                            );
                             console.log(
-                              "Resolved bank name:",
-                              resolvedBankName
+                              `Resolved Account Name: ${data.data.account_name}`
                             );
-
                             setBankDetails((prevDetails) => ({
                               ...prevDetails,
-                              accountNumber: account_number,
-                              accountName: account_name,
-                              bankId: bank_id,
-                              bankName: resolvedBankName,
+                              accountName: data.data.account_name,
                               error: "",
                             }));
-
                             toast.success("Account resolved successfully");
                           } else {
                             console.error(
-                              "Failed to resolve account:",
-                              data.message
-                            );
-                            toast.error(
-                              data.message || "Failed to resolve account number"
+                              `API Error: ${data.message || "Invalid response"}`
                             );
                             setBankDetails((prevDetails) => ({
                               ...prevDetails,
                               accountName: "",
-                              bankName: "",
-                              bankId: "",
                               error: data.message || "Invalid account number.",
                             }));
+                            toast.error(
+                              data.message || "Failed to resolve account number"
+                            );
                           }
                         } catch (error) {
-                          console.error(
-                            "Error resolving account number:",
-                            error.message || error
-                          );
+                          console.error(`Error during API call:`, error);
                           toast.error(
                             "Error resolving account number. Please try again."
                           );
                           setBankDetails((prevDetails) => ({
                             ...prevDetails,
                             accountName: "",
-                            bankName: "",
-                            bankId: "",
                             error: "Error resolving account number.",
                           }));
                         } finally {
@@ -923,7 +850,7 @@ const VirtualVendor = ({
                     }
                   }}
                   placeholder="Enter Account Number (10 digits)"
-                  disabled={isResolving} // Disable input while resolving
+                  disabled={isResolving}
                   className="w-full h-12 px-3 pr-10 border-2 font-opensans text-neutral-800 rounded-lg hover:border-customOrange focus:outline-none focus:border-customOrange mb-1"
                 />
                 {isResolving && (
@@ -939,12 +866,6 @@ const VirtualVendor = ({
                 )}
               </div>
 
-              <p className="text-xs text-customOrange mt-2 font-opensans">
-                Our payment partner, Paystack, currently does not support
-                payouts to fintech banks. Please provide details for a corporate
-                bank account. Thank you.
-              </p>
-
               {/* Display error message if any */}
               {bankDetails.error && (
                 <p className="text-lg text-red-500 text-center mt-8 font-ubuntu">
@@ -953,55 +874,33 @@ const VirtualVendor = ({
               )}
 
               {/* Display resolved account details if successful */}
-              {!bankDetails.error &&
-                bankDetails.accountName &&
-                bankDetails.bankName &&
-                bankDetails.bankId && (
-                  <div className="mt-6">
-                    <div className="mb-4">
-                      <label className="font-opensans text-sm text-neutral-800 font-bold block mb-1">
-                        Account Name
-                      </label>
-                      <input
-                        type="text"
-                        value={bankDetails.accountName}
-                        disabled
-                        className="w-full h-12 px-3 border-2 font-opensans text-neutral-800 rounded-lg bg-gray-100"
-                      />
-                    </div>
-
-                    <div className="mb-4">
-                      <label className="font-opensans text-sm text-neutral-800 font-bold block mb-1">
-                        Bank Name
-                      </label>
-                      <input
-                        type="text"
-                        value={bankDetails.bankName}
-                        disabled
-                        className="w-full h-12 px-3 border-2 font-opensans text-neutral-800 rounded-lg bg-gray-100"
-                      />
-                    </div>
+              {!bankDetails.error && bankDetails.accountName && (
+                <div className="mt-6">
+                  <div className="mb-4">
+                    <label className="font-opensans text-sm text-neutral-800 font-bold block mb-1">
+                      Account Name
+                    </label>
+                    <input
+                      type="text"
+                      value={bankDetails.accountName}
+                      disabled
+                      className="w-full h-12 px-3 border-2 font-opensans text-neutral-800 rounded-lg bg-gray-100"
+                    />
                   </div>
-                )}
+                </div>
+              )}
 
               {/* Next Button */}
               <div className="mt-4">
                 <motion.button
                   type="button"
                   className={`w-11/12 h-12 fixed bottom-6 left-0 right-0 mx-auto flex justify-center items-center text-white rounded-full ${
-                    bankDetails.accountName &&
-                    bankDetails.bankName &&
-                    bankDetails.bankId &&
-                    !isResolving
+                    bankDetails.accountName && selectedBank && !isResolving
                       ? "bg-customOrange"
                       : "bg-customOrange opacity-50 cursor-not-allowed"
                   }`}
                   disabled={
-                    !(
-                      bankDetails.accountName &&
-                      bankDetails.bankName &&
-                      bankDetails.bankId
-                    ) || isResolving
+                    !(bankDetails.accountName && selectedBank) || isResolving
                   }
                   onClick={handleValidation}
                 >

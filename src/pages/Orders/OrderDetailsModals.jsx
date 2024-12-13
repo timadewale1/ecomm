@@ -6,11 +6,12 @@ import "react-loading-skeleton/dist/skeleton.css";
 import moment from "moment";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase.config";
-import { MdOutlineClose, MdOutlineMail } from "react-icons/md";
+import { MdOutlineClose, MdOutlineMail, MdOutlineInfo } from "react-icons/md";
 import { BsTelephone, BsBoxSeam } from "react-icons/bs";
 import { GrNotes } from "react-icons/gr";
 import { LiaCoinsSolid } from "react-icons/lia";
 import { ImSad2 } from "react-icons/im";
+import { HiReceiptTax } from "react-icons/hi";
 import { FaSmileBeam } from "react-icons/fa";
 import { MdCancel } from "react-icons/md";
 import {
@@ -31,7 +32,13 @@ import { RotatingLines } from "react-loader-spinner";
 import { BiCoinStack } from "react-icons/bi";
 import addActivityNote from "../../services/activityNotes";
 import { GiStarsStack } from "react-icons/gi";
-const OrderDetailsModal = ({ isOpen, onClose, order }) => {
+const OrderDetailsModal = ({
+  isOpen,
+  onClose,
+  order,
+  fetchVendorRevenue,
+  setTotalRevenue,
+}) => {
   const [productImages, setProductImages] = useState({});
   const [productDetails, setProductDetails] = useState({});
   const [vendorDeliveryMode, setVendorDeliveryMode] = useState("");
@@ -45,6 +52,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
   const [confirmDeliveryChecked, setConfirmDeliveryChecked] = useState(false);
   const [deliverLoading, setDeliverLoading] = useState(false);
   const [declineLoading, setDeclineLoading] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [otherReasonText, setOtherReasonText] = useState("");
   const [isDeclineInfoModalOpen, setIsDeclineInfoModalOpen] = useState(false);
   const userId = order?.userId; // Directly access userId from the order document
@@ -52,7 +60,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
   const [vendorName, setVendorName] = useState(
     order?.vendorName || "Your Vendor Name"
   );
-
+  const [vendorAmounts, setVendorAmounts] = useState(null);
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   useEffect(() => {
     const fetchVendorName = async () => {
@@ -143,19 +151,58 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
   const handleDecline = async (reason) => {
     setDeclineLoading(true);
     try {
-      const orderRef = doc(db, "orders", order.id);
-      await updateDoc(orderRef, {
-        progressStatus: "Declined",
-        declineReason: reason || "Reason not provided",
-      });
+      console.log("Starting handleDecline process...");
 
-      // Fetch vendor cover image
+      // Fetching order document and extracting orderReference
+      console.log("Fetching order document...");
+      const orderRef = doc(db, "orders", order.id);
+      const orderSnap = await getDoc(orderRef);
+      if (!orderSnap.exists()) {
+        console.error("Order document does not exist.");
+        toast.error("Order not found.");
+        return;
+      }
+
+      const orderData = orderSnap.data();
+      console.log("Order data fetched:", orderData);
+
+      const orderId = orderData.orderId; // Fetching orderId
+      const orderReference = orderData.orderReference; // Fetching orderReference
+      console.log("Order ID extracted:", orderId);
+      console.log("OrderReference extracted:", orderReference);
+
+      // Fetch user phone number and username for SMS
+      const userPhoneNumber = orderData.userInfo?.phoneNumber;
+      const userName = orderData.userInfo?.displayName;
+
+      if (!userPhoneNumber) {
+        console.warn("User phone number not available.");
+      } else {
+        console.log(`User phone number: ${userPhoneNumber}`);
+      }
+
+      if (!userName) {
+        console.warn("User name not available.");
+      } else {
+        console.log(`User name: ${userName}`);
+      }
+
+      // Fetch vendor cover image and recipient code
       let vendorCoverImage = null;
+      let recipientCode = null;
       if (order.vendorId) {
+        console.log(`Fetching vendor data for vendorId: ${order.vendorId}...`);
         const vendorRef = doc(db, "vendors", order.vendorId);
         const vendorSnap = await getDoc(vendorRef);
         if (vendorSnap.exists()) {
-          vendorCoverImage = vendorSnap.data().coverImageUrl || null;
+          const vendorData = vendorSnap.data();
+          console.log("Vendor data fetched:", vendorData);
+          vendorCoverImage = vendorData.coverImageUrl || null;
+          recipientCode = vendorData.recipientCode || null;
+          console.log("Vendor recipientCode:", recipientCode);
+          console.log("Vendor coverImageUrl:", vendorCoverImage);
+        } else {
+          console.error("Vendor document does not exist.");
         }
       }
 
@@ -163,22 +210,75 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
       let productImage = null;
       if (order.cartItems && order.cartItems.length > 0) {
         const firstItem = order.cartItems[0];
+        console.log(
+          `Fetching product data for productId: ${firstItem.productId}...`
+        );
         const productRef = doc(db, "products", firstItem.productId);
         const productSnap = await getDoc(productRef);
         if (productSnap.exists()) {
           const productData = productSnap.data();
+          console.log("Product data fetched:", productData);
           if (firstItem.subProductId) {
+            console.log(
+              `Searching for subProductId: ${firstItem.subProductId}...`
+            );
             const subProduct = productData.subProducts?.find(
               (sp) => sp.subProductId === firstItem.subProductId
             );
             productImage = subProduct?.images?.[0] || null;
+            console.log("Sub-product image found:", productImage);
           } else {
             productImage = productData.imageUrls?.[0] || null;
+            console.log("Main product image found:", productImage);
           }
+        } else {
+          console.error("Product document does not exist.");
         }
       }
 
+      // Get the token from the environment variable
+      const token = process.env.REACT_APP_RESOLVE_TOKEN;
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+      console.log("Token fetched from environment variable:", token);
+
+      // Constructing payload
+      const payload = {
+        orderReference: orderReference, // Correctly using orderReference from DB
+        vendorId: order.vendorId,
+        vendorStatus: "declined", // Sending 'declined' status to API
+        recipientCode: recipientCode, // Correctly using recipientCode from DB
+      };
+      console.log("Payload being sent:", payload);
+
+      // Send data to the external endpoint with authorization token FIRST
+      console.log("Sending data to external endpoint...");
+      const response = await fetch(`${API_BASE_URL}/acceptOrder`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Failed to send data to external endpoint:", errorData);
+        throw new Error(`External API error: ${response.status}`);
+      }
+
+      console.log("Data successfully sent to external endpoint.");
+
+      // Now that external API succeeded, we update Firebase
+      console.log("Updating order progressStatus to 'Declined'...");
+      await updateDoc(orderRef, {
+        progressStatus: "Declined",
+        vendorStatus: "declined",
+        declineReason: reason || "Reason not provided",
+      });
+
       // Send notification
+      console.log("Sending order status change notification...");
       await notifyOrderStatusChange(
         userId, // userId
         order.id, // orderId
@@ -191,12 +291,63 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
       );
 
       // Add activity note
+      console.log("Adding activity note for vendor...");
       await addActivityNote(
         order.vendorId,
         "Order Declined 🛑",
         `Order with ID: ${order.id} was declined by ${vendorName}. Reason: ${reason}.`,
         "order"
       );
+
+      if (userPhoneNumber) {
+        console.log("Preparing to send SMS to user...");
+        const smsUsername = process.env.REACT_APP_BETASMS_USERNAME;
+        const smsPassword = process.env.REACT_APP_BETASMS_PASSWORD;
+
+        if (!smsUsername || !smsPassword) {
+          console.error("BetaSMS credentials are missing.");
+          toast.error("Configuration error: Missing SMS credentials.");
+          setDeclineLoading(false);
+          return;
+        }
+
+        const smsMessage = encodeURIComponent(
+          `Hello, ${userName}, your order with ID ${orderId} has been declined by ${vendorName}. Here's why: ${reason}. We will process a refund to your account shortly. Refunds typically take 3-7 days depending on your payment method. Matilda from My Thrift.`
+        );
+        const smsSender = "My Thrift";
+
+        const smsUrl = `http://login.betasms.com.ng/api/?username=${smsUsername}&password=${encodeURIComponent(
+          smsPassword
+        )}&message=${smsMessage}&sender=${encodeURIComponent(
+          smsSender
+        )}&mobiles=${encodeURIComponent(userPhoneNumber)}`;
+
+        console.log(`Constructed SMS URL: ${smsUrl}`);
+
+        try {
+          const smsResponse = await fetch(smsUrl, {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+            },
+          });
+
+          const smsResult = await smsResponse.json();
+          console.log("SMS API Response:", smsResult);
+
+          if (smsResult.status === "OK") {
+            console.log(`SMS sent successfully to user: ${userPhoneNumber}`);
+          } else {
+            console.warn("SMS sending failed:", smsResult);
+            toast.warn("SMS sending failed.");
+          }
+        } catch (smsError) {
+          console.error("Error sending SMS:", smsError);
+          toast.error("Failed to send SMS notification.");
+        }
+      } else {
+        console.warn("User phone number not available, skipping SMS.");
+      }
 
       toast.success("Order declined successfully");
       setIsDeclineModalOpen(false);
@@ -206,17 +357,369 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
       toast.error("Failed to decline the order");
     } finally {
       setDeclineLoading(false);
+      console.log("handleDecline process completed.");
     }
   };
 
-  const handleDeclineInfoModal = () => {
-    setIsDeclineInfoModalOpen(true);
-  };
   const handleAccept = async () => {
     setAcceptLoading(true);
     try {
+      console.log("Starting handleAccept process...");
+
+      // Fetching order document and extracting orderReference
+      console.log("Fetching order document...");
       const orderRef = doc(db, "orders", order.id);
+      const orderSnap = await getDoc(orderRef);
+      if (!orderSnap.exists()) {
+        console.error("Order document does not exist.");
+        toast.error("Order not found.");
+        return;
+      }
+
+      const orderData = orderSnap.data();
+      console.log("Order data fetched:", orderData);
+      const orderId = orderData.orderId; // Fetching orderId
+      if (!orderId) {
+        console.error("Order ID is missing.");
+        toast.error("Order ID not found.");
+        setAcceptLoading(false);
+        return;
+      }
+      console.log("Order ID extracted:", orderId);
+      const orderReference = orderData.orderReference; // Fetching orderReference
+      console.log("OrderReference extracted:", orderReference);
+
+      // Fetch user phone number for SMS
+      const userPhoneNumber = orderData.userInfo?.phoneNumber;
+      const userName = orderData.userInfo?.displayName;
+
+      if (!userPhoneNumber) {
+        console.warn("User phone number not available.");
+      } else {
+        console.log(`User phone number: ${userPhoneNumber}`);
+      }
+
+      if (!userName) {
+        console.warn("User name not available.");
+      } else {
+        console.log(`User name: ${userName}`);
+      }
+
+      // Fetch vendor cover image and recipient code
+      let vendorCoverImage = null;
+      let recipientCode = null;
+      if (order.vendorId) {
+        console.log(`Fetching vendor data for vendorId: ${order.vendorId}...`);
+        const vendorRef = doc(db, "vendors", order.vendorId);
+        const vendorSnap = await getDoc(vendorRef);
+        if (vendorSnap.exists()) {
+          const vendorData = vendorSnap.data();
+          console.log("Vendor data fetched:", vendorData);
+          vendorCoverImage = vendorData.coverImageUrl || null;
+          recipientCode = vendorData.recipientCode || null;
+          console.log("Vendor recipientCode:", recipientCode);
+          console.log("Vendor coverImageUrl:", vendorCoverImage);
+        } else {
+          console.error("Vendor document does not exist.");
+        }
+      }
+
+      // Fetch product image
+      let productImage = null;
+      if (order.cartItems && order.cartItems.length > 0) {
+        const firstItem = order.cartItems[0];
+        console.log(
+          `Fetching product data for productId: ${firstItem.productId}...`
+        );
+        const productRef = doc(db, "products", firstItem.productId);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+          const productData = productSnap.data();
+          console.log("Product data fetched:", productData);
+          if (firstItem.subProductId) {
+            console.log(
+              `Searching for subProductId: ${firstItem.subProductId}...`
+            );
+            const subProduct = productData.subProducts?.find(
+              (sp) => sp.subProductId === firstItem.subProductId
+            );
+            productImage = subProduct?.images?.[0] || null;
+            console.log("Sub-product image found:", productImage);
+          } else {
+            productImage = productData.imageUrls?.[0] || null;
+            console.log("Main product image found:", productImage);
+          }
+        } else {
+          console.error("Product document does not exist.");
+        }
+      }
+
+      // Get the token from the environment variable
+      const token = process.env.REACT_APP_RESOLVE_TOKEN;
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+      console.log("Token fetched from environment variable:", token);
+
+      // Constructing payload
+      const payload = {
+        orderReference: orderReference, // Correctly using orderReference from DB
+        vendorId: order.vendorId,
+        vendorStatus: "accepted",
+        recipientCode: recipientCode, // Correctly using recipientCode from DB
+      };
+      console.log("Payload being sent:", payload);
+
+      // Send data to the external endpoint FIRST
+      console.log("Sending data to external endpoint...");
+      const response = await fetch(`${API_BASE_URL}/acceptOrder`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Failed to send data to external endpoint:", errorData);
+        throw new Error(`External API error: ${response.status}`);
+      }
+
+      console.log("Data successfully sent to external endpoint.");
+
+      // Now that external call is successful, update Firebase
+      console.log("Updating order progressStatus to 'In Progress'...");
       await updateDoc(orderRef, { progressStatus: "In Progress" });
+      await updateDoc(orderRef, { vendorStatus: "accepted" });
+
+      // Send notification
+      console.log("Sending order status change notification...");
+      await notifyOrderStatusChange(
+        userId, // userId
+        order.id, // orderId
+        "In Progress", // newStatus
+        vendorName, // vendorName
+        vendorCoverImage, // vendorCoverImage
+        productImage, // productImage
+        null, // declineReason
+        null // riderInfo
+      );
+
+      // Add activity note
+      console.log("Adding activity note for vendor...");
+      await addActivityNote(
+        order.vendorId,
+        "Order Accepted ✅",
+        `Order with ID: ${order.id} was accepted by ${vendorName}.`,
+        "order"
+      );
+      let vendor60Pay = null;
+      const paymentResponse = await fetch(
+        `${API_BASE_URL}/calculateVendorPay/${orderReference}`,
+        {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!paymentResponse.ok) {
+        throw new Error("Failed to fetch payment data.");
+      }
+      const paymentData = await paymentResponse.json();
+      vendor60Pay = paymentData.amount?.vendor60Pay;
+
+      // Send activity note for 60% credit
+      if (vendor60Pay) {
+        const amountFormatted = `₦${vendor60Pay.toLocaleString()}`;
+        await addActivityNote(
+          order.vendorId,
+          "You’ve Been Credited 💰",
+          `You’ve received ${amountFormatted} as a 60% payout for order ID: ${order.id}.`,
+          "transactions" // Activity type
+        );
+      }
+
+      // Send SMS to User
+      if (userPhoneNumber) {
+        console.log("Preparing to send SMS to user...");
+        const smsUsername = process.env.REACT_APP_BETASMS_USERNAME;
+        const smsPassword = process.env.REACT_APP_BETASMS_PASSWORD;
+
+        if (!smsUsername || !smsPassword) {
+          console.error("BetaSMS credentials are missing.");
+          toast.error("Configuration error: Missing SMS credentials.");
+          setAcceptLoading(false);
+          return;
+        }
+
+        const smsMessage = encodeURIComponent(
+          `Hello, ${userName}, your order with ID ${orderId} from ${vendorName} has been accepted and is in progress. We will update you when it is shipped. Cheers, Matilda from My Thrift.`
+        );
+        const smsSender = "My Thrift";
+
+        const smsUrl = `http://login.betasms.com.ng/api/?username=${smsUsername}&password=${encodeURIComponent(
+          smsPassword
+        )}&message=${smsMessage}&sender=${encodeURIComponent(
+          smsSender
+        )}&mobiles=${encodeURIComponent(userPhoneNumber)}`;
+
+        console.log(`Constructed SMS URL: ${smsUrl}`);
+
+        try {
+          const smsResponse = await fetch(smsUrl, {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+            },
+          });
+
+          const smsResult = await smsResponse.json();
+          console.log("SMS API Response:", smsResult);
+
+          if (smsResult.status === "OK") {
+            console.log(`SMS sent successfully to user: ${userPhoneNumber}`);
+          } else {
+            console.warn("SMS sending failed:", smsResult);
+            toast.warn("SMS sending failed.");
+          }
+        } catch (smsError) {
+          console.error("Error sending SMS:", smsError);
+          toast.error("Failed to send SMS notification.");
+        }
+      } else {
+        console.warn("User phone number not available, skipping SMS.");
+      }
+
+      toast.success("Order accepted successfully");
+      onClose();
+    } catch (error) {
+      console.error("Failed to accept the order:", error);
+      toast.error("Failed to accept the order");
+    } finally {
+      setAcceptLoading(false);
+      console.log("handleAccept process completed.");
+    }
+  };
+  useEffect(() => {
+    const fetchVendorAmounts = async () => {
+      if (order && order.id) {
+        console.log("Fetching vendor amounts...");
+        try {
+          const orderRef = doc(db, "orders", order.id);
+          console.log("Fetching Firestore order document for ID:", order.id);
+
+          const orderSnap = await getDoc(orderRef);
+
+          if (orderSnap.exists()) {
+            console.log("Order document found in Firestore.");
+            const orderData = orderSnap.data();
+            const orderReference = orderData.orderReference;
+
+            console.log("Order reference from Firestore:", orderReference);
+            const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+            if (orderReference) {
+              console.log(
+                `Making GET request to: ${API_BASE_URL}/calculateVendorPay/${orderReference}`
+              );
+
+              const token = process.env.REACT_APP_RESOLVE_TOKEN;
+              const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+              console.log("Authorization Token:", token);
+
+              try {
+                const response = await fetch(
+                  `${API_BASE_URL}/calculateVendorPay/${orderReference}`,
+                  {
+                    method: "GET",
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                    },
+                  }
+                );
+
+                console.log(
+                  `API response status: ${response.status}, statusText: ${response.statusText}`
+                );
+
+                if (!response.ok) {
+                  console.error(
+                    "Failed to fetch vendor amounts. Response details:",
+                    await response.json()
+                  );
+                } else {
+                  const data = await response.json();
+                  console.log("API response data:", data);
+
+                  if (data && data.amount) {
+                    setVendorAmounts(data.amount);
+                    console.log(
+                      "Vendor amounts successfully fetched:",
+                      data.amount
+                    );
+                  } else {
+                    console.warn(
+                      "API response does not contain 'amount'. Full response:",
+                      data
+                    );
+                  }
+                }
+              } catch (apiError) {
+                console.error("Error occurred during API fetch:", apiError);
+              }
+            } else {
+              console.warn(
+                "Order reference is undefined or null. Skipping API request."
+              );
+            }
+          } else {
+            console.error(
+              "Order document does not exist in Firestore for ID:",
+              order.id
+            );
+          }
+        } catch (firestoreError) {
+          console.error(
+            "Error fetching order document from Firestore:",
+            firestoreError
+          );
+        }
+      } else {
+        console.warn(
+          "Order or order.id is undefined. Ensure 'order' is passed as a prop and contains an 'id'."
+        );
+      }
+    };
+
+    if (isOpen && order) {
+      console.log(
+        "Modal is open, and order data is available. Starting fetchVendorAmounts."
+      );
+      fetchVendorAmounts();
+    } else {
+      console.log(
+        "Modal is not open or order data is unavailable. Skipping fetchVendorAmounts."
+      );
+    }
+  }, [isOpen, order]);
+
+  const handleMarkAsDelivered = async () => {
+    setDeliverLoading(true);
+    try {
+      console.log("Starting handleMarkAsDelivered process...");
+
+      const orderRef = doc(db, "orders", order.id);
+      const orderSnap = await getDoc(orderRef);
+      if (!orderSnap.exists()) {
+        console.error("Order document does not exist.");
+        toast.error("Order not found.");
+        return;
+      }
+
+      const orderData = orderSnap.data();
+      const orderReference = orderData.orderReference;
+      const orderId = orderData.orderId;
+      const userPhoneNumber = orderData.userInfo?.phoneNumber;
+      const userName = orderData.userInfo?.displayName;
+      console.log("Order data fetched:", orderData);
 
       // Fetch vendor cover image
       let vendorCoverImage = null;
@@ -247,34 +750,159 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
         }
       }
 
-      // Send notification
+      // Prepare payload for updateDelivery endpoint
+      const deliveryPayload = {
+        delivered: true,
+        orderReference: orderReference,
+      };
+
+      const token = process.env.REACT_APP_RESOLVE_TOKEN; // Ensure your token is set up
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+      // Send request to updateDelivery endpoint FIRST
+      console.log("Sending delivery update to endpoint...");
+      const deliveryResponse = await fetch(
+       `${API_BASE_URL}/updateDelivery`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(deliveryPayload),
+        }
+      );
+
+      if (!deliveryResponse.ok) {
+        const errorData = await deliveryResponse.json();
+        console.error("Failed to update delivery status via API:", errorData);
+        throw new Error(`Delivery API error: ${deliveryResponse.status}`);
+      }
+
+      console.log("Delivery update successfully sent to API.");
+
+      // Send request to transfer40vendor endpoint
+      console.log("Initiating fund transfer to vendor...");
+      const transferResponse = await fetch(
+        `${API_BASE_URL}/transfer40vendor`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ orderReference }),
+        }
+      );
+
+      if (!transferResponse.ok) {
+        const errorData = await transferResponse.json();
+        console.error("Failed to initiate vendor fund transfer:", errorData);
+        throw new Error(`Fund transfer API error: ${transferResponse.status}`);
+      }
+
+      console.log("Fund transfer successfully initiated.");
+
+      // External calls succeeded, now update Firebase
+      console.log("Updating order progressStatus to 'Delivered'...");
+      await updateDoc(orderRef, { progressStatus: "Delivered" });
+
+      // Send notification to the user
+      console.log("Sending notification about order delivery...");
       await notifyOrderStatusChange(
         userId, // userId
         order.id, // orderId
-        "In Progress", // newStatus
+        "Delivered", // newStatus
         vendorName, // vendorName
         vendorCoverImage, // vendorCoverImage
-        productImage, // productImage
-        null, // declineReason
-        null // riderInfo
+        productImage // productImage
       );
 
       // Add activity note
+      console.log("Adding activity note for delivery...");
       await addActivityNote(
         order.vendorId,
-        "Order Accepted ✅",
-        `Order with ID: ${order.id} was accepted by ${vendorName}.`,
+        "Order Delivered 😊",
+        `You have marked this order as delivered. You will receive your remaining percentage shortly. If this was a mistake, reach out to us immediately!`,
         "order"
       );
 
-      toast.success("Order accepted successfully");
+      console.log("Clearing and refreshing vendor revenue cache...");
+      localStorage.removeItem(`vendorRevenue_${order.vendorId}`);
+      localStorage.removeItem(`vendorRevenue_time_${order.vendorId}`);
+      fetchVendorRevenue(order.vendorId)
+        .then((revenue) => {
+          setTotalRevenue(revenue);
+          console.log("Vendor revenue refreshed successfully.");
+        })
+        .catch(() => {
+          console.error("Failed to refresh vendor revenue.");
+          toast.error("Failed to refresh revenue. Please try again later.");
+        });
+
+      if (userPhoneNumber) {
+        console.log("Preparing to send SMS to user...");
+        const smsUsername = process.env.REACT_APP_BETASMS_USERNAME;
+        const smsPassword = process.env.REACT_APP_BETASMS_PASSWORD;
+
+        if (!smsUsername || !smsPassword) {
+          console.error("BetaSMS credentials are missing.");
+          toast.error("Configuration error: Missing SMS credentials.");
+          setDeliverLoading(false);
+          return;
+        }
+
+        const smsMessage = encodeURIComponent(
+          `Your order with ID ${orderId} has been marked delivered by ${vendorName}. We hope you love it! If you haven't received your package or you think this was a mistake, contact support (support@shopmythrift.store).`
+        );
+        const smsSender = "My Thrift";
+
+        const smsUrl = `http://login.betasms.com.ng/api/?username=${smsUsername}&password=${encodeURIComponent(
+          smsPassword
+        )}&message=${smsMessage}&sender=${encodeURIComponent(
+          smsSender
+        )}&mobiles=${encodeURIComponent(userPhoneNumber)}`;
+
+        console.log(`Constructed SMS URL: ${smsUrl}`);
+
+        try {
+          const smsResponse = await fetch(smsUrl, {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+            },
+          });
+
+          const smsResult = await smsResponse.json();
+          console.log("SMS API Response:", smsResult);
+
+          if (smsResult.status === "OK") {
+            console.log(`SMS sent successfully to user: ${userPhoneNumber}`);
+          } else {
+            console.warn("SMS sending failed:", smsResult);
+            toast.warn("SMS sending failed.");
+          }
+        } catch (smsError) {
+          console.error("Error sending SMS:", smsError);
+          toast.error("Failed to send SMS notification.");
+        }
+      } else {
+        console.warn("User phone number not available, skipping SMS.");
+      }
+
+      toast.success("Order marked as delivered and funds transferred.");
       onClose();
     } catch (error) {
-      console.error("Failed to accept the order:", error);
-      toast.error("Failed to accept the order");
+      console.error("Failed to mark as delivered:", error);
+      toast.error("Failed to mark as delivered");
     } finally {
-      setAcceptLoading(false);
+      setDeliverLoading(false);
+      setIsConfirmDeliveryModalOpen(false);
+      console.log("handleMarkAsDelivered process completed.");
     }
+  };
+
+  const handleDeclineInfoModal = () => {
+    setIsDeclineInfoModalOpen(true);
   };
 
   const handleSend = () => {
@@ -290,69 +918,6 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
   const handleProceedCall = () => {
     setIsCallModalOpen(false);
     window.open(`tel:${userInfo.phoneNumber}`, "_self");
-  };
-  const handleMarkAsDelivered = async () => {
-    setDeliverLoading(true);
-    try {
-      const orderRef = doc(db, "orders", order.id);
-      await updateDoc(orderRef, { progressStatus: "Delivered" });
-
-      // Fetch vendor cover image
-      let vendorCoverImage = null;
-      if (order.vendorId) {
-        const vendorRef = doc(db, "vendors", order.vendorId);
-        const vendorSnap = await getDoc(vendorRef);
-        if (vendorSnap.exists()) {
-          vendorCoverImage = vendorSnap.data().coverImageUrl || null;
-        }
-      }
-
-      // Fetch product image
-      let productImage = null;
-      if (order.cartItems && order.cartItems.length > 0) {
-        const firstItem = order.cartItems[0];
-        const productRef = doc(db, "products", firstItem.productId);
-        const productSnap = await getDoc(productRef);
-        if (productSnap.exists()) {
-          const productData = productSnap.data();
-          if (firstItem.subProductId) {
-            const subProduct = productData.subProducts?.find(
-              (sp) => sp.subProductId === firstItem.subProductId
-            );
-            productImage = subProduct?.images?.[0] || null;
-          } else {
-            productImage = productData.imageUrls?.[0] || null;
-          }
-        }
-      }
-
-      // Send notification to the user
-      await notifyOrderStatusChange(
-        userId, // userId
-        order.id, // orderId
-        "Delivered", // newStatus
-        vendorName, // vendorName
-        vendorCoverImage, // vendorCoverImage
-        productImage // productImage
-      );
-
-      // Add activity note
-      await addActivityNote(
-        order.vendorId,
-        "Order Delivered 😊",
-        `You have marked this order as delivered. You will recieve your remaining percentage shortly. If this was a mistake reach out to us immediately!`,
-        "order"
-      );
-
-      toast.success("Order marked as delivered");
-      onClose();
-    } catch (error) {
-      console.error("Failed to mark as delivered:", error);
-      toast.error("Failed to mark as delivered");
-    } finally {
-      setDeliverLoading(false);
-      setIsConfirmDeliveryModalOpen(false);
-    }
   };
 
   const handleContactUs = () => {
@@ -813,38 +1378,68 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
           </div>
 
           <div className="space-y-2 mt-3">
-            {cartItems.map((item, index) => {
-              const amount =
-                (productDetails[item.subProductId || item.productId]?.price ||
-                  0) * item.quantity;
-              return (
-                <div
-                  key={index}
-                  className="flex items-center justify-between border-b border-gray-100 pb-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <BiCoinStack className="text-customOrange" />
-                    <p className="font-opensans text-sm text-gray-700">
-                      Amount {index + 1}:
-                    </p>
-                  </div>
-                  <p className="font-opensans text-sm text-gray-700">
-                    ₦{amount.toLocaleString() || "N/A"}
-                  </p>
-                </div>
-              );
-            })}
+            {/* Total Amount */}
 
-            {/* Subtotal */}
-            <div className="flex items-center justify-end   pt-2 mt-2">
-              <LiaCoinsSolid className="text-green-300 text-lg mr-1" />
-              <p className="font-opensans text-sm  text-gray-800 mr-6">
-                Total:
-              </p>
-              <p className="font-opensans text-sm rounded-md font-medium bg-green-100 px-2 h-6 text-gray-800">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <div className="flex items-center space-x-2">
+                <LiaCoinsSolid className="text-green-300 text-lg" />
+                <p className="font-opensans text-xs text-gray-700">
+                  Subtotal (Before Tax):
+                </p>
+              </div>
+              <p className="font-opensans text-xs font-semibold text-gray-700">
                 ₦{subtotal?.toLocaleString() || "0.00"}
               </p>
             </div>
+            {/* Amount to Receive Now */}
+            {vendorAmounts && (
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <div className="flex items-center space-x-2">
+                  <BiCoinStack className="text-green-500" />
+                  <p className="font-opensans text-xs text-gray-700">
+                    Amount to Receive Now (60%):
+                  </p>
+                </div>
+                <p className="font-opensans font-semibold text-xs text-gray-700">
+                  ₦{vendorAmounts.vendor60Pay.toLocaleString() || "0.00"}
+                </p>
+              </div>
+            )}
+
+            {/* Amount to Receive on Delivery */}
+            {vendorAmounts && (
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <div className="flex items-center space-x-2">
+                  <BiCoinStack className="text-blue-500" />
+                  <p className="font-opensans text-xs text-gray-700">
+                    Balance to Receive on Delivery (40%):
+                  </p>
+                </div>
+                <p className="font-opensans text-xs font-semibold text-gray-700">
+                  ₦{vendorAmounts.vendor40pay.toLocaleString() || "0.00"}
+                </p>
+              </div>
+            )}
+            {vendorAmounts && (
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <div className="flex items-center space-x-2">
+                  <BiCoinStack className="text-customOrange" />
+                  <p className="font-opensans text-xs text-gray-700 flex items-center">
+                    Total Amount after tax:
+                    <MdOutlineInfo
+                      className="text-gray-500 ml-2 cursor-pointer"
+                      onClick={() => setIsInfoModalOpen(true)}
+                    />
+                  </p>
+                </div>
+                <p className="font-opensans text-xs bg-green-100 px-2 h-6 rounded-md flex items-center font-semibold text-gray-700">
+                  ₦
+                  {(
+                    vendorAmounts.vendor60Pay + vendorAmounts.vendor40pay
+                  ).toLocaleString() || "0.00"}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1107,6 +1702,44 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
               Order was declined by you (Vendor). This process cannot be
               reversed!
             </p>
+          </div>
+        </Modal>
+        <Modal
+          isOpen={isInfoModalOpen}
+          onRequestClose={() => setIsInfoModalOpen(false)}
+          contentLabel="About Charges"
+          ariaHideApp={false}
+          className="modal-content-charge"
+          overlayClassName="modal-overlay backdrop-blur-sm"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
+                <HiReceiptTax className="text-customRichBrown" />
+              </div>
+              <h2 className="font-opensans text-base font-semibold">
+                About Charges
+              </h2>
+            </div>
+            <MdOutlineClose
+              className="text-black text-xl cursor-pointer"
+              onClick={() => setIsInfoModalOpen(false)}
+            />
+          </div>
+          <p className="text-xs text-gray-700 font-opensans mb-6">
+            Please note that the charges reflected in the total amount after tax
+            are incurred due to processing fees from our payment partners
+            (Paystack). If you have any questions or concerns, please contact
+            support. My Thrift does not take any percentage from your stipend.
+          </p>
+
+          <div className="flex justify-end">
+            <button
+              onClick={() => setIsInfoModalOpen(false)}
+              className="bg-customOrange text-white font-opensans py-1.5 text-xs px-6 rounded-full"
+            >
+              I Understand
+            </button>
           </div>
         </Modal>
         {/* Support Call Modal */}

@@ -233,6 +233,63 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
         "order"
       );
 
+      const userPhoneNumber = order.userInfo?.phoneNumber;
+      const userName = order.userInfo?.displayName;
+
+      if (userPhoneNumber) {
+        console.log("Preparing to send SMS to user...");
+        const smsUsername = process.env.REACT_APP_BETASMS_USERNAME;
+        const smsPassword = process.env.REACT_APP_BETASMS_PASSWORD;
+
+        if (!smsUsername || !smsPassword) {
+          console.error("BetaSMS credentials are missing.");
+          toast.error("Configuration error: Missing SMS credentials.");
+          setIsSending(false);
+          return;
+        }
+
+        let smsMessage = `Hello, ${userName}, your order with ID ${selectedOrderId} is being delivered by ${riderName}. The rider is reachable at ${riderNumber}.`;
+        if (note) {
+          smsMessage += ` Here's a short note from the vendor: ${note}.`;
+        }
+        smsMessage += " Cheers, Matilda from My Thrift.";
+
+        const encodedMessage = encodeURIComponent(smsMessage);
+        const smsSender = "My Thrift";
+
+        const smsUrl = `http://login.betasms.com.ng/api/?username=${smsUsername}&password=${encodeURIComponent(
+          smsPassword
+        )}&message=${encodedMessage}&sender=${encodeURIComponent(
+          smsSender
+        )}&mobiles=${encodeURIComponent(userPhoneNumber)}`;
+
+        console.log(`Constructed SMS URL: ${smsUrl}`);
+
+        try {
+          const smsResponse = await fetch(smsUrl, {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+            },
+          });
+
+          const smsResult = await smsResponse.json();
+          console.log("SMS API Response:", smsResult);
+
+          if (smsResult.status === "OK") {
+            console.log(`SMS sent successfully to user: ${userPhoneNumber}`);
+          } else {
+            console.warn("SMS sending failed:", smsResult);
+            toast.warn("SMS sending failed.");
+          }
+        } catch (smsError) {
+          console.error("Error sending SMS:", smsError);
+          toast.error("Failed to send SMS notification.");
+        }
+      } else {
+        console.warn("User phone number not available, skipping SMS.");
+      }
+
       toast.success("Order successfully updated to 'Shipped'!");
       setIsRiderModalOpen(false);
       setRiderName("");
@@ -380,7 +437,7 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
           isOpen={isRiderModalOpen}
           onRequestClose={closeRiderModal}
           className="modal-content-rider h-auto"
-          overlayClassName="modal-overlay"
+          overlayClassName="modal-overlay backdrop-blur-sm"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
@@ -422,7 +479,7 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
               placeholder="Add a short note here (optional)"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="w-full p-2 border text-xs rounded focus:outline-none"
+              className="w-full p-2 border text-xs h-20  rounded focus:outline-none"
             />
           </div>
           <div className="flex justify-end mt-2">

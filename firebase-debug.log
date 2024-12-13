@@ -1,0 +1,36 @@
+[debug] [2024-12-10T20:17:02.135Z] ----------------------------------------------------------------------
+[debug] [2024-12-10T20:17:02.154Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Tobi\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only functions:updateOrderStatusAndStock
+[debug] [2024-12-10T20:17:02.155Z] CLI Version:   13.16.0
+[debug] [2024-12-10T20:17:02.155Z] Platform:      win32
+[debug] [2024-12-10T20:17:02.155Z] Node Version:  v20.11.0
+[debug] [2024-12-10T20:17:02.156Z] Time:          Tue Dec 10 2024 21:17:02 GMT+0100 (West Africa Standard Time)
+[debug] [2024-12-10T20:17:02.156Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-12-10T20:17:02.347Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-12-10T20:17:02.348Z] > authorizing via signed-in user (tobiwunmie@gmail.com)
+[debug] [2024-12-10T20:17:02.348Z] [iam] checking project ecommerce-ba520 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2024-12-10T20:17:02.354Z] > refreshing access token with scopes: []
+[debug] [2024-12-10T20:17:02.358Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2024-12-10T20:17:02.359Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2024-12-10T20:17:03.696Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2024-12-10T20:17:03.697Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2024-12-10T20:17:03.717Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/ecommerce-ba520:testIamPermissions [none]
+[debug] [2024-12-10T20:17:03.717Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/ecommerce-ba520:testIamPermissions x-goog-quota-user=projects/ecommerce-ba520
+[debug] [2024-12-10T20:17:03.718Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/ecommerce-ba520:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2024-12-10T20:17:06.696Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/ecommerce-ba520:testIamPermissions 200
+[debug] [2024-12-10T20:17:06.696Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/ecommerce-ba520:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2024-12-10T20:17:06.697Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/ecommerce-ba520/serviceAccounts/ecommerce-ba520@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2024-12-10T20:17:06.697Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/ecommerce-ba520/serviceAccounts/ecommerce-ba520@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2024-12-10T20:17:08.106Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/ecommerce-ba520/serviceAccounts/ecommerce-ba520@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2024-12-10T20:17:08.107Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/ecommerce-ba520/serviceAccounts/ecommerce-ba520@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[info] 
+[info] === Deploying to 'ecommerce-ba520'...
+[info] 
+[info] i  deploying functions 
+[info] Running command: npm --prefix "$RESOURCE_DIR" run lint
+[debug] [2024-12-10T20:17:17.248Z] Error: Timed out.
+    at Timeout._onTimeout (C:\Users\Tobi\AppData\Roaming\npm\node_modules\firebase-tools\lib\utils.js:268:49)
+    at listOnTimeout (node:internal/timers:573:17)
+    at process.processTimers (node:internal/timers:514:7)
+[error] 
+[error] Error: An unexpected error has occurred.

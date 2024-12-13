@@ -215,7 +215,7 @@ const VendorVerifyOTP = () => {
       setResendCooldown(30);
     } catch (error) {
       console.error("Resend OTP error:", error);
-      toast.error(`Failed to resend OTP: ${error.message}`);
+      toast.error(`Failed to resend OTP: Timeout, Please restart proccess.`);
     } finally {
       setIsResendingOTP(false);
     }

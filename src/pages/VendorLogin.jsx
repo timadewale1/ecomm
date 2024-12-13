@@ -227,9 +227,9 @@ const VendorLogin = () => {
         <Container>
           <Row>
             <div className="px-2">
-              <Link to="/confirm-state">
+              {/* <Link to="/confirm-state">
                 <GoChevronLeft className="text-3xl -translate-y-2 font-normal text-black" />
-              </Link>
+              </Link> */}
               <VendorLoginAnimation />
               <div className="flex justify-center text-xl font-ubuntu text-customOrange -translate-y-1">
                 <Typewriter

@@ -1,4 +1,4 @@
-const JavaScriptObfuscator = require('webpack-obfuscator');
+const JavaScriptObfuscator = require("webpack-obfuscator");
 const isProduction = process.env.NODE_ENV === "production";
 
 module.exports = {
@@ -23,7 +23,7 @@ module.exports = {
             [
               "transform-remove-console",
               {
-                exclude: ["error", "warn", "log"],
+                exclude: ["warn"],
               },
             ],
           ]

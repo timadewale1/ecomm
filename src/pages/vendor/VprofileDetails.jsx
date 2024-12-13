@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setVendorProfile, setLoading } from "../../redux/vendorProfileSlice";
 import { FaShop } from "react-icons/fa6";
-import { MdDescription, MdEmail } from "react-icons/md";
+import { MdDescription, MdEmail, MdVerified } from "react-icons/md";
 import { User } from "lucide-react";
 
 import { useAuth } from "../../custom-hooks/useAuth";
@@ -115,7 +115,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
   };
 
   return (
-    <div className="flex flex-col px-3 items-center font-opensans">
+    <div className="flex flex-col px-3  font-opensans">
       <div className="flex flex-col font-opensans  items-center">
         {/* Header */}
         <div className="sticky top-0 bg-white z-10 flex items-center -translate-y-4 justify-between h-24 w-full">
@@ -133,17 +133,26 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
         </div>
 
         {/* Profile Information */}
-        <div className="w-full">
+        <div className="w-full ">
           {/* Display Name */}
-          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
+          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full ">
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Display Name
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <User className="text-black text-xl mr-4" />
-              <p className="font-normal font-poppins text-sm text-black w-full">
-                {firstName + " " + lastName }
+              <p className="text-size font-normal font-poppins text-black w-full">
+                {firstName + " " + lastName}
               </p>
+              <MdVerified
+                className={`${
+                  firstName && lastName ? "text-green-500" : "text-yellow-500"
+                } text-2xl ml-2`}
+              />
+              <RiEditFill
+                className="text-black cursor-pointer ml-2 text-2xl"
+                onClick={() => handleEdit("displayName")}
+              />
             </div>
           </div>
 
@@ -154,20 +163,29 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <FaShop className="text-black text-xl mr-4" />
-              <p className="font-normal font-poppins text-sm text-black w-full">
+              <p className="text-size font-normal font-poppins text-black w-full">
                 {shopName}
               </p>
+              <MdVerified
+                className={`${
+                  shopName ? "text-green-500" : "text-yellow-500"
+                } text-2xl ml-2`}
+              />
+              <RiEditFill
+                className="text-black cursor-pointer ml-2 text-2xl"
+                onClick={() => handleEdit("storeName")}
+              />
             </div>
           </div>
 
-          {/* Store description */}
-          <div className="relative flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
+          {/* Store Description */}
+          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Store Description
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <MdDescription className="text-black text-xl mr-4" />
-              <p className="font-normal font-poppins text-sm text-black w-full">
+              <p className="text-size font-normal font-poppins text-black w-full">
                 {description}
               </p>
               <RiEditFill
@@ -179,7 +197,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </div>
           </div>
 
-          {/* Conditional render if online */}
+          {/* Conditional Render for Marketplace */}
           {marketPlaceType === "marketplace" && (
             <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
               <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
@@ -187,7 +205,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               </h1>
               <div className="flex items-center justify-between w-full px-4 py-3">
                 <FaBuilding className="text-black text-xl mr-4" />
-                <p className="font-normal font-poppins text-sm text-black w-full">
+                <p className="text-size font-normal font-poppins text-black w-full">
                   {complexNumber}
                 </p>
                 <RiEditFill
@@ -202,36 +220,37 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               </div>
             </div>
           )}
+
+          {/* Email */}
           <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Email
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <MdEmail className="text-black text-xl mr-4" />
-              <p className="font-normal font-poppins text-sm text-black w-full">
+              <p className="text-size font-normal font-poppins text-black w-full">
                 {email}
               </p>
+              <MdVerified
+                className={`${
+                  email ? "text-green-500" : "text-yellow-500"
+                } text-2xl ml-2`}
+              />
             </div>
           </div>
 
-          {/* {Bank Details} */}
+          {/* Bank Details */}
           <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Bank Details
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <BsBank2 className="text-black text-xl mr-4" />
-              <p className="font-normal font-poppins text-black w-full">
-                <p className="font-normal font-poppins text-sm text-black w-full">
-                  {bankName}
-                </p>
-                <p className="font-normal font-poppins text-sm text-black w-full">
-                  {accountName}
-                </p>
-                <p className="font-normal font-poppins text-sm text-black w-full">
-                  {accountNumber}
-                </p>
-              </p>
+              <div className="text-size font-normal font-poppins text-black w-full">
+                <p>{bankName}</p>
+                <p>{accountName}</p>
+                <p>{accountNumber}</p>
+              </div>
             </div>
           </div>
 
@@ -242,80 +261,82 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <BiSolidCategoryAlt className="text-black text-xl mr-4" />
-              <p className="font-normal font-poppins text-sm text-black w-full">
+              <p className="text-size font-normal font-poppins text-black w-full">
                 {categoriesList}
               </p>
             </div>
           </div>
 
-          {/* conditionally render, closing and opening time and complex no */}
+          {/* Conditional Render for Marketplace Times */}
           {marketPlaceType === "marketplace" && (
-            <div className="relative flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-              <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-                Opening Time
-              </h1>
-              <div className="flex items-center justify-between w-full px-4 py-3">
-                <CiClock1 className="text-black text-xl mr-4" />
-                <p className="font-normal text-sm font-poppins text-black w-full">
-                  {openTime}
-                </p>
-                <RiEditFill
-                  className="text-black cursor-pointer ml-2 text-2xl"
-                  onClick={() =>
-                    setEditingField({ field: "openTime", value: openTime })
-                  }
-                />
+            <>
+              <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
+                <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
+                  Opening Time
+                </h1>
+                <div className="flex items-center justify-between w-full px-4 py-3">
+                  <CiClock1 className="text-black text-xl mr-4" />
+                  <p className="text-size font-normal font-poppins text-black w-full">
+                    {openTime}
+                  </p>
+                  <RiEditFill
+                    className="text-black cursor-pointer ml-2 text-2xl"
+                    onClick={() =>
+                      setEditingField({ field: "openTime", value: openTime })
+                    }
+                  />
+                </div>
               </div>
-            </div>
-          )}
-          {marketPlaceType === "marketplace" && (
-            <div className="relative flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-              <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-                Closing Time
-              </h1>
-              <div className="flex items-center justify-between w-full px-4 py-3">
-                <CiClock2 className="text-black text-xl mr-4" />
-                <p className="font-normal font-poppins text-black w-full">
-                  {closeTime}
-                </p>
-                <RiEditFill
-                  className="text-black cursor-pointer ml-2 text-2xl"
-                  onClick={() =>
-                    setEditingField({ field: "closeTime", value: closeTime })
-                  }
-                />
+
+              <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
+                <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
+                  Closing Time
+                </h1>
+                <div className="flex items-center justify-between w-full px-4 py-3">
+                  <CiClock2 className="text-black text-xl mr-4" />
+                  <p className="text-size font-normal font-poppins text-black w-full">
+                    {closeTime}
+                  </p>
+                  <RiEditFill
+                    className="text-black cursor-pointer ml-2 text-2xl"
+                    onClick={() =>
+                      setEditingField({ field: "closeTime", value: closeTime })
+                    }
+                  />
+                </div>
               </div>
-            </div>
-          )}
-          {marketPlaceType === "marketplace" && (
-            <div className="relative flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-              <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-                Days of availability
-              </h1>
-              <div className="flex items-center justify-between w-full px-4 py-3">
-                <FaRegCalendarAlt className="text-black text-xl mr-4" />
-                <p className="font-normal font-poppins text-black w-full">
-                  {daysAvailabilityList}
-                </p>
-                <RiEditFill
-                  className="text-black cursor-pointer ml-2 text-2xl"
-                  onClick={() =>
-                    setEditingField({
-                      field: "daysAvailability",
-                      value: daysAvailability,
-                    })
-                  }
-                />
+
+              <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
+                <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
+                  Days of Availability
+                </h1>
+                <div className="flex items-center justify-between w-full px-4 py-3">
+                  <FaRegCalendarAlt className="text-black text-xl mr-4" />
+                  <p className="text-size font-normal font-poppins text-black w-full">
+                    {daysAvailabilityList}
+                  </p>
+                  <RiEditFill
+                    className="text-black cursor-pointer ml-2 text-2xl"
+                    onClick={() =>
+                      setEditingField({
+                        field: "daysAvailability",
+                        value: daysAvailability,
+                      })
+                    }
+                  />
+                </div>
               </div>
-            </div>
+            </>
           )}
+
+          {/* Delivery Mode */}
           <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Delivery Mode
             </h1>
             <div className="flex items-center justify-between w-full px-4 py-3">
               <FaShippingFast className="text-black text-xl mr-4" />
-              <p className="font-normal  text-sm font-poppins text-black w-full">
+              <p className="text-size font-normal font-poppins text-black w-full">
                 {deliveryMode}
               </p>
             </div>

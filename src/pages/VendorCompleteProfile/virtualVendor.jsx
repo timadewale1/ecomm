@@ -133,7 +133,9 @@ const VirtualVendor = ({
   const [isShopNameTaken, setIsShopNameTaken] = useState(false);
   const [isShopNameAvailable, setIsShopNameAvailable] = useState(false);
   const [showStateDropdown, setShowStateDropdown] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(""); // Common for both dropdowns
+  const [stateSearchTerm, setStateSearchTerm] = useState(""); // For state search input
+  const [categorySearchTerm, setCategorySearchTerm] = useState(""); // For category search input
+
   const [selectedState, setSelectedState] = useState("");
   // const [banks, setBanks] = useState([]);
   const [isResolving, setIsResolving] = useState(false); // Loader for account resolution
@@ -150,6 +152,18 @@ const VirtualVendor = ({
       .split(" ")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
+  };
+  const handleStateChange = (state) => {
+    setSelectedState(state);
+
+    // Update vendorData with the new state
+    setVendorData({
+      ...vendorData,
+      state: state,
+    });
+
+    // Close the state dropdown
+    setShowStateDropdown(false);
   };
   useEffect(() => {
     const checkShopNameAvailability = async () => {
@@ -186,17 +200,6 @@ const VirtualVendor = ({
     checkShopNameAvailability();
   }, [vendorData.shopName]);
 
-  const handleStateChange = (e) => {
-    const state = e.target.value;
-    setSelectedState(state);
-
-    // Update vendorData with the new state
-    setVendorData({
-      ...vendorData,
-      state: state,
-    });
-  };
- 
   const isFormComplete = () => {
     if (step === 2) {
       return (
@@ -234,7 +237,7 @@ const VirtualVendor = ({
 
   // Filter categories based on the search input
   const filteredCategories = categories.filter((category) =>
-    category.toLowerCase().includes(searchTerm.toLowerCase())
+    category.toLowerCase().includes(categorySearchTerm.toLowerCase())
   );
   // Remove the hardcoded accountNumber and use state
 
@@ -379,6 +382,7 @@ const VirtualVendor = ({
           focus:outline-none focus:border-customOrange"
               />
               {/* State Dropdown */}
+              {/* State Dropdown */}
               <div className="relative">
                 <button
                   type="button"
@@ -407,8 +411,8 @@ const VirtualVendor = ({
                     <div className="p-2">
                       <input
                         type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        value={stateSearchTerm}
+                        onChange={(e) => setStateSearchTerm(e.target.value)}
                         placeholder="Search states..."
                         className="w-full p-2 border rounded-lg focus:outline-none focus:border-customOrange"
                       />
@@ -416,55 +420,48 @@ const VirtualVendor = ({
 
                     <div className="max-h-60 overflow-y-auto">
                       {NigerianStates.filter((state) =>
-                        state.toLowerCase().includes(searchTerm.toLowerCase())
+                        state
+                          .toLowerCase()
+                          .includes(stateSearchTerm.toLowerCase())
                       ).map((state, index) => (
-                        <div key={index} className="p-2 h-12">
-                          <label className="flex items-center">
-                            <input
-                              type="radio"
-                              name="state"
-                              value={state}
-                              checked={selectedState === state}
-                              onChange={handleStateChange} // Call the corrected function
-                              className="mr-2 appearance-none h-4 w-4 border border-gray-300 checked:bg-customOrange checked:border-customOrange focus:outline-none focus:ring-2 focus:ring-customOrange focus:ring-opacity-50 rounded-lg"
-                            />
-                            <span className="text-neutral-800">{state}</span>
-                          </label>
+                        <div
+                          key={index}
+                          className="p-2 h-12 cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleStateChange(state)} // Close dropdown when state is selected
+                        >
+                          <span className="text-neutral-800">{state}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
-              {/* <input
-                type="tel"
-                name="phoneNumber"
-                placeholder=" Phone Number"
-                pattern="[0-9]*"
-                maxLength="11"
-                value={vendorData.phoneNumber}
-                onChange={(e) => {
-                  const re = /^[0-9\b]+$/;
-                  if (e.target.value === "" || re.test(e.target.value)) {
-                    handleInputChange(e);
-                  }
-                }}
-                className="w-full h-12 mb-3 p-3 border-2 rounded-lg font-opensans text-neutral-800 focus:outline-none focus:border-customOrange hover:border-customOrange"
-              /> */}
-              {/* Category Dropdown with Search */}
+
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => {
                     setShowCategoryDropdown(!showCategoryDropdown);
-                    setShowStateDropdown(false);
+                    setShowStateDropdown(false); // Close state dropdown
                   }}
-                  className="w-full h-12 mb-3 p-3 border-2 rounded-lg bg-white font-opensans text-left flex items-center justify-between"
+                  className={`w-full p-3 border-2 mb-3  rounded-lg bg-white font-opensans text-left flex items-center justify-between`}
+                  style={{
+                    minHeight: "3rem", // Ensure the minimum height remains consistent
+                    flexWrap: "wrap", // Allow wrapping of content
+                    alignItems: "flex-start", // Align items to the top for proper wrapping
+                  }}
                 >
                   {vendorData.categories.length > 0 ? (
-                    <span className="text-neutral-800">
-                      {vendorData.categories.join(", ")}
-                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {vendorData.categories.map((category, index) => (
+                        <span
+                          key={index}
+                          className="bg-customOrange text-white text-xs rounded-full px-2 py-1"
+                        >
+                          {category}
+                        </span>
+                      ))}
+                    </div>
                   ) : (
                     <span className="text-neutral-400">
                       Select Brand Category
@@ -485,8 +482,8 @@ const VirtualVendor = ({
                     <div className="p-2">
                       <input
                         type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        value={categorySearchTerm}
+                        onChange={(e) => setCategorySearchTerm(e.target.value)}
                         placeholder="Search categories..."
                         className="w-full p-2 border rounded-lg focus:outline-none focus:border-customOrange"
                       />
@@ -521,7 +518,7 @@ const VirtualVendor = ({
                                     categories: newCategories,
                                   });
                                 }}
-                                className="mr-2 appearance-none h-4 w-4 border border-gray-300  checked:bg-customOrange checked:border-customOrange focus:outline-none focus:ring-2 focus:ring-customOrange focus:ring-opacity-50 rounded-lg"
+                                className="mr-2 appearance-none h-4 w-4 border border-gray-300 checked:bg-customOrange checked:border-customOrange focus:outline-none focus:ring-2 focus:ring-customOrange focus:ring-opacity-50 rounded-lg"
                               />
                               <span className="text-neutral-800">
                                 {category}
@@ -538,6 +535,7 @@ const VirtualVendor = ({
                   </div>
                 )}
               </div>
+
               <input
                 type="text"
                 name="description"
@@ -724,7 +722,7 @@ const VirtualVendor = ({
                 <select
                   id="bank-select"
                   name="bankName"
-                  value={bankDetails.bankCode} // Use the bank code as the value
+                  value={bankDetails.bankCode || ""}
                   onChange={(e) => {
                     const selectedBankCode = e.target.value;
                     console.log("Selected Bank Code:", selectedBankCode); // Log the selected bank code

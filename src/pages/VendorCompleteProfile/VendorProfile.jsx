@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import { signOut } from "firebase/auth";
-import { MdModeEdit } from "react-icons/md";
 import { auth, db } from "../../firebase.config";
 import { RotatingLines } from "react-loader-spinner";
 import { toast } from "react-hot-toast";
@@ -16,24 +15,21 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { useAuth } from "../../custom-hooks/useAuth";
-import { IoMdContact } from "react-icons/io";
-import { TbHomeStar } from "react-icons/tb";
+import { TbHomeStar, TbTruckDelivery } from "react-icons/tb";
 import { PiSignOutBold } from "react-icons/pi";
 import { Doughnut } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
-import AvatarSelectorModal from "../vendor/VendorAvatarSelect.jsx";
 import Skeleton from "react-loading-skeleton";
 import VprofileDetails from "../vendor/VprofileDetails.jsx";
 import { useDispatch, useSelector } from "react-redux";
 import { clearOrders } from "../../redux/actions/orderaction.js";
-import { FaStar } from "react-icons/fa";
-import { ProgressBar } from "react-bootstrap";
-import { GoChevronLeft } from "react-icons/go";
 import { setVendorProfile, setLoading } from "../../redux/vendorProfileSlice";
-import { FaFileContract } from "react-icons/fa6";
+import { FaCartShopping, FaFileContract } from "react-icons/fa6";
 import { BsShieldFillCheck } from "react-icons/bs";
-import TermsAndConditions from "../Legal/TermsAndConditions.jsx";
-import PrivacyPolicy from "../Legal/PrivacyPolicy.jsx";
+import { IoBook } from "react-icons/io5";
+import { IoIosCall } from "react-icons/io";
+import { AiOutlineExperiment } from "react-icons/ai";
+import { MdOutlineFeedback } from "react-icons/md";
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const defaultImageUrl =
@@ -46,12 +42,11 @@ const VendorProfile = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [showGuides, setShowGuides] = useState(false);
   const [fulfilledOrders, setFulfilledOrders] = useState(0);
   const [unfulfilledOrders, setUnfulfilledOrders] = useState(0);
   const [incomingOrders, setIncomingOrders] = useState(0);
   const totalOrders = fulfilledOrders + unfulfilledOrders + incomingOrders;
-
 
   const activityData = {
     labels: ["Fulfilled", "Unfulfilled", "Incoming"],
@@ -112,8 +107,7 @@ const VendorProfile = () => {
     fetchUserData();
   }, [dispatch, currentUser]);
 
-  const { shopName, coverImageUrl, marketPlaceType } =
-    userData || {};
+  const { shopName, coverImageUrl, marketPlaceType } = userData || {};
 
   useEffect(() => {
     const fetchOrderData = async () => {
@@ -183,7 +177,6 @@ const VendorProfile = () => {
   //   fetchUserData();
   // }, [currentUser]);
 
-
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
@@ -204,7 +197,7 @@ const VendorProfile = () => {
 
   return (
     <div className="font-opensans">
-      {!showDetails && !showHistory ? (
+      {!showDetails && !showHistory && !showGuides ? (
         <div>
           {/* Cover Image Section */}
           <div
@@ -330,7 +323,7 @@ const VendorProfile = () => {
               <div className="flex flex-col items-center w-full">
                 <div
                   className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => navigate('/terms-and-conditions')}
+                  onClick={() => navigate("/terms-and-conditions")}
                 >
                   <div className="flex items-center">
                     <FaFileContract className="text-black text-xl mr-4" />
@@ -343,12 +336,46 @@ const VendorProfile = () => {
 
                 <div
                   className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => navigate('/privacy-policy')}
+                  onClick={() => navigate("/privacy-policy")}
                 >
                   <div className="flex items-center">
                     <BsShieldFillCheck className="text-black text-xl mr-4" />
                     <h2 className="text-size font-normal text-black capitalize">
                       Privacy Policy
+                    </h2>
+                  </div>
+                  <ChevronRight className="text-black" />
+                </div>
+
+                <div
+                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={() => setShowGuides(true)}
+                >
+                  <div className="flex items-center">
+                    <IoBook className="text-black text-xl mr-4" />
+                    <h2 className="text-size font-normal text-black capitalize">
+                      Guidelines
+                    </h2>
+                  </div>
+                  <ChevronRight className="text-black" />
+                </div>
+              </div>
+              
+              <div className="w-full h-14 flex">
+                <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
+                  Beta 
+                </h1>
+                <AiOutlineExperiment  className="font-semibold text-lg translate-y-[14px] text-black"/>
+              </div>
+              <div className="flex flex-col items-center w-full">
+                <div
+                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={() => navigate("/send-us-feedback")}
+                >
+                  <div className="flex items-center">
+                    <MdOutlineFeedback className="text-black text-xl mr-4" />
+                    <h2 className="text-size font-normal text-black capitalize">
+                      Send us your feedback! 📣
                     </h2>
                   </div>
                   <ChevronRight className="text-black" />
@@ -380,7 +407,7 @@ const VendorProfile = () => {
             </div>
           </div>
         </div>
-      )  : (
+      ) : (
         <>
           {showDetails && (
             <VprofileDetails
@@ -396,6 +423,44 @@ const VendorProfile = () => {
               />
               <h2 className="text-xl font-ubuntu mt-4">Recent Activities</h2>
               {/* Render History content here */}
+            </div>
+          )}
+          {showGuides && (
+            <div className="flex flex-col p-2">
+              <div className="flex justify-between mt-2 mb-3">
+                <ChevronLeft
+                  className="text-2xl text-black cursor-pointer"
+                  onClick={() => setShowGuides(false)}
+                />
+                <h2 className="text-xl font-ubuntu">Guidelines</h2>
+                <div></div>
+              </div>
+
+              <div
+                className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                onClick={() => navigate("/call-guidelines")}
+              >
+                <div className="flex items-center">
+                  <IoIosCall className="text-black text-xl mr-4" />
+                  <h2 className="text-size font-normal text-black capitalize">
+                    Call Guidelines
+                  </h2>
+                </div>
+                <ChevronRight className="text-black" />
+              </div>
+
+              <div
+                className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                onClick={() => navigate("/delivery-guidelines")}
+              >
+                <div className="flex items-center">
+                  <TbTruckDelivery className="text-black text-xl mr-4" />
+                  <h2 className="text-size font-normal text-black capitalize">
+                    Delivery Guidelines
+                  </h2>
+                </div>
+                <ChevronRight className="text-black" />
+              </div>
             </div>
           )}
         </>

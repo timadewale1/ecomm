@@ -367,24 +367,35 @@ const VendorProducts = () => {
   };
 
   const handlePinProduct = async (product) => {
-    // if (!product.isFeatured && pinnedCount >= 4) {
-    //   toast.error("You can only pin up to 3 products.");
-    //   return;
-    // }
-
+    const currentTime = new Date().getTime(); // Get current time in milliseconds
+  
+    // If the product is already pinned, check if it can be unpinned
+    if (product.isFeatured) {
+      const pinnedAt = product.pinnedAt || 0; // Ensure we have a pinnedAt timestamp
+      const timeElapsed = currentTime - pinnedAt; // Calculate time elapsed since pinned
+      const twelveHoursInMilliseconds = 12 * 60 * 60 * 1000;
+  
+      if (timeElapsed < twelveHoursInMilliseconds) {
+        // Prevent unpinning if less than 12 hours have passed
+        toast.error("You cannot unpin a product within 12 hours of pinning it.");
+        return;
+      }
+    }
+  
     try {
       const productRef = doc(db, "products", product.id);
       const newIsFeaturedStatus = !product.isFeatured;
-
-      // Update the product's `isFeatured` status in Firestore
+  
+      // Update Firestore with the new `isFeatured` status and timestamp if pinned
       await updateDoc(productRef, {
         isFeatured: newIsFeaturedStatus,
+        ...(newIsFeaturedStatus && { pinnedAt: currentTime }), // Add pinnedAt timestamp if pinning
       });
-
+  
       // Update the local product state to reflect the new pin status
       setProducts((prevProducts) =>
         prevProducts.map((p) =>
-          p.id === product.id ? { ...p, isFeatured: newIsFeaturedStatus } : p
+          p.id === product.id ? { ...p, isFeatured: newIsFeaturedStatus, pinnedAt: newIsFeaturedStatus ? currentTime : null } : p
         )
       );
 
@@ -477,6 +488,12 @@ const VendorProducts = () => {
     setRestockValues({}); // Reset restock values
   };
 
+  const hasValidRestockValues = () => {
+    return Object.values(restockValues).some((value) => {
+      return value?.quantity && parseInt(value.quantity, 10) > 0;
+    });
+  };
+  
   // Handle restock input change
   const handleRestockInputChange = (type, id, value) => {
     setRestockValues((prev) => ({
@@ -548,6 +565,11 @@ const VendorProducts = () => {
       });
 
       toast.success("Product restocked successfully.");
+      await addActivityNote(
+        "Restocked Product 🔄",
+        `You restocked ${selectedProduct.name}! Customers can now buy more of this product from your store.` ,
+        "Product Update"
+      );
       setIsRestocking(false);
       setRestockValues({});
     } catch (error) {
@@ -1143,18 +1165,19 @@ const VendorProducts = () => {
                   <motion.button
                     onClick={handleSubmitRestock}
                     whileTap={{ scale: 1.1 }}
-                    className={`glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full ${
-                      restockValues.length < 1 && "opacity-25"
+                    className={`flex glow-button justify-center items-center w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full ${
+                      !hasValidRestockValues() && "opacity-25"
                     }`}
-                    disabled={restockValues.length === 0}
+                    disabled={!hasValidRestockValues()}
                   >
                     {rLoading ? (
-                      <Lottie
-                        className="w-10 h-10 text-white"
-                        animationData={LoadState}
-                        loop={true}
-                        autoplay={true}
-                      />
+                      <RotatingLines
+                      strokeColor="white"
+                      strokeWidth="5"
+                      animationDuration="0.75"
+                      width="20"
+                      visible={true}
+                    />
                     ) : (
                       "Submit Restock"
                     )}

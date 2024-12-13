@@ -11,14 +11,14 @@ import { FaHeart } from "react-icons/fa";
 import { RotatingLines } from "react-loader-spinner";
 import { PiSignOutBold } from "react-icons/pi";
 import { GiClothes } from "react-icons/gi";
-import { MdHelpOutline, MdModeEdit } from "react-icons/md";
+import { MdHelpOutline, MdModeEdit, MdOutlineFeedback } from "react-icons/md";
 import {
   setUserData,
   updateUserData,
   resetUserData,
 } from "../redux/actions/useractions";
 import { CiMoneyBill } from "react-icons/ci";
-import { AiOutlineDashboard } from "react-icons/ai";
+import { AiOutlineDashboard, AiOutlineExperiment } from "react-icons/ai";
 import UserDashboard from "./UserDashboard";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -337,7 +337,29 @@ const Profile = () => {
               </div>
               <ChevronRight className="text-black" />
             </div>
+          <div className="w-full h-14 flex ml-4">
+            <h1 className="text-base font-semibold mx-2 font-opensans translate-y-3 text-black">
+                  Beta 
+                </h1>
+                <AiOutlineExperiment  className="font-semibold text-lg translate-y-[14px] text-black"/>
+              </div>
+              <div className="flex flex-col items-center w-full">
+                <div
+                  className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={() => navigate("/send-us-feedback")}
+                >
+                  <div className="flex items-center">
+                    <MdOutlineFeedback className="text-black text-xl mr-4" />
+                    <h2 className="text-size font-normal text-black capitalize">
+                      Send us your feedback! ❤
+                    </h2>
+                  </div>
+                  <ChevronRight className="text-black" />
+                </div>
+              </div>
           </div>
+          
+
           <div className="flex flex-col items-center px-2 w-full">
             {currentUser && (
               <div

@@ -487,7 +487,7 @@ const VendorDashboard = () => {
               {viewOptions && (
                 <div className="z-50 absolute bg-white w-44 h-40 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-44 top-2 p-3 flex flex-col justify-between">
                   <span
-                    className="text-xs ml-2 cursor-pointer"
+                    className={`${filterOptions === "All" ? "text-customOrange" : "text-black"} text-xs ml-2 cursor-pointer`}
                     onClick={() => {
                       setFilterOptions("All");
                       setViewOptions(!viewOptions);
@@ -497,7 +497,7 @@ const VendorDashboard = () => {
                   </span>
                   <hr className="text-slate-300" />
                   <span
-                    className="text-xs ml-2 cursor-pointer"
+                    className={`${filterOptions === "Recent Transactions" ? "text-customOrange" : "text-black"} text-xs ml-2 cursor-pointer`}
                     onClick={() => {
                       setFilterOptions("transactions");
                       setViewOptions(!viewOptions);
@@ -507,7 +507,7 @@ const VendorDashboard = () => {
                   </span>
                   <hr className="text-slate-300" />
                   <span
-                    className="text-xs ml-2 cursor-pointer"
+                    className={`${filterOptions === "order" ? "text-customOrange" : "text-black"} text-xs ml-2 cursor-pointer`}
                     onClick={() => {
                       setFilterOptions("order");
                       setViewOptions(!viewOptions);
@@ -517,7 +517,7 @@ const VendorDashboard = () => {
                   </span>
                   <hr className="text-slate-300" />
                   <span
-                    className="text-xs ml-2 cursor-pointer"
+                    className={`${filterOptions === "Product Update" ? "text-customOrange" : "text-black"} text-xs ml-2 cursor-pointer`}
                     onClick={() => {
                       setFilterOptions("Product Update");
                       setViewOptions(!viewOptions);
@@ -535,27 +535,71 @@ const VendorDashboard = () => {
           </div>
 
           <div className="flex flex-col space-y-2 text-black">
-            {recentActivities && filteredActivities.length > 0 && !loading ? (
-              <>
-                {filteredActivities.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="mb-2 bg-customSoftGray rounded-2xl px-4 py-2"
-                  >
-                    <div className="flex justify-between mb-2">
-                      <p className="text-black font-semibold text-xs">
-                        {activity.title}
-                      </p>
+          {recentActivities && filteredActivities.length > 0 && !loading ? (
+    <>
+      {Object.entries(
+        filteredActivities.reduce((groups, activity) => {
+          // Convert Firestore Timestamp to JavaScript Date
+          const timestamp = new Date(
+            activity.timestamp.seconds * 1000 + activity.timestamp.nanoseconds / 1e6
+          );
+          const now = new Date();
 
-                      <p className="text-black font-semibold text-xs">
-                        {formatDateOrTime(activity.timestamp)}
-                      </p>
-                    </div>
-                    <p className="text-black text-xs">{activity.note}</p>
-                  </div>
-                ))}
-              </>
-            ) : loading ? (
+          // Determine the section (Today, Yesterday, Last 7 Days, Older)
+          let section;
+          const isSameDay = (date1, date2) =>
+            date1.getFullYear() === date2.getFullYear() &&
+            date1.getMonth() === date2.getMonth() &&
+            date1.getDate() === date2.getDate();
+
+          if (isSameDay(timestamp, now)) {
+            section = "Today";
+          } else if (
+            isSameDay(
+              timestamp,
+              new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+            )
+          ) {
+            section = "Yesterday";
+          } else if (
+            timestamp >=
+            new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7)
+          ) {
+            section = "Last 7 Days";
+          } else {
+            section = "Older";
+          }
+
+          if (!groups[section]) {
+            groups[section] = [];
+          }
+          groups[section].push(activity);
+
+          return groups;
+        }, {})
+      ).map(([section, activities]) => (
+        <div key={section}>
+          <h3 className="text-black font-bold text-sm mb-2">{section}</h3>
+          {activities.map((activity) => (
+            <div
+              key={activity.id}
+              className="mb-2 bg-customSoftGray rounded-2xl px-4 py-2"
+            >
+              <div className="flex justify-between mb-2">
+                <p className="text-black font-semibold text-xs">
+                  {activity.title}
+                </p>
+                <p className="text-black font-semibold text-xs">
+                  {formatDateOrTime(activity.timestamp)}
+                </p>
+              </div>
+              <p className="text-black text-xs">{activity.note}</p>
+            </div>
+          ))}
+        </div>
+      ))}
+    </>
+  ) : loading ? (
               <>
                 <Skeleton square={true} height={84} className="w-full mb-2" />
                 <Skeleton square={true} height={84} className="w-full mb-2" />

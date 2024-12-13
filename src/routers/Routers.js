@@ -14,6 +14,7 @@ import VendorDashboard from "../pages/VendorCompleteProfile/vendordashboard.jsx"
 import FavoritesPage from "../pages/UserSide/FavoritesProducts.jsx";
 import VendorProducts from "../pages/VendorCompleteProfile/VendorProducts.jsx";
 import VendorProfile from "../pages/VendorCompleteProfile/VendorProfile.jsx";
+import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
 import MarketStorePage from "../pages/MarketStorePage.jsx";
 import UserDashboard from "../pages/UserDashboard";
 import Marketpg from "../pages/Marketpg";
@@ -23,7 +24,6 @@ import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfil
 import NewHome from "../pages/Homepage";
 import EmailVerification from "../pages/UserSide/ConfirmEmail.jsx";
 import LatestCart from "../pages/Cart.jsx";
-import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
 import OrdersCentre from "../pages/UserSide/OrdersCentre.jsx";
 import Checkout from "../pages/NewCheckout.jsx";
 import MarketVendors from "../pages/MarketVendors.jsx";
@@ -39,11 +39,15 @@ import VendorRatings from "../pages/vendor/VendorRatings.jsx";
 import SearchPage from "../pages/UserSide/Searchpage.jsx";
 import ErrorBoundary from "../components/Errorboundary.jsx";
 import TermsAndConditions from "../pages/Legal/TermsAndConditions.jsx";
+import CallGuide from "../pages/Legal/CallGuide.jsx";
+import DeliveryGuide from "../pages/Legal/DeliveryGuide.jsx";
 import PrivacyPolicy from "../pages/Legal/PrivacyPolicy.jsx";
 import NotFound from "../pages/NotFound";
 import StoreReviews from "../pages/vendor/StoreReviews.jsx";
 import RoleBasedAccess from "../custom-hooks/Rbac.jsx"; // Assuming this is the RoleBasedAccess component
 import { Navigate } from "react-router-dom";
+import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
+import SubmitFeedback from "../pages/SubmitFeedback.jsx";
 const Routers = () => {
   return (
     <Routes>
@@ -66,7 +70,7 @@ const Routers = () => {
       <Route path="/vendor-verify-otp" element={<VendorVerifyOTP />} />
       <Route path="terms-and-conditions" element={<TermsAndConditions />} />
       <Route path="privacy-policy" element={<PrivacyPolicy />} />
-
+      <Route path="/send-us-feedback" element={<SubmitFeedback />} />
       {/* Apply Role-Based Access to Specific Routes */}
       <Route
         path="/profile"
@@ -206,6 +210,8 @@ const Routers = () => {
         <Route path="/vendor-products" element={<VendorProducts />} />
         <Route path="/vendor-orders" element={<VendorOrders />} />
         <Route path="/store-reviews" element={<StoreReviews />} />
+        <Route path="/call-guidelines" element={<CallGuide />} />
+        <Route path="/delivery-guidelines" element={<DeliveryGuide />} />
         {/* Add any other vendor-specific protected routes here */}
       </Route>
 

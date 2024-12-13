@@ -33,6 +33,8 @@ const Layout = () => {
     "/newcheckout/fulldelivery",
     "/user-dashboard",
     "/search",
+
+    "/send-us-feedback",
     
     "/vendor-reviews",
     "/notifications",

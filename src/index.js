@@ -14,7 +14,7 @@ import { AuthProvider } from "./custom-hooks/useAuth";
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <BrowserRouter> 
+    <BrowserRouter>
       <Provider store={store}>
         <AuthProvider>
           <NavigationProvider>
@@ -40,5 +40,5 @@ root.render(
         </AuthProvider>
       </Provider>
     </BrowserRouter>
-  // </React.StrictMode>
+  </React.StrictMode>
 );

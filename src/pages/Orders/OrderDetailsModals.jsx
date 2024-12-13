@@ -381,7 +381,7 @@ const OrderDetailsModal = ({
       const orderId = orderData.orderId; // Fetching orderId
       if (!orderId) {
         console.error("Order ID is missing.");
-        toast.error("Order ID not found.");
+        // toast.error("Order ID not found.");
         setAcceptLoading(false);
         return;
       }
@@ -546,7 +546,7 @@ const OrderDetailsModal = ({
 
         if (!smsUsername || !smsPassword) {
           console.error("BetaSMS credentials are missing.");
-          toast.error("Configuration error: Missing SMS credentials.");
+          // toast.error("Configuration error: Missing SMS credentials.");
           setAcceptLoading(false);
           return;
         }
@@ -579,11 +579,11 @@ const OrderDetailsModal = ({
             console.log(`SMS sent successfully to user: ${userPhoneNumber}`);
           } else {
             console.warn("SMS sending failed:", smsResult);
-            toast.warn("SMS sending failed.");
+            // toast.warn("SMS sending failed.");
           }
         } catch (smsError) {
           console.error("Error sending SMS:", smsError);
-          toast.error("Failed to send SMS notification.");
+          // toast.error("Failed to send SMS notification.");
         }
       } else {
         console.warn("User phone number not available, skipping SMS.");
@@ -615,55 +615,49 @@ const OrderDetailsModal = ({
             const orderReference = orderData.orderReference;
 
             console.log("Order reference from Firestore:", orderReference);
-            const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
-            if (orderReference) {
-              console.log(
-                `Making GET request to: ${API_BASE_URL}/calculateVendorPay/${orderReference}`
-              );
 
+            if (orderReference) {
               const token = process.env.REACT_APP_RESOLVE_TOKEN;
               const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
               console.log("Authorization Token:", token);
+              console.log("API_BASE_URL:", API_BASE_URL);
 
-              try {
-                const response = await fetch(
-                  `${API_BASE_URL}/calculateVendorPay/${orderReference}`,
-                  {
-                    method: "GET",
-                    headers: {
-                      Authorization: `Bearer ${token}`,
-                    },
-                  }
-                );
+              const response = await fetch(
+                `${API_BASE_URL}/calculateVendorPay/${orderReference}`,
+                {
+                  method: "GET",
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
 
-                console.log(
-                  `API response status: ${response.status}, statusText: ${response.statusText}`
-                );
+              console.log(
+                `API response status: ${response.status}, statusText: ${response.statusText}`
+              );
 
-                if (!response.ok) {
-                  console.error(
-                    "Failed to fetch vendor amounts. Response details:",
-                    await response.json()
+              if (response.ok) {
+                const data = await response.json();
+                console.log("API response data:", data);
+
+                if (data && data.amount) {
+                  setVendorAmounts(data.amount);
+                  console.log(
+                    "Vendor amounts successfully fetched:",
+                    data.amount
                   );
                 } else {
-                  const data = await response.json();
-                  console.log("API response data:", data);
-
-                  if (data && data.amount) {
-                    setVendorAmounts(data.amount);
-                    console.log(
-                      "Vendor amounts successfully fetched:",
-                      data.amount
-                    );
-                  } else {
-                    console.warn(
-                      "API response does not contain 'amount'. Full response:",
-                      data
-                    );
-                  }
+                  console.warn(
+                    "API response does not contain 'amount'. Full response:",
+                    data
+                  );
                 }
-              } catch (apiError) {
-                console.error("Error occurred during API fetch:", apiError);
+              } else {
+                console.error(
+                  "Failed to fetch vendor amounts. Response details:",
+                  await response.json()
+                );
               }
             } else {
               console.warn(
@@ -760,17 +754,14 @@ const OrderDetailsModal = ({
       const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
       // Send request to updateDelivery endpoint FIRST
       console.log("Sending delivery update to endpoint...");
-      const deliveryResponse = await fetch(
-       `${API_BASE_URL}/updateDelivery`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(deliveryPayload),
-        }
-      );
+      const deliveryResponse = await fetch(`${API_BASE_URL}/updateDelivery`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(deliveryPayload),
+      });
 
       if (!deliveryResponse.ok) {
         const errorData = await deliveryResponse.json();
@@ -782,17 +773,14 @@ const OrderDetailsModal = ({
 
       // Send request to transfer40vendor endpoint
       console.log("Initiating fund transfer to vendor...");
-      const transferResponse = await fetch(
-        `${API_BASE_URL}/transfer40vendor`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ orderReference }),
-        }
-      );
+      const transferResponse = await fetch(`${API_BASE_URL}/transfer40vendor`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ orderReference }),
+      });
 
       if (!transferResponse.ok) {
         const errorData = await transferResponse.json();

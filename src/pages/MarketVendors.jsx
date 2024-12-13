@@ -291,16 +291,27 @@ const MarketVendors = () => {
             );
           })
         ) : (
-          <div className="text-center my-10">
-            <h2 className="text-2xl font-ubuntu font-medium">
-              No results found
+          // <div className="text-center my-10">
+          //   <h2 className="text-2xl font-ubuntu font-medium">
+          //     No results found
+          //   </h2>
+          //   <p className="text-gray-600">
+          //     Please try searching for another item or category.
+          //   </p>
+          // </div>
+          <div className="text-center my-10 px-6">
+            <h2 className="text-3xl font-opensans mb-2 font-medium bg-gradient-to-r from-green-400 via-yellow-400 to-orange-400 bg-clip-text text-transparent">
+              Coming Soon: Market Place Vendors!
             </h2>
-            <p className="text-gray-600">
-              Please try searching for another item or category.
+
+            <p className="text-gray-600 text-sm font-opensans">
+              We're just getting started! Vendors from your local markets will
+              be here soon, starting with Yaba. Stay tuned for something
+              amazing! 🧡
             </p>
           </div>
         )}
-        <hr className="bg-gray-100 pb-0.5 w-full" />
+        {/* <hr className="bg-gray-100 pb-0.5 w-full" /> */}
       </div>
     </div>
   );

@@ -198,16 +198,19 @@ const VendorProfile = () => {
   return (
     <div className="font-opensans">
       {!showDetails && !showHistory && !showGuides ? (
-        <div>
+        <div className="pb-20">
           {/* Cover Image Section */}
           <div
-            className="relative w-full h-56 bg-cover bg-customSoftGray bg-full flex"
+            className="relative w-full h-56 bg-cover bg-center bg-customSoftGray flex"
             style={{
               backgroundImage: loading
                 ? "none"
                 : marketPlaceType === "virtual"
                 ? `url(${coverImageUrl})`
                 : `url(${defaultImageUrl})`,
+              backgroundSize: "cover", // Ensures the image covers the div
+              backgroundPosition: "center", // Centers the image
+              backgroundRepeat: "no-repeat", // Prevents repeating
             }}
           >
             {loading && (

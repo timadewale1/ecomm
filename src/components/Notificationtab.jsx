@@ -343,7 +343,7 @@ const NotificationItem = ({ notification, markAsRead, deleteNotification }) => {
             </div>
             <div className="mt-12">
               <p className="text-xs font-opensans text-gray-600 italic border-l-2 border-gray-300 pl-3 mt-4">
-                Note: Refunds typically take 3-5 business days to appear in your
+                Note: Refunds typically take an hour - A day to appear in your
                 account, depending on your payment method.
               </p>
             </div>

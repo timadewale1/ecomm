@@ -13,6 +13,7 @@ import { LiaCoinsSolid } from "react-icons/lia";
 import { ImSad2 } from "react-icons/im";
 import { HiReceiptTax } from "react-icons/hi";
 import { FaSmileBeam } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import { MdCancel } from "react-icons/md";
 import {
   IoPricetags,
@@ -56,7 +57,7 @@ const OrderDetailsModal = ({
   const [otherReasonText, setOtherReasonText] = useState("");
   const [isDeclineInfoModalOpen, setIsDeclineInfoModalOpen] = useState(false);
   const userId = order?.userId; // Directly access userId from the order document
-
+  const navigate = useNavigate();
   const [vendorName, setVendorName] = useState(
     order?.vendorName || "Your Vendor Name"
   );
@@ -872,6 +873,10 @@ const OrderDetailsModal = ({
     }
   };
 
+
+  const handleNavigation = () => {
+    navigate("/delivery-guidelines");
+  };
   const handleDeclineInfoModal = () => {
     setIsDeclineInfoModalOpen(true);
   };
@@ -1613,9 +1618,12 @@ const OrderDetailsModal = ({
           <p className="text-xs text-gray-700 font-opensans mt-4">
             For more details on marking an order as delivered, please refer to
             our
-            <a href="/mythrift.ng" className="text-customOrange underline">
+            <span
+              onClick={handleNavigation}
+              className="text-customOrange underline cursor-pointer"
+            >
               Order Delivery Guide
-            </a>
+            </span>
             .
           </p>
           <div className="flex mt-4 items-center mb-4">

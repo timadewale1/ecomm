@@ -44,12 +44,7 @@ const Explore = () => {
     },
   });
 
-  const promoImages = [
-    "black-friday-composition-with-post-its_1_clwua4",
-    "4929101_na7pyp",
-    "4991116_bwrxkh",
-    "4395311_hcqoss",
-  ];
+  const promoImages = ["BOTM_xvkkud"];
   const handleClickOutside = (event) => {
     if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
       setShowFilterDropdown(false); // Close the dropdown
@@ -163,7 +158,7 @@ const Explore = () => {
   }
 
   return (
-    <div className="pb-6">
+    <div className="pb-28">
       <div className="sticky py-4 px-2 w-full top-0 bg-white z-10">
         <div className="flex items-center justify-between mb-3 pb-2 px-2.5">
           {!isSearching && (
@@ -203,7 +198,7 @@ const Explore = () => {
                 className="text-3xl cursor-pointer mr-2"
                 onClick={() => {
                   setIsSearching(false);
-                  handleClearSearch(); 
+                  handleClearSearch();
                 }}
               />
               <input

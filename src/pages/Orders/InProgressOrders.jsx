@@ -238,53 +238,45 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
 
       if (userPhoneNumber) {
         console.log("Preparing to send SMS to user...");
-        const smsUsername = process.env.REACT_APP_BETASMS_USERNAME;
-        const smsPassword = process.env.REACT_APP_BETASMS_PASSWORD;
+        const formattedPhoneNumber = userPhoneNumber.startsWith("0")
+          ? userPhoneNumber.slice(1)
+          : userPhoneNumber;
 
-        if (!smsUsername || !smsPassword) {
-          console.error("BetaSMS credentials are missing.");
-          toast.error("Configuration error: Missing SMS credentials.");
-          setIsSending(false);
-          return;
-        }
+        const smsPayload = {
+          message: `Hello, ${userName}, your order with ID ${selectedOrderId} is being delivered by ${riderName}. The rider is reachable at ${riderNumber}.` + (note ? ` Here's a short note from the vendor: ${note}.` : "") + " Cheers, Matilda from My Thrift.",
+          receiverNumber: formattedPhoneNumber,
+          receiverId: userId,
+        };
 
-        let smsMessage = `Hello, ${userName}, your order with ID ${selectedOrderId} is being delivered by ${riderName}. The rider is reachable at ${riderNumber}.`;
-        if (note) {
-          smsMessage += ` Here's a short note from the vendor: ${note}.`;
-        }
-        smsMessage += " Cheers, Matilda from My Thrift.";
-
-        const encodedMessage = encodeURIComponent(smsMessage);
-        const smsSender = "My Thrift";
-
-        const smsUrl = `http://login.betasms.com.ng/api/?username=${smsUsername}&password=${encodeURIComponent(
-          smsPassword
-        )}&message=${encodedMessage}&sender=${encodeURIComponent(
-          smsSender
-        )}&mobiles=${encodeURIComponent(userPhoneNumber)}`;
-
-        console.log(`Constructed SMS URL: ${smsUrl}`);
+        const smsToken = process.env.REACT_APP_BETOKEN;
+        console.log("SMS Token fetched from environment variable:", smsToken);
+        console.log("SMS Payload being sent:", smsPayload);
 
         try {
-          const smsResponse = await fetch(smsUrl, {
-            method: "GET",
-            headers: {
-              Accept: "application/json",
-            },
-          });
+          const smsResponse = await fetch(
+            "https://mythrift-sms.fly.dev/sendMessage",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${smsToken}`,
+              },
+              body: JSON.stringify(smsPayload),
+            }
+          );
 
           const smsResult = await smsResponse.json();
           console.log("SMS API Response:", smsResult);
 
-          if (smsResult.status === "OK") {
-            console.log(`SMS sent successfully to user: ${userPhoneNumber}`);
+          if (smsResponse.ok) {
+            console.log(
+              `SMS sent successfully to user ${userPhoneNumber} (formatted: ${formattedPhoneNumber}).`
+            );
           } else {
             console.warn("SMS sending failed:", smsResult);
-            toast.warn("SMS sending failed.");
           }
         } catch (smsError) {
           console.error("Error sending SMS:", smsError);
-          toast.error("Failed to send SMS notification.");
         }
       } else {
         console.warn("User phone number not available, skipping SMS.");

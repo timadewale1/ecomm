@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../firebase.config";
 import {
   doc,
@@ -28,6 +28,7 @@ import { MdCancel, MdClose } from "react-icons/md";
 import { LuListFilter } from "react-icons/lu";
 import Lottie from "lottie-react";
 import { LiaTimesSolid } from "react-icons/lia";
+import { AiOutlineHome } from "react-icons/ai";
 const ReviewBanner = () => {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -89,6 +90,9 @@ const StorePage = () => {
   const [sortOption, setSortOption] = useState(null); // 'priceAsc' or 'priceDesc'
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const isShared = searchParams.has("shared");
 
   useEffect(() => {
     const fetchVendorData = async () => {
@@ -365,6 +369,31 @@ const StorePage = () => {
               />
             )}
           </div>
+        ) : isShared ? (
+          <>
+            <div className="flex items-center">
+              <AiOutlineHome
+                onClick={() => navigate("/newhome")}
+                className="text-2xl cursor-pointer"
+              />
+            </div>
+
+            {/* Centered logo container uses flex-1 to take remaining space and flex to center content */}
+            <div className="flex-1 flex justify-center items-center">
+              <img
+                src="/logo512.png"
+                alt="Logo"
+                className="object-contain max-h-[72px]"
+              />
+            </div>
+
+            <div className="flex items-center mr-2 relative">
+            <CiSearch
+              className="text-black text-3xl cursor-pointer"
+              onClick={() => setIsSearching(true)}
+            />
+            </div>
+          </>
         ) : (
           <div className="flex items-center justify-between w-full ">
             <GoChevronLeft

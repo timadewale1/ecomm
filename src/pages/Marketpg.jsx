@@ -114,18 +114,21 @@ const Marketpg = () => {
 
   return (
     <div className="mb-1 ">
-      <div className="sticky py-3 px-2 w-full top-0  bg-white z-10">
-        <div className="flex flex-col   mb-3 pb-2 px-2.5">
+      <div className="sticky py-3 px-2 w-full top-0 bg-white z-10">
+        <div className="flex flex-col mb-3 pb-2 px-2.5">
           {!isSearching && (
             <>
-            <div className="flex justify-between mb-4">
-
-              <h1 className="text-xl font-opensans font-semibold">Stores</h1>
-              <CiSearch
-                className="text-3xl cursor-pointer"
-                onClick={() => setIsSearching(true)}
-              />
-            </div>
+              <div className="flex justify-between mb-4">
+                <h1 className="text-xl font-opensans font-semibold">Stores</h1>
+                <CiSearch
+                  className={`${
+                    selectedTab === "local"
+                      ? "hidden"
+                      : "text-3xl cursor-pointer"
+                  }`}
+                  onClick={() => setIsSearching(true)}
+                />
+              </div>
             </>
           )}
           {isSearching && (
@@ -152,32 +155,32 @@ const Marketpg = () => {
               )}
             </div>
           )}
-      <div className="flex  justify-between mb-1 w-full px-2 overflow-x-auto space-x-2 scrollbar-hide ">
-        <button
-          onClick={() => handleTabChange("online")}
-          className={`flex-1 h-12 text-center text-sm font-medium font-opensans  rounded-full ${
-            selectedTab === "online"
-              ? "bg-customOrange text-white"
-              : "bg-transparent border-gray-200 font-medium  border-2 text-black"
-          }`}
-        >
-          Online Vendors
-        </button>
-        <button
-          onClick={() => handleTabChange("local")}
-          className={`flex-1 h-12 text-center text-sm font-opensans font-medium  rounded-full ${
-            selectedTab === "local"
-              ? "bg-customOrange text-white"
-              : "bg-transparent border-gray-200 font-medium border-2 text-black"
-          }`}
-        >
-          Market Vendors
-        </button>
-      </div>
+          <div className="flex justify-between mb-1 w-full px-2 overflow-x-auto space-x-2 scrollbar-hide">
+            <button
+              onClick={() => handleTabChange("online")}
+              className={`flex-1 h-12 text-center text-sm font-medium font-opensans rounded-full ${
+                selectedTab === "online"
+                  ? "bg-customOrange text-white"
+                  : "bg-transparent border-gray-200 font-medium border-2 text-black"
+              }`}
+            >
+              Online Vendors
+            </button>
+            <button
+              onClick={() => handleTabChange("local")}
+              className={`flex-1 h-12 text-center text-sm font-opensans font-medium rounded-full ${
+                selectedTab === "local"
+                  ? "bg-customOrange text-white"
+                  : "bg-transparent border-gray-200 font-medium border-2 text-black"
+              }`}
+            >
+              Market Vendors
+            </button>
+          </div>
         </div>
         <div className="border-t border-gray-300 mt-6"></div>
       </div>
-      <div className="vendor-list px-2 pb-24  translate-y-1">
+      <div className="vendor-list px-2 pb-24 translate-y-1">
         {loading ? (
           // Show skeleton loader when loading
           Array.from({ length: 5 }).map((_, index) => (
@@ -200,8 +203,21 @@ const Marketpg = () => {
               </div>
             </div>
           ))
+        ) : selectedTab === "local" ? (
+        
+          <div className="text-center my-10 px-6">
+            <h2 className="text-3xl font-opensans mb-2 font-medium bg-gradient-to-r from-green-400 via-yellow-400 to-orange-400 bg-clip-text text-transparent">
+              Coming Soon: Market Place Vendors!
+            </h2>
+
+            <p className="text-gray-600 text-sm font-opensans">
+              We're just getting started! Vendors from your local markets will
+              be here soon, starting with Yaba. Stay tuned for something
+              amazing! 🧡
+            </p>
+          </div>
         ) : filteredVendors.length > 0 ? (
-          // Show vendors once they are fetched and filtered
+          
           filteredVendors.map((vendor) => (
             <div key={vendor.id} className="vendor-item">
               <div
@@ -254,10 +270,10 @@ const Marketpg = () => {
             </div>
           ))
         ) : (
-       
+          // No search results for online vendors
           <div className="text-center my-10">
             <h2 className="text-2xl font-opensans font-medium">
-              ☹️No results found
+              ☹️ No results found
             </h2>
             <p className="text-gray-600 text-sm font-opensans">
               Please try searching for another vendor.

@@ -39,7 +39,7 @@ const Market = () => {
     .resize(fit().width(2000).height(1000));
 
   const cardTexts = [
-    { title: "POPULAR MARKETS", subtitle: "BROWSE", action: "SHOP NOW" },
+    { title: "POPULAR MARKETS", subtitle: "BROWSE", action: "COMING SOON" },
     { title: "ONLINE STORES", subtitle: "TRENDING", action: "SHOP NOW" },
   ];
 

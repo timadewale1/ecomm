@@ -114,6 +114,11 @@ const Layout = () => {
       <VendorNavigationProvider>
         {isMobile ? (
           <>
+           <div className="bg-customBrown text-white text-xs  font-semibold py-1 font-ubuntu px-1 text-center">
+              <marquee behavior="scroll" direction="left">
+                You are currently using My Thrift Beta Version V1 🚀
+              </marquee>
+            </div>
             <div className="pb-1">
               <ScrollToTop />
               <Routers />

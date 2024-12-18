@@ -13,6 +13,7 @@ import { LiaCoinsSolid } from "react-icons/lia";
 import { ImSad2 } from "react-icons/im";
 import { HiReceiptTax } from "react-icons/hi";
 import { FaSmileBeam } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import { MdCancel } from "react-icons/md";
 import {
   IoPricetags,
@@ -56,7 +57,7 @@ const OrderDetailsModal = ({
   const [otherReasonText, setOtherReasonText] = useState("");
   const [isDeclineInfoModalOpen, setIsDeclineInfoModalOpen] = useState(false);
   const userId = order?.userId; // Directly access userId from the order document
-
+  const navigate = useNavigate();
   const [vendorName, setVendorName] = useState(
     order?.vendorName || "Your Vendor Name"
   );
@@ -166,21 +167,19 @@ const OrderDetailsModal = ({
       const orderData = orderSnap.data();
       console.log("Order data fetched:", orderData);
 
-      const orderId = orderData.orderId; // Fetching orderId
-      const orderReference = orderData.orderReference; // Fetching orderReference
+      const orderId = orderData.orderId;
+      const orderReference = orderData.orderReference;
       console.log("Order ID extracted:", orderId);
       console.log("OrderReference extracted:", orderReference);
 
-      // Fetch user phone number and username for SMS
+      // Fetching user details
       const userPhoneNumber = orderData.userInfo?.phoneNumber;
       const userName = orderData.userInfo?.displayName;
-
       if (!userPhoneNumber) {
         console.warn("User phone number not available.");
       } else {
         console.log(`User phone number: ${userPhoneNumber}`);
       }
-
       if (!userName) {
         console.warn("User name not available.");
       } else {
@@ -205,8 +204,6 @@ const OrderDetailsModal = ({
           console.error("Vendor document does not exist.");
         }
       }
-
-      // Fetch product image
       let productImage = null;
       if (order.cartItems && order.cartItems.length > 0) {
         const firstItem = order.cartItems[0];
@@ -235,22 +232,19 @@ const OrderDetailsModal = ({
           console.error("Product document does not exist.");
         }
       }
-
-      // Get the token from the environment variable
+      // Continue with the existing decline process
       const token = process.env.REACT_APP_RESOLVE_TOKEN;
       const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
       console.log("Token fetched from environment variable:", token);
 
-      // Constructing payload
       const payload = {
-        orderReference: orderReference, // Correctly using orderReference from DB
+        orderReference: orderReference,
         vendorId: order.vendorId,
-        vendorStatus: "declined", // Sending 'declined' status to API
-        recipientCode: recipientCode, // Correctly using recipientCode from DB
+        vendorStatus: "declined",
+        recipientCode: recipientCode, // Correctly using recipientCode
       };
       console.log("Payload being sent:", payload);
 
-      // Send data to the external endpoint with authorization token FIRST
       console.log("Sending data to external endpoint...");
       const response = await fetch(`${API_BASE_URL}/acceptOrder`, {
         method: "POST",
@@ -269,7 +263,6 @@ const OrderDetailsModal = ({
 
       console.log("Data successfully sent to external endpoint.");
 
-      // Now that external API succeeded, we update Firebase
       console.log("Updating order progressStatus to 'Declined'...");
       await updateDoc(orderRef, {
         progressStatus: "Declined",
@@ -277,7 +270,6 @@ const OrderDetailsModal = ({
         declineReason: reason || "Reason not provided",
       });
 
-      // Send notification
       console.log("Sending order status change notification...");
       await notifyOrderStatusChange(
         userId, // userId
@@ -290,7 +282,6 @@ const OrderDetailsModal = ({
         null // riderInfo
       );
 
-      // Add activity note
       console.log("Adding activity note for vendor...");
       await addActivityNote(
         order.vendorId,
@@ -301,49 +292,45 @@ const OrderDetailsModal = ({
 
       if (userPhoneNumber) {
         console.log("Preparing to send SMS to user...");
-        const smsUsername = process.env.REACT_APP_BETASMS_USERNAME;
-        const smsPassword = process.env.REACT_APP_BETASMS_PASSWORD;
+        const formattedPhoneNumber = userPhoneNumber.startsWith("0")
+          ? userPhoneNumber.slice(1)
+          : userPhoneNumber;
 
-        if (!smsUsername || !smsPassword) {
-          console.error("BetaSMS credentials are missing.");
-          toast.error("Configuration error: Missing SMS credentials.");
-          setDeclineLoading(false);
-          return;
-        }
+        const smsPayload = {
+          message: `Hello, ${userName}, your order with ID ${orderId} has been declined by ${vendorName}. Here's why: ${reason}. Refunds typically take 3-7 days depending on your payment method. Matilda from My Thrift.`,
+          receiverNumber: formattedPhoneNumber,
+          receiverId: orderData.userInfo?.uid || order.userId,
+        };
 
-        const smsMessage = encodeURIComponent(
-          `Hello, ${userName}, your order with ID ${orderId} has been declined by ${vendorName}. Here's why: ${reason}. We will process a refund to your account shortly. Refunds typically take 3-7 days depending on your payment method. Matilda from My Thrift.`
-        );
-        const smsSender = "My Thrift";
-
-        const smsUrl = `http://login.betasms.com.ng/api/?username=${smsUsername}&password=${encodeURIComponent(
-          smsPassword
-        )}&message=${smsMessage}&sender=${encodeURIComponent(
-          smsSender
-        )}&mobiles=${encodeURIComponent(userPhoneNumber)}`;
-
-        console.log(`Constructed SMS URL: ${smsUrl}`);
+        const smsToken = process.env.REACT_APP_BETOKEN;
+        console.log("SMS Token fetched from environment variable:", smsToken);
+        console.log("SMS Payload being sent:", smsPayload);
 
         try {
-          const smsResponse = await fetch(smsUrl, {
-            method: "GET",
-            headers: {
-              Accept: "application/json",
-            },
-          });
+          const smsResponse = await fetch(
+            "https://mythrift-sms.fly.dev/sendMessage",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${smsToken}`,
+              },
+              body: JSON.stringify(smsPayload),
+            }
+          );
 
           const smsResult = await smsResponse.json();
           console.log("SMS API Response:", smsResult);
 
-          if (smsResult.status === "OK") {
-            console.log(`SMS sent successfully to user: ${userPhoneNumber}`);
+          if (smsResponse.ok) {
+            console.log(
+              `SMS sent successfully to user ${userPhoneNumber} (formatted: ${formattedPhoneNumber}).`
+            );
           } else {
             console.warn("SMS sending failed:", smsResult);
-            toast.warn("SMS sending failed.");
           }
         } catch (smsError) {
           console.error("Error sending SMS:", smsError);
-          toast.error("Failed to send SMS notification.");
         }
       } else {
         console.warn("User phone number not available, skipping SMS.");
@@ -370,6 +357,7 @@ const OrderDetailsModal = ({
       console.log("Fetching order document...");
       const orderRef = doc(db, "orders", order.id);
       const orderSnap = await getDoc(orderRef);
+
       if (!orderSnap.exists()) {
         console.error("Order document does not exist.");
         toast.error("Order not found.");
@@ -378,20 +366,21 @@ const OrderDetailsModal = ({
 
       const orderData = orderSnap.data();
       console.log("Order data fetched:", orderData);
-      const orderId = orderData.orderId; // Fetching orderId
+      const orderId = orderData.orderId;
+
+      const userPhoneNumber = orderData.userInfo?.phoneNumber;
+      const userName = orderData.userInfo?.displayName;
+      const userId = orderData.userId;
+
       if (!orderId) {
         console.error("Order ID is missing.");
-        toast.error("Order ID not found.");
         setAcceptLoading(false);
         return;
       }
-      console.log("Order ID extracted:", orderId);
-      const orderReference = orderData.orderReference; // Fetching orderReference
-      console.log("OrderReference extracted:", orderReference);
 
-      // Fetch user phone number for SMS
-      const userPhoneNumber = orderData.userInfo?.phoneNumber;
-      const userName = orderData.userInfo?.displayName;
+      console.log("Order ID extracted:", orderId);
+      const orderReference = orderData.orderReference;
+      console.log("OrderReference extracted:", orderReference);
 
       if (!userPhoneNumber) {
         console.warn("User phone number not available.");
@@ -461,10 +450,10 @@ const OrderDetailsModal = ({
 
       // Constructing payload
       const payload = {
-        orderReference: orderReference, // Correctly using orderReference from DB
+        orderReference: orderReference,
         vendorId: order.vendorId,
         vendorStatus: "accepted",
-        recipientCode: recipientCode, // Correctly using recipientCode from DB
+        recipientCode: recipientCode,
       };
       console.log("Payload being sent:", payload);
 
@@ -495,14 +484,14 @@ const OrderDetailsModal = ({
       // Send notification
       console.log("Sending order status change notification...");
       await notifyOrderStatusChange(
-        userId, // userId
-        order.id, // orderId
-        "In Progress", // newStatus
-        vendorName, // vendorName
-        vendorCoverImage, // vendorCoverImage
-        productImage, // productImage
-        null, // declineReason
-        null // riderInfo
+        userId,
+        order.id,
+        "In Progress",
+        vendorName,
+        vendorCoverImage,
+        productImage,
+        null,
+        null
       );
 
       // Add activity note
@@ -513,6 +502,7 @@ const OrderDetailsModal = ({
         `Order with ID: ${order.id} was accepted by ${vendorName}.`,
         "order"
       );
+
       let vendor60Pay = null;
       const paymentResponse = await fetch(
         `${API_BASE_URL}/calculateVendorPay/${orderReference}`,
@@ -527,63 +517,58 @@ const OrderDetailsModal = ({
       const paymentData = await paymentResponse.json();
       vendor60Pay = paymentData.amount?.vendor60Pay;
 
-      // Send activity note for 60% credit
       if (vendor60Pay) {
         const amountFormatted = `₦${vendor60Pay.toLocaleString()}`;
         await addActivityNote(
           order.vendorId,
           "You’ve Been Credited 💰",
           `You’ve received ${amountFormatted} as a 60% payout for order ID: ${order.id}.`,
-          "transactions" // Activity type
+          "transactions"
         );
       }
 
       // Send SMS to User
       if (userPhoneNumber) {
         console.log("Preparing to send SMS to user...");
-        const smsUsername = process.env.REACT_APP_BETASMS_USERNAME;
-        const smsPassword = process.env.REACT_APP_BETASMS_PASSWORD;
+        const formattedPhoneNumber = userPhoneNumber.startsWith("0")
+          ? userPhoneNumber.slice(1)
+          : userPhoneNumber;
 
-        if (!smsUsername || !smsPassword) {
-          console.error("BetaSMS credentials are missing.");
-          toast.error("Configuration error: Missing SMS credentials.");
-          setAcceptLoading(false);
-          return;
-        }
+        const smsPayload = {
+          message: `Hello, ${userName}, your order with ID ${orderId} from ${vendorName} has been accepted and is in progress. We will update you when it is shipped. Cheers, Matilda from My Thrift.`,
+          receiverNumber: formattedPhoneNumber,
+          receiverId: userId,
+        };
 
-        const smsMessage = encodeURIComponent(
-          `Hello, ${userName}, your order with ID ${orderId} from ${vendorName} has been accepted and is in progress. We will update you when it is shipped. Cheers, Matilda from My Thrift.`
-        );
-        const smsSender = "My Thrift";
-
-        const smsUrl = `http://login.betasms.com.ng/api/?username=${smsUsername}&password=${encodeURIComponent(
-          smsPassword
-        )}&message=${smsMessage}&sender=${encodeURIComponent(
-          smsSender
-        )}&mobiles=${encodeURIComponent(userPhoneNumber)}`;
-
-        console.log(`Constructed SMS URL: ${smsUrl}`);
+        const smsToken = process.env.REACT_APP_BETOKEN;
+        console.log("SMS Token fetched from environment variable:", smsToken);
+        console.log("SMS Payload being sent:", smsPayload);
 
         try {
-          const smsResponse = await fetch(smsUrl, {
-            method: "GET",
-            headers: {
-              Accept: "application/json",
-            },
-          });
+          const smsResponse = await fetch(
+            "https://mythrift-sms.fly.dev/sendMessage",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${smsToken}`,
+              },
+              body: JSON.stringify(smsPayload),
+            }
+          );
 
           const smsResult = await smsResponse.json();
           console.log("SMS API Response:", smsResult);
 
-          if (smsResult.status === "OK") {
-            console.log(`SMS sent successfully to user: ${userPhoneNumber}`);
+          if (smsResponse.ok) {
+            console.log(
+              `SMS sent successfully to user ${userPhoneNumber} (formatted: ${formattedPhoneNumber}).`
+            );
           } else {
             console.warn("SMS sending failed:", smsResult);
-            toast.warn("SMS sending failed.");
           }
         } catch (smsError) {
           console.error("Error sending SMS:", smsError);
-          toast.error("Failed to send SMS notification.");
         }
       } else {
         console.warn("User phone number not available, skipping SMS.");
@@ -599,6 +584,7 @@ const OrderDetailsModal = ({
       console.log("handleAccept process completed.");
     }
   };
+
   useEffect(() => {
     const fetchVendorAmounts = async () => {
       if (order && order.id) {
@@ -615,55 +601,49 @@ const OrderDetailsModal = ({
             const orderReference = orderData.orderReference;
 
             console.log("Order reference from Firestore:", orderReference);
-            const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
-            if (orderReference) {
-              console.log(
-                `Making GET request to: ${API_BASE_URL}/calculateVendorPay/${orderReference}`
-              );
 
+            if (orderReference) {
               const token = process.env.REACT_APP_RESOLVE_TOKEN;
               const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
               console.log("Authorization Token:", token);
+              console.log("API_BASE_URL:", API_BASE_URL);
 
-              try {
-                const response = await fetch(
-                  `${API_BASE_URL}/calculateVendorPay/${orderReference}`,
-                  {
-                    method: "GET",
-                    headers: {
-                      Authorization: `Bearer ${token}`,
-                    },
-                  }
-                );
+              const response = await fetch(
+                `${API_BASE_URL}/calculateVendorPay/${orderReference}`,
+                {
+                  method: "GET",
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
 
-                console.log(
-                  `API response status: ${response.status}, statusText: ${response.statusText}`
-                );
+              console.log(
+                `API response status: ${response.status}, statusText: ${response.statusText}`
+              );
 
-                if (!response.ok) {
-                  console.error(
-                    "Failed to fetch vendor amounts. Response details:",
-                    await response.json()
+              if (response.ok) {
+                const data = await response.json();
+                console.log("API response data:", data);
+
+                if (data && data.amount) {
+                  setVendorAmounts(data.amount);
+                  console.log(
+                    "Vendor amounts successfully fetched:",
+                    data.amount
                   );
                 } else {
-                  const data = await response.json();
-                  console.log("API response data:", data);
-
-                  if (data && data.amount) {
-                    setVendorAmounts(data.amount);
-                    console.log(
-                      "Vendor amounts successfully fetched:",
-                      data.amount
-                    );
-                  } else {
-                    console.warn(
-                      "API response does not contain 'amount'. Full response:",
-                      data
-                    );
-                  }
+                  console.warn(
+                    "API response does not contain 'amount'. Full response:",
+                    data
+                  );
                 }
-              } catch (apiError) {
-                console.error("Error occurred during API fetch:", apiError);
+              } else {
+                console.error(
+                  "Failed to fetch vendor amounts. Response details:",
+                  await response.json()
+                );
               }
             } else {
               console.warn(
@@ -719,6 +699,7 @@ const OrderDetailsModal = ({
       const orderId = orderData.orderId;
       const userPhoneNumber = orderData.userInfo?.phoneNumber;
       const userName = orderData.userInfo?.displayName;
+      const userId = orderData.userId; // Assuming `userInfo` contains `id`
       console.log("Order data fetched:", orderData);
 
       // Fetch vendor cover image
@@ -758,19 +739,17 @@ const OrderDetailsModal = ({
 
       const token = process.env.REACT_APP_RESOLVE_TOKEN; // Ensure your token is set up
       const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
       // Send request to updateDelivery endpoint FIRST
       console.log("Sending delivery update to endpoint...");
-      const deliveryResponse = await fetch(
-       `${API_BASE_URL}/updateDelivery`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(deliveryPayload),
-        }
-      );
+      const deliveryResponse = await fetch(`${API_BASE_URL}/updateDelivery`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(deliveryPayload),
+      });
 
       if (!deliveryResponse.ok) {
         const errorData = await deliveryResponse.json();
@@ -782,17 +761,14 @@ const OrderDetailsModal = ({
 
       // Send request to transfer40vendor endpoint
       console.log("Initiating fund transfer to vendor...");
-      const transferResponse = await fetch(
-        `${API_BASE_URL}/transfer40vendor`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ orderReference }),
-        }
-      );
+      const transferResponse = await fetch(`${API_BASE_URL}/transfer40vendor`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ orderReference }),
+      });
 
       if (!transferResponse.ok) {
         const errorData = await transferResponse.json();
@@ -836,54 +812,50 @@ const OrderDetailsModal = ({
         })
         .catch(() => {
           console.error("Failed to refresh vendor revenue.");
-          toast.error("Failed to refresh revenue. Please try again later.");
         });
 
+      // Send SMS using the new API
       if (userPhoneNumber) {
         console.log("Preparing to send SMS to user...");
-        const smsUsername = process.env.REACT_APP_BETASMS_USERNAME;
-        const smsPassword = process.env.REACT_APP_BETASMS_PASSWORD;
+        const formattedPhoneNumber = userPhoneNumber.startsWith("0")
+          ? userPhoneNumber.slice(1) // Remove the leading '0'
+          : userPhoneNumber;
 
-        if (!smsUsername || !smsPassword) {
-          console.error("BetaSMS credentials are missing.");
-          toast.error("Configuration error: Missing SMS credentials.");
-          setDeliverLoading(false);
-          return;
-        }
+        const smsPayload = {
+          message: `Your order with ID ${orderId} has been marked delivered by ${vendorName}. We hope you love it! If you haven't received your package or you think this was a mistake, contact support (support@shopmythrift.store).`,
+          receiverNumber: formattedPhoneNumber,
+          receiverId: userId,
+        };
 
-        const smsMessage = encodeURIComponent(
-          `Your order with ID ${orderId} has been marked delivered by ${vendorName}. We hope you love it! If you haven't received your package or you think this was a mistake, contact support (support@shopmythrift.store).`
-        );
-        const smsSender = "My Thrift";
+        const smsToken = process.env.REACT_APP_BETOKEN;
 
-        const smsUrl = `http://login.betasms.com.ng/api/?username=${smsUsername}&password=${encodeURIComponent(
-          smsPassword
-        )}&message=${smsMessage}&sender=${encodeURIComponent(
-          smsSender
-        )}&mobiles=${encodeURIComponent(userPhoneNumber)}`;
-
-        console.log(`Constructed SMS URL: ${smsUrl}`);
+        console.log("SMS Payload:", smsPayload);
 
         try {
-          const smsResponse = await fetch(smsUrl, {
-            method: "GET",
-            headers: {
-              Accept: "application/json",
-            },
-          });
+          const smsResponse = await fetch(
+            "https://mythrift-sms.fly.dev/sendMessage",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${smsToken}`,
+              },
+              body: JSON.stringify(smsPayload),
+            }
+          );
 
           const smsResult = await smsResponse.json();
           console.log("SMS API Response:", smsResult);
 
-          if (smsResult.status === "OK") {
-            console.log(`SMS sent successfully to user: ${userPhoneNumber}`);
+          if (smsResponse.ok) {
+            console.log(
+              `SMS sent successfully to user ${userPhoneNumber} (formatted: ${formattedPhoneNumber}).`
+            );
           } else {
             console.warn("SMS sending failed:", smsResult);
-            toast.warn("SMS sending failed.");
           }
         } catch (smsError) {
           console.error("Error sending SMS:", smsError);
-          toast.error("Failed to send SMS notification.");
         }
       } else {
         console.warn("User phone number not available, skipping SMS.");
@@ -901,6 +873,10 @@ const OrderDetailsModal = ({
     }
   };
 
+
+  const handleNavigation = () => {
+    navigate("/delivery-guidelines");
+  };
   const handleDeclineInfoModal = () => {
     setIsDeclineInfoModalOpen(true);
   };
@@ -926,7 +902,7 @@ const OrderDetailsModal = ({
 
   const handleProceedCallSupport = () => {
     setIsSupportCallModalOpen(false);
-    window.open(`tel:000-009-999`, "_self");
+    window.open(`tel:08105911662`, "_self");
   };
   if (!order) {
     return null;
@@ -1642,9 +1618,12 @@ const OrderDetailsModal = ({
           <p className="text-xs text-gray-700 font-opensans mt-4">
             For more details on marking an order as delivered, please refer to
             our
-            <a href="/mythrift.ng" className="text-customOrange underline">
+            <span
+              onClick={handleNavigation}
+              className="text-customOrange underline cursor-pointer"
+            >
               Order Delivery Guide
-            </a>
+            </span>
             .
           </p>
           <div className="flex mt-4 items-center mb-4">

@@ -207,7 +207,7 @@ const OnlineVendors = () => {
                       : vendor.shopName}
                   </h1>
                   <p className="font-sans text-gray-300 categories-text flex items-center -translate-y-1">
-                    {vendor.categories.slice(0, 4).map((category, index) => (
+                    {vendor.categories.slice(0, 3).map((category, index) => (
                       <React.Fragment key={index}>
                         {index > 0 && (
                           <GoDotFill className="mx-1 dot-size text-gray-300" />

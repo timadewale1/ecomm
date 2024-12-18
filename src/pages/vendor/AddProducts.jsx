@@ -908,9 +908,13 @@ const AddProduct = ({ vendorId, closeModal }) => {
             <label className="block text-black mb-1 font-opensans text-sm">
               Color
             </label>
+            <p className="text-xs font-opensans text-gray-800">
+            for multiple colors, separate  with "and" or commas supports only 2 color choice 
+            </p>
             <input
               type="text"
               value={variant.color}
+              placeholder="Color1, Color2"
               onChange={(e) => handleColorChange(colorIndex, e.target.value)}
               className="w-full h-12 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
               required

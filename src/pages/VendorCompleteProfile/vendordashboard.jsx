@@ -171,7 +171,7 @@ const VendorDashboard = () => {
     `https://shopmythrift.store/${
       vendorData &&
       (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
-    }/${vendorData.vendorId}`;
+    }/${vendorData.vendorId}?shared=true`;
 
   const copyToClipboard = async () => {
     console.log("Clicked");

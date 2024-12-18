@@ -250,8 +250,8 @@ const ShopSafelyModal = ({ isOpen, onClose }) => {
             Secure Shipment Guarantee
           </h3>
           <p className="text-sm font-opensans text-black mt-2">
-            Escrow Payments: Funds are held securely and released only after you
-            confirm delivery.
+            Escrow Payments: A percentage of your funds are held securely and released to the vendor only after 
+             delivery is confirmed.
           </p>
         </div>
       </div>

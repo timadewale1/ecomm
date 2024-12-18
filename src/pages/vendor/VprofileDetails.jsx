@@ -118,7 +118,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
     <div className="flex flex-col px-3  font-opensans">
       <div className="flex flex-col font-opensans  items-center">
         {/* Header */}
-        <div className="sticky top-0 bg-white z-10 flex items-center -translate-y-4 justify-between h-24 w-full">
+        <div className="sticky  bg-white  flex items-center z-10 justify-between h-24 w-full">
           <div className="flex items-center space-x-2">
             <GoChevronLeft
               className="text-2xl text-black cursor-pointer"
@@ -149,10 +149,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                   firstName && lastName ? "text-green-500" : "text-yellow-500"
                 } text-2xl ml-2`}
               />
-              <RiEditFill
-                className="text-black cursor-pointer ml-2 text-2xl"
-                onClick={() => handleEdit("displayName")}
-              />
+             
             </div>
           </div>
 
@@ -170,10 +167,6 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                 className={`${
                   shopName ? "text-green-500" : "text-yellow-500"
                 } text-2xl ml-2`}
-              />
-              <RiEditFill
-                className="text-black cursor-pointer ml-2 text-2xl"
-                onClick={() => handleEdit("storeName")}
               />
             </div>
           </div>

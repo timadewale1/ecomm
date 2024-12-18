@@ -725,6 +725,33 @@ const ProductDetailPage = () => {
       (variant) => variant.color === selectedColor && variant.size === size
     );
   };
+  // Helper function to parse the color string and return appropriate style
+  const getColorStyle = (colorString) => {
+    // Convert to lowercase and split by ',' or 'and'
+    const colors = colorString
+      .toLowerCase()
+      .split(/(?:,|and)/) // Splits by ',' or 'and'
+      .map((c) => c.trim())
+      .filter((c) => c);
+
+      if (colors.length === 2) {
+        // Split the circle exactly in half with two colors
+        return {
+          background: `linear-gradient(to right, ${colors[0]} 50%, ${colors[1]} 50%)`,
+        };
+      }
+       else if (colors.length === 1) {
+      // Single color: solid background
+      return {
+        backgroundColor: colors[0],
+      };
+    } else {
+      // No valid colors: fallback to a default or transparent
+      return {
+        backgroundColor: "#f0f0f0",
+      };
+    }
+  };
 
   const handleRemoveFromCart = useCallback(() => {
     console.log("Remove from Cart Triggered");
@@ -1072,33 +1099,37 @@ const ProductDetailPage = () => {
               {selectedColor ? capitalizeFirstLetter(selectedColor) : "Colors"}
             </p>
             <div className="flex flex-wrap gap-2">
-              {availableColors.map((color, index) => (
-                <div
-                  key={index}
-                  onClick={() => {
-                    if (!selectedSubProduct) {
-                      handleColorClick(color);
-                    }
-                  }}
-                  className={`w-8 h-8 flex items-center justify-center rounded-full ${
-                    selectedSubProduct
-                      ? "cursor-not-allowed opacity-50"
-                      : "cursor-pointer"
-                  } ${selectedColor === color ? "border-2" : ""}`}
-                  style={{
-                    padding: "3px",
-                    borderColor:
-                      selectedColor === color ? color : "transparent",
-                    backgroundColor: "#f0f0f0",
-                  }}
-                  title={color}
-                >
+              {availableColors.map((color, index) => {
+                const circleStyle = getColorStyle(color);
+
+                return (
                   <div
-                    style={{ backgroundColor: color }}
-                    className="w-6 h-6 rounded-full"
-                  ></div>
-                </div>
-              ))}
+                    key={index}
+                    onClick={() => {
+                      if (!selectedSubProduct) {
+                        handleColorClick(color);
+                      }
+                    }}
+                    className={`w-8 h-8 flex items-center justify-center rounded-full ${
+                      selectedSubProduct
+                        ? "cursor-not-allowed opacity-50"
+                        : "cursor-pointer"
+                    } ${selectedColor === color ? "border-2" : ""}`}
+                    style={{
+                      padding: "3px",
+                      borderColor:
+                        selectedColor === color ? color : "transparent",
+                      backgroundColor: "#f0f0f0",
+                    }}
+                    title={color}
+                  >
+                    <div
+                      style={circleStyle} // Use the parsed style here
+                      className="w-6 h-6 rounded-full"
+                    ></div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

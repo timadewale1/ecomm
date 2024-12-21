@@ -17,8 +17,10 @@ const RelatedProducts = ({ product }) => {
   const [relatedProductsFromVendor, setRelatedProductsFromVendor] = useState(
     []
   );
-  const [relatedProductsFromOtherVendors, setRelatedProductsFromOtherVendors] =
-    useState([]);
+  const [
+    relatedProductsFromOtherVendors,
+    setRelatedProductsFromOtherVendors,
+  ] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -49,6 +51,7 @@ const RelatedProducts = ({ product }) => {
           where("vendorId", "==", product.vendorId),
           where("category", "==", product.category),
           where("published", "==", true),
+          where("isDeleted", "==", false), // Exclude deleted products
           limit(2)
         );
 
@@ -66,6 +69,7 @@ const RelatedProducts = ({ product }) => {
           where("vendorId", "!=", product.vendorId),
           where("category", "==", product.category),
           where("published", "==", true),
+          where("isDeleted", "==", false), // Exclude deleted products
           limit(10)
         );
 

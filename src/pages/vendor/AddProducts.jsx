@@ -469,6 +469,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         tags: tags,
         variants: variantsData,
         published: true,
+        isDeleted: false,
       };
 
       // Include subProducts if any
@@ -623,16 +624,13 @@ const AddProduct = ({ vendorId, closeModal }) => {
     const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
     setIsGeneratingDescription(true);
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/description`,
-        {
-          name: productName,
-          category,
-          productType,
-          size: size.map((s) => s.value).join(", "),
-          color,
-        }
-      );
+      const response = await axios.post(`${API_BASE_URL}/description`, {
+        name: productName,
+        category,
+        productType,
+        size: size.map((s) => s.value).join(", "),
+        color,
+      });
       setProductDescription(response.data.description);
     } catch (error) {
       console.error("Error generating description:", error);
@@ -909,7 +907,8 @@ const AddProduct = ({ vendorId, closeModal }) => {
               Color
             </label>
             <p className="text-xs font-opensans text-gray-800">
-            for multiple colors, separate  with "and" or commas supports only 2 color choice 
+              for multiple colors, separate with "and" or commas supports only 2
+              color choice
             </p>
             <input
               type="text"

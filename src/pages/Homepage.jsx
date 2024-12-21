@@ -171,6 +171,7 @@ const Homepage = () => {
       const productsQuery = query(
         collection(db, "products"),
         where("published", "==", true),
+        where("isDeleted", "==", false), // Exclude deleted products
         where("isFeatured", "==", true),
         limit(20) // Limit to 20 products
       );

@@ -216,7 +216,8 @@ const VendorProducts = () => {
     setProductsLoading(true);
     const productsQuery = query(
       collection(db, "products"),
-      where("vendorId", "==", vendorId)
+      where("vendorId", "==", vendorId),
+      where("isDeleted", "==", false) // Exclude deleted products
     );
 
     const unsubscribe = onSnapshot(productsQuery, async (snapshot) => {
@@ -368,34 +369,42 @@ const VendorProducts = () => {
 
   const handlePinProduct = async (product) => {
     const currentTime = new Date().getTime(); // Get current time in milliseconds
-  
+
     // If the product is already pinned, check if it can be unpinned
     if (product.isFeatured) {
       const pinnedAt = product.pinnedAt || 0; // Ensure we have a pinnedAt timestamp
       const timeElapsed = currentTime - pinnedAt; // Calculate time elapsed since pinned
       const twelveHoursInMilliseconds = 12 * 60 * 60 * 1000;
-  
+
       if (timeElapsed < twelveHoursInMilliseconds) {
         // Prevent unpinning if less than 12 hours have passed
-        toast.error("You cannot unpin a product within 12 hours of pinning it.");
+        toast.error(
+          "You cannot unpin a product within 12 hours of pinning it."
+        );
         return;
       }
     }
-  
+
     try {
       const productRef = doc(db, "products", product.id);
       const newIsFeaturedStatus = !product.isFeatured;
-  
+
       // Update Firestore with the new `isFeatured` status and timestamp if pinned
       await updateDoc(productRef, {
         isFeatured: newIsFeaturedStatus,
         ...(newIsFeaturedStatus && { pinnedAt: currentTime }), // Add pinnedAt timestamp if pinning
       });
-  
+
       // Update the local product state to reflect the new pin status
       setProducts((prevProducts) =>
         prevProducts.map((p) =>
-          p.id === product.id ? { ...p, isFeatured: newIsFeaturedStatus, pinnedAt: newIsFeaturedStatus ? currentTime : null } : p
+          p.id === product.id
+            ? {
+                ...p,
+                isFeatured: newIsFeaturedStatus,
+                pinnedAt: newIsFeaturedStatus ? currentTime : null,
+              }
+            : p
         )
       );
 
@@ -449,13 +458,16 @@ const VendorProducts = () => {
     try {
       const productId = selectedProduct.id;
 
-      // Step 1: Delete the product from the centralized 'products' collection
-      await deleteDoc(doc(db, "products", productId));
+      // Step 1: Update the 'isDeleted' field of the product in the 'products' collection
+      await updateDoc(doc(db, "products", productId), {
+        isDeleted: true,
+      });
 
-      // Step 2: Remove the productId from the vendor's 'productIds' array
+      // Step 2: Optionally, remove the productId from the vendor's 'productIds' array
+      // (if needed for logic where you don't want the vendor to reference this product anymore)
       const vendorDocRef = doc(db, "vendors", vendorId);
       await updateDoc(vendorDocRef, {
-        productIds: arrayRemove(productId), // Remove the product ID from the array
+        productIds: arrayRemove(productId),
       });
 
       // Step 3: Log activity for product deletion
@@ -493,7 +505,7 @@ const VendorProducts = () => {
       return value?.quantity && parseInt(value.quantity, 10) > 0;
     });
   };
-  
+
   // Handle restock input change
   const handleRestockInputChange = (type, id, value) => {
     setRestockValues((prev) => ({
@@ -567,7 +579,7 @@ const VendorProducts = () => {
       toast.success("Product restocked successfully.");
       await addActivityNote(
         "Restocked Product 🔄",
-        `You restocked ${selectedProduct.name}! Customers can now buy more of this product from your store.` ,
+        `You restocked ${selectedProduct.name}! Customers can now buy more of this product from your store.`,
         "Product Update"
       );
       setIsRestocking(false);
@@ -1172,12 +1184,12 @@ const VendorProducts = () => {
                   >
                     {rLoading ? (
                       <RotatingLines
-                      strokeColor="white"
-                      strokeWidth="5"
-                      animationDuration="0.75"
-                      width="20"
-                      visible={true}
-                    />
+                        strokeColor="white"
+                        strokeWidth="5"
+                        animationDuration="0.75"
+                        width="20"
+                        visible={true}
+                      />
                     ) : (
                       "Submit Restock"
                     )}

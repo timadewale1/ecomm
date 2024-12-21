@@ -146,6 +146,7 @@ const CategoryPage = () => {
         const productsQuery = query(
           collection(db, "products"),
           where("category", "==", category),
+          where("isDeleted", "==", false), // Exclude deleted products
           where("published", "==", true),
           limit(50)
         );

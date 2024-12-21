@@ -46,7 +46,11 @@ const SearchPage = () => {
         setVendors(vendorsData);
 
         const productsSnapshot = await getDocs(
-          query(collection(db, "products"), where("published", "==", true))
+          query(
+            collection(db, "products"),
+            where("published", "==", true),
+            where("isDeleted", "==", false) // Exclude deleted products
+          )
         );
         let productsData = productsSnapshot.docs.map((doc) => ({
           ...doc.data(),

@@ -219,6 +219,7 @@ const Homepage = () => {
           collection(db, "products"),
           where("published", "==", true),
           where("isFeatured", "==", true),
+          where("isDeleted", "==", false), // Exclude deleted products
           startAfter(lastVisible),
           limit(20)
         );

@@ -126,7 +126,11 @@ const VendorDashboard = () => {
 
   const fetchInfo = (vendorId) => {
     const productsRef = collection(db, "products");
-    const productsQuery = query(productsRef, where("vendorId", "==", vendorId));
+    const productsQuery = query(
+      productsRef,
+      where("vendorId", "==", vendorId),
+      where("isDeleted", "==", false) // Exclude deleted products
+    );
 
     const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
       setTotalProducts(snapshot.docs.length);
@@ -171,7 +175,7 @@ const VendorDashboard = () => {
     `https://shopmythrift.store/${
       vendorData &&
       (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
-    }/${vendorData.vendorId}`;
+    }/${vendorData.vendorId}?shared=true`;
 
   const copyToClipboard = async () => {
     console.log("Clicked");

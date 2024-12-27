@@ -339,6 +339,28 @@ const productTypes = [
     ],
     sizes: productSizes["Perfumes"],
   },
+  {
+    type: "Underwears",
+    subTypes: [
+      "Briefs",
+      "Panties",
+      "Halfcuts",
+      "Boxers",
+      "Trunks",
+      "Bikini Bottoms",
+      "Thongs",
+      "Boyshorts",
+      "Hipsters",
+      "Boxer Briefs",
+      "G-Strings",
+      "Camisoles",
+      "Bralettes",
+      "Shapewear",
+      "Thermal Underwear",
+    ],
+    sizes: productSizes["Underwears"],
+  },
+  
   // Hair Products
   {
     type: "Hair Products",

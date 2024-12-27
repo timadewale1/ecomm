@@ -354,8 +354,8 @@ const Profile = () => {
               >
                 <div className="flex items-center">
                   <MdOutlineFeedback className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal font-opensans text-black capitalize">
-                    Send us your feedback! ❤
+                  <h2 className="text-size font-normal text-black capitalize">
+                    Send us your feedback! 📣
                   </h2>
                 </div>
                 <ChevronRight className="text-black" />

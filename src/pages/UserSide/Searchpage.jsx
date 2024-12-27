@@ -46,12 +46,22 @@ const SearchPage = () => {
         setVendors(vendorsData);
 
         const productsSnapshot = await getDocs(
-          query(collection(db, "products"), where("published", "==", true))
+          query(
+            collection(db, "products"),
+            where("published", "==", true),
+            where("isDeleted", "==", false) // Exclude deleted products
+          )
         );
-        const productsData = productsSnapshot.docs.map((doc) => ({
+        let productsData = productsSnapshot.docs.map((doc) => ({
           ...doc.data(),
           id: doc.id,
         }));
+
+        // Filter products to only those whose vendors are approved & active
+        const approvedActiveVendorIds = new Set(vendorsData.map((v) => v.id));
+        productsData = productsData.filter((p) =>
+          approvedActiveVendorIds.has(p.vendorId)
+        );
 
         setProducts(productsData);
       } catch (error) {
@@ -65,39 +75,56 @@ const SearchPage = () => {
   const getFilteredItems = () => {
     const searchTermLower = searchTerm.toLowerCase();
 
-    // Function to calculate score based on match location
-    const calculateScore = (product) => {
+    // Function to calculate product score based on name, tags, productType
+    const calculateProductScore = (product) => {
       let score = 0;
-
-      // Check name match (highest priority)
       if (product.name.toLowerCase().includes(searchTermLower)) score += 3;
-
-      // Check tags match (medium priority)
       if (
         product.tags &&
         product.tags.some((tag) => tag.toLowerCase().includes(searchTermLower))
       )
         score += 2;
-
-      // Check productType match (lower priority)
       if (product.productType.toLowerCase().includes(searchTermLower))
         score += 1;
-
       return score;
     };
 
-    // Filter products and assign scores
+    // Filter products
     const scoredProducts = products
-      .map((product) => ({ ...product, score: calculateScore(product) }))
-      .filter((product) => product.score > 0) // Only include products with a score
-      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name)); // Sort by score, then alphabetically if tied
+      .map((product) => ({ ...product, score: calculateProductScore(product) }))
+      .filter((product) => product.score > 0)
+      .map((product) => ({
+        ...product,
+        name: product.name,
+        type: "product",
+      }));
 
-    // Capitalize product names and set type
-    return scoredProducts.map((product) => ({
-      ...product,
-      name: product.name,
-      type: "product",
-    }));
+    // Sort products by score descending, then by name
+    scoredProducts.sort(
+      (a, b) => b.score - a.score || a.name.localeCompare(b.name)
+    );
+
+    // Filter vendors by shopName or description
+    const filteredVendors = vendors
+      .filter((vendor) => {
+        const vendorNameMatch = vendor.shopName
+          ? vendor.shopName.toLowerCase().includes(searchTermLower)
+          : false;
+        const descMatch = vendor.description
+          ? vendor.description.toLowerCase().includes(searchTermLower)
+          : false;
+        return vendorNameMatch || descMatch;
+      })
+      .map((vendor) => ({
+        ...vendor,
+        name: vendor.shopName,
+        type: "vendor",
+      }));
+
+    // Combine vendors and products into one array
+    const combinedResults = [...filteredVendors, ...scoredProducts];
+
+    return combinedResults;
   };
 
   const handleChange = (selectedItem) => {
@@ -105,8 +132,8 @@ const SearchPage = () => {
       // Check if the item already exists in local storage
       const updatedHistory = [
         ...searchHistory.filter((item) => item.id !== selectedItem.id),
-        selectedItem, // Add the selected item at the end if not found in history
-      ].slice(0, 8); // Keep the most recent 8 items
+        selectedItem,
+      ].slice(0, 8);
 
       setSearchHistory(updatedHistory);
       localStorage.setItem("searchHistory", JSON.stringify(updatedHistory));
@@ -202,7 +229,7 @@ const SearchPage = () => {
                 {searchTerm && (
                   <MdCancel
                     className="absolute right-10 top-1/2 transform -translate-y-1/2 text-xl text-gray-400 cursor-pointer"
-                    onClick={() => setSearchTerm("")} // Clears the search term
+                    onClick={() => setSearchTerm("")}
                   />
                 )}
               </div>
@@ -269,7 +296,6 @@ const SearchPage = () => {
                     </li>
                   ))
                 ) : (
-                  // Show message only if searchTerm is present and no results are found
                   <li className="text-center text-gray-600 text-sm py-4 font-opensans">
                     ☹️ No results found, try searching for another vendor or
                     product.

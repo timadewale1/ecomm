@@ -201,22 +201,26 @@ const Cart = () => {
 
     if (!vendorCart || Object.keys(vendorCart.products).length === 0) {
       toast.error("No products to checkout for this vendor.");
-      setCheckoutLoading(false);
+      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
 
     // Check if user is logged in
-    // if (!currentUser) {
-    //   setCheckoutLoading(false);
-    //   return;
-    // }
     if (!currentUser) {
       setIsLoginModalOpen(true);
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
-    let profileComplete = currentUser.profileComplete;
 
+    // Check if user's email is verified
+    if (!currentUser.emailVerified) {
+      toast.error("Please verify your email before proceeding to checkout.");
+      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+      return;
+    }
+
+    // Check if user's profile is complete
+    let profileComplete = currentUser.profileComplete;
     if (profileComplete === undefined) {
       try {
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
@@ -226,7 +230,8 @@ const Cart = () => {
         }
       } catch (error) {
         console.error("Error fetching user profile from Firestore:", error);
-        setCheckoutLoading(false);
+        setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+        return;
       }
     }
 
@@ -235,10 +240,35 @@ const Cart = () => {
         "Please complete your profile before proceeding to checkout."
       );
       navigate("/profile?incomplete=true");
-      setCheckoutLoading(false);
+      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
 
+    // Check if vendor is deactivated
+    try {
+      const vendorDocRef = doc(db, "vendors", vendorId);
+      const vendorDocSnap = await getDoc(vendorDocRef);
+
+      if (!vendorDocSnap.exists()) {
+        toast.error("Vendor not found.");
+        setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+        return;
+      }
+
+      const vendorData = vendorDocSnap.data();
+      if (vendorData.isDeactivated) {
+        toast.error("This vendor is currently not active.");
+        setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+        return;
+      }
+    } catch (error) {
+      console.error("Error checking vendor status:", error);
+      toast.error("Unable to proceed with checkout at this time.");
+      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+      return;
+    }
+
+    // Check for out-of-stock items
     const outOfStockItems = [];
 
     for (const productKey in vendorCart.products) {
@@ -254,9 +284,7 @@ const Cart = () => {
             (sp) => sp.subProductId === product.subProductId
           );
           if (!subProduct || subProduct.stock < product.quantity) {
-            outOfStockItems.push(
-              `${product.name}`
-            );
+            outOfStockItems.push(`${product.name}`);
           }
         } else if (product.selectedColor && product.selectedSize) {
           const variant = productData.variants?.find(
@@ -283,7 +311,7 @@ const Cart = () => {
       toast.error(
         `The following items are out of stock: ${outOfStockItems.join(", ")}`
       );
-      setCheckoutLoading(false); // Stop loader if items are out of stock
+      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
 

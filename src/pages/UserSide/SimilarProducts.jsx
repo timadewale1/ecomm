@@ -4,8 +4,9 @@ import {
   getDocs,
   query,
   where,
-  or,
   limit,
+  doc,
+  getDoc,
 } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../firebase.config"; // Firestore instance
@@ -16,26 +17,41 @@ const RelatedProducts = ({ product }) => {
   const [relatedProductsFromVendor, setRelatedProductsFromVendor] = useState(
     []
   );
-  const [relatedProductsFromOtherVendors, setRelatedProductsFromOtherVendors] =
-    useState([]);
+  const [
+    relatedProductsFromOtherVendors,
+    setRelatedProductsFromOtherVendors,
+  ] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Helper function to check vendor's status
+  const isVendorActiveAndApproved = async (vendorId) => {
+    const vendorRef = doc(db, "vendors", vendorId);
+    const vendorSnap = await getDoc(vendorRef);
+    if (vendorSnap.exists()) {
+      const { isApproved, isDeactivated } = vendorSnap.data();
+      return isApproved === true && isDeactivated === false;
+    }
+    // If vendor doc doesn't exist or missing fields, treat as inactive
+    return false;
+  };
+
   useEffect(() => {
     const fetchRelatedProducts = async () => {
+      if (!product) return;
       try {
         let productsFromVendor = [];
         let productsFromOtherVendors = [];
 
-        // Fetch products from the centralized 'products' collection
         const productsRef = collection(db, "products");
 
-        // Query for products from the same vendor and matching category or productType
+        // Query for products from the same vendor and matching category
         const vendorProductsQuery = query(
           productsRef,
           where("vendorId", "==", product.vendorId),
-          where("category", "==", product.category), 
-          where("published", "==", true), 
+          where("category", "==", product.category),
+          where("published", "==", true),
+          where("isDeleted", "==", false), // Exclude deleted products
           limit(2)
         );
 
@@ -47,12 +63,13 @@ const RelatedProducts = ({ product }) => {
           }))
           .filter((item) => item.id !== product.id); // Exclude the current product
 
-        // Query for products from other vendors matching category or productType
+        // Query for products from other vendors matching category
         const otherVendorsQuery = query(
           productsRef,
           where("vendorId", "!=", product.vendorId),
-          where("category", "==", product.category), 
-          where("published", "==", true), 
+          where("category", "==", product.category),
+          where("published", "==", true),
+          where("isDeleted", "==", false), // Exclude deleted products
           limit(10)
         );
 
@@ -62,9 +79,23 @@ const RelatedProducts = ({ product }) => {
           ...doc.data(),
         }));
 
-        // Update state with the fetched products
-        setRelatedProductsFromVendor(productsFromVendor);
-        setRelatedProductsFromOtherVendors(productsFromOtherVendors);
+        // Filter out products whose vendors are not approved or are deactivated
+        const filteredVendorProducts = [];
+        for (const p of productsFromVendor) {
+          if (await isVendorActiveAndApproved(p.vendorId)) {
+            filteredVendorProducts.push(p);
+          }
+        }
+
+        const filteredOtherVendorProducts = [];
+        for (const p of productsFromOtherVendors) {
+          if (await isVendorActiveAndApproved(p.vendorId)) {
+            filteredOtherVendorProducts.push(p);
+          }
+        }
+
+        setRelatedProductsFromVendor(filteredVendorProducts);
+        setRelatedProductsFromOtherVendors(filteredOtherVendorProducts);
       } catch (error) {
         console.error("Error fetching related products:", error);
       } finally {
@@ -94,7 +125,7 @@ const RelatedProducts = ({ product }) => {
   }
 
   const handleShowAll = () => {
-    navigate(`/category/${product.category}`); // Navigate to the category page
+    navigate(`/category/${product.category}`);
   };
 
   return (
@@ -111,27 +142,24 @@ const RelatedProducts = ({ product }) => {
         </button>
       </div>
 
-      {/* Grid container for related products */}
       <div className="grid grid-cols-2 mt-2 gap-4">
-        {/* Render 2 products from the current vendor */}
         {relatedProductsFromVendor.map((relatedProduct) => (
           <ProductCard
             key={relatedProduct.id}
             product={relatedProduct}
-            isLoading={false} // Indicate loading status
+            isLoading={false}
             vendorName={relatedProduct.vendorName}
-            vendorId={relatedProduct.vendorId} // Pass vendorId for navigation
+            vendorId={relatedProduct.vendorId}
           />
         ))}
 
-        {/* Render 6 products from other vendors */}
         {relatedProductsFromOtherVendors.map((relatedProduct) => (
           <ProductCard
             key={relatedProduct.id}
             product={relatedProduct}
             isLoading={false}
             vendorName={relatedProduct.vendorName}
-            vendorId={relatedProduct.vendorId} // Pass vendorId for navigation
+            vendorId={relatedProduct.vendorId}
           />
         ))}
       </div>

@@ -83,6 +83,34 @@ const productSizes = {
     "Custom Fit",
     "Adjustable", // US sizes
   ],
+  "Underwears": [
+  "XS",
+  "S",
+  "M",
+  "L",
+  "XL",
+  "XXL",
+  "3XL",
+  "4XL", // General sizes
+  "24",
+  "26",
+  "28",
+  "30",
+  "32",
+  "34",
+  "36",
+  "38",
+  "40",
+  "42",
+  "44",
+  "46",
+  "48", // Waist measurements in inches
+  
+  "One Size Fits All",
+  "Custom Fit",
+  "Adjustable"
+],
+
   "T-Shirts": [
     "XS",
     "S",

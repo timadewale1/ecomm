@@ -146,6 +146,7 @@ const CategoryPage = () => {
         const productsQuery = query(
           collection(db, "products"),
           where("category", "==", category),
+          where("isDeleted", "==", false), // Exclude deleted products
           where("published", "==", true),
           limit(50)
         );
@@ -207,6 +208,7 @@ const CategoryPage = () => {
           collection(db, "products"),
           where("category", "==", normalizedCategory),
           where("published", "==", true),
+          where("isDeleted", "==", false), // Exclude deleted products
           startAfter(lastVisibleProduct),
           limit(50)
         );
@@ -270,7 +272,8 @@ const CategoryPage = () => {
         const productsQuery = query(
           collection(db, "products"),
           where("category", "==", normalizedCategory),
-          where("published", "==", true)
+          where("published", "==", true),
+          where("isDeleted", "==", false) // Exclude deleted products
         );
 
         const productsSnapshot = await getDocs(productsQuery);

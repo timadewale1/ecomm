@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
-import { IoChevronBackOutline, IoFilterOutline } from "react-icons/io5";
+import { IoChevronBackOutline } from "react-icons/io5";
 import { LuListFilter } from "react-icons/lu";
 import { CiSearch } from "react-icons/ci";
 import Loading from "../components/Loading/Loading";
@@ -12,31 +12,60 @@ import { Cloudinary } from "@cloudinary/url-gen";
 import { auto } from "@cloudinary/url-gen/actions/resize";
 import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
 import { AdvancedImage } from "@cloudinary/react";
-import productTypes from "../pages/vendor/producttype"; // Adjust path to where producttype.js is located
+import productTypes from "../pages/vendor/producttype";
 import { db } from "../firebase.config";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import ProductCard from "../components/Products/ProductCard";
 import Lottie from "lottie-react";
-import noProductAnimation from "../Animations/noproduct.json"; // Adjust path to your Lottie JSON file
+import noProductAnimation from "../Animations/noproduct.json";
 import { MdCancel } from "react-icons/md";
 
 const Explore = () => {
   const loading = useSelector((state) => state.product.loading);
+
   const [selectedCategory] = useState("All");
   const [selectedProductType, setSelectedProductType] = useState(null);
   const [selectedSubType, setSelectedSubType] = useState(null);
   const [activeSubType, setActiveSubType] = useState(null);
   const [products, setProducts] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+
   const [filteredProductTypes, setFilteredProductTypes] =
     useState(productTypes);
   const [filteredSubTypes, setFilteredSubTypes] = useState([]);
   const [priceRange] = useState([1000, 10000]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
-  const [sortOrder, setSortOrder] = useState(null); // 'high-to-low' or 'low-to-high'
+  const [sortOrder, setSortOrder] = useState(null);
   const dropdownRef = useRef(null);
+
+  // 1) State for approved & active vendors
+  const [approvedVendors, setApprovedVendors] = useState(new Set());
+
+  // ======= FETCH ONLY APPROVED & ACTIVE VENDORS ONCE =======
+  useEffect(() => {
+    const fetchApprovedVendors = async () => {
+      try {
+        const vendorSnapshot = await getDocs(
+          query(
+            collection(db, "vendors"),
+            where("isApproved", "==", true),
+            where("isDeactivated", "==", false)
+          )
+        );
+        const approvedSet = new Set();
+        vendorSnapshot.forEach((doc) => approvedSet.add(doc.id));
+        setApprovedVendors(approvedSet);
+      } catch (error) {
+        console.error("Error fetching approved vendors:", error);
+      }
+    };
+
+    fetchApprovedVendors();
+  }, []);
+  // =========================================================
 
   const cld = new Cloudinary({
     cloud: {
@@ -45,9 +74,10 @@ const Explore = () => {
   });
 
   const promoImages = ["BOTM_xvkkud"];
+
   const handleClickOutside = (event) => {
     if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-      setShowFilterDropdown(false); // Close the dropdown
+      setShowFilterDropdown(false);
     }
   };
 
@@ -74,6 +104,7 @@ const Explore = () => {
     }
   }, [searchTerm, selectedProductType]);
 
+  // ======== FETCH PRODUCTS & FILTER BY APPROVED VENDORS ========
   const fetchProducts = async (productType, subType, category) => {
     setIsLoadingProducts(true);
     try {
@@ -81,17 +112,26 @@ const Explore = () => {
       let q = query(
         productsRef,
         where("published", "==", true),
+        where("isDeleted", "==", false),
         where("productType", "==", productType),
         where("subType", "==", subType)
       );
+
       if (category !== "All") {
         q = query(q, where("productCategory", "==", category));
       }
+
       const querySnapshot = await getDocs(q);
-      const productsData = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const productsData = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        // Only push products where vendorId is in the approved set
+        if (approvedVendors.has(data.vendorId)) {
+          productsData.push({ id: doc.id, ...data });
+        }
+      });
+
       setProducts(productsData);
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -99,6 +139,7 @@ const Explore = () => {
       setIsLoadingProducts(false);
     }
   };
+  // ============================================================
 
   const handleProductTypeClick = (productType) => {
     setSelectedProductType(productType);
@@ -123,10 +164,10 @@ const Explore = () => {
   };
 
   const sortProducts = (order) => {
-    const sortedProducts = [...products].sort((a, b) => {
+    const sorted = [...products].sort((a, b) => {
       return order === "high-to-low" ? b.price - a.price : a.price - b.price;
     });
-    setProducts(sortedProducts);
+    setProducts(sorted);
     setSortOrder(order);
     setShowFilterDropdown(false);
   };
@@ -159,8 +200,10 @@ const Explore = () => {
 
   return (
     <div className="pb-28">
+      {/* Top Bar */}
       <div className="sticky py-4 px-2 w-full top-0 bg-white z-10">
         <div className="flex items-center justify-between mb-3 pb-2 px-2.5">
+          {/* If we're searching, show search input; otherwise show page title & back arrow */}
           {!isSearching && (
             <div className="flex items-center">
               {(selectedProductType || selectedSubType) && (
@@ -178,20 +221,27 @@ const Explore = () => {
               </h1>
             </div>
           )}
-          {!isSearching && (
+
+          {!isSearching && selectedSubType && (
             <div className="flex items-center">
               <CiSearch
-                className="text-3xl cursor-pointer"
+                className="text-3xl cursor-pointer mr-4"
                 onClick={() => setIsSearching(true)}
               />
-              {selectedSubType && (
-                <LuListFilter
-                  className="text-2xl cursor-pointer ml-4"
-                  onClick={toggleFilterDropdown}
-                />
-              )}
+              <LuListFilter
+                className="text-2xl cursor-pointer"
+                onClick={toggleFilterDropdown}
+              />
             </div>
           )}
+
+          {!isSearching && !selectedSubType && (
+            <CiSearch
+              className="text-3xl cursor-pointer"
+              onClick={() => setIsSearching(true)}
+            />
+          )}
+
           {isSearching && (
             <div className="flex items-center w-full relative">
               <IoChevronBackOutline
@@ -217,13 +267,15 @@ const Explore = () => {
             </div>
           )}
         </div>
+
+        {/* Filter dropdown */}
         {showFilterDropdown && (
           <div
             ref={dropdownRef}
-            className="absolute right-4 bg-white shadow-[0_0_10px_rgba(0,0,0,0.1)]  top-14 p-3 w-40 h-24 rounded-2.5xl z-50 flex flex-col justify-between font-opensans "
+            className="absolute right-4 bg-white shadow-[0_0_10px_rgba(0,0,0,0.1)] top-14 p-3 w-40 h-24 rounded-2.5xl z-50 flex flex-col justify-between font-opensans"
           >
             <span
-              className="text-sm ml-2  font-opensans cursor-pointer"
+              className="text-sm ml-2 font-opensans cursor-pointer"
               onClick={() => sortProducts("high-to-low")}
             >
               Price: High to Low
@@ -240,41 +292,38 @@ const Explore = () => {
         <div className="border-t border-gray-300 mt-6"></div>
       </div>
 
+      {/* Main Content */}
       <div className="">
+        {/* If we have selected a SubType, show products grid */}
         {selectedSubType ? (
-          <>
-            <div className="grid grid-cols-2 gap-2 p-4">
-              {isLoadingProducts ? (
-                Array.from({ length: 6 }).map((_, index) => (
-                  <Skeleton key={index} height={200} width="100%" />
-                ))
-              ) : filteredProducts.length > 0 ? (
-                filteredProducts.map((product, index) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    vendorId={product.vendorId}
-                    vendorName={product.vendorName}
-                  />
-                ))
-              ) : (
-                <div className="col-span-2 text-center mt-4 text-lg font-medium text-gray-500">
-                  <Lottie
-                    animationData={noProductAnimation}
-                    loop={true}
-                    style={{ height: 200, width: 200, margin: "0 auto" }}
-                  />
-                  <h2 className="text-xl font-semibold font-opensans text-black">
-                    Oops! Nothing here yet.
-                  </h2>
-                  <p className="text-gray-600 font-opensans">
-                    Please try searching for another product.
-                  </p>
-                </div>
-              )}
-            </div>
-          </>
+          <div className="grid grid-cols-2 gap-2 p-4">
+            {filteredProducts.length > 0 ? (
+              filteredProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  vendorId={product.vendorId}
+                  vendorName={product.vendorName}
+                />
+              ))
+            ) : (
+              <div className="col-span-2 text-center mt-4 text-lg font-medium text-gray-500">
+                <Lottie
+                  animationData={noProductAnimation}
+                  loop={true}
+                  style={{ height: 200, width: 200, margin: "0 auto" }}
+                />
+                <h2 className="text-xl font-semibold font-opensans text-black">
+                  Oops! Nothing here yet.
+                </h2>
+                <p className="text-gray-600 font-opensans">
+                  Please try searching for another product.
+                </p>
+              </div>
+            )}
+          </div>
         ) : selectedProductType ? (
+          // If we have selected a ProductType but not a SubType, show subType list
           <div className="space-y-4 p-4">
             {filteredSubTypes.length > 0 ? (
               filteredSubTypes.map((subType) => (
@@ -301,6 +350,7 @@ const Explore = () => {
             )}
           </div>
         ) : (
+          // If no ProductType selected, show list of productTypes + promo slides
           <>
             <div className="space-y-4 p-4">
               {filteredProductTypes.length > 0 ? (
@@ -321,7 +371,7 @@ const Explore = () => {
                   <h2 className="text-xl font-semibold font-opensans text-black">
                     No results found
                   </h2>
-                  <p className="text-black text-sm font-opensans ">
+                  <p className="text-black text-sm font-opensans">
                     Please try searching for another product type.
                   </p>
                 </div>

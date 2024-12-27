@@ -3,7 +3,7 @@ import { signOut } from "firebase/auth";
 import { auth, db } from "../firebase.config";
 import { toast } from "react-hot-toast";
 import { ChevronRight, User, ChevronLeft } from "lucide-react";
-
+import { AiOutlineUserSwitch } from "react-icons/ai";
 import { useNavigate, useLocation } from "react-router-dom";
 import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 import { useAuth } from "../custom-hooks/useAuth";
@@ -18,6 +18,7 @@ import {
   resetUserData,
 } from "../redux/actions/useractions";
 import { CiMoneyBill } from "react-icons/ci";
+import { LuLogIn } from "react-icons/lu";
 import { AiOutlineDashboard, AiOutlineExperiment } from "react-icons/ai";
 import UserDashboard from "./UserDashboard";
 import Skeleton from "react-loading-skeleton";
@@ -187,7 +188,7 @@ const Profile = () => {
               >
                 <div className="flex items-center w-full">
                   <User className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal font-opensans text-black capitalize">
+                  <h2 className="text-size font-normal  text-sm  font-opensans text-black capitalize">
                     Personal information
                   </h2>
                   <ChevronRight className="text-black ml-auto" />
@@ -208,7 +209,7 @@ const Profile = () => {
               >
                 <div className="flex items-center">
                   <FaHeart className="text-red-500  text-xl mr-4" />
-                  <h2 className="text-size font-normal font-opensans text-black capitalize">
+                  <h2 className="text-size text-sm  font-normal font-opensans text-black capitalize">
                     Favorites
                   </h2>
                 </div>
@@ -222,7 +223,7 @@ const Profile = () => {
               Data
             </h1>
           </div>
-          {currentUser && (
+          {/* {currentUser && (
             <>
               <div className="flex flex-col items-center px-2 w-full">
                 <div
@@ -239,7 +240,7 @@ const Profile = () => {
                 </div>
               </div>
             </>
-          )}
+          )} */}
 
           <div className="flex flex-col items-center w-full px-2">
             <div
@@ -267,7 +268,7 @@ const Profile = () => {
             >
               <div className="flex items-center ">
                 <MdHelpOutline className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal font-opensans text-black capitalize">
+                <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
                   FAQs
                 </h2>
               </div>
@@ -279,7 +280,7 @@ const Profile = () => {
             <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-gray-100 mb-3 opacity-60">
               <div className="flex items-center">
                 <CiMoneyBill className="text-gray-600 text-xl mr-4" />
-                <h2 className="text-size font-normal font-opensans text-gray-600 capitalize">
+                <h2 className="text-size font-normal text-sm  font-opensans text-gray-600 capitalize">
                   Donations
                 </h2>
               </div>
@@ -296,7 +297,7 @@ const Profile = () => {
             <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-gray-100 mb-3 opacity-60">
               <div className="flex items-center">
                 <GiClothes className="text-gray-600 text-xl mr-4" />
-                <h2 className="text-size font-normal font-opensans text-gray-600 capitalize">
+                <h2 className="text-size font-normal text-sm  font-opensans text-gray-600 capitalize">
                   Declutter
                 </h2>
               </div>
@@ -322,7 +323,7 @@ const Profile = () => {
             >
               <div className="flex items-center">
                 <FaFileContract className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal font-opensans text-black capitalize">
+                <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
                   Terms and Conditions
                 </h2>
               </div>
@@ -335,7 +336,7 @@ const Profile = () => {
             >
               <div className="flex items-center">
                 <BsShieldFillCheck className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal font-opensans text-black capitalize">
+                <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
                   Privacy Policy
                 </h2>
               </div>
@@ -354,7 +355,7 @@ const Profile = () => {
               >
                 <div className="flex items-center">
                   <MdOutlineFeedback className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal text-black capitalize">
+                  <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
                     Send us your feedback! 📣
                   </h2>
                 </div>
@@ -371,7 +372,7 @@ const Profile = () => {
               >
                 <div className="flex items-center justify-between w-full px-4 py-3">
                   <PiSignOutBold className="text-red-600 text-xl mr-4" />
-                  <p className="text-size text-black font-opensans w-full font-normal">
+                  <p className="text-size text-black text-sm  font-opensans w-full font-normal">
                     Sign Out
                   </p>
 
@@ -393,9 +394,22 @@ const Profile = () => {
                 onClick={() => navigate("/login")}
               >
                 <div className="flex items-center justify-between w-full px-4 py-3">
-                  <PiSignOutBold className="text-green-600 text-xl mr-4" />
-                  <p className="text-size text-black font-opensans w-full font-normal">
+                  <LuLogIn className="text-green-600 text-xl mr-4" />
+                  <p className="text-size text-black text-sm  font-opensans w-full font-normal">
                     Login
+                  </p>
+                </div>
+              </div>
+            )}
+            {!currentUser && (
+              <div
+                className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
+                onClick={() => navigate("/confirm-state")}
+              >
+                <div className="flex items-center justify-between w-full px-4 py-3">
+                  <AiOutlineUserSwitch className="text-customOrange text-xl mr-4" />
+                  <p className="text-size text-black font-opensans w-full text-sm font-normal">
+                    Switch Role
                   </p>
                 </div>
               </div>
@@ -416,7 +430,7 @@ const Profile = () => {
             />
           )}
 
-          {showMetrics && <UserDashboard />}
+          {/* {showMetrics && <UserDashboard />} */}
           {showFAQs && <FAQs setShowFAQs={setShowFAQs} />}
           {/* {showDonations && (
             <div className="flex flex-col items-center">

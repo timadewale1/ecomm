@@ -52,14 +52,14 @@ const Routers = () => {
   return (
     <Routes>
       {/* Default Route */}
-      <Route path="/" element={<NewHome />} />
+      <Route path="/" element={<ConfirmUserState />} />
 
       {/* Public Routes */}
 
       <Route path="/confirm-state" element={<ConfirmUserState />} />
       <Route path="product/:id" element={<ProductDetailPage />} />
       <Route path="signup" element={<Signup />} />
-      <Route path="/vendor-profile" element={<VendorProfile />} />
+      
       <Route path="vendor-signup" element={<VendorSignup />} />
       <Route path="login" element={<Login />} />
       <Route path="vendorlogin" element={<VendorLogin />} />
@@ -207,7 +207,7 @@ const Routers = () => {
       {/* Vendor Protected Routes */}
       <Route element={<ProtectedRoute requiredRole="vendor" />}>
         <Route path="/vendordashboard" element={<VendorDashboard />} />
-      
+        <Route path="/vendor-profile" element={<VendorProfile />} />
         <Route path="/vendor-products" element={<VendorProducts />} />
         <Route path="/vendor-orders" element={<VendorOrders />} />
         <Route path="/store-reviews" element={<StoreReviews />} />

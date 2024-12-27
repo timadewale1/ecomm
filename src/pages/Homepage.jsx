@@ -346,9 +346,8 @@ const Homepage = () => {
 
   const promoImages = [
     "BOTM_xvkkud",
-    // "4929101_na7pyp",
-    // "4991116_bwrxkh",
-    // "4395311_hcqoss",
+    "black-friday-composition-with-post-its_1_clwua4",
+    
   ];
 
   return (

@@ -397,8 +397,7 @@ const VendorDashboard = () => {
                 <button
                   className="text-white opacity-50 cursor-not-allowed"
                   onClick={(e) => e.preventDefault()} // Disable click functionality
-                  disabled // Makes the button disabled
-                >
+                  >
                   <BsCopy className="text-white" />
                 </button>
               </div>

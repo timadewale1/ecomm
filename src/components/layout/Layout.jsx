@@ -35,7 +35,7 @@ const Layout = () => {
     "/search",
 
     "/send-us-feedback",
-    
+    "/",
     "/vendor-reviews",
     "/notifications",
     "/favorites",

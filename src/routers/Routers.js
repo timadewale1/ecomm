@@ -52,7 +52,7 @@ const Routers = () => {
   return (
     <Routes>
       {/* Default Route */}
-      <Route path="/" element={<NewHome />} />
+      <Route path="/" element={<ConfirmUserState />} />
 
       {/* Public Routes */}
 

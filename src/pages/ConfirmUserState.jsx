@@ -11,7 +11,7 @@ const ConfirmUserState = () => {
 
   const handleContinue = () => {
     if (selectedRole === "vendor") {
-      navigate("/vendorlogin");
+      navigate("/vendordashboard");
     } else if (selectedRole === "customer") {
       navigate("/newhome");
     }

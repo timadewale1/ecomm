@@ -19,7 +19,6 @@ import MarketStorePage from "../pages/MarketStorePage.jsx";
 import UserDashboard from "../pages/UserDashboard";
 import Marketpg from "../pages/Marketpg";
 import ResetPassword from "../pages/UserSide/ResetPassword.jsx";
-import PaymentApprove from "../pages/PaymentApprove.jsx";
 import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfile.jsx";
 import NewHome from "../pages/Homepage";
 import EmailVerification from "../pages/UserSide/ConfirmEmail.jsx";
@@ -220,10 +219,7 @@ const Routers = () => {
       <Route element={<ProtectedRoute requiredRole="user" />}>
         <Route path="/newcheckout/:vendorId" element={<Checkout />} />
         <Route path="/donate" element={<Donate />} />
-        <Route
-          path="/payment-approve/:reference"
-          element={<PaymentApprove />}
-        />
+       
 
         <Route path="/user-dashboard" element={<UserDashboard />} />
         {/* Add any other user-specific protected routes here */}

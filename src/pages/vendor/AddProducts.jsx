@@ -14,7 +14,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from "../../firebase.config";
 import toast from "react-hot-toast";
 import { Carousel } from "react-responsive-carousel";
-import { FaImage, FaMinusCircle } from "react-icons/fa";
+import { FaImage, FaMinusCircle, FaSmileBeam } from "react-icons/fa";
 import { RotatingLines } from "react-loader-spinner";
 import axios from "axios";
 import { AiOutlineProduct } from "react-icons/ai";
@@ -31,7 +31,7 @@ import productTypes from "./producttype";
 import Modal from "react-modal";
 import productSizes from "./productsizes";
 import { LuBadgeInfo } from "react-icons/lu";
-import { MdOutlineCancel } from "react-icons/md";
+import { MdOutlineCancel, MdOutlineClose } from "react-icons/md";
 const animatedComponents = makeAnimated();
 const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
 
@@ -906,14 +906,11 @@ const AddProduct = ({ vendorId, closeModal }) => {
             <label className="block text-black mb-1 font-opensans text-sm">
               Color
             </label>
-            <p className="text-xs font-opensans text-gray-800">
-              for multiple colors, separate with "and" or commas supports only 2
-              color choice
-            </p>
+
             <input
               type="text"
               value={variant.color}
-              placeholder="Color1, Color2"
+              placeholder=" One color per variant"
               onChange={(e) => handleColorChange(colorIndex, e.target.value)}
               className="w-full h-12 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
               required
@@ -1265,17 +1262,21 @@ const AddProduct = ({ vendorId, closeModal }) => {
           className="modal-content "
           overlayClassName="modal-overlay modals"
         >
-          <div
-            className="p-2 relative"
-            style={{ maxHeight: "100vh", overflowY: "auto" }}
-          >
-            <MdOutlineCancel
+          <div className="flex items-center px-2 py-2 justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
+                <FaSmileBeam className="text-customRichBrown" />
+              </div>
+              <h2 className="font-opensans text-base font-semibold">
+                What are Product Variations?
+              </h2>
+            </div>
+            <MdOutlineClose
+              className="text-black text-xl cursor-pointer"
               onClick={closeInfoModal}
-              className="absolute top-2 right-2 text-gray-600 cursor-pointer text-2xl"
             />
-            <h2 className="text-lg text-black mt-3 font-bold">
-              What are Product Variations?
-            </h2>
+          </div>
+          <div className="px-4 -translate-y-6">
             <p className="text-gray-600 mt-2 font-opensans text-sm">
               Variations let you add different options like colors and sizes
               under one product listing, making it easy to manage similar

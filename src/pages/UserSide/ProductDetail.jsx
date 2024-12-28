@@ -86,6 +86,10 @@ const ProductDetailPage = () => {
   const [selectedVariantStock, setSelectedVariantStock] = useState(0);
   const [allImages, setAllImages] = useState([]);
   const [isLinkCopied, setIsLinkCopied] = useState(false);
+
+  // Inside your ProductDetailPage component
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
   const db = getFirestore();
 
   const cart = useSelector((state) => state.cart || {});
@@ -226,16 +230,11 @@ const ProductDetailPage = () => {
     setAvailableSizes([subProduct.size]);
   };
 
-  // useEffect(() => {
-  //   if (product) {
-  //     setSelectedColor("");
-  //     setSelectedSize("");
-  //     setAvailableSizes(product.variants.map((variant) => variant.size)); // Show all sizes initially
-  //     setAvailableColors(
-  //       Array.from(new Set(product.variants.map((variant) => variant.color)))
-  //     );
-  //   }
-  // }, [product]);
+  const handleDotClick = (index) => {
+    setCurrentImageIndex(index);
+    const swiperInstance = document.querySelector(".swiper").swiper;
+    swiperInstance.slideTo(index);
+  };
 
   useEffect(() => {
     if (product && product.variants) {
@@ -734,13 +733,12 @@ const ProductDetailPage = () => {
       .map((c) => c.trim())
       .filter((c) => c);
 
-      if (colors.length === 2) {
-        // Split the circle exactly in half with two colors
-        return {
-          background: `linear-gradient(to right, ${colors[0]} 50%, ${colors[1]} 50%)`,
-        };
-      }
-       else if (colors.length === 1) {
+    if (colors.length === 2) {
+      // Split the circle exactly in half with two colors
+      return {
+        background: `linear-gradient(to right, ${colors[0]} 50%, ${colors[1]} 50%)`,
+      };
+    } else if (colors.length === 1) {
       // Single color: solid background
       return {
         backgroundColor: colors[0],
@@ -999,33 +997,50 @@ const ProductDetailPage = () => {
         </div>
       </div>
 
-      <div className="flex justify-center h-[540px]">
-        {/* Only show Swiper if there's more than one image */}
+      <div className="flex justify-center h-[540px] relative">
         {allImages.length > 1 ? (
-          <Swiper
-            modules={[FreeMode, Autoplay]}
-            pagination={{ clickable: true }}
-            // navigation
-            autoplay={{
-              delay: 7500,
-              disableOnInteraction: false,
-            }}
-            className="product-images-swiper mt-20"
-            style={{ width: "100%", height: "" }}
-          >
-            {allImages.map((image, index) => (
-              <SwiperSlide key={index}>
-                <img
-                  src={image}
-                  alt={`${product.name} image ${index + 1}`}
-                  className="object-cover w-full h-full"
-                  style={{ borderBottom: "6px solid white" }} // White line separator
-                />
-              </SwiperSlide>
-            ))}
-          </Swiper>
+          <>
+            <Swiper
+              modules={[FreeMode, Autoplay]}
+              pagination={{ clickable: true }}
+              autoplay={{
+                delay: 7500,
+                disableOnInteraction: false,
+              }}
+              className="product-images-swiper mt-14"
+              onSlideChange={(swiper) =>
+                setCurrentImageIndex(swiper.activeIndex)
+              }
+            >
+              {allImages.map((image, index) => (
+                <SwiperSlide key={index}>
+                  <img
+                    src={image}
+                    alt={`${product.name} image ${index + 1}`}
+                    className="object-cover w-full h-full"
+                    style={{ borderBottom: "6px solid white" }} // White line separator
+                  />
+                </SwiperSlide>
+              ))}
+            </Swiper>
+
+            {/* Dot Indicators */}
+            <div className="absolute bottom-4 z-10 w-full flex justify-center">
+              {allImages.map((_, index) => (
+                <div
+                  key={index}
+                  className={`cursor-pointer mx-1 rounded-full transition-all duration-300 ${
+                    index === currentImageIndex
+                      ? "bg-customOrange h-3 w-3"
+                      : "bg-gray-300 h-2 w-2"
+                  }`}
+                  onClick={() => handleDotClick(index)}
+                ></div>
+              ))}
+            </div>
+          </>
         ) : (
-          // If there's only one image, display it without the Swiper
+          // Single image fallback
           <img
             src={allImages[0]}
             alt={`${product.name} image`}
@@ -1033,6 +1048,7 @@ const ProductDetailPage = () => {
           />
         )}
       </div>
+
       <div className="px-3 mt-2">
         <div className="flex items-center justify-between">
           <h1 className="text-sm font-opensans text-black font-normal ">
@@ -1092,45 +1108,43 @@ const ProductDetailPage = () => {
           </p>
         )}
 
-        {/* Color Options */}
         {availableColors.length > 0 && (
           <div className="mt-3">
-            <p className="text-sm font-semibold text-black font-opensans mb-2">
-              {selectedColor ? capitalizeFirstLetter(selectedColor) : "Colors"}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {availableColors.map((color, index) => {
-                const circleStyle = getColorStyle(color);
-
-                return (
-                  <div
-                    key={index}
-                    onClick={() => {
-                      if (!selectedSubProduct) {
-                        handleColorClick(color);
-                      }
-                    }}
-                    className={`w-8 h-8 flex items-center justify-center rounded-full ${
-                      selectedSubProduct
-                        ? "cursor-not-allowed opacity-50"
-                        : "cursor-pointer"
-                    } ${selectedColor === color ? "border-2" : ""}`}
-                    style={{
-                      padding: "3px",
-                      borderColor:
-                        selectedColor === color ? color : "transparent",
-                      backgroundColor: "#f0f0f0",
-                    }}
-                    title={color}
-                  >
-                    <div
-                      style={circleStyle} // Use the parsed style here
-                      className="w-6 h-6 rounded-full"
-                    ></div>
-                  </div>
-                );
-              })}
-            </div>
+            <label
+              htmlFor="color-select"
+              className="text-sm font-semibold text-black font-opensans mb-2 block"
+            >
+              Color
+            </label>
+            <select
+              id="color-select"
+              value={selectedColor}
+              onChange={(e) => {
+                const selectedValue = e.target.value;
+                setSelectedColor(selectedValue);
+                // Update sizes for the selected color
+                const sizesForColor = product.variants
+                  .filter((variant) => variant.color === selectedValue)
+                  .map((variant) => variant.size);
+                setAvailableSizes(Array.from(new Set(sizesForColor)));
+                setSelectedSize(""); // Reset the selected size
+              }}
+              className="w-24 px-3 py-2 border rounded-lg bg-white text-black font-opensans truncate"
+              style={{
+                textOverflow: "ellipsis", // Ensures long text is truncated
+                whiteSpace: "nowrap", // Prevents wrapping of text
+                overflow: "hidden", // Hides overflow content
+              }}
+            >
+              <option value="" disabled>
+                Choose a color
+              </option>
+              {availableColors.map((color, index) => (
+                <option key={index} value={color}>
+                  {capitalizeFirstLetter(color)}
+                </option>
+              ))}
+            </select>
           </div>
         )}
 

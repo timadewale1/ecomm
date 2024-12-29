@@ -5,7 +5,7 @@ import { addToCart, removeFromCart } from "../../redux/actions/action";
 import { fetchProduct } from "../../redux/actions/productaction";
 import Loading from "../../components/Loading/Loading";
 import { PiShoppingCartBold } from "react-icons/pi";
-import { FaStar } from "react-icons/fa";
+import { FaSmileBeam, FaStar } from "react-icons/fa";
 import { CiCircleInfo } from "react-icons/ci";
 import { TbInfoOctagon } from "react-icons/tb";
 import { TbInfoTriangle } from "react-icons/tb";
@@ -18,11 +18,13 @@ import { FiPlus } from "react-icons/fi";
 import { FiMinus } from "react-icons/fi";
 import { TbSquareRoundedCheck } from "react-icons/tb";
 import Badge from "../../components/Badge/Badge";
-import { MdOutlineCancel } from "react-icons/md";
+import { MdOutlineCancel, MdOutlineClose } from "react-icons/md";
 import "swiper/css/free-mode";
+import { TbFileDescription } from "react-icons/tb";
 import "swiper/css/autoplay";
 import { useLocation } from "react-router-dom";
 import { Swiper, SwiperSlide } from "swiper/react";
+import Select from "react-select";
 import "swiper/css";
 import SwiperCore, { Pagination, Navigation } from "swiper";
 import { FreeMode, Autoplay } from "swiper/modules";
@@ -1083,11 +1085,9 @@ const ProductDetailPage = () => {
             ) : null}
           </div>
         </div>
-
         <p className="text-2xl font-opensans font-semibold text-black">
           ₦{formatPrice(product.price)}
         </p>
-
         {vendorLoading ? (
           <LoadProducts className="mr-20" />
         ) : vendor ? (
@@ -1103,7 +1103,7 @@ const ProductDetailPage = () => {
             )}
           </div>
         ) : (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs font-opensans text-gray-500">
             Vendor information not available
           </p>
         )}
@@ -1116,38 +1116,66 @@ const ProductDetailPage = () => {
             >
               Color
             </label>
-            <select
-              id="color-select"
-              value={selectedColor}
-              onChange={(e) => {
-                const selectedValue = e.target.value;
+
+            <Select
+              // 1) Transform `availableColors` into an array of { label, value } objects
+              options={availableColors.map((color) => ({
+                label: capitalizeFirstLetter(color),
+                value: color,
+              }))}
+              // 2) If `selectedColor` is a string, convert it to an object
+              value={
+                selectedColor
+                  ? {
+                      label: capitalizeFirstLetter(selectedColor),
+                      value: selectedColor,
+                    }
+                  : null
+              }
+              onChange={(selectedOption) => {
+                const selectedValue = selectedOption.value;
                 setSelectedColor(selectedValue);
+
                 // Update sizes for the selected color
                 const sizesForColor = product.variants
                   .filter((variant) => variant.color === selectedValue)
                   .map((variant) => variant.size);
                 setAvailableSizes(Array.from(new Set(sizesForColor)));
+
                 setSelectedSize(""); // Reset the selected size
               }}
-              className="w-24 px-3 py-2 border rounded-lg bg-white text-black font-opensans truncate"
-              style={{
-                textOverflow: "ellipsis", // Ensures long text is truncated
-                whiteSpace: "nowrap", // Prevents wrapping of text
-                overflow: "hidden", // Hides overflow content
+              placeholder="Select"
+              // 3) Style it similarly to your Product Type select
+              className="w-[109px] font-opensans text-sm"
+              classNamePrefix="custom-select"
+              isSearchable
+              styles={{
+                control: (provided) => ({
+                  ...provided,
+                  height: "2rem", // h-12
+                  borderColor: "#D1D5DB", // border-gray-300
+                  borderRadius: "0.5rem", // rounded-lg
+                  fontFamily: "Open Sans, sans-serif",
+                  fontSize: "0.75rem", // text-sm
+                  color: "black",
+                  paddingLeft: "0.75rem", // px-4
+                }),
+                input: (provided) => ({
+                  ...provided,
+                  fontFamily: "Open Sans, sans-serif",
+                  fontSize: "1rem",
+                  color: "black",
+                }),
+                placeholder: (provided) => ({
+                  ...provided,
+                  fontFamily: "Open Sans, sans-serif",
+                  fontSize: "1rem",
+                  color: "#6B7280", // text-gray-500
+                }),
               }}
-            >
-              <option value="" disabled>
-                Choose a color
-              </option>
-              {availableColors.map((color, index) => (
-                <option key={index} value={color}>
-                  {capitalizeFirstLetter(color)}
-                </option>
-              ))}
-            </select>
+            />
           </div>
         )}
-
         {/* Size Selection */}
         <div className="mt-3">
           <p className="text-sm font-semibold text-black font-opensans mb-2">
@@ -1198,7 +1226,6 @@ const ProductDetailPage = () => {
             })}
           </div>
         </div>
-
         <div
           className="flex justify-between items-center mt-4 mb-4 cursor-pointer"
           onClick={() => setIsModalOpen(true)}
@@ -1206,20 +1233,28 @@ const ProductDetailPage = () => {
           <p className="text-black text-md font-opensans ">Product Details</p>
           <GoChevronRight className="text-3xl -mx-2" />
         </div>
-
         <Modal
           isOpen={isModalOpen}
           onRequestClose={() => setIsModalOpen(false)}
           className="modal-content"
-          overlayClassName="modal-overlay"
+          overlayClassName="modal-overlay backdrop-blur-md"
         >
           <div className="p-2 relative">
-            <MdOutlineCancel
-              onClick={() => setIsModalOpen(false)}
-              className="absolute top-2 right-2 text-gray-600 cursor-pointer text-2xl"
-            />
-            <h2 className="text-lg mt-3 font-bold">Product Description</h2>
-            <p className="text-gray-600 mt-2 font-poppins text-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
+                  <TbFileDescription className="text-customRichBrown" />
+                </div>
+                <h2 className="font-opensans text-base font-semibold">
+                  Product Description
+                </h2>
+              </div>
+              <MdOutlineClose
+                onClick={() => setIsModalOpen(false)}
+                className="absolute top-2 right-2 text-gray-600 cursor-pointer text-2xl"
+              />
+            </div>{" "}
+            <p className="text-gray-600 mt-2 font-opensans text-sm">
               {product.description}
             </p>
           </div>
@@ -1278,7 +1313,7 @@ const ProductDetailPage = () => {
           >
             <button
               onClick={handleRemoveFromCart}
-              className="text-black open-sans mr-4 bg-gray-100 rounded-full h-14 w-52 text-md font-bold"
+              className="text-black font-opensans open-sans mr-4 bg-gray-100 rounded-full h-14 w-52 text-md font-bold"
             >
               Remove
             </button>

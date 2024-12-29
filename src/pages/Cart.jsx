@@ -93,11 +93,15 @@ const Cart = () => {
               );
             } else {
               const productData = productDoc.data();
-              if (!productData.published) {
+              if (!productData.published || productData.isDeleted) {
                 dispatch(removeFromCart({ vendorId, productKey }));
                 toast.dismiss();
                 toast(
-                  `Product ${product.name} has been removed as it is unpublished by the vendor.`,
+                  `Product ${product.name} has been removed as it is ${
+                    productData.isDeleted
+                      ? "deleted by the vendor"
+                      : "unpublished by the vendor"
+                  }.`,
                   { icon: "ℹ️" }
                 );
               }

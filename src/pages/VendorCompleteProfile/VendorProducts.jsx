@@ -16,6 +16,8 @@ import {
 import { db } from "../../firebase.config";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { MdOutlineStarPurple500 } from "react-icons/md";
+import { MdOutlineStarBorderPurple500 } from "react-icons/md";
 import Modal from "../../components/layout/Modal";
 import ConfirmationDialog from "../../components/layout/ConfirmationDialog";
 import {
@@ -379,7 +381,7 @@ const VendorProducts = () => {
       if (timeElapsed < twelveHoursInMilliseconds) {
         // Prevent unpinning if less than 12 hours have passed
         toast.error(
-          "You cannot unpin a product within 12 hours of pinning it."
+          "You cannot unfeature a product within 12 hours of featuring it."
         );
         return;
       }
@@ -416,20 +418,20 @@ const VendorProducts = () => {
       // If the product was just pinned (isFeatured set to true), add an activity note
       if (newIsFeaturedStatus) {
         await addActivityNote(
-          "Product Pinned 📌",
+          "Product Starred ⭐",
           `You've made ${product.name} one of your featured products! This will be part of the first products customers see in your store.`,
           "Product Update"
         );
-        toast.success("Product pinned successfully.");
+        toast.success("Product featured successfully.");
       } else {
-        toast.success("Product unpinned successfully.");
+        toast.success("Product unfeatured successfully.");
       }
 
       // Update the pinned count after the change
       fetchPinnedProductsCount(); // Assuming this function recalculates the pinned count
     } catch (error) {
       console.error("Error pinning/unpinning product:", error);
-      toast.error("Error pinning/unpinning product: " + error.message);
+      toast.error("Error Featuring/unfeaturing product: " + error.message);
     }
   };
 
@@ -800,11 +802,11 @@ const VendorProducts = () => {
                           className="absolute top-2 right-2 bg-white rounded-full p-1"
                         >
                           {product.isFeatured ? (
-                            <BsPinAngleFill
+                            <MdOutlineStarPurple500
                               className={`text-customOrange  w-5 h-5`}
                             />
                           ) : (
-                            <BsPinAngle
+                            <MdOutlineStarBorderPurple500
                               className={`text-customOrange  w-5 h-5`}
                             />
                           )}

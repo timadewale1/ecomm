@@ -96,10 +96,10 @@ const Layout = () => {
 
   const isVendorPath = vendorPaths.includes(location.pathname);
 
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 500);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 575);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 500);
+    const handleResize = () => setIsMobile(window.innerWidth < 575);
 
     window.addEventListener("resize", handleResize);
 

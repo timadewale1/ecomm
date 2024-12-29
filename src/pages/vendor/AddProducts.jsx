@@ -823,7 +823,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           options={productTypeOptions}
           value={selectedProductType}
           onChange={handleProductTypeChange}
-          className="w-full"
+          className="w-full font-opensans text-sm"
           classNamePrefix="custom-select"
           placeholder="Select Product Type"
           isSearchable
@@ -869,7 +869,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
             )}
             value={selectedSubType}
             onChange={setSelectedSubType}
-            className="w-full"
+            className="w-full font-opensans text-sm "
             classNamePrefix="custom-select"
             placeholder="Select Sub Type"
             isSearchable
@@ -1078,7 +1078,13 @@ const AddProduct = ({ vendorId, closeModal }) => {
           className="w-full h-12 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
           required
         />
+        {parseFloat(productPrice) < 300 && productPrice !== "" && (
+          <p className="text-red-500 font-ubuntu text-xs mt-1">
+            Minimum product price is 300 naira.
+          </p>
+        )}
       </div>
+
       <div className="mb-4">
         <label className="font-opensans mb-1 font-medium text-sm text-black">
           Product Condition
@@ -1124,15 +1130,25 @@ const AddProduct = ({ vendorId, closeModal }) => {
         <label className="mb-1 text-black font-medium font-opensans text-sm">
           Product Description
         </label>
-        <textarea
-          value={productDescription}
-          onChange={(e) => setProductDescription(e.target.value)}
-          className="mt-1 block w-full px-4 py-2 border-2 rounded-lg  focus:outline-none focus:border-customOrange hover:border-customOrange h-24 resize-none"
-        />
+        <div className="relative">
+          <textarea
+            value={productDescription}
+            onChange={(e) => {
+              // Enforce the character limit
+              if (e.target.value.length <= 250) {
+                setProductDescription(e.target.value);
+              }
+            }}
+            className="mt-1 block w-full px-4 py-2 border-2 text-sm rounded-lg focus:outline-none focus:border-customOrange font-opensans hover:border-customOrange h-24 resize-none"
+          />
+          {/* Character Counter */}
+          <div className="absolute bottom-2 right-2 font-opensans text-gray-500 ratings-text">
+            {productDescription.length}/250
+          </div>
+        </div>
 
-        <div className="flex justify-end mt-2">
-          {" "}
-          {/* Align button to the right */}
+        {/* <div className="flex justify-end mt-2">
+         
           <button
             type="button"
             onClick={generateDescription}
@@ -1151,13 +1167,44 @@ const AddProduct = ({ vendorId, closeModal }) => {
               <GiRegeneration />
             )}
           </button>
-        </div>
+        </div> */}
       </div>
       <div className="mb-4">
         <label className="font-opensans mb-1 text-sm font-medium text-black">
           Tags
         </label>
-        <div className="flex flex-wrap  items-center border-2 border-gray-300 rounded-lg p-2">
+
+        {/* Suggestions Bar */}
+        <div
+          className="relative overflow-x-auto whitespace-nowrap mb-2 flex space-x-4 no-scrollbar"
+          style={{
+            maxWidth: "100%", // Ensures the container width limits the content for scrolling
+          }}
+        >
+          {[
+            "Discounts",
+            "New Arrival",
+            "Cargos",
+            "Trending",
+            "Limited Edition",
+            "Jeans",
+            "Tees",
+            "Nike",
+            "Adidas",
+            "Sports"
+          ].map((suggestion, index) => (
+            <span
+              key={index}
+              onClick={() => setTags((prev) => [...prev, suggestion])} // Add tag on click
+              className="bg-transparent animate-pulse border-1 border-customOrange font-medium text-customBrown px-4 font-opensans py-1 text-xs rounded-full cursor-pointer hover:bg-orange-600 transition-all whitespace-nowrap"
+            >
+              {suggestion}
+            </span>
+          ))}
+        </div>
+
+        {/* Tag Input */}
+        <div className="flex flex-wrap items-center border-2 border-gray-300 rounded-lg p-2">
           {tags.map((tag, index) => (
             <div
               key={index}
@@ -1176,6 +1223,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           />
         </div>
       </div>
+
       <div className="mb-4">
         <div className="flex items-center">
           <button>
@@ -1291,8 +1339,13 @@ const AddProduct = ({ vendorId, closeModal }) => {
         <button
           type="button"
           onClick={handleAddProduct}
-          className="w-full px-4 h-12 bg-customOrange font-opensans text-lg text-white rounded-full hover:bg-customOrange focus:ring focus:ring-customOrange focus:outline-none"
-          disabled={isLoading} // Disable button when loading
+          className={`w-full px-4 h-12 font-opensans text-lg rounded-full focus:ring focus:outline-none 
+    ${
+      isLoading || parseFloat(productPrice) < 300
+        ? "bg-gray-400 text-gray-200 cursor-not-allowed" // Greyed-out styling when disabled
+        : "bg-customOrange text-white hover:bg-customOrange focus:ring-customOrange" // Normal styling
+    }`}
+          disabled={isLoading || parseFloat(productPrice) < 300}
         >
           {isLoading ? (
             <div className="flex items-center justify-center">

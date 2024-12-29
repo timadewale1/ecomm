@@ -137,7 +137,7 @@ li::marker {
   left: 50%;
   transform: translate(-50%, -50%);
   width: 90%;
-  height: 35%;
+  height: 30%;
   background-color: white;
   border-radius: 10px 10px 10px 10px; /* Rounded corners at the top */
   padding: 10px;
@@ -391,3 +391,27 @@ button.bg-orange-500:hover {
 .active {
   background-color: #e76f51; /* This will show active steps */
 }
+.no-scrollbar {
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+  scrollbar-width: none; /* Firefox */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, and Opera */
+}
+
+
+@keyframes marquee {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 10s linear infinite; /* 10 seconds for smooth scrolling */
+  display: inline-flex; /* Ensure items are in a row */
+}
+

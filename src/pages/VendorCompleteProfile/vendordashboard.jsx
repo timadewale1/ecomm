@@ -33,7 +33,7 @@ const defaultImageUrl =
   "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 const VendorDashboard = () => {
   const { vendorData, loading } = useContext(VendorContext);
-  console.log("VendorDashboard render:", { vendorData, loading });
+  // console.log("VendorDashboard render:", { vendorData, loading });
 
   const [totalFulfilledOrders, setTotalFulfilledOrders] = useState(0);
   const [hide, setHide] = useState(false);
@@ -400,8 +400,7 @@ const VendorDashboard = () => {
                 </p>
                 <button
                   className="text-white opacity-50 cursor-not-allowed"
-                  onClick={(e) => e.preventDefault()} // Disable click functionality
-                  disabled // Makes the button disabled
+                  onClick={copyToClipboard}
                 >
                   <BsCopy className="text-white" />
                 </button>

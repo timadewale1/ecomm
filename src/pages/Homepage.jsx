@@ -543,7 +543,10 @@ const Homepage = () => {
             {loadingMore ? "Loading..." : "Load More"}
           </button>
         )}
+        <div className="flex justify-center ">
+
         <Amazingdeals />
+        </div>
       </div>
     </>
   );

@@ -3,6 +3,7 @@ import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
+import { IoCloseOutline } from "react-icons/io5";
 import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
@@ -20,7 +21,7 @@ import {
 } from "firebase/firestore";
 
 import { FaRegEyeSlash, FaRegEye } from "react-icons/fa";
-import { MdOutlineEmail, MdOutlineLock } from "react-icons/md";
+import { MdOutlineCancel, MdOutlineEmail, MdOutlineLock } from "react-icons/md";
 import toast from "react-hot-toast";
 import LoginAnimation from "../components/LoginAssets/LoginAnimation";
 import Typewriter from "typewriter-effect";
@@ -317,8 +318,8 @@ const Login = () => {
         <Container>
           <Row>
             <div className="px-3 md:hidden">
-              <Link to="/confirm-state">
-                <GoChevronLeft className="text-3xl -translate-y-2 font-normal text-black" />
+              <Link to={-1}>
+                <IoCloseOutline className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>
               <LoginAnimation />
               <div className="flex transform text-customOrange -translate-y-10 mb-2 justify-center">

@@ -251,6 +251,7 @@ const Login = () => {
           uid: user.uid,
           username: user.displayName,
           email: user.email,
+          profileComplete: false,
           role: "user",
           createdAt: new Date(),
         });

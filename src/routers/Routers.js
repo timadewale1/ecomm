@@ -16,7 +16,7 @@ import VendorProducts from "../pages/VendorCompleteProfile/VendorProducts.jsx";
 import VendorProfile from "../pages/VendorCompleteProfile/VendorProfile.jsx";
 import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
 import MarketStorePage from "../pages/MarketStorePage.jsx";
-import UserDashboard from "../pages/UserDashboard";
+
 import Marketpg from "../pages/Marketpg";
 import ResetPassword from "../pages/UserSide/ResetPassword.jsx";
 import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfile.jsx";
@@ -221,8 +221,7 @@ const Routers = () => {
         <Route path="/donate" element={<Donate />} />
        
 
-        <Route path="/user-dashboard" element={<UserDashboard />} />
-        {/* Add any other user-specific protected routes here */}
+       
       </Route>
 
       <Route path="/not-found" element={<NotFound />} />

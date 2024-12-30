@@ -1,17 +1,23 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaCheck } from "react-icons/fa"; // Importing check icon
+import { FaCheck } from "react-icons/fa";
 import logo from "../Images/logo.png";
 import { GiClothes } from "react-icons/gi";
 import { BsShop } from "react-icons/bs";
+import { useAuth } from "../custom-hooks/useAuth";
 
 const ConfirmUserState = () => {
   const navigate = useNavigate();
-  const [selectedRole, setSelectedRole] = useState(null); // State to track selected role
+  const [selectedRole, setSelectedRole] = useState(null);
+  const { currentUser, currentUserData } = useAuth();
 
   const handleContinue = () => {
     if (selectedRole === "vendor") {
-      navigate("/vendordashboard");
+      if (currentUser && currentUserData?.role === "vendor") {
+        navigate("/vendordashboard");
+      } else {
+        navigate("/vendorlogin");
+      }
     } else if (selectedRole === "customer") {
       navigate("/newhome");
     }
@@ -31,9 +37,6 @@ const ConfirmUserState = () => {
         </div>
 
         <div className="space-y-5">
-          {/* Vendor Option */}
-
-          {/* Customer Option */}
           <div
             className={`relative p-4 border-2 rounded-3xl ${
               selectedRole === "customer"
@@ -47,9 +50,7 @@ const ConfirmUserState = () => {
             </div>
             <div className="flex items-center">
               <div className="mt-2">
-                <h2 className="text-lg font-semibold text-black">
-                 Customer
-                </h2>
+                <h2 className="text-lg font-semibold text-black">Customer</h2>
                 <p className="text-gray-600">
                   Find thrifted treasures from curated vendors!
                 </p>
@@ -61,6 +62,7 @@ const ConfirmUserState = () => {
               </div>
             )}
           </div>
+
           <div
             className={`relative p-4 border-2 rounded-3xl ${
               selectedRole === "vendor"
@@ -74,9 +76,7 @@ const ConfirmUserState = () => {
             </div>
             <div className="flex items-center">
               <div className=" mt-2">
-                <h2 className="text-lg font-semibold text-black">
-                  Vendor
-                </h2>
+                <h2 className="text-lg font-semibold text-black">Vendor</h2>
                 <p className="text-gray-600 font-opensans text-base">
                   List your products on{" "}
                   <span className="text-customOrange">My Thrift</span> with
@@ -92,7 +92,6 @@ const ConfirmUserState = () => {
           </div>
         </div>
 
-        {/* Continue Button */}
         <div className="fixed bottom-0 left-0 right-0 flex justify-center p-3">
           <button
             onClick={handleContinue}

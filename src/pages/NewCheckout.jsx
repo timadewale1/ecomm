@@ -748,7 +748,7 @@ const Checkout = () => {
               <Skeleton circle={true} width={24} height={24} />
               <Skeleton width={60} height={15} />
             </div>
-            <div className="px-4 w-full py-2 rounded-lg bg-customCream">
+            <div className="px-4 w-full py-2 rounded-lg bg-white">
               <Skeleton width={80} height={15} />
               <div className="border-t border-gray-700 my-2"></div>
               <Skeleton width={60} height={15} />

@@ -5,15 +5,30 @@ import logo from "../Images/logo.png";
 import { GiClothes } from "react-icons/gi";
 import { BsShop } from "react-icons/bs";
 import { useAuth } from "../custom-hooks/useAuth";
+import { RotatingLines } from "react-loader-spinner";
 
 const ConfirmUserState = () => {
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState(null);
-  const { currentUser, currentUserData } = useAuth();
+  const { currentUser, currentUserData, loading } = useAuth();
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (selectedRole === "vendor") {
-      if (currentUser && currentUserData?.role === "vendor") {
+      if (loading) {
+        setIsProcessing(true);
+        // Fallback timeout in case loading takes too long
+        setTimeout(() => {
+          if (currentUser && currentUserData?.role === "vendor") {
+            navigate("/vendordashboard");
+          } else {
+            navigate("/vendorlogin");
+          }
+          setIsProcessing(false);
+        }, 3000); // 3-second fallback
+        return;
+      }
+      if (currentUserData?.role === "vendor") {
         navigate("/vendordashboard");
       } else {
         navigate("/vendorlogin");
@@ -22,6 +37,7 @@ const ConfirmUserState = () => {
       navigate("/newhome");
     }
   };
+  
 
   return (
     <>
@@ -75,7 +91,7 @@ const ConfirmUserState = () => {
               <BsShop className="text-lg text-customBrown" />
             </div>
             <div className="flex items-center">
-              <div className=" mt-2">
+              <div className="mt-2">
                 <h2 className="text-lg font-semibold text-black">Vendor</h2>
                 <p className="text-gray-600 font-opensans text-base">
                   List your products on{" "}
@@ -95,14 +111,24 @@ const ConfirmUserState = () => {
         <div className="fixed bottom-0 left-0 right-0 flex justify-center p-3">
           <button
             onClick={handleContinue}
-            className={`w-full h-14 text-white font-semibold rounded-full ${
+            className={`w-full h-14 text-white font-semibold justify-center items-center flex rounded-full ${
               selectedRole
                 ? "bg-customOrange"
                 : "bg-gray-300 cursor-not-allowed"
             }`}
-            disabled={!selectedRole}
+            disabled={!selectedRole || isProcessing}
           >
-            Continue
+            {isProcessing && selectedRole === "vendor" ? (
+              <RotatingLines
+                strokeColor="#ffffff"
+                strokeWidth="5"
+                animationDuration="0.75"
+                width="24"
+                visible={true}
+              />
+            ) : (
+              "Continue"
+            )}
           </button>
         </div>
       </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { updateProfile } from "firebase/auth";
 import { auth, db } from "../../firebase.config";
 import toast from "react-hot-toast";
-import { doc, updateDoc, getDoc, collection } from "firebase/firestore";
+import { doc, updateDoc, getDoc, collection, getDocs, query, where } from "firebase/firestore";
 import {
   FaTimes,
   FaEye,
@@ -206,8 +206,22 @@ const ProfileDetails = ({
 
     try {
       let updatedFields = {};
+
       if (editField === "username") {
         const formattedUsername = formatName(username);
+
+        // Check for duplicate usernames
+        const usersRef = collection(db, "users");
+        const querySnapshot = await getDocs(
+          query(usersRef, where("username", "==", formattedUsername))
+        );
+
+        if (!querySnapshot.empty) {
+          toast.error("Username is already taken. Please choose another.");
+          setIsLoading(false);
+          return;
+        }
+
         await updateProfile(auth.currentUser, {
           displayName: formattedUsername,
         });

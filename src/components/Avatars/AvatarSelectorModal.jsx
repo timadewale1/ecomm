@@ -252,10 +252,10 @@ const AvatarSelectorModal = ({
             );
           })}
         </div>
-        <div className=" p-6 flex flex-col justify-between items-center bg-white w-full">
+        <div className=" p-6 flex flex-col mt-6 justify-between items-center bg-white w-full">
           <button
             onClick={handleRemove}
-            className="border-1 border-customBrown text-red-600 text-sm font-semibold w-full h-10  mb-4 px-4 rounded-lg flex items-center justify-center"
+            className="border-1 border-customBrown text-red-600 text-sm font-semibold w-80 h-12  mb-4 px-4 rounded-lg flex items-center justify-center"
             disabled={removing}
           >
             {removing ? (
@@ -272,7 +272,7 @@ const AvatarSelectorModal = ({
           </button>
           <button
             onClick={handleAvatarChange}
-            className="bg-customOrange text-white w-full h-10 text-sm font-semibold font-opensans px-4 rounded-lg flex items-center justify-center"
+            className="bg-customOrange text-white w-80 h-12 text-sm font-semibold font-opensans px-4 rounded-lg flex items-center justify-center"
             disabled={uploading}
           >
             {uploading ? (

@@ -1150,10 +1150,10 @@ const ProductDetailPage = () => {
               classNamePrefix="custom-select"
               isSearchable
               styles={{
-                control: (provided) => ({
+                control: (provided, state) => ({
                   ...provided,
                   height: "2rem", // h-12
-                  borderColor: "#D1D5DB", // border-gray-300
+                  borderColor: state.isFocused ? "#f9531e" : "#D1D5DB", // Use the `state` parameter
                   borderRadius: "0.5rem", // rounded-lg
                   fontFamily: "Open Sans, sans-serif",
                   fontSize: "0.75rem", // text-sm

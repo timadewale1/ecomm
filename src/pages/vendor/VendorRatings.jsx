@@ -25,6 +25,7 @@ import { LiaTimesSolid } from "react-icons/lia";
 import { CiLogin } from "react-icons/ci";
 import RoundedStars from "../../components/RoundedStars";
 import { RotatingLines } from "react-loader-spinner";
+import { IoMdContact } from "react-icons/io";
 
 const VendorRatings = () => {
   const { id } = useParams();
@@ -253,7 +254,8 @@ const VendorRatings = () => {
         reviewText: newReview.trim() !== "" ? newReview : null, // Add text if provided
         rating: newRating,
         userName: currentUser.username || currentUser.displayName, // Use displayName if username doesn't exist
-        userPhotoURL: currentUser.photoURL || DefaultImageUrl, // Use a default image if userPhotoURL is missing
+        userPhotoURL: currentUser.photoURL || null,
+
         createdAt: new Date(),
       });
 
@@ -402,11 +404,17 @@ const VendorRatings = () => {
         {reviews.map((review) => (
           <div key={review.id} className="mb-4">
             <div className="flex items-center mb-1">
-              <img
-                src={review.userPhotoURL}
-                alt={review.userName}
-                className="w-11 h-11 rounded-full mr-3"
-              />
+              {review.userPhotoURL ? (
+                <img
+                  src={review.userPhotoURL}
+                  alt={review.userName}
+                  className="w-11 h-11 rounded-full mr-3"
+                />
+              ) : (
+                <div className="w-11 h-11 rounded-full bg-gray-200 flex items-center justify-center mr-3">
+                  <IoMdContact className="text-gray-500 text-xl" />
+                </div>
+              )}
               <div>
                 <h2 className="font-semibold text-xs">{review.userName}</h2>
               </div>

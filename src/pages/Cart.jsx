@@ -688,8 +688,8 @@ const Cart = () => {
           </div>
         </div>
       )}
-
-      {/* Modal for adding a note */}
+adding
+      {/* Modal for  a note */}
       {isNoteModalOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center modal1"

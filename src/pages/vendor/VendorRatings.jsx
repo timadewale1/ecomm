@@ -26,7 +26,7 @@ import { CiLogin } from "react-icons/ci";
 import RoundedStars from "../../components/RoundedStars";
 import { RotatingLines } from "react-loader-spinner";
 import { IoMdContact } from "react-icons/io";
-
+import { handleUserActionLimit } from "../../services/userWriteHandler";
 const VendorRatings = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -40,6 +40,9 @@ const VendorRatings = () => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [selectedRating, setSelectedRating] = useState("All");
   const [newRating, setNewRating] = useState(0);
+
+  const [hasDeliveredOrder, setHasDeliveredOrder] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ratingBreakdown, setRatingBreakdown] = useState({
@@ -100,6 +103,31 @@ const VendorRatings = () => {
 
     fetchVendorData();
   }, [id]);
+  useEffect(() => {
+    const checkIfUserCanReview = async () => {
+      if (!currentUser || !id) {
+        setHasDeliveredOrder(false);
+        return;
+      }
+      try {
+        const ordersRef = collection(db, "orders");
+        const q = query(
+          ordersRef,
+          where("userId", "==", currentUser.uid),
+          where("vendorId", "==", id),
+          where("progressStatus", "==", "Delivered")
+        );
+        const snapshot = await getDocs(q);
+        // If we find at least one delivered order => user can review
+        setHasDeliveredOrder(!snapshot.empty);
+      } catch (err) {
+        console.error("Error checking delivered orders:", err);
+        setHasDeliveredOrder(false);
+      }
+    };
+
+    checkIfUserCanReview();
+  }, [currentUser, id]);
 
   const fetchReviews = async () => {
     try {
@@ -247,19 +275,37 @@ const VendorRatings = () => {
         return;
       }
 
+      try {
+        await handleUserActionLimit(
+          currentUser.uid,
+          "review",
+          {},
+          {
+            collectionName: "usage_metadata",
+            writeLimit: 50,
+            minuteLimit: 8,
+            hourLimit: 40,
+          }
+        );
+      } catch (limitError) {
+        // If limit is reached, throw an error
+        setIsSubmitting(false);
+        toast.error(limitError.message);
+        return;
+      }
+
+      // If we passed the usage limit check, proceed to create a review
       const reviewsRef = collection(db, "vendors", id, "reviews");
 
-      // Save the review only if text is provided
       await addDoc(reviewsRef, {
         reviewText: newReview.trim() !== "" ? newReview : null, // Add text if provided
         rating: newRating,
-        userName: currentUser.username || currentUser.displayName, // Use displayName if username doesn't exist
+        userName: currentUser.username || currentUser.displayName,
         userPhotoURL: currentUser.photoURL || null,
-
         createdAt: new Date(),
       });
 
-      // Update vendor rating even if no text review is provided
+      // Update vendor rating
       const vendorRef = doc(db, "vendors", id);
       await updateDoc(vendorRef, {
         ratingCount: increment(1),
@@ -272,9 +318,7 @@ const VendorRatings = () => {
       fetchReviews(); // Refresh the reviews and progress bar
       toast.success("Review added successfully!");
     } catch (error) {
-      // Add detailed error logging for debugging
       console.error("Error adding review:", error.message);
-      console.error("Error details:", error);
       toast.error("Error adding review, please try again.");
     } finally {
       setIsSubmitting(false);
@@ -309,17 +353,24 @@ const VendorRatings = () => {
             className="text-3xl cursor-pointer"
             onClick={() => navigate(-1)}
           />
-          <h1 className="text-xl font-opensans font-semibold">Reviews</h1>
-          <FiPlus
-            className="text-3xl cursor-pointer"
-            onClick={() => {
-              if (!currentUser) {
-                setIsLoginModalOpen(true);
-              } else {
-                setShowModal(true);
-              }
-            }}
-          />
+          <h1 className="text-xl font-opensans font-semibold flex-grow text-center">
+            Reviews
+          </h1>
+          {/* Conditionally show FiPlus or an invisible placeholder */}
+          {!currentUser || hasDeliveredOrder ? (
+            <FiPlus
+              className="text-3xl cursor-pointer"
+              onClick={() => {
+                if (!currentUser) {
+                  setIsLoginModalOpen(true);
+                } else {
+                  setShowModal(true);
+                }
+              }}
+            />
+          ) : (
+            <div className="w-8 h-8" />
+          )}
         </div>
 
         <div className="flex justify-between mb-3 w-full overflow-x-auto space-x-2 scrollbar-hide">

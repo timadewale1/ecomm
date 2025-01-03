@@ -2,7 +2,7 @@
 import { createStore, applyMiddleware, combineReducers } from "redux";
 import thunk from "redux-thunk";
 import { cartReducer } from "./reducers/reducer";
-import favoritesReducer from "./reducers/favouriteReducers";
+// import favoritesReducer from "./reducers/favouriteReducers";
 import productReducer from "./reducers/productreducers";
 import authReducer from "./reducers/authreducers";
 import orderReducer from "./reducers/orderreducer";
@@ -15,7 +15,7 @@ const rootReducer = combineReducers({
   product: productReducer,
   user: userReducer,
   orders: orderReducer,
-  favorites: favoritesReducer,
+  // favorites: favoritesReducer,
   vendorProfile: vendorProfileReducer, // Add the slice to the root reducer
 });
 

@@ -780,8 +780,10 @@ const OrderDetailsModal = ({
 
       // External calls succeeded, now update Firebase
       console.log("Updating order progressStatus to 'Delivered'...");
-      await updateDoc(orderRef, { progressStatus: "Delivered" });
-
+      await updateDoc(orderRef, {
+        progressStatus: "Delivered",
+        orderDelivered: true, 
+      });
       // Send notification to the user
       console.log("Sending notification about order delivery...");
       await notifyOrderStatusChange(

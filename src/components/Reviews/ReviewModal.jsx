@@ -139,10 +139,15 @@ const ReviewModal = ({ isOpen, onClose, orderId, orderData }) => {
           </div>
           <div className="px-4">
             <p className="text-sm font-opensans text-black font-normal">
-              {vendorName} has delivered your order. We hope you love it! Please
-              leave a review. Our vendors love hearing from you.
+              {vendorName} has delivered your order with ID{" "}
+              <strong>[#{orderId}]</strong>. We hope you love it! Please leave a
+              review — our vendors love hearing from you. If there are any
+              issues with your order, don't worry! You can easily{" "}
+              <strong>dispute it</strong>, and our team will assist you
+              promptly.
             </p>
-            <div className="mt-20 flex flex-col justify-center">
+
+            <div className="mt-12 flex flex-col justify-center">
               <button
                 onClick={handleReviewClick}
                 className="px-6 h-12 w-full text-sm font-opensans py-2 bg-customOrange text-white font-medium rounded-full"

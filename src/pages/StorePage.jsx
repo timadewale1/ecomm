@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { handleUserActionLimit } from "../services/userWriteHandler";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../firebase.config";
 import {
@@ -10,6 +11,9 @@ import {
   getDocs,
   query,
   where,
+  updateDoc,
+  increment,
+  serverTimestamp,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import Skeleton from "react-loading-skeleton";
@@ -24,6 +28,7 @@ import Loading from "../components/Loading/Loading";
 import { useAuth } from "../custom-hooks/useAuth";
 import { FaSpinner, FaStar } from "react-icons/fa6";
 import { CiLogin, CiSearch } from "react-icons/ci";
+
 import { MdCancel, MdClose } from "react-icons/md";
 import { LuListFilter } from "react-icons/lu";
 import Lottie from "lottie-react";
@@ -170,44 +175,68 @@ const StorePage = () => {
 
   //   return () => unsubscribe();
   // }, []);
-
   const handleFollowClick = async () => {
     if (!currentUser) {
-      setIsLoginModalOpen(true); // Show login modal
-      return; // Exit the function early
+      setIsLoginModalOpen(true);
+      return;
     }
 
     try {
-      setIsFollowLoading(true); // Start loading
+      console.log("Starting follow/unfollow operation...");
+      setIsFollowLoading(true);
+
       if (!vendor?.id) {
         throw new Error("Vendor ID is undefined");
       }
 
-      const followRef = collection(db, "follows");
-      const followDocRef = doc(followRef, `${currentUser.uid}_${vendor.id}`);
+      console.log(`User ID: ${currentUser.uid}, Vendor ID: ${vendor.id}`);
+
+      const followRef = doc(db, "follows", `${currentUser.uid}_${vendor.id}`);
+      console.log("Checking follow limits (minute and hour)...");
+
+      // Pass the options as a single object to match the function signature
+      await handleUserActionLimit(
+        currentUser.uid,
+        "follow",
+        {}, // userData
+        {
+          collectionName: "usage_metadata",
+          writeLimit: 50,
+          minuteLimit: 8,
+          hourLimit: 40,
+        }
+      );
+
+      console.log(
+        `Follow limits check passed. Proceeding to ${
+          isFollowing ? "unfollow" : "follow"
+        }...`
+      );
 
       if (!isFollowing) {
-        // Add follow entry
-        await setDoc(followDocRef, {
+        await setDoc(followRef, {
           userId: currentUser.uid,
           vendorId: vendor.id,
-          createdAt: new Date(),
+          createdAt: serverTimestamp(),
         });
+        console.log("Follow action completed successfully.");
         toast.success("You will be notified of new products and promos.");
       } else {
-        // Unfollow
-        await deleteDoc(followDocRef);
+        await deleteDoc(followRef);
+        console.log("Unfollow action completed successfully.");
         toast.success("Unfollowed");
       }
 
       setIsFollowing(!isFollowing);
     } catch (error) {
-      console.error("Error following/unfollowing:", error.message);
-      toast.error(`Error following/unfollowing: ${error.message}`);
+      console.error("Error during follow/unfollow operation:", error.message);
+      toast.error(`${error.message}`);
     } finally {
-      setIsFollowLoading(false); // End loading
+      console.log("Follow/unfollow operation completed.");
+      setIsFollowLoading(false);
     }
   };
+
   useEffect(() => {
     if (isLoginModalOpen) {
       document.body.style.overflow = "hidden";
@@ -388,10 +417,10 @@ const StorePage = () => {
             </div>
 
             <div className="flex items-center mr-2 relative">
-            <CiSearch
-              className="text-black text-3xl cursor-pointer"
-              onClick={() => setIsSearching(true)}
-            />
+              <CiSearch
+                className="text-black text-3xl cursor-pointer"
+                onClick={() => setIsSearching(true)}
+              />
             </div>
           </>
         ) : (

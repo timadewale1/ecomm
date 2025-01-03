@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import Modal from "react-modal";
 import { FaAngleLeft, FaAngleRight } from "react-icons/fa";
 import { LiaTimesSolid } from "react-icons/lia";
-
+import { GoChevronLeft } from "react-icons/go";
+import ScrollToTop from "../../components/layout/ScrollToTop";
 const FAQs = ({ setShowFAQs }) => {
   const [faqModalContent, setFaqModalContent] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,8 +20,9 @@ const FAQs = ({ setShowFAQs }) => {
 
   return (
     <div className="flex p-2 flex-col items-center">
+     <ScrollToTop/> 
       <div className="flex items-center w-full mb-4">
-        <FaAngleLeft
+        <GoChevronLeft
           className="text-2xl text-black cursor-pointer"
           onClick={() => setShowFAQs(false)}
         />
@@ -59,7 +61,7 @@ const FAQs = ({ setShowFAQs }) => {
       <Modal
         isOpen={isModalOpen}
         onRequestClose={closeModal}
-        className="bg-white w-full  h-[40vh] rounded-t-2xl shadow-lg overflow-y-scroll relative flex flex-col"
+        className="bg-white w-full  h-[50vh] rounded-t-2xl shadow-lg overflow-y-scroll relative flex flex-col"
         overlayClassName="fixed inset-0 bg-gray-900 modal-overlay backdrop-blur-sm bg-opacity-50 flex justify-center items-end z-50"
         ariaHideApp={false}
       >
@@ -153,7 +155,7 @@ const FAQs = ({ setShowFAQs }) => {
               </p>
             )}
             {faqModalContent === "What are service fees?" && (
-              <p className="text-xs ml-4 font-opensans font-light text-black z-10">
+              <p className="text-base ml-4 font-opensans font-light text-black">
                 Service fees are dynamic charges applied to transactions to
                 support the app's operations and customer support teams. These
                 fees are capped at a fixed amount, so no need to worry about

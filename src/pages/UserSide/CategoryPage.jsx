@@ -28,7 +28,7 @@ import { AdvancedImage } from "@cloudinary/react";
 import { onAuthStateChanged } from "firebase/auth";
 import Typewriter from "typewriter-effect";
 import { MdCancel } from "react-icons/md";
-
+import { handleUserActionLimit } from "../../services/userWriteHandler";
 const imageSets = {
   Mens: [
     "person-happy-american-african-business_osy8q7",
@@ -312,6 +312,21 @@ const CategoryPage = () => {
       if (!currentUser) {
         throw new Error("User is not logged in");
       }
+
+      // 1) Enforce follow limit
+      await handleUserActionLimit(
+        currentUser.uid,
+        "follow", // actionType
+        {}, // userData
+        {
+          collectionName: "usage_metadata",
+          writeLimit: 50,
+          minuteLimit: 8,
+          hourLimit: 40,
+        }
+      );
+
+      // If we pass the rate limit check, proceed
       const followRef = doc(db, "follows", `${currentUser.uid}_${vendorId}`);
 
       if (!followedVendors[vendorId]) {

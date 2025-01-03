@@ -56,6 +56,12 @@ const VendorDashboard = () => {
       fetchInfo(vendorData.vendorId);
     }
   }, [vendorData]);
+  useEffect(() => {
+    if (!loading && vendorData && vendorData.profileComplete === false) {
+      toast("Please complete your profile.");
+      navigate("/complete-profile");
+    }
+  }, [vendorData, loading, navigate]);
 
   const formatRevenue = (revenue) => {
     return revenue.toLocaleString("en-US", {

@@ -23,7 +23,6 @@
     />
     <script src="https://js.paystack.co/v2/inline.js"></script>
 
-
     <link
       href="https://fonts.googleapis.com/css2?family=Bodoni+Moda+SC:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&display=swap"
       rel="stylesheet"
@@ -345,6 +344,50 @@
       src="https://static.sppopups.com/assets/loader.js"
       data-chats-widget-id="e3193fb3-f356-4967-a371-86f84e6e95ef"
     ></script>
+    <script>
+      // Configure HelpCrunch to not display the widget by default
+      window.helpcrunchSettings = {
+        organization: "mythrift",
+        appId: "97d979c8-ad04-42dc-9237-82d58f75031b",
+        showWidget: false, // Widget hidden by default
+      };
+
+      (function (w, d) {
+        var hS = w.helpcrunchSettings;
+        if (!hS || !hS.organization) {
+          return;
+        }
+        var widgetSrc = "https://embed.helpcrunch.com/sdk.js";
+        w.HelpCrunch = function () {
+          w.HelpCrunch.q.push(arguments);
+        };
+        w.HelpCrunch.q = [];
+        function r() {
+          if (d.querySelector('script[src="' + widgetSrc + '"]')) {
+            return;
+          }
+          var s = d.createElement("script");
+          s.async = 1;
+          s.type = "text/javascript";
+          s.src = widgetSrc;
+          (d.body || d.head).appendChild(s);
+        }
+        if (d.readyState === "complete" || hS.loadImmediately) {
+          r();
+        } else if (w.attachEvent) {
+          w.attachEvent("onload", r);
+        } else {
+          w.addEventListener("load", r, false);
+        }
+      })(window, document);
+
+      // Ensure HelpCrunch widget is hidden after initialization
+      window.HelpCrunch &&
+        window.HelpCrunch("onReady", function () {
+          console.log("HelpCrunch widget loaded and hidden by default.");
+          window.HelpCrunch("hideChatWidget"); // Hide the widget by default
+        });
+    </script>
   </body>
 </html>
 <html>

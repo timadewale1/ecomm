@@ -422,32 +422,40 @@ const VendorRatings = () => {
         </div>
 
         <div className="my-4  w-full">
-          {[5, 4, 3, 2, 1].map((star) => (
-            <div key={star} className="flex items-center mb-2">
-              <span className="w-6 text-xs  font-opensans font-light">
-                {star}
-              </span>
-              <ProgressBar
-                now={calculatePercentage(ratingBreakdown[star])}
-                className="flex-1 mx-2"
-                style={{
-                  height: "14px",
-                  backgroundColor: "#f5f3f2",
-                  borderRadius: "10px",
-                  overflow: "hidden",
-                }}
-              >
-                <div
+          {totalRatings > 0 ? (
+            [5, 4, 3, 2, 1].map((star) => (
+              <div key={star} className="flex items-center mb-2">
+                <span className="w-6 text-xs font-opensans font-light">
+                  {star}
+                </span>
+                <ProgressBar
+                  now={calculatePercentage(ratingBreakdown[star] || 0)}
+                  className="flex-1 mx-2"
                   style={{
-                    backgroundColor: "#f9531e",
-                    height: "100%",
-                    width: `${calculatePercentage(ratingBreakdown[star])}%`,
+                    height: "14px",
+                    backgroundColor: "#f5f3f2",
                     borderRadius: "10px",
+                    overflow: "hidden",
                   }}
-                />
-              </ProgressBar>
-            </div>
-          ))}
+                >
+                  <div
+                    style={{
+                      backgroundColor: "#f9531e",
+                      height: "100%",
+                      width: `${calculatePercentage(
+                        ratingBreakdown[star] || 0
+                      )}%`,
+                      borderRadius: "10px",
+                    }}
+                  />
+                </ProgressBar>
+              </div>
+            ))
+          ) : (
+            <p className="text-xs font-opensans text-gray-600">
+              No ratings available yet.
+            </p>
+          )}
         </div>
       </div>
 
@@ -485,6 +493,19 @@ const VendorRatings = () => {
             </p>
           </div>
         ))}
+        <div className="fixed bottom-0 left-0 w-full bg-white py-4">
+          <div className="text-center">
+            <div className="flex justify-center items-center mb-2">
+              <FaStar className="text-yellow-500 text-lg mr-2" />
+              <h2 className="text-xs font-opensans font-semibold">
+                Reviews from Verified Buyers
+              </h2>
+            </div>
+            <p className="text-xs font-opensans text-gray-700">
+              All reviews on this page are submitted by verified buyers.
+            </p>
+          </div>
+        </div>
       </div>
 
       {showModal && vendor && (

@@ -179,19 +179,38 @@ const VendorProfile = () => {
 
   const handleLogout = async () => {
     try {
-      setIsLoggingOut(true);
+      setIsLoggingOut(true); // Start the loading spinner
+
+      // Perform HelpCrunch logout
+      if (window.HelpCrunch) {
+        console.log("Logging out from HelpCrunch...");
+        window.HelpCrunch("logout", (data) => {
+          if (data && data.success) {
+            console.log("Successfully logged out from HelpCrunch.");
+          } else {
+            console.error("HelpCrunch logout failed:", data);
+          }
+        });
+      } else {
+        console.warn(
+          "HelpCrunch is not initialized. Skipping HelpCrunch logout."
+        );
+      }
+
+      // Sign out from Firebase authentication
       await signOut(auth);
 
       // Dispatch clearOrders action to clear orders from Redux store
       dispatch(clearOrders());
 
+      // Show success message and navigate
       toast.success("Successfully logged out", { className: "custom-toast" });
       navigate("/vendorlogin");
     } catch (error) {
       console.error("Error logging out:", error);
       toast.error("Error logging out", { className: "custom-toast" });
     } finally {
-      setIsLoggingOut(false);
+      setIsLoggingOut(false); // Stop the loading spinner
     }
   };
 

@@ -321,7 +321,7 @@ const Homepage = () => {
       cloudName: "dtaqusjav",
     },
   });
-
+  
   const maleImg = cld
     .image("male_kfm4n5")
     .format("auto")

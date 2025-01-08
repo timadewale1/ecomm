@@ -3,18 +3,24 @@ import { createStore, applyMiddleware, combineReducers } from "redux";
 import thunk from "redux-thunk";
 import { cartReducer } from "./reducers/reducer";
 // import favoritesReducer from "./reducers/favouriteReducers";
+import homepageReducer from "./reducers/homepagereducer";
 import productReducer from "./reducers/productreducers";
+// import homepageReducer from "./reducers/homepageSlice";
 import authReducer from "./reducers/authreducers";
 import orderReducer from "./reducers/orderreducer";
+import categoriesReducer from "./reducers/categoriesSlice";
 import userReducer from "./reducers/userreducer";
 import vendorProfileReducer from "./vendorProfileSlice"; // Adjust the path as needed
-
+import vendorReducer from "./reducers/VendorsSlice";
 const rootReducer = combineReducers({
   auth: authReducer,
   cart: cartReducer,
   product: productReducer,
   user: userReducer,
   orders: orderReducer,
+  homepage: homepageReducer,
+  categories: categoriesReducer,
+  vendors: vendorReducer,
   // favorites: favoritesReducer,
   vendorProfile: vendorProfileReducer, // Add the slice to the root reducer
 });

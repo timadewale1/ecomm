@@ -59,6 +59,7 @@ const Layout = () => {
   const dynamicPaths = [
     "/product/:id",
     "/reviews/:id",
+    "/producttype/:type",
     "/store/:id",
     "/payment-approve/:reference",
     "category/:id",

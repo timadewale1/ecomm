@@ -19,7 +19,7 @@ import ProductCard from "../components/Products/ProductCard";
 import Lottie from "lottie-react";
 import noProductAnimation from "../Animations/noproduct.json";
 import { MdCancel } from "react-icons/md";
-
+import { useNavigate } from "react-router-dom";
 const Explore = () => {
   const loading = useSelector((state) => state.product.loading);
 
@@ -32,7 +32,7 @@ const Explore = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-
+  const navigate = useNavigate();
   const [filteredProductTypes, setFilteredProductTypes] =
     useState(productTypes);
   const [filteredSubTypes, setFilteredSubTypes] = useState([]);
@@ -182,6 +182,27 @@ const Explore = () => {
       setSearchTerm("");
     }
   };
+
+  const handleCategoryClick = (category) => {
+    navigate(`/category/${category}`);
+  };
+  const maleImg = cld
+    .image("male_kfm4n5")
+    .format("auto")
+    .quality("auto")
+    .resize(auto().gravity(autoGravity()).width(1000).height(1000));
+
+  const kidImg = cld
+    .image("kid_ec5vky")
+    .format("auto")
+    .quality("auto")
+    .resize(auto().gravity(autoGravity()).width(1000).height(1000));
+
+  const femaleImg = cld
+    .image("female_s5qaln")
+    .format("auto")
+    .quality("auto")
+    .resize(auto().gravity(autoGravity()).width(1000).height(1000));
 
   const handleClearSearch = () => {
     setSearchTerm("");
@@ -352,6 +373,59 @@ const Explore = () => {
         ) : (
           // If no ProductType selected, show list of productTypes + promo slides
           <>
+            <div className="">
+              <div className="flex justify-center mt-3 px-2 gap-2">
+                {loading ? (
+                  Array.from({ length: 3 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden"
+                    >
+                      <Skeleton height="100%" width="100%" />
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div
+                      className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer"
+                      onClick={() => handleCategoryClick("Mens")}
+                    >
+                      <AdvancedImage
+                        cldImg={maleImg}
+                        className="w-full h-full object-cover"
+                      />
+                      <h2 className="absolute bottom-0 w-full text-center text-white font-semibold text-sm bg-transparent">
+                        MEN
+                      </h2>
+                    </div>
+                    <div
+                      className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer"
+                      onClick={() => handleCategoryClick("Womens")}
+                    >
+                      <AdvancedImage
+                        cldImg={femaleImg}
+                        className="w-full h-full object-cover"
+                      />
+                      <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">
+                        WOMEN
+                      </h2>
+                    </div>
+                    <div
+                      className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer"
+                      onClick={() => handleCategoryClick("Kids")}
+                    >
+                      <AdvancedImage
+                        cldImg={kidImg}
+                        className="w-full h-full object-cover"
+                      />
+                      <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">
+                        KIDS
+                      </h2>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
             <div className="space-y-4 p-4">
               {filteredProductTypes.length > 0 ? (
                 filteredProductTypes.map((productType) => (

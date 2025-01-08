@@ -7,7 +7,7 @@ import logo from "../Images/logo.png";
 import "swiper/css/free-mode";
 import { CiSearch } from "react-icons/ci";
 
-import { BsHeart } from "react-icons/bs";
+
 import "swiper/css/autoplay";
 import { Cloudinary } from "@cloudinary/url-gen";
 import { auto } from "@cloudinary/url-gen/actions/resize";
@@ -20,9 +20,7 @@ import {
   doc,
   getDoc,
   query,
-  limit,
-  orderBy,
-  startAfter,
+ 
   where,
 } from "firebase/firestore";
 import { FreeMode, Autoplay } from "swiper/modules";
@@ -35,15 +33,15 @@ import {
 import "react-loading-skeleton/dist/skeleton.css";
 import { IoIosNotificationsOutline } from "react-icons/io";
 import gsap from "gsap";
-import toast from "react-hot-toast";
+
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import BottomBar from "../components/BottomBar/BottomBar";
+
 import "../styles/bottombar.css";
 import { useNavigation } from "../components/Context/Bottombarcontext";
 import Market from "../components/Market/Market";
 import { db } from "../firebase.config";
 import ProductCard from "../components/Products/ProductCard";
-import SearchDropdown from "../components/Search/SearchDropdown";
+
 import Amazingdeals from "../components/Amazingdeals";
 import PopularCats from "../components/PopularCategories/PopularCats";
 gsap.registerPlugin(ScrollTrigger);
@@ -53,16 +51,14 @@ const Homepage = () => {
   const { setActiveNav } = useNavigation();
 
   const dispatch = useDispatch();
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
   const [userName, setUserName] = useState("User");
   // const [loading, setLoading] = useState(true);
   const location = useLocation();
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [approvedVendors, setApprovedVendors] = useState(new Set());
+  
   const { products, lastVisible, status } = useSelector(
     (state) => state.homepage
   );
-  const [lastFetchedDoc, setLastFetchedDoc] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
   const productCardsRef = useRef([]); // For GSAP animations
@@ -110,9 +106,7 @@ const Homepage = () => {
     navigate("/browse-markets");
   };
 
-  const handleCategoryClick = (category) => {
-    navigate(`/category/${category}`);
-  };
+
 
   const clearSearch = () => {
     setSearchTerm("");
@@ -240,30 +234,7 @@ const Homepage = () => {
     },
   });
 
-  const maleImg = cld
-    .image("male_kfm4n5")
-    .format("auto")
-    .quality("auto")
-    .resize(auto().gravity(autoGravity()).width(1000).height(1000));
-
-  const kidImg = cld
-    .image("kid_ec5vky")
-    .format("auto")
-    .quality("auto")
-    .resize(auto().gravity(autoGravity()).width(1000).height(1000));
-
-  const femaleImg = cld
-    .image("female_s5qaln")
-    .format("auto")
-    .quality("auto")
-    .resize(auto().gravity(autoGravity()).width(1000).height(1000));
-
-  const donationImg = cld
-    .image("donate_lrmavr")
-    .format("auto")
-    .quality("auto")
-    .resize(auto().gravity(autoGravity()).width(5000).height(3000));
-
+  
   const promoImages = [
     "BOTM_xvkkud",
     // "4929101_na7pyp",
@@ -357,74 +328,23 @@ const Homepage = () => {
               )}
             </Swiper>
           </div>
-          <div className="">
-            <div className="flex justify-center mt-3 px-2 gap-2">
-              {loading ? (
-                Array.from({ length: 3 }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden"
-                  >
-                    <Skeleton height="100%" width="100%" />
-                  </div>
-                ))
-              ) : (
-                <>
-                  <div
-                    className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer"
-                    onClick={() => handleCategoryClick("Mens")}
-                  >
-                    <AdvancedImage
-                      cldImg={maleImg}
-                      className="w-full h-full object-cover"
-                    />
-                    <h2 className="absolute bottom-0 w-full text-center text-white font-semibold text-sm bg-transparent">
-                      MEN
-                    </h2>
-                  </div>
-                  <div
-                    className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer"
-                    onClick={() => handleCategoryClick("Womens")}
-                  >
-                    <AdvancedImage
-                      cldImg={femaleImg}
-                      className="w-full h-full object-cover"
-                    />
-                    <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">
-                      WOMEN
-                    </h2>
-                  </div>
-                  <div
-                    className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer"
-                    onClick={() => handleCategoryClick("Kids")}
-                  >
-                    <AdvancedImage
-                      cldImg={kidImg}
-                      className="w-full h-full object-cover"
-                    />
-                    <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">
-                      KIDS
-                    </h2>
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="flex justify-between items-center px-2 mt-10 text-base">
-              <h1 className="font-semibold font-opensans text-xl">Explore</h1>
-              <p
-                className="font-light text-red-500 text-sm font-opensans cursor-pointer"
-                onClick={handleShowMore}
-              >
-                Show All
-              </p>
-            </div>
+
+          <div className="flex justify-between items-center px-2 mt-10 text-base">
+            <h1 className="font-semibold font-opensans text-xl">Explore</h1>
+            <p
+              className="font-light text-red-500 text-sm font-opensans cursor-pointer"
+              onClick={handleShowMore}
+            >
+              Show All
+            </p>
           </div>
+
           <Market />
         </>
       )}
       <PopularCats />
       <div className="p-2 mb-24">
-        <h1 className="text-left mt-2 font-medium text-xl translate-y-2 font-ubuntu mb-4">
+        <h1 className="text-left font-medium text-lg translate-y-2 font-ubuntu mb-4">
           Featured Products
         </h1>
         <div className="grid grid-cols-2 gap-2">

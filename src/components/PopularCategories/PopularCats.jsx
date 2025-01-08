@@ -1,78 +1,59 @@
 import React, { useEffect, useState } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "../../firebase.config";
+import { useSelector, useDispatch } from "react-redux";
+import { fetchCategories } from "../../redux/reducers/categoriesSlice";
 import { useNavigate } from "react-router-dom";
 import Skeleton from "react-loading-skeleton";
 
 const PopularCats = () => {
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  const { categories, status } = useSelector((state) => state.categories);
+  const [currentImages, setCurrentImages] = useState({});
+
   useEffect(() => {
-    const fetchCategoriesAndProducts = async () => {
-      try {
-        const vendorsQuery = query(
-          collection(db, "vendors"),
-          where("isApproved", "==", true),
-          where("isDeactivated", "==", false)
-        );
+    if (status === "idle") {
+      dispatch(fetchCategories());
+    }
+  }, [dispatch, status]);
 
-        const vendorSnapshot = await getDocs(vendorsQuery);
-        const approvedVendors = vendorSnapshot.docs.map((doc) => doc.id);
+  useEffect(() => {
+    if (categories.length > 0) {
+      const initialImages = categories.reduce((acc, category) => {
+        acc[category.type] =
+          category.products[0]?.coverImageUrl ||
+          "https://via.placeholder.com/150";
+        return acc;
+      }, {});
+      setCurrentImages(initialImages);
+    }
+  }, [categories]);
 
-        console.log("Approved Vendor IDs:", approvedVendors);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImages((prevImages) => {
+        const newImages = { ...prevImages };
 
-        const productsQuery = query(
-          collection(db, "products"),
-          where("vendorId", "in", approvedVendors), // Ensure products belong to approved vendors
-          where("isDeleted", "==", false),
-          where("published", "==", true)
-        );
-
-        const productsSnapshot = await getDocs(productsQuery);
-        const products = productsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        console.log("Fetched Products:", products);
-
-        // Group products by type and calculate counts
-        const categoryCounts = {};
-        products.forEach((product) => {
-          const type = product.productType || "Other";
-          if (!categoryCounts[type]) {
-            categoryCounts[type] = { count: 0, products: [] };
+        categories.forEach((category) => {
+          const { products } = category;
+          if (products.length > 1) {
+            const currentImageIndex = products.findIndex(
+              (p) => p.coverImageUrl === prevImages[category.type]
+            );
+            const nextIndex = (currentImageIndex + 1) % products.length;
+            newImages[category.type] =
+              products[nextIndex]?.coverImageUrl || newImages[category.type];
           }
-          categoryCounts[type].count += 1;
-          categoryCounts[type].products.push(product);
         });
 
-        // Convert to array and sort by count descending
-        const sortedCategories = Object.entries(categoryCounts)
-          .map(([type, data]) => ({
-            type,
-            count: data.count,
-            products: data.products,
-            coverImageUrl: data.products[0]?.coverImageUrl || "", // Use the first product's coverImageUrl as the default
-          }))
-          .sort((a, b) => b.count - a.count);
+        return newImages;
+      });
+    }, 5000);
 
-        console.log("Fetched Categories:", sortedCategories);
-        setCategories(sortedCategories);
-      } catch (error) {
-        console.error("Error fetching categories and products:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCategoriesAndProducts();
-  }, []);
+    return () => clearInterval(interval);
+  }, [categories]);
 
   const handleCategoryClick = (category) => {
-    console.log("Navigating to category:", category.type);
     navigate(`/producttype/${category.type}`, {
       state: { products: category.products },
     });
@@ -80,9 +61,11 @@ const PopularCats = () => {
 
   return (
     <div className="px-2 py-3">
-      <h2 className="text-xl font-medium mb-3 font-ubuntu">Popular Categories</h2>
-      <div className="flex overflow-x-auto space-x-3  scrollbar-hide">
-        {loading
+      <h2 className="text-lg font-medium mb-3 font-ubuntu">
+        Popular Categories
+      </h2>
+      <div className="flex overflow-x-auto space-x-3 scrollbar-hide">
+        {status === "loading"
           ? Array(4)
               .fill(0)
               .map((_, index) => (
@@ -100,7 +83,8 @@ const PopularCats = () => {
               >
                 <img
                   src={
-                    category.coverImageUrl || "https://via.placeholder.com/150"
+                    currentImages[category.type] ||
+                    "https://via.placeholder.com/150"
                   }
                   alt={category.type}
                   className="w-28 h-28 object-cover rounded-lg"
@@ -108,7 +92,7 @@ const PopularCats = () => {
                 <h3 className="text-sm font-opensans font-semibold mt-2 text-left">
                   {category.type}
                 </h3>
-                <p className="text-xs text-gray-500  font-opensans font-medium text-left">
+                <p className="text-xs text-gray-500 font-opensans font-medium text-left">
                   {category.count} posts
                 </p>
               </div>

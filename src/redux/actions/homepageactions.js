@@ -1,64 +1,53 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { collection, getDocs, query, where, limit, startAfter } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  limit,
+  startAfter,
+} from "firebase/firestore";
 import { db } from "../../firebase.config";
-
-// Fetch homepage data
 export const fetchHomepageData = createAsyncThunk(
   "homepage/fetchHomepageData",
-  async (_, { getState, rejectWithValue }) => {
-    try {
-      console.log("Fetching homepage data...");
-      const { lastVisible } = getState().homepage;
+  async (_, { getState }) => {
+    const { lastVisible } = getState().homepage; // Access the last fetched document
 
-      console.log("Last visible document:", lastVisible);
+    const approvedVendorsSnapshot = await getDocs(
+      query(
+        collection(db, "vendors"),
+        where("isApproved", "==", true),
+        where("isDeactivated", "==", false)
+      )
+    );
 
-      // Fetch approved vendors
-      const approvedVendorsSnapshot = await getDocs(
-        query(
-          collection(db, "vendors"),
-          where("isApproved", "==", true),
-          where("isDeactivated", "==", false)
-        )
-      );
+    const approvedVendors = new Set();
+    approvedVendorsSnapshot.forEach((vendorDoc) => {
+      approvedVendors.add(vendorDoc.id);
+    });
 
-      const approvedVendors = new Set();
-      approvedVendorsSnapshot.forEach((vendorDoc) => {
-        approvedVendors.add(vendorDoc.id);
-      });
+    const productsQuery = query(
+      collection(db, "products"),
+      where("published", "==", true),
+      where("isDeleted", "==", false),
+      where("isFeatured", "==", true),
+      ...(lastVisible ? [startAfter(lastVisible)] : []), // Properly apply pagination
+      limit(20)
+    );
 
-      console.log("Approved vendors:", Array.from(approvedVendors));
+    const productsSnapshot = await getDocs(productsQuery);
 
-      // Fetch products
-      const productsQuery = query(
-        collection(db, "products"),
-        where("published", "==", true),
-        where("isDeleted", "==", false),
-        where("isFeatured", "==", true),
-        ...(lastVisible ? [startAfter(lastVisible)] : []),
-        limit(20)
-      );
+    const lastVisibleDoc =
+      productsSnapshot.docs[productsSnapshot.docs.length - 1];
 
-      const productsSnapshot = await getDocs(productsQuery);
+    const products = [];
+    productsSnapshot.forEach((productDoc) => {
+      const productData = productDoc.data();
+      if (approvedVendors.has(productData.vendorId)) {
+        products.push({ id: productDoc.id, ...productData });
+      }
+    });
 
-      const lastVisibleDoc =
-        productsSnapshot.docs[productsSnapshot.docs.length - 1];
-
-      console.log("Last visible doc after fetch:", lastVisibleDoc);
-
-      const products = [];
-      productsSnapshot.forEach((productDoc) => {
-        const productData = productDoc.data();
-        if (approvedVendors.has(productData.vendorId)) {
-          products.push({ id: productDoc.id, ...productData });
-        }
-      });
-
-      console.log("Fetched products:", products);
-
-      return { products, lastVisible: lastVisibleDoc };
-    } catch (error) {
-      console.error("Error fetching homepage data:", error);
-      return rejectWithValue(error.message);
-    }
+    return { products, lastVisible: lastVisibleDoc };
   }
 );

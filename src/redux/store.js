@@ -8,6 +8,7 @@ import productReducer from "./reducers/productreducers";
 // import homepageReducer from "./reducers/homepageSlice";
 import authReducer from "./reducers/authreducers";
 import orderReducer from "./reducers/orderreducer";
+import categoriesReducer from "./reducers/categoriesSlice";
 import userReducer from "./reducers/userreducer";
 import vendorProfileReducer from "./vendorProfileSlice"; // Adjust the path as needed
 import vendorReducer from "./reducers/VendorsSlice";
@@ -18,6 +19,7 @@ const rootReducer = combineReducers({
   user: userReducer,
   orders: orderReducer,
   homepage: homepageReducer,
+  categories: categoriesReducer,
   vendors: vendorReducer,
   // favorites: favoritesReducer,
   vendorProfile: vendorProfileReducer, // Add the slice to the root reducer

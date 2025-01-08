@@ -1,0 +1,9 @@
+{
+    "rewrites": [
+      {
+        "source": "/product/:id",
+        "destination": "https://us-central1-ecommerce-ba520.cloudfunctions.net/prerender"
+      }
+    ]
+  }
+  

@@ -27,6 +27,11 @@ import {
 } from "firebase/firestore";
 import { FreeMode, Autoplay } from "swiper/modules";
 import Skeleton from "react-loading-skeleton";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  fetchHomepageData,
+  resetHomepageState,
+} from "../redux/actions/homepageactions";
 import "react-loading-skeleton/dist/skeleton.css";
 import { IoIosNotificationsOutline } from "react-icons/io";
 import gsap from "gsap";
@@ -40,21 +45,23 @@ import { db } from "../firebase.config";
 import ProductCard from "../components/Products/ProductCard";
 import SearchDropdown from "../components/Search/SearchDropdown";
 import Amazingdeals from "../components/Amazingdeals";
-
+import PopularCats from "../components/PopularCategories/PopularCats";
 gsap.registerPlugin(ScrollTrigger);
 
 const Homepage = () => {
   const navigate = useNavigate();
   const { setActiveNav } = useNavigation();
+
+  const dispatch = useDispatch();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [userName, setUserName] = useState("User");
   // const [loading, setLoading] = useState(true);
   const location = useLocation();
-  const [products, setProducts] = useState([]);
-  const [lastVisible, setLastVisible] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [approvedVendors, setApprovedVendors] = useState(new Set());
-
+  const { products, lastVisible, status } = useSelector(
+    (state) => state.homepage
+  );
   const [lastFetchedDoc, setLastFetchedDoc] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -149,116 +156,27 @@ const Homepage = () => {
     });
   }, []);
 
-  const fetchProductsAndVendors = async () => {
-    try {
-      // Fetch approved vendors only once
-      const approvedVendorsSnapshot = await getDocs(
-        query(
-          collection(db, "vendors"),
-          where("isApproved", "==", true),
-          where("isDeactivated", "==", false)
-        )
-      );
+  useEffect(() => {
+    console.log("Component mounted. Status:", status);
 
-      // Store approved vendor IDs in a Set
-      const approvedVendorsSet = new Set();
-      approvedVendorsSnapshot.forEach((vendorDoc) => {
-        approvedVendorsSet.add(vendorDoc.id);
-      });
-      setApprovedVendors(approvedVendorsSet);
+    if (status === "idle") {
+      console.log("Dispatching fetchHomepageData...");
+      dispatch(fetchHomepageData());
+    }
+  }, [dispatch, status]);
 
-      // Fetch featured products with pagination
-      const productsQuery = query(
-        collection(db, "products"),
-        where("published", "==", true),
-        where("isDeleted", "==", false), // Exclude deleted products
-        where("isFeatured", "==", true),
-        limit(20) // Limit to 20 products
-      );
-
-      const productsSnapshot = await getDocs(productsQuery);
-
-      // Save the last visible document for pagination
-      const lastVisibleDoc =
-        productsSnapshot.docs[productsSnapshot.docs.length - 1];
-      setLastVisible(lastVisibleDoc);
-
-      // Create products list
-      const productsList = [];
-      productsSnapshot.forEach((productDoc) => {
-        const productData = productDoc.data();
-        if (approvedVendorsSet.has(productData.vendorId)) {
-          productsList.push({
-            id: productDoc.id,
-            ...productData,
-          });
-        }
-      });
-
-      // Update state with results
-      setProducts(productsList);
-      setFilteredProducts(productsList);
-    } catch (error) {
-      console.error("Error fetching products and vendors:", error);
-    } finally {
-      setLoading(false);
-      setInitialLoad(false);
+  const handleLoadMore = () => {
+    if (lastVisible && status !== "loading") {
+      console.log("Dispatching fetchHomepageData for more products...");
+      dispatch(fetchHomepageData());
     }
   };
 
   useEffect(() => {
-    fetchProductsAndVendors();
-  }, []);
-
-  const handleLoadMore = async () => {
-    if (lastVisible) {
-      try {
-        setLoadingMore(true);
-
-        const nextProductsQuery = query(
-          collection(db, "products"),
-          where("published", "==", true),
-          where("isFeatured", "==", true),
-          where("isDeleted", "==", false), // Exclude deleted products
-          startAfter(lastVisible),
-          limit(20)
-        );
-
-        const nextProductsSnapshot = await getDocs(nextProductsQuery);
-
-        if (!nextProductsSnapshot.empty) {
-          const newLastVisible =
-            nextProductsSnapshot.docs[nextProductsSnapshot.docs.length - 1];
-          setLastVisible(newLastVisible);
-
-          const newProducts = [];
-          nextProductsSnapshot.forEach((productDoc) => {
-            const productData = productDoc.data();
-            if (approvedVendors.has(productData.vendorId)) {
-              newProducts.push({
-                id: productDoc.id,
-                ...productData,
-              });
-            }
-          });
-
-          // Append new products to the existing list
-          setProducts((prevProducts) => [...prevProducts, ...newProducts]);
-          setFilteredProducts((prevProducts) => [
-            ...prevProducts,
-            ...newProducts,
-          ]);
-        } else {
-          // No more products to load
-          setLastVisible(null);
-        }
-      } catch (error) {
-        console.error("Error loading more products:", error);
-      } finally {
-        setLoadingMore(false);
-      }
+    if (products.length > 0) {
+      console.log("Products updated:", products);
     }
-  };
+  }, [products]);
 
   useEffect(() => {
     if (!loading && initialLoad) {
@@ -321,7 +239,7 @@ const Homepage = () => {
       cloudName: "dtaqusjav",
     },
   });
-  
+
   const maleImg = cld
     .image("male_kfm4n5")
     .format("auto")
@@ -504,27 +422,19 @@ const Homepage = () => {
           <Market />
         </>
       )}
+      <PopularCats />
       <div className="p-2 mb-24">
         <h1 className="text-left mt-2 font-medium text-xl translate-y-2 font-ubuntu mb-4">
           Featured Products
         </h1>
         <div className="grid grid-cols-2 gap-2">
-          {loading ? (
+          {status === "loading" && products.length === 0 ? (
             Array.from({ length: 6 }).map((_, index) => (
               <Skeleton key={index} height={200} width="100%" />
             ))
-          ) : filteredProducts.length > 0 ? (
-            filteredProducts.map((product, index) => (
-              <div
-                ref={(el) => (productCardsRef.current[index] = el)}
-                key={product.id}
-              >
-                <ProductCard
-                  product={product}
-                  vendorId={product.vendorId}
-                  vendorName={product.vendorName}
-                />
-              </div>
+          ) : products.length > 0 ? (
+            products.map((product, index) => (
+              <ProductCard key={product.id} product={product} />
             ))
           ) : (
             <div className="col-span-2 text-center mt-4 text-lg font-medium text-gray-500">
@@ -538,14 +448,13 @@ const Homepage = () => {
           <button
             className="w-full mt-4 py-2 h-12 font-opensans font-medium bg-customOrange text-white rounded-full"
             onClick={handleLoadMore}
-            disabled={loadingMore}
+            disabled={status === "loading"}
           >
-            {loadingMore ? "Loading..." : "Load More"}
+            {status === "loading" ? "Loading..." : "Load More"}
           </button>
         )}
         <div className="flex justify-center ">
-
-        <Amazingdeals />
+          <Amazingdeals />
         </div>
       </div>
     </>

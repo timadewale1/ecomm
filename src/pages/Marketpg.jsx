@@ -1,98 +1,58 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "../firebase.config";
-import { toast } from "react-toastify";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchVendors } from "../redux/reducers/VendorsSlice";
 import { GoDotFill, GoChevronLeft } from "react-icons/go";
-import { BsHeart } from "react-icons/bs";
 import { CiSearch } from "react-icons/ci";
 import Skeleton from "react-loading-skeleton";
 import ReactStars from "react-rating-stars-component";
 import RoundedStar from "../components/Roundedstar";
-import { VendorContext } from "../components/Context/Vendorcontext";
 import { MdCancel } from "react-icons/md";
 
 const Marketpg = () => {
-  const { vendors, setVendors } = useContext(VendorContext); // Use the context
-  const [onlineVendors, setOnlineVendors] = useState([]);
-  const [localVendors, setLocalVendors] = useState([]);
-  const [selectedTab, setSelectedTab] = useState("online"); // Toggle between 'local' and 'online'
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filteredVendors, setFilteredVendors] = useState([]); // Add this to store the filtered vendors
-  const [loading, setLoading] = useState(!vendors.isFetched); // Use the 'isFetched' flag to check if loading is needed
-  const [isSearching, setIsSearching] = useState(false);
-
+  const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  // Redux state
+  const { local, online, isFetched, status } = useSelector(
+    (state) => state.vendors
+  );
+
+  const [selectedTab, setSelectedTab] = useState("online"); // Toggle between 'local' and 'online'
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredVendors, setFilteredVendors] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+
   useEffect(() => {
-    const fetchVendors = async () => {
-      try {
-        const localVendorQuery = query(
-          collection(db, "vendors"),
-          where("marketPlaceType", "==", "marketplace"),
-          where("isDeactivated", "==", false),
-          where("isApproved", "==", true)
-        );
-        const localVendorSnapshot = await getDocs(localVendorQuery);
-        const localVendorsList = localVendorSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        const onlineVendorQuery = query(
-          collection(db, "vendors"),
-          where("marketPlaceType", "==", "virtual"),
-          where("isDeactivated", "==", false),
-          where("isApproved", "==", true)
-        );
-        const onlineVendorSnapshot = await getDocs(onlineVendorQuery);
-        const onlineVendorsList = onlineVendorSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        setVendors({
-          online: onlineVendorsList,
-          local: localVendorsList,
-          isFetched: true,
-        });
-
-        // Add console.log here to check if rating and ratingCount exist
-        console.log("Local Vendors:", localVendorsList);
-        console.log("Online Vendors:", onlineVendorsList);
-      } catch (error) {
-        toast.error("Error fetching vendors: " + error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (!vendors.isFetched) {
-      fetchVendors();
-    } else {
-      setFilteredVendors(vendors.online);
-      setLoading(false);
+    // Fetch vendors only if not already fetched
+    if (!isFetched) {
+      dispatch(fetchVendors());
     }
-  }, [setVendors, vendors.isFetched]);
+  }, [dispatch, isFetched]);
+
+  useEffect(() => {
+    // Filter vendors based on the selected tab and search term
+    const vendors = selectedTab === "local" ? local : online;
+    const filtered = searchTerm
+      ? vendors.filter((vendor) =>
+          vendor.shopName.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      : vendors;
+
+    setFilteredVendors(filtered);
+  }, [local, online, selectedTab, searchTerm]);
 
   const handleTabChange = (tab) => {
     setSelectedTab(tab);
-    setFilteredVendors(tab === "local" ? vendors.local : vendors.online); // Change filtered vendors based on tab
+    setFilteredVendors(tab === "local" ? local : online);
   };
 
   const handleSearchChange = (e) => {
-    const term = e.target.value.toLowerCase();
-    setSearchTerm(term);
-    if (term.length > 0) {
-      const filtered = (
-        selectedTab === "local" ? vendors.local : vendors.online
-      ).filter((vendor) => vendor.shopName.toLowerCase().includes(term));
-      setFilteredVendors(filtered);
-    } else {
-      setFilteredVendors(
-        selectedTab === "local" ? vendors.local : vendors.online
-      ); // Reset to original list
-    }
+    setSearchTerm(e.target.value.toLowerCase());
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm("");
   };
 
   const handleStoreView = (vendor) => {
@@ -101,12 +61,6 @@ const Marketpg = () => {
     } else {
       navigate(`/store/${vendor.id}`);
     }
-  };
-  const handleClearSearch = () => {
-    setSearchTerm("");
-    setFilteredVendors(
-      selectedTab === "local" ? vendors.local : vendors.online
-    );
   };
 
   const defaultImageUrl =
@@ -117,19 +71,15 @@ const Marketpg = () => {
       <div className="sticky py-3 px-2 w-full top-0 bg-white z-10">
         <div className="flex flex-col mb-3 pb-2 px-2.5">
           {!isSearching && (
-            <>
-              <div className="flex justify-between mb-4">
-                <h1 className="text-xl font-opensans font-semibold">Stores</h1>
-                <CiSearch
-                  className={`${
-                    selectedTab === "local"
-                      ? "hidden"
-                      : "text-3xl cursor-pointer"
-                  }`}
-                  onClick={() => setIsSearching(true)}
-                />
-              </div>
-            </>
+            <div className="flex justify-between mb-4">
+              <h1 className="text-xl font-opensans font-semibold">Stores</h1>
+              <CiSearch
+                className={`${
+                  selectedTab === "local" ? "hidden" : "text-3xl cursor-pointer"
+                }`}
+                onClick={() => setIsSearching(true)}
+              />
+            </div>
           )}
           {isSearching && (
             <div className="flex items-center w-full mb-4 relative">
@@ -137,7 +87,7 @@ const Marketpg = () => {
                 className="text-3xl cursor-pointer mr-2"
                 onClick={() => {
                   setIsSearching(false);
-                  handleClearSearch(); // Clear input when exiting search
+                  handleClearSearch();
                 }}
               />
               <input
@@ -181,8 +131,7 @@ const Marketpg = () => {
         <div className="border-t border-gray-300 mt-6"></div>
       </div>
       <div className="vendor-list px-2 pb-24 translate-y-1">
-        {loading ? (
-          // Show skeleton loader when loading
+        {status === "loading" ? (
           Array.from({ length: 5 }).map((_, index) => (
             <div key={index} className="vendor-item">
               <div className="flex justify-between p-3 mb-1 bg-white ">
@@ -204,12 +153,10 @@ const Marketpg = () => {
             </div>
           ))
         ) : selectedTab === "local" ? (
-        
           <div className="text-center my-10 px-6">
             <h2 className="text-3xl font-opensans mb-2 font-medium bg-gradient-to-r from-green-400 via-yellow-400 to-orange-400 bg-clip-text text-transparent">
               Coming Soon: Market Place Vendors!
             </h2>
-
             <p className="text-gray-600 text-sm font-opensans">
               We're just getting started! Vendors from your local markets will
               be here soon, starting with Yaba. Stay tuned for something
@@ -217,7 +164,6 @@ const Marketpg = () => {
             </p>
           </div>
         ) : filteredVendors.length > 0 ? (
-          
           filteredVendors.map((vendor) => (
             <div key={vendor.id} className="vendor-item">
               <div
@@ -230,7 +176,6 @@ const Marketpg = () => {
                       ? `${vendor.shopName.substring(0, 18)}...`
                       : vendor.shopName}
                   </h1>
-
                   <p className="font-sans text-gray-300 text-xs flex items-center -translate-y-1">
                     {vendor.categories.slice(0, 3).map((category, index) => (
                       <React.Fragment key={index}>
@@ -270,7 +215,6 @@ const Marketpg = () => {
             </div>
           ))
         ) : (
-          // No search results for online vendors
           <div className="text-center my-10">
             <h2 className="text-2xl font-opensans font-medium">
               ☹️ No results found

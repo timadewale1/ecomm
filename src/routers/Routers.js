@@ -46,7 +46,7 @@ import StoreReviews from "../pages/vendor/StoreReviews.jsx";
 import RoleBasedAccess from "../custom-hooks/Rbac.jsx"; // Assuming this is the RoleBasedAccess component
 import { Navigate } from "react-router-dom";
 import WithReviewModal from "../components/Reviews/WithReview.jsx";
-// import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
+import CategoryProducts from "../components/PopularCategories/CategorySection.jsx";
 import SubmitFeedback from "../pages/SubmitFeedback.jsx";
 const Routers = () => {
   return (
@@ -80,6 +80,14 @@ const Routers = () => {
             <WithReviewModal>
               <Profile />
             </WithReviewModal>
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="/producttype/:type"
+        element={
+          <RoleBasedAccess allowedRoles={["user"]}>
+            <CategoryProducts />
           </RoleBasedAccess>
         }
       />

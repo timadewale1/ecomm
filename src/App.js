@@ -102,7 +102,7 @@ function App() {
           currentUserData?.shopName ||
           "Anonymous User", // Map displayName to name
         email: currentUserData?.email || "guest@example.com",
-        phone: currentUserData?.phoneNumber || "N/A",
+        phone: currentUserData?.phoneNumber || "001",
         company: currentUserData?.role || "Guest Role",
       };
 

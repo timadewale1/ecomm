@@ -99,6 +99,7 @@ function App() {
         user_id: currentUserData?.uid || "guest", // Use uid for user_id
         name:
           currentUserData?.displayName ||
+          currentUserData?.username||
           currentUserData?.shopName ||
           "Anonymous User", // Map displayName to name
         email: currentUserData?.email || "guest@example.com",

@@ -27,13 +27,13 @@ const Market = () => {
   });
 
   const YabaMrkt = cld
-    .image("balguno_jwm4u4")
+    .image("Rectangle_2_ypc1md")
     .format("auto")
     .quality("auto")
     .resize(fit().width(2000).height(1000));
 
   const onlineMrkt = cld
-    .image("woman-shopping-thrift-store_1_nolq7q")
+    .image("image_12_xsnxa4")
     .format("auto")
     .quality("auto")
     .resize(fit().width(2000).height(1000));
@@ -73,7 +73,7 @@ const Market = () => {
                 cldImg={img}
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-black bg-opacity-50"></div> {/* Semi-transparent overlay */}
+              {/* <div className="absolute inset-0 bg-black bg-opacity-50"></div> Semi-transparent overlay */}
               <div className="absolute bottom-4 z-10 left-4">
                 <p className="text-xs text-white font-semibold font-lato">
                   {cardTexts[index].subtitle}

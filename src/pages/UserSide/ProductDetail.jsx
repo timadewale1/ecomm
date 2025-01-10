@@ -926,17 +926,7 @@ const ProductDetailPage = () => {
 
   return (
     <>
-      <Helmet>
-        <title>{product.name} - Buy Now on My Thrift</title>
-        <meta name="description" content={product.description} />
-        <meta property="og:title" content={product.name} />
-        <meta property="og:description" content={product.description} />
-        <meta property="og:image" content={product.imageUrl} />
-        <meta
-          property="og:url"
-          content={`https://www.shopmythrift.store/product/${product.id}`}
-        />
-      </Helmet>
+     
       <div className="relative pb-20">
         <div className="fixed top-0 px-2 py-4 bg-white left-0 h-20 w-full z-20 shadow-md">
           <div className="flex items-center justify-between h-full">

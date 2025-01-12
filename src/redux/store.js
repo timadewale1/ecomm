@@ -9,9 +9,11 @@ import productReducer from "./reducers/productreducers";
 import authReducer from "./reducers/authreducers";
 import orderReducer from "./reducers/orderreducer";
 import categoriesReducer from "./reducers/categoriesSlice";
+import conditionReducer from "./reducers/conditionSlice"; 
 import userReducer from "./reducers/userreducer";
 import vendorProfileReducer from "./vendorProfileSlice"; // Adjust the path as needed
 import vendorReducer from "./reducers/VendorsSlice";
+
 const rootReducer = combineReducers({
   auth: authReducer,
   cart: cartReducer,
@@ -21,6 +23,7 @@ const rootReducer = combineReducers({
   homepage: homepageReducer,
   categories: categoriesReducer,
   vendors: vendorReducer,
+  condition: conditionReducer,
   // favorites: favoritesReducer,
   vendorProfile: vendorProfileReducer, // Add the slice to the root reducer
 });

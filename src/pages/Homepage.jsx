@@ -7,7 +7,6 @@ import logo from "../Images/logo.png";
 import "swiper/css/free-mode";
 import { CiSearch } from "react-icons/ci";
 
-
 import "swiper/css/autoplay";
 import { Cloudinary } from "@cloudinary/url-gen";
 import { auto } from "@cloudinary/url-gen/actions/resize";
@@ -20,7 +19,6 @@ import {
   doc,
   getDoc,
   query,
- 
   where,
 } from "firebase/firestore";
 import { FreeMode, Autoplay } from "swiper/modules";
@@ -44,6 +42,7 @@ import ProductCard from "../components/Products/ProductCard";
 
 import Amazingdeals from "../components/Amazingdeals";
 import PopularCats from "../components/PopularCategories/PopularCats";
+import Condition from "../components/Conditions/Condition";
 gsap.registerPlugin(ScrollTrigger);
 
 const Homepage = () => {
@@ -55,7 +54,7 @@ const Homepage = () => {
   const [userName, setUserName] = useState("User");
   // const [loading, setLoading] = useState(true);
   const location = useLocation();
-  
+
   const { products, lastVisible, status } = useSelector(
     (state) => state.homepage
   );
@@ -105,8 +104,6 @@ const Homepage = () => {
     setActiveNav(3);
     navigate("/browse-markets");
   };
-
-
 
   const clearSearch = () => {
     setSearchTerm("");
@@ -234,10 +231,9 @@ const Homepage = () => {
     },
   });
 
-  
   const promoImages = [
-    "BOTM_xvkkud",
-    // "4929101_na7pyp",
+    "Promo_Card_2_ofyt9b",
+   "Promo_Card_3_khfp3v",
     // "4991116_bwrxkh",
     // "4395311_hcqoss",
   ];
@@ -307,7 +303,14 @@ const Homepage = () => {
                       key={index}
                       className="transition-transform duration-500 ease-in-out rounded-lg transform hover:scale-105"
                     >
-                      <div className="p-1 w-auto h-44 shadow-md rounded-lg overflow-hidden">
+                      <div
+                        className="p- w-full h-48 shadow-md rounded-lg overflow-hidden flex items-center justify-center"
+                        style={{
+                          position: "relative",
+                          padding: "1px", // Additional padding for better spacing
+                          height: "13rem", // Adjusted height to prevent overlap
+                        }}
+                      >
                         <AdvancedImage
                           cldImg={cld
                             .image(publicId)
@@ -319,7 +322,11 @@ const Homepage = () => {
                                 .width(5000)
                                 .height(3000)
                             )}
-                          className="w-full h-full object-cover object-center rounded-lg"
+                          className="w-full h-full object-cover rounded-lg"
+                          style={{
+                            objectFit: "cover", // Ensures the image covers the container
+                            objectPosition: "center", // Centers the image within the container
+                          }}
                         />
                       </div>
                     </SwiperSlide>
@@ -328,11 +335,11 @@ const Homepage = () => {
               )}
             </Swiper>
           </div>
-
-          <div className="flex justify-between items-center px-2 mt-10 text-base">
-            <h1 className="font-semibold font-opensans text-xl">Explore</h1>
+          <Condition />
+          <div className="flex justify-between items-center px-2 mt-2 text-base">
+            <h1 className="font-semibold font-opensans text-base">Markets</h1>
             <p
-              className="font-light text-red-500 text-sm font-opensans cursor-pointer"
+              className=" text-customOrange font-light text-xs font-opensans cursor-pointer"
               onClick={handleShowMore}
             >
               Show All

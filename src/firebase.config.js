@@ -4,11 +4,9 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
 import { getFunctions } from "firebase/functions";
-import {
-  initializeAppCheck,
-  ReCaptchaEnterpriseProvider,
-} from "firebase/app-check";
+import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
+// 1) Your Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyC7pOCYSGpYMUDiRxRN4nV4UUfd2tdx1Jg",
   authDomain: "ecommerce-ba520.firebaseapp.com",
@@ -18,35 +16,31 @@ const firebaseConfig = {
   appId: "1:620187458799:web:c4deef3184a5145256cf1a",
 };
 
-// Initialize Firebase app
+// 2) Initialize Firebase
 const app = initializeApp(firebaseConfig);
+console.log("Firebase app initialized.");
 
-// Initialize App Check with ReCAPTCHA Enterprise Provider
-const appCheck = initializeAppCheck(app, {
-  provider: new ReCaptchaEnterpriseProvider(
-    "6Lcau7IqAAAAAIhQjVGZBfkK17QSDLuk7oTiPl4g" // Replace with your actual site key
-  ),
-  isTokenAutoRefreshEnabled: true, // Automatically refresh App Check tokens
+// 3) Initialize App Check with reCAPTCHA provider for production
+initializeAppCheck(app, {
+  provider: new ReCaptchaV3Provider("6Lcau7IqAAAAAIhQjVGZBfkK17QSDLuk7oTiPl4g"), // Your production reCAPTCHA site key
+  isTokenAutoRefreshEnabled: true, // Automatically refresh tokens
 });
+console.log("App Check initialized with production reCAPTCHA.");
 
-// Add console logs to verify App Check
-console.log("App initialized with Firebase App Check");
-console.log("App Check initialized with ReCaptcha Enterprise Provider");
-
-// Firebase services
+// 4) Initialize other Firebase services
 export const auth = getAuth(app);
-console.log("Auth initialized");
+console.log("Auth initialized.");
 
 export const db = getFirestore(app);
-console.log("Firestore initialized");
+console.log("Firestore initialized.");
 
 export const storage = getStorage(app);
-console.log("Storage initialized");
+console.log("Storage initialized.");
 
 export const messaging = getMessaging(app);
-console.log("Messaging initialized");
+console.log("Messaging initialized.");
 
 export const functions = getFunctions(app);
-console.log("Functions initialized");
+console.log("Functions initialized.");
 
 export default app;

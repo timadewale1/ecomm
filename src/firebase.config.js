@@ -20,27 +20,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 console.log("Firebase app initialized.");
 
-// 3) Enable App Check debug token in development/localhost
-//    (Use `window`, not `self`, to avoid ESLint "no-restricted-globals" error.)
-if (
-  process.env.NODE_ENV === "development" ||
-  window.location.hostname === "localhost"
-) {
-  window.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-  console.log(
-    "App Check debug mode is ON. Check your console for the generated token."
-  );
-}
-
-// 4) Initialize App Check with reCAPTCHA provider
-//    Always specify a real site key. The debug token mechanism will override it locally.
+// 3) Initialize App Check with reCAPTCHA provider for production
 initializeAppCheck(app, {
-  provider: new ReCaptchaV3Provider("YOUR_RECAPTCHA_V3_SITE_KEY"),
-  isTokenAutoRefreshEnabled: true,
+  provider: new ReCaptchaV3Provider("6Lcau7IqAAAAAIhQjVGZBfkK17QSDLuk7oTiPl4g"), // Your production reCAPTCHA site key
+  isTokenAutoRefreshEnabled: true, // Automatically refresh tokens
 });
-console.log("App Check initialized with reCAPTCHA.");
+console.log("App Check initialized with production reCAPTCHA.");
 
-// 5) Initialize other Firebase services
+// 4) Initialize other Firebase services
 export const auth = getAuth(app);
 console.log("Auth initialized.");
 

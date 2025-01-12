@@ -4,11 +4,9 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
 import { getFunctions } from "firebase/functions";
-import {
-  initializeAppCheck,
-  ReCaptchaEnterpriseProvider,
-} from "firebase/app-check";
+import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
+// 1) Your Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyC7pOCYSGpYMUDiRxRN4nV4UUfd2tdx1Jg",
   authDomain: "ecommerce-ba520.firebaseapp.com",
@@ -18,35 +16,44 @@ const firebaseConfig = {
   appId: "1:620187458799:web:c4deef3184a5145256cf1a",
 };
 
-// Initialize Firebase app
+// 2) Initialize Firebase
 const app = initializeApp(firebaseConfig);
+console.log("Firebase app initialized.");
 
-// Initialize App Check with ReCAPTCHA Enterprise Provider
-const appCheck = initializeAppCheck(app, {
-  provider: new ReCaptchaEnterpriseProvider(
-    "6Lcau7IqAAAAAIhQjVGZBfkK17QSDLuk7oTiPl4g" // Replace with your actual site key
-  ),
-  isTokenAutoRefreshEnabled: true, // Automatically refresh App Check tokens
+// 3) Enable App Check debug token in development/localhost
+//    (Use `window`, not `self`, to avoid ESLint "no-restricted-globals" error.)
+if (
+  process.env.NODE_ENV === "development" ||
+  window.location.hostname === "localhost"
+) {
+  window.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  console.log(
+    "App Check debug mode is ON. Check your console for the generated token."
+  );
+}
+
+// 4) Initialize App Check with reCAPTCHA provider
+//    Always specify a real site key. The debug token mechanism will override it locally.
+initializeAppCheck(app, {
+  provider: new ReCaptchaV3Provider("YOUR_RECAPTCHA_V3_SITE_KEY"),
+  isTokenAutoRefreshEnabled: true,
 });
+console.log("App Check initialized with reCAPTCHA.");
 
-// Add console logs to verify App Check
-console.log("App initialized with Firebase App Check");
-console.log("App Check initialized with ReCaptcha Enterprise Provider");
-
-// Firebase services
+// 5) Initialize other Firebase services
 export const auth = getAuth(app);
-console.log("Auth initialized");
+console.log("Auth initialized.");
 
 export const db = getFirestore(app);
-console.log("Firestore initialized");
+console.log("Firestore initialized.");
 
 export const storage = getStorage(app);
-console.log("Storage initialized");
+console.log("Storage initialized.");
 
 export const messaging = getMessaging(app);
-console.log("Messaging initialized");
+console.log("Messaging initialized.");
 
 export const functions = getFunctions(app);
-console.log("Functions initialized");
+console.log("Functions initialized.");
 
 export default app;

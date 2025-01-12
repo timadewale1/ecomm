@@ -3,18 +3,16 @@ import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
   GoogleAuthProvider,
-  signInWithPopup, // Import signInWithPopup for popup-based Google sign-in
+  signInWithPopup,
   onAuthStateChanged,
 } from "firebase/auth";
 import { FcGoogle } from "react-icons/fc";
-import { auth, db } from "../firebase.config";
+import { auth, db, functions } from "../firebase.config";
 import {
   setDoc,
   doc,
-  getDoc, // Use getDoc to retrieve a single document
+  getDoc,
   collection,
   query,
   where,
@@ -33,8 +31,8 @@ import {
 } from "react-icons/fa";
 import { MdOutlineEmail, MdOutlineLock } from "react-icons/md";
 import { Oval, RotatingLines } from "react-loader-spinner";
-import PasswordStrengthBar from "react-password-strength-bar";
 import { useAuth } from "../custom-hooks/useAuth";
+import { httpsCallable } from "firebase/functions"; // import from Firebase functions
 
 const Signup = () => {
   const [username, setUsername] = useState("");
@@ -49,22 +47,20 @@ const Signup = () => {
   const [isUsernameAvailable, setIsUsernameAvailable] = useState(false);
   const [showPasswordCriteria, setShowPasswordCriteria] = useState(false);
 
-  const { currentUser } = useAuth(); // Use the currentUser from the useAuth hook
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
 
-  // Check if user is already logged in
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         console.log("User is already logged in after popup:", user);
-        // Ensure the user is navigated to the newhome page
         navigate("/newhome");
       }
     });
-
     return () => unsubscribe();
   }, [navigate]);
 
+  // Check if username is available
   useEffect(() => {
     const checkUsername = async () => {
       if (username.trim().length >= 2) {
@@ -89,7 +85,6 @@ const Signup = () => {
         setIsUsernameAvailable(false);
       }
     };
-
     checkUsername();
   }, [username]);
 
@@ -97,18 +92,14 @@ const Signup = () => {
     const handleFocus = () => {
       document.body.classList.add("scroll-lock");
     };
-
     const handleBlur = () => {
       document.body.classList.remove("scroll-lock");
     };
-
     const inputs = document.querySelectorAll("input");
-
     inputs.forEach((input) => {
       input.addEventListener("focus", handleFocus);
       input.addEventListener("blur", handleBlur);
     });
-
     return () => {
       inputs.forEach((input) => {
         input.removeEventListener("focus", handleFocus);
@@ -118,14 +109,12 @@ const Signup = () => {
   }, []);
 
   useEffect(() => {
-    // This ensures Firebase remembers the user's state after page reload
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         console.log("User is already logged in after redirect:", user);
         navigate("/newhome");
       }
     });
-
     return () => unsubscribe();
   }, [navigate]);
 
@@ -138,7 +127,6 @@ const Signup = () => {
     const hasSpecialCharacter = /[!@#$%^&*(),.?":{}|<>]/.test(password);
     const hasNumeric = /[0-9]/.test(password);
     const isValidLength = password.length >= 8 && password.length <= 24;
-
     return hasUppercase && hasSpecialCharacter && hasNumeric && isValidLength;
   };
   const formatUsername = (name) => {
@@ -147,33 +135,28 @@ const Signup = () => {
 
   const signup = async (e) => {
     e.preventDefault();
-
     if (!username || !email || !password || !confirmPassword) {
       toast.error("All fields are required. Please fill in all fields.");
       return;
     }
-
     if (username.length < 2) {
       toast.error("Username must be at least 2 characters long.");
       return;
     }
     if (!validatePassword(password)) {
       toast.error(
-        "Password must be at least 8 characters long, include an uppercase letter, a special character, and a numeric character."
+        "Password must be at least 8 characters, include uppercase, special char, numeric."
       );
       return;
     }
-
     if (!validateEmail(email)) {
       toast.error("Invalid email format. Please enter a valid email.");
       return;
     }
-
     if (password !== confirmPassword) {
       toast.error("Passwords do not match. Please try again.");
       return;
     }
-
     if (isUsernameTaken) {
       toast.error("Username is already taken. Please choose another one.");
       return;
@@ -181,50 +164,39 @@ const Signup = () => {
 
     setLoading(true);
     try {
-      const formattedUsername = formatUsername(username);
-
-      // Create user with Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
+      // Call the Cloud Function
+      const userSignupCallable = httpsCallable(functions, "userSignup");
+      const response = await userSignupCallable({
+        username: formatUsername(username),
         email,
-        password
-      );
-      const user = userCredential.user;
-
-      // Add user to Firestore with "user" role
-      await setDoc(doc(db, "users", user.uid), {
-        uid: user.uid,
-        username: formattedUsername,
-        email,
-        role: "user",
-        createdAt: new Date(),
-        profileComplete: false,
+        password,
       });
 
-      await sendEmailVerification(user);
-      setLoading(false);
-
-      toast.success("Account created successfully. Please verify your email.");
-      navigate("/login");
+      const data = response.data;
+      if (data.success) {
+        toast.success(
+          "Account created successfully. Please verify your email."
+        );
+        navigate("/login");
+      }
     } catch (error) {
-      setLoading(false);
-      let errorMessage =
-        "Cannot sign up at the moment. Please try again later.";
-      if (error.code === "auth/email-already-in-use") {
+      console.error("Signup error from Cloud Function:", error);
+      let errorMessage = "Cannot sign up at the moment. Please try again.";
+      if (error.code === "already-exists") {
         errorMessage =
           "This email is already in use. Please use a different email.";
-      } else if (error.code === "auth/weak-password") {
-        errorMessage = "Password is too weak. Please use a stronger password.";
-      } else if (error.code === "auth/invalid-email") {
-        errorMessage = "Invalid email format. Please enter a valid email.";
+      } else if (error.code === "invalid-argument") {
+        errorMessage = "Missing required fields.";
+      } else if (error.code === "unknown") {
+        errorMessage = error.message || errorMessage;
       }
-
       toast.error(errorMessage);
-      console.error("Signup error:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Google sign-up handler using popup
+  // Google sign-up remains purely client-side
   const handleGoogleSignUp = async () => {
     const provider = new GoogleAuthProvider();
     try {
@@ -239,7 +211,6 @@ const Signup = () => {
       const userDoc = await getDoc(userRef);
 
       if (!userDoc.exists()) {
-        // Add new user to Firestore
         await setDoc(userRef, {
           uid: user.uid,
           username: user.displayName,
@@ -248,13 +219,11 @@ const Signup = () => {
           createdAt: new Date(),
           profileComplete: false,
         });
-        // console.log("New user added to Firestore:", user.displayName);
       } else {
         console.log("User already exists in Firestore");
       }
 
       toast.success("Signed up with Google successfully!");
-      // Ensure redirection to the new home route
       navigate("/newhome");
     } catch (error) {
       console.error("Google Sign-Up Error:", error);
@@ -269,13 +238,6 @@ const Signup = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (currentUser) {
-      // console.log("User is authenticated, redirecting to dashboard...");
-      navigate("/newhome");
-    }
-  }, [currentUser, navigate]);
 
   return (
     <Helmet className="p-4">
@@ -294,12 +256,12 @@ const Signup = () => {
                 />
               </div>
             </div>
-            <div className="">
-              <div className=" ">
+            <div>
+              <div>
                 <h1 className="text-3xl font-extrabold font-lato text-black mb-1">
                   Create an account
                 </h1>
-                <p className="text-gray-400 mb-1 text-sm font-lato ">
+                <p className="text-gray-400 mb-1 text-sm font-lato">
                   Don't stress we have the best thrifted items for you
                 </p>
               </div>
@@ -332,7 +294,6 @@ const Signup = () => {
                         height={24}
                         width={24}
                         color="#4fa94d"
-                        visible={true}
                         ariaLabel="oval-loading"
                         secondaryColor="#4fa94d"
                         strokeWidth={2}
@@ -350,7 +311,7 @@ const Signup = () => {
                   )}
                 </FormGroup>
                 {isUsernameTaken && (
-                  <div className="text-red-500 ratings-text -translate-y-3  flex items-center">
+                  <div className="text-red-500 ratings-text -translate-y-3 flex items-center">
                     <FaInfoCircle className="mr-1" />
                     Username is already taken. Please choose another one.
                   </div>
@@ -437,49 +398,8 @@ const Signup = () => {
                       {password.length >= 8 ? "✔" : "✘"} Minimum length of 8
                       characters
                     </li>
-                    {/* <li
-                      className={`${
-                        password.length <= 24
-                          ? "text-green-500"
-                          : "text-red-500"
-                      }`}
-                    >
-                      {password.length <= 24 ? "✔" : "✘"} Maximum length of 24
-                      characters
-                    </li> */}
                   </ul>
                 )}
-
-                {/* Password strength bar */}
-                {/* {showPasswordCriteria && (
-                  <div className="mt-1 font-opensans text-xs">
-                    <PasswordStrengthBar
-                      password={password}
-                      minLength={8}
-                      barColors={[
-                        "#ddd",
-                        "#ef4836",
-                        "#f6b44d",
-                        "#2b90ef",
-                        "#25c281",
-                      ]}
-                      scoreWords={[
-                        "Too weak",
-                        "Weak",
-                        "Medium",
-                        "Strong",
-                        "Very strong",
-                      ]}
-                      shortScoreWord="Too short"
-                      score={
-                        (/[A-Z]/.test(password) ? 1 : 0) +
-                        (/[0-9]/.test(password) ? 1 : 0) +
-                        (/[!@#$%^&*(),.?":{}|<>]/.test(password) ? 1 : 0) +
-                        (password.length >= 8 ? 1 : 0)
-                      }
-                    />
-                  </div>
-                )} */}
 
                 {/* Confirm password input */}
                 <FormGroup className="relative mt-4">
@@ -510,6 +430,7 @@ const Signup = () => {
                 <motion.button
                   type="submit"
                   className="glow-button w-full h-12 mt-4 bg-customOrange text-white font-medium rounded-full flex justify-center items-center"
+                  disabled={loading}
                 >
                   {loading ? (
                     <RotatingLines
@@ -523,11 +444,13 @@ const Signup = () => {
                     "Sign Up"
                   )}
                 </motion.button>
+
                 <div className="flex items-center justify-center mt-2 mb-2">
                   <div className="flex-grow border-t border-gray-300"></div>
                   <span className="mx-4 text-gray-500">OR</span>
                   <div className="flex-grow border-t border-gray-300"></div>
                 </div>
+
                 {/* Google Sign-Up button */}
                 <motion.button
                   type="button"
@@ -541,7 +464,7 @@ const Signup = () => {
                 <div className="text-center text-sm font-normal font-lato mt-2 pb-4 flex justify-center">
                   <p className="text-gray-700 text-sm">
                     Already have an account?{" "}
-                    <span className="text-customOrange text-sm ">
+                    <span className="text-customOrange text-sm">
                       <Link to="/login">Sign In</Link>
                     </span>
                   </p>

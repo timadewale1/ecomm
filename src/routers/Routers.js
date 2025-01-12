@@ -27,6 +27,7 @@ import OrdersCentre from "../pages/UserSide/OrdersCentre.jsx";
 import Checkout from "../pages/NewCheckout.jsx";
 import MarketVendors from "../pages/MarketVendors.jsx";
 import Profile from "../pages/Profile.jsx";
+import ConditionProducts from "../components/Conditions/ConditionPage.jsx";
 import Explore from "../pages/Explore";
 import Marketcardpage from "../pages/marketcardpage.jsx";
 import OnlineVendors from "../pages/OnlineVendors.jsx";
@@ -97,6 +98,16 @@ const Routers = () => {
           <RoleBasedAccess allowedRoles={["user"]}>
             <WithReviewModal>
               <NewHome />
+            </WithReviewModal>
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="/products/condition/:condition"
+        element={
+          <RoleBasedAccess allowedRoles={["user"]}>
+            <WithReviewModal>
+              <ConditionProducts />
             </WithReviewModal>
           </RoleBasedAccess>
         }

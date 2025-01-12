@@ -24,7 +24,7 @@ import Loading from "../../components/Loading/Loading";
 import Orderpic from "../../Images/orderpic.svg";
 import RelatedProducts from "./SimilarProducts";
 import ScrollToTop from "../../components/layout/ScrollToTop";
-
+import OrderStepper from "../../components/Order/OrderStepper";
 const OrdersCentre = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
@@ -250,7 +250,7 @@ const OrdersCentre = () => {
         <div className="flex p-3 py-3 items-center bg-white h-20 mb-3 pb-2">
           <GoChevronLeft
             className="text-3xl cursor-pointer"
-            onClick={() => navigate("/profile")} 
+            onClick={() => navigate("/profile")}
           />
           <h1 className="text-xl font-opensans ml-5 font-semibold">Orders</h1>
         </div>
@@ -322,7 +322,7 @@ const OrdersCentre = () => {
             filteredOrders.map((order) => (
               <div key={order.id} className="px-3 py-2">
                 <div className="bg-white shadow-lg px-3 py-4 rounded-lg">
-                  <div className="flex justify-between items-start mb-2">
+                  <div className="flex justify-between  items-start mb-2">
                     <div className="flex flex-col">
                       <div className="flex items-center space-x-2">
                         {order.progressStatus === "Shipped" ? (
@@ -373,8 +373,6 @@ const OrdersCentre = () => {
                           </span>
                         )}
                       </div>
-
-                      {/* Aligning date under the order status */}
                       <div className="ml-9">
                         <span className="text-xs text-gray-700 font-opensans">
                           {order.createdAt
@@ -384,19 +382,14 @@ const OrdersCentre = () => {
                             : "Date not available"}
                         </span>
                       </div>
+
+                      {/* Aligning date under the order status */}
                     </div>
 
                     {/* Vendor name aligned on the right */}
-                    <h1 className="text-sm font-opensans">
-                      <span className="text-gray-400 text-sm font-opensans">
-                        From:{" "}
-                      </span>
-                      {vendors[order.vendorId]?.length > 12
-                        ? `${vendors[order.vendorId].slice(0, 12)}...`
-                        : vendors[order.vendorId] || "Unknown Vendor"}
-                    </h1>
                   </div>
-
+                  <div className="border-t border-gray-300 my-2"></div>
+                  <OrderStepper orderStatus={order.progressStatus} />
                   <div className="border-t border-gray-300 my-2"></div>
 
                   {order.cartItems ? (
@@ -423,7 +416,7 @@ const OrdersCentre = () => {
                             <p className="font-opensans text-md mt-2 text-black font-bold">
                               ₦{item.price ? item.price.toLocaleString() : "0"}
                             </p>
-                            <div className="flex items-center space-x-4 text-sm mt-2">
+                            {/* <div className="flex items-center space-x-4 text-sm mt-2">
                               <p className="text-black font-semibold font-opensans">
                                 <span className="font-normal text-gray-600">
                                   Size:
@@ -442,7 +435,7 @@ const OrdersCentre = () => {
                                 </span>{" "}
                                 {item.quantity}
                               </p>
-                            </div>
+                            </div> */}
                           </div>
                         </div>
                       </div>
@@ -454,37 +447,7 @@ const OrdersCentre = () => {
                   )}
 
                   <div className="mt-2">
-                    <div className="flex justify-end">
-                      <span className="text-sm font-opensans font-normal">
-                        Sub-Total:
-                      </span>
-                      <span className="text-sm font-semibold font-opensans ml-1">
-                        ₦{" "}
-                        {order.subtotal
-                          ? Number(order.subtotal).toLocaleString()
-                          : "0"}
-                      </span>
-                    </div>
-                    {order.serviceFee && (
-                      <div className="flex justify-end">
-                        <span className="text-sm font-opensans font-normal">
-                          Service Fee:
-                        </span>
-                        <span className="text-sm font-opensans font-semibold ml-1">
-                          ₦ {Number(order.serviceFee).toLocaleString()}
-                        </span>
-                      </div>
-                    )}
-                    {order.bookingFee && (
-                      <div className="flex justify-end">
-                        <span className="text-sm font-opensans font-normal">
-                          Booking Fee:
-                        </span>
-                        <span className="text-sm font-opensans font-semibold ml-1">
-                          ₦ {Number(order.bookingFee).toLocaleString()}
-                        </span>
-                      </div>
-                    )}
+                   
                     <div className="flex justify-end">
                       <span className="text-sm font-opensans font-normal">
                         Order Total:

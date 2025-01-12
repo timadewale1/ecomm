@@ -53,7 +53,7 @@ const Market = () => {
   };
 
   return (
-    <div className="justify-around mt-4 px-2">
+    <div className="justify-around mt-2 px-2">
       {loading
         ? Array.from({ length: 2 }).map((_, index) => (
             <div
@@ -75,13 +75,13 @@ const Market = () => {
               />
               {/* <div className="absolute inset-0 bg-black bg-opacity-50"></div> Semi-transparent overlay */}
               <div className="absolute bottom-4 z-10 left-4">
-                <p className="text-xs text-white font-semibold font-lato">
+                <p className="text-xs text-white font-light font-opensans">
                   {cardTexts[index].subtitle}
                 </p>
-                <p className="text-xl font-lato mb-1 text-white font-semibold">
+                <p className="text-xl font-opensans mb-1 text-white font-semibold">
                   {cardTexts[index].title}
                 </p>
-                <p className="text-xs font-lato font-light text-white underline underline-offset-4 flex items-center">
+                <p className="text-xs font-opensans font-light text-white underline underline-offset-4 flex items-center">
                   {cardTexts[index].action} <FaAngleRight className="ml-1" />
                 </p>
               </div>

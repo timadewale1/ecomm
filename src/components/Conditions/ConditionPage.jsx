@@ -150,7 +150,7 @@ function ConditionProducts() {
   };
 
   return (
-    <div className=" px-2 py-4">
+    <div className=" px-2 py-14">
       {/* Header Section */}
       <div className="w-full h-48 bg-gray-200">{getHeaderContent()}</div>
 

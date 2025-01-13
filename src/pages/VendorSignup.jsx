@@ -7,6 +7,7 @@ import { db, functions } from "../firebase.config";
 import toast from "react-hot-toast";
 import { FaRegEyeSlash, FaRegEye, FaRegUser } from "react-icons/fa";
 import { MdEmail } from "react-icons/md";
+import { getAuth, signInWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { GrSecure } from "react-icons/gr";
 import { motion } from "framer-motion";
 import Typewriter from "typewriter-effect";
@@ -58,21 +59,53 @@ const VendorSignup = () => {
   const handleSignup = async (e) => {
     e.preventDefault();
     setLoading(true);
+    const auth = getAuth();
     console.log("Calling cloud function createVendorAccount");
     const createVendorAccount = httpsCallable(functions, "createVendorAccount");
+  
     try {
+      // Call your cloud function to create a vendor account
       const res = await createVendorAccount(vendorData);
       console.log("Cloud function response:", res.data);
+  
       if (res.data.success) {
-        toast.success("Account created. Check email for verification.");
+        // Show success message for account creation
+        toast.success("Account created successfully.");
+  
+        // Get the email verification link from the response
+        const verifyLink = res.data.verifyLink;
+  
+        // Optionally send the verification link using the Firebase Auth client
+        const userCredential = await signInWithEmailAndPassword(
+          auth,
+          vendorData.email,
+          vendorData.password
+        );
+  
+        const user = userCredential.user;
+  
+        // Use the Firebase Auth client to send verification if needed
+        await sendEmailVerification(user, {
+          url: "https://shopmythrift.store/confirm-email", // Your custom URL
+          handleCodeInApp: true,
+        });
+  
+        // Inform the user to check their email
+        toast.success(
+          "A verification email has been sent. Please verify your email to log in."
+        );
+  
+        // Redirect to the vendor login page
         navigate("/vendorlogin");
       }
     } catch (error) {
-      console.log("Cloud function error:", error);
+      console.error("Error during signup:", error);
+  
+      // Handle errors and show appropriate error messages
       if (error.message.includes("already-exists")) {
         toast.error(error.message);
       } else {
-        toast.error(error.message);
+        toast.error("Something went wrong. Please try again.");
       }
     } finally {
       setLoading(false);

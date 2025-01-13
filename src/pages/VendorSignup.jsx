@@ -6,8 +6,12 @@ import { doc, setDoc } from "firebase/firestore";
 import { db, functions } from "../firebase.config";
 import toast from "react-hot-toast";
 import { FaRegEyeSlash, FaRegEye, FaRegUser } from "react-icons/fa";
-import { MdEmail } from "react-icons/md";
-import { getAuth, signInWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
+import {
+  MdEmail,
+  MdOutlineClose,
+  MdOutlineDomainVerification,
+} from "react-icons/md";
+
 import { GrSecure } from "react-icons/gr";
 import { motion } from "framer-motion";
 import Typewriter from "typewriter-effect";
@@ -17,6 +21,7 @@ import { GoChevronLeft } from "react-icons/go";
 import { collection, where, query, getDocs } from "firebase/firestore";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
+import Modal from "react-modal";
 import { httpsCallable } from "firebase/functions";
 
 const VendorSignup = () => {
@@ -30,8 +35,9 @@ const VendorSignup = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showPasswordCriteria, setShowPasswordCriteria] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPasswordCriteria, setShowPasswordCriteria] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const navigate = useNavigate();
   useEffect(() => {
     const handleFocus = () => {
@@ -52,71 +58,94 @@ const VendorSignup = () => {
       });
     };
   }, []);
+  // Validation functions
+  const validateName = (name) => name.trim() !== "";
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validatePassword = (password) => {
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasSpecialCharacter = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    const hasNumeric = /[0-9]/.test(password);
+    const isValidLength = password.length >= 8 && password.length <= 24;
+    return hasUppercase && hasSpecialCharacter && hasNumeric && isValidLength;
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setVendorData({ ...vendorData, [name]: value });
   };
+
   const handleSignup = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const auth = getAuth();
-    console.log("Calling cloud function createVendorAccount");
+
+    // Frontend validation
+    if (
+      !validateName(vendorData.firstName) ||
+      !validateName(vendorData.lastName)
+    ) {
+      toast.error("Invalid name. Please enter your first and last name.");
+      setLoading(false);
+      return;
+    }
+
+    if (!validateEmail(vendorData.email)) {
+      toast.error("Invalid email address.");
+      setLoading(false);
+      return;
+    }
+
+    if (!validatePassword(vendorData.password)) {
+      toast.error("Password must meet all criteria.");
+      setLoading(false);
+      return;
+    }
+
+    if (vendorData.password !== vendorData.confirmPassword) {
+      toast.error("Passwords do not match.");
+      setLoading(false);
+      return;
+    }
+
+    if (vendorData.phoneNumber.length < 10) {
+      toast.error("Phone number is too short.");
+      setLoading(false);
+      return;
+    }
+
+    // Call the cloud function
     const createVendorAccount = httpsCallable(functions, "createVendorAccount");
-  
     try {
-      // Call your cloud function to create a vendor account
       const res = await createVendorAccount(vendorData);
-      console.log("Cloud function response:", res.data);
-  
       if (res.data.success) {
-        // Show success message for account creation
-        toast.success("Account created successfully.");
-  
-        // Get the email verification link from the response
-        const verifyLink = res.data.verifyLink;
-  
-        // Optionally send the verification link using the Firebase Auth client
-        const userCredential = await signInWithEmailAndPassword(
-          auth,
-          vendorData.email,
-          vendorData.password
-        );
-  
-        const user = userCredential.user;
-  
-        // Use the Firebase Auth client to send verification if needed
-        await sendEmailVerification(user, {
-          url: "https://shopmythrift.store/confirm-email", // Your custom URL
-          handleCodeInApp: true,
-        });
-  
-        // Inform the user to check their email
-        toast.success(
-          "A verification email has been sent. Please verify your email to log in."
-        );
-  
-        // Redirect to the vendor login page
-        navigate("/vendorlogin");
+        setModalOpen(true); // Open modal on success
       }
     } catch (error) {
-      console.error("Error during signup:", error);
-  
-      // Handle errors and show appropriate error messages
-      if (error.message.includes("already-exists")) {
-        toast.error(error.message);
-      } else {
-        toast.error("Something went wrong. Please try again.");
-      }
+      console.error("Cloud function error:", error);
+      toast.error(error.message);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setVendorData({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phoneNumber: "",
+      password: "",
+      confirmPassword: "",
+    });
+    navigate("/vendorlogin"); // Redirect to vendor login
+  };
+
   return (
     <Helmet>
       <section>
         <Container>
           <Row>
-            <div className="px-2">
+            <div className="px-2 mb-32">
               <Link to="/vendorlogin">
                 <GoChevronLeft className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>
@@ -349,6 +378,63 @@ const VendorSignup = () => {
           </Row>
         </Container>
       </section>
+      <Modal
+        isOpen={modalOpen}
+        onRequestClose={handleCloseModal}
+        contentLabel="Email Verification"
+        style={{
+          content: {
+            position: "absolute",
+            bottom: "0",
+            left: "0",
+            right: "0",
+            top: "auto",
+            borderRadius: "20px 20px 0 0",
+            padding: "20px",
+            backgroundColor: "#ffffff",
+            border: "none",
+            height: "35%",
+            animation: "slide-up 0.3s ease-in-out",
+          },
+          overlay: {
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            zIndex: 3000,
+          },
+        }}
+      >
+        <div className="flex flex-col items-center  py-2">
+          <div className="flex items-center justify-between w-full mb-6">
+            {/* Left Icon and Title */}
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
+                <MdOutlineDomainVerification className="text-customRichBrown text-lg" />
+              </div>
+              <h2 className="font-opensans text-lg font-semibold text-customRichBrown">
+                Verify Your Email
+              </h2>
+            </div>
+            {/* Close Icon */}
+            <MdOutlineClose
+              className="text-black text-2xl cursor-pointer"
+              onClick={handleCloseModal}
+            />
+          </div>
+
+          {/* Message Section */}
+          <p className="font-opensans mt-1 text-base text-black text-center font-medium leading-6">
+            Email sent successfully! Please check your inbox for the
+            verification link.
+            <br />
+            <span className="font-light text-xs  font-opensans">
+              P.S. If you didn’t receive it, please check your spam or junk
+              folder.
+            </span>
+          </p>
+        </div>
+      </Modal>
     </Helmet>
   );
 };

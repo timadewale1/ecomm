@@ -21,10 +21,10 @@ module.exports = {
       ...(isProduction
         ? [
             [
-              "transform-remove-console",
-              {
-                exclude: ["warn", "error", "log"], 
-              },
+              "transform-remove-console"
+              // {
+              //   exclude: ["warn", "error", "log"], 
+              // },
             ],
           ]
         : []),

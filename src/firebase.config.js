@@ -22,7 +22,7 @@ console.log("Firebase app initialized.");
 
 // 3) Initialize App Check with reCAPTCHA provider for production
 initializeAppCheck(app, {
-  provider: new ReCaptchaV3Provider("6Lcau7IqAAAAAIhQjVGZBfkK17QSDLuk7oTiPl4g"), // Your production reCAPTCHA site key
+  provider: new ReCaptchaV3Provider("AIzaSyDNCknLB3RrITleZDw7a9KgMx-01eeth-8"), // Your production reCAPTCHA site key
   isTokenAutoRefreshEnabled: true, // Automatically refresh tokens
 });
 console.log("App Check initialized with production reCAPTCHA.");

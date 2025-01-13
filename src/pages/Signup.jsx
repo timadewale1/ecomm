@@ -29,11 +29,11 @@ import {
   FaInfoCircle,
   FaCheckCircle,
 } from "react-icons/fa";
-import { MdOutlineEmail, MdOutlineLock } from "react-icons/md";
+import { MdOutlineClose, MdOutlineDomainVerification, MdOutlineEmail, MdOutlineLock } from "react-icons/md";
 import { Oval, RotatingLines } from "react-loader-spinner";
 import { useAuth } from "../custom-hooks/useAuth";
 import { httpsCallable } from "firebase/functions"; // import from Firebase functions
-
+import Modal from "react-modal";
 const Signup = () => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -49,6 +49,20 @@ const Signup = () => {
 
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const [modalOpen, setModalOpen] = useState(false); // State to manage modal visibility
+
+  const handleSignupSuccess = () => {
+    setModalOpen(true); // Open the modal on successful signup
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false); // Close the modal
+    setUsername(""); // Reset form fields
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+    navigate("/login"); // Redirect to login page
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -174,10 +188,7 @@ const Signup = () => {
 
       const data = response.data;
       if (data.success) {
-        toast.success(
-          "Account created successfully. Please verify your email."
-        );
-        navigate("/login");
+        handleSignupSuccess();
       }
     } catch (error) {
       console.error("Signup error from Cloud Function:", error);
@@ -474,6 +485,60 @@ const Signup = () => {
           </>
         </Row>
       </Container>
+      <Modal
+        isOpen={modalOpen}
+        onRequestClose={handleCloseModal}
+        contentLabel="Email Verification"
+        style={{
+          content: {
+            position: "absolute",
+            bottom: "0",
+            left: "0",
+            right: "0",
+            top: "auto",
+            borderRadius: "20px 20px 0 0",
+            padding: "20px",
+            backgroundColor: "#ffffff",
+            border: "none",
+            height: "35%",
+            animation: "slide-up 0.3s ease-in-out",
+          },
+          overlay: {
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            zIndex: 3000,
+          },
+        }}
+      >
+        <div className="flex flex-col items-center py-2">
+          <div className="flex items-center justify-between w-full mb-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
+                <MdOutlineDomainVerification className="text-customRichBrown text-lg" />
+              </div>
+              <h2 className="font-opensans text-lg font-semibold text-customRichBrown">
+                Verify Your Email
+              </h2>
+            </div>
+            <MdOutlineClose
+              className="text-black text-2xl cursor-pointer"
+              onClick={handleCloseModal}
+            />
+          </div>
+
+          <p className="font-opensans mt-1 text-base text-black text-center font-medium leading-6">
+            Email sent successfully! Please check your inbox for the
+            verification link.
+            <br />
+            <span className="font-light text-xs font-opensans">
+              P.S. If you didn’t receive it, please check your spam or junk
+              folder.
+            </span>
+          </p>
+        </div>
+      </Modal>
     </Helmet>
   );
 };

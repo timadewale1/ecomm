@@ -9,7 +9,7 @@ import {
   ReCaptchaEnterpriseProvider,
 } from "firebase/app-check";
 
-// Firebase Configuration
+// 1) Your Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyC7pOCYSGpYMUDiRxRN4nV4UUfd2tdx1Jg",
   authDomain: "ecommerce-ba520.firebaseapp.com",
@@ -19,48 +19,33 @@ const firebaseConfig = {
   appId: "1:620187458799:web:c4deef3184a5145256cf1a",
 };
 
-// Initialize Firebase app
+// 2) Initialize Firebase
 const app = initializeApp(firebaseConfig);
-console.log("Firebase app initialized successfully.");
+console.log("Firebase app initialized.");
 
-// Enable Debug Mode for App Check
-if (process.env.REACT_APP_FIREBASE_DEBUG_TOKEN) {
-  // Inject debug token for App Check
-  window.FIREBASE_APPCHECK_DEBUG_TOKEN = process.env.REACT_APP_FIREBASE_DEBUG_TOKEN;
-  console.log(
-    "Firebase App Check is running in DEBUG MODE. Debug Token:",
-    process.env.REACT_APP_FIREBASE_DEBUG_TOKEN
-  );
-} else {
-  console.error(
-    "REACT_APP_FIREBASE_DEBUG_TOKEN environment variable is not set. App Check may not work properly in debug mode."
-  );
-}
-
-// Initialize App Check
-const appCheck = initializeAppCheck(app, {
+// 3) Initialize App Check with reCAPTCHA Enterprise provider for production
+initializeAppCheck(app, {
   provider: new ReCaptchaEnterpriseProvider(
-    "6Lcau7IqAAAAAIhQjVGZBfkK17QSDLuk7oTiPl4g" // Replace with your actual key if needed
+    "6Lcau7IqAAAAAIhQjVGZBfkK17QSDLuk7oTiPl4g"
   ),
-  isTokenAutoRefreshEnabled: true, // Automatically refresh App Check tokens
+  isTokenAutoRefreshEnabled: true,
 });
+console.log("App Check initialized with production reCAPTCHA Enterprise.");
 
-console.log("Firebase App Check initialized with ReCaptcha Enterprise Provider");
-
-// Initialize Firebase services with console logs
+// 4) Initialize other Firebase services
 export const auth = getAuth(app);
-console.log("Firebase Auth service initialized.");
+console.log("Auth initialized.");
 
 export const db = getFirestore(app);
-console.log("Firestore database initialized.");
+console.log("Firestore initialized.");
 
 export const storage = getStorage(app);
-console.log("Firebase Storage initialized.");
+console.log("Storage initialized.");
 
 export const messaging = getMessaging(app);
-console.log("Firebase Messaging initialized.");
+console.log("Messaging initialized.");
 
 export const functions = getFunctions(app);
-console.log("Firebase Functions initialized.");
+console.log("Functions initialized.");
 
 export default app;

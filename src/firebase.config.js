@@ -4,7 +4,10 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
 import { getFunctions } from "firebase/functions";
-import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
+import {
+  initializeAppCheck,
+  ReCaptchaEnterpriseProvider,
+} from "firebase/app-check";
 
 // 1) Your Firebase config
 const firebaseConfig = {
@@ -20,12 +23,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 console.log("Firebase app initialized.");
 
-// 3) Initialize App Check with reCAPTCHA provider for production
+// 3) Initialize App Check with reCAPTCHA Enterprise provider for production
 initializeAppCheck(app, {
-  provider: new ReCaptchaV3Provider("AIzaSyDNCknLB3RrITleZDw7a9KgMx-01eeth-8"), // Your production reCAPTCHA site key
-  isTokenAutoRefreshEnabled: true, // Automatically refresh tokens
+  provider: new ReCaptchaEnterpriseProvider(
+    "6Lcau7IqAAAAAIhQjVGZBfkK17QSDLuk7oTiPl4g"
+  ),
+  isTokenAutoRefreshEnabled: true,
 });
-console.log("App Check initialized with production reCAPTCHA.");
+console.log("App Check initialized with production reCAPTCHA Enterprise.");
 
 // 4) Initialize other Firebase services
 export const auth = getAuth(app);

@@ -6,12 +6,9 @@ import "swiper/css";
 import logo from "../Images/logo.png";
 import "swiper/css/free-mode";
 import { CiSearch } from "react-icons/ci";
-
+import { setPromoImages, setPromoLoading } from "../redux/actions/promoaction";
 import "swiper/css/autoplay";
 import { Cloudinary } from "@cloudinary/url-gen";
-import { auto } from "@cloudinary/url-gen/actions/resize";
-import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
-import { AdvancedImage } from "@cloudinary/react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {
   collection,
@@ -66,7 +63,11 @@ const Homepage = () => {
   const [loading, setLoading] = useState(true); // Ensure you have this state
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
 
-  // Ref to store scroll position
+  const { promoImages, promoLoading } = useSelector((state) => state.promo);
+  const [currentSlide, setCurrentSlide] = useState(
+    () => parseInt(localStorage.getItem("currentSlide")) || 0
+  );
+
   const scrollPositionRef = useRef(0);
   const prevProductsRef = useRef(null);
 
@@ -99,7 +100,9 @@ const Homepage = () => {
       }
     });
   }, []);
-
+  useEffect(() => {
+    localStorage.setItem("currentSlide", currentSlide);
+  }, [currentSlide]);
   const handleShowMore = () => {
     setActiveNav(3);
     navigate("/browse-markets");
@@ -121,7 +124,10 @@ const Homepage = () => {
   useEffect(() => {
     window.scrollTo(0, scrollPositionRef.current); // Restore scroll position
   }, []);
-
+  useEffect(() => {
+    // Save current slide index to localStorage when it changes
+    localStorage.setItem("currentSlide", currentSlide);
+  }, [currentSlide]);
   useEffect(() => {
     const auth = getAuth();
     const fetchUserName = async (uid) => {
@@ -146,7 +152,21 @@ const Homepage = () => {
       }
     });
   }, []);
-
+  useEffect(() => {
+    if (promoImages.length === 0) {
+      // Fetch promo images only if they are not already in Redux
+      const images = [
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1736717421/Promo_Card_5_azm2n3.svg",
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1736717421/Promo_Card_2_ofyt9b.svg",
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1737022557/Promo_Card_7_gxlmrs.svg",
+      ];
+      dispatch(setPromoLoading(true));
+      setTimeout(() => {
+        dispatch(setPromoImages(images));
+        dispatch(setPromoLoading(false));
+      }, 1000); // Simulate API call delay
+    }
+  }, [dispatch, promoImages]);
   useEffect(() => {
     console.log("Component mounted. Status:", status);
 
@@ -231,12 +251,12 @@ const Homepage = () => {
     },
   });
 
-  const promoImages = [
-    "Promo_Card_2_ofyt9b",
-   "Promo_Card_3_khfp3v",
-    // "4991116_bwrxkh",
-    // "4395311_hcqoss",
-  ];
+  // Promo images stored in a ref to avoid reinitialization
+  // const promoImages = useRef([
+  //   "https://res.cloudinary.com/dtaqusjav/image/upload/v1736717421/Promo_Card_5_azm2n3.svg",
+  //   "https://res.cloudinary.com/dtaqusjav/image/upload/v1736717421/Promo_Card_2_ofyt9b.svg",
+  //   "https://res.cloudinary.com/dtaqusjav/image/upload/v1737022557/Promo_Card_7_gxlmrs.svg",
+  // ]);
 
   return (
     <>
@@ -262,10 +282,10 @@ const Homepage = () => {
       </div>
       {!searchTerm && (
         <>
-          <div className="px-2 mb-0">
+          <div>
             <Swiper
               modules={[FreeMode, Autoplay]}
-              spaceBetween={5}
+              spaceBetween={10}
               slidesPerView={1}
               freeMode={true}
               loop={true}
@@ -273,67 +293,65 @@ const Homepage = () => {
                 delay: 2500,
                 disableOnInteraction: false,
               }}
+              onSlideChange={(swiper) => setCurrentSlide(swiper.realIndex)}
               breakpoints={{
                 640: {
                   slidesPerView: 2,
-                  spaceBetween: 10,
+                  spaceBetween: 15,
                 },
                 768: {
                   slidesPerView: 3,
-                  spaceBetween: 30,
+                  spaceBetween: 20,
                 },
                 1024: {
                   slidesPerView: 4,
-                  spaceBetween: 40,
+                  spaceBetween: 25,
                 },
               }}
             >
-              {loading ? (
-                Array.from({ length: 5 }).map((_, index) => (
-                  <SwiperSlide key={index}>
-                    <div className="p-4 w-auto h-44 shadow-md rounded-lg">
-                      <Skeleton height="100%" />
-                    </div>
-                  </SwiperSlide>
-                ))
-              ) : (
-                <>
-                  {promoImages.map((publicId, index) => (
+              {promoLoading
+                ? Array.from({ length: 5 }).map((_, index) => (
+                    <SwiperSlide key={index}>
+                      <div className="p-4 w-full h-44 shadow-md rounded-lg">
+                        <Skeleton height="100%" />
+                      </div>
+                    </SwiperSlide>
+                  ))
+                : promoImages.map((url, index) => (
                     <SwiperSlide
                       key={index}
                       className="transition-transform duration-500 ease-in-out rounded-lg transform hover:scale-105"
                     >
                       <div
-                        className="p- w-full h-48 shadow-md rounded-lg overflow-hidden flex items-center justify-center"
+                        className="w-full h-48 shadow-md object-cover rounded-lg overflow-hidden flex items-center justify-center"
                         style={{
                           position: "relative",
-                          padding: "1px", // Additional padding for better spacing
-                          height: "13rem", // Adjusted height to prevent overlap
+                          height: "12rem",
                         }}
                       >
-                        <AdvancedImage
-                          cldImg={cld
-                            .image(publicId)
-                            .format("auto")
-                            .quality("auto")
-                            .resize(
-                              auto()
-                                .gravity(autoGravity())
-                                .width(5000)
-                                .height(3000)
-                            )}
-                          className="w-full h-full object-cover rounded-lg"
-                          style={{
-                            objectFit: "cover", // Ensures the image covers the container
-                            objectPosition: "center", // Centers the image within the container
-                          }}
+                        <img
+                          src={url}
+                          alt={`Promo ${index + 1}`}
+                          className="w-full h-full rounded-lg"
                         />
                       </div>
                     </SwiperSlide>
                   ))}
-                </>
-              )}
             </Swiper>
+            {/* Dots navigation */}
+            <div className="flex justify-center mt-0">
+              {promoImages.map((_, index) => (
+                <div
+                  key={index}
+                  className={`cursor-pointer mx-1 rounded-full transition-all duration-300 ${
+                    index === currentSlide
+                      ? "bg-customOrange h-1 w-5"
+                      : "bg-orange-300 h-1.5 w-1.5"
+                  }`}
+                  onClick={() => setCurrentSlide(index)}
+                />
+              ))}
+            </div>
           </div>
           <Condition />
           <div className="flex justify-between items-center px-2 mt-2 text-base">

@@ -282,7 +282,7 @@ const Homepage = () => {
       </div>
       {!searchTerm && (
         <>
-          <div>
+          <div className="px-2.5">
             <Swiper
               modules={[FreeMode, Autoplay]}
               spaceBetween={10}

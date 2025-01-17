@@ -10,22 +10,25 @@ import authReducer from "./reducers/authreducers";
 import orderReducer from "./reducers/orderreducer";
 import categoriesReducer from "./reducers/categoriesSlice";
 import conditionReducer from "./reducers/conditionSlice"; 
+import { marketReducer } from "./reducers/marketreducer";
 import userReducer from "./reducers/userreducer";
 import vendorProfileReducer from "./vendorProfileSlice"; // Adjust the path as needed
 import vendorReducer from "./reducers/VendorsSlice";
-
+import { promoReducer } from "./reducers/promoreducer";
 const rootReducer = combineReducers({
   auth: authReducer,
   cart: cartReducer,
   product: productReducer,
   user: userReducer,
   orders: orderReducer,
+  market: marketReducer,
+  promo: promoReducer,
   homepage: homepageReducer,
   categories: categoriesReducer,
   vendors: vendorReducer,
   condition: conditionReducer,
-  // favorites: favoritesReducer,
-  vendorProfile: vendorProfileReducer, // Add the slice to the root reducer
+
+  vendorProfile: vendorProfileReducer, 
 });
 
 // Load cart state from local storage

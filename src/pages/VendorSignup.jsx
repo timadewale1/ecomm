@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
-import { doc, setDoc } from "firebase/firestore";
-import { db, functions } from "../firebase.config";
+
+import {  functions } from "../firebase.config";
 import toast from "react-hot-toast";
 import { FaRegEyeSlash, FaRegEye, FaRegUser } from "react-icons/fa";
 import {
@@ -18,7 +18,6 @@ import Typewriter from "typewriter-effect";
 import VendorLoginAnimation from "../SignUpAnimation/SignUpAnimation";
 import { RotatingLines } from "react-loader-spinner";
 import { GoChevronLeft } from "react-icons/go";
-import { collection, where, query, getDocs } from "firebase/firestore";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import Modal from "react-modal";

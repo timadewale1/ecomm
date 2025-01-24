@@ -45,6 +45,7 @@ import Skeleton from "react-loading-skeleton";
 import "./vendor.css";
 import ScrollToTop from "../../components/layout/ScrollToTop";
 import { VendorContext } from "../../components/Context/Vendorcontext";
+import { LuCopy, LuCopyCheck } from "react-icons/lu";
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
@@ -273,6 +274,7 @@ const VendorProducts = () => {
 
   const handleProductClick = (product) => {
     setSelectedProduct(product);
+    setproductId(product.id);
     setIsViewProductModalOpen(true);
   };
 
@@ -366,6 +368,27 @@ const VendorProducts = () => {
     if (isRestocking) {
       setIsRestocking(false);
       setRestockValues({});
+    }
+  };
+  const [productId, setproductId] = useState("null");
+
+  const textToCopy = `${window.location.origin}/product/${
+    productId || "null"
+  }?shared=true`;
+
+  const [copied, setCopied] = useState(false);
+  const copyToClipboard = async () => {
+    if (!copied) {
+      console.log("Clicked");
+      try {
+        (await navigator.clipboard.writeText(textToCopy)) &&
+          console.log("copied"); // Ensure the text is copied
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000);
+      } catch (err) {
+        toast.error("Failed to copy!"); // Handle any errors during copy
+        console.error("Failed to copy text: ", err);
+      }
     }
   };
 
@@ -1003,9 +1026,23 @@ const VendorProducts = () => {
                 ))}
             </div>
 
-            <p className="text-lg text-black font-semibold mb-4">
-              {selectedProduct.name}
-            </p>
+            <div className="flex items-center mb-4 justify-between">
+              <p className="text-lg text-black font-semibold ">
+                {selectedProduct.name}
+              </p>
+              {selectedProduct.published && (
+                <button
+                  className="text-white opacity-50 cursor-not-allowed"
+                  onClick={copyToClipboard}
+                >
+                  {!copied ? (
+                    <LuCopy className="text-2xl text-customOrange" />
+                  ) : (
+                    <LuCopyCheck className="text-2xl text-[#28a745]" />
+                  )}
+                </button>
+              )}
+            </div>
             <div className="px-3 mb-4 flex flex-col justify-between space-y-3">
               <p className="text-black font-semibold text-sm">
                 Price:{" "}

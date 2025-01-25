@@ -21,7 +21,7 @@ const firebaseConfig = {
 
 
 const app = initializeApp(firebaseConfig);
-console.log("Firebase app initialized.");
+console.log("Firebase app initialized."); // Debugging
 
 initializeAppCheck(app, {
   provider: new ReCaptchaEnterpriseProvider(

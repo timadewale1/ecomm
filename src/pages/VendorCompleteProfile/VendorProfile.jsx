@@ -263,10 +263,10 @@ const VendorProfile = () => {
                   <Doughnut data={activityData} options={activityOptions} />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center mt-5">
-                      <p className="text-xs text-black font-opensans font-medium">
+                      <p className="text-xs text-white font-opensans font-medium">
                         Total Orders
                       </p>
-                      <p className="text-lg font-opensans text-black font-bold">
+                      <p className="text-lg font-opensans text-white font-bold">
                         {totalOrders}
                       </p>
                     </div>
@@ -275,19 +275,19 @@ const VendorProfile = () => {
                 <div className="flex mt-2 space-x-6 text-sm mb-3">
                   <div className="flex items-center space-x-1">
                     <span className="w-3 h-3 rounded-full bg-[#28a745]"></span>
-                    <span className="font-opensans text-black">
+                    <span className="font-opensans text-white">
                       Fulfilled ({fulfilledOrders})
                     </span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <span className="w-3 h-3 rounded-full bg-[#6c757d]"></span>
-                    <span className="font-opensans text-black">
+                    <span className="font-opensans text-white">
                       Unfulfilled ({unfulfilledOrders})
                     </span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <span className="w-3 h-3 rounded-full bg-[#007bff]"></span>
-                    <span className="font-opensans text-black">
+                    <span className="font-opensans text-white">
                       Incoming ({incomingOrders})
                     </span>
                   </div>

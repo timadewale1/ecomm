@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Modal from "react-modal";
 import { MdOutlineClose } from "react-icons/md";
 import { FaWhatsapp } from "react-icons/fa6";
@@ -59,7 +59,10 @@ const WhatsAppModal = ({ isOpen, onClose }) => {
             href="https://whatsapp.com/channel/0029VavGIkL0AgW26yJ5KV2B" // Replace with your WhatsApp link
             target="_blank"
             rel="noopener noreferrer"
-            onClick={onClose} // Mark as interacted
+            onClick={() => {
+              localStorage.setItem("hasWhatsAppModalShown", true);
+              onClose();
+            }} // Mark as interacted
             className="px-6 py-3 bg-customOrange text-white text-sm font-medium rounded-full"
           >
             Join WhatsApp Channel

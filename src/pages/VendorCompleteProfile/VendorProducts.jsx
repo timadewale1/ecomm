@@ -333,10 +333,18 @@ const VendorProducts = () => {
 
   const confirmBulkDeleteProduct = async () => {
     setOLoading(true);
+    const vendorDocRef = doc(db, "vendors", vendorId);
     try {
       for (const productId of pickedProducts) {
         const productRef = doc(db, "products", productId);
-        await deleteDoc(productRef);
+        await updateDoc(productRef, {
+          published: false, // Ensure the product is unpublished
+          isDeleted: true,
+        });
+        
+      await updateDoc(vendorDocRef, {
+        productIds: arrayRemove(productId),
+      });
       }
       toast.success("Selected products deleted successfully.");
       setPickedProducts([]);
@@ -486,6 +494,7 @@ const VendorProducts = () => {
       // Step 1: Update the 'isDeleted' field of the product in the 'products' collection
       await updateDoc(doc(db, "products", productId), {
         isDeleted: true,
+        published: false, // Ensure the product is unpublished
       });
 
       // Step 2: Optionally, remove the productId from the vendor's 'productIds' array

@@ -7,9 +7,10 @@ const WithWhatsAppModal = ({ children }) => {
   useEffect(() => {
     const lastShownTime = localStorage.getItem("lastWhatsAppModalShown");
     const currentTime = new Date().getTime();
+    const hasBeenShown = localStorage.getItem("hasWhatsAppModalShown");
 
-    // Show modal if more than 2 hours have passed or it's the first time
-    if (!lastShownTime || currentTime - lastShownTime >  3 * 60 * 60 * 1000) {
+    // Show modal if more than 2 hours have passed or it's the first time or it hasn't been shown before
+    if (!hasBeenShown && (!lastShownTime || currentTime - lastShownTime >   60 * 1000)) {
       setShowModal(true);
     }
   }, []);

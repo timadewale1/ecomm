@@ -224,6 +224,7 @@ const ProductDetailPage = () => {
     }
   }, [product]);
 
+
   const handleSubProductClick = (subProduct) => {
     setSelectedSubProduct(subProduct);
     setSelectedImage(subProduct.images[0]);

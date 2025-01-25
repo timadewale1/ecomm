@@ -24,7 +24,7 @@ import { FiPlus } from "react-icons/fi";
 import { IoIosNotificationsOutline } from "react-icons/io"; // Use the existing VendorContext
 import { BsBell, BsBoxSeam, BsCopy, BsEye, BsEyeSlash } from "react-icons/bs";
 import { CopyAllRounded } from "@mui/icons-material";
-import { LuListFilter } from "react-icons/lu";
+import { LuCopy, LuCopyCheck, LuListFilter } from "react-icons/lu";
 import NotApproved from "../../components/Infos/NotApproved";
 import Skeleton from "react-loading-skeleton";
 import ScrollToTop from "../../components/layout/ScrollToTop";
@@ -183,14 +183,19 @@ const VendorDashboard = () => {
       (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
     }/${vendorData.vendorId}?shared=true`;
 
+  const [copied, setCopied] = useState(false);
   const copyToClipboard = async () => {
-    console.log("Clicked");
-    try {
-      await navigator.clipboard.writeText(textToCopy); // Ensure the text is copied
-      toast.success("Store link copied!"); // Show the success toast
-    } catch (err) {
-      toast.error("Failed to copy!"); // Handle any errors during copy
-      console.error("Failed to copy text: ", err);
+    if (!copied) {
+      console.log("Clicked");
+      try {
+        (await navigator.clipboard.writeText(textToCopy)) &&
+          console.log("copied"); // Ensure the text is copied
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000);
+      } catch (err) {
+        toast.error("Failed to copy!"); // Handle any errors during copy
+        console.error("Failed to copy text: ", err);
+      }
     }
   };
 
@@ -408,7 +413,11 @@ const VendorDashboard = () => {
                   className="text-white opacity-50 cursor-not-allowed"
                   onClick={copyToClipboard}
                 >
-                  <BsCopy className="text-white" />
+                  {!copied ? (
+                    <LuCopy className="text-white" />
+                  ) : (
+                    <LuCopyCheck className="text-[#28a745]" />
+                  )}
                 </button>
               </div>
             </div>

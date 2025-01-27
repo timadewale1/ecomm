@@ -14,15 +14,15 @@ const WhatsAppModal = ({ isOpen, onClose }) => {
       style={{
         content: {
           position: "absolute",
-          bottom: "0",
-          left: "0",
-          right: "0",
-          top: "auto",
-          borderRadius: "20px 20px 0 0",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: "100%",
+          borderRadius: "20px",
           padding: "20px",
           backgroundColor: "#ffffff",
           border: "none",
-          height: "30%",
+          height: "457.47px",
           animation: "slide-up 0.3s ease-in-out",
         },
         overlay: {
@@ -34,11 +34,19 @@ const WhatsAppModal = ({ isOpen, onClose }) => {
         },
       }}
     >
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center font-opensans">
         {/* Header */}
         <div className="flex items-center justify-between w-full">
           <h2 className="font-opensans text-lg font-semibold flex items-center">
-            Join Our WhatsApp Channel! <span> {" "}<FaWhatsapp className="text-transparent text-[6px]"/></span><span> {" "}<FaWhatsapp className="text-customOrange text-2xl"/></span>
+            Join Our WhatsApp Channel!{" "}
+            <span>
+              {" "}
+              <FaWhatsapp className="text-transparent text-[6px]" />
+            </span>
+            <span>
+              {" "}
+              <FaWhatsapp className="text-customOrange text-2xl" />
+            </span>
           </h2>
           <MdOutlineClose
             className="text-black text-xl cursor-pointer"
@@ -48,8 +56,20 @@ const WhatsAppModal = ({ isOpen, onClose }) => {
 
         {/* Content */}
         <div className="mt-6">
-          <p className="text-sm text-center text-gray-600">
-            Stay updated with our latest vendor related news, and updates on WhatsApp.
+          <p className="text-lg text-center text-black">
+            Stay connected with us for:
+            <p className=" text-black text-lg">
+              • <span className="text-customOrange">Exclusive Updates:</span> Be the first to know about upcoming events,
+              promotions, and features.
+            </p>
+            <p className=" text-black text-lg">
+              • <span className="text-customOrange">Vendor Tips & Insights:</span> Get valuable advice to grow your
+              business.
+            </p>
+            <p className=" text-black text-lg">
+              • <span className="text-customOrange">Real-Time Announcements:</span> Stay informed about important updates,
+              news, and opportunities tailored for you🚀
+            </p>
           </p>
         </div>
 

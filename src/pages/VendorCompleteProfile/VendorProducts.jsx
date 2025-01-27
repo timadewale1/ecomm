@@ -341,10 +341,10 @@ const VendorProducts = () => {
           published: false, // Ensure the product is unpublished
           isDeleted: true,
         });
-        
-      await updateDoc(vendorDocRef, {
-        productIds: arrayRemove(productId),
-      });
+
+        await updateDoc(vendorDocRef, {
+          productIds: arrayRemove(productId),
+        });
       }
       toast.success("Selected products deleted successfully.");
       setPickedProducts([]);
@@ -662,6 +662,8 @@ const VendorProducts = () => {
     }, {});
   };
 
+  const totalOutOfStock = products.filter((p) => p.stockQuantity === 0).length;
+
   const filteredProducts = products
     .filter((p) => {
       if (tabOpt === "Active") {
@@ -758,12 +760,17 @@ const VendorProducts = () => {
           </div>
           <div className="flex flex-col justify-center items-center space-y-3">
             <p
-              className={`text-sm ${
+              className={`text-sm flex space-x-1 ${
                 tabOpt === "OOS" ? "text-customOrange" : "text-black"
               }`}
               onClick={() => setTabOpt("OOS")}
             >
-              Out of Stock
+              Out of Stock{" "}
+              {totalOutOfStock > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full flex items-center justify-center w-5 h-5 animate-ping">
+                  {totalOutOfStock}
+                </span>
+              )}
             </p>
             <div className="h-1">
               {tabOpt === "OOS" && (

@@ -32,7 +32,7 @@ const WhatsAppModal = ({ isOpen, onClose }) => {
           justifyContent: "center",
           zIndex: 3000,
         },
-      }}
+      }} 
     >
       <div className="flex flex-col items-center font-opensans">
         {/* Header */}

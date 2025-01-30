@@ -1,3 +1,5 @@
+import React, { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { applyActionCode } from "firebase/auth";
 import { auth } from "../../firebase.config";
 import toast from "react-hot-toast";
@@ -42,7 +44,7 @@ const EmailVerification = () => {
           </p>
         ) : (
           <p className="text-green-600  font-opensans font-normal">
-            Email verification completed! You can close this page.
+            Email verification completed!You can close this tab now.
           </p>
         )}
       </div>
@@ -50,4 +52,4 @@ const EmailVerification = () => {
   );
 };
 
-export default EmailVerification;
+export default EmailVerification

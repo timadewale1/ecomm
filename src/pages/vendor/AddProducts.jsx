@@ -6,9 +6,14 @@ import {
   setDoc,
   addDoc,
   updateDoc,
+  serverTimestamp,
+  where,
+  query,
+  getDocs,
   arrayUnion,
   getDoc,
 } from "firebase/firestore";
+import DiscountModal from "./DiscountModal";
 import ReactDOM from "react-dom";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from "../../firebase.config";
@@ -71,7 +76,18 @@ const AddProduct = ({ vendorId, closeModal }) => {
   const [availableSizes, setAvailableSizes] = useState([]); // Ensure size dropdown syncs with this
   const [additionalImages, setAdditionalImages] = useState([]);
   const [subProducts, setSubProducts] = useState([]);
+  const [runDiscount, setRunDiscount] = useState(false);
+  const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
+  const [discountType, setDiscountType] = useState("");
+  const [discountValue, setDiscountValue] = useState("");
+  const [finalPrice, setFinalPrice] = useState("");
+  const [initialPrice, setInitialPrice] = useState(""); // Replace with actual product price
+  const [inAppDiscounts, setInAppDiscounts] = useState([]); // Stores fetched in-app discounts
+  const [isLoadingDiscounts, setIsLoadingDiscounts] = useState(true); // Tracks loading state for discoun
   const [currentUser, setCurrentUser] = useState(null);
+  const [discountDetails, setDiscountDetails] = useState(null); // Store discount details
+  const [isPriceEditable, setIsPriceEditable] = useState(true); // Control productPrice field's editability
+
   const storage = getStorage();
   Modal.setAppElement("#root");
   useEffect(() => {
@@ -145,7 +161,124 @@ const AddProduct = ({ vendorId, closeModal }) => {
       setAvailableSizes([]);
     }
   }, [selectedProductType, selectedSubType]);
+  const openDiscountModal = () => {
+    setIsDiscountModalOpen(true);
+  };
 
+  const closeDiscountModal = () => {
+    setIsDiscountModalOpen(false);
+  };
+
+  const handleDiscountTypeChange = (e) => {
+    setDiscountType(e.target.value);
+  };
+
+  const handleSaveDiscount = async (discountDetails) => {
+    const {
+      discountType,
+      selectedDiscount,
+      actualPrice,
+      discountPrice,
+      percentageCut,
+      subtractiveValue,
+    } = discountDetails;
+
+    console.log("[handleSaveDiscount] Function started.");
+    console.log(
+      "[handleSaveDiscount] Received discount details:",
+      discountDetails
+    );
+
+    // Validation: Ensure it's an inApp discount
+    if (!discountType?.startsWith("inApp")) {
+      console.error("[handleSaveDiscount] Discount type must be 'inApp'.");
+      toast.error("Only in-app discounts are allowed.");
+      return;
+    }
+
+    try {
+      console.log("[handleSaveDiscount] Validating required fields.");
+
+      // Ensure actual price and discount price are provided
+      if (!actualPrice || !discountPrice) {
+        console.error(
+          "[handleSaveDiscount] Missing actualPrice or discountPrice."
+        );
+        toast.error("Initial and discount prices are required.");
+        return;
+      }
+
+      // Prepare discount data for Firestore
+      const discountData = {
+        vendorId, // Ensure vendorId is available in your scope (e.g., props or context)
+        type: "inApp",
+        isActive: true,
+        createdAt: serverTimestamp(),
+        actualPrice: parseFloat(actualPrice),
+        discountPrice: parseFloat(discountPrice),
+        percentageCut: parseFloat(percentageCut),
+        subtractiveValue: parseFloat(subtractiveValue),
+        selectedDiscountId: selectedDiscount?.id || null,
+        selectedDiscountName: selectedDiscount?.name || "Unknown Discount",
+      };
+
+      console.log("[handleSaveDiscount] Prepared discount data:", discountData);
+
+      // Reference Firestore collection
+      console.log(
+        "[handleSaveDiscount] Getting reference for 'discounts' collection."
+      );
+      const discountsRef = collection(db, "discounts");
+
+      // Generate a new document ID
+      const discountDocRef = doc(discountsRef);
+      console.log(
+        "[handleSaveDiscount] New document reference created:",
+        discountDocRef.path
+      );
+
+      // Save the discount to Firestore
+      console.log("[handleSaveDiscount] Saving discount to Firestore...");
+      await setDoc(discountDocRef, discountData);
+      console.log(
+        "[handleSaveDiscount] Discount successfully saved in Firestore."
+      );
+
+      // Update the vendor's discount list with the new discount ID
+      console.log("[handleSaveDiscount] Updating vendor discount list...");
+      const vendorDocRef = doc(db, "vendors", vendorId);
+      await updateDoc(vendorDocRef, {
+        discountIds: arrayUnion(discountDocRef.id),
+      });
+      console.log(
+        "[handleSaveDiscount] Vendor discount list updated with:",
+        discountDocRef.id
+      );
+
+      // Notify success
+      toast.success("In-App Discount saved successfully!");
+
+      // Optional: Update UI state
+      setDiscountDetails(discountDetails);
+      closeDiscountModal();
+    } catch (error) {
+      console.error("[handleSaveDiscount] Error saving discount:", error);
+      toast.error("Failed to save discount. Please try again.");
+    }
+  };
+
+  const handleDiscountValueChange = (e) => {
+    const value = parseFloat(e.target.value);
+    setDiscountValue(value);
+
+    if (discountType === "percentage") {
+      const calculatedPrice = initialPrice - (initialPrice * value) / 100;
+      setFinalPrice(calculatedPrice.toFixed(2));
+    } else if (discountType === "fixed") {
+      const calculatedPrice = initialPrice - value;
+      setFinalPrice(calculatedPrice.toFixed(2));
+    }
+  };
   // Log the product type and sub-type change
   const handleProductTypeChange = (selectedOption) => {
     console.log("Product Type Changed to:", selectedOption);
@@ -204,6 +337,28 @@ const AddProduct = ({ vendorId, closeModal }) => {
       behavior: "smooth",
     });
   };
+  useEffect(() => {
+    const fetchInAppDiscounts = async () => {
+      try {
+        const discountsRef = collection(db, "inAppDiscounts");
+        const q = query(discountsRef, where("isActive", "==", true)); // Fetch only active discounts
+        const querySnapshot = await getDocs(q);
+
+        const discounts = querySnapshot.docs.map((doc) => ({
+          id: doc.id, // Include document ID
+          ...doc.data(), // Spread document data
+        }));
+
+        setInAppDiscounts(discounts); // Update state with discounts
+      } catch (error) {
+        console.error("Error fetching in-app discounts:", error);
+      } finally {
+        setIsLoadingDiscounts(false); // Loading completed
+      }
+    };
+
+    fetchInAppDiscounts();
+  }, []);
 
   const handleScroll = () => {
     const scrollLeft = scrollContainerRef.current.scrollLeft;
@@ -458,6 +613,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         price: parseFloat(productPrice),
         coverImageUrl: coverImageUrl,
         imageUrls: imageUrls,
+        isFeatured: false,
         vendorId: currentUser.uid,
         vendorName: vendorData.shopName,
         stockQuantity: totalStockQuantity,
@@ -1191,7 +1347,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
             "Tees",
             "Nike",
             "Adidas",
-            "Sports"
+            "Sports",
           ].map((suggestion, index) => (
             <span
               key={index}
@@ -1334,6 +1490,82 @@ const AddProduct = ({ vendorId, closeModal }) => {
           </div>
         </Modal>
       </div>
+      <div className="mb-4">
+        <div className="flex items-center">
+          <label className="text-black font-opensans text-sm mb-1">
+            Run a discount on this product?
+          </label>
+        </div>
+
+        <div className="flex mt-2 items-center">
+          {/* Option 1: No */}
+          <label className="inline-flex items-center mr-4">
+            <input
+              type="radio"
+              value={false}
+              checked={!runDiscount}
+              onChange={() => setRunDiscount(false)}
+              className="hidden"
+            />
+            <div
+              className={`h-4 w-4 rounded-full border-2 border-customOrange flex items-center justify-center ${
+                !runDiscount ? "bg-customOrange" : "bg-white"
+              }`}
+            >
+              <div
+                className={`h-2 w-2 rounded-full ${
+                  !runDiscount ? "bg-white" : "bg-transparent"
+                }`}
+              ></div>
+            </div>
+            <span className="ml-2 font-opensans font-light text-xs text-black">
+              No
+            </span>
+          </label>
+
+          {/* Option 2: Yes */}
+          <label className="inline-flex items-center">
+            <input
+              type="radio"
+              value={true}
+              checked={runDiscount}
+              onChange={() => {
+                setRunDiscount(true);
+                openDiscountModal();
+              }}
+              className="hidden"
+            />
+            <div
+              className={`h-4 w-4 rounded-full border-2 border-customOrange flex items-center justify-center ${
+                runDiscount ? "bg-customOrange" : "bg-white"
+              }`}
+            >
+              <div
+                className={`h-2 w-2 rounded-full ${
+                  runDiscount ? "bg-white" : "bg-transparent"
+                }`}
+              ></div>
+            </div>
+            <span className="ml-2 font-opensans font-light text-xs text-black">
+              Yes
+            </span>
+          </label>
+        </div>
+      </div>
+
+      {/* Discount Modal */}
+      <DiscountModal
+        isOpen={isDiscountModalOpen}
+        onRequestClose={closeDiscountModal}
+        discountType={discountType}
+        handleDiscountTypeChange={handleDiscountTypeChange}
+        discountValue={discountValue}
+        handleDiscountValueChange={handleDiscountValueChange}
+        finalPrice={finalPrice}
+        inAppDiscounts={inAppDiscounts}
+        handleSaveDiscount={handleSaveDiscount}
+        initialPrice={initialPrice}
+      />
 
       <div className="text-sm">
         <button

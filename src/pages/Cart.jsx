@@ -688,7 +688,7 @@ const Cart = () => {
           </div>
         </div>
       )}
-adding
+
       {/* Modal for  a note */}
       {isNoteModalOpen && (
         <div

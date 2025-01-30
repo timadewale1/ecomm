@@ -193,6 +193,21 @@ li::marker {
   margin: 0 auto;
   animation: slide-up 0.3s ease-in-out;
 }
+.discount-modal {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  top: auto; /* Remove the top offset */
+  border-radius: 20px 20px 0 0;
+  padding: 20px;
+  background-color: #ffffff;
+  border: none;
+  height: 100%; /* Set height similar to the example */
+  max-width: 500px;
+  margin: 0 auto;
+  animation: slide-up 0.3s ease-in-out;
+}
 
 /* Inner Content Styling */
 .review-modal-content {

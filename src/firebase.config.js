@@ -9,7 +9,6 @@ import {
   ReCaptchaEnterpriseProvider,
 } from "firebase/app-check";
 
-
 const firebaseConfig = {
   apiKey: "AIzaSyC7pOCYSGpYMUDiRxRN4nV4UUfd2tdx1Jg",
   authDomain: "ecommerce-ba520.firebaseapp.com",
@@ -19,21 +18,38 @@ const firebaseConfig = {
   appId: "1:620187458799:web:c4deef3184a5145256cf1a",
 };
 
-
+// Initialize Firebase app
 const app = initializeApp(firebaseConfig);
-console.log("Firebase app initialized.");
+if (process.env.REACT_APP_FIREBASE_DEBUG_TOKEN) {
+  window.FIREBASE_APPCHECK_DEBUG_TOKEN = process.env.REACT_APP_FIREBASE_DEBUG_TOKEN;
+}
 
-initializeAppCheck(app, {
+// Initialize App Check
+const appCheck = initializeAppCheck(app, {
   provider: new ReCaptchaEnterpriseProvider(
-    process.env.REACT_APP_RECAPTCHA_ENTERPRISE_KEY 
+    ""
   ),
-  isTokenAutoRefreshEnabled: true,
+  isTokenAutoRefreshEnabled: true, // Automatically refresh App Check tokens
 });
 
+// Add console logs to verify App Check
+console.log("App initialized with Firebase App Check");
+console.log("App Check initialized with ReCaptcha Enterprise Provider");
+
+// Firebase services
 export const auth = getAuth(app);
+console.log("Auth initialized");
+
 export const db = getFirestore(app);
+console.log("Firestore initialized");
+
 export const storage = getStorage(app);
+console.log("Storage initialized");
+
 export const messaging = getMessaging(app);
+console.log("Messaging initialized");
+
 export const functions = getFunctions(app);
+console.log("Functions initialized");
 
 export default app;

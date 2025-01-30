@@ -93,11 +93,15 @@ const Cart = () => {
               );
             } else {
               const productData = productDoc.data();
-              if (!productData.published) {
+              if (!productData.published || productData.isDeleted) {
                 dispatch(removeFromCart({ vendorId, productKey }));
                 toast.dismiss();
                 toast(
-                  `Product ${product.name} has been removed as it is unpublished by the vendor.`,
+                  `Product ${product.name} has been removed as it is ${
+                    productData.isDeleted
+                      ? "deleted by the vendor"
+                      : "unpublished by the vendor"
+                  }.`,
                   { icon: "ℹ️" }
                 );
               }
@@ -684,8 +688,8 @@ const Cart = () => {
           </div>
         </div>
       )}
-
-      {/* Modal for adding a note */}
+adding
+      {/* Modal for  a note */}
       {isNoteModalOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center modal1"

@@ -1,130 +1,170 @@
 import React, { useState } from "react";
-import { FaAngleLeft, FaAngleRight, FaRegTimesCircle } from "react-icons/fa";
-
+import Modal from "react-modal";
+import { FaAngleLeft, FaAngleRight } from "react-icons/fa";
+import { LiaTimesSolid } from "react-icons/lia";
+import { GoChevronLeft } from "react-icons/go";
+import ScrollToTop from "../../components/layout/ScrollToTop";
 const FAQs = ({ setShowFAQs }) => {
   const [faqModalContent, setFaqModalContent] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleFaqClick = (content) => {
     setFaqModalContent(content);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setFaqModalContent("");
   };
 
   return (
     <div className="flex p-2 flex-col items-center">
+     <ScrollToTop/> 
       <div className="flex items-center w-full mb-4">
-        <FaAngleLeft
+        <GoChevronLeft
           className="text-2xl text-black cursor-pointer"
           onClick={() => setShowFAQs(false)}
         />
         <h2 className="text-xl text-black font-ubuntu ml-2">FAQs</h2>
       </div>
       <div className="w-full mt-4">
-        <div className="flex flex-col rounded-xl bg-customGrey mb-2 items-center w-full">
-          
+        {[
+          "What is your shipping policy?",
+          "My order arrived damaged. How do we fix this?",
+          "I received the wrong item. What do I do?",
+          "How do I cancel/change an order?",
+          "My order is taking so long. What next?",
+          "I wasn’t refunded my initial total payment. Why?",
+          "I want to become a vendor.",
+          "What is declutter?",
+          "What are donations?",
+          "What are service fees?",
+        ].map((faq) => (
           <div
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
-            onClick={() => handleFaqClick("What is Booking Fee?")}
+            key={faq}
+            className="flex flex-col rounded-xl bg-customGrey mb-4 items-center w-full"
           >
-            <p className="text-base font-normal font-poppins text-black capitalize w-full">
-              What is Booking Fee?
-            </p>
-            <FaAngleRight className="text-black" />
+            <div
+              className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+              onClick={() => handleFaqClick(faq)}
+            >
+              <p className="text-base font-normal font-poppins text-black capitalize w-full">
+                {faq}
+              </p>
+              <FaAngleRight className="text-black" />
+            </div>
           </div>
-          
-        </div>
-        <div className="flex flex-col items-center w-full mt-2">
-        
-          <div
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-2"
-            onClick={() => handleFaqClick("How do I become a vendor?")}
-          >
-            <p className="text-base font-normal font-poppins text-black capitalize w-full">
-              How do I become a vendor?
-            </p>
-            <FaAngleRight className="text-black" />
-          </div>
-         
-        </div>
-        <div className="flex flex-col items-center w-full mt-2">
-          
-          <div
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-2"
-            onClick={() => handleFaqClick("Do I get a refund for my booking fee?")}
-          >
-            <p className="text-base font-normal font-poppins text-black capitalize w-full">
-              Do I get a refund for my booking fee?
-            </p>
-            <FaAngleRight className="text-black" />
-          </div>
-         
-        </div>
-        <div className="flex flex-col items-center w-full mt-2">
-         
-          <div
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-2"
-            onClick={() => handleFaqClick("What are service fees?")}
-          >
-            <p className="text-base font-normal font-poppins text-black capitalize w-full">
-              What are service fees?
-            </p>
-            <FaAngleRight className="text-black" />
-          </div>
-         
-        </div>
-        <div className="flex flex-col items-center w-full mt-2">
-         
-          <div
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-2"
-            onClick={() => handleFaqClick("What are donations for?")}
-          >
-            <p className="text-base font-normal font-poppins text-black capitalize w-full">
-              What are donations for?
-            </p>
-            <FaAngleRight className="text-black" />
-          </div>
-         
-        </div>
+        ))}
       </div>
 
-      {faqModalContent && (
-        <div className="fixed p-4 inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative">
-            <FaRegTimesCircle
-              className="absolute top-2 right-2 text-black cursor-pointer"
-              onClick={() => setFaqModalContent("")}
+      <Modal
+        isOpen={isModalOpen}
+        onRequestClose={closeModal}
+        className="bg-white w-full  h-[50vh] rounded-t-2xl shadow-lg overflow-y-scroll relative flex flex-col"
+        overlayClassName="fixed inset-0 bg-gray-900 modal-overlay backdrop-blur-sm bg-opacity-50 flex justify-center items-end z-50"
+        ariaHideApp={false}
+      >
+        <div className="relative h-full">
+          <div className="mt-6 flex items-center px-4 font-semibold justify-between">
+            <h1 className="font-ubuntu text-2xl text-black">
+              {faqModalContent}
+            </h1>
+            <LiaTimesSolid
+              className="text-2xl cursor-pointer absolute top-4 right-4"
+              onClick={closeModal}
             />
-            <h2 className="text-xl font-semibold mb-4">{faqModalContent}</h2>
-            {faqModalContent === "What is Booking Fee?" && (
-              <p className="font-ubuntu text-center flex">
-                The booking fee is a 20% charge of the product subtotal,
-                ensuring vendors reserve your items for up to 3 days. If the
-                transaction is not completed within this period, the fee is
-                refunded. This fee helps maintain inventory and guarantees item
-                availability.
+          </div>
+          <div className="px-4 mt-8">
+            {faqModalContent === "What is your shipping policy?" && (
+              <p className="text-base font-opensans font-light text-black">
+                Our shipping policy is designed to ensure the timely and secure
+                delivery of your items. Shipping times and costs vary based on
+                your location and the selected shipping method. On average,
+                shipping takes 3–7 days. We encourage our vendors to use
+                reliable and efficient logistics services to guarantee prompt
+                delivery and customer satisfaction.
               </p>
             )}
-            {faqModalContent === "How do I become a vendor?" && (
-              <p className="font-ubuntu text-center flex">
-                Register your business on our platform to become a vendor. After a quick review, you'll get your own virtual store to list and sell products to a wide audience. This ensures only reputable businesses are featured, enhancing trust and credibility. Expand your reach, boost sales, and grow your business easily.
+            {faqModalContent ===
+              "My order arrived damaged. How do we fix this?" && (
+              <p className="text-base font-opensans font-light text-black">
+                If your order arrives damaged, please contact our customer
+                support team immediately and provide clear photos of the damage.
+                After a thorough investigation, we will communicate with the
+                vendor and assist you with either a replacement or a refund.
               </p>
             )}
-            {faqModalContent === "Do I get a refund for my booking fee?" && (
-              <p className="font-ubuntu text-center flex">
-                Yes, you are refunded your booking fee after 3 days if the transaction is not completed. The bank payment settlement process ensures your money is returned to your account promptly, providing a hassle-free experience.
+            {faqModalContent === "I received the wrong item. What do I do?" && (
+              <p className="text-base font-opensans font-light text-black">
+                If you receive the wrong item, please contact our customer
+                support team with the order ID, a photo of the item you
+                received, and a description of the item you expected. We will
+                promptly resolve the issue to ensure your satisfaction.
+              </p>
+            )}
+            {faqModalContent === "How do I cancel/change an order?" && (
+              <p className="text-base font-opensans font-light text-black">
+                Orders can only be canceled or modified within a limited time
+                frame, provided the vendor has not started processing the order.
+                Please note that canceled orders are subject to a 10% processing
+                fee, along with applicable payment partner charges. To request
+                changes or cancellations, contact our support team as soon as
+                possible.
+              </p>
+            )}
+            {faqModalContent === "My order is taking so long. What next?" && (
+              <p className="text-base font-opensans font-light text-black">
+                If your order is delayed, check your order status. If it's past
+                the expected delivery date, contact support for assistance.
+              </p>
+            )}
+            {faqModalContent ===
+              "I wasn’t refunded my initial total payment. Why?" && (
+              <p className="text-base font-opensans font-light text-black">
+                Refunds are typically processed on the same day. If you haven't
+                received your refund within this time frame, please contact our
+                support team with your transaction details. Refunds are issued
+                when a vendor declines an order and will reflect your total
+                payment minus the service fee and applicable transaction
+                charges. Refunds are credited to account that made initial
+                payment.
+              </p>
+            )}
+            {faqModalContent === "I want to become a vendor." && (
+              <p className="text-base font-opensans font-light text-black">
+                To become a vendor, sign up on our platform, submit your
+                business details, and await approval to start selling.
+              </p>
+            )}
+            {faqModalContent === "What is declutter?" && (
+              <p className="text-base font-opensans font-light text-black">
+                Declutter is a feature designed to help you sell pre-loved,
+                secondhand, or unwanted items from your home online. It’s a
+                great way to create space while earning extra cash. This feature
+                is currently in development, and we can't wait to share it with
+                our community soon!
+              </p>
+            )}
+            {faqModalContent === "What are donations?" && (
+              <p className="text-base font-opensans font-light text-black">
+                Donations are a meaningful way to support those in need by
+                providing essentials to orphanages and NGOs. Your contributions
+                will make a lasting positive impact. This feature is currently
+                in development and will be launched soon. Stay tuned!
               </p>
             )}
             {faqModalContent === "What are service fees?" && (
-              <p className="font-ubuntu text-center flex">
-                Maintaining a SaaS platform involves various costs, including hosting, security, and customer support. Service fees help cover these expenses, ensuring a seamless and secure experience for both vendors and buyers.
-              </p>
-            )}
-            {faqModalContent === "What are donations for?" && (
-              <p className="font-ubuntu text-center flex">
-                Donations help us give back to the community. Your donated clothes support kids in need and people in need by providing them to orphanage homes and various NGOs. This initiative helps improve the lives of those less fortunate and contributes to a better society.
+              <p className="text-base ml-4 font-opensans font-light text-black">
+                Service fees are dynamic charges applied to transactions to
+                support the app's operations and customer support teams. These
+                fees are capped at a fixed amount, so no need to worry about
+                excessive charges.
               </p>
             )}
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

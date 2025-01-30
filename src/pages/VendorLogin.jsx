@@ -1,220 +1,121 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
 import {
   getAuth,
   signInWithEmailAndPassword,
-  RecaptchaVerifier,
   sendEmailVerification,
-  signInWithPhoneNumber,
 } from "firebase/auth";
-import {
-  doc,
-  getDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-} from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { motion } from "framer-motion";
-import { db } from "../firebase.config";
+import { db, functions } from "../firebase.config";
+import { httpsCallable } from "firebase/functions";
 import { toast } from "react-hot-toast";
 import { FaRegEyeSlash, FaRegEye } from "react-icons/fa";
 import { MdEmail } from "react-icons/md";
 import { GrSecure } from "react-icons/gr";
 import VendorLoginAnimation from "../SignUpAnimation/SignUpAnimation";
-import "react-phone-input-2/lib/style.css";
 import { RotatingLines } from "react-loader-spinner";
 import Typewriter from "typewriter-effect";
-import { FaAngleLeft } from "react-icons/fa6";
-import PhoneInput from "react-phone-input-2";
-import "react-phone-input-2/lib/style.css";
 import { GoChevronLeft } from "react-icons/go";
 
 const VendorLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isPhoneLogin, setIsPhoneLogin] = useState(false);
 
   const navigate = useNavigate();
   const auth = getAuth();
-
-  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-  // Toggle between email and phone login methods
-  const toggleLoginMethod = () => {
-    setIsPhoneLogin(!isPhoneLogin);
-  };
-
-  // Initialize reCAPTCHA verifier
-  const initializeRecaptchaVerifier = () => {
-    if (window.recaptchaVerifier) {
-      window.recaptchaVerifier.clear();
-      delete window.recaptchaVerifier;
-    }
-    window.recaptchaVerifier = new RecaptchaVerifier(
-      auth,
-      "recaptcha-container-login",
-      {
-        size: "invisible",
-        callback: (response) => {
-          // reCAPTCHA solved
-        },
-        "expired-callback": () => {
-          toast.error("reCAPTCHA expired. Please try again.");
-        },
-      }
-    );
-  };
-
-  useEffect(() => {
-    initializeRecaptchaVerifier();
-    return () => {
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-        delete window.recaptchaVerifier;
-      }
-    };
-  }, []);
-  useEffect(() => {
-    setIsPhoneLogin(true);
-  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    if (!isPhoneLogin) {
-      // Email Login
-      try {
-        if (!email || !validateEmail(email) || !password) {
-          toast.error("Please fill in all fields correctly.");
-          setLoading(false);
-          return;
-        }
-
-        const userCredential = await signInWithEmailAndPassword(
-          auth,
-          email,
-          password
-        );
-        const user = userCredential.user;
-
-        await user.reload();
-        if (!user.emailVerified) {
-          // Resend verification email if not verified
-          await sendEmailVerification(user, {
-            url: "https://shopmythrift.store/confirm-email", // Update to your confirm email route
-            handleCodeInApp: true,
-          });
-          toast.error(
-            "Your email is not verified. A verification link has been sent to your email. Please verify your email and try again."
-          );
-          setLoading(false);
-          return;
-        }
-
-        const docRef = doc(db, "vendors", user.uid);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists() && docSnap.data().isDeactivated) {
-          toast.error(
-            "Your vendor account is deactivated. Please contact support."
-          );
-          await auth.signOut();
-          setLoading(false);
-          return;
-        }
-
-        if (docSnap.exists() && docSnap.data().role === "vendor") {
-          if (!docSnap.data().profileComplete) {
-            toast("Please complete your profile.");
-            navigate("/complete-profile");
-          } else {
-            toast.success("Login successful.");
-            navigate("/vendordashboard");
-          }
-        } else {
-          toast.error("This account is already registered.");
-          await auth.signOut();
-        }
-      } catch (error) {
-        handleSigninError(error);
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      // Phone Login
-      if (!phone || phone.length < 10) {
-        toast.error(
-          "Incomplete phone number. Please enter at least 10 digits."
-        );
+    try {
+      if (!email || !password) {
+        toast.error("Please fill in all fields.");
         setLoading(false);
         return;
       }
 
-      try {
-        const appVerifier = window.recaptchaVerifier;
+      
+      const vendorLoginCallable = httpsCallable(functions, "vendorLogin");
+      const response = await vendorLoginCallable({ email, password });
+      const data = response.data;
+      if (!data.success && data.code === "unverified-email") {
+        toast.error("Email not verified. Verification link has been sent.");
+        setLoading(false);
+        return;
+      }
 
-        // Check if the phone number exists in the database
-        const vendorQuery = query(
-          collection(db, "vendors"),
-          where("phoneNumber", "==", `+${phone}`)
-        );
-        const vendorSnapshot = await getDocs(vendorQuery);
+      if (!data.success) {
+        // Means the function threw an HttpsError or returned some error status
+        // Typically handled by the catch block, but let's handle gracefully:
+        toast.error("Unable to log in. Check your email/password.");
+        setLoading(false);
+        return;
+      }
 
-        if (vendorSnapshot.empty) {
-          toast.error("Phone number not found. Please register first.");
+      // 2) If successful, sign in with Email/Password on the client
+      await signInWithEmailAndPassword(auth, email, password);
+
+      const user = auth.currentUser;
+      if (!user) {
+        toast.error("User not found after sign-in.");
+        setLoading(false);
+        return;
+      }
+
+      // 3) Double-check Firestore vendor data
+      const docRef = doc(db, "vendors", data.uid);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        if (docSnap.data().isDeactivated) {
+          toast.error("Your vendor account is deactivated. Contact support.");
+          await auth.signOut();
           setLoading(false);
           return;
         }
-
-        // Send OTP using Firebase
-        const confirmationResult = await signInWithPhoneNumber(
-          auth,
-          `+${phone}`,
-          appVerifier
-        );
-
-        window.confirmationResult = confirmationResult;
-        toast.success("OTP sent successfully!");
-
-        // Navigate to VendorVerifyOTP with the phone number and mode
-        navigate("/vendor-verify-otp", {
-          state: {
-            vendorData: { phoneNumber: `+${phone}` },
-            mode: "login",
-          },
-        });
-      } catch (error) {
-        console.error("Error during phone login:", error);
-        toast.error(`Failed to send OTP: ${error.message}`);
-      } finally {
-        setLoading(false);
+        if (!docSnap.data().profileComplete) {
+          toast("Please complete your profile.");
+          navigate("/complete-profile");
+        } else {
+          toast.success("Login successful.");
+          navigate("/vendordashboard");
+        }
+      } else {
+        // Not found in vendors
+        toast.error("This account is already registered as non-vendor.");
+        await auth.signOut();
       }
+    } catch (error) {
+      // HttpsError or Firebase Auth error
+      handleSigninError(error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Handle sign-in errors
   const handleSigninError = (error) => {
+   
     switch (error.code) {
-      case "auth/user-not-found":
-        toast.error(
-          "You have entered a wrong email address, please try again."
-        );
+      case "not-found":
+        toast.error("Wrong email address or not a vendor.");
         break;
-      case "auth/invalid-verification-code":
-        toast.error("You have entered a wrong OTP code, please try again.");
+      case "permission-denied":
+        toast.error("Account is disabled or deactivated. Contact support.");
+        break;
+      case "auth/user-not-found":
+        toast.error("You have entered a wrong email address.");
         break;
       case "auth/user-disabled":
-        toast.error("Your account has been disabled, please contact support.");
+        toast.error("Your account has been disabled. Contact support.");
         break;
       case "auth/wrong-password":
-        toast.error("You have entered a wrong password, please try again.");
+        toast.error("You have entered a wrong password.");
         break;
       default:
         toast.error("Error signing in: " + error.message);
@@ -227,9 +128,9 @@ const VendorLogin = () => {
         <Container>
           <Row>
             <div className="px-2">
-              {/* <Link to="/confirm-state">
+              <Link to="/confirm-state">
                 <GoChevronLeft className="text-3xl -translate-y-2 font-normal text-black" />
-              </Link> */}
+              </Link>
               <VendorLoginAnimation />
               <div className="flex justify-center text-xl font-ubuntu text-customOrange -translate-y-1">
                 <Typewriter
@@ -242,7 +143,6 @@ const VendorLogin = () => {
                   }}
                 />
               </div>
-
               <div className="flex justify-center text-xs font-medium text-customOrange -translate-y-2">
                 <Typewriter
                   options={{
@@ -258,7 +158,6 @@ const VendorLogin = () => {
                   }}
                 />
               </div>
-
               <div className="translate-y-4">
                 <div className="mb-2">
                   <h1 className="font-ubuntu text-5xl flex font-semibold text-black">
@@ -272,99 +171,52 @@ const VendorLogin = () => {
                   Please sign in to continue
                 </p>
               </div>
-              <div className="translate-y-1">
-                <div className="flex justify-center my-4">
-                  <div className="flex space-x-4 bg-gray-100 rounded-full p-1 shadow-sm">
-                    {/* Tab Headers */}
-                    <button
-                      className={`px-6 py-2 text-sm font-opensans font-semibold rounded-full transition ${
-                        isPhoneLogin
-                          ? "bg-customOrange text-white shadow-lg"
-                          : "bg-transparent text-gray-800 hover:bg-gray-200"
-                      }`}
-                      onClick={() => setIsPhoneLogin(true)}
+              <div className="translate-y-1 mt-6 px-2">
+                <Form onSubmit={handleLogin}>
+                  <FormGroup className="relative mb-3">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <MdEmail className="text-gray-500 text-xl" />
+                    </div>
+                    <input
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full h-12 bg-white text-black font-opensans rounded-md text-sm border border-gray-200 pl-14 focus:outline-none focus:ring-2 focus:ring-customOrange"
+                      required
+                    />
+                  </FormGroup>
+                  <FormGroup className="relative mb-3">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <GrSecure className="text-gray-500 text-xl" />
+                    </div>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full h-12 bg-white text-black font-opensans rounded-md text-sm border border-gray-200 pl-14 focus:outline-none focus:ring-2 focus:ring-customOrange"
+                      required
+                    />
+                    <div
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
+                      onClick={() => setShowPassword(!showPassword)}
                     >
-                      Phone Login
-                    </button>
-                    <button
-                      className={`px-6 py-2 text-sm font-opensans font-semibold rounded-full transition ${
-                        !isPhoneLogin
-                          ? "bg-customOrange text-white shadow-lg"
-                          : "bg-transparent text-gray-800 hover:bg-gray-200"
-                      }`}
-                      onClick={() => setIsPhoneLogin(false)}
+                      {showPassword ? (
+                        <FaRegEyeSlash className="text-gray-500 text-xl" />
+                      ) : (
+                        <FaRegEye className="text-gray-500 text-xl" />
+                      )}
+                    </div>
+                  </FormGroup>
+                  <div className="flex justify-end">
+                    <Link
+                      to="/forgetpassword"
+                      className="text-customOrange font-lato text-xs"
                     >
-                      Email Login
-                    </button>
+                      Forgot password?
+                    </Link>
                   </div>
-                </div>
-
-                <Form className="mt-6 px-4" onSubmit={handleLogin}>
-                  {isPhoneLogin ? (
-                    <>
-                      <FormGroup className="relative mb-3">
-                        <PhoneInput
-                          country={"ng"}
-                          countryCodeEditable={false}
-                          value={phone}
-                          onChange={(phone) => setPhone(phone)}
-                          inputProps={{
-                            name: "phoneNumber",
-                            required: true,
-                            className:
-                              "w-full h-12 bg-white shadow-sm text-black font-opensans rounded-md text-sm border border-gray-200 focus:outline-none pl-12 focus:ring-2 focus:ring-customOrange",
-                          }}
-                        />
-                      </FormGroup>
-                    </>
-                  ) : (
-                    <>
-                      <FormGroup className="relative mb-3">
-                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                          <MdEmail className="text-gray-500 text-xl" />
-                        </div>
-                        <input
-                          type="email"
-                          placeholder="Enter your email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="w-full h-12 bg-white  text-black font-opensans rounded-md text-sm border border-gray-200 pl-14 focus:outline-none focus:ring-2 focus:ring-customOrange"
-                          required
-                        />
-                      </FormGroup>
-                      <FormGroup className="relative mb-3">
-                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                          <GrSecure className="text-gray-500 text-xl" />
-                        </div>
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Enter your password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="w-full h-12 bg-white  text-black font-opensans rounded-md text-sm border border-gray-200 pl-14 focus:outline-none focus:ring-2 focus:ring-customOrange"
-                          required
-                        />
-                        <div
-                          className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? (
-                            <FaRegEyeSlash className="text-gray-500 text-xl" />
-                          ) : (
-                            <FaRegEye className="text-gray-500 text-xl" />
-                          )}
-                        </div>
-                      </FormGroup>
-                      <div className="flex justify-end ">
-                        <Link
-                          to="/forgetpassword"
-                          className="text-customOrange font-lato text-xs"
-                        >
-                          Forgot password?
-                        </Link>
-                      </div>
-                    </>
-                  )}
                   <motion.button
                     type="submit"
                     className="w-full h-12 mt-4 rounded-full flex items-center justify-center bg-customOrange text-white font-semibold font-opensans text-sm hover:bg-orange-600 shadow-md"
@@ -392,10 +244,6 @@ const VendorLogin = () => {
                     </button>
                   </p>
                 </div>
-                <div
-                  id="recaptcha-container-login"
-                  style={{ display: "none" }}
-                />
               </div>
             </div>
           </Row>

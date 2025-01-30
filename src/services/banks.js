@@ -16,6 +16,10 @@ const banks = [
     name: "First Bank of Nigeria Plc",
   },
   {
+    code: "50515",
+    name: "Moniepoint MFB",
+  },
+  {
     code: "214",
     name: "First City Monument Bank",
   },

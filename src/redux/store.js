@@ -2,21 +2,33 @@
 import { createStore, applyMiddleware, combineReducers } from "redux";
 import thunk from "redux-thunk";
 import { cartReducer } from "./reducers/reducer";
-import favoritesReducer from "./reducers/favouriteReducers";
+// import favoritesReducer from "./reducers/favouriteReducers";
+import homepageReducer from "./reducers/homepagereducer";
 import productReducer from "./reducers/productreducers";
+// import homepageReducer from "./reducers/homepageSlice";
 import authReducer from "./reducers/authreducers";
 import orderReducer from "./reducers/orderreducer";
+import categoriesReducer from "./reducers/categoriesSlice";
+import conditionReducer from "./reducers/conditionSlice"; 
+import { marketReducer } from "./reducers/marketreducer";
 import userReducer from "./reducers/userreducer";
 import vendorProfileReducer from "./vendorProfileSlice"; // Adjust the path as needed
-
+import vendorReducer from "./reducers/VendorsSlice";
+import { promoReducer } from "./reducers/promoreducer";
 const rootReducer = combineReducers({
   auth: authReducer,
   cart: cartReducer,
   product: productReducer,
   user: userReducer,
   orders: orderReducer,
-  favorites: favoritesReducer,
-  vendorProfile: vendorProfileReducer, // Add the slice to the root reducer
+  market: marketReducer,
+  promo: promoReducer,
+  homepage: homepageReducer,
+  categories: categoriesReducer,
+  vendors: vendorReducer,
+  condition: conditionReducer,
+
+  vendorProfile: vendorProfileReducer, 
 });
 
 // Load cart state from local storage

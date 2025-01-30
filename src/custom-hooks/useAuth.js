@@ -1,4 +1,3 @@
-// AuthContext.js
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
@@ -31,6 +30,16 @@ export const AuthProvider = ({ children }) => {
 
       if (user) {
         try {
+          // Check if email is verified
+          if (!user.emailVerified) {
+            toast.error("Please verify your email to access the application.");
+            await signOut(auth); // Sign out the user immediately
+            setCurrentUser(null);
+            setCurrentUserData(null);
+            setLoading(false);
+            return;
+          }
+
           // Fetch user data
           const userRef = doc(db, "users", user.uid);
           const userDoc = await retryGetDoc(userRef);

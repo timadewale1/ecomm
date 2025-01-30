@@ -56,7 +56,7 @@ const VendorProfile = () => {
           totalOrders === 0
             ? [1, 1, 1]
             : [fulfilledOrders, unfulfilledOrders, incomingOrders],
-        backgroundColor: ["#15803d", "#d8d333", "#3b82f6"],
+        backgroundColor: ["#28a745", "#6c757d", "#007bff"],
         hoverBackgroundColor: ["#D92CA0", "#F27D38", "#5CBF49"],
         borderWidth: 0,
       },
@@ -179,19 +179,38 @@ const VendorProfile = () => {
 
   const handleLogout = async () => {
     try {
-      setIsLoggingOut(true);
+      setIsLoggingOut(true); // Start the loading spinner
+
+      // Perform HelpCrunch logout
+      if (window.HelpCrunch) {
+        console.log("Logging out from HelpCrunch...");
+        window.HelpCrunch("logout", (data) => {
+          if (data && data.success) {
+            console.log("Successfully logged out from HelpCrunch.");
+          } else {
+            console.error("HelpCrunch logout failed:", data);
+          }
+        });
+      } else {
+        console.warn(
+          "HelpCrunch is not initialized. Skipping HelpCrunch logout."
+        );
+      }
+
+      // Sign out from Firebase authentication
       await signOut(auth);
 
       // Dispatch clearOrders action to clear orders from Redux store
       dispatch(clearOrders());
 
+      // Show success message and navigate
       toast.success("Successfully logged out", { className: "custom-toast" });
       navigate("/vendorlogin");
     } catch (error) {
       console.error("Error logging out:", error);
       toast.error("Error logging out", { className: "custom-toast" });
     } finally {
-      setIsLoggingOut(false);
+      setIsLoggingOut(false); // Stop the loading spinner
     }
   };
 
@@ -244,10 +263,10 @@ const VendorProfile = () => {
                   <Doughnut data={activityData} options={activityOptions} />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center mt-5">
-                      <p className="text-xs text-black font-opensans font-medium">
+                      <p className="text-xs text-white font-opensans font-medium">
                         Total Orders
                       </p>
-                      <p className="text-lg font-opensans text-black font-bold">
+                      <p className="text-lg font-opensans text-white font-bold">
                         {totalOrders}
                       </p>
                     </div>
@@ -255,20 +274,20 @@ const VendorProfile = () => {
                 </div>
                 <div className="flex mt-2 space-x-6 text-sm mb-3">
                   <div className="flex items-center space-x-1">
-                    <span className="w-3 h-3 rounded-full bg-green-700"></span>
-                    <span className="font-opensans text-black">
+                    <span className="w-3 h-3 rounded-full bg-[#28a745]"></span>
+                    <span className="font-opensans text-white">
                       Fulfilled ({fulfilledOrders})
                     </span>
                   </div>
                   <div className="flex items-center space-x-1">
-                    <span className="w-3 h-3 rounded-full bg-[#d8d333]"></span>
-                    <span className="font-opensans text-black">
+                    <span className="w-3 h-3 rounded-full bg-[#6c757d]"></span>
+                    <span className="font-opensans text-white">
                       Unfulfilled ({unfulfilledOrders})
                     </span>
                   </div>
                   <div className="flex items-center space-x-1">
-                    <span className="w-3 h-3 rounded-full bg-blue-500"></span>
-                    <span className="font-opensans text-black">
+                    <span className="w-3 h-3 rounded-full bg-[#007bff]"></span>
+                    <span className="font-opensans text-white">
                       Incoming ({incomingOrders})
                     </span>
                   </div>

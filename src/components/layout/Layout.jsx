@@ -13,7 +13,6 @@ import { AccessContext } from "../Context/AccesContext";
 
 import ScrollToTop from "./ScrollToTop";
 
-
 const Layout = () => {
   const location = useLocation();
   const { currentUser } = useAuth(); // Custom hook to get the current user
@@ -35,7 +34,7 @@ const Layout = () => {
     "/search",
 
     "/send-us-feedback",
-    
+    "/",
     "/vendor-reviews",
     "/notifications",
     "/favorites",
@@ -59,6 +58,8 @@ const Layout = () => {
   const dynamicPaths = [
     "/product/:id",
     "/reviews/:id",
+    "/producttype/:type",
+    "/products/condition/:condition",
     "/store/:id",
     "/payment-approve/:reference",
     "category/:id",
@@ -91,15 +92,15 @@ const Layout = () => {
     "/vendor-orders",
     "/store-reviews",
     "/vendor-profile",
-    "/vendor-products"
+    "/vendor-products",
   ];
 
   const isVendorPath = vendorPaths.includes(location.pathname);
 
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 500);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 575);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 500);
+    const handleResize = () => setIsMobile(window.innerWidth < 575);
 
     window.addEventListener("resize", handleResize);
 
@@ -114,11 +115,6 @@ const Layout = () => {
       <VendorNavigationProvider>
         {isMobile ? (
           <>
-           <div className="bg-customBrown text-white text-xs  font-semibold py-1 font-ubuntu px-1 text-center">
-              <marquee behavior="scroll" direction="left">
-                You are currently using My Thrift Beta Version V1 🚀
-              </marquee>
-            </div>
             <div className="pb-1">
               <ScrollToTop />
               <Routers />

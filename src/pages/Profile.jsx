@@ -3,12 +3,13 @@ import { signOut } from "firebase/auth";
 import { auth, db } from "../firebase.config";
 import { toast } from "react-hot-toast";
 import { ChevronRight, User, ChevronLeft } from "lucide-react";
-
+import { AiOutlineUserSwitch } from "react-icons/ai";
 import { useNavigate, useLocation } from "react-router-dom";
 import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 import { useAuth } from "../custom-hooks/useAuth";
 import { FaHeart } from "react-icons/fa";
 import { RotatingLines } from "react-loader-spinner";
+import { FcOnlineSupport } from "react-icons/fc";
 import { PiSignOutBold } from "react-icons/pi";
 import { GiClothes } from "react-icons/gi";
 import { MdHelpOutline, MdModeEdit, MdOutlineFeedback } from "react-icons/md";
@@ -18,8 +19,9 @@ import {
   resetUserData,
 } from "../redux/actions/useractions";
 import { CiMoneyBill } from "react-icons/ci";
+import { LuLogIn } from "react-icons/lu";
 import { AiOutlineDashboard, AiOutlineExperiment } from "react-icons/ai";
-import UserDashboard from "./UserDashboard";
+
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { BsBoxSeam, BsShieldFillCheck } from "react-icons/bs";
@@ -80,9 +82,30 @@ const Profile = () => {
     };
     fetchUserData();
   }, [currentUser, location.search]);
+  const openChat = () => {
+    if (window.HelpCrunch) {
+      console.log("Opening HelpCrunch chat...");
+      window.HelpCrunch("openChat");
+    } else {
+      console.error("HelpCrunch is not initialized.");
+    }
+  };
 
-  //   fetchUserData();
-  // }, [currentUser, location.search];
+  useEffect(() => {
+    // Ensure HelpCrunch is fully initialized
+    const initializeHelpCrunch = () => {
+      if (window.HelpCrunch) {
+        window.HelpCrunch("onReady", () => {
+          console.log("HelpCrunch is ready.");
+          window.HelpCrunch("hideChatWidget"); // Ensure widget is hidden
+        });
+      } else {
+        console.error("HelpCrunch is not loaded.");
+      }
+    };
+
+    initializeHelpCrunch();
+  }, []);
 
   const handleAvatarChange = (newAvatar) => {
     dispatch(updateUserData({ photoURL: newAvatar }));
@@ -108,11 +131,35 @@ const Profile = () => {
     try {
       setIsLoggingOut(true); // Start the loading spinner
 
-      console.log("Logging out, cart:", cart); // Log the cart data
+      console.log("Starting logout process...");
+
+      // Logout from HelpCrunch
+      if (window.HelpCrunch) {
+        console.log("Logging out from HelpCrunch...");
+        window.HelpCrunch("logout", function (data) {
+          if (data && data.success) {
+            console.log("Successfully logged out from HelpCrunch.");
+          } else {
+            console.error(
+              "HelpCrunch logout failed or returned no data:",
+              data
+            );
+          }
+        });
+      } else {
+        console.warn(
+          "HelpCrunch is not initialized. Skipping HelpCrunch logout."
+        );
+      }
+
+      console.log("Saving cart data before Firebase logout...");
       await setDoc(doc(db, "carts", currentUser.uid), { cart });
       console.log("Cart saved to Firestore:", { cart }); // Log after saving to Firestore
 
+      console.log("Logging out from Firebase...");
       await signOut(auth);
+
+      console.log("Clearing local storage and Redux state...");
       localStorage.removeItem("cart");
       dispatch(clearCart()); // Clear Redux cart state
       dispatch(resetUserData());
@@ -125,6 +172,7 @@ const Profile = () => {
       toast.error("Error logging out", { className: "custom-toast" });
     } finally {
       setIsLoggingOut(false); // Stop the loading spinner
+      console.log("Logout process completed.");
     }
   };
 
@@ -187,7 +235,7 @@ const Profile = () => {
               >
                 <div className="flex items-center w-full">
                   <User className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal font-opensans text-black capitalize">
+                  <h2 className="text-size font-normal  text-sm  font-opensans text-black capitalize">
                     Personal information
                   </h2>
                   <ChevronRight className="text-black ml-auto" />
@@ -208,7 +256,7 @@ const Profile = () => {
               >
                 <div className="flex items-center">
                   <FaHeart className="text-red-500  text-xl mr-4" />
-                  <h2 className="text-size font-normal font-opensans text-black capitalize">
+                  <h2 className="text-size text-sm  font-normal font-opensans text-black capitalize">
                     Favorites
                   </h2>
                 </div>
@@ -222,7 +270,7 @@ const Profile = () => {
               Data
             </h1>
           </div>
-          {currentUser && (
+          {/* {currentUser && (
             <>
               <div className="flex flex-col items-center px-2 w-full">
                 <div
@@ -239,7 +287,7 @@ const Profile = () => {
                 </div>
               </div>
             </>
-          )}
+          )} */}
 
           <div className="flex flex-col items-center w-full px-2">
             <div
@@ -267,7 +315,7 @@ const Profile = () => {
             >
               <div className="flex items-center ">
                 <MdHelpOutline className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal font-opensans text-black capitalize">
+                <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
                   FAQs
                 </h2>
               </div>
@@ -279,7 +327,7 @@ const Profile = () => {
             <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-gray-100 mb-3 opacity-60">
               <div className="flex items-center">
                 <CiMoneyBill className="text-gray-600 text-xl mr-4" />
-                <h2 className="text-size font-normal font-opensans text-gray-600 capitalize">
+                <h2 className="text-size font-normal text-sm  font-opensans text-gray-600 capitalize">
                   Donations
                 </h2>
               </div>
@@ -296,7 +344,7 @@ const Profile = () => {
             <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-gray-100 mb-3 opacity-60">
               <div className="flex items-center">
                 <GiClothes className="text-gray-600 text-xl mr-4" />
-                <h2 className="text-size font-normal font-opensans text-gray-600 capitalize">
+                <h2 className="text-size font-normal text-sm  font-opensans text-gray-600 capitalize">
                   Declutter
                 </h2>
               </div>
@@ -322,7 +370,7 @@ const Profile = () => {
             >
               <div className="flex items-center">
                 <FaFileContract className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal font-opensans text-black capitalize">
+                <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
                   Terms and Conditions
                 </h2>
               </div>
@@ -335,7 +383,7 @@ const Profile = () => {
             >
               <div className="flex items-center">
                 <BsShieldFillCheck className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal font-opensans text-black capitalize">
+                <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
                   Privacy Policy
                 </h2>
               </div>
@@ -354,7 +402,7 @@ const Profile = () => {
               >
                 <div className="flex items-center">
                   <MdOutlineFeedback className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal text-black capitalize">
+                  <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
                     Send us your feedback! 📣
                   </h2>
                 </div>
@@ -366,12 +414,30 @@ const Profile = () => {
           <div className="flex flex-col items-center px-2 w-full">
             {currentUser && (
               <div
+                id="contact-support-tab"
+                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                onClick={openChat}
+              >
+                <div className="flex items-center">
+                  <FcOnlineSupport className="text-black text-xl mr-4" />
+                  <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
+                    Contact Support
+                  </h2>
+                </div>
+                <ChevronRight className="text-black" />
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col items-center px-2 w-full">
+            {currentUser && (
+              <div
                 className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
                 onClick={handleLogout}
               >
                 <div className="flex items-center justify-between w-full px-4 py-3">
                   <PiSignOutBold className="text-red-600 text-xl mr-4" />
-                  <p className="text-size text-black font-opensans w-full font-normal">
+                  <p className="text-size text-black text-sm  font-opensans w-full font-normal">
                     Sign Out
                   </p>
 
@@ -393,9 +459,22 @@ const Profile = () => {
                 onClick={() => navigate("/login")}
               >
                 <div className="flex items-center justify-between w-full px-4 py-3">
-                  <PiSignOutBold className="text-green-600 text-xl mr-4" />
-                  <p className="text-size text-black font-opensans w-full font-normal">
+                  <LuLogIn className="text-green-600 text-xl mr-4" />
+                  <p className="text-size text-black text-sm  font-opensans w-full font-normal">
                     Login
+                  </p>
+                </div>
+              </div>
+            )}
+            {!currentUser && (
+              <div
+                className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
+                onClick={() => navigate("/confirm-state")}
+              >
+                <div className="flex items-center justify-between w-full px-4 py-3">
+                  <AiOutlineUserSwitch className="text-customOrange text-xl mr-4" />
+                  <p className="text-size text-black font-opensans w-full text-sm font-normal">
+                    Switch Role
                   </p>
                 </div>
               </div>
@@ -416,7 +495,7 @@ const Profile = () => {
             />
           )}
 
-          {showMetrics && <UserDashboard />}
+          {/* {showMetrics && <UserDashboard />} */}
           {showFAQs && <FAQs setShowFAQs={setShowFAQs} />}
           {/* {showDonations && (
             <div className="flex flex-col items-center">

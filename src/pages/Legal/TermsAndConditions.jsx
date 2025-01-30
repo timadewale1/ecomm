@@ -278,7 +278,7 @@ const TermsAndConditions = () => {
               <span className="text-customOrange">3.5</span> My Thrift imposes
               service fees. These fees are dynamic and used to support our
               business operations. To foster fairness and transparency, our
-              service fee charges are capped at a maximum of ₦ 2,000.
+              service fee charges are capped so no need to worry about excessive charges.
             </p>
           </section>
 

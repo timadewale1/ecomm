@@ -14,7 +14,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from "../../firebase.config";
 import toast from "react-hot-toast";
 import { Carousel } from "react-responsive-carousel";
-import { FaImage, FaMinusCircle } from "react-icons/fa";
+import { FaImage, FaMinusCircle, FaSmileBeam } from "react-icons/fa";
 import { RotatingLines } from "react-loader-spinner";
 import axios from "axios";
 import { AiOutlineProduct } from "react-icons/ai";
@@ -31,7 +31,7 @@ import productTypes from "./producttype";
 import Modal from "react-modal";
 import productSizes from "./productsizes";
 import { LuBadgeInfo } from "react-icons/lu";
-import { MdOutlineCancel } from "react-icons/md";
+import { MdOutlineCancel, MdOutlineClose } from "react-icons/md";
 const animatedComponents = makeAnimated();
 const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
 
@@ -823,7 +823,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           options={productTypeOptions}
           value={selectedProductType}
           onChange={handleProductTypeChange}
-          className="w-full"
+          className="w-full font-opensans text-sm"
           classNamePrefix="custom-select"
           placeholder="Select Product Type"
           isSearchable
@@ -869,7 +869,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
             )}
             value={selectedSubType}
             onChange={setSelectedSubType}
-            className="w-full"
+            className="w-full font-opensans text-sm "
             classNamePrefix="custom-select"
             placeholder="Select Sub Type"
             isSearchable
@@ -906,14 +906,11 @@ const AddProduct = ({ vendorId, closeModal }) => {
             <label className="block text-black mb-1 font-opensans text-sm">
               Color
             </label>
-            <p className="text-xs font-opensans text-gray-800">
-              for multiple colors, separate with "and" or commas supports only 2
-              color choice
-            </p>
+
             <input
               type="text"
               value={variant.color}
-              placeholder="Color1, Color2"
+              placeholder=" One color per variant"
               onChange={(e) => handleColorChange(colorIndex, e.target.value)}
               className="w-full h-12 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
               required
@@ -1081,7 +1078,13 @@ const AddProduct = ({ vendorId, closeModal }) => {
           className="w-full h-12 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
           required
         />
+        {parseFloat(productPrice) < 300 && productPrice !== "" && (
+          <p className="text-red-500 font-ubuntu text-xs mt-1">
+            Minimum product price is 300 naira.
+          </p>
+        )}
       </div>
+
       <div className="mb-4">
         <label className="font-opensans mb-1 font-medium text-sm text-black">
           Product Condition
@@ -1127,15 +1130,25 @@ const AddProduct = ({ vendorId, closeModal }) => {
         <label className="mb-1 text-black font-medium font-opensans text-sm">
           Product Description
         </label>
-        <textarea
-          value={productDescription}
-          onChange={(e) => setProductDescription(e.target.value)}
-          className="mt-1 block w-full px-4 py-2 border-2 rounded-lg  focus:outline-none focus:border-customOrange hover:border-customOrange h-24 resize-none"
-        />
+        <div className="relative">
+          <textarea
+            value={productDescription}
+            onChange={(e) => {
+              // Enforce the character limit
+              if (e.target.value.length <= 250) {
+                setProductDescription(e.target.value);
+              }
+            }}
+            className="mt-1 block w-full px-4 py-2 border-2 text-sm rounded-lg focus:outline-none focus:border-customOrange font-opensans hover:border-customOrange h-24 resize-none"
+          />
+          {/* Character Counter */}
+          <div className="absolute bottom-2 right-2 font-opensans text-gray-500 ratings-text">
+            {productDescription.length}/250
+          </div>
+        </div>
 
-        <div className="flex justify-end mt-2">
-          {" "}
-          {/* Align button to the right */}
+        {/* <div className="flex justify-end mt-2">
+         
           <button
             type="button"
             onClick={generateDescription}
@@ -1154,13 +1167,44 @@ const AddProduct = ({ vendorId, closeModal }) => {
               <GiRegeneration />
             )}
           </button>
-        </div>
+        </div> */}
       </div>
       <div className="mb-4">
         <label className="font-opensans mb-1 text-sm font-medium text-black">
           Tags
         </label>
-        <div className="flex flex-wrap  items-center border-2 border-gray-300 rounded-lg p-2">
+
+        {/* Suggestions Bar */}
+        <div
+          className="relative overflow-x-auto whitespace-nowrap mb-2 flex space-x-4 no-scrollbar"
+          style={{
+            maxWidth: "100%", // Ensures the container width limits the content for scrolling
+          }}
+        >
+          {[
+            "Discounts",
+            "New Arrival",
+            "Cargos",
+            "Trending",
+            "Limited Edition",
+            "Jeans",
+            "Tees",
+            "Nike",
+            "Adidas",
+            "Sports"
+          ].map((suggestion, index) => (
+            <span
+              key={index}
+              onClick={() => setTags((prev) => [...prev, suggestion])} // Add tag on click
+              className="bg-transparent animate-pulse border-1 border-customOrange font-medium text-customBrown px-4 font-opensans py-1 text-xs rounded-full cursor-pointer hover:bg-orange-600 transition-all whitespace-nowrap"
+            >
+              {suggestion}
+            </span>
+          ))}
+        </div>
+
+        {/* Tag Input */}
+        <div className="flex flex-wrap items-center border-2 border-gray-300 rounded-lg p-2">
           {tags.map((tag, index) => (
             <div
               key={index}
@@ -1179,6 +1223,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           />
         </div>
       </div>
+
       <div className="mb-4">
         <div className="flex items-center">
           <button>
@@ -1265,17 +1310,21 @@ const AddProduct = ({ vendorId, closeModal }) => {
           className="modal-content "
           overlayClassName="modal-overlay modals"
         >
-          <div
-            className="p-2 relative"
-            style={{ maxHeight: "100vh", overflowY: "auto" }}
-          >
-            <MdOutlineCancel
+          <div className="flex items-center px-2 py-2 justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
+                <FaSmileBeam className="text-customRichBrown" />
+              </div>
+              <h2 className="font-opensans text-base font-semibold">
+                What are Product Variations?
+              </h2>
+            </div>
+            <MdOutlineClose
+              className="text-black text-xl cursor-pointer"
               onClick={closeInfoModal}
-              className="absolute top-2 right-2 text-gray-600 cursor-pointer text-2xl"
             />
-            <h2 className="text-lg text-black mt-3 font-bold">
-              What are Product Variations?
-            </h2>
+          </div>
+          <div className="px-4 -translate-y-6">
             <p className="text-gray-600 mt-2 font-opensans text-sm">
               Variations let you add different options like colors and sizes
               under one product listing, making it easy to manage similar
@@ -1290,8 +1339,13 @@ const AddProduct = ({ vendorId, closeModal }) => {
         <button
           type="button"
           onClick={handleAddProduct}
-          className="w-full px-4 h-12 bg-customOrange font-opensans text-lg text-white rounded-full hover:bg-customOrange focus:ring focus:ring-customOrange focus:outline-none"
-          disabled={isLoading} // Disable button when loading
+          className={`w-full px-4 h-12 font-opensans text-lg rounded-full focus:ring focus:outline-none 
+    ${
+      isLoading || parseFloat(productPrice) < 300
+        ? "bg-gray-400 text-gray-200 cursor-not-allowed" // Greyed-out styling when disabled
+        : "bg-customOrange text-white hover:bg-customOrange focus:ring-customOrange" // Normal styling
+    }`}
+          disabled={isLoading || parseFloat(productPrice) < 300}
         >
           {isLoading ? (
             <div className="flex items-center justify-center">

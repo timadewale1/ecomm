@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { db, auth } from "../../firebase.config";
 import {
@@ -17,7 +17,6 @@ import ProductCard from "../../components/Products/ProductCard";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 
-import { useCallback } from "react";
 import { toast } from "react-toastify";
 import { GoChevronLeft } from "react-icons/go";
 import { FaStar, FaPlus, FaCheck } from "react-icons/fa";
@@ -27,10 +26,9 @@ import { auto } from "@cloudinary/url-gen/actions/resize";
 import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
 import { AdvancedImage } from "@cloudinary/react";
 import { onAuthStateChanged } from "firebase/auth";
-import Typewriter from "typewriter-effect"; // Import Typewriter
+import Typewriter from "typewriter-effect";
 import { MdCancel } from "react-icons/md";
-
-// Cloudinary public IDs for images
+import { handleUserActionLimit } from "../../services/userWriteHandler";
 const imageSets = {
   Mens: [
     "person-happy-american-african-business_osy8q7",
@@ -47,31 +45,40 @@ const imageSets = {
 };
 
 const CategoryPage = () => {
-  const { category } = useParams(); // The category selected (Mens, Womens, etc.)
-  const [products, setProducts] = useState([]);
-  const [vendors, setVendors] = useState([]); // To fetch the vendors in this category
-  const [loading, setLoading] = useState(true);
-  const [lastVisibleProduct, setLastVisibleProduct] = useState(null); // Tracks last fetched product
-  const [lastVisibleVendor, setLastVisibleVendor] = useState(null); // Tracks last fetched vendor
-  const [isFetchingMore, setIsFetchingMore] = useState(false); // Prevents multiple fetches at once
-
-  const [currentImageIndex, setCurrentImageIndex] = useState(0); // For slideshow
+  const { category } = useParams();
   const navigate = useNavigate();
-  const [followedVendors, setFollowedVendors] = useState({}); // For followed vendors
-  const [isSticky, setIsSticky] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null); // For current user
-  const [isSearching, setIsSearching] = useState(false); // For search input visibility
-  const [searchTerm, setSearchTerm] = useState(""); // For search term
-  const [filteredVendors, setFilteredVendors] = useState([]);
+
+  // Data arrays
+  const [products, setProducts] = useState([]);
+  const [vendors, setVendors] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
+  const [filteredVendors, setFilteredVendors] = useState([]);
+
+  // Pagination
+  const [lastVisibleProduct, setLastVisibleProduct] = useState(null);
+  const [lastVisibleVendor, setLastVisibleVendor] = useState(null);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+
+  // Loading & user states
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // UI states
+  const [followedVendors, setFollowedVendors] = useState({});
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isSticky, setIsSticky] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [noResults, setNoResults] = useState(false);
 
+  // Cloudinary
   const cld = new Cloudinary({
     cloud: {
       cloudName: "dtaqusjav",
     },
   });
 
+  // Monitor auth state
   useEffect(() => {
     onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -79,12 +86,12 @@ const CategoryPage = () => {
         fetchFollowedVendors(user.uid);
       } else {
         setCurrentUser(null);
-        setFollowedVendors({}); // Reset followed vendors if no user
+        setFollowedVendors({});
       }
     });
   }, []);
 
-  // Fetch followed vendors from Firestore when the page loads
+  // Fetch which vendors the user follows
   const fetchFollowedVendors = async (userId) => {
     try {
       const followsQuery = query(
@@ -93,19 +100,18 @@ const CategoryPage = () => {
       );
       const followSnapshot = await getDocs(followsQuery);
 
-      const followedVendorsMap = {};
+      const followedMap = {};
       followSnapshot.forEach((doc) => {
-        followedVendorsMap[doc.data().vendorId] = true; // Mark vendor as followed
+        followedMap[doc.data().vendorId] = true;
       });
-
-      setFollowedVendors(followedVendorsMap);
+      setFollowedVendors(followedMap);
     } catch (error) {
       console.error("Error fetching followed vendors:", error);
       toast.error("Error fetching followed vendors.");
     }
   };
 
-  // Slideshow effect
+  // Slide through images every 5s
   useEffect(() => {
     const imageInterval = setInterval(() => {
       setCurrentImageIndex((prevIndex) =>
@@ -116,14 +122,15 @@ const CategoryPage = () => {
     return () => clearInterval(imageInterval);
   }, [category]);
 
+  // Fetch initial data (vendors + products) by category
   useEffect(() => {
     const fetchInitialData = async () => {
-      setProducts([]);
-      setVendors([]);
       setLoading(true);
+      setVendors([]);
+      setProducts([]);
 
       try {
-        // Fetch vendors
+        // Vendors
         const vendorsQuery = query(
           collection(db, "vendors"),
           where("categories", "array-contains", category),
@@ -142,15 +149,14 @@ const CategoryPage = () => {
           vendorSnapshot.docs[vendorSnapshot.docs.length - 1]
         );
 
-        // Fetch products
+        // Products
         const productsQuery = query(
           collection(db, "products"),
           where("category", "==", category),
-          where("isDeleted", "==", false), // Exclude deleted products
+          where("isDeleted", "==", false),
           where("published", "==", true),
           limit(50)
         );
-
         const productSnapshot = await getDocs(productsQuery);
         const productsList = productSnapshot.docs.map((doc) => ({
           id: doc.id,
@@ -172,6 +178,7 @@ const CategoryPage = () => {
     fetchInitialData();
   }, [category]);
 
+  // Infinite scroll fetching more data
   const fetchMoreData = useCallback(async () => {
     if (isFetchingMore) return;
     setIsFetchingMore(true);
@@ -180,14 +187,14 @@ const CategoryPage = () => {
       category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
 
     try {
-      // Fetch next 25 vendors if there are more
+      // More vendors
       if (lastVisibleVendor) {
         const nextVendorsQuery = query(
           collection(db, "vendors"),
           where("categories", "array-contains", normalizedCategory),
           where("isApproved", "==", true),
           where("isDeactivated", "==", false),
-          startAfter(lastVisibleVendor), // Start after the last fetched vendor
+          startAfter(lastVisibleVendor),
           limit(25)
         );
         const vendorSnapshot = await getDocs(nextVendorsQuery);
@@ -199,20 +206,19 @@ const CategoryPage = () => {
         setFilteredVendors((prev) => [...prev, ...newVendors]);
         setLastVisibleVendor(
           vendorSnapshot.docs[vendorSnapshot.docs.length - 1]
-        ); // Track last vendor
+        );
       }
 
-      // Fetch next 50 products if there are more
+      // More products
       if (lastVisibleProduct) {
         const nextProductsQuery = query(
           collection(db, "products"),
           where("category", "==", normalizedCategory),
           where("published", "==", true),
-          where("isDeleted", "==", false), // Exclude deleted products
+          where("isDeleted", "==", false),
           startAfter(lastVisibleProduct),
           limit(50)
         );
-
         const productSnapshot = await getDocs(nextProductsQuery);
         const newProducts = productSnapshot.docs.map((doc) => ({
           id: doc.id,
@@ -222,7 +228,7 @@ const CategoryPage = () => {
         setFilteredProducts((prev) => [...prev, ...newProducts]);
         setLastVisibleProduct(
           productSnapshot.docs[productSnapshot.docs.length - 1]
-        ); // Track last product
+        );
       }
     } catch (error) {
       toast.error("Error loading more data.");
@@ -230,60 +236,66 @@ const CategoryPage = () => {
       setIsFetchingMore(false);
     }
   }, [category, lastVisibleVendor, lastVisibleProduct, isFetchingMore]);
+
   useEffect(() => {
     const handleScroll = () => {
       if (
         window.innerHeight + document.documentElement.scrollTop >=
         document.documentElement.offsetHeight - 200
       ) {
-        fetchMoreData(); // Trigger fetching more data
+        fetchMoreData();
       }
     };
-    window.addEventListener("scroll", handleScroll); // Attach the scroll listener
-    return () => window.removeEventListener("scroll", handleScroll); // Cleanup listener
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, [fetchMoreData]);
 
-  // Fetch vendors and products based on category
+  // Sticky header effect
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsSticky(window.scrollY > 100);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Additional vendor & product fetch if category changes
   useEffect(() => {
     const fetchVendorsAndProducts = async () => {
+      setLoading(true);
       try {
-        // Normalize the category for case consistency
-        const normalizedCategory =
+        const normalizedCat =
           category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
 
-        // Query vendors matching the normalized category
+        // Vendors
         const vendorsQuery = query(
           collection(db, "vendors"),
-          where("categories", "array-contains", normalizedCategory),
+          where("categories", "array-contains", normalizedCat),
           where("isApproved", "==", true),
           where("isDeactivated", "==", false)
         );
-
         const vendorSnapshot = await getDocs(vendorsQuery);
-
-        const vendorsList = vendorSnapshot.docs.map((vendorDoc) => ({
-          id: vendorDoc.id,
-          ...vendorDoc.data(),
+        const vendorsList = vendorSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
         }));
-
         setVendors(vendorsList);
-        setFilteredVendors(vendorsList); // Initialize filtered vendors
+        setFilteredVendors(vendorsList);
 
+        // Products
         const productsQuery = query(
           collection(db, "products"),
-          where("category", "==", normalizedCategory),
-          where("published", "==", true),
-          where("isDeleted", "==", false) // Exclude deleted products
+          where("category", "==", normalizedCat),
+          where("isDeleted", "==", false),
+          where("published", "==", true)
         );
-
-        const productsSnapshot = await getDocs(productsQuery);
-        const productsList = productsSnapshot.docs.map((productDoc) => ({
-          id: productDoc.id,
-          ...productDoc.data(),
+        const productSnapshot = await getDocs(productsQuery);
+        const productsList = productSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
         }));
-
-        setProducts(productsList); // Set products for the category
-        setFilteredProducts(productsList); // Initialize filtered products
+        setProducts(productsList);
+        setFilteredProducts(productsList);
       } catch (error) {
         toast.error("Error fetching products and vendors: " + error.message);
       } finally {
@@ -294,17 +306,30 @@ const CategoryPage = () => {
     fetchVendorsAndProducts();
   }, [category]);
 
-  // Handle Follow/Unfollow
+  // Follow/unfollow logic
   const handleFollowClick = async (vendorId) => {
     try {
       if (!currentUser) {
         throw new Error("User is not logged in");
       }
 
+      // 1) Enforce follow limit
+      await handleUserActionLimit(
+        currentUser.uid,
+        "follow", // actionType
+        {}, // userData
+        {
+          collectionName: "usage_metadata",
+          writeLimit: 50,
+          minuteLimit: 8,
+          hourLimit: 40,
+        }
+      );
+
+      // If we pass the rate limit check, proceed
       const followRef = doc(db, "follows", `${currentUser.uid}_${vendorId}`);
 
       if (!followedVendors[vendorId]) {
-        // Follow vendor
         await setDoc(followRef, {
           userId: currentUser.uid,
           vendorId,
@@ -312,12 +337,10 @@ const CategoryPage = () => {
         });
         toast.success("You will be notified of new products and promos.");
       } else {
-        // Unfollow vendor
         await deleteDoc(followRef);
         toast.success("Unfollowed the vendor.");
       }
 
-      // Toggle the follow state dynamically
       setFollowedVendors((prev) => ({
         ...prev,
         [vendorId]: !prev[vendorId],
@@ -329,20 +352,16 @@ const CategoryPage = () => {
 
   const handleVendorClick = async (vendorId) => {
     try {
-      // Fetch vendor data from Firestore
       const vendorRef = doc(db, "vendors", vendorId);
       const vendorDoc = await getDoc(vendorRef);
 
       if (vendorDoc.exists()) {
         const vendorData = vendorDoc.data();
 
-        // Check marketplace type and navigate accordingly
         if (vendorData.marketPlaceType === "virtual") {
           navigate(`/store/${vendorId}`, { replace: false });
         } else if (vendorData.marketPlaceType === "marketplace") {
           navigate(`/marketstorepage/${vendorId}`, { replace: false });
-        } else {
-          console.warn("Unknown marketplace type for vendor:", vendorId);
         }
       } else {
         console.error("Vendor not found:", vendorId);
@@ -352,12 +371,11 @@ const CategoryPage = () => {
     }
   };
 
-  // Dynamic header styles based on category and slideshow image
+  // Determine which image to show for slideshow
   const getCategoryStyles = (category) => {
     const currentImagePublicId = imageSets[category]?.[currentImageIndex];
-
     if (!currentImagePublicId) {
-      return { text: "", cldImage: null }; // Return default if no image is found
+      return { text: "", cldImage: null };
     }
 
     const backgroundImageUrl = cld
@@ -389,30 +407,21 @@ const CategoryPage = () => {
 
   const { text: headerText, cldImage } = getCategoryStyles(category);
 
-  // Sticky header with back and search icons (visible on scroll)
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsSticky(window.scrollY > 100); // Show sticky header after scrolling down
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  // Handle Search Input Change
+  // Search
   const handleSearchChange = (e) => {
     const term = e.target.value.toLowerCase();
     setSearchTerm(term);
 
-    const filteredVendors = vendors.filter((vendor) =>
-      vendor.shopName.toLowerCase().includes(term)
+    const vendMatches = vendors.filter((v) =>
+      v.shopName.toLowerCase().includes(term)
     );
-    const filteredProducts = products.filter((product) =>
-      product.name.toLowerCase().includes(term)
+    const prodMatches = products.filter((p) =>
+      p.name.toLowerCase().includes(term)
     );
 
-    setNoResults(filteredVendors.length === 0 && filteredProducts.length === 0);
-    setFilteredVendors(filteredVendors);
-    setFilteredProducts(filteredProducts);
+    setFilteredVendors(vendMatches);
+    setFilteredProducts(prodMatches);
+    setNoResults(vendMatches.length === 0 && prodMatches.length === 0);
   };
 
   const resetSearch = () => {
@@ -423,12 +432,14 @@ const CategoryPage = () => {
     setFilteredProducts(products);
   };
 
+  // Render
   return (
     <div className="category-page mb-14">
+      {/* Top Icons */}
       <div className="absolute top-0 z-10 w-full mt-2 flex justify-between p-2">
         {!isSearching ? (
           <>
-            <button onClick={() => navigate(-1)} className="">
+            <button onClick={() => navigate(-1)}>
               <GoChevronLeft className="text-4xl text-white" />
             </button>
             <CiSearch
@@ -445,7 +456,7 @@ const CategoryPage = () => {
             <div className="relative w-full">
               <input
                 type="text"
-                className="w-full px-3 font-opensans text-black text-sm py-2 rounded-full focus:outline-none pr-8" // add padding-right to make room for the icon
+                className="w-full px-3 font-opensans text-black text-sm py-2 rounded-full focus:outline-none pr-8"
                 placeholder="Search categories..."
                 value={searchTerm}
                 onChange={handleSearchChange}
@@ -461,17 +472,19 @@ const CategoryPage = () => {
         )}
       </div>
 
+      {/* Sticky header */}
       {isSticky && !isSearching && (
-        <div className="sticky top-0 z-20 w-full flex items-center py-2 px-2  h-20 opacity-95 bg-white shadow-md">
+        <div className="sticky top-0 z-20 w-full flex items-center py-2 px-2 h-20 opacity-95 bg-white shadow-md">
           <button onClick={() => navigate(-1)} className="p-1 rounded-full">
             <GoChevronLeft className="text-3xl" />
           </button>
-          <div className="flex-grow  text-xl font-opensans font-semibold">
+          <div className="flex-grow text-xl font-opensans font-semibold">
             {category}
           </div>
         </div>
       )}
 
+      {/* Hero / Slideshow */}
       <div className="relative h-64 rounded-b-lg w-full">
         {cldImage && (
           <AdvancedImage
@@ -493,113 +506,135 @@ const CategoryPage = () => {
         </div>
       </div>
 
+      {/* Main Content */}
       <div className="p-3">
-        {noResults ? (
-          <div className="flex items-center text-center flex-col justify-center">
-            <h2 className="text-center text-lg font-opensans font-semibold text-black">
-              Ooops! No results found
-            </h2>
-            <p className="font-opensans text-gray-800 text-sm">
-              try searching for another product or vendor😊
-            </p>
+        {loading ? (
+          // Show skeletons if loading
+          <div className="flex flex-col space-y-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} height={100} />
+            ))}
           </div>
         ) : (
+          // Display either content or "No results" / "Nothing in category"
           <>
-            {filteredVendors.length > 0 && (
-              <>
-                <h2 className="text-lg font-opensans font-semibold mb-2">
-                  Top Vendors
+            {noResults ? (
+              <div className="flex items-center text-center flex-col justify-center mt-4">
+                <h2 className="text-center text-lg font-opensans font-semibold text-black">
+                  Ooops! No results found
                 </h2>
-                <div className="flex space-x-8 overflow-x-scroll">
-                  {loading
-                    ? Array.from({ length: 3 }).map((_, index) => (
-                        <Skeleton key={index} width={200} height={150} />
-                      ))
-                    : filteredVendors.map((vendor) => {
-                        const averageRating =
-                          vendor.ratingCount > 0
-                            ? (vendor.rating / vendor.ratingCount).toFixed(1)
-                            : 0;
-                        return (
-                          <div
-                            key={vendor.id}
-                            className="w-full min-w-[250px] max-w-[250px]"
-                          >
-                            <img
-                              src={
-                                vendor.coverImageUrl ||
-                                "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg"
-                              }
-                              alt={vendor.shopName || "Vendor Image"}
-                              className="w-full h-36 object-cover rounded-md"
-                              onClick={() => handleVendorClick(vendor.id)}
-                            />
-                            <div className="flex justify-between items-center">
-                              <div onClick={() => handleVendorClick(vendor.id)}>
-                                <h3 className="mt-2 text-lg font-opensans font-medium">
-                                  {vendor.shopName?.length > 12
-                                    ? `${vendor.shopName.slice(0, 12)}...`
-                                    : vendor.shopName}
-                                </h3>
-                                <div className="flex items-center font-opensans text-xs">
-                                  <FaStar className="text-yellow-500 mr-1" />
-                                  <span>{averageRating}</span>
-                                  <span className="ml-1">
-                                    ({vendor.ratingCount})
-                                  </span>
+                <p className="font-opensans text-gray-800 text-sm">
+                  Try searching for another product or vendor.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* 1. If we have no vendors & no products, show "Nothing in this category yet..." */}
+                {filteredVendors.length === 0 &&
+                filteredProducts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center mt-4">
+                    <h2 className="text-center text-lg font-opensans font-semibold">
+                      Nothing in this category yet
+                    </h2>
+                    <p className="font-opensans text-gray-800 text-sm">
+                      Please check back later for updates.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* 2. Show Vendors (if any) */}
+                    {filteredVendors.length > 0 && (
+                      <>
+                        <h2 className="text-lg font-opensans font-semibold mb-2 mt-4">
+                          Top Vendors
+                        </h2>
+                        <div className="flex space-x-8 overflow-x-scroll">
+                          {filteredVendors.map((vendor) => {
+                            const avgRating =
+                              vendor.ratingCount > 0
+                                ? (vendor.rating / vendor.ratingCount).toFixed(
+                                    1
+                                  )
+                                : 0;
+                            return (
+                              <div
+                                key={vendor.id}
+                                className="w-full min-w-[250px] max-w-[250px]"
+                              >
+                                <img
+                                  src={
+                                    vendor.coverImageUrl ||
+                                    "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg"
+                                  }
+                                  alt={vendor.shopName || "Vendor Image"}
+                                  className="w-full h-36 object-cover rounded-md"
+                                  onClick={() => handleVendorClick(vendor.id)}
+                                />
+                                <div className="flex justify-between items-center">
+                                  <div
+                                    onClick={() => handleVendorClick(vendor.id)}
+                                  >
+                                    <h3 className="mt-2 text-lg font-opensans font-medium">
+                                      {vendor.shopName?.length > 12
+                                        ? `${vendor.shopName.slice(0, 12)}...`
+                                        : vendor.shopName}
+                                    </h3>
+                                    <div className="flex items-center font-opensans text-xs">
+                                      <FaStar className="text-yellow-500 mr-1" />
+                                      <span>{avgRating}</span>
+                                      <span className="ml-1">
+                                        ({vendor.ratingCount || 0})
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    className={`flex justify-center items-center w-24 h-9 text-sm ${
+                                      followedVendors[vendor.id]
+                                        ? "bg-customOrange text-white border-transparent"
+                                        : "bg-transparent text-black border border-black"
+                                    } mt-3 px-4 py-2 h-10 rounded-md`}
+                                    onClick={() => handleFollowClick(vendor.id)}
+                                  >
+                                    {followedVendors[vendor.id] ? (
+                                      <div className="flex">
+                                        <h2 className="text-xs font-opensans">
+                                          Followed
+                                        </h2>
+                                        <FaCheck className="ml-2 mt-0.5 text-xs" />
+                                      </div>
+                                    ) : (
+                                      <div className="flex">
+                                        <h2 className="text-xs font-opensans font-medium">
+                                          Follow
+                                        </h2>
+                                        <FaPlus className="ml-2 text-xs mt-0.5" />
+                                      </div>
+                                    )}
+                                  </button>
                                 </div>
                               </div>
-                              <button
-                                className={`flex justify-center items-center w-24 h-9 text-sm ${
-                                  followedVendors[vendor.id]
-                                    ? "bg-customOrange text-white border-transparent"
-                                    : "bg-transparent text-black border border-black"
-                                } mt-3 px-4 py-2 h-10 rounded-md`}
-                                onClick={() => handleFollowClick(vendor.id)}
-                              >
-                                {followedVendors[vendor.id] ? (
-                                  <>
-                                    <div className="flex">
-                                      <h2 className="text-xs font-opensans">
-                                        Followed
-                                      </h2>
-                                      <FaCheck className="ml-2 mt-0.5 text-xs" />
-                                    </div>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div className="flex">
-                                      <h2 className="text-xs font-opensans font-medium">
-                                        Follow
-                                      </h2>
-                                      <FaPlus className="ml-2 text-xs mt-0.5" />
-                                    </div>
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                </div>
-              </>
-            )}
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
 
-            {filteredProducts.length > 0 && (
-              <div className="">
-                <h2 className="text-lg font-opensans mt-4 font-semibold mb-2">
-                  Explore Products
-                </h2>
-                <div className="grid grid-cols-2 gap-4">
-                  {loading
-                    ? Array.from({ length: 6 }).map((_, index) => (
-                        <Skeleton key={index} height={200} width="100%" />
-                      ))
-                    : filteredProducts.map((product) => (
-                        <ProductCard key={product.id} product={product} />
-                      ))}
-                </div>
-              </div>
+                    {/* 3. Show Products (if any) */}
+                    {filteredProducts.length > 0 && (
+                      <div className="mt-6">
+                        <h2 className="text-lg font-opensans font-semibold mb-2">
+                          Explore Products
+                        </h2>
+                        <div className="grid grid-cols-2 gap-4">
+                          {filteredProducts.map((product) => (
+                            <ProductCard key={product.id} product={product} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
             )}
           </>
         )}

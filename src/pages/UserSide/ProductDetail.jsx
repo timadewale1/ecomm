@@ -5,7 +5,7 @@ import { addToCart, removeFromCart } from "../../redux/actions/action";
 import { fetchProduct } from "../../redux/actions/productaction";
 import Loading from "../../components/Loading/Loading";
 import { PiShoppingCartBold } from "react-icons/pi";
-import { FaStar } from "react-icons/fa";
+import { FaSmileBeam, FaStar } from "react-icons/fa";
 import { CiCircleInfo } from "react-icons/ci";
 import { TbInfoOctagon } from "react-icons/tb";
 import { TbInfoTriangle } from "react-icons/tb";
@@ -18,12 +18,16 @@ import { FiPlus } from "react-icons/fi";
 import { FiMinus } from "react-icons/fi";
 import { TbSquareRoundedCheck } from "react-icons/tb";
 import Badge from "../../components/Badge/Badge";
-import { MdOutlineCancel } from "react-icons/md";
+import { MdOutlineCancel, MdOutlineClose } from "react-icons/md";
 import "swiper/css/free-mode";
+import { TbFileDescription } from "react-icons/tb";
 import "swiper/css/autoplay";
 import { useLocation } from "react-router-dom";
 import { Swiper, SwiperSlide } from "swiper/react";
+import Select from "react-select";
 import "swiper/css";
+import { Helmet } from "react-helmet";
+
 import SwiperCore, { Pagination, Navigation } from "swiper";
 import { FreeMode, Autoplay } from "swiper/modules";
 import { doc, getDoc, getFirestore } from "firebase/firestore";
@@ -86,6 +90,10 @@ const ProductDetailPage = () => {
   const [selectedVariantStock, setSelectedVariantStock] = useState(0);
   const [allImages, setAllImages] = useState([]);
   const [isLinkCopied, setIsLinkCopied] = useState(false);
+
+  // Inside your ProductDetailPage component
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
   const db = getFirestore();
 
   const cart = useSelector((state) => state.cart || {});
@@ -216,6 +224,7 @@ const ProductDetailPage = () => {
     }
   }, [product]);
 
+
   const handleSubProductClick = (subProduct) => {
     setSelectedSubProduct(subProduct);
     setSelectedImage(subProduct.images[0]);
@@ -226,16 +235,11 @@ const ProductDetailPage = () => {
     setAvailableSizes([subProduct.size]);
   };
 
-  // useEffect(() => {
-  //   if (product) {
-  //     setSelectedColor("");
-  //     setSelectedSize("");
-  //     setAvailableSizes(product.variants.map((variant) => variant.size)); // Show all sizes initially
-  //     setAvailableColors(
-  //       Array.from(new Set(product.variants.map((variant) => variant.color)))
-  //     );
-  //   }
-  // }, [product]);
+  const handleDotClick = (index) => {
+    setCurrentImageIndex(index);
+    const swiperInstance = document.querySelector(".swiper").swiper;
+    swiperInstance.slideTo(index);
+  };
 
   useEffect(() => {
     if (product && product.variants) {
@@ -734,13 +738,12 @@ const ProductDetailPage = () => {
       .map((c) => c.trim())
       .filter((c) => c);
 
-      if (colors.length === 2) {
-        // Split the circle exactly in half with two colors
-        return {
-          background: `linear-gradient(to right, ${colors[0]} 50%, ${colors[1]} 50%)`,
-        };
-      }
-       else if (colors.length === 1) {
+    if (colors.length === 2) {
+      // Split the circle exactly in half with two colors
+      return {
+        background: `linear-gradient(to right, ${colors[0]} 50%, ${colors[1]} 50%)`,
+      };
+    } else if (colors.length === 1) {
       // Single color: solid background
       return {
         backgroundColor: colors[0],
@@ -923,372 +926,424 @@ const ProductDetailPage = () => {
   );
 
   return (
-    <div className="relative pb-20">
-      <div className="fixed top-0 px-2 py-4 bg-white left-0 h-20 w-full z-20 shadow-md">
-        <div className="flex items-center justify-between h-full">
-          {isShared ? (
+    <>
+     
+      <div className="relative pb-20">
+        <div className="fixed top-0 px-2 py-4 bg-white left-0 h-20 w-full z-20 shadow-md">
+          <div className="flex items-center justify-between h-full">
+            {isShared ? (
+              <>
+                <div className="flex items-center">
+                  <AiOutlineHome
+                    onClick={() => navigate("/newhome")}
+                    className="text-2xl cursor-pointer"
+                  />
+                </div>
+
+                {/* Centered logo container uses flex-1 to take remaining space and flex to center content */}
+                <div className="flex-1 flex justify-center items-center">
+                  <img
+                    src="/logo512.png"
+                    alt="Logo"
+                    className="object-contain max-h-20"
+                  />
+                </div>
+
+                <div className="flex items-center mr-2 relative">
+                  <PiShoppingCartBold
+                    onClick={() =>
+                      navigate("/latest-cart", {
+                        state: { fromProductDetail: true },
+                      })
+                    }
+                    className="text-2xl cursor-pointer"
+                  />
+                  {cartItemCount > 0 && (
+                    <div className="-top-1 absolute right-0">
+                      <Badge count={cartItemCount} />
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center">
+                  <GoChevronLeft
+                    onClick={() => navigate(-1)}
+                    className="text-3xl cursor-pointer"
+                  />
+                  <span className="ml-4 text-lg font-opensans font-semibold">
+                    Details
+                  </span>
+                </div>
+                <div className="flex items-center mr-2 relative">
+                  {isLinkCopied ? (
+                    <LuCopyCheck className="text-2xl mr-4 cursor-pointer" />
+                  ) : (
+                    <LuCopy
+                      onClick={copyProductLink}
+                      className="text-2xl mr-4 cursor-pointer"
+                    />
+                  )}
+                  <PiShoppingCartBold
+                    onClick={() =>
+                      navigate("/latest-cart", {
+                        state: { fromProductDetail: true },
+                      })
+                    }
+                    className="text-2xl cursor-pointer"
+                  />
+                  {cartItemCount > 0 && (
+                    <div className="-top-1 absolute right-0">
+                      <Badge count={cartItemCount} />
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-center h-[540px] relative">
+          {allImages.length > 1 ? (
             <>
-              <div className="flex items-center">
-                <AiOutlineHome
-                  onClick={() => navigate("/newhome")}
-                  className="text-2xl cursor-pointer"
-                />
-              </div>
+              <Swiper
+                modules={[FreeMode, Autoplay]}
+                pagination={{ clickable: true }}
+                autoplay={{
+                  delay: 7500,
+                  disableOnInteraction: false,
+                }}
+                className="product-images-swiper mt-14"
+                onSlideChange={(swiper) =>
+                  setCurrentImageIndex(swiper.activeIndex)
+                }
+              >
+                {allImages.map((image, index) => (
+                  <SwiperSlide key={index}>
+                    <img
+                      src={image}
+                      alt={`${product.name} image ${index + 1}`}
+                      className="object-cover w-full h-full"
+                      style={{ borderBottom: "6px solid white" }} // White line separator
+                    />
+                  </SwiperSlide>
+                ))}
+              </Swiper>
 
-              {/* Centered logo container uses flex-1 to take remaining space and flex to center content */}
-              <div className="flex-1 flex justify-center items-center">
-                <img
-                  src="/logo512.png"
-                  alt="Logo"
-                  className="object-contain max-h-20"
-                />
-              </div>
-
-              <div className="flex items-center mr-2 relative">
-                <PiShoppingCartBold
-                  onClick={() =>
-                    navigate("/latest-cart", {
-                      state: { fromProductDetail: true },
-                    })
-                  }
-                  className="text-2xl cursor-pointer"
-                />
-                {cartItemCount > 0 && (
-                  <div className="-top-1 absolute right-0">
-                    <Badge count={cartItemCount} />
-                  </div>
-                )}
+              {/* Dot Indicators */}
+              <div className="absolute bottom-4 z-10 w-full flex justify-center">
+                {allImages.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`cursor-pointer mx-1 rounded-full transition-all duration-300 ${
+                      index === currentImageIndex
+                        ? "bg-customOrange h-3 w-3"
+                        : "bg-gray-300 h-2 w-2"
+                    }`}
+                    onClick={() => handleDotClick(index)}
+                  ></div>
+                ))}
               </div>
             </>
           ) : (
-            <>
-              <div className="flex items-center">
-                <GoChevronLeft
-                  onClick={() => navigate(-1)}
-                  className="text-3xl cursor-pointer"
-                />
-                <span className="ml-4 text-lg font-opensans font-semibold">
-                  Details
-                </span>
-              </div>
-              <div className="flex items-center mr-2 relative">
-                {isLinkCopied ? (
-                  <LuCopyCheck className="text-2xl mr-4 cursor-pointer" />
-                ) : (
-                  <LuCopy
-                    onClick={copyProductLink}
-                    className="text-2xl mr-4 cursor-pointer"
-                  />
-                )}
-                <PiShoppingCartBold
-                  onClick={() =>
-                    navigate("/latest-cart", {
-                      state: { fromProductDetail: true },
-                    })
-                  }
-                  className="text-2xl cursor-pointer"
-                />
-                {cartItemCount > 0 && (
-                  <div className="-top-1 absolute right-0">
-                    <Badge count={cartItemCount} />
-                  </div>
-                )}
-              </div>
-            </>
+            // Single image fallback
+            <img
+              src={allImages[0]}
+              alt={`${product.name} image`}
+              className="object-cover w-full h-full rounded-b-lg"
+            />
           )}
         </div>
-      </div>
 
-      <div className="flex justify-center h-[540px]">
-        {/* Only show Swiper if there's more than one image */}
-        {allImages.length > 1 ? (
-          <Swiper
-            modules={[FreeMode, Autoplay]}
-            pagination={{ clickable: true }}
-            // navigation
-            autoplay={{
-              delay: 7500,
-              disableOnInteraction: false,
-            }}
-            className="product-images-swiper mt-20"
-            style={{ width: "100%", height: "" }}
-          >
-            {allImages.map((image, index) => (
-              <SwiperSlide key={index}>
-                <img
-                  src={image}
-                  alt={`${product.name} image ${index + 1}`}
-                  className="object-cover w-full h-full"
-                  style={{ borderBottom: "6px solid white" }} // White line separator
-                />
-              </SwiperSlide>
-            ))}
-          </Swiper>
-        ) : (
-          // If there's only one image, display it without the Swiper
-          <img
-            src={allImages[0]}
-            alt={`${product.name} image`}
-            className="object-cover w-full h-full rounded-b-lg"
-          />
-        )}
-      </div>
-      <div className="px-3 mt-2">
-        <div className="flex items-center justify-between">
-          <h1 className="text-sm font-opensans text-black font-normal ">
-            {product.name}
-          </h1>
-          <div className="">
-            {product.condition &&
-            product.condition.toLowerCase().includes("defect") ? (
-              <div className="flex items-center mt-2">
-                <TbInfoTriangle
-                  className="text-red-500 cursor-pointer"
-                  onClick={handleDisclaimer} // Optional: Add an actual function for handling disclaimers
-                  title="Click for important information about product defects"
-                />
-                <p className="ml-2 text-xs text-red-500">
-                  {product.condition}
-                  {product.defectDescription
-                    ? ` ${product.defectDescription}`
-                    : ""}
-                </p>
-              </div>
-            ) : product.condition.toLowerCase() === "brand new" ? (
-              <div className="flex items-center mt-2">
-                <TbSquareRoundedCheck className="text-green-700" />
-                <p className="ml-2 text-xs text-green-700">Brand New</p>
-              </div>
-            ) : product.condition.toLowerCase() === "thrift" ? (
-              <div className="flex items-center mt-2">
-                <TbSquareRoundedCheck className="text-yellow-500" />
-                <p className="ml-2 text-xs text-yellow-500">Thrift</p>
-              </div>
-            ) : null}
+        <div className="px-3 mt-2">
+          <div className="flex items-center justify-between">
+            <h1 className="text-sm font-opensans text-black font-normal ">
+              {product.name}
+            </h1>
+            <div className="">
+              {product.condition &&
+              product.condition.toLowerCase().includes("defect") ? (
+                <div className="flex items-center mt-2">
+                  <TbInfoTriangle
+                    className="text-red-500 cursor-pointer"
+                    onClick={handleDisclaimer} // Optional: Add an actual function for handling disclaimers
+                    title="Click for important information about product defects"
+                  />
+                  <p className="ml-2 text-xs text-red-500">
+                    {product.condition}
+                    {product.defectDescription
+                      ? ` ${product.defectDescription}`
+                      : ""}
+                  </p>
+                </div>
+              ) : product.condition.toLowerCase() === "brand new" ? (
+                <div className="flex items-center mt-2">
+                  <TbSquareRoundedCheck className="text-green-700" />
+                  <p className="ml-2 text-xs text-green-700">Brand New</p>
+                </div>
+              ) : product.condition.toLowerCase() === "thrift" ? (
+                <div className="flex items-center mt-2">
+                  <TbSquareRoundedCheck className="text-yellow-500" />
+                  <p className="ml-2 text-xs text-yellow-500">Thrift</p>
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
-
-        <p className="text-2xl font-opensans font-semibold text-black">
-          ₦{formatPrice(product.price)}
-        </p>
-
-        {vendorLoading ? (
-          <LoadProducts className="mr-20" />
-        ) : vendor ? (
-          <div className="flex items-center mt-1">
-            <p className="text-sm text-red-600 mr-2">{vendor.shopName}</p>
-            {vendor.ratingCount > 0 && (
-              <div className="flex items-center">
-                <span className="mr-1 text-black font-medium ratings-text">
-                  {averageRating}
-                </span>
-                <FaStar className="text-yellow-500 ratings-text" />
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="text-xs text-gray-500">
-            Vendor information not available
+          <p className="text-2xl font-opensans font-semibold text-black">
+            ₦{formatPrice(product.price)}
           </p>
-        )}
+          {vendorLoading ? (
+            <LoadProducts className="mr-20" />
+          ) : vendor ? (
+            <div className="flex items-center mt-1">
+              <p className="text-sm text-red-600 mr-2">{vendor.shopName}</p>
+              {vendor.ratingCount > 0 && (
+                <div className="flex items-center">
+                  <span className="mr-1 text-black font-medium ratings-text">
+                    {averageRating}
+                  </span>
+                  <FaStar className="text-yellow-500 ratings-text" />
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs font-opensans text-gray-500">
+              Vendor information not available
+            </p>
+          )}
 
-        {/* Color Options */}
-        {availableColors.length > 0 && (
+          {availableColors.length > 0 && (
+            <div className="mt-3">
+              <label
+                htmlFor="color-select"
+                className="text-sm font-semibold text-black font-opensans mb-2 block"
+              >
+                Color
+              </label>
+
+              <Select
+                // 1) Transform `availableColors` into an array of { label, value } objects
+                options={availableColors.map((color) => ({
+                  label: capitalizeFirstLetter(color),
+                  value: color,
+                }))}
+                // 2) If `selectedColor` is a string, convert it to an object
+                value={
+                  selectedColor
+                    ? {
+                        label: capitalizeFirstLetter(selectedColor),
+                        value: selectedColor,
+                      }
+                    : null
+                }
+                onChange={(selectedOption) => {
+                  const selectedValue = selectedOption.value;
+                  setSelectedColor(selectedValue);
+
+                  // Update sizes for the selected color
+                  const sizesForColor = product.variants
+                    .filter((variant) => variant.color === selectedValue)
+                    .map((variant) => variant.size);
+                  setAvailableSizes(Array.from(new Set(sizesForColor)));
+
+                  setSelectedSize(""); // Reset the selected size
+                }}
+                placeholder="Select"
+                // 3) Style it similarly to your Product Type select
+                className="w-[109px] font-opensans text-sm"
+                classNamePrefix="custom-select"
+                isSearchable
+                styles={{
+                  control: (provided, state) => ({
+                    ...provided,
+                    height: "2rem", // h-12
+                    borderColor: state.isFocused ? "#f9531e" : "#D1D5DB", // Use the `state` parameter
+                    borderRadius: "0.5rem", // rounded-lg
+                    fontFamily: "Open Sans, sans-serif",
+                    fontSize: "0.75rem", // text-sm
+                    color: "black",
+                    paddingLeft: "0.75rem", // px-4
+                  }),
+                  input: (provided) => ({
+                    ...provided,
+                    fontFamily: "Open Sans, sans-serif",
+                    fontSize: "1rem",
+                    color: "black",
+                  }),
+                  placeholder: (provided) => ({
+                    ...provided,
+                    fontFamily: "Open Sans, sans-serif",
+                    fontSize: "1rem",
+                    color: "#6B7280", // text-gray-500
+                  }),
+                }}
+              />
+            </div>
+          )}
+          {/* Size Selection */}
           <div className="mt-3">
             <p className="text-sm font-semibold text-black font-opensans mb-2">
-              {selectedColor ? capitalizeFirstLetter(selectedColor) : "Colors"}
+              Sizes
             </p>
             <div className="flex flex-wrap gap-2">
-              {availableColors.map((color, index) => {
-                const circleStyle = getColorStyle(color);
+              {availableSizes.map((size, index) => {
+                const inStock = isSizeInStock(size);
+                const isSelected = selectedSize === size && inStock;
 
                 return (
                   <div
                     key={index}
                     onClick={() => {
-                      if (!selectedSubProduct) {
-                        handleColorClick(color);
+                      if (inStock) {
+                        handleSizeClick(size);
                       }
                     }}
-                    className={`w-8 h-8 flex items-center justify-center rounded-full ${
-                      selectedSubProduct
-                        ? "cursor-not-allowed opacity-50"
-                        : "cursor-pointer"
-                    } ${selectedColor === color ? "border-2" : ""}`}
-                    style={{
-                      padding: "3px",
-                      borderColor:
-                        selectedColor === color ? color : "transparent",
-                      backgroundColor: "#f0f0f0",
-                    }}
-                    title={color}
+                    className={`relative py-2 px-4 border rounded-lg ${
+                      isSelected
+                        ? "bg-customOrange text-white cursor-pointer"
+                        : inStock
+                        ? "bg-transparent text-black cursor-pointer"
+                        : "bg-gray-200 text-black opacity-50 cursor-not-allowed"
+                    }`}
+                    style={{ position: "relative" }}
                   >
-                    <div
-                      style={circleStyle} // Use the parsed style here
-                      className="w-6 h-6 rounded-full"
-                    ></div>
+                    <span className="text-xs font-opensans font-semibold">
+                      {size}
+                    </span>
+                    {!inStock && (
+                      <span
+                        className="absolute inset-0 animate-pulse flex items-center justify-center bg-gray-800 bg-opacity-50  text-customOrange font-opensans font-semibold text-xs text-center rounded-lg"
+                        style={{
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          zIndex: 10,
+                          pointerEvents: "none", // Prevents clicks on out-of-stock items
+                        }}
+                      >
+                        Out of Stock
+                      </span>
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
+          <div
+            className="flex justify-between items-center mt-4 mb-4 cursor-pointer"
+            onClick={() => setIsModalOpen(true)}
+          >
+            <p className="text-black text-md font-opensans ">Product Details</p>
+            <GoChevronRight className="text-3xl -mx-2" />
+          </div>
+          <Modal
+            isOpen={isModalOpen}
+            onRequestClose={() => setIsModalOpen(false)}
+            className="modal-content"
+            overlayClassName="modal-overlay backdrop-blur-md"
+          >
+            <div className="p-2 relative">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
+                    <TbFileDescription className="text-customRichBrown" />
+                  </div>
+                  <h2 className="font-opensans text-base font-semibold">
+                    Product Description
+                  </h2>
+                </div>
+                <MdOutlineClose
+                  onClick={() => setIsModalOpen(false)}
+                  className="absolute top-2 right-2 text-gray-600 cursor-pointer text-2xl"
+                />
+              </div>{" "}
+              <p className="text-gray-600 mt-2 font-opensans text-sm">
+                {product.description}
+              </p>
+            </div>
+          </Modal>
+        </div>
+
+        {shouldShowAlikeProducts && (
+          <>
+            <div className="border-t-8 border-gray-100 mt-4"></div>
+            <AlikeProducts />
+          </>
         )}
 
-        {/* Size Selection */}
-        <div className="mt-3">
-          <p className="text-sm font-semibold text-black font-opensans mb-2">
-            Sizes
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {availableSizes.map((size, index) => {
-              const inStock = isSizeInStock(size);
-              const isSelected = selectedSize === size && inStock;
+        <div className="border-t-8 border-gray-100 mt-4"></div>
 
-              return (
-                <div
-                  key={index}
-                  onClick={() => {
-                    if (inStock) {
-                      handleSizeClick(size);
-                    }
-                  }}
-                  className={`relative py-2 px-4 border rounded-lg ${
-                    isSelected
-                      ? "bg-customOrange text-white cursor-pointer"
-                      : inStock
-                      ? "bg-transparent text-black cursor-pointer"
-                      : "bg-gray-200 text-black opacity-50 cursor-not-allowed"
-                  }`}
-                  style={{ position: "relative" }}
-                >
-                  <span className="text-xs font-opensans font-semibold">
-                    {size}
-                  </span>
-                  {!inStock && (
-                    <span
-                      className="absolute inset-0 animate-pulse flex items-center justify-center bg-gray-800 bg-opacity-50  text-customOrange font-opensans font-semibold text-xs text-center rounded-lg"
-                      style={{
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        zIndex: 10,
-                        pointerEvents: "none", // Prevents clicks on out-of-stock items
-                      }}
-                    >
-                      Out of Stock
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <RelatedProducts product={product} />
 
         <div
-          className="flex justify-between items-center mt-4 mb-4 cursor-pointer"
-          onClick={() => setIsModalOpen(true)}
+          className="fixed bottom-0 left-0 right-0 z-50 p-3 flex justify-between items-center"
+          style={{
+            background:
+              "linear-gradient(to top, white, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0) 97%)",
+            zIndex: 9999,
+          }}
+          onClick={(e) => e.stopPropagation()} // Prevents background clicks from propagating
         >
-          <p className="text-black text-md font-opensans ">Product Details</p>
-          <GoChevronRight className="text-3xl -mx-2" />
-        </div>
-
-        <Modal
-          isOpen={isModalOpen}
-          onRequestClose={() => setIsModalOpen(false)}
-          className="modal-content"
-          overlayClassName="modal-overlay"
-        >
-          <div className="p-2 relative">
-            <MdOutlineCancel
-              onClick={() => setIsModalOpen(false)}
-              className="absolute top-2 right-2 text-gray-600 cursor-pointer text-2xl"
-            />
-            <h2 className="text-lg mt-3 font-bold">Product Description</h2>
-            <p className="text-gray-600 mt-2 font-poppins text-sm">
-              {product.description}
-            </p>
-          </div>
-        </Modal>
-      </div>
-
-      {shouldShowAlikeProducts && (
-        <>
-          <div className="border-t-8 border-gray-100 mt-4"></div>
-          <AlikeProducts />
-        </>
-      )}
-
-      <div className="border-t-8 border-gray-100 mt-4"></div>
-
-      <RelatedProducts product={product} />
-
-      <div
-        className="fixed bottom-0 left-0 right-0 z-50 p-3 flex justify-between items-center"
-        style={{
-          background:
-            "linear-gradient(to top, white, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0) 97%)",
-          zIndex: 9999,
-        }}
-        onClick={(e) => e.stopPropagation()} // Prevents background clicks from propagating
-      >
-        {!selectedSize || !selectedColor ? (
-          // Prompt user to select size and color
-          <button
-            onClick={() => {
-              toast.error("Please select size and color");
-            }}
-            className={`bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out`}
-          >
-            Add to Cart
-          </button>
-        ) : !isAddedToCart ? (
-          // The "Add to Cart" button
-          <button
-            onClick={() => {
-              handleAddToCart();
-              setAnimateCart(true); // Trigger the animation
-            }}
-            className={`bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out`}
-          >
-            Add to Cart
-          </button>
-        ) : (
-          // The Remove and Quantity controls
-          <div
-            className={`flex w-full justify-between transition-all duration-500 ease-in-out transform ${
-              animateCart
-                ? "translate-x-0 opacity-100"
-                : "translate-x-full opacity-0"
-            }`}
-          >
+          {!selectedSize || !selectedColor ? (
+            // Prompt user to select size and color
             <button
-              onClick={handleRemoveFromCart}
-              className="text-black open-sans mr-4 bg-gray-100 rounded-full h-14 w-52 text-md font-bold"
+              onClick={() => {
+                toast.error("Please select size and color");
+              }}
+              className={`bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out`}
             >
-              Remove
+              Add to Cart
             </button>
-            <div className="flex space-x-4 items-center">
+          ) : !isAddedToCart ? (
+            // The "Add to Cart" button
+            <button
+              onClick={() => {
+                handleAddToCart();
+                setAnimateCart(true); // Trigger the animation
+              }}
+              className={`bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out`}
+            >
+              Add to Cart
+            </button>
+          ) : (
+            // The Remove and Quantity controls
+            <div
+              className={`flex w-full justify-between transition-all duration-500 ease-in-out transform ${
+                animateCart
+                  ? "translate-x-0 opacity-100"
+                  : "translate-x-full opacity-0"
+              }`}
+            >
               <button
-                onClick={handleDecreaseQuantity}
-                className="flex items-center justify-center w-12 h-12 opacity-40 bg-customOrange text-white text-3xl rounded-full"
+                onClick={handleRemoveFromCart}
+                className="text-black font-opensans open-sans mr-4 bg-gray-100 rounded-full h-14 w-52 text-md font-bold"
               >
-                <FiMinus />
+                Remove
               </button>
-              <span className="font-opensans font-semibold text-lg">
-                {quantity}
-              </span>
-              <button
-                onClick={handleIncreaseQuantity}
-                className="flex items-center justify-center w-12 h-12 bg-customOrange text-white text-3xl rounded-full"
-              >
-                <FiPlus />
-              </button>
+              <div className="flex space-x-4 items-center">
+                <button
+                  onClick={handleDecreaseQuantity}
+                  className="flex items-center justify-center w-12 h-12 opacity-40 bg-customOrange text-white text-3xl rounded-full"
+                >
+                  <FiMinus />
+                </button>
+                <span className="font-opensans font-semibold text-lg">
+                  {quantity}
+                </span>
+                <button
+                  onClick={handleIncreaseQuantity}
+                  className="flex items-center justify-center w-12 h-12 bg-customOrange text-white text-3xl rounded-full"
+                >
+                  <FiPlus />
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

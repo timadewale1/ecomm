@@ -25,7 +25,8 @@ import { LiaTimesSolid } from "react-icons/lia";
 import { CiLogin } from "react-icons/ci";
 import RoundedStars from "../../components/RoundedStars";
 import { RotatingLines } from "react-loader-spinner";
-
+import { IoMdContact } from "react-icons/io";
+import { handleUserActionLimit } from "../../services/userWriteHandler";
 const VendorRatings = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -39,6 +40,9 @@ const VendorRatings = () => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [selectedRating, setSelectedRating] = useState("All");
   const [newRating, setNewRating] = useState(0);
+
+  const [hasDeliveredOrder, setHasDeliveredOrder] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ratingBreakdown, setRatingBreakdown] = useState({
@@ -99,6 +103,31 @@ const VendorRatings = () => {
 
     fetchVendorData();
   }, [id]);
+  useEffect(() => {
+    const checkIfUserCanReview = async () => {
+      if (!currentUser || !id) {
+        setHasDeliveredOrder(false);
+        return;
+      }
+      try {
+        const ordersRef = collection(db, "orders");
+        const q = query(
+          ordersRef,
+          where("userId", "==", currentUser.uid),
+          where("vendorId", "==", id),
+          where("progressStatus", "==", "Delivered")
+        );
+        const snapshot = await getDocs(q);
+        // If we find at least one delivered order => user can review
+        setHasDeliveredOrder(!snapshot.empty);
+      } catch (err) {
+        console.error("Error checking delivered orders:", err);
+        setHasDeliveredOrder(false);
+      }
+    };
+
+    checkIfUserCanReview();
+  }, [currentUser, id]);
 
   const fetchReviews = async () => {
     try {
@@ -246,18 +275,37 @@ const VendorRatings = () => {
         return;
       }
 
+      try {
+        await handleUserActionLimit(
+          currentUser.uid,
+          "review",
+          {},
+          {
+            collectionName: "usage_metadata",
+            writeLimit: 50,
+            minuteLimit: 8,
+            hourLimit: 40,
+          }
+        );
+      } catch (limitError) {
+        // If limit is reached, throw an error
+        setIsSubmitting(false);
+        toast.error(limitError.message);
+        return;
+      }
+
+      // If we passed the usage limit check, proceed to create a review
       const reviewsRef = collection(db, "vendors", id, "reviews");
 
-      // Save the review only if text is provided
       await addDoc(reviewsRef, {
         reviewText: newReview.trim() !== "" ? newReview : null, // Add text if provided
         rating: newRating,
-        userName: currentUser.username || currentUser.displayName, // Use displayName if username doesn't exist
-        userPhotoURL: currentUser.photoURL || DefaultImageUrl, // Use a default image if userPhotoURL is missing
+        userName: currentUser.username || currentUser.displayName,
+        userPhotoURL: currentUser.photoURL || null,
         createdAt: new Date(),
       });
 
-      // Update vendor rating even if no text review is provided
+      // Update vendor rating
       const vendorRef = doc(db, "vendors", id);
       await updateDoc(vendorRef, {
         ratingCount: increment(1),
@@ -270,9 +318,7 @@ const VendorRatings = () => {
       fetchReviews(); // Refresh the reviews and progress bar
       toast.success("Review added successfully!");
     } catch (error) {
-      // Add detailed error logging for debugging
       console.error("Error adding review:", error.message);
-      console.error("Error details:", error);
       toast.error("Error adding review, please try again.");
     } finally {
       setIsSubmitting(false);
@@ -307,17 +353,24 @@ const VendorRatings = () => {
             className="text-3xl cursor-pointer"
             onClick={() => navigate(-1)}
           />
-          <h1 className="text-xl font-opensans font-semibold">Reviews</h1>
-          <FiPlus
-            className="text-3xl cursor-pointer"
-            onClick={() => {
-              if (!currentUser) {
-                setIsLoginModalOpen(true);
-              } else {
-                setShowModal(true);
-              }
-            }}
-          />
+          <h1 className="text-xl font-opensans font-semibold flex-grow text-center">
+            Reviews
+          </h1>
+          {/* Conditionally show FiPlus or an invisible placeholder */}
+          {!currentUser || hasDeliveredOrder ? (
+            <FiPlus
+              className="text-3xl cursor-pointer"
+              onClick={() => {
+                if (!currentUser) {
+                  setIsLoginModalOpen(true);
+                } else {
+                  setShowModal(true);
+                }
+              }}
+            />
+          ) : (
+            <div className="w-8 h-8" />
+          )}
         </div>
 
         <div className="flex justify-between mb-3 w-full overflow-x-auto space-x-2 scrollbar-hide">
@@ -369,32 +422,40 @@ const VendorRatings = () => {
         </div>
 
         <div className="my-4  w-full">
-          {[5, 4, 3, 2, 1].map((star) => (
-            <div key={star} className="flex items-center mb-2">
-              <span className="w-6 text-xs  font-opensans font-light">
-                {star}
-              </span>
-              <ProgressBar
-                now={calculatePercentage(ratingBreakdown[star])}
-                className="flex-1 mx-2"
-                style={{
-                  height: "14px",
-                  backgroundColor: "#f5f3f2",
-                  borderRadius: "10px",
-                  overflow: "hidden",
-                }}
-              >
-                <div
+          {totalRatings > 0 ? (
+            [5, 4, 3, 2, 1].map((star) => (
+              <div key={star} className="flex items-center mb-2">
+                <span className="w-6 text-xs font-opensans font-light">
+                  {star}
+                </span>
+                <ProgressBar
+                  now={calculatePercentage(ratingBreakdown[star] || 0)}
+                  className="flex-1 mx-2"
                   style={{
-                    backgroundColor: "#f9531e",
-                    height: "100%",
-                    width: `${calculatePercentage(ratingBreakdown[star])}%`,
+                    height: "14px",
+                    backgroundColor: "#f5f3f2",
                     borderRadius: "10px",
+                    overflow: "hidden",
                   }}
-                />
-              </ProgressBar>
-            </div>
-          ))}
+                >
+                  <div
+                    style={{
+                      backgroundColor: "#f9531e",
+                      height: "100%",
+                      width: `${calculatePercentage(
+                        ratingBreakdown[star] || 0
+                      )}%`,
+                      borderRadius: "10px",
+                    }}
+                  />
+                </ProgressBar>
+              </div>
+            ))
+          ) : (
+            <p className="text-xs font-opensans text-gray-600">
+              No ratings available yet.
+            </p>
+          )}
         </div>
       </div>
 
@@ -402,11 +463,17 @@ const VendorRatings = () => {
         {reviews.map((review) => (
           <div key={review.id} className="mb-4">
             <div className="flex items-center mb-1">
-              <img
-                src={review.userPhotoURL}
-                alt={review.userName}
-                className="w-11 h-11 rounded-full mr-3"
-              />
+              {review.userPhotoURL ? (
+                <img
+                  src={review.userPhotoURL}
+                  alt={review.userName}
+                  className="w-11 h-11 rounded-full mr-3"
+                />
+              ) : (
+                <div className="w-11 h-11 rounded-full bg-gray-200 flex items-center justify-center mr-3">
+                  <IoMdContact className="text-gray-500 text-xl" />
+                </div>
+              )}
               <div>
                 <h2 className="font-semibold text-xs">{review.userName}</h2>
               </div>
@@ -426,6 +493,19 @@ const VendorRatings = () => {
             </p>
           </div>
         ))}
+        <div className="fixed bottom-0 left-0 w-full bg-white py-4">
+          <div className="text-center">
+            <div className="flex justify-center items-center mb-2">
+              <FaStar className="text-yellow-500 text-lg mr-2" />
+              <h2 className="text-xs font-opensans font-semibold">
+                Reviews from Verified Buyers
+              </h2>
+            </div>
+            <p className="text-xs font-opensans text-gray-700">
+              All reviews on this page are submitted by verified buyers.
+            </p>
+          </div>
+        </div>
       </div>
 
       {showModal && vendor && (

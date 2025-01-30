@@ -16,6 +16,8 @@ import {
 import { db } from "../../firebase.config";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { MdOutlineStarPurple500 } from "react-icons/md";
+import { MdOutlineStarBorderPurple500 } from "react-icons/md";
 import Modal from "../../components/layout/Modal";
 import ConfirmationDialog from "../../components/layout/ConfirmationDialog";
 import {
@@ -43,6 +45,7 @@ import Skeleton from "react-loading-skeleton";
 import "./vendor.css";
 import ScrollToTop from "../../components/layout/ScrollToTop";
 import { VendorContext } from "../../components/Context/Vendorcontext";
+import { LuCopy, LuCopyCheck } from "react-icons/lu";
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
@@ -271,6 +274,7 @@ const VendorProducts = () => {
 
   const handleProductClick = (product) => {
     setSelectedProduct(product);
+    setproductId(product.id);
     setIsViewProductModalOpen(true);
   };
 
@@ -329,10 +333,18 @@ const VendorProducts = () => {
 
   const confirmBulkDeleteProduct = async () => {
     setOLoading(true);
+    const vendorDocRef = doc(db, "vendors", vendorId);
     try {
       for (const productId of pickedProducts) {
         const productRef = doc(db, "products", productId);
-        await deleteDoc(productRef);
+        await updateDoc(productRef, {
+          published: false, // Ensure the product is unpublished
+          isDeleted: true,
+        });
+
+        await updateDoc(vendorDocRef, {
+          productIds: arrayRemove(productId),
+        });
       }
       toast.success("Selected products deleted successfully.");
       setPickedProducts([]);
@@ -366,6 +378,27 @@ const VendorProducts = () => {
       setRestockValues({});
     }
   };
+  const [productId, setproductId] = useState("null");
+
+  const textToCopy = `${window.location.origin}/product/${
+    productId || "null"
+  }?shared=true`;
+
+  const [copied, setCopied] = useState(false);
+  const copyToClipboard = async () => {
+    if (!copied) {
+      console.log("Clicked");
+      try {
+        (await navigator.clipboard.writeText(textToCopy)) &&
+          console.log("copied"); // Ensure the text is copied
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000);
+      } catch (err) {
+        toast.error("Failed to copy!"); // Handle any errors during copy
+        console.error("Failed to copy text: ", err);
+      }
+    }
+  };
 
   const handlePinProduct = async (product) => {
     const currentTime = new Date().getTime(); // Get current time in milliseconds
@@ -379,7 +412,7 @@ const VendorProducts = () => {
       if (timeElapsed < twelveHoursInMilliseconds) {
         // Prevent unpinning if less than 12 hours have passed
         toast.error(
-          "You cannot unpin a product within 12 hours of pinning it."
+          "You cannot unfeature a product within 12 hours of featuring it."
         );
         return;
       }
@@ -416,20 +449,20 @@ const VendorProducts = () => {
       // If the product was just pinned (isFeatured set to true), add an activity note
       if (newIsFeaturedStatus) {
         await addActivityNote(
-          "Product Pinned 📌",
+          "Product Starred ⭐",
           `You've made ${product.name} one of your featured products! This will be part of the first products customers see in your store.`,
           "Product Update"
         );
-        toast.success("Product pinned successfully.");
+        toast.success("Product featured successfully.");
       } else {
-        toast.success("Product unpinned successfully.");
+        toast.success("Product unfeatured successfully.");
       }
 
       // Update the pinned count after the change
       fetchPinnedProductsCount(); // Assuming this function recalculates the pinned count
     } catch (error) {
       console.error("Error pinning/unpinning product:", error);
-      toast.error("Error pinning/unpinning product: " + error.message);
+      toast.error("Error Featuring/unfeaturing product: " + error.message);
     }
   };
 
@@ -461,6 +494,7 @@ const VendorProducts = () => {
       // Step 1: Update the 'isDeleted' field of the product in the 'products' collection
       await updateDoc(doc(db, "products", productId), {
         isDeleted: true,
+        published: false, // Ensure the product is unpublished
       });
 
       // Step 2: Optionally, remove the productId from the vendor's 'productIds' array
@@ -628,6 +662,8 @@ const VendorProducts = () => {
     }, {});
   };
 
+  const totalOutOfStock = products.filter((p) => p.stockQuantity === 0).length;
+
   const filteredProducts = products
     .filter((p) => {
       if (tabOpt === "Active") {
@@ -724,12 +760,17 @@ const VendorProducts = () => {
           </div>
           <div className="flex flex-col justify-center items-center space-y-3">
             <p
-              className={`text-sm ${
+              className={`text-sm flex space-x-1 ${
                 tabOpt === "OOS" ? "text-customOrange" : "text-black"
               }`}
               onClick={() => setTabOpt("OOS")}
             >
-              Out of Stock
+              Out of Stock{" "}
+              {totalOutOfStock > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full flex items-center justify-center w-5 h-5 animate-ping">
+                  {totalOutOfStock}
+                </span>
+              )}
             </p>
             <div className="h-1">
               {tabOpt === "OOS" && (
@@ -800,11 +841,11 @@ const VendorProducts = () => {
                           className="absolute top-2 right-2 bg-white rounded-full p-1"
                         >
                           {product.isFeatured ? (
-                            <BsPinAngleFill
+                            <MdOutlineStarPurple500
                               className={`text-customOrange  w-5 h-5`}
                             />
                           ) : (
-                            <BsPinAngle
+                            <MdOutlineStarBorderPurple500
                               className={`text-customOrange  w-5 h-5`}
                             />
                           )}
@@ -1001,9 +1042,23 @@ const VendorProducts = () => {
                 ))}
             </div>
 
-            <p className="text-lg text-black font-semibold mb-4">
-              {selectedProduct.name}
-            </p>
+            <div className="flex items-center mb-4 justify-between">
+              <p className="text-lg text-black font-semibold ">
+                {selectedProduct.name}
+              </p>
+              {selectedProduct.published && (
+                <button
+                  className="text-white opacity-50 cursor-not-allowed"
+                  onClick={copyToClipboard}
+                >
+                  {!copied ? (
+                    <LuCopy className="text-2xl text-customOrange" />
+                  ) : (
+                    <LuCopyCheck className="text-2xl text-[#28a745]" />
+                  )}
+                </button>
+              )}
+            </div>
             <div className="px-3 mb-4 flex flex-col justify-between space-y-3">
               <p className="text-black font-semibold text-sm">
                 Price:{" "}

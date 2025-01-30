@@ -16,10 +16,9 @@ import VendorProducts from "../pages/VendorCompleteProfile/VendorProducts.jsx";
 import VendorProfile from "../pages/VendorCompleteProfile/VendorProfile.jsx";
 import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
 import MarketStorePage from "../pages/MarketStorePage.jsx";
-import UserDashboard from "../pages/UserDashboard";
+
 import Marketpg from "../pages/Marketpg";
 import ResetPassword from "../pages/UserSide/ResetPassword.jsx";
-import PaymentApprove from "../pages/PaymentApprove.jsx";
 import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfile.jsx";
 import NewHome from "../pages/Homepage";
 import EmailVerification from "../pages/UserSide/ConfirmEmail.jsx";
@@ -28,6 +27,7 @@ import OrdersCentre from "../pages/UserSide/OrdersCentre.jsx";
 import Checkout from "../pages/NewCheckout.jsx";
 import MarketVendors from "../pages/MarketVendors.jsx";
 import Profile from "../pages/Profile.jsx";
+import ConditionProducts from "../components/Conditions/ConditionPage.jsx";
 import Explore from "../pages/Explore";
 import Marketcardpage from "../pages/marketcardpage.jsx";
 import OnlineVendors from "../pages/OnlineVendors.jsx";
@@ -46,20 +46,22 @@ import NotFound from "../pages/NotFound";
 import StoreReviews from "../pages/vendor/StoreReviews.jsx";
 import RoleBasedAccess from "../custom-hooks/Rbac.jsx"; // Assuming this is the RoleBasedAccess component
 import { Navigate } from "react-router-dom";
-// import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
+import WithReviewModal from "../components/Reviews/WithReview.jsx";
+import CategoryProducts from "../components/PopularCategories/CategorySection.jsx";
 import SubmitFeedback from "../pages/SubmitFeedback.jsx";
+import WithWhatsAppModal from "../components/ChannelLinkModal/WithWhatsAppModal.jsx";
 const Routers = () => {
   return (
     <Routes>
       {/* Default Route */}
-      <Route path="/" element={<NewHome />} />
+      <Route path="/" element={<ConfirmUserState />} />
 
       {/* Public Routes */}
 
       <Route path="/confirm-state" element={<ConfirmUserState />} />
       <Route path="product/:id" element={<ProductDetailPage />} />
       <Route path="signup" element={<Signup />} />
-      <Route path="/vendor-profile" element={<VendorProfile />} />
+
       <Route path="vendor-signup" element={<VendorSignup />} />
       <Route path="login" element={<Login />} />
       <Route path="vendorlogin" element={<VendorLogin />} />
@@ -77,7 +79,17 @@ const Routers = () => {
         path="/profile"
         element={
           <RoleBasedAccess allowedRoles={["user"]}>
-            <Profile />
+            <WithReviewModal>
+              <Profile />
+            </WithReviewModal>
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="/producttype/:type"
+        element={
+          <RoleBasedAccess allowedRoles={["user"]}>
+            <CategoryProducts />
           </RoleBasedAccess>
         }
       />
@@ -85,7 +97,19 @@ const Routers = () => {
         path="/newhome"
         element={
           <RoleBasedAccess allowedRoles={["user"]}>
-            <NewHome />
+            <WithReviewModal>
+              <NewHome />
+            </WithReviewModal>
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="/products/condition/:condition"
+        element={
+          <RoleBasedAccess allowedRoles={["user"]}>
+            <WithReviewModal>
+              <ConditionProducts />
+            </WithReviewModal>
           </RoleBasedAccess>
         }
       />
@@ -117,7 +141,9 @@ const Routers = () => {
         path="/latest-cart"
         element={
           <RoleBasedAccess allowedRoles={["user"]}>
-            <LatestCart />
+            <WithReviewModal>
+              <LatestCart />
+            </WithReviewModal>
           </RoleBasedAccess>
         }
       />
@@ -173,9 +199,11 @@ const Routers = () => {
         path="/browse-markets"
         element={
           <RoleBasedAccess allowedRoles={["user", null]}>
-            <ErrorBoundary>
-              <Marketpg />
-            </ErrorBoundary>
+            <WithReviewModal>
+              <ErrorBoundary>
+                <Marketpg />
+              </ErrorBoundary>
+            </WithReviewModal>
           </RoleBasedAccess>
         }
       />
@@ -191,7 +219,9 @@ const Routers = () => {
         path="/explore"
         element={
           <RoleBasedAccess allowedRoles={["user", null]}>
-            <Explore />
+            <WithReviewModal>
+              <Explore />
+            </WithReviewModal>
           </RoleBasedAccess>
         }
       />
@@ -206,11 +236,13 @@ const Routers = () => {
 
       {/* Vendor Protected Routes */}
       <Route element={<ProtectedRoute requiredRole="vendor" />}>
-        <Route path="/vendordashboard" element={<VendorDashboard />} />
-      
-        <Route path="/vendor-products" element={<VendorProducts />} />
+        <Route path="/vendordashboard" element={
+          <WithWhatsAppModal>
+          <VendorDashboard /></WithWhatsAppModal>} />
+        <Route path="/vendor-profile" element={<WithWhatsAppModal><VendorProfile /></WithWhatsAppModal>} />
+        <Route path="/vendor-products" element={<WithWhatsAppModal><VendorProducts /></WithWhatsAppModal>} />
         <Route path="/vendor-orders" element={<VendorOrders />} />
-        <Route path="/store-reviews" element={<StoreReviews />} />
+        <Route path="/store-reviews" element={<WithWhatsAppModal><StoreReviews /></WithWhatsAppModal>} />
         <Route path="/call-guidelines" element={<CallGuide />} />
         <Route path="/delivery-guidelines" element={<DeliveryGuide />} />
         {/* Add any other vendor-specific protected routes here */}
@@ -220,13 +252,6 @@ const Routers = () => {
       <Route element={<ProtectedRoute requiredRole="user" />}>
         <Route path="/newcheckout/:vendorId" element={<Checkout />} />
         <Route path="/donate" element={<Donate />} />
-        <Route
-          path="/payment-approve/:reference"
-          element={<PaymentApprove />}
-        />
-
-        <Route path="/user-dashboard" element={<UserDashboard />} />
-        {/* Add any other user-specific protected routes here */}
       </Route>
 
       <Route path="/not-found" element={<NotFound />} />

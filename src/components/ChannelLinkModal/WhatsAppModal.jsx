@@ -11,33 +11,13 @@ const WhatsAppModal = ({ isOpen, onClose }) => {
       isOpen={isOpen}
       onRequestClose={onClose}
       contentLabel="Join Our WhatsApp Channel"
-      style={{
-        content: {
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: "100%",
-          borderRadius: "20px",
-          padding: "20px",
-          backgroundColor: "#ffffff",
-          border: "none",
-          height: "457.47px",
-          animation: "slide-up 0.3s ease-in-out",
-        },
-        overlay: {
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "center",
-          zIndex: 3000,
-        },
-      }} 
+      className="modal-content-rider h-auto"
+      overlayClassName="fixed inset-0 bg-black bg-opacity-50"
     >
-      <div className="flex flex-col items-center font-opensans">
+      <div className="flex flex-col  items-center font-opensans">
         {/* Header */}
         <div className="flex items-center justify-between w-full">
-          <h2 className="font-opensans text-lg font-semibold flex items-center">
+          <h2 className="font-opensans text-sm font-semibold flex items-center">
             Join Our WhatsApp Channel!{" "}
             <span>
               {" "}
@@ -56,20 +36,31 @@ const WhatsAppModal = ({ isOpen, onClose }) => {
 
         {/* Content */}
         <div className="mt-6">
-          <p className="text-lg text-center text-black">
+          <p className="text-sm text-black font-medium">
             Stay connected with us for:
-            <p className=" text-black text-lg">
-              • <span className="text-customOrange">Exclusive Updates:</span> Be the first to know about upcoming events,
-              promotions, and features.
-            </p>
-            <p className=" text-black text-lg">
-              • <span className="text-customOrange">Vendor Tips & Insights:</span> Get valuable advice to grow your
-              business.
-            </p>
-            <p className=" text-black text-lg">
-              • <span className="text-customOrange">Real-Time Announcements:</span> Stay informed about important updates,
-              news, and opportunities tailored for you🚀
-            </p>
+          </p>
+          <p className="text-xs mt-2 text-black">
+            •{" "}
+            <span className="text-customOrange text-sm font-medium">
+              Exclusive Updates:
+            </span>{" "}
+            Be the first to know about upcoming events, promotions, and
+            features.
+          </p>
+          <p className="text-xs mt-2 text-black">
+            •{" "}
+            <span className="text-customOrange text-sm font-medium">
+              Vendor Tips & Insights:
+            </span>{" "}
+            Get valuable advice to grow your business.
+          </p>
+          <p className="text-xs mt-2 text-black">
+            •{" "}
+            <span className="text-customOrange text-sm font-medium">
+              Real-Time Announcements:
+            </span>{" "}
+            Stay informed about important updates, news, and opportunities
+            tailored for you 🚀
           </p>
         </div>
 
@@ -83,9 +74,9 @@ const WhatsAppModal = ({ isOpen, onClose }) => {
               localStorage.setItem("hasWhatsAppModalShown", true);
               onClose();
             }} // Mark as interacted
-            className="px-6 py-3 bg-customOrange text-white text-sm font-medium rounded-full"
+            className="px-6 py-2 bg-customOrange text-white text-sm font-medium rounded-full"
           >
-            Join WhatsApp Channel
+            Join  Channel
           </a>
         </div>
       </div>

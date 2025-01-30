@@ -29,7 +29,12 @@ import {
   FaInfoCircle,
   FaCheckCircle,
 } from "react-icons/fa";
-import { MdOutlineClose, MdOutlineDomainVerification, MdOutlineEmail, MdOutlineLock } from "react-icons/md";
+import {
+  MdOutlineClose,
+  MdOutlineDomainVerification,
+  MdOutlineEmail,
+  MdOutlineLock,
+} from "react-icons/md";
 import { Oval, RotatingLines } from "react-loader-spinner";
 import { useAuth } from "../custom-hooks/useAuth";
 import { httpsCallable } from "firebase/functions"; // import from Firebase functions
@@ -436,6 +441,35 @@ const Signup = () => {
                     )}
                   </div>
                 </FormGroup>
+                <div className="text-gray-600 font-opensans text-xs mt-2 leading-relaxed">
+                  By signing up, you agree to our
+                  <span
+                    onClick={() =>
+                      window.open(
+                        "/terms-and-conditions",
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }
+                    className="text-customOrange font-medium hover:underline cursor-pointer ml-1"
+                  >
+                    Terms & Conditions
+                  </span>
+                  and
+                  <span
+                    onClick={() =>
+                      window.open(
+                        "/privacy-policy",
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }
+                    className="text-customOrange font-medium hover:underline cursor-pointer ml-1"
+                  >
+                    Privacy Policy
+                  </span>
+                  .
+                </div>
 
                 {/* Sign Up button */}
                 <motion.button

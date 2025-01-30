@@ -4,32 +4,32 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 const TermsAndConditions = () => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
-  //Basically, this logic checks if there's any previous history in the browser that also comes from this domain, if both checks return false then the handleBack function redirects to the login page, else it goes to the previous page
-  const [checkOne, setCheckOne] = useState(false);
-  const [checkTwo, setCheckTwo] = useState(false);
+  // //Basically, this logic checks if there's any previous history in the browser that also comes from this domain, if both checks return false then the handleBack function redirects to the login page, else it goes to the previous page
+  // const [checkOne, setCheckOne] = useState(false);
+  // const [checkTwo, setCheckTwo] = useState(false);
 
-  useEffect(() => {
-    setCheckOne(window.history.length > 1);
-    setCheckTwo(
-      !document.referrer || document.referrer.startsWith(window.location.origin)
-    );
-  }, []);
+  // useEffect(() => {
+  //   setCheckOne(window.history.length > 1);
+  //   setCheckTwo(
+  //     !document.referrer || document.referrer.startsWith(window.location.origin)
+  //   );
+  // }, []);
 
-  const handleBack = () => {
-    // Check if there's a history stack and referrer is from the same origin
-    if (checkOne && checkTwo) {
-      window.history.back();
-    } else {
-      navigate("/confirm-user-state");
-    }
-  };
+  // const handleBack = () => {
+  //   // Check if there's a history stack and referrer is from the same origin
+  //   if (checkOne && checkTwo) {
+  //     window.history.back();
+  //   } else {
+  //     navigate("/confirm-user-state");
+  //   }
+  // };
 
   return (
     <div className="flex flex-col items-center bg-gray-50 min-h-screen pb-4 font-opensans text-gray-800">
       {/* Header */}
-      <div
+      {/* <div
         id="header"
         className="sticky transition-colors duration-300 top-0 bg-white z-10 flex items-center justify-between w-full py-4 px-3 border-b shadow-sm"
       >
@@ -42,7 +42,7 @@ const TermsAndConditions = () => {
             Terms and Conditions
           </h1>
         </div>
-      </div>
+      </div> */}
 
       {/* Content */}
       <div className="w-full max-w-3xl bg-white rounded-lg shadow-md">

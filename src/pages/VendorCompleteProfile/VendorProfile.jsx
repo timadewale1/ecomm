@@ -344,12 +344,18 @@ const VendorProfile = () => {
               </div>
               <div className="flex flex-col items-center w-full">
                 <div
-                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => navigate("/terms-and-conditions")}
+                  className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={() =>
+                    window.open(
+                      "/terms-and-conditions",
+                      "_blank",
+                      "noopener,noreferrer"
+                    )
+                  }
                 >
                   <div className="flex items-center">
                     <FaFileContract className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal text-black capitalize">
+                    <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
                       Terms and Conditions
                     </h2>
                   </div>
@@ -357,12 +363,18 @@ const VendorProfile = () => {
                 </div>
 
                 <div
-                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => navigate("/privacy-policy")}
+                  className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={() =>
+                    window.open(
+                      "/privacy-policy",
+                      "_blank",
+                      "noopener,noreferrer"
+                    )
+                  }
                 >
                   <div className="flex items-center">
                     <BsShieldFillCheck className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal text-black capitalize">
+                    <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
                       Privacy Policy
                     </h2>
                   </div>

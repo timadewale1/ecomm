@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom"; // Import useNavigate
 import { applyActionCode } from "firebase/auth";
 import { auth } from "../../firebase.config";
 import toast from "react-hot-toast";
@@ -7,13 +7,19 @@ import toast from "react-hot-toast";
 const EmailVerification = () => {
   const [loading, setLoading] = useState(false);
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate(); // Initialize useNavigate
   const oobCode = searchParams.get("oobCode");
 
   const handleEmailVerification = async () => {
     setLoading(true);
     try {
       await applyActionCode(auth, oobCode);
-      toast.success("Email verified successfully! You can now log in.");
+      toast.success("Email verified successfully! Redirecting...");
+
+      // ✅ Redirect user after 3 seconds
+      setTimeout(() => {
+        navigate("/confirm-state");
+      }, 3000);
     } catch (error) {
       console.error("Email verification error:", error);
       toast.error(
@@ -24,7 +30,7 @@ const EmailVerification = () => {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (oobCode) {
       handleEmailVerification();
     } else {
@@ -43,7 +49,7 @@ const EmailVerification = () => {
             Please wait while we verify your email.
           </p>
         ) : (
-          <p className="text-green-600  font-opensans font-normal">
+          <p className="text-green-600 font-opensans font-normal">
             Email verification completed! Redirecting to login...
           </p>
         )}

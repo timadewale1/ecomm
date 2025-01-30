@@ -40,7 +40,7 @@ const ResetPassword = () => {
       toast.success("Your password has been reset successfully!");
 
       // Redirect to login page
-      navigate("/login");
+      navigate("/confirm-state");
     } catch (error) {
       toast.error(
         "Failed to reset password. Please try again or request a new reset email."

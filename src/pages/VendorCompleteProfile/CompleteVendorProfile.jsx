@@ -30,6 +30,7 @@ const CompleteProfile = () => {
     socialMediaHandle: {
       instagram: "", // Instagram link
       twitter: "", // Twitter link
+      tiktok: "", // TikTok link
       facebook: "", // Facebook link
     },
 
@@ -306,6 +307,7 @@ const CompleteProfile = () => {
       if (
         !vendorData.socialMediaHandle.instagram &&
         !vendorData.socialMediaHandle.facebook &&
+        !vendorData.socialMediaHandle.tiktok &&
         !vendorData.socialMediaHandle.twitter
       ) {
         missingFields.push("Social Media Handles");
@@ -399,7 +401,7 @@ const CompleteProfile = () => {
         recipientCode = result.recipientCode;
       } catch (error) {
         console.error("Error during createTransferRec API call:", error);
-        toast.error("Error creating transfer recipient: " + error.message, {
+        toast.error( error.message, {
           className: "custom-toast",
         });
         setIsLoading(false);

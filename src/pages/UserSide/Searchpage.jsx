@@ -12,6 +12,7 @@ import { FaGenderless, FaChildren } from "react-icons/fa6";
 import { AiFillProduct } from "react-icons/ai";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
 import { query, where } from "firebase/firestore";
+import SEO from "../../components/Helmet/SEO";
 
 const SearchPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -177,6 +178,12 @@ const SearchPage = () => {
   };
 
   return (
+    <>
+    <SEO 
+        title={`Search - My Thrift`} 
+        description={`Search for products and vendors on My Thrift`}
+        url={`https://www.shopmythrift.store/search`} 
+      />
     <motion.div
       initial={{ x: "100%" }}
       animate={{ x: 0 }}
@@ -380,6 +387,7 @@ const SearchPage = () => {
         )}
       </Downshift>
     </motion.div>
+    </>
   );
 };
 

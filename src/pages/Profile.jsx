@@ -32,6 +32,7 @@ import { IoMdContact } from "react-icons/io";
 import { clearCart } from "../redux/actions/action";
 import { useDispatch, useSelector } from "react-redux";
 import { FaFileContract } from "react-icons/fa6";
+import SEO from "../components/Helmet/SEO";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -177,6 +178,12 @@ const Profile = () => {
   };
 
   return (
+    <>
+    <SEO 
+        title={`Profile - My Thrift`} 
+        description={`Update your personal information, view your orders, and more.`}
+        url={`https://www.shopmythrift.store/profile`} 
+      />
     <div className="py-6  pb-24">
       {!showDetails && !showMetrics && !showFAQs ? (
         <div className="flex flex-col items-center">
@@ -519,6 +526,7 @@ const Profile = () => {
         />
       )}
     </div>
+    </>
   );
 };
 

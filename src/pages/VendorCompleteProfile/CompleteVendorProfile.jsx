@@ -13,6 +13,7 @@ import VirtualVendor from "./virtualVendor";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { GoChevronLeft } from "react-icons/go";
 import { RotatingLines } from "react-loader-spinner";
+import SEO from "../../components/Helmet/SEO";
 
 const CompleteProfile = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -439,6 +440,12 @@ const CompleteProfile = () => {
   };
 
   return (
+    <>
+    <SEO 
+        title={`Complete Your Profile - My Thrift`} 
+        description={`Complete your vendor profile on My Thrift`} 
+        url={`https://www.shopmythrift.store/complete-profile`} 
+      />
     <Container>
       <Row>
         {loading ? (
@@ -585,6 +592,7 @@ const CompleteProfile = () => {
         )}
       </Row>
     </Container>
+    </>
   );
 };
 

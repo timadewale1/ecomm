@@ -3,6 +3,7 @@ import { GoChevronLeft, GoDotFill } from "react-icons/go";
 import ScrollToTop from "./../../components/layout/ScrollToTop";
 import "./design.css";
 import { useNavigate } from "react-router-dom";
+import SEO from "../../components/Helmet/SEO";
 
 const PrivacyPolicy = () => {
   const navigate = useNavigate();
@@ -28,6 +29,12 @@ const PrivacyPolicy = () => {
   };
 
   return (
+    <>
+    <SEO 
+        title={`Privacy Policy - My Thrift`} 
+        description={`Privacy Policy for My Thrift Clothing`}
+        url={`https://www.shopmythrift.store/privacy-policy`} 
+      />
     <div className="flex flex-col items-center bg-gray-50 min-h-screen pb-4 font-opensans text-gray-800">
       {/* Header */}
       <div className="sticky top-0 bg-white z-10 flex items-center justify-between w-full px-3 py-4 border-b shadow-sm">
@@ -414,6 +421,7 @@ const PrivacyPolicy = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

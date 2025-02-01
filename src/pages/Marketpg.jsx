@@ -8,6 +8,7 @@ import Skeleton from "react-loading-skeleton";
 import ReactStars from "react-rating-stars-component";
 import RoundedStar from "../components/Roundedstar";
 import { MdCancel } from "react-icons/md";
+import SEO from "../components/Helmet/SEO";
 
 const Marketpg = () => {
   const dispatch = useDispatch();
@@ -67,6 +68,12 @@ const Marketpg = () => {
     "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 
   return (
+    <>
+    <SEO 
+        title={`Browse Markets - My Thrift`} 
+        description={`Browse through our list of vendors on My Thrift`} 
+        url={`https://www.shopmythrift.store/browse-markets`}  
+      />
     <div className="mb-1 ">
       <div className="sticky py-3 px-2 w-full top-0 bg-white z-10">
         <div className="flex flex-col mb-3 pb-2 px-2.5">
@@ -226,6 +233,7 @@ const Marketpg = () => {
         )}
       </div>
     </div>
+    </>
   );
 };
 

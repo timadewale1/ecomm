@@ -8,6 +8,7 @@ import Loading from "../../components/Loading/Loading";
 import { GoChevronLeft } from "react-icons/go";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import SEO from "../../components/Helmet/SEO";
 
 const FavoritesPage = () => {
   const { favorites: contextFavorites } = useFavorites(); // From Context
@@ -89,6 +90,12 @@ const FavoritesPage = () => {
   }, [contextFavorites]);
 
   return (
+    <>
+    <SEO 
+        title={`Favorites - My Thrift`} 
+        description={`Your favorite products on My Thrift`}
+        url={`https://www.shopmythrift.store/favorites`} 
+      />
     <div className="p-2">
       <div className="sticky top-0 bg-white z-10 flex items-center justify-between h-24">
         <div className="flex items-center space-x-2">
@@ -121,6 +128,7 @@ const FavoritesPage = () => {
         </>
       )}
     </div>
+    </>
   );
 };
 

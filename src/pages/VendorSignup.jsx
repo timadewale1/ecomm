@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import Helmet from "../components/Helmet/Helmet";
+import Helmet from "../components/Helmet/SEO";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -22,6 +22,7 @@ import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import Modal from "react-modal";
 import { httpsCallable } from "firebase/functions";
+import SEO from "../components/Helmet/SEO";
 
 const VendorSignup = () => {
   const [vendorData, setVendorData] = useState({
@@ -140,7 +141,12 @@ const VendorSignup = () => {
   };
 
   return (
-    <Helmet>
+    <>
+      <SEO 
+        title={`Vendor Signup - My Thrift`} 
+        description={`Sign up to grow your brand as My Thrift vendor!`}  
+        url={`https://www.shopmythrift.store/vendor-signup`} 
+      />
       <section>
         <Container>
           <Row>
@@ -434,7 +440,7 @@ const VendorSignup = () => {
           </p>
         </div>
       </Modal>
-    </Helmet>
+    </>
   );
 };
 

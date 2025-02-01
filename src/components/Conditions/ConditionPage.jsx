@@ -11,6 +11,7 @@ import BrandNewHeader from "./icons/BrandNewHeader";
 import ProductCard from "../Products/ProductCard";
 import { RotatingLines } from "react-loader-spinner";
 import { GoChevronLeft } from "react-icons/go";
+import SEO from "../Helmet/SEO";
 
 function ConditionProducts() {
   const { condition: slug } = useParams();
@@ -150,7 +151,13 @@ function ConditionProducts() {
   };
 
   return (
-    <div className=" px-2 py-14">
+    <>
+    <SEO 
+        title={`${condition.charAt(0).toUpperCase() + condition.slice(1)} Items - My Thrift`} 
+        description={`Shop ${condition} items on My Thrift`}
+        url={`https://www.shopmythrift.store/condition/${slug}`} 
+      />
+    <div className="px-2 py-14">
       {/* Header Section */}
       <div className="w-full h-48 bg-gray-200">{getHeaderContent()}</div>
 
@@ -202,6 +209,7 @@ function ConditionProducts() {
         </div>
       )}
     </div>
+    </>
   );
 }
 

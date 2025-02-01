@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { applyActionCode } from "firebase/auth";
 import { auth } from "../../firebase.config";
 import toast from "react-hot-toast";
+import SEO from "../../components/Helmet/SEO";
 
 const EmailVerification = () => {
   const [loading, setLoading] = useState(false);
@@ -33,6 +34,11 @@ const EmailVerification = () => {
   }, [oobCode]);
 
   return (
+    <>
+    <SEO 
+        title={`Email Verification - My Thrift`}
+        url={`https://www.shopmythrift.store/confirm-email`} 
+      />
     <div className="flex items-center justify-center bg-white px-3 py-4 min-h-screen">
       <div className="w-full max-w-md text-center">
         <h2 className="text-3xl font-semibold font-ubuntu text-black mb-4">
@@ -49,6 +55,7 @@ const EmailVerification = () => {
         )}
       </div>
     </div>
+    </>
   );
 };
 

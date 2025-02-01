@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/img-redundant-alt */
 import React, { useState, useEffect, useRef } from "react";
 import DonationsAnimate from "../components/Loading/DonationsAnimation";
 import { FaTshirt, FaBook, FaShoePrints, FaBicycle } from "react-icons/fa"; // Icons for categories
@@ -11,6 +12,7 @@ import "swiper/css/free-mode";
 import "swiper/css/autoplay";
 import Skeleton from "react-loading-skeleton";
 import 'react-loading-skeleton/dist/skeleton.css';
+import SEO from "../components/Helmet/SEO";
 
 const Donate = () => {
   const [loading, setLoading] = useState(true);
@@ -53,6 +55,12 @@ const Donate = () => {
   }
 
   return (
+    <>
+    <SEO 
+        title={`Donations - My Thrift`} 
+        description={`Help give back to the community with donations`}
+        url={`https://www.shopmythrift.store/donate`} 
+      />
     <div className="p-3">
       <div className="flex items-center mb-4">
         <FaAngleLeft className="text-2xl cursor-pointer" onClick={() => navigate(-1)} />
@@ -163,6 +171,7 @@ const Donate = () => {
         </>
       )}
     </div>
+    </>
   );
 };
 

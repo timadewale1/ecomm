@@ -9,6 +9,7 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import ReactStars from "react-rating-stars-component";
 import RoundedStar from "../components/Roundedstar";
+import SEO from "../components/Helmet/SEO";
 // import ProductCard from "../components/Products/ProductCard"; // if needed
 
 const OnlineVendors = () => {
@@ -156,6 +157,12 @@ const OnlineVendors = () => {
 
  
   return (
+    <>
+    <SEO 
+        title={`Online Vendors - My Thrift`} 
+        description={`Shop from our online vendors on My Thrift`}
+        url={`https://www.shopmythrift.store/online-vendors`} 
+      />
     <div className="mb-1 p-2">
       {/* Top Bar */}
       <div className="sticky py-3 w-[calc(100%+1rem)] -ml-2 top-0 bg-white z-10">
@@ -303,6 +310,7 @@ const OnlineVendors = () => {
         )}
       </div>
     </div>
+    </>
   );
 };
 

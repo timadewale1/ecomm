@@ -13,7 +13,7 @@ import { NavigationProvider } from "./components/Context/Bottombarcontext";
 import { AuthProvider } from "./custom-hooks/useAuth";
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
-  <React.StrictMode>
+  // {/* <React.StrictMode> */}
     <BrowserRouter>
       <Provider store={store}>
         <AuthProvider>
@@ -40,5 +40,5 @@ root.render(
         </AuthProvider>
       </Provider>
     </BrowserRouter>
-  </React.StrictMode>
+  // {/* </React.StrictMode> */}
 );

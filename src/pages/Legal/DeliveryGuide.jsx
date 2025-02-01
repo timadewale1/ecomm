@@ -1,11 +1,18 @@
 import React from 'react';
 import { GoChevronLeft } from 'react-icons/go';
 import { useNavigate } from 'react-router-dom';
+import SEO from '../../components/Helmet/SEO';
 
 const DeliveryGuide = () => {
   const navigate = useNavigate()
 
   return (
+    <>
+    <SEO 
+        title={`Delivery Guidelines - My Thrift`} 
+        description={`Delivery Guidelines for Vendors on My Thrift`} 
+        url={`https://www.shopmythrift.store/delivery-guidelines`} 
+      />
     <div className="flex flex-col items-center bg-gray-50 min-h-screen pb-4 font-opensans text-gray-800">
       {/* Header */}
       <div className="sticky top-0 bg-white z-10 flex items-center justify-between w-full px-3 py-4 border-b shadow-sm">
@@ -114,6 +121,7 @@ const DeliveryGuide = () => {
         <p className="text-customOrange"><strong>The My Thrift Team</strong></p>
     </div>
     </div>
+    </>
   );
 };
 

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -34,6 +33,7 @@ import { Oval, RotatingLines } from "react-loader-spinner";
 import { useAuth } from "../custom-hooks/useAuth";
 import { httpsCallable } from "firebase/functions"; // import from Firebase functions
 import Modal from "react-modal";
+import SEO from "../components/Helmet/SEO";
 const Signup = () => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -251,7 +251,12 @@ const Signup = () => {
   };
 
   return (
-    <Helmet className="p-4">
+    <>
+    <SEO 
+        title={`Signup - My Thrift`} 
+        description={`Get started with an amazing shopping experience on My Thrift!`} 
+        url={`https://www.shopmythrift.store/signup`} 
+      />
       <Container>
         <Row>
           <>
@@ -539,7 +544,7 @@ const Signup = () => {
           </p>
         </div>
       </Modal>
-    </Helmet>
+    </>
   );
 };
 

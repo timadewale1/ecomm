@@ -30,6 +30,7 @@ import { IoBook } from "react-icons/io5";
 import { IoIosCall } from "react-icons/io";
 import { AiOutlineExperiment } from "react-icons/ai";
 import { MdOutlineFeedback } from "react-icons/md";
+import SEO from "../../components/Helmet/SEO.jsx";
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const defaultImageUrl =
@@ -215,6 +216,12 @@ const VendorProfile = () => {
   };
 
   return (
+    <>
+    <SEO 
+        title={`Vendor Profile - My Thrift`}   
+        description={`Manage your My Thrift store`}
+        url={`https://www.shopmythrift.store/vendor-profile`} 
+      />
     <div className="font-opensans">
       {!showDetails && !showHistory && !showGuides ? (
         <div className="pb-20">
@@ -492,6 +499,7 @@ const VendorProfile = () => {
         </>
       )}
     </div>
+    </>
   );
 };
 

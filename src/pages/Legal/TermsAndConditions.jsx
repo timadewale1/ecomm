@@ -2,6 +2,7 @@ import { GoChevronLeft, GoDotFill } from "react-icons/go";
 import ScrollToTop from "../../components/layout/ScrollToTop";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import SEO from "../../components/Helmet/SEO";
 
 const TermsAndConditions = () => {
   const navigate = useNavigate();
@@ -27,6 +28,11 @@ const TermsAndConditions = () => {
   };
 
   return (
+    <>
+    <SEO 
+        title={`Terms and Conditions - My Thrift`}
+        url={`https://www.shopmythrift.store/terms-and-conditions`} 
+      />
     <div className="flex flex-col items-center bg-gray-50 min-h-screen pb-4 font-opensans text-gray-800">
       {/* Header */}
       <div
@@ -523,6 +529,7 @@ const TermsAndConditions = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

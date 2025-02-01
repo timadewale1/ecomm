@@ -29,6 +29,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import Typewriter from "typewriter-effect";
 import { MdCancel } from "react-icons/md";
 import { handleUserActionLimit } from "../../services/userWriteHandler";
+import SEO from "../../components/Helmet/SEO";
 const imageSets = {
   Mens: [
     "person-happy-american-african-business_osy8q7",
@@ -434,6 +435,12 @@ const CategoryPage = () => {
 
   // Render
   return (
+    <>
+    <SEO 
+        title={`Shop ${category} - My Thrift`}
+        description={`Explore ${category} products on My Thrift`} 
+        url={`https://www.shopmythrift.store/category/${category}`} 
+      />
     <div className="category-page mb-14">
       {/* Top Icons */}
       <div className="absolute top-0 z-10 w-full mt-2 flex justify-between p-2">
@@ -640,6 +647,7 @@ const CategoryPage = () => {
         )}
       </div>
     </div>
+    </>
   );
 };
 

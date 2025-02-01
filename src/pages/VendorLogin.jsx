@@ -118,7 +118,7 @@ const VendorLogin = () => {
         toast.error("You have entered a wrong password.");
         break;
       default:
-        toast.error("Error signing in: " + error.message);
+        toast.error("Error signing in");
     }
   };
 

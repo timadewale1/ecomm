@@ -3,7 +3,7 @@ import Helmet from "../components/Helmet/SEO";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
 
-import {  functions } from "../firebase.config";
+import { functions } from "../firebase.config";
 import toast from "react-hot-toast";
 import { FaRegEyeSlash, FaRegEye, FaRegUser } from "react-icons/fa";
 import {
@@ -350,6 +350,36 @@ const VendorSignup = () => {
                       {showConfirmPassword ? <FaRegEye /> : <FaRegEyeSlash />}
                     </motion.button>
                   </FormGroup>
+                  <div className="text-gray-600 font-opensans text-xs mt-2 leading-relaxed">
+                    By signing up, you agree to our
+                    <span
+                      onClick={() =>
+                        window.open(
+                          "/terms-and-conditions",
+                          "_blank",
+                          "noopener,noreferrer"
+                        )
+                      }
+                      className="text-customOrange font-medium hover:underline cursor-pointer ml-1"
+                    >
+                      Terms & Conditions
+                    </span>
+                    and
+                    <span
+                      onClick={() =>
+                        window.open(
+                          "/privacy-policy",
+                          "_blank",
+                          "noopener,noreferrer"
+                        )
+                      }
+                      className="text-customOrange font-medium hover:underline cursor-pointer ml-1"
+                    >
+                      Privacy Policy
+                    </span>
+                    .
+                  </div>
+
                   <button
                     type="submit"
                     disabled={loading}

@@ -50,7 +50,7 @@ const EmailVerification = () => {
           </p>
         ) : (
           <p className="text-green-600  font-opensans font-normal">
-            Email verification completed! Redirecting to login...
+            Email verification completed!You can close this tab now.
           </p>
         )}
       </div>
@@ -59,4 +59,4 @@ const EmailVerification = () => {
   );
 };
 
-export default EmailVerification;
+export default EmailVerification

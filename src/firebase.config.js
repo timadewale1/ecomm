@@ -9,7 +9,7 @@ import {
   ReCaptchaEnterpriseProvider,
 } from "firebase/app-check";
 
-
+// 1) Your Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyC7pOCYSGpYMUDiRxRN4nV4UUfd2tdx1Jg",
   authDomain: "ecommerce-ba520.firebaseapp.com",
@@ -19,22 +19,34 @@ const firebaseConfig = {
   appId: "1:620187458799:web:c4deef3184a5145256cf1a",
 };
 
-
+// 2) Initialize Firebase
 const app = initializeApp(firebaseConfig);
-console.log("Firebase app initialized."); // Debugging
+console.log("Firebase app initialized.");
 
+// 3) Initialize App Check with reCAPTCHA Enterprise provider for production
 initializeAppCheck(app, {
   provider: new ReCaptchaEnterpriseProvider(
-    process.env.REACT_APP_RECAPTCHA_ENTERPRISE_KEY 
+    process.env.REACT_APP_RECAPTCHA_ENTERPRISE_KEY
   ),
   isTokenAutoRefreshEnabled: true,
 });
+console.log("App Check initialized with production reCAPTCHA Enterprise.");
 
+// 4) Initialize other Firebase services
 export const auth = getAuth(app);
+console.log("Auth initialized.");
+
 export const db = getFirestore(app);
+console.log("Firestore initialized.");
+
 export const storage = getStorage(app);
+console.log("Storage initialized.");
+
 export const messaging = getMessaging(app);
+console.log("Messaging initialized.");
+
 export const functions = getFunctions(app);
+console.log("Functions initialized.");
 
 export default app;
 

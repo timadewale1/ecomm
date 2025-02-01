@@ -71,7 +71,7 @@ const ForgetPassword = () => {
         );
       } else {
         await sendPasswordReset(email); // Call the new function with custom redirect
-        navigate("/login");
+        navigate("/confirm-state");
       }
     } catch (error) {
       console.error("Error during password reset:", error);

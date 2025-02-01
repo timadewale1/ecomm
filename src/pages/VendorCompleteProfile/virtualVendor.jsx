@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { FormGroup } from "reactstrap";
 import { FaXTwitter } from "react-icons/fa6";
 import { FaCheckCircle, FaInfoCircle, FaInstagram } from "react-icons/fa";
+import { AiOutlineTikTok } from "react-icons/ai";
 import { TiCameraOutline } from "react-icons/ti";
 import { CiFacebook } from "react-icons/ci";
 import { AiOutlineBank } from "react-icons/ai";
@@ -90,11 +91,12 @@ const VirtualVendor = ({
       }
 
       // Validate social media links
-      const { instagram, facebook, twitter } = vendorData.socialMediaHandle;
+      const { instagram, facebook, twitter, tiktok } = vendorData.socialMediaHandle;
       if (
-        (!instagram && !facebook && !twitter) || // At least one handle is required
+        (!instagram && !facebook && !twitter && !tiktok) || // At least one handle is required
         (instagram && !isValidURL(instagram)) ||
         (facebook && !isValidURL(facebook)) ||
+        (tiktok && !isValidURL(tiktok)) ||
         (twitter && !isValidURL(twitter))
       ) {
         toast.error(
@@ -212,6 +214,7 @@ const VirtualVendor = ({
         vendorData.coverImageUrl &&
         (vendorData.socialMediaHandle.instagram ||
           vendorData.socialMediaHandle.facebook ||
+          vendorData.socialMediaHandle.tiktok ||
           vendorData.socialMediaHandle.twitter)
       );
     }
@@ -588,6 +591,25 @@ const VirtualVendor = ({
                   className={`w-full h-12 pl-12 pr-3 border-2 rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange ${
                     vendorData.socialMediaHandle.facebook &&
                     !isValidURL(vendorData.socialMediaHandle.facebook)
+                      ? "border-red-500"
+                      : ""
+                  }`}
+                />
+              </div>
+              <div className="relative w-full mb-4">
+                {/* Twitter Icon */}
+                <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                  <AiOutlineTikTok className="text-gray-500 text-xl" />
+                </div>
+                <input
+                  type="text"
+                  name="tiktok"
+                  placeholder="Tiktok Link"
+                  value={vendorData.socialMediaHandle.tiktok}
+                  onChange={handleSocialMediaChange}
+                  className={`w-full h-12 pl-12 pr-3 border-2 rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange ${
+                    vendorData.socialMediaHandle.tiktok &&
+                    !isValidURL(vendorData.socialMediaHandle.tiktok)
                       ? "border-red-500"
                       : ""
                   }`}

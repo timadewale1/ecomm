@@ -9,6 +9,7 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { toast } from "react-toastify";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import SEO from "../components/Helmet/SEO";
 
 const MarketVendors = () => {
   const [vendors, setVendors] = useState([]);
@@ -153,6 +154,11 @@ const MarketVendors = () => {
 
   return (
     <div className="mb-1 p-2">
+      <SEO 
+        title={`Market Vendor - My Thrift`} 
+        description={'Marketplace vendors on My Thrift'}
+        url={`https://www.shopmythrift.store/market-vendors`} 
+      />
       <div className="sticky py-3 w-[calc(100%+1rem)] -ml-2 top-0 bg-white z-10">
         <div className="flex items-center justify-between mb-3 pb-2 px-2">
           {!isSearching ? (

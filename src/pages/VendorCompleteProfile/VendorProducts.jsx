@@ -46,6 +46,7 @@ import "./vendor.css";
 import ScrollToTop from "../../components/layout/ScrollToTop";
 import { VendorContext } from "../../components/Context/Vendorcontext";
 import { LuCopy, LuCopyCheck } from "react-icons/lu";
+import SEO from "../../components/Helmet/SEO";
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
@@ -689,6 +690,11 @@ const VendorProducts = () => {
 
   return (
     <>
+    <SEO 
+        title={`Your Store - My Thrift`} 
+        description={`Manage your products on My Thrift`}
+        url={`https://www.shopmythrift.store/vendor-products`} 
+      />
       <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-5 font-opensans ">
         <ScrollToTop />
         <div className="flex justify-end">

@@ -40,6 +40,7 @@ import ProductCard from "../components/Products/ProductCard";
 import Amazingdeals from "../components/Amazingdeals";
 import PopularCats from "../components/PopularCategories/PopularCats";
 import Condition from "../components/Conditions/Condition";
+import SEO from "../components/Helmet/SEO";
 gsap.registerPlugin(ScrollTrigger);
 
 const Homepage = () => {
@@ -260,6 +261,11 @@ const Homepage = () => {
 
   return (
     <>
+    <SEO 
+        title={`Home - My Thrift`} 
+        description={`Discover amazing deals and vendors on My Thrift`}
+        url={`https://www.shopmythrift.store/newhome`} 
+      />
       <div className="flex px-3 py-2 mt-3 justify-between mb-2">
         {searchTerm && (
           <IoArrowBack

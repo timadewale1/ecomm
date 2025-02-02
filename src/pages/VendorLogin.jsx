@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -19,6 +18,7 @@ import VendorLoginAnimation from "../SignUpAnimation/SignUpAnimation";
 import { RotatingLines } from "react-loader-spinner";
 import Typewriter from "typewriter-effect";
 import { GoChevronLeft } from "react-icons/go";
+import SEO from "../components/Helmet/SEO";
 
 const VendorLogin = () => {
   const [email, setEmail] = useState("");
@@ -123,7 +123,12 @@ const VendorLogin = () => {
   };
 
   return (
-    <Helmet title="Vendor Login">
+    <>
+    <SEO 
+        title={`Vendor Login - My Thrift`} 
+        description={`Login to your My Thrift vendor account`}
+        url={`https://www.shopmythrift.store/vendorlogin`} 
+      />
       <section>
         <Container>
           <Row>
@@ -249,7 +254,7 @@ const VendorLogin = () => {
           </Row>
         </Container>
       </section>
-    </Helmet>
+    </>
   );
 };
 

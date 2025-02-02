@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -37,6 +36,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 
 // We need httpsCallable from Firebase Functions
 import { httpsCallable } from "firebase/functions";
+import SEO from "../components/Helmet/SEO";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -331,7 +331,12 @@ const Login = () => {
   }, []);
 
   return (
-    <Helmet title="User Login">
+    <>
+    <SEO
+    title={`Login - My Thrift`} 
+    description="Login in and get to shopping on My Thrift"
+    url={`https://www.shopmythrift.store/login`}
+    />
       <section>
         <Container>
           <Row>
@@ -454,7 +459,7 @@ const Login = () => {
           </Row>
         </Container>
       </section>
-    </Helmet>
+    </>
   );
 };
 

@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { RotatingLines } from "react-loader-spinner";
 import { GoChevronLeft } from "react-icons/go";
 import { useNavigate } from "react-router-dom";
+import SEO from "../components/Helmet/SEO";
 
 const SubmitFeedback = () => {
   const [feedbackType, setFeedbackType] = useState("");
@@ -104,6 +105,12 @@ const SubmitFeedback = () => {
   const navigate = useNavigate();
 
   return (
+    <>
+    <SEO 
+        title={`Submit Feedback - My Thrift`} 
+        description={`Submit your feedback to the My Thrift team!`} 
+        url={`https://www.shopmythrift.store/send-us-feedback`} 
+      />
     <div className="flex flex-col items-center bg-gray-50  pb-4 font-opensans text-gray-800">
       {/* Header */}
       <div className="sticky top-0 bg-white z-10 flex items-center justify-between w-full px-3 py-4 border-b shadow-sm">
@@ -235,6 +242,7 @@ const SubmitFeedback = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

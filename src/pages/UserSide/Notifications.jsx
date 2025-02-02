@@ -16,6 +16,7 @@ import moment from "moment";
 import Loading from "../../components/Loading/Loading";
 import NotificationItem from "../../components/Notificationtab";
 import notifspic from "../../Images/Notifs.svg";
+import SEO from "../../components/Helmet/SEO";
 
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
@@ -151,6 +152,12 @@ const NotificationsPage = () => {
   };
 
   return (
+    <>
+    <SEO 
+        title={`Notifications - My Thrift`} 
+        description={`View your notifications on My Thrift`} 
+        url={`https://www.shopmythrift.store/notifications`} 
+      />
     <div className="relative">
       {/* Sticky Header Section */}
       <div className="sticky top-0 z-20 bg-white w-full">
@@ -260,6 +267,7 @@ const NotificationsPage = () => {
         )}
       </div>
     </div>
+    </>
   );
 };
 

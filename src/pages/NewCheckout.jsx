@@ -27,6 +27,7 @@ import { RotatingLines } from "react-loader-spinner";
 import { IoSettingsOutline } from "react-icons/io5";
 import { calculateDeliveryFee } from "../services/states";
 import { NigerianStates } from "../services/states";
+import SEO from "../components/Helmet/SEO";
 
 const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
   const [selectedState, setSelectedState] = useState("");
@@ -785,6 +786,11 @@ const Checkout = () => {
 
   return (
     <div className="bg-gray-100 pb-12">
+      <SEO 
+        title={`Checkout - My Thrift`} 
+        description={`Checkout your order on My Thrift`} 
+        url={`https://www.shopmythrift.store/newcheckout/`} 
+      />
       <div className="flex p-3 py-3 items-center sticky top-0 bg-white w-full h-20 shadow-md z-10 mb-3 pb-2">
         <GoChevronLeft
           className="text-3xl cursor-pointer"

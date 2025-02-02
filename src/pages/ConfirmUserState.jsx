@@ -6,6 +6,7 @@ import { GiClothes } from "react-icons/gi";
 import { BsShop } from "react-icons/bs";
 import { useAuth } from "../custom-hooks/useAuth";
 import { RotatingLines } from "react-loader-spinner";
+import SEO from "../components/Helmet/SEO";
 
 const ConfirmUserState = () => {
   const navigate = useNavigate();
@@ -41,6 +42,10 @@ const ConfirmUserState = () => {
 
   return (
     <>
+    <SEO 
+        title={`Confirm User State`}
+        url={`https://www.shopmythrift.store/confirm-state`} 
+      />
       <div className="flex px-3 py-2 mt-3 justify-between mb-3">
         <img src={logo} alt="Logo" />
       </div>

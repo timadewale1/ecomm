@@ -7,6 +7,7 @@ import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { RotatingLines } from "react-loader-spinner";
 import { AiOutlineInfoCircle } from "react-icons/ai";
+import SEO from "../../components/Helmet/SEO";
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -51,6 +52,12 @@ const ResetPassword = () => {
   };
 
   return (
+    <>
+    <SEO 
+        title={`Reset Password - My Thrift`}       
+        description={`Reset your password on My Thrift`}
+        url={`https://www.shopmythrift.store/reset-password`} 
+      />
     <div className="flex items-center justify-center bg-white px-3 py-4 min-h-screen">
       <div className="w-full max-w-md">
         <h2 className="text-2xl font-semibold font-poppins text-black mb-4">
@@ -141,6 +148,7 @@ const ResetPassword = () => {
         </form>
       </div>
     </div>
+    </>
   );
 };
 

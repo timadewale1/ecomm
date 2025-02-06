@@ -33,92 +33,115 @@ const VendorLogin = () => {
     e.preventDefault();
     setLoading(true);
 
+    // Quick check for empty fields
+    if (!email.trim() || !password.trim()) {
+      toast.error("Please fill in both email and password fields.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      if (!email || !password) {
-        toast.error("Please fill in all fields.");
-        setLoading(false);
-        return;
-      }
+      // 1) Sign in via Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const user = userCredential.user;
 
-      
-      const vendorLoginCallable = httpsCallable(functions, "vendorLogin");
-      const response = await vendorLoginCallable({ email, password });
-      const data = response.data;
-      if (!data.success && data.code === "unverified-email") {
-        toast.error("Email not verified. Verification link has been sent.");
-        setLoading(false);
-        return;
-      }
-
-      if (!data.success) {
-        // Means the function threw an HttpsError or returned some error status
-        // Typically handled by the catch block, but let's handle gracefully:
-        toast.error("Unable to log in. Check your email/password.");
-        setLoading(false);
-        return;
-      }
-
-      // 2) If successful, sign in with Email/Password on the client
-      await signInWithEmailAndPassword(auth, email, password);
-
-      const user = auth.currentUser;
-      if (!user) {
-        toast.error("User not found after sign-in.");
-        setLoading(false);
-        return;
-      }
-
-      // 3) Double-check Firestore vendor data
-      const docRef = doc(db, "vendors", data.uid);
+      // 2) Check Firestore "vendors" collection
+      const docRef = doc(db, "vendors", user.uid);
       const docSnap = await getDoc(docRef);
 
-      if (docSnap.exists()) {
-        if (docSnap.data().isDeactivated) {
-          toast.error("Your vendor account is deactivated. Contact support.");
-          await auth.signOut();
-          setLoading(false);
-          return;
-        }
-        if (!docSnap.data().profileComplete) {
-          toast("Please complete your profile.");
-          navigate("/complete-profile");
-        } else {
-          toast.success("Login successful.");
-          navigate("/vendordashboard");
-        }
-      } else {
-        // Not found in vendors
-        toast.error("This account is already registered as non-vendor.");
+      if (!docSnap.exists()) {
+        // Immediately sign out and throw a custom "vendor" error
         await auth.signOut();
+        throw { code: "vendor/no-record" };
+      }
+
+      const vendorData = docSnap.data();
+
+      if (vendorData.isDeactivated) {
+        // Sign out and throw custom error
+        await auth.signOut();
+        throw { code: "vendor/account-deactivated" };
+      }
+
+      // 3) Check if email is verified
+      if (!user.emailVerified) {
+        // Send verification link via Cloud Function
+        const sendVerificationEmailCallable = httpsCallable(
+          functions,
+          "sendVendorVerificationEmail"
+        );
+        await sendVerificationEmailCallable({
+          email: user.email,
+          firstName: vendorData.firstName,
+          lastName: vendorData.lastName,
+        });
+
+        // Sign out and throw custom error
+        await auth.signOut();
+        throw { code: "vendor/email-unverified" };
+      }
+
+      // 4) If verified, check other vendor fields
+      if (!vendorData.profileComplete) {
+        toast("Please complete your profile.");
+        navigate("/complete-profile");
+      } else {
+        toast.success("Login successful!");
+        navigate("/vendordashboard");
       }
     } catch (error) {
-      // HttpsError or Firebase Auth error
-      handleSigninError(error);
+      console.error("Error logging in:", error);
+      console.error("Error code:", error?.code);
+      console.error("Error message:", error?.message);
+
+      const code = error?.code;
+
+      // ---- IF–ELSE CHAIN for error codes ----
+      if (!code) {
+        // If there's no code at all
+        toast.error(
+          "Oops! Something went wrong while logging you in. Please try again."
+        );
+      } else if (code === "auth/invalid-email") {
+        toast.error("Please enter a valid email address.");
+      } else if (code === "auth/user-not-found") {
+        toast.error("We couldn't find an account with that email.");
+      } else if (code === "auth/wrong-password") {
+        toast.error("Incorrect password. Please double-check and try again.");
+      } else if (code === "auth/user-disabled") {
+        toast.error("This account has been disabled. Contact support.");
+      } else if (code === "auth/too-many-requests") {
+        toast.error(
+          "Too many unsuccessful login attempts. Please wait and try again."
+        );
+      } else if (code === "auth/invalid-credential") {
+        toast.error(
+          "Invalid credentials. Please check your login details and try again."
+        );
+      }
+      // ---- CUSTOM "vendor/*" ERROR CODES ----
+      else if (code === "vendor/no-record") {
+        toast.error("No vendor record found. This account is not a vendor.");
+      } else if (code === "vendor/account-deactivated") {
+        toast.error(
+          "Your vendor account is deactivated. Please contact support."
+        );
+      } else if (code === "vendor/email-unverified") {
+        toast.error(
+          "Your email is not verified. Please check your inbox for a verification link."
+        );
+      } else {
+        // Catch-all for any code not explicitly handled
+        toast.error(
+          "Oops! Something went wrong while logging you in. Please try again."
+        );
+      }
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSigninError = (error) => {
-   
-    switch (error.code) {
-      case "not-found":
-        toast.error("Wrong email address or not a vendor.");
-        break;
-      case "permission-denied":
-        toast.error("Account is disabled or deactivated. Contact support.");
-        break;
-      case "auth/user-not-found":
-        toast.error("You have entered a wrong email address.");
-        break;
-      case "auth/user-disabled":
-        toast.error("Your account has been disabled. Contact support.");
-        break;
-      case "auth/wrong-password":
-        toast.error("You have entered a wrong password.");
-        break;
-      default:
-        toast.error("Error signing in");
     }
   };
 

@@ -49,5 +49,3 @@ export const functions = getFunctions(app);
 console.log("Functions initialized.");
 
 export default app;
-
-

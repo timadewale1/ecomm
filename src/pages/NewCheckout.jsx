@@ -69,7 +69,7 @@ const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
     <Modal
       isOpen={isOpen}
       onRequestClose={onClose}
-      className="bg-white w-full max-w-md h-[60vh] rounded-t-2xl shadow-lg px-3 py-3 relative overflow-y-scroll"
+      className="bg-white w-full max-w-full h-[60vh] rounded-t-2xl shadow-lg px-3 py-3 relative overflow-y-scroll"
       overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
       ariaHideApp={false}
     >
@@ -188,7 +188,7 @@ const ShopSafelyModal = ({ isOpen, onClose }) => {
     <Modal
       isOpen={isOpen}
       onRequestClose={onClose}
-      className="bg-white w-full max-w-md h-[85vh] rounded-t-2xl shadow-lg overflow-y-scroll px-4 py-4 relative"
+      className="bg-white w-full max-w-full h-[85vh] rounded-t-2xl shadow-lg overflow-y-scroll px-4 py-4 relative"
       overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
       ariaHideApp={false}
     >
@@ -577,7 +577,7 @@ const Checkout = () => {
       <Modal
         isOpen={isOpen}
         onRequestClose={onClose}
-        className="bg-white w-full max-w-md h-[60vh] rounded-t-2xl shadow-lg overflow-y-scroll relative"
+        className="bg-white w-full max-w-full h-[60vh] rounded-t-2xl shadow-lg overflow-y-scroll relative"
         overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
         ariaHideApp={false}
       >
@@ -629,7 +629,7 @@ const Checkout = () => {
       <Modal
         isOpen={isOpen}
         onRequestClose={onClose}
-        className="bg-white w-full max-w-md h-[30vh] rounded-t-2xl shadow-lg overflow-y-scroll relative flex flex-col"
+        className="bg-white w-full max-w-full h-[30vh] rounded-t-2xl shadow-lg overflow-y-scroll relative flex flex-col"
         overlayClassName="fixed inset-0 bg-gray-900  backdrop-blur-sm bg-opacity-50 flex justify-center items-end z-50"
         ariaHideApp={false}
       >

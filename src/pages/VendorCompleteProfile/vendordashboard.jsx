@@ -28,6 +28,7 @@ import { LuCopy, LuCopyCheck, LuListFilter } from "react-icons/lu";
 import NotApproved from "../../components/Infos/NotApproved";
 import Skeleton from "react-loading-skeleton";
 import ScrollToTop from "../../components/layout/ScrollToTop";
+import SEO from "../../components/Helmet/SEO";
 
 const VendorDashboard = () => {
   const defaultImageUrl =
@@ -349,6 +350,11 @@ const VendorDashboard = () => {
   }
   return (
     <>
+    <SEO 
+        title={`Vendor Dashboard - My Thrift`} 
+        description={`Manage your store on My Thrift`} 
+        url={`https://www.shopmythrift.store/vendordashboard`} 
+      />
       <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-1 font-opensans ">
         <ScrollToTop />
         <div className="flex justify-between items-center">

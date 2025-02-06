@@ -17,6 +17,7 @@ import OtpInput from "react-otp-input";
 import { RotatingLines } from "react-loader-spinner";
 import { useAuth } from "../../custom-hooks/useAuth"; // Assuming the updated useAuth hook
 import { EmailAuthProvider } from "firebase/auth";
+import SEO from "../../components/Helmet/SEO";
 
 const VendorVerifyOTP = () => {
   const [otp, setOtp] = useState("");
@@ -269,6 +270,12 @@ const VendorVerifyOTP = () => {
   };
 
   return (
+    <>
+    <SEO 
+        title={`Verify OTP - My Thrift`} 
+        description={`Verify OTP code for your My Thrift account`}  
+        url={`https://www.shopmythrift.store/vendor-verify-otp`} 
+      />
     <div className="h-screen bg-white p-3 flex flex-col justify-between">
       <div className="text-left mt-20">
         <h1 className="text-3xl font-bold font-opensans text-customRichBrown mb-2">
@@ -347,6 +354,7 @@ const VendorVerifyOTP = () => {
         </button>
       </div>
     </div>
+    </>
   );
 };
 

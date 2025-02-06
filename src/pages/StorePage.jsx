@@ -34,6 +34,7 @@ import { LuListFilter } from "react-icons/lu";
 import Lottie from "lottie-react";
 import { LiaTimesSolid } from "react-icons/lia";
 import { AiOutlineHome } from "react-icons/ai";
+import SEO from "../components/Helmet/SEO";
 const ReviewBanner = () => {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -372,6 +373,13 @@ const StorePage = () => {
   ];
 
   return (
+    <>
+    <SEO 
+        title={`${vendor.shopName} - My Thrift`} 
+        description={`Shop ${vendor.shopName} on My Thrift`} 
+        image={`${vendor.coverImageUrl}`} 
+        url={`https://www.shopmythrift.store/store/${id}`} 
+      />
     <div className="p-3 mb-24">
       <ReviewBanner />
       <div className="sticky top-0 bg-white h-20 z-10 flex items-center border-b border-gray-300 w-full">
@@ -675,6 +683,7 @@ const StorePage = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 

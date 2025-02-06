@@ -5,12 +5,12 @@ import toast from "react-hot-toast";
 import { Form, FormGroup } from "reactstrap";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import Helmet from "../components/Helmet/Helmet";
 import { Container, Row } from "reactstrap";
 import { MdOutlineEmail } from "react-icons/md";
 import { getDocs, collection, query, where } from "firebase/firestore";
 import { RotatingLines } from "react-loader-spinner";
 import { sendPasswordResetEmail } from "firebase/auth";
+import SEO from "../components/Helmet/SEO";
 
 // Function to send password reset email with custom redirect URL
 const sendPasswordReset = async (email) => {
@@ -82,7 +82,12 @@ const ForgetPassword = () => {
   };
 
   return (
-    <Helmet>
+    <>
+    <SEO 
+        title={`Password Reset - My Thrift`} 
+        description={`Reset your password`}
+        url={`https://www.shopmythrift.store/forgetpassword`} 
+      />
       <section>
         <Container>
           <Row>
@@ -140,7 +145,7 @@ const ForgetPassword = () => {
           </Row>
         </Container>
       </section>
-    </Helmet>
+    </>
   );
 };
 

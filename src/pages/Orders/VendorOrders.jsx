@@ -9,6 +9,7 @@ import ShippedOrders from "./ShippedOrders";
 import DeclinedOrders from "./DeclinedOrders";
 import OrderDetailsModal from "./OrderDetailsModals";
 import ScrollToTop from "../../components/layout/ScrollToTop";
+import SEO from "../../components/Helmet/SEO";
 
 const VendorOrders = () => {
   const { currentUser } = useAuth();
@@ -112,6 +113,12 @@ const VendorOrders = () => {
   };
 
   return (
+    <>
+    <SEO 
+        title={`Vendor Orders - My Thrift`} 
+        description={`Orders on your My Thrift store`}
+        url={`https://www.shopmythrift.store/vendor-orders`} 
+      />
     <div className="p-3 bg-white min-h-screen flex flex-col items-center">
       {/* Top Card Banner for Selected Tab */}
       <ScrollToTop />
@@ -176,6 +183,7 @@ const VendorOrders = () => {
         setTotalRevenue={setTotalRevenue} // Pass state updater as prop
       />
     </div>
+    </>
   );
 };
 

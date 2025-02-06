@@ -5,7 +5,7 @@ import Login from "../pages/Login";
 import Signup from "../pages/Signup";
 import NotificationsPage from "../pages/UserSide/Notifications.jsx";
 import ForgetPassword from "../pages/forgetPassword.jsx";
-import Donate from "../pages/Donate.jsx";
+import Donate from "../pages/Donate.jsx"; 
 import VendorSignup from "../pages/VendorSignup";
 import AuthActionHandler from "../custom-hooks/Authhandler.jsx";
 import VendorOrders from "../pages/Orders/VendorOrders.jsx";

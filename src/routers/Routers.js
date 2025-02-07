@@ -165,7 +165,7 @@ const Routers = () => {
       />
       <Route
         path="/store/:id"
-        element={
+        element={ 
           <RoleBasedAccess allowedRoles={["user", null]}>
             <StorePage />
           </RoleBasedAccess>

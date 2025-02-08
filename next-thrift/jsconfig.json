@@ -1,8 +1,9 @@
 {
   "compilerOptions": {
+    "baseUrl": ".", // Ensure the base directory is set
     "paths": {
-      "@/*": ["./src/*"],
-      "@/lib/*": ["./lib/*"],
+      "@/*": ["src/*"],
+      "@/lib/*": ["lib/*"]
     }
   }
 }

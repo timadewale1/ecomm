@@ -8,7 +8,7 @@ import {
   increment,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "../../lib/firebase.config";
+import { db } from "@/lib/firebase.config";
 
 export const handleUserActionLimit = async (
   userId,

@@ -37,7 +37,7 @@ import { LiaTimesSolid } from "react-icons/lia";
 import { AiOutlineHome } from "react-icons/ai";
 
 // Animations
-import Productnotfound from "@/components/Loading/Productnotfound";
+import ProductNotFound from "@/components/Loading/ProductnotFound";
 
 // Components
 import ProductCard from "@/components/Products/ProductCard";
@@ -294,7 +294,7 @@ export default function StorePage({ vendorId }) {
       <div className="flex flex-col justify-center items-center h-3/6">
         <Lottie
           className="w-full h-full"
-          animationData={Productnotfound}
+          animationData={ProductNotFound}
           loop={true}
           autoplay={true}
         />

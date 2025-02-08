@@ -7,7 +7,7 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 
 // Firestore
-import { db } from "@/lib/firebase.config";
+import { db } from "firebase.config";
 import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 
 // Icons
@@ -107,8 +107,8 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
           collectionName: "usage_metadata",
           writeLimit: 50, // universal writes/hour
           minuteLimit: 10, // 10 favorites/min
-          hourLimit: 80,  // 80 favorites/hour
-          dayLimit: 120,  // 120 favorites/day
+          hourLimit: 80, // 80 favorites/hour
+          dayLimit: 120, // 120 favorites/day
         }
       );
 
@@ -146,7 +146,9 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
       }
 
       // Show user the error
-      toast.error(err.message || "Failed to update favorites. Please try again.");
+      toast.error(
+        err.message || "Failed to update favorites. Please try again."
+      );
     }
   };
 
@@ -224,11 +226,12 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
           ) : (
             <div className="flex items-center space-x-1">
               {renderCondition(product?.condition)}
-              {product?.condition === "Defect:" && product?.defectDescription && (
-                <span className="text-xs text-red-500">
-                  {product.defectDescription}
-                </span>
-              )}
+              {product?.condition === "Defect:" &&
+                product?.defectDescription && (
+                  <span className="text-xs text-red-500">
+                    {product.defectDescription}
+                  </span>
+                )}
             </div>
           )}
         </div>

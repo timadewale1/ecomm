@@ -1,7 +1,9 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import Lottie from "lottie-react";
 
-const ProductnotFound = () => {
+const ProductNotFound = () => {
   const [animationData, setAnimationData] = useState(null);
 
   useEffect(() => {
@@ -28,4 +30,4 @@ const ProductnotFound = () => {
   );
 };
 
-export default ProductnotFound;
+export default ProductNotFound;

@@ -30,7 +30,7 @@ import { useDispatch } from "react-redux";
 import { setCart } from "../redux/actions/action";
 import { RotatingLines } from "react-loader-spinner";
 import { GoChevronLeft } from "react-icons/go";
-import { useAuth } from "../custom-hooks/useAuth";
+
 // We need signInWithEmailAndPassword from Firebase Auth
 import { signInWithEmailAndPassword } from "firebase/auth";
 
@@ -49,7 +49,7 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
-  const { handleGoogleSignIn } = useAuth();
+
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
@@ -227,73 +227,73 @@ const Login = () => {
   };
 
   // Google Sign-In remains purely client-side
-  // const handleGoogleSignIn = async () => {
-  //   const provider = new GoogleAuthProvider();
-  //   try {
-  //     setLoading(true);
-  //     const result = await signInWithPopup(auth, provider);
-  //     const user = result.user;
+  const handleGoogleSignIn = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      setLoading(true);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
 
-  //     // Check if email in 'vendors'
-  //     const vendorsRef = collection(db, "vendors");
-  //     const vendorQuery = query(vendorsRef, where("email", "==", user.email));
-  //     const vendorSnapshot = await getDocs(vendorQuery);
-  //     if (!vendorSnapshot.empty) {
-  //       await auth.signOut();
-  //       setLoading(false);
-  //       toast.error("This email is already used for a Vendor account!");
-  //       return;
-  //     }
+      // Check if email in 'vendors'
+      const vendorsRef = collection(db, "vendors");
+      const vendorQuery = query(vendorsRef, where("email", "==", user.email));
+      const vendorSnapshot = await getDocs(vendorQuery);
+      if (!vendorSnapshot.empty) {
+        await auth.signOut();
+        setLoading(false);
+        toast.error("This email is already used for a Vendor account!");
+        return;
+      }
 
-  //     // Check if user doc has role=vendor
-  //     const usersRef = collection(db, "users");
-  //     const userQuery = query(usersRef, where("email", "==", user.email));
-  //     const userSnapshot = await getDocs(userQuery);
-  //     if (!userSnapshot.empty) {
-  //       const userData = userSnapshot.docs[0].data();
-  //       if (userData.role === "vendor") {
-  //         await auth.signOut();
-  //         setLoading(false);
-  //         toast.error("This email is already used for a Vendor account!");
-  //         return;
-  //       }
-  //     }
+      // Check if user doc has role=vendor
+      const usersRef = collection(db, "users");
+      const userQuery = query(usersRef, where("email", "==", user.email));
+      const userSnapshot = await getDocs(userQuery);
+      if (!userSnapshot.empty) {
+        const userData = userSnapshot.docs[0].data();
+        if (userData.role === "vendor") {
+          await auth.signOut();
+          setLoading(false);
+          toast.error("This email is already used for a Vendor account!");
+          return;
+        }
+      }
 
-  //     // Create user doc if doesn't exist
-  //     const userRef = doc(db, "users", user.uid);
-  //     const userDoc = await getDoc(userRef);
-  //     if (!userDoc.exists()) {
-  //       await setDoc(userRef, {
-  //         uid: user.uid,
-  //         username: user.displayName,
-  //         email: user.email,
-  //         profileComplete: false,
-  //         role: "user",
-  //         createdAt: new Date(),
-  //       });
-  //       console.log("New user document created in Firestore");
-  //     }
+      // Create user doc if doesn't exist
+      const userRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userRef);
+      if (!userDoc.exists()) {
+        await setDoc(userRef, {
+          uid: user.uid,
+          username: user.displayName,
+          email: user.email,
+          profileComplete: false,
+          role: "user",
+          createdAt: new Date(),
+        });
+        console.log("New user document created in Firestore");
+      }
 
-  //     // Merge cart
-  //     await fetchCartFromFirestore(user.uid);
+      // Merge cart
+      await fetchCartFromFirestore(user.uid);
 
-  //     // Done
-  //     toast.success(`Welcome back ${user.displayName}!`);
-  //     navigate("/newhome");
-  //   } catch (error) {
-  //     setLoading(false);
-  //     console.error("Google Sign-In Error:", error);
-  //     let errorMessage = "Google Sign-In failed. Please try again.";
-  //     if (error.code === "auth/account-exists-with-different-credential") {
-  //       errorMessage = "An account with the same email already exists.";
-  //     } else if (error.code === "auth/popup-closed-by-user") {
-  //       errorMessage = "Popup closed before completing sign-in.";
-  //     }
-  //     toast.error(errorMessage);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
+      // Done
+      toast.success(`Welcome back ${user.displayName}!`);
+      navigate("/newhome");
+    } catch (error) {
+      setLoading(false);
+      console.error("Google Sign-In Error:", error);
+      let errorMessage = "Google Sign-In failed. Please try again.";
+      if (error.code === "auth/account-exists-with-different-credential") {
+        errorMessage = "An account with the same email already exists.";
+      } else if (error.code === "auth/popup-closed-by-user") {
+        errorMessage = "Popup closed before completing sign-in.";
+      }
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEmailChange = (e) => {
     setEmail(e.target.value);
@@ -327,11 +327,11 @@ const Login = () => {
 
   return (
     <>
-      <SEO
-        title={`Login - My Thrift`}
-        description="Login in and get to shopping on My Thrift"
-        url={`https://www.shopmythrift.store/login`}
-      />
+    <SEO
+    title={`Login - My Thrift`} 
+    description="Login in and get to shopping on My Thrift"
+    url={`https://www.shopmythrift.store/login`}
+    />
       <section>
         <Container>
           <Row>

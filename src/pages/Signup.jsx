@@ -55,7 +55,7 @@ const Signup = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [modalOpen, setModalOpen] = useState(false); // State to manage modal visibility
-  const { handleGoogleSignIn } = useAuth();
+
   const handleSignupSuccess = () => {
     setModalOpen(true); // Open the modal on successful signup
   };
@@ -213,54 +213,54 @@ const Signup = () => {
   };
 
   // Google sign-up remains purely client-side
-  // const handleGoogleSignUp = async () => {
-  //   const provider = new GoogleAuthProvider();
-  //   try {
-  //     setLoading(true);
-  //     console.log("Opening Google sign-up popup...");
-  //     const result = await signInWithPopup(auth, provider);
-  //     const user = result.user;
+  const handleGoogleSignUp = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      setLoading(true);
+      console.log("Opening Google sign-up popup...");
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
 
-  //     console.log("Google user authenticated:", user);
+      console.log("Google user authenticated:", user);
 
-  //     const userRef = doc(db, "users", user.uid);
-  //     const userDoc = await getDoc(userRef);
+      const userRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userRef);
 
-  //     if (!userDoc.exists()) {
-  //       await setDoc(userRef, {
-  //         uid: user.uid,
-  //         username: user.displayName,
-  //         email: user.email,
-  //         role: "user",
-  //         createdAt: new Date(),
-  //         profileComplete: false,
-  //       });
-  //     } else {
-  //       console.log("User already exists in Firestore");
-  //     }
+      if (!userDoc.exists()) {
+        await setDoc(userRef, {
+          uid: user.uid,
+          username: user.displayName,
+          email: user.email,
+          role: "user",
+          createdAt: new Date(),
+          profileComplete: false,
+        });
+      } else {
+        console.log("User already exists in Firestore");
+      }
 
-  //     toast.success("Signed up with Google successfully!");
-  //     navigate("/newhome");
-  //   } catch (error) {
-  //     console.error("Google Sign-Up Error:", error);
-  //     let errorMessage = "Google Sign-Up failed. Please try again.";
-  //     if (error.code === "auth/account-exists-with-different-credential") {
-  //       errorMessage = "An account with the same email already exists.";
-  //     } else if (error.code === "auth/popup-closed-by-user") {
-  //       errorMessage = "Popup closed before completing sign-up.";
-  //     }
-  //     toast.error(errorMessage);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
+      toast.success("Signed up with Google successfully!");
+      navigate("/newhome");
+    } catch (error) {
+      console.error("Google Sign-Up Error:", error);
+      let errorMessage = "Google Sign-Up failed. Please try again.";
+      if (error.code === "auth/account-exists-with-different-credential") {
+        errorMessage = "An account with the same email already exists.";
+      } else if (error.code === "auth/popup-closed-by-user") {
+        errorMessage = "Popup closed before completing sign-up.";
+      }
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
-      <SEO
-        title={`Signup - My Thrift`}
-        description={`Get started with an amazing shopping experience on My Thrift!`}
-        url={`https://www.shopmythrift.store/signup`}
+    <SEO 
+        title={`Signup - My Thrift`} 
+        description={`Get started with an amazing shopping experience on My Thrift!`} 
+        url={`https://www.shopmythrift.store/signup`} 
       />
       <Container>
         <Row>
@@ -505,7 +505,7 @@ const Signup = () => {
                 <motion.button
                   type="button"
                   className="w-full h-12 mt-2 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center"
-                  onClick={handleGoogleSignIn}
+                  onClick={handleGoogleSignUp}
                 >
                   <FcGoogle className="mr-2 text-2xl" />
                   Sign up with Google

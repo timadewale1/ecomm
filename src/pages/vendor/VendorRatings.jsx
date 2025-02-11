@@ -27,6 +27,7 @@ import RoundedStars from "../../components/RoundedStars";
 import { RotatingLines } from "react-loader-spinner";
 import { IoMdContact } from "react-icons/io";
 import { handleUserActionLimit } from "../../services/userWriteHandler";
+import SEO from "../../components/Helmet/SEO";
 const VendorRatings = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -346,6 +347,11 @@ const VendorRatings = () => {
   const calculatePercentage = (count) => (count / totalRatings) * 100;
 
   return (
+    <>
+    <SEO 
+        title={`Reviews for ${vendor?.shopName || "Vendor"} - My Thrift`}
+        url={`https://www.shopmythrift.store/reviews/${id}`} 
+      />
     <div className="px-2 py-4">
       <div className="sticky py-3 top-0 bg-white ">
         <div className="flex items-center justify-between mb-3 pb-2">
@@ -677,6 +683,7 @@ const VendorRatings = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 

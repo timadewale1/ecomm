@@ -45,6 +45,8 @@ import Skeleton from "react-loading-skeleton";
 import "./vendor.css";
 import ScrollToTop from "../../components/layout/ScrollToTop";
 import { VendorContext } from "../../components/Context/Vendorcontext";
+import { LuCopy, LuCopyCheck } from "react-icons/lu";
+import SEO from "../../components/Helmet/SEO";
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
@@ -273,6 +275,7 @@ const VendorProducts = () => {
 
   const handleProductClick = (product) => {
     setSelectedProduct(product);
+    setproductId(product.id);
     setIsViewProductModalOpen(true);
   };
 
@@ -331,10 +334,18 @@ const VendorProducts = () => {
 
   const confirmBulkDeleteProduct = async () => {
     setOLoading(true);
+    const vendorDocRef = doc(db, "vendors", vendorId);
     try {
       for (const productId of pickedProducts) {
         const productRef = doc(db, "products", productId);
-        await deleteDoc(productRef);
+        await updateDoc(productRef, {
+          published: false, // Ensure the product is unpublished
+          isDeleted: true,
+        });
+
+        await updateDoc(vendorDocRef, {
+          productIds: arrayRemove(productId),
+        });
       }
       toast.success("Selected products deleted successfully.");
       setPickedProducts([]);
@@ -366,6 +377,27 @@ const VendorProducts = () => {
     if (isRestocking) {
       setIsRestocking(false);
       setRestockValues({});
+    }
+  };
+  const [productId, setproductId] = useState("null");
+
+  const textToCopy = `${window.location.origin}/product/${
+    productId || "null"
+  }?shared=true`;
+
+  const [copied, setCopied] = useState(false);
+  const copyToClipboard = async () => {
+    if (!copied) {
+      console.log("Clicked");
+      try {
+        (await navigator.clipboard.writeText(textToCopy)) &&
+          console.log("copied"); // Ensure the text is copied
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000);
+      } catch (err) {
+        toast.error("Failed to copy!"); // Handle any errors during copy
+        console.error("Failed to copy text: ", err);
+      }
     }
   };
 
@@ -463,6 +495,7 @@ const VendorProducts = () => {
       // Step 1: Update the 'isDeleted' field of the product in the 'products' collection
       await updateDoc(doc(db, "products", productId), {
         isDeleted: true,
+        published: false, // Ensure the product is unpublished
       });
 
       // Step 2: Optionally, remove the productId from the vendor's 'productIds' array
@@ -630,6 +663,8 @@ const VendorProducts = () => {
     }, {});
   };
 
+  const totalOutOfStock = products.filter((p) => p.stockQuantity === 0).length;
+
   const filteredProducts = products
     .filter((p) => {
       if (tabOpt === "Active") {
@@ -655,6 +690,11 @@ const VendorProducts = () => {
 
   return (
     <>
+    <SEO 
+        title={`Your Store - My Thrift`} 
+        description={`Manage your products on My Thrift`}
+        url={`https://www.shopmythrift.store/vendor-products`} 
+      />
       <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-5 font-opensans ">
         <ScrollToTop />
         <div className="flex justify-end">
@@ -726,12 +766,17 @@ const VendorProducts = () => {
           </div>
           <div className="flex flex-col justify-center items-center space-y-3">
             <p
-              className={`text-sm ${
+              className={`text-sm flex space-x-1 ${
                 tabOpt === "OOS" ? "text-customOrange" : "text-black"
               }`}
               onClick={() => setTabOpt("OOS")}
             >
-              Out of Stock
+              Out of Stock{" "}
+              {totalOutOfStock > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full flex items-center justify-center w-5 h-5 animate-ping">
+                  {totalOutOfStock}
+                </span>
+              )}
             </p>
             <div className="h-1">
               {tabOpt === "OOS" && (
@@ -1003,9 +1048,23 @@ const VendorProducts = () => {
                 ))}
             </div>
 
-            <p className="text-lg text-black font-semibold mb-4">
-              {selectedProduct.name}
-            </p>
+            <div className="flex items-center mb-4 justify-between">
+              <p className="text-lg text-black font-semibold ">
+                {selectedProduct.name}
+              </p>
+              {selectedProduct.published && (
+                <button
+                  className="text-white opacity-50 cursor-not-allowed"
+                  onClick={copyToClipboard}
+                >
+                  {!copied ? (
+                    <LuCopy className="text-2xl text-customOrange" />
+                  ) : (
+                    <LuCopyCheck className="text-2xl text-[#28a745]" />
+                  )}
+                </button>
+              )}
+            </div>
             <div className="px-3 mb-4 flex flex-col justify-between space-y-3">
               <p className="text-black font-semibold text-sm">
                 Price:{" "}

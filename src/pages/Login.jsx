@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -37,6 +36,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 
 // We need httpsCallable from Firebase Functions
 import { httpsCallable } from "firebase/functions";
+import SEO from "../components/Helmet/SEO";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -110,12 +110,12 @@ const Login = () => {
 
     if (!email || !validateEmail(email)) {
       setEmailError(true);
-      toast.error("Please fill in all fields correctly.");
+      toast.error("Please enter a valid email address.");
       return;
     }
     if (!password) {
       setPasswordError(true);
-      toast.error("Please fill in all fields correctly.");
+      toast.error("Please enter your password.");
       return;
     }
 
@@ -130,17 +130,17 @@ const Login = () => {
       if (!data.success) {
         setLoading(false);
 
-        // Handle `unverified-email` error with a toast
+        // Handle `unverified-email` error
         if (data.code === "unverified-email") {
           toast.error(data.message || "Please verify your email.");
           console.log("Verification link:", data.verifyLink); // Optional: Log or display the link
           return;
         }
 
-        // If another error occurred, show an error toast
+        // Other error
         if (data.code) {
           toast.error(
-            data.message || "Could not log in. Check your credentials."
+            data.message || "Something went wrong. Please try again."
           );
         } else {
           toast.error("Could not log in. Check your credentials.");
@@ -148,7 +148,7 @@ const Login = () => {
         return;
       }
 
-      // 2) If success, sign in with Email/Password in the client
+      // 2) If success, sign in with Email/Password
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
@@ -156,14 +156,14 @@ const Login = () => {
       );
       const user = userCredential.user;
 
-      // 3) Check if the user's email is verified
+      // 3) Check email verification
       if (!user.emailVerified) {
         setLoading(false);
         toast.error("Please verify your email before logging in.");
         return;
       }
 
-      // 4) Check Firestore user doc for additional validation
+      // 4) Check Firestore user doc
       const userDoc = await getDoc(doc(db, "users", user.uid));
       const userData = userDoc.data();
 
@@ -175,6 +175,7 @@ const Login = () => {
         );
         return;
       }
+
       if (userData?.role !== "user") {
         await auth.signOut();
         setLoading(false);
@@ -197,36 +198,30 @@ const Login = () => {
       setLoading(false);
       console.error("Error during sign-in:", error);
 
-      let errorMessage =
-        "Unable to login. Please check your credentials and try again.";
+      let errorMessage = "Sorry, we couldn't sign you in. Please try again.";
 
-      // Map some known codes from the Cloud Function or Auth
-      switch (error.code) {
-        case "not-found":
-          errorMessage = "No user found with this email. Please sign up.";
-          break;
-        case "wrong-password":
-        case "auth/wrong-password":
-          errorMessage = "Incorrect password. Please try again.";
-          break;
-        case "auth/invalid-email":
-          errorMessage = "Invalid email format.";
-          break;
-        case "unverified-email":
-          errorMessage = "Please verify your email before logging in.";
-          break;
-        case "permission-denied":
-          errorMessage =
-            "Your account is disabled or not a valid user account.";
-          break;
-        case "auth/network-request-failed":
-          errorMessage =
-            "Network error. Please check your internet connection and try again.";
-          break;
-        default:
-          errorMessage = error.message || errorMessage;
+      if (error.code === "auth/user-not-found" || error.code === "not-found") {
+        errorMessage =
+          "No user found with this email. Please sign up or check the email you typed.";
+      } else if (
+        error.code === "auth/wrong-password" ||
+        error.code === "auth/invalid-credential"
+      ) {
+        errorMessage =
+          "The password you entered is incorrect. Please try again.";
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Invalid email format. Please check and try again.";
+      } else if (error.code === "unverified-email") {
+        errorMessage = "Please verify your email before logging in.";
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage = "Network error. Check your connection and try again.";
+      } else if (error.code === "permission-denied") {
+        errorMessage =
+          "Your account has been disabled. Please contact support.";
       }
+      // Feel free to add more else if statements for other specific error codes
 
+      // Fallback or default error message
       toast.error(errorMessage);
     }
   };
@@ -331,7 +326,12 @@ const Login = () => {
   }, []);
 
   return (
-    <Helmet title="User Login">
+    <>
+    <SEO
+    title={`Login - My Thrift`} 
+    description="Login in and get to shopping on My Thrift"
+    url={`https://www.shopmythrift.store/login`}
+    />
       <section>
         <Container>
           <Row>
@@ -454,7 +454,7 @@ const Login = () => {
           </Row>
         </Container>
       </section>
-    </Helmet>
+    </>
   );
 };
 

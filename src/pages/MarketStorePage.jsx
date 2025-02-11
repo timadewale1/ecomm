@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/img-redundant-alt */
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../firebase.config";
@@ -29,6 +30,7 @@ import { LuListFilter } from "react-icons/lu";
 import Lottie from "lottie-react";
 import { LiaTimesSolid } from "react-icons/lia";
 import { AiOutlineHome } from "react-icons/ai";
+import SEO from "../components/Helmet/SEO";
 const ReviewBanner = () => {
   const [isVisible, setIsVisible] = useState(false);
   useEffect(() => {
@@ -374,13 +376,20 @@ const MarketStorePage = () => {
     "All",
     ...new Set(products.map((product) => product.productType)),
   ];
-  return (
+  return (  
+    <>
+    <SEO 
+        title={`${vendor.shopName} - My Thrift`} 
+        description={`Shop from ${vendor.shopName} on My Thrift`}
+        image={vendor.coverImageUrl}
+        url={`https://www.shopmythrift.store/marketstorepage/${id}`} 
+      />
     <div className="p-3 mb-24">
       <ReviewBanner />
       <div className="sticky top-0 bg-white h-20 z-20 flex items-center border-b border-gray-300 w-full">
         {isSearching ? (
           <div className="flex items-center w-full relative px-2">
-            <FaAngleLeft
+            <FaAngleLeft 
               onClick={() => {
                 setIsSearching(false);
                 handleClearSearch(); // Clear input when exiting search
@@ -678,6 +687,7 @@ const MarketStorePage = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 

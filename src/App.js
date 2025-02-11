@@ -8,6 +8,7 @@ import {
 import "./App.css";
 import { AccessProvider } from "./components/Context/AccesContext";
 
+
 function App() {
   const { currentUser, currentUserData } = useAuth();
 
@@ -99,7 +100,7 @@ function App() {
         user_id: currentUserData?.uid || "guest", // Use uid for user_id
         name:
           currentUserData?.displayName ||
-          currentUserData?.username||
+          currentUserData?.username ||
           currentUserData?.shopName ||
           "Anonymous User", // Map displayName to name
         email: currentUserData?.email || "guest@example.com",
@@ -117,9 +118,10 @@ function App() {
   }, [currentUserData]);
 
   return (
-    <AccessProvider>
-      <Layout />
-    </AccessProvider>
+  
+      <AccessProvider>
+        <Layout />
+      </AccessProvider>
   );
 }
 

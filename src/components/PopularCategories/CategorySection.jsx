@@ -5,6 +5,7 @@ import { db } from "../../firebase.config";
 import ProductCard from "../Products/ProductCard";
 import { GoChevronLeft } from "react-icons/go";
 import { RotatingLines } from "react-loader-spinner";
+import SEO from "../Helmet/SEO";
 
 const CategoryProducts = () => {
   const location = useLocation();
@@ -120,6 +121,12 @@ const CategoryProducts = () => {
   };
 
   return (
+    <>
+    <SEO 
+        title={`Shop ${productType} | ShopMyThrift`} 
+        description={`Shop ${productType} on ShopMyThrift`}
+        url={`https://www.shopmythrift.store/producttype/${productType}`} 
+      />
     <div className="px-4 py-6">
       {/* Sticky Header */}
       <div
@@ -160,6 +167,7 @@ const CategoryProducts = () => {
 
       
     </div>
+    </>
   );
 };
 

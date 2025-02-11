@@ -30,6 +30,7 @@ import Orderpic from "../../Images/orderpic.svg";
 import RelatedProducts from "./SimilarProducts";
 import ScrollToTop from "../../components/layout/ScrollToTop";
 import OrderStepper from "../../components/Order/OrderStepper";
+import SEO from "../../components/Helmet/SEO";
 const OrdersCentre = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
@@ -309,6 +310,11 @@ const OrdersCentre = () => {
 
   return (
     <div>
+      <SEO 
+        title={`Your Orders - My Thrift`} 
+        description={`View your orders on My Thrift`}
+        url={`https://www.shopmythrift.store/user-orders`} 
+      />
       <ScrollToTop />
       <div className="sticky top-0 pb-2 bg-white w-full z-10">
         <div className="flex p-3 py-3 items-center bg-white h-20 mb-3 pb-2">

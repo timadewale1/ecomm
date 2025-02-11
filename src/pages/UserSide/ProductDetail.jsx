@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/img-redundant-alt */
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -26,7 +27,6 @@ import { useLocation } from "react-router-dom";
 import { Swiper, SwiperSlide } from "swiper/react";
 import Select from "react-select";
 import "swiper/css";
-import { Helmet } from "react-helmet";
 
 import SwiperCore, { Pagination, Navigation } from "swiper";
 import { FreeMode, Autoplay } from "swiper/modules";
@@ -35,6 +35,7 @@ import RelatedProducts from "./SimilarProducts";
 import Productnotofund from "../../components/Loading/Productnotofund";
 import { decreaseQuantity, increaseQuantity } from "../../redux/actions/action";
 import { AiOutlineHome } from "react-icons/ai";
+import SEO from "../../components/Helmet/SEO";
 Modal.setAppElement("#root");
 
 const debounce = (func, delay) => {
@@ -223,6 +224,7 @@ const ProductDetailPage = () => {
       // }
     }
   }, [product]);
+
 
   const handleSubProductClick = (subProduct) => {
     setSelectedSubProduct(subProduct);
@@ -926,7 +928,12 @@ const ProductDetailPage = () => {
 
   return (
     <>
-     
+     <SEO 
+        title={product.name} 
+        description={product.description} 
+        image={product.coverImageUrl} 
+        url={`https://www.shopmythrift.store/product/${product.id}`} 
+      />
       <div className="relative pb-20">
         <div className="fixed top-0 px-2 py-4 bg-white left-0 h-20 w-full z-20 shadow-md">
           <div className="flex items-center justify-between h-full">

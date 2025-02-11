@@ -24,14 +24,15 @@ import { FiPlus } from "react-icons/fi";
 import { IoIosNotificationsOutline } from "react-icons/io"; // Use the existing VendorContext
 import { BsBell, BsBoxSeam, BsCopy, BsEye, BsEyeSlash } from "react-icons/bs";
 import { CopyAllRounded } from "@mui/icons-material";
-import { LuListFilter } from "react-icons/lu";
+import { LuCopy, LuCopyCheck, LuListFilter } from "react-icons/lu";
 import NotApproved from "../../components/Infos/NotApproved";
 import Skeleton from "react-loading-skeleton";
 import ScrollToTop from "../../components/layout/ScrollToTop";
+import SEO from "../../components/Helmet/SEO";
 
-const defaultImageUrl =
-  "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 const VendorDashboard = () => {
+  const defaultImageUrl =
+    "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
   const { vendorData, loading } = useContext(VendorContext);
   // console.log("VendorDashboard render:", { vendorData, loading });
 
@@ -183,14 +184,19 @@ const VendorDashboard = () => {
       (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
     }/${vendorData.vendorId}?shared=true`;
 
+  const [copied, setCopied] = useState(false);
   const copyToClipboard = async () => {
-    console.log("Clicked");
-    try {
-      await navigator.clipboard.writeText(textToCopy); // Ensure the text is copied
-      toast.success("Store link copied!"); // Show the success toast
-    } catch (err) {
-      toast.error("Failed to copy!"); // Handle any errors during copy
-      console.error("Failed to copy text: ", err);
+    if (!copied) {
+      console.log("Clicked");
+      try {
+        (await navigator.clipboard.writeText(textToCopy)) &&
+          console.log("copied"); // Ensure the text is copied
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000);
+      } catch (err) {
+        toast.error("Failed to copy!"); // Handle any errors during copy
+        console.error("Failed to copy text: ", err);
+      }
     }
   };
 
@@ -344,6 +350,11 @@ const VendorDashboard = () => {
   }
   return (
     <>
+    <SEO 
+        title={`Vendor Dashboard - My Thrift`} 
+        description={`Manage your store on My Thrift`} 
+        url={`https://www.shopmythrift.store/vendordashboard`} 
+      />
       <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-1 font-opensans ">
         <ScrollToTop />
         <div className="flex justify-between items-center">
@@ -408,7 +419,11 @@ const VendorDashboard = () => {
                   className="text-white opacity-50 cursor-not-allowed"
                   onClick={copyToClipboard}
                 >
-                  <BsCopy className="text-white" />
+                  {!copied ? (
+                    <LuCopy className="text-white" />
+                  ) : (
+                    <LuCopyCheck className="text-[#28a745]" />
+                  )}
                 </button>
               </div>
             </div>

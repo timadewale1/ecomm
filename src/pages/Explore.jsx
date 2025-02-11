@@ -20,6 +20,7 @@ import Lottie from "lottie-react";
 import noProductAnimation from "../Animations/noproduct.json";
 import { MdCancel } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
+import SEO from "../components/Helmet/SEO";
 const Explore = () => {
   const loading = useSelector((state) => state.product.loading);
 
@@ -220,6 +221,12 @@ const Explore = () => {
   }
 
   return (
+    <>
+    <SEO 
+        title={`Explore - My Thrift`} 
+        description={`Explore the best thrifted items on My Thrift`} 
+        url={`https://www.shopmythrift.store/explore`} 
+      />
     <div className="pb-28">
       {/* Top Bar */}
       <div className="sticky py-4 px-2 w-full top-0 bg-white z-10">
@@ -493,6 +500,7 @@ const Explore = () => {
         )}
       </div>
     </div>
+    </>
   );
 };
 

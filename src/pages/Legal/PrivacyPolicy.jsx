@@ -3,34 +3,27 @@ import { GoChevronLeft, GoDotFill } from "react-icons/go";
 import ScrollToTop from "./../../components/layout/ScrollToTop";
 import "./design.css";
 import { useNavigate } from "react-router-dom";
+import SEO from "../../components/Helmet/SEO";
 
 const PrivacyPolicy = () => {
-  const navigate = useNavigate();
+
 
   //Basically, this logic checks if there's any previous history in the browser that also comes from this domain, if both checks return false then the handleBack function redirects to the login page, else it goes to the previous page
   const [checkOne, setCheckOne] = useState(false);
   const [checkTwo, setCheckTwo] = useState(false);
 
-  useEffect(() => {
-    setCheckOne(window.history.length > 1);
-    setCheckTwo(
-      !document.referrer || document.referrer.startsWith(window.location.origin)
-    );
-  }, []);
 
-  const handleBack = () => {
-    // Check if there's a history stack and referrer is from the same origin
-    if (checkOne && checkTwo) {
-      window.history.back();
-    } else {
-      navigate("/confirm-user-state");
-    }
-  };
-
+  
   return (
+    <>
+    <SEO 
+        title={`Privacy Policy - My Thrift`} 
+        description={`Privacy Policy for My Thrift Clothing`}
+        url={`https://www.shopmythrift.store/privacy-policy`} 
+      />
     <div className="flex flex-col items-center bg-gray-50 min-h-screen pb-4 font-opensans text-gray-800">
       {/* Header */}
-      <div className="sticky top-0 bg-white z-10 flex items-center justify-between w-full px-3 py-4 border-b shadow-sm">
+      {/* <div className="sticky top-0 bg-white z-10 flex items-center justify-between w-full px-3 py-4 border-b shadow-sm">
         <div className="flex items-center space-x-2">
           <GoChevronLeft
             className="text-2xl text-black cursor-pointer"
@@ -40,7 +33,7 @@ const PrivacyPolicy = () => {
             Privacy Policy
           </h1>
         </div>
-      </div>
+      </div> */}
 
       {/* Content */}
       <div className="w-full max-w-3xl bg-white rounded-lg shadow-md ">
@@ -356,7 +349,7 @@ const PrivacyPolicy = () => {
             </h3>
             <p className="leading-relaxed text-black">
               <span className="text-customOrange">6.1</span> You have the right
-              to access, correct, change, or delete the personal information you
+              to access, correct, change, or delete some of the personal information you
               provide us with.
             </p>
             <p className="leading-relaxed text-black">
@@ -370,9 +363,9 @@ const PrivacyPolicy = () => {
               privacy rights. Formal complaints should be sent to us at{" "}
               <a
                 className="text-customOrange"
-                href="mailto:hello@shopmythrift.online"
+                href="mailto:hello@shopmythrift.store"
               >
-                hello@shopmythrift.online
+                hello@shopmythrift.store
               </a>
               .
             </p>
@@ -389,12 +382,7 @@ const PrivacyPolicy = () => {
               lines and email addresses
             </p>
             <ul className="list-disc list-inside leading-relaxed space-y-2">
-              <li className="flex w-full">
-                <div>
-                  <GoDotFill className="text-customOrange text-lg mr-2 mt-1" />
-                </div>
-                <p className="text-black">MyThrift Hotline: +234___________</p>
-              </li>
+             
               <li className="flex w-full">
                 <div>
                   <GoDotFill className="text-customOrange text-lg mr-2 mt-1" />
@@ -405,7 +393,7 @@ const PrivacyPolicy = () => {
                     className="text-customOrange"
                     href="mailto:hello@shopmythrift.online"
                   >
-                    hello@shopmythrift.online
+                    hello@shopmythrift.store
                   </a>
                 </p>
               </li>
@@ -414,6 +402,7 @@ const PrivacyPolicy = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

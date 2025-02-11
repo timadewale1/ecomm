@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import Helmet from "../components/Helmet/Helmet";
+import Helmet from "../components/Helmet/SEO";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
 
-import {  functions } from "../firebase.config";
+import { functions } from "../firebase.config";
 import toast from "react-hot-toast";
 import { FaRegEyeSlash, FaRegEye, FaRegUser } from "react-icons/fa";
 import {
@@ -22,6 +22,7 @@ import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import Modal from "react-modal";
 import { httpsCallable } from "firebase/functions";
+import SEO from "../components/Helmet/SEO";
 
 const VendorSignup = () => {
   const [vendorData, setVendorData] = useState({
@@ -113,14 +114,32 @@ const VendorSignup = () => {
 
     // Call the cloud function
     const createVendorAccount = httpsCallable(functions, "createVendorAccount");
+
     try {
       const res = await createVendorAccount(vendorData);
+
+      // If successful, open your success modal
       if (res.data.success) {
-        setModalOpen(true); // Open modal on success
+        setModalOpen(true);
       }
     } catch (error) {
       console.error("Cloud function error:", error);
-      toast.error(error.message);
+
+      let errorMessage = "Something went wrong. Please try again.";
+
+      // Use if-else to handle specific error codes
+      if (error.code === "invalid-argument") {
+        errorMessage =
+          "Some of the information you provided is invalid. Please review and try again.";
+      } else if (error.code === "already-exists") {
+        errorMessage =
+          "That email or phone number is already in use. Please use a different one.";
+      } else if (error.code === "unknown") {
+        errorMessage =
+          "An unexpected error occurred on our end. Please try again later.";
+      }
+
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -140,7 +159,12 @@ const VendorSignup = () => {
   };
 
   return (
-    <Helmet>
+    <>
+      <SEO 
+        title={`Vendor Signup - My Thrift`} 
+        description={`Sign up to grow your brand as My Thrift vendor!`}  
+        url={`https://www.shopmythrift.store/vendor-signup`} 
+      />
       <section>
         <Container>
           <Row>
@@ -344,6 +368,36 @@ const VendorSignup = () => {
                       {showConfirmPassword ? <FaRegEye /> : <FaRegEyeSlash />}
                     </motion.button>
                   </FormGroup>
+                  <div className="text-gray-600 font-opensans text-xs mt-2 leading-relaxed">
+                    By signing up, you agree to our
+                    <span
+                      onClick={() =>
+                        window.open(
+                          "/terms-and-conditions",
+                          "_blank",
+                          "noopener,noreferrer"
+                        )
+                      }
+                      className="text-customOrange font-medium hover:underline cursor-pointer ml-1"
+                    >
+                      Terms & Conditions
+                    </span>
+                    and
+                    <span
+                      onClick={() =>
+                        window.open(
+                          "/privacy-policy",
+                          "_blank",
+                          "noopener,noreferrer"
+                        )
+                      }
+                      className="text-customOrange font-medium hover:underline cursor-pointer ml-1"
+                    >
+                      Privacy Policy
+                    </span>
+                    .
+                  </div>
+
                   <button
                     type="submit"
                     disabled={loading}
@@ -434,7 +488,7 @@ const VendorSignup = () => {
           </p>
         </div>
       </Modal>
-    </Helmet>
+    </>
   );
 };
 

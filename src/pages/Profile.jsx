@@ -32,6 +32,7 @@ import { IoMdContact } from "react-icons/io";
 import { clearCart } from "../redux/actions/action";
 import { useDispatch, useSelector } from "react-redux";
 import { FaFileContract } from "react-icons/fa6";
+import SEO from "../components/Helmet/SEO";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -177,6 +178,12 @@ const Profile = () => {
   };
 
   return (
+    <>
+    <SEO 
+        title={`Profile - My Thrift`} 
+        description={`Update your personal information, view your orders, and more.`}
+        url={`https://www.shopmythrift.store/profile`} 
+      />
     <div className="py-6  pb-24">
       {!showDetails && !showMetrics && !showFAQs ? (
         <div className="flex flex-col items-center">
@@ -366,11 +373,17 @@ const Profile = () => {
           <div className="flex flex-col items-center px-2 w-full">
             <div
               className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-              onClick={() => navigate("/terms-and-conditions")}
+              onClick={() =>
+                window.open(
+                  "/terms-and-conditions",
+                  "_blank",
+                  "noopener,noreferrer"
+                )
+              }
             >
               <div className="flex items-center">
                 <FaFileContract className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
+                <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
                   Terms and Conditions
                 </h2>
               </div>
@@ -379,16 +392,19 @@ const Profile = () => {
 
             <div
               className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-              onClick={() => navigate("/privacy-policy")}
+              onClick={() =>
+                window.open("/privacy-policy", "_blank", "noopener,noreferrer")
+              }
             >
               <div className="flex items-center">
                 <BsShieldFillCheck className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
+                <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
                   Privacy Policy
                 </h2>
               </div>
               <ChevronRight className="text-black" />
             </div>
+
             <div className="w-full h-14 flex ml-4">
               <h1 className="text-base font-semibold mx-2 font-opensans translate-y-3 text-black">
                 Beta
@@ -519,6 +535,7 @@ const Profile = () => {
         />
       )}
     </div>
+    </>
   );
 };
 

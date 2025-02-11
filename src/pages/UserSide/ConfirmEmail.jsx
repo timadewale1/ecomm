@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { applyActionCode } from "firebase/auth";
 import { auth } from "../../firebase.config";
 import toast from "react-hot-toast";
+import SEO from "../../components/Helmet/SEO";
 
 const EmailVerification = () => {
   const [loading, setLoading] = useState(false);
@@ -13,7 +14,7 @@ const EmailVerification = () => {
     setLoading(true);
     try {
       await applyActionCode(auth, oobCode);
-      toast.success("Email verified successfully! You can now log in.");
+      toast.success("Email verified successfully!");
     } catch (error) {
       console.error("Email verification error:", error);
       toast.error(
@@ -33,6 +34,11 @@ const EmailVerification = () => {
   }, [oobCode]);
 
   return (
+    <>
+    <SEO 
+        title={`Email Verification - My Thrift`}
+        url={`https://www.shopmythrift.store/confirm-email`} 
+      />
     <div className="flex items-center justify-center bg-white px-3 py-4 min-h-screen">
       <div className="w-full max-w-md text-center">
         <h2 className="text-3xl font-semibold font-ubuntu text-black mb-4">
@@ -43,13 +49,14 @@ const EmailVerification = () => {
             Please wait while we verify your email.
           </p>
         ) : (
-          <p className="text-green-600  font-opensans font-normal">
-            Email verification completed! Redirecting to login...
+          <p className="text-green-600  text-sm font-opensans font-normal">
+            Email verification completed! You can close this tab now.
           </p>
         )}
       </div>
     </div>
+    </>
   );
 };
 
-export default EmailVerification;
+export default EmailVerification

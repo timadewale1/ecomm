@@ -21,6 +21,7 @@ import { HiOutlineBuildingStorefront } from "react-icons/hi2";
 import { BiMessageDetail } from "react-icons/bi";
 import { BsPlus } from "react-icons/bs";
 import { Bars } from "react-loader-spinner";
+import SEO from "../components/Helmet/SEO";
 const debounce = (func, delay) => {
   let timeoutId;
   return (...args) => {
@@ -396,7 +397,13 @@ const Cart = () => {
   // }
 
   return (
-    <div className="flex flex-col h-screen justify-between mb-14 bg-gray-200">
+    <>
+    <SEO 
+        title={`My Cart - My Thrift`} 
+        description={`Your cart on My Thrift`}
+        url={`https://www.shopmythrift.store/latest-cart`} 
+      />
+    <div className="flex flex-col h-screen justify-between mb-28 bg-gray-200">
       <div className="sticky top-0 bg-white w-full h-24 flex items-center p-3 shadow-md z-10">
         {fromProductDetail && (
           <GoChevronLeft
@@ -788,6 +795,7 @@ const Cart = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 

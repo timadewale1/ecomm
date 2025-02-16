@@ -37,6 +37,7 @@ import StorePage from "../pages/StorePage.jsx";
 import CategoryPage from "../pages/UserSide/CategoryPage.jsx";
 import VendorRatings from "../pages/vendor/VendorRatings.jsx";
 import SearchPage from "../pages/UserSide/Searchpage.jsx";
+import InAppDiscountProducts from "../pages/UserSide/InAppDiscountProducts.jsx";
 import ErrorBoundary from "../components/Errorboundary.jsx";
 import TermsAndConditions from "../pages/Legal/TermsAndConditions.jsx";
 import CallGuide from "../pages/Legal/CallGuide.jsx";
@@ -61,7 +62,7 @@ const Routers = () => {
       <Route path="/confirm-state" element={<ConfirmUserState />} />
       <Route path="product/:id" element={<ProductDetailPage />} />
       <Route path="signup" element={<Signup />} />
-
+      <Route path="/inapp-discounts/:discountName" element={<InAppDiscountProducts />} />
       <Route path="vendor-signup" element={<VendorSignup />} />
       <Route path="login" element={<Login />} />
       <Route path="vendorlogin" element={<VendorLogin />} />

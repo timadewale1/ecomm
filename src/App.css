@@ -203,8 +203,8 @@ li::marker {
   padding: 20px;
   background-color: #ffffff;
   border: none;
-  height: 100%; /* Set height similar to the example */
-  max-width: 500px;
+  height: 80%; /* Set height similar to the example */
+  max-width: 900px;
   margin: 0 auto;
   animation: slide-up 0.3s ease-in-out;
 }

@@ -30,6 +30,7 @@ module.exports = {
         customRichBrown: '#3E0C00',
         customGreen: '#def2eb',
         lightGreen: '#F2FEF2',
+        customPink: '#fEE4E1',
         lightPurple: '#F9F4FF',
         textGreen: '#388f6e',
         dotGreen: '#9cd8c2',

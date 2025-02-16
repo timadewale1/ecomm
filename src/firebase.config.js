@@ -21,14 +21,16 @@ const firebaseConfig = {
 
 // 2) Initialize Firebase
 const app = initializeApp(firebaseConfig);
-console.log("Firebase app initialized.");
+if (process.env.REACT_APP_FIREBASE_DEBUG_TOKEN) {
+  window.FIREBASE_APPCHECK_DEBUG_TOKEN = process.env.REACT_APP_FIREBASE_DEBUG_TOKEN;
+}
 
 // 3) Initialize App Check with reCAPTCHA Enterprise provider for production
 initializeAppCheck(app, {
   provider: new ReCaptchaEnterpriseProvider(
     process.env.REACT_APP_RECAPTCHA_ENTERPRISE_KEY
   ),
-  isTokenAutoRefreshEnabled: true,
+  isTokenAutoRefreshEnabled: true, // Automatically refresh App Check tokens
 });
 console.log("App Check initialized with production reCAPTCHA Enterprise.");
 

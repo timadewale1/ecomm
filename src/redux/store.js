@@ -8,6 +8,7 @@ import productReducer from "./reducers/productreducers";
 // import homepageReducer from "./reducers/homepageSlice";
 import authReducer from "./reducers/authreducers";
 import orderReducer from "./reducers/orderreducer";
+import  discountProductsReducer  from "./reducers/discountProductsSlice";
 import categoriesReducer from "./reducers/categoriesSlice";
 import conditionReducer from "./reducers/conditionSlice"; 
 import { marketReducer } from "./reducers/marketreducer";
@@ -15,18 +16,21 @@ import userReducer from "./reducers/userreducer";
 import vendorProfileReducer from "./vendorProfileSlice"; // Adjust the path as needed
 import vendorReducer from "./reducers/VendorsSlice";
 import { promoReducer } from "./reducers/promoreducer";
+import categoryProductsReducer from "./reducers/categoryProductsSlice";
 const rootReducer = combineReducers({
   auth: authReducer,
   cart: cartReducer,
   product: productReducer,
   user: userReducer,
   orders: orderReducer,
+  discountProducts: discountProductsReducer,
   market: marketReducer,
   promo: promoReducer,
   homepage: homepageReducer,
   categories: categoriesReducer,
   vendors: vendorReducer,
   condition: conditionReducer,
+  categoryProducts: categoryProductsReducer,  
 
   vendorProfile: vendorProfileReducer, 
 });

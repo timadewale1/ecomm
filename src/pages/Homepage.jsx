@@ -41,6 +41,7 @@ import Amazingdeals from "../components/Amazingdeals";
 import PopularCats from "../components/PopularCategories/PopularCats";
 import Condition from "../components/Conditions/Condition";
 import SEO from "../components/Helmet/SEO";
+import DiscountCarousel from "../components/Discounts/DiscountCarousel";
 gsap.registerPlugin(ScrollTrigger);
 
 const Homepage = () => {
@@ -158,7 +159,8 @@ const Homepage = () => {
       // Fetch promo images only if they are not already in Redux
       const images = [
         "https://res.cloudinary.com/dtaqusjav/image/upload/v1736717421/Promo_Card_5_azm2n3.svg",
-        "https://res.cloudinary.com/dtaqusjav/image/upload/v1736717421/Promo_Card_2_ofyt9b.svg",
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1739645822/Valentine_s_Promo_Card_fykrup.svg",
+        // "https://res.cloudinary.com/dtaqusjav/image/upload/v1736717421/Promo_Card_2_ofyt9b.svg",
         "https://res.cloudinary.com/dtaqusjav/image/upload/v1737022557/Promo_Card_7_gxlmrs.svg",
       ];
       dispatch(setPromoLoading(true));
@@ -374,6 +376,7 @@ const Homepage = () => {
         </>
       )}
       <PopularCats />
+      <DiscountCarousel />
       <div className="p-2 mb-24">
         <h1 className="text-left font-medium text-lg translate-y-2 font-ubuntu mb-4">
           Featured Products

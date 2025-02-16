@@ -636,6 +636,12 @@ const VendorProducts = () => {
     setAction("bulkDelete");
     setShowConfirmation(true);
   };
+  const truncateText = (text, maxLength = 20) => {
+    if (!text) return "";
+    return text.length <= maxLength
+      ? text
+      : text.substring(0, maxLength) + "...";
+  };
 
   const handlePublish = () => {
     setAction("publish");
@@ -690,10 +696,10 @@ const VendorProducts = () => {
 
   return (
     <>
-    <SEO 
-        title={`Your Store - My Thrift`} 
+      <SEO
+        title={`Your Store - My Thrift`}
         description={`Manage your products on My Thrift`}
-        url={`https://www.shopmythrift.store/vendor-products`} 
+        url={`https://www.shopmythrift.store/vendor-products`}
       />
       <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-5 font-opensans ">
         <ScrollToTop />
@@ -800,6 +806,25 @@ const VendorProducts = () => {
             </div>
           </div>
         </div>
+        {tabOpt === "Active" &&
+          (() => {
+            const activeDiscountedProducts = products.filter(
+              (product) =>
+                product.discount && !product.isDeleted && product.published
+            );
+            return (
+              activeDiscountedProducts.length > 0 && (
+                <div className="px-2 py-1 bg-green-50 rounded-lg -translate-y-2 shadow">
+                  <p className="text-xs font-semibold font-opensans text-green-600">
+                    Discount Campaign Active: You are currently offering
+                    discounts on {activeDiscountedProducts.length} product
+                    {activeDiscountedProducts.length > 1 ? "s" : ""}. Your followers will be notified🎊
+                  </p>
+                </div>
+              )
+            );
+          })()}
+
         <div
           className={` ${
             filteredProducts < 1 && " justify-center items-center text-center"
@@ -858,6 +883,21 @@ const VendorProducts = () => {
                         </div>
                       )
                     )}
+                    {product.discount && (
+                      <div className="absolute top-2 left-2 flex items-center">
+                        {product.discount.discountType.startsWith(
+                          "personal-freebies"
+                        ) ? (
+                          <div className="bg-customPink text-customOrange text-sm px-2 py-1 font-medium font-opensans rounded-md">
+                            {truncateText(product.discount.freebieText)}
+                          </div>
+                        ) : (
+                          <div className="bg-customPink font-opensans text-customOrange text-sm font-medium px-2 py-1 rounded-md">
+                            -{product.discount.percentageCut}%
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <img
                       src={product.coverImageUrl}
@@ -866,10 +906,10 @@ const VendorProducts = () => {
                     />
                   </div>
                   <div className="flex">
-                    <p className="text-xs font-semibold text-black truncate w-32">
+                    <p className="text-xs font-semibold font-opensans text-black truncate w-32">
                       {product.name}
                     </p>{" "}
-                    <p className="text-xs font-semibold text-black truncate w-9">
+                    <p className="text-xs font-semibold font-opensans text-black truncate w-9">
                       {/* {product.color} */}
                     </p>{" "}
                   </div>
@@ -878,28 +918,45 @@ const VendorProducts = () => {
                       !product.published ? "flex space-x-4" : "space-y-2"
                     }`}
                   >
-                    <p className="text-xs font-semibold text-black">
+                    <p className="text-xs font-semibold font-opensans text-black">
                       Total Stock: {product.stockQuantity}
                     </p>
-                    <p className="text-xs font-medium text-black">
+                    <p className="text-xs font-medium font-opensans text-black">
                       &#x20a6;{formatNumber(product.price)}
                     </p>
                   </div>
                   {!product.published && (
-                    <p className="text-xs font-semibold text-customOrange">
+                    <p className="text-xs font-semibold font-opensans text-customOrange">
                       Unpublished Product
                     </p>
                   )}
+                  <div className="mt-1">
+                    {product.discount && (
+                      <p className="text-xs font-opensans font-semibold text-customRichBrown">
+                        {product.discount.discountType.startsWith("inApp")
+                          ? "In‑App Discount"
+                          : product.discount.discountType ===
+                            "personal-monetary"
+                          ? "Personal Monetary Discount"
+                          : product.discount.discountType ===
+                            "personal-freebies"
+                          ? `Freebie: ${truncateText(
+                              product.discount.freebieText
+                            )}`
+                          : ""}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
           ) : tabOpt === "Active" && !productsLoading ? (
-            <p className="text-xs mt-24">
+            <p className="text-xs font-opensans mt-24">
               📭 Your store has no active products yet. Upload items to start
               attracting customers!
             </p>
           ) : tabOpt === "OOS" && !productsLoading ? (
-            <p className="text-xs mt-24">
+            <p className="text-xs font-opensans mt-24">
               📦 You currently have no items marked as out of stock.
             </p>
           ) : productsLoading ? (
@@ -958,7 +1015,7 @@ const VendorProducts = () => {
             //   <p className="text-xs">Loading products...</p>
             // </div>
             !productsLoading && (
-              <p className="text-xs mt-24">
+              <p className="text-xs mt-24 font-opensans">
                 📝 You have no saved draft products yet. Start a new listing and
                 save it as a draft anytime!
               </p>
@@ -993,7 +1050,7 @@ const VendorProducts = () => {
           } py-3 bg-white text-white w-full h-[94px] shadow-lg focus:outline-none`}
         >
           {canPublishOrUnpublish() && (
-            <p className="text-lg font-semibold text-customRichBrown">
+            <p className="text-lg font-semibold font-opensans text-customRichBrown">
               {tabOpt === "Active" ? (
                 <p
                   className="text-lg font-semibold text-customRichBrown"
@@ -1003,7 +1060,7 @@ const VendorProducts = () => {
                 </p>
               ) : (
                 <p
-                  className="text-lg font-semibold text-customRichBrown"
+                  className="text-lg font-semibold font-opensans text-customRichBrown"
                   onClick={handlePublish}
                 >
                   Publish
@@ -1012,7 +1069,7 @@ const VendorProducts = () => {
             </p>
           )}
           <p
-            className="text-lg font-semibold text-customRichBrown mb-4"
+            className="text-lg font-semibold font-opensans text-customRichBrown mb-4"
             onClick={() => handleBulkDelete()}
           >
             Delete
@@ -1049,7 +1106,7 @@ const VendorProducts = () => {
             </div>
 
             <div className="flex items-center mb-4 justify-between">
-              <p className="text-lg text-black font-semibold ">
+              <p className="text-lg text-black font-opensans font-semibold ">
                 {selectedProduct.name}
               </p>
               {selectedProduct.published && (
@@ -1065,8 +1122,8 @@ const VendorProducts = () => {
                 </button>
               )}
             </div>
-            <div className="px-3 mb-4 flex flex-col justify-between space-y-3">
-              <p className="text-black font-semibold text-sm">
+            <div className="p-3 mb-4 flex flex-col  bg-gray-50  rounded-lg w-full  justify-between space-y-3">
+              <p className="text-black font-semibold  font-opensans text-sm">
                 Price:{" "}
                 <span className="font-normal">
                   &#x20a6;{formatNumber(selectedProduct.price)}
@@ -1074,13 +1131,13 @@ const VendorProducts = () => {
               </p>
               <hr className="text-customOrange opacity-40   " />
 
-              <p className="text-black font-semibold text-sm">
+              <p className="text-black font-semibold font-opensans text-sm">
                 Product Category:{" "}
                 <span className="font-normal">{selectedProduct.category}</span>
               </p>
               <hr className="text-customOrange opacity-40   " />
 
-              <p className="text-black font-semibold text-sm">
+              <p className="text-black font-semibold font-opensans text-sm">
                 Quantity:{" "}
                 <span
                   className={`${
@@ -1094,7 +1151,7 @@ const VendorProducts = () => {
               </p>
               <hr className="text-customOrange opacity-40   " />
 
-              <p className="text-black font-semibold text-sm">
+              <p className="text-black font-semibold  font-opensans text-sm">
                 Product Type:{" "}
                 <span className="font-normal">
                   {selectedProduct.productType}
@@ -1102,19 +1159,19 @@ const VendorProducts = () => {
               </p>
               <hr className="text-customOrange opacity-40   " />
 
-              <p className="text-black font-semibold text-sm">
+              <p className="text-black font-semibold font-opensans text-sm">
                 Product Condition:{" "}
                 <span className="font-normal">{selectedProduct.condition}</span>
               </p>
               <hr className="text-customOrange opacity-40   " />
 
-              <p className="text-black font-semibold text-sm">
+              <p className="text-black font-semibold font-opensans text-sm">
                 Product Sub-type:{" "}
                 <span className="font-normal">{selectedProduct.subType}</span>
               </p>
               <hr className="text-customOrange opacity-40" />
 
-              <div className="text-black font-semibold text-sm">
+              <div className="text-black font-opensans font-semibold text-sm">
                 <p className="text-black font-semibold text-sm mb-2">
                   Product Description
                 </p>{" "}
@@ -1126,7 +1183,7 @@ const VendorProducts = () => {
               {selectedProduct.condition === "Defect:" && (
                 <>
                   {" "}
-                  <p className="text-red-400 font-semibold text-sm">
+                  <p className="text-red-400 font-opensans font-semibold text-sm">
                     Defect Description:{" "}
                     <span className="font-normal">
                       {selectedProduct.defectDescription}
@@ -1136,21 +1193,105 @@ const VendorProducts = () => {
                 </>
               )}
             </div>
+
+            {selectedProduct && selectedProduct.discount && (
+              <div className="mt-4 ">
+                <h3 className="text-lg font-semibold font-opensans mb-2">
+                  Product Discount Details
+                </h3>
+                {selectedProduct.discount ? (
+                  <div className="flex items-center  justify-between py-1 px-2 bg-green-100 rounded-full">
+                    <span className="text-sm font-semibold font-opensans text-green-800">
+                      {selectedProduct.discount.discountType.startsWith("inApp")
+                        ? "In‑App Discount"
+                        : selectedProduct.discount.discountType ===
+                          "personal-monetary"
+                        ? "Personal Monetary Discount"
+                        : selectedProduct.discount.discountType ===
+                          "personal-freebies"
+                        ? `Freebie: ${truncateText(
+                            selectedProduct.discount.freebieText
+                          )}`
+                        : ""}
+                    </span>
+                    <span className="bg-green-600 text-white text-xs px-2 py-1 rounded-full">
+                      Active
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center font-opensans justify-between p-2 bg-gray-200 rounded-full">
+                    <span className="text-sm font-semibold  text-gray-600">
+                      Discount
+                    </span>
+                    <span className="bg-gray-400 text-white text-xs px-2 py-1 rounded-full">
+                      Inactive
+                    </span>
+                  </div>
+                )}
+                {(selectedProduct.discount.discountType.startsWith("inApp") ||
+                  selectedProduct.discount.discountType ===
+                    "personal-monetary") && (
+                  <>
+                    <div className="p-3 mb-4 flex w-full bg-gray-50  rounded-lg mt-3 flex-col justify-between space-y-3">
+                      <p className="text-black font-semibold font-opensans text-sm">
+                        Initial Price:
+                        <span className="font-normal">
+                          {" "}
+                          &#x20a6;
+                          {formatNumber(selectedProduct.discount.initialPrice)}
+                        </span>
+                      </p>
+                      <hr className="text-customOrange opacity-40" />
+
+                      <p className="text-black font-semibold font-opensans text-sm">
+                        Discount Price:
+                        <span className="font-normal">
+                          {" "}
+                          &#x20a6;
+                          {formatNumber(selectedProduct.discount.discountPrice)}
+                        </span>
+                      </p>
+                      <hr className="text-customOrange opacity-40" />
+
+                      <p className="text-black font-semibold font-opensans text-sm">
+                        Percentage:
+                        <span className="font-normal">
+                          {" "}
+                          {selectedProduct.discount.percentageCut}%
+                        </span>
+                      </p>
+                      <hr className="text-customOrange opacity-40" />
+
+                      <p className="text-black font-semibold font-opensans text-sm">
+                        Amount Off:
+                        <span className="font-normal">
+                          {" "}
+                          &#x20a6;
+                          {formatNumber(
+                            selectedProduct.discount.subtractiveValue
+                          )}
+                        </span>
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
             {selectedProduct.variants.slice(1) && (
-              <p className="text-lg text-black font-semibold mb-2">
+              <p className="text-lg font-opensans text-black font-semibold mb-2">
                 {selectedProduct.variants.slice(1).length === 1
                   ? "Product Variant"
                   : "Product Variants"}
               </p>
             )}
             <div className="px-2 ">
-              <div className="flex w-full overflow-x-auto space-x-4 snap-x snap-mandatory">
+              <div className="flex w-full font-opensans overflow-x-auto space-x-4 snap-x snap-mandatory">
                 {renderVariants(selectedProduct.variants || [])}
               </div>
             </div>
 
             {selectedProduct.subProducts && (
-              <p className="text-lg text-black font-semibold mb-2">
+              <p className="text-lg font-opensans text-black font-semibold mb-2">
                 {selectedProduct.subProducts.length > 1
                   ? "Sub-Products"
                   : "Sub-Products"}
@@ -1169,11 +1310,11 @@ const VendorProducts = () => {
                       />
                     </div>
                     <div className="px-3 mb-4 flex w-full flex-col justify-between space-y-3 ">
-                      <p className="text-black font-semibold text-sm">
+                      <p className="text-black font-semibold font-opensans text-sm">
                         Color: <span className="font-normal">{sp.color}</span>
                       </p>
                       <hr className="text-customOrange opacity-40   " />
-                      <p className="text-black font-semibold text-sm">
+                      <p className="text-black font-opensans font-semibold text-sm">
                         Size: <span className="font-normal">{sp.size} </span>
                       </p>
                       <hr className="text-customOrange opacity-40   " />
@@ -1219,7 +1360,7 @@ const VendorProducts = () => {
             {selectedProduct && (
               <div className="px-3 my-4 flex flex-col justify-between space-y-3">
                 <div className="flex justify-between">
-                  <p className="text-black text-sm font-bold">
+                  <p className="text-black font-opensans text-sm font-bold">
                     Unpublish/Publish Product
                   </p>
                   <ToggleButton
@@ -1258,7 +1399,7 @@ const VendorProducts = () => {
                   <motion.button
                     whileTap={{ scale: 1.1 }}
                     onClick={toggleRestockMode}
-                    className="glow-button w-full h-12 mt-7 ml-4 bg-customSoftGray font-semibold rounded-full text-customRichBrown border border-customRichBrown"
+                    className="glow-button w-full h-12 mt-7 ml-4 font-opensans bg-customSoftGray font-semibold rounded-full text-customRichBrown border border-customRichBrown"
                   >
                     Cancel
                   </motion.button>
@@ -1267,7 +1408,7 @@ const VendorProducts = () => {
                 <motion.button
                   whileTap={{ scale: 1.1 }}
                   onClick={toggleRestockMode}
-                  className="glow-button w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full"
+                  className="glow-button w-full h-12  mt-7 bg-customOrange text-white font-opensans font-semibold rounded-full"
                 >
                   Restock Item
                 </motion.button>

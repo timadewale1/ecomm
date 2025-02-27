@@ -225,7 +225,6 @@ const ProductDetailPage = () => {
     }
   }, [product]);
 
-
   const handleSubProductClick = (subProduct) => {
     setSelectedSubProduct(subProduct);
     setSelectedImage(subProduct.images[0]);
@@ -886,6 +885,13 @@ const ProductDetailPage = () => {
           <p className="text-lg font-opensans font-bold text-black">
             ₦{formatPrice(product.price)}
           </p>
+          {product.discount &&
+            product.discount.initialPrice &&
+            product.discount.discountType !== "personal-freebies" && (
+              <p className="text-sm font-opensans text-gray-500 line-through">
+                ₦{formatPrice(product.discount.initialPrice)}
+              </p>
+            )}
         </div>
 
         {/* Map through Sub-Products */}
@@ -919,6 +925,13 @@ const ProductDetailPage = () => {
               <p className="text-lg font-opensans font-bold text-black">
                 ₦{formatPrice(product.price)}
               </p>
+              {product.discount &&
+                product.discount.initialPrice &&
+                product.discount.discountType !== "personal-freebies" && (
+                  <p className="text-sm font-opensans text-gray-500 line-through">
+                    ₦{formatPrice(product.discount.initialPrice)}
+                  </p>
+                )}
             </div>
           );
         })}
@@ -928,11 +941,11 @@ const ProductDetailPage = () => {
 
   return (
     <>
-     <SEO 
-        title={product.name} 
-        description={product.description} 
-        image={product.coverImageUrl} 
-        url={`https://www.shopmythrift.store/product/${product.id}`} 
+      <SEO
+        title={product.name}
+        description={product.description}
+        image={product.coverImageUrl}
+        url={`https://www.shopmythrift.store/product/${product.id}`}
       />
       <div className="relative pb-20">
         <div className="fixed top-0 px-2 py-4 bg-white left-0 h-20 w-full z-20 shadow-md">
@@ -1054,11 +1067,28 @@ const ProductDetailPage = () => {
             </>
           ) : (
             // Single image fallback
-            <img
-              src={allImages[0]}
-              alt={`${product.name} image`}
-              className="object-cover w-full h-full rounded-b-lg"
-            />
+            <>
+              <img
+                src={allImages[0]}
+                alt={`${product.name} image`}
+                className="object-cover w-full h-full rounded-b-lg"
+              />
+              {product.discount && (
+                <div className="absolute top-24 right-2 ">
+                  {product.discount.discountType.startsWith(
+                    "personal-freebies"
+                  ) ? (
+                    <div className="bg-customPink text-customOrange text-xs px-2 py-1.5 font-opensans font-medium rounded">
+                      {product.discount.freebieText}
+                    </div>
+                  ) : (
+                    <div className="bg-customPink text-customOrange text-xs px-2 py-1.5 font-opensans font-medium rounded">
+                      -{product.discount.percentageCut}%
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -1099,6 +1129,13 @@ const ProductDetailPage = () => {
           <p className="text-2xl font-opensans font-semibold text-black">
             ₦{formatPrice(product.price)}
           </p>
+          {product.discount &&
+            product.discount.initialPrice &&
+            product.discount.discountType !== "personal-freebies" && (
+              <p className="text-lg font-opensans text-gray-500 line-through">
+                ₦{formatPrice(product.discount.initialPrice)}
+              </p>
+            )}
           {vendorLoading ? (
             <LoadProducts className="mr-20" />
           ) : vendor ? (

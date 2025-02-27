@@ -189,11 +189,38 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
           {isLoading ? (
             <Skeleton height={160} />
           ) : (
-            <img
-              src={mainImage}
-              alt={product.name}
-              className="h-52 w-full object-cover rounded-lg"
-            />
+            <>
+              {/* Discount Badge at top left */}
+              {product.discount && (
+                <div className="absolute top-2 right-2 ">
+                  {product.discount.discountType.startsWith(
+                    "personal-freebies"
+                  ) ? (
+                    <div className="bg-customPink text-customOrange text-xs px-2 py-1.5 font-opensans font-medium rounded">
+                      {product.discount.freebieText}
+                    </div>
+                  ) : (
+                    <div className="bg-customPink text-customOrange text-xs px-2 py-1.5 font-opensans font-medium rounded">
+                      -{product.discount.percentageCut}%
+                    </div>
+                  )}
+                </div>
+              )}
+              {product.discount &&
+                product.discount.discountType.startsWith("inApp") && (
+                  <img
+                    src="/Ribbon.svg"
+                    alt="Discount Ribbon"
+                    className="absolute top-0 left-0 w-12 h-12 "
+                  />
+                )}
+
+              <img
+                src={mainImage}
+                alt={product.name}
+                className="h-52 w-full object-cover rounded-lg"
+              />
+            </>
           )}
 
           {/* Favorite Icon */}
@@ -219,8 +246,8 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
         </div>
 
         {/* Product Info */}
-        <div>
-          <div className="flex font-opensans font-light items-center mt-2">
+        <div className="mt-2">
+          <div className="flex font-opensans font-light items-center">
             {isLoading ? (
               <Skeleton width={100} />
             ) : (
@@ -239,7 +266,7 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
           <h3 className="text-sm font-opensans font-medium mt-1">
             {isLoading ? <Skeleton width={100} /> : product.name}
           </h3>
-          <div className="flex items-center justify-between mt-1">
+          <div className="flex flex-col mt-1">
             <p className="text-black text-lg font-opensans font-bold">
               {isLoading ? (
                 <Skeleton width={50} />
@@ -247,6 +274,14 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
                 `₦${formatPrice(product.price)}`
               )}
             </p>
+            {/* Crossed-out original price (if discount exists and initialPrice is available) */}
+            {product.discount &&
+              product.discount.initialPrice &&
+              product.discount.discountType !== "personal-freebies" && (
+                <p className="text-sm font-opensans text-gray-500 line-through">
+                  ₦{formatPrice(product.discount.initialPrice)}
+                </p>
+              )}
           </div>
           {showVendorName && product.vendorName && (
             <p

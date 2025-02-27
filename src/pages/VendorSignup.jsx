@@ -114,14 +114,32 @@ const VendorSignup = () => {
 
     // Call the cloud function
     const createVendorAccount = httpsCallable(functions, "createVendorAccount");
+
     try {
       const res = await createVendorAccount(vendorData);
+
+      // If successful, open your success modal
       if (res.data.success) {
-        setModalOpen(true); // Open modal on success
+        setModalOpen(true);
       }
     } catch (error) {
       console.error("Cloud function error:", error);
-      toast.error(error.message);
+
+      let errorMessage = "Something went wrong. Please try again.";
+
+      // Use if-else to handle specific error codes
+      if (error.code === "invalid-argument") {
+        errorMessage =
+          "Some of the information you provided is invalid. Please review and try again.";
+      } else if (error.code === "already-exists") {
+        errorMessage =
+          "That email or phone number is already in use. Please use a different one.";
+      } else if (error.code === "unknown") {
+        errorMessage =
+          "An unexpected error occurred on our end. Please try again later.";
+      }
+
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -59,6 +59,7 @@ const Layout = () => {
     "/product/:id",
     "/reviews/:id",
     "/producttype/:type",
+    "/inapp-discounts/:discountName",
     "/products/condition/:condition",
     "/store/:id",
     "/payment-approve/:reference",

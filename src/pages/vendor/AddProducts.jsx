@@ -6,9 +6,15 @@ import {
   setDoc,
   addDoc,
   updateDoc,
+  serverTimestamp,
+  where,
+  query,
+  getDocs,
   arrayUnion,
   getDoc,
 } from "firebase/firestore";
+import DiscountModal from "./DiscountModal";
+import { IoIosGift } from "react-icons/io";
 import ReactDOM from "react-dom";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from "../../firebase.config";
@@ -25,7 +31,7 @@ import notifyFollowers from "../../services/notifyfollowers";
 import { GoTrash } from "react-icons/go";
 import { BiSolidImageAdd } from "react-icons/bi";
 import { TiCameraOutline } from "react-icons/ti";
-import { FiPlus } from "react-icons/fi";
+import { FiGift, FiPlus } from "react-icons/fi";
 import SubProduct from "./SubProduct";
 import productTypes from "./producttype";
 import Modal from "react-modal";
@@ -71,7 +77,19 @@ const AddProduct = ({ vendorId, closeModal }) => {
   const [availableSizes, setAvailableSizes] = useState([]); // Ensure size dropdown syncs with this
   const [additionalImages, setAdditionalImages] = useState([]);
   const [subProducts, setSubProducts] = useState([]);
+  const [runDiscount, setRunDiscount] = useState(false);
+  const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
+  const [discountType, setDiscountType] = useState("");
+  const [discountValue, setDiscountValue] = useState("");
+  const [finalPrice, setFinalPrice] = useState("");
+  const [isPriceDisabled, setIsPriceDisabled] = useState(false);
+  const [initialPrice, setInitialPrice] = useState(""); // Replace with actual product price
+  const [inAppDiscounts, setInAppDiscounts] = useState([]); // Stores fetched in-app discounts
+  const [isLoadingDiscounts, setIsLoadingDiscounts] = useState(true); // Tracks loading state for discoun
   const [currentUser, setCurrentUser] = useState(null);
+  const [discountDetails, setDiscountDetails] = useState(null); // Store discount details
+  const [isPriceEditable, setIsPriceEditable] = useState(true); // Control productPrice field's editability
+
   const storage = getStorage();
   Modal.setAppElement("#root");
   useEffect(() => {
@@ -145,6 +163,54 @@ const AddProduct = ({ vendorId, closeModal }) => {
       setAvailableSizes([]);
     }
   }, [selectedProductType, selectedSubType]);
+  const openDiscountModal = () => {
+    setIsDiscountModalOpen(true);
+  };
+  useEffect(() => {
+    if (
+      discountDetails &&
+      (discountDetails.discountType.startsWith("inApp") ||
+        discountDetails.discountType === "personal-monetary")
+    ) {
+      // Automatically update product price to be the discount price
+      setProductPrice(discountDetails.discountPrice.toString());
+      setIsPriceDisabled(true);
+    } else {
+      setIsPriceDisabled(false);
+    }
+  }, [discountDetails]);
+  const closeDiscountModal = () => {
+    setIsDiscountModalOpen(false);
+  };
+
+  const handleDiscountTypeChange = (e) => {
+    setDiscountType(e.target.value);
+  };
+  const onDiscountSave = (details) => {
+    setDiscountDetails(details);
+    // Once a discount is saved, hide the discount option
+    setRunDiscount(true);
+  };
+
+  // --- UI Helpers for Discount Summary ---
+  // Returns a truncated version of freebie text (max 20 characters)
+  const truncateText = (text, maxLength = 20) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + "...";
+  };
+
+  const handleSaveDiscount = (details) => {
+    setDiscountDetails(details);
+    // For monetary discounts, update product price and disable input
+    if (
+      details.discountType.startsWith("inApp") ||
+      details.discountType === "personal-monetary"
+    ) {
+      setProductPrice(details.discountPrice.toString());
+      setIsPriceDisabled(true);
+    }
+    closeDiscountModal();
+  };
 
   // Log the product type and sub-type change
   const handleProductTypeChange = (selectedOption) => {
@@ -204,6 +270,28 @@ const AddProduct = ({ vendorId, closeModal }) => {
       behavior: "smooth",
     });
   };
+  useEffect(() => {
+    const fetchInAppDiscounts = async () => {
+      try {
+        const discountsRef = collection(db, "inAppDiscounts");
+        const q = query(discountsRef, where("isActive", "==", true)); // Fetch only active discounts
+        const querySnapshot = await getDocs(q);
+
+        const discounts = querySnapshot.docs.map((doc) => ({
+          id: doc.id, // Include document ID
+          ...doc.data(), // Spread document data
+        }));
+
+        setInAppDiscounts(discounts); // Update state with discounts
+      } catch (error) {
+        console.error("Error fetching in-app discounts:", error);
+      } finally {
+        setIsLoadingDiscounts(false); // Loading completed
+      }
+    };
+
+    fetchInAppDiscounts();
+  }, []);
 
   const handleScroll = () => {
     const scrollLeft = scrollContainerRef.current.scrollLeft;
@@ -458,6 +546,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         price: parseFloat(productPrice),
         coverImageUrl: coverImageUrl,
         imageUrls: imageUrls,
+        isFeatured: false,
         vendorId: currentUser.uid,
         vendorName: vendorData.shopName,
         stockQuantity: totalStockQuantity,
@@ -476,6 +565,9 @@ const AddProduct = ({ vendorId, closeModal }) => {
       if (subProductsData.length > 0) {
         product.subProducts = subProductsData;
       }
+      if (discountDetails) {
+        product.discount = discountDetails;
+      }
       if (productCondition === "Defect:" && productDefectDescription) {
         product.defectDescription = productDefectDescription.trim();
       }
@@ -489,13 +581,80 @@ const AddProduct = ({ vendorId, closeModal }) => {
       await updateDoc(vendorDocRef, {
         productIds: arrayUnion(newProductRef.id),
       });
+      if (discountDetails) {
+        const discountsRef = collection(db, "discounts");
+        const discountDocRef = doc(discountsRef);
+        // Build the discount document data (ensure you save numbers as numbers)
+        // Build the discount document data
+        const discountData = {
+          vendorId,
+          type: discountDetails.discountType.startsWith("inApp")
+            ? "inApp"
+            : "personal",
+          // For personal discounts, include discountSubType
+          ...(discountDetails.discountType.startsWith("personal")
+            ? {
+                discountSubType:
+                  discountDetails.discountType === "personal-monetary"
+                    ? "monetary"
+                    : "freebies",
+              }
+            : {}),
+          isActive: true,
+          createdAt: serverTimestamp(),
+          // Only include pricing fields if this is NOT a freebies discount
+          ...(discountDetails.discountType !== "personal-freebies" &&
+          discountDetails.initialPrice
+            ? {
+                initialPrice: discountDetails.initialPrice,
+                discountPrice: discountDetails.discountPrice,
+                percentageCut: discountDetails.percentageCut,
+                subtractiveValue: discountDetails.subtractiveValue,
+              }
+            : {}),
+          // For personal freebies, include freebieText
+          ...(discountDetails.discountType === "personal-freebies"
+            ? { freebieText: discountDetails.freebieText }
+            : {}),
+          ...(discountDetails.selectedDiscount
+            ? {
+                selectedDiscountId: discountDetails.selectedDiscount.id,
+                selectedDiscountName: discountDetails.selectedDiscount.name,
+              }
+            : {}),
+        };
 
+        await setDoc(discountDocRef, discountData);
+        // Update the vendor's discountIds field
+        await updateDoc(vendorDocRef, {
+          discountIds: arrayUnion(discountDocRef.id),
+        });
+        // Optionally, update the product document with a reference to the discount document
+        await updateDoc(newProductRef, {
+          discountId: discountDocRef.id,
+        });
+      }
       // Log activity and notify followers
-      await logActivity(
-        "Added New Product 📦",
-        `You've added ${productName} to your store! You can now view and feature it in your store products section.`,
-        "Product Update"
-      );
+      // Log activity when a discount is applied
+      if (discountDetails) {
+        await logActivity(
+          "Running a Discount 🎉",
+          `You've applied a ${
+            discountDetails.discountType.startsWith("inApp")
+              ? "store-wide"
+              : "personal"
+          } discount on ${productName}. Check your store for more details!`,
+          "Discount Update"
+        );
+      } else {
+        // Log activity when a product is added without a discount
+        await logActivity(
+          "Added New Product 📦",
+          `You've added ${productName} to your store! You can now view and feature it in your store products section.`,
+          "Product Update"
+        );
+      }
+
       await notifyFollowers(vendorId, {
         name: productName,
         shopName: vendorData.shopName,
@@ -522,7 +681,8 @@ const AddProduct = ({ vendorId, closeModal }) => {
       setTags([]);
       setHasVariations(false);
       setSubProducts([]);
-
+      setDiscountDetails(null);
+      setRunDiscount(false);
       closeModal();
     } catch (error) {
       console.error("Error adding product: ", error);
@@ -1067,6 +1227,103 @@ const AddProduct = ({ vendorId, closeModal }) => {
           </button>
         </div>
       </div>
+      {discountDetails ? (
+        // If discount exists, show discount summary with delete icon
+        <div className="flex items-center justify-between p-2 rounded-lg my-2 bg-gray-50 border-1 border-customRichBrown">
+          <div className="flex items-center">
+            <span className="font-opensans text-sm text-customRichBrown font-semibold">
+              {discountDetails.discountType.startsWith("inApp")
+                ? "In‑App Discount"
+                : "Personal Discount"}
+            </span>
+            <span
+              className={`ml-20 font-opensans text-xs px-1 text-center py-1 rounded-md font-semibold ${
+                discountDetails.discountType.startsWith("inApp") ||
+                discountDetails.discountType === "personal-monetary"
+                  ? "bg-green-600 text-white"
+                  : "bg-customOrange text-white"
+              }`}
+            >
+              {discountDetails.discountType.startsWith("inApp") ||
+              discountDetails.discountType === "personal-monetary"
+                ? `${discountDetails.percentageCut}% Off`
+                : discountDetails.discountType === "personal-freebies"
+                ? truncateText(discountDetails.freebieText)
+                : ""}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setDiscountDetails(null);
+              setRunDiscount(false);
+            }}
+            title="Remove Discount"
+          >
+            <GoTrash className="text-red-600 text-lg" />
+          </button>
+        </div>
+      ) : (
+        // Otherwise, show the discount option radio buttons
+        <div className="mb-2">
+          <div className="flex items-center">
+            <label className="text-black font-opensans text-sm mb-1">
+              Run a discount on this product?
+            </label>
+          </div>
+          <div className="flex mt-2 items-center">
+            <label className="inline-flex items-center mr-4">
+              <input
+                type="radio"
+                value={false}
+                checked={!runDiscount}
+                onChange={() => setRunDiscount(false)}
+                className="hidden"
+              />
+              <div
+                className={`h-4 w-4 rounded-full border-2 border-customOrange flex items-center justify-center ${
+                  !runDiscount ? "bg-customOrange" : "bg-white"
+                }`}
+              >
+                <div
+                  className={`h-2 w-2 rounded-full ${
+                    !runDiscount ? "bg-white" : "bg-transparent"
+                  }`}
+                ></div>
+              </div>
+              <span className="ml-2 font-opensans font-light text-xs text-black">
+                No
+              </span>
+            </label>
+            <label className="inline-flex items-center">
+              <input
+                type="radio"
+                value={true}
+                checked={runDiscount}
+                onChange={() => {
+                  setRunDiscount(true);
+                  openDiscountModal();
+                }}
+                className="hidden"
+              />
+              <div
+                className={`h-4 w-4 rounded-full border-2 border-customOrange flex items-center justify-center ${
+                  runDiscount ? "bg-customOrange" : "bg-white"
+                }`}
+              >
+                <div
+                  className={`h-2 w-2 rounded-full ${
+                    runDiscount ? "bg-white" : "bg-transparent"
+                  }`}
+                ></div>
+              </div>
+              <span className="ml-2 font-opensans font-light text-xs text-black">
+                Yes
+              </span>
+            </label>
+          </div>
+        </div>
+      )}
+
       <div className="mb-4">
         <label className="font-opensans font-medium mb-1 text-sm text-black">
           Product Price
@@ -1075,6 +1332,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           type="text"
           value={productPrice}
           onChange={handlePriceChange}
+          disabled={isPriceDisabled}
           className="w-full h-12 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
           required
         />
@@ -1191,7 +1449,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
             "Tees",
             "Nike",
             "Adidas",
-            "Sports"
+            "Sports",
           ].map((suggestion, index) => (
             <span
               key={index}
@@ -1335,16 +1593,24 @@ const AddProduct = ({ vendorId, closeModal }) => {
         </Modal>
       </div>
 
+      {/* Discount Modal */}
+      <DiscountModal
+        isOpen={isDiscountModalOpen}
+        onRequestClose={closeDiscountModal}
+        handleSaveDiscount={handleSaveDiscount}
+      />
+
       <div className="text-sm">
         <button
           type="button"
           onClick={handleAddProduct}
-          className={`w-full px-4 h-12 font-opensans text-lg rounded-full focus:ring focus:outline-none 
-    ${
-      isLoading || parseFloat(productPrice) < 300
-        ? "bg-gray-400 text-gray-200 cursor-not-allowed" // Greyed-out styling when disabled
-        : "bg-customOrange text-white hover:bg-customOrange focus:ring-customOrange" // Normal styling
-    }`}
+          className={`w-full px-4 h-12 font-opensans text-lg rounded-full focus:ring focus:outline-none flex items-center justify-center ${
+            isLoading || parseFloat(productPrice) < 300
+              ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+              : discountDetails
+              ? "bg-green-600 text-white hover:bg-green-700 focus:ring-green-500"
+              : "bg-customOrange text-white hover:bg-customOrange focus:ring-customOrange"
+          }`}
           disabled={isLoading || parseFloat(productPrice) < 300}
         >
           {isLoading ? (
@@ -1358,7 +1624,10 @@ const AddProduct = ({ vendorId, closeModal }) => {
               />
             </div>
           ) : (
-            "Publish Product"
+            <>
+              Publish Product
+              {discountDetails && <FiGift className="ml-2 text-lg" />}
+            </>
           )}
         </button>
       </div>

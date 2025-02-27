@@ -14,7 +14,7 @@ const EmailVerification = () => {
     setLoading(true);
     try {
       await applyActionCode(auth, oobCode);
-      toast.success("Email verified successfully! You can now log in.");
+      toast.success("Email verified successfully!");
     } catch (error) {
       console.error("Email verification error:", error);
       toast.error(
@@ -49,8 +49,8 @@ const EmailVerification = () => {
             Please wait while we verify your email.
           </p>
         ) : (
-          <p className="text-green-600  font-opensans font-normal">
-            Email verification completed!You can close this tab now.
+          <p className="text-green-600  text-sm font-opensans font-normal">
+            Email verification completed! You can close this tab now.
           </p>
         )}
       </div>

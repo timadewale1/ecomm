@@ -244,8 +244,7 @@ const VendorDashboard = () => {
     const activityRef = collection(db, "vendors", vendorId, "activityNotes");
     const recentActivityQuery = query(
       activityRef,
-      orderBy("timestamp", "desc"),
-      limit(15)
+      orderBy("timestamp", "desc")
     );
 
     // Listen for real-time updates to recent activities
@@ -661,20 +660,20 @@ const VendorDashboard = () => {
                 <Skeleton square={true} height={84} className="w-full mb-2" />
                 <Skeleton square={true} height={84} className="w-full mb-2" />
               </>
-            ) : filterOptions === "All" && !loading ? (
+            ) : filterOptions === "All" && filteredActivities.length < 1 && !loading ? (
               <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
                 🕘 No actions taken yet. Your recent activities will appear here
                 once you start managing your store...
               </div>
-            ) : filterOptions === "Recent Transactions" && !loading ? (
+            ) : filterOptions === "Recent Transactions" && filteredActivities.length < 1 && !loading ? (
               <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
                 📲 You have no recent transactions yet...
               </div>
-            ) : filterOptions === "Orders" && !loading ? (
+            ) : filterOptions === "Orders" && filteredActivities.length < 1 && !loading ? (
               <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
                 🛒 You have no order updates yet...
               </div>
-            ) : filterOptions === "Product Update" && !loading ? (
+            ) : filterOptions === "Product Update" && filteredActivities.length < 1 && !loading ? (
               <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
                 📦 You have no product updates yet...
               </div>

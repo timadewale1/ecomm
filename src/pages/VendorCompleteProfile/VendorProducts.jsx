@@ -757,7 +757,7 @@ const VendorProducts = () => {
         <div className="flex justify-center space-x-5 items-center">
           <div className="flex flex-col justify-center items-center space-y-3">
             <p
-              className={`text-sm ${
+              className={`text-sm cursor-pointer ${
                 tabOpt === "Active" ? "text-customOrange" : "text-black"
               }`}
               onClick={() => setTabOpt("Active")}
@@ -772,7 +772,7 @@ const VendorProducts = () => {
           </div>
           <div className="flex flex-col justify-center items-center space-y-3">
             <p
-              className={`text-sm flex space-x-1 ${
+              className={`text-sm cursor-pointer flex space-x-1 ${
                 tabOpt === "OOS" ? "text-customOrange" : "text-black"
               }`}
               onClick={() => setTabOpt("OOS")}
@@ -792,7 +792,7 @@ const VendorProducts = () => {
           </div>
           <div className="flex flex-col justify-center items-center space-y-3">
             <p
-              className={` text-sm ${
+              className={` text-sm cursor-pointer ${
                 tabOpt === "Drafts" ? "text-customOrange" : "text-black"
               }`}
               onClick={() => setTabOpt("Drafts")}
@@ -841,7 +841,8 @@ const VendorProducts = () => {
               <div
                 key={product.id}
                 className="cursor-pointer"
-                onClick={() => handleProductClick(product)}
+                onClick={(e) => (picking ? 
+                  togglePickProduct(product.id) : handleProductClick(product))}
               >
                 <div className="flex flex-col space-y-2">
                   <div className="relative w-44 h-44 rounded-xl bg-customSoftGray">
@@ -883,7 +884,7 @@ const VendorProducts = () => {
                         </div>
                       )
                     )}
-                    {product.discount && (
+                    {product.discount && !picking && (
                       <div className="absolute top-2 left-2 flex items-center">
                         {product.discount.discountType.startsWith(
                           "personal-freebies"

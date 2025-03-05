@@ -273,8 +273,8 @@
     <style>
       .splash {
         width: 100vw;
-        height: 100vh;
         object-fit: cover;
+        margin-bottom: 130px;
       }
 
       #custom-loading-screen {
@@ -285,6 +285,9 @@
         width: 100vw;
         height: 100vh;
         background-color: #fff;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
         z-index: 9999;
       }
     </style>
@@ -295,7 +298,7 @@
     <div id="custom-loading-screen">
       <img
         class="splash"
-        src="./apple-splash-1488-2266.jpg"
+        src="./apple-splash-1284-2778.jpg"
         alt="Splash Screen"
       />
     </div>
@@ -385,20 +388,13 @@
         }
       });
 
-      document.addEventListener("DOMContentLoaded", () => {
-        if (!isPWAMode()) {
-          if (!crios) {
-            document.getElementById("install-btn").style.display = "block";
-          }
-          setTimeout(showPWAModal, 1000); // Show after 1s delay
-        }
-      });
+      
 
       // Show loading screen only if it's in PWA mode and iOS Chrome
       if (isPWAMode() && isChromeOnIOS()) {
         const loadingScreen = document.getElementById("custom-loading-screen");
         if (loadingScreen) {
-          loadingScreen.style.display = "block";
+          loadingScreen.style.display = "flex";
         }
       }
 
@@ -407,6 +403,12 @@
         const loadingScreen = document.getElementById("custom-loading-screen");
         if (loadingScreen) {
           loadingScreen.style.display = "none";
+        }
+        if (!isPWAMode()) {
+          if (!crios) {
+            document.getElementById("install-btn").style.display = "block";
+          }
+          setTimeout(showPWAModal, 1000); // Show after 1s delay
         }
       });
 

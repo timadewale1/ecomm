@@ -47,6 +47,7 @@ import NotFound from "../pages/NotFound";
 import StoreReviews from "../pages/vendor/StoreReviews.jsx";
 import RoleBasedAccess from "../custom-hooks/Rbac.jsx"; // Assuming this is the RoleBasedAccess component
 import { Navigate } from "react-router-dom";
+import PersonalDiscountsPage from "../components/Discounts/PersonalDiscountsPage.jsx";
 import WithReviewModal from "../components/Reviews/WithReview.jsx";
 import CategoryProducts from "../components/PopularCategories/CategorySection.jsx";
 import SubmitFeedback from "../pages/SubmitFeedback.jsx";
@@ -161,6 +162,14 @@ const Routers = () => {
         element={
           <RoleBasedAccess allowedRoles={["user", null]}>
             <MarketStorePage />
+          </RoleBasedAccess>
+        }
+      />
+      <Route
+        path="/discounts-today"
+        element={
+          <RoleBasedAccess allowedRoles={["user", null]}>
+            <PersonalDiscountsPage />
           </RoleBasedAccess>
         }
       />

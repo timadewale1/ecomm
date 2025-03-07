@@ -12,9 +12,11 @@ import  discountProductsReducer  from "./reducers/discountProductsSlice";
 import categoriesReducer from "./reducers/categoriesSlice";
 import conditionReducer from "./reducers/conditionSlice"; 
 import { marketReducer } from "./reducers/marketreducer";
+import personalDiscountsSlice from "./reducers/personalDiscount";
 import userReducer from "./reducers/userreducer";
 import vendorProfileReducer from "./vendorProfileSlice"; // Adjust the path as needed
 import vendorReducer from "./reducers/VendorsSlice";
+import personalDiscountsPageReducer from "./reducers/personalDiscountsPageSlice";
 import { promoReducer } from "./reducers/promoreducer";
 import categoryProductsReducer from "./reducers/categoryProductsSlice";
 const rootReducer = combineReducers({
@@ -26,6 +28,8 @@ const rootReducer = combineReducers({
   discountProducts: discountProductsReducer,
   market: marketReducer,
   promo: promoReducer,
+  personalDiscountsPage: personalDiscountsPageReducer,
+  personalDiscounts: personalDiscountsSlice,
   homepage: homepageReducer,
   categories: categoriesReducer,
   vendors: vendorReducer,

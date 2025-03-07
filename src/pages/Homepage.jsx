@@ -4,6 +4,7 @@ import { IoArrowBack } from "react-icons/io5";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import logo from "../Images/logo.png";
+import { PiStarFill } from "react-icons/pi";
 import "swiper/css/free-mode";
 import { CiSearch } from "react-icons/ci";
 import { setPromoImages, setPromoLoading } from "../redux/actions/promoaction";
@@ -42,6 +43,7 @@ import PopularCats from "../components/PopularCategories/PopularCats";
 import Condition from "../components/Conditions/Condition";
 import SEO from "../components/Helmet/SEO";
 import DiscountCarousel from "../components/Discounts/DiscountCarousel";
+import PersonalDiscountCarousel from "../components/Discounts/PersonalDiscounts";
 gsap.registerPlugin(ScrollTrigger);
 
 const Homepage = () => {
@@ -263,10 +265,10 @@ const Homepage = () => {
 
   return (
     <>
-    <SEO 
-        title={`Home - My Thrift`} 
+      <SEO
+        title={`Home - My Thrift`}
         description={`Discover amazing deals and vendors on My Thrift`}
-        url={`https://www.shopmythrift.store/newhome`} 
+        url={`https://www.shopmythrift.store/newhome`}
       />
       <div className="flex px-3 py-2 mt-3 justify-between mb-2">
         {searchTerm && (
@@ -376,11 +378,16 @@ const Homepage = () => {
         </>
       )}
       <PopularCats />
-      <DiscountCarousel />
+      {/* <DiscountCarousel /> */}
+      <PersonalDiscountCarousel />
       <div className="p-2 mb-24">
-        <h1 className="text-left font-medium text-lg translate-y-2 font-ubuntu mb-4">
-          Featured Products
-        </h1>
+        <div className="flex items-center mb-4">
+          <h1 className="text-left font-medium text-lg font-ubuntu mr-1">
+            Featured Products
+          </h1>
+          <PiStarFill className="text-xl text-yellow-300" />
+        </div>
+
         <div className="grid grid-cols-2 gap-2">
           {status === "loading" && products.length === 0 ? (
             Array.from({ length: 6 }).map((_, index) => (

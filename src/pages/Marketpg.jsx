@@ -219,11 +219,11 @@ const Marketpg = () => {
                       src={vendor.coverImageUrl || defaultImageUrl}
                       alt={vendor.shopName}
                     />
-                    <img
+                    {/* <img
                       src="/Ribbon.svg"
                       alt="Discount Ribbon"
                       className="absolute top-0 left-0 w-8 h-8"
-                    />
+                    /> */}
                   </div>
                 </div>
               </div>

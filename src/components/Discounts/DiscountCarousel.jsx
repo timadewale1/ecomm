@@ -5,7 +5,6 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import ProductCard from "../Products/ProductCard";
 import { useNavigate } from "react-router-dom";
-import { GoChevronLeft } from "react-icons/go";
 
 const DiscountCarousel = () => {
   const dispatch = useDispatch();
@@ -19,6 +18,11 @@ const DiscountCarousel = () => {
       dispatch(fetchDiscountProducts());
     }
   }, [dispatch, products.length]);
+
+  // Conditionally hide the entire section if not loading and no in‑app discounts
+  if (!loading && products.length === 0) {
+    return null; // Hide the section completely
+  }
 
   // Determine header discount name using the first product's discount info,
   // fallback to "In‑App Discounts" if not available.
@@ -55,11 +59,16 @@ const DiscountCarousel = () => {
           </span>
         </div>
       </div>
+
       {/* Products Carousel */}
       <div className="flex overflow-x-auto space-x-3 scrollbar-hide px-2">
         {loading ? (
-          <div className="flex space-x-4">
-            <Skeleton height={200} width={200} count={3} />
+          <div className="flex space-x-3">
+            {[...Array(3)].map((_, index) => (
+              <div key={index} className="flex-shrink-0 w-[160px]">
+                <Skeleton height={200} width={160} />
+              </div>
+            ))}
           </div>
         ) : error ? (
           <div>Error: {error}</div>

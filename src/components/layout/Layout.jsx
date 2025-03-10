@@ -48,6 +48,7 @@ const Layout = () => {
     "network-error",
     "/payment-approve",
     "/terms-and-conditions",
+    "/discounts-today",
     "/privacy-policy",
     "/store-reviews",
     "/call-guidelines",

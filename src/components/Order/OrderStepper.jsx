@@ -9,7 +9,7 @@ import { TbTruckDelivery } from "react-icons/tb";
 // All possible steps:
 const ALL_STEPS = [
   { label: "Pending", value: "Pending", icon: <MdOutlinePendingActions /> },
-  { label: "Accepted", value: "Accepted", icon: <FaBoxOpen /> },
+  { label: "Accepted", value: "In Progress", icon: <FaBoxOpen /> },
   { label: "Shipped", value: "Shipped", icon: <TbTruckDelivery /> },
   { label: "Delivered", value: "Delivered", icon: <MdOutlineLocalShipping /> },
 ];

@@ -218,7 +218,7 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
               <img
                 src={mainImage}
                 alt={product.name}
-                className="h-52 w-full object-cover rounded-lg"
+                className="h-52 w-full font-opensans text-sm font-medium object-cover rounded-lg"
               />
             </>
           )}

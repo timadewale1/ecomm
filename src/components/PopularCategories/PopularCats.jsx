@@ -17,18 +17,18 @@ const PopularCats = () => {
     }
   }, [dispatch, status]);
 
+  // Initialize images on first load
   useEffect(() => {
     if (categories.length > 0) {
       const initialImages = categories.reduce((acc, category) => {
-        acc[category.type] =
-          category.products[0]?.coverImageUrl ||
-          "https://via.placeholder.com/150";
+        acc[category.type] = category.products[0]?.coverImageUrl || null; // no placeholder here
         return acc;
       }, {});
       setCurrentImages(initialImages);
     }
   }, [categories]);
 
+  // Cycle images every 5 seconds if multiple product covers
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImages((prevImages) => {
@@ -36,13 +36,14 @@ const PopularCats = () => {
 
         categories.forEach((category) => {
           const { products } = category;
+          // Only rotate if there's more than one product image
           if (products.length > 1) {
-            const currentImageIndex = products.findIndex(
+            const currentIndex = products.findIndex(
               (p) => p.coverImageUrl === prevImages[category.type]
             );
-            const nextIndex = (currentImageIndex + 1) % products.length;
+            const nextIndex = (currentIndex + 1) % products.length;
             newImages[category.type] =
-              products[nextIndex]?.coverImageUrl || newImages[category.type];
+              products[nextIndex]?.coverImageUrl || null;
           }
         });
 
@@ -64,39 +65,56 @@ const PopularCats = () => {
       <h2 className="text-lg font-medium mb-3 font-ubuntu">
         Popular Categories
       </h2>
+
       <div className="flex overflow-x-auto space-x-3 scrollbar-hide">
         {status === "loading"
-          ? Array(4)
+          ? // Show skeleton
+            Array(4)
               .fill(0)
               .map((_, index) => (
-                <div key={index} className="flex flex-col ">
+                <div key={index} className="flex flex-col">
                   <Skeleton width={150} height={150} />
                   <Skeleton width={100} height={20} className="mt-2" />
                   <Skeleton width={80} height={15} className="mt-1" />
                 </div>
               ))
-          : categories.map((category) => (
-              <div
-                key={category.type}
-                className="flex-shrink-0 w-28 cursor-pointer"
-                onClick={() => handleCategoryClick(category)}
-              >
-                <img
-                  src={
-                    currentImages[category.type] ||
-                    "https://via.placeholder.com/150"
-                  }
-                  alt={category.type}
-                  className="w-28 h-28 object-cover rounded-lg"
-                />
-                <h3 className="text-sm font-opensans font-semibold mt-2 text-left">
-                  {category.type}
-                </h3>
-                <p className="text-xs text-gray-500 font-opensans font-medium text-left">
-                  {category.count} posts
-                </p>
-              </div>
-            ))}
+          : // Render categories
+            categories.map((category) => {
+              const imgSrc = currentImages[category.type];
+
+              return (
+                <div
+                  key={category.type}
+                  className="flex-shrink-0 w-28 cursor-pointer"
+                  onClick={() => handleCategoryClick(category)}
+                >
+                  {/* 
+                  Outer container stays the same size/shape. 
+                  If imgSrc is null or empty, show logo.svg in a circular wrapper. 
+                */}
+                  <div className="rounded-lg overflow-hidden flex items-center justify-center bg-gray-100 w-28 h-28">
+                    {imgSrc ? (
+                      <img
+                        src={imgSrc}
+                        alt="" // remove category.type from alt
+                        className="w-28 h-28 object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+                        <img src="/logo.svg" alt="logo" className="w-7 h-7" />
+                      </div>
+                    )}
+                  </div>
+
+                  <h3 className="text-sm font-opensans font-semibold mt-2 text-left">
+                    {category.type}
+                  </h3>
+                  <p className="text-xs text-gray-500 font-opensans font-medium text-left">
+                    {category.count} posts
+                  </p>
+                </div>
+              );
+            })}
       </div>
     </div>
   );

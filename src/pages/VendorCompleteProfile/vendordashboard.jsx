@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useCallback, useRef } from "react";
 import {
   collection,
   query,
@@ -8,6 +8,8 @@ import {
   limit,
   doc,
   getDoc,
+  getDocs,
+  startAfter,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 
@@ -29,6 +31,7 @@ import NotApproved from "../../components/Infos/NotApproved";
 import Skeleton from "react-loading-skeleton";
 import ScrollToTop from "../../components/layout/ScrollToTop";
 import SEO from "../../components/Helmet/SEO";
+import Loading from '../../components/Loading/Loading';
 
 const VendorDashboard = () => {
   const defaultImageUrl =
@@ -46,7 +49,11 @@ const VendorDashboard = () => {
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalProducts, setTotalProducts] = useState(0);
   const [recentActivities, setRecentActivities] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(true)
   const [isModalOpen, setModalOpen] = useState(false);
+  const [lastDoc, setLastDoc] = useState(null);
+const [hasMore, setHasMore] = useState(true); // If there are more activities to load
+const PAGE_SIZE = 15;
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -240,24 +247,89 @@ const VendorDashboard = () => {
   const greeting = getGreeting();
 
   // Fetch vendor's recent activities in real-time
-  const fetchRecentActivities = (vendorId) => {
+  const fetchRecentActivities = (vendorId, nextPage = false) => {
     const activityRef = collection(db, "vendors", vendorId, "activityNotes");
-    const recentActivityQuery = query(
-      activityRef,
-      orderBy("timestamp", "desc")
-    );
+    let recentActivityQuery;
+  
+    if (!nextPage) {
+      // INITIAL REAL‑TIME FETCH (first 15 items)
+      recentActivityQuery = query(
+        activityRef,
+        orderBy("timestamp", "desc"),
+        limit(PAGE_SIZE)
+      );
+  
+      const unsubscribe = onSnapshot(recentActivityQuery, (querySnapshot) => {
+        const activities = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setRecentActivities(activities);
+  
+        // Update last document for pagination
+        if (querySnapshot.docs.length > 0) {
+          setLastDoc(querySnapshot.docs[querySnapshot.docs.length - 1]);
+        }
+        // If fewer than PAGE_SIZE items, then there is no more data
+        if (querySnapshot.docs.length < PAGE_SIZE) {
+          setHasMore(false);
+        }
+      });
+  
+      return () => unsubscribe();
+    } else {
+      // PAGINATION: Fetch next 15 items (non real‑time)
+      // (Make sure lastDoc exists before calling this)
+      if (!lastDoc) return;
+  
+      setActivityLoading(true);
+      recentActivityQuery = query(
+        activityRef,
+        orderBy("timestamp", "desc"),
+        startAfter(lastDoc),
+        limit(PAGE_SIZE)
+      );
+  
+      getDocs(recentActivityQuery).then((querySnapshot) => {
+        const activities = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        // Append the new activities to the existing list
+        setRecentActivities((prevActivities) => [...prevActivities, ...activities]);
+  
+        // Update lastDoc
+        if (querySnapshot.docs.length > 0) {
+          setLastDoc(querySnapshot.docs[querySnapshot.docs.length - 1]);
+        }
+        // If fewer than PAGE_SIZE items, mark no more data
+        if (querySnapshot.docs.length < PAGE_SIZE) {
+          setHasMore(false);
+        }
+        setActivityLoading(false);
+      });
+    }
+  };
 
-    // Listen for real-time updates to recent activities
-    const unsubscribe = onSnapshot(recentActivityQuery, (querySnapshot) => {
-      const activities = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setRecentActivities(activities);
+  const observer = useRef();
+const lastActivityRef = useCallback(
+  (node) => {
+    if (activityLoading) return; // Don't trigger if already loading
+    if (observer.current) observer.current.disconnect();
+
+    observer.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore) {
+        // Fetch next page when sentinel is visible
+        fetchRecentActivities(vendorData.vendorId, true);
+      }
     });
 
-    return () => unsubscribe();
-  };
+    if (node) observer.current.observe(node);
+  },
+  [activityLoading, hasMore, vendorData]
+);
+
+
 
   const handleSwitch2Products = () => {
     navigate("/vendor-products");
@@ -650,8 +722,15 @@ const VendorDashboard = () => {
                         <p className="text-black text-xs">{activity.note}</p>
                       </div>
                     ))}
+                    {activityLoading && <div className="flex justify-center items-center">
+                      <Loading/>
+                    </div> }
                   </div>
                 ))}
+                {/* Sentinel element for infinite scrolling */}
+      {hasMore && !activityLoading && (
+        <div ref={lastActivityRef} />
+      )}
               </>
             ) : loading ? (
               <>

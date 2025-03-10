@@ -328,30 +328,20 @@
     -->
     <script>
       // Detect if the app is running in PWA standalone mode
-      function isPWAMode() {
-        return (
-          window.matchMedia("(display-mode: standalone)").matches ||
-          window.navigator.standalone
-        );
-      }
+      const isPWAMode = () =>
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone;
 
-      let pwa = isPWAMode();
+      const isChromeOnIOS = () =>
+        /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-      // Function to detect if it's iOS Chrome
-      function isChromeOnIOS() {
-        return /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-      }
+      const isAndroid = () => /android/.test(navigator.userAgent.toLowerCase());
 
-      let crios = isChromeOnIOS();
-
-      function isAndroid() {
-        return /android/.test(navigator.userAgent.toLowerCase());
-      }
-
-      let android = isAndroid();
-
-      let deferredPrompt;
+      let deferredPrompt = null;
+      const pwa = isPWAMode();
+      const crios = isChromeOnIOS();
+      const android = isAndroid();
 
       if (!pwa) {
         window.addEventListener("beforeinstallprompt", (e) => {
@@ -363,12 +353,11 @@
       function showPWAModal() {
         const modal = document.getElementById("pwa-install-modal");
         const message = document.getElementById("pwa-message");
-        if (isChromeOnIOS()) {
-        message.innerHTML = `Install our lightweight browser application for quicker access and a better experience!<br>Tap the <strong><svg class="inline-svg" width='30' height='30' xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" enable-background="new 0 0 50 50"><path fill="white" d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z"/><path fill="white" d="M24 7h2v21h-2z"/><path fill="white" d="M35 40H15c-1.7 0-3-1.3-3-3V19c0-1.7 1.3-3 3-3h7v2h-7c-.6 0-1 .4-1 1v18c0 .6.4 1 1 1h20c.6 0 1-.4 1-1V19c0-.6-.4-1-1-1h-7v-2h7c1.7 0 3 1.3 3 3v18c0 1.7-1.3 3-3 3z"/></svg></strong> button and select <strong>Add to Home Screen</strong> to install this app.`;
-        } else {
-          message.innerHTML =
-            "Install our light-weight browser application for quicker access and a better experience!";
-        }
+
+        message.innerHTML = crios
+          ? `Install our lightweight browser application for quicker access and a better experience!<br>Tap the <strong><svg class="inline-svg" width='30' height='30' xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" enable-background="new 0 0 50 50"><path fill="white" d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z"/><path fill="white" d="M24 7h2v21h-2z"/><path fill="white" d="M35 40H15c-1.7 0-3-1.3-3-3V19c0-1.7 1.3-3 3-3h7v2h-7c-.6 0-1 .4-1 1v18c0 .6.4 1 1 1h20c.6 0 1-.4 1-1V19c0-.6-.4-1-1-1h-7v-2h7c1.7 0 3 1.3 3 3v18c0 1.7-1.3 3-3 3z"/></svg></strong> button and select <strong>Add to Home Screen</strong> to install this app.`
+          : "Install our light-weight browser application for quicker access and a better experience!";
+
         modal.classList.add("show");
       }
 
@@ -376,43 +365,34 @@
         document.getElementById("pwa-install-modal").classList.remove("show");
       }
 
-      document.getElementById("install-btn").addEventListener("click", () => {
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === "accepted") {
-              closeModal();
-            }
-            deferredPrompt = null;
-          });
-        }
-      });
-
-      
-
-      // Show loading screen only if it's in PWA mode and iOS Chrome
-      if (isPWAMode()) {
-        const loadingScreen = document.getElementById("custom-loading-screen");
-        if (loadingScreen) {
-          loadingScreen.style.display = "flex";
-        }
-      }
-
-      // Ensure the loading screen is hidden when the app is ready
       document.addEventListener("DOMContentLoaded", () => {
         const loadingScreen = document.getElementById("custom-loading-screen");
+        const installBtn = document.getElementById("install-btn");
+
         if (loadingScreen) {
-          loadingScreen.style.display = "none";
+          loadingScreen.style.display = pwaMode ? "flex" : "none";
         }
-        if (!isPWAMode()) {
-          if (!crios) {
-            document.getElementById("install-btn").style.display = "block";
+
+        if (!pwaMode) {
+          setTimeout(showPWAModal, 1000); // Show modal after 1s delay
+          if (installBtn && !crios) {
+            installBtn.style.display = "block";
+            installBtn.addEventListener("click", () => {
+              if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                  if (choiceResult.outcome === "accepted") {
+                    closeModal();
+                  }
+                  deferredPrompt = null;
+                });
+              }
+            });
           }
-          setTimeout(showPWAModal, 1000); // Show after 1s delay
         }
       });
 
-      // Fallback: hide the loading screen after 5 seconds
+      // Fallback: Hide loading screen after 5 seconds
       setTimeout(() => {
         const loadingScreen = document.getElementById("custom-loading-screen");
         if (loadingScreen) {

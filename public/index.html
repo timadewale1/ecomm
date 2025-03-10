@@ -291,7 +291,7 @@
       }
 
       // Show loading screen only if it's in PWA mode and iOS Chrome
-      if (isPWAMode() && isChromeOnIOS()) {
+      if (isPWAMode()) {
         const loadingScreen = document.getElementById("custom-loading-screen");
         if (loadingScreen) {
           loadingScreen.style.display = "block";

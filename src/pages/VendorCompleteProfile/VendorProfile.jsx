@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../../firebase.config";
 import { RotatingLines } from "react-loader-spinner";
@@ -16,7 +16,7 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "../../custom-hooks/useAuth";
 import { TbHomeStar, TbTruckDelivery } from "react-icons/tb";
-import { PiSignOutBold } from "react-icons/pi";
+import { PiLinkBold, PiLinkLight, PiSignOutBold } from "react-icons/pi";
 import { Doughnut } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import Skeleton from "react-loading-skeleton";
@@ -24,7 +24,15 @@ import VprofileDetails from "../vendor/VprofileDetails.jsx";
 import { useDispatch, useSelector } from "react-redux";
 import { clearOrders } from "../../redux/actions/orderaction.js";
 import { setVendorProfile, setLoading } from "../../redux/vendorProfileSlice";
-import { FaCartShopping, FaFileContract } from "react-icons/fa6";
+import {
+  FaCartShopping,
+  FaFacebookF,
+  FaFileContract,
+  FaTwitter,
+  FaWhatsapp,
+  FaX,
+  FaXTwitter,
+} from "react-icons/fa6";
 import { BsShieldFillCheck } from "react-icons/bs";
 import { IoBook } from "react-icons/io5";
 import { IoIosCall } from "react-icons/io";
@@ -40,6 +48,7 @@ const VendorProfile = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { currentUser } = useAuth();
+  const [profileOpen, setProfileOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -108,7 +117,8 @@ const VendorProfile = () => {
     fetchUserData();
   }, [dispatch, currentUser]);
 
-  const { shopName, coverImageUrl, marketPlaceType } = userData || {};
+  const { shopName, coverImageUrl, marketPlaceType, description, uid } =
+    userData || {};
 
   useEffect(() => {
     const fetchOrderData = async () => {
@@ -215,302 +225,451 @@ const VendorProfile = () => {
     }
   };
 
+  const profileLink = `https://shopmythrift.store/${
+    userData && (marketPlaceType === "virtual" ? "store" : "marketstorepage")
+  }/${uid}?shared=true`;
+
+  const [copied, setCopied] = useState(false);
+  const copyToClipboard = async () => {
+    if (!copied) {
+      console.log("Clicked");
+      try {
+        (await navigator.clipboard.writeText(profileLink)) &&
+          console.log("copied"); // Ensure the text is copied
+        setCopied(true);
+        toast.success("Link copied to clipboard!");
+        setTimeout(() => setCopied(false), 3000);
+      } catch (err) {
+        toast.error("Failed to copy!"); // Handle any errors during copy
+        console.error("Failed to copy text: ", err);
+      }
+    }
+  };
+
   return (
     <>
-    <SEO 
-        title={`Vendor Profile - My Thrift`}   
+      <SEO
+        title={`Vendor Profile - My Thrift`}
         description={`Manage your My Thrift store`}
-        url={`https://www.shopmythrift.store/vendor-profile`} 
+        url={`https://www.shopmythrift.store/vendor-profile`}
       />
-    <div className="font-opensans">
-      {!showDetails && !showHistory && !showGuides ? (
-        <div className="pb-20">
-          {/* Cover Image Section */}
-          <div
-            className="relative w-full h-56 bg-cover bg-center bg-customSoftGray flex"
-            style={{
-              backgroundImage: loading
-                ? "none"
-                : marketPlaceType === "virtual"
-                ? `url(${coverImageUrl})`
-                : `url(${defaultImageUrl})`,
-              backgroundSize: "cover", // Ensures the image covers the div
-              backgroundPosition: "center", // Centers the image
-              backgroundRepeat: "no-repeat", // Prevents repeating
-            }}
-          >
-            {loading && (
-              <Skeleton
-                height={224} // Adjusted height to match the cover div height
-                width="100%"
-                className="absolute top-0 left-0 w-full h-full"
-              />
-            )}
-          </div>
-
-          <div className="p-2 text-2xl font-opensans font-bold text-black capitalize mt-1 items-start">
-            {shopName}
-          </div>
-          <div className="flex flex-col">
-            {/* My Activity Chart */}
-            <div className=" my-4 w-full px-2">
-              <div className="w-full h-14 flex">
-                <h1 className="text-base font-semibold font-opensans mx-2 translate-y-4 text-black">
-                  Quick Stats
-                </h1>
+      <div className="font-opensans">
+        {!showDetails && !showHistory && !showGuides && !profileOpen ? (
+          <div className="pb-20 pt-2">
+            {/* Cover Image Section */}
+            <div className="p-2 flex items-center w-full">
+              <div className="w-24">
+                <div
+                  className="relative cursor-pointer w-28 h-28 bg-cover bg-center bg-customSoftGray flex rounded-full"
+                  onClick={
+                    () => navigate('/share-profile')
+                  }
+                  style={{
+                    backgroundImage: loading
+                      ? "none"
+                      : marketPlaceType === "virtual"
+                      ? `url(${coverImageUrl})`
+                      : `url(${defaultImageUrl})`,
+                    backgroundSize: "cover", // Ensures the image covers the div
+                    backgroundPosition: "center", // Centers the image
+                    backgroundRepeat: "no-repeat",
+                    width: "112px",
+                    height: "112px", // Prevents repeating
+                  }}
+                >
+                  {loading && (
+                    <Skeleton
+                      height={224} // Adjusted height to match the cover div height
+                      width="100%"
+                      className="absolute top-0 left-0 w-full h-full"
+                    />
+                  )}
+                </div>
               </div>
-              <div className="relative bg-customOrange flex flex-col items-center rounded-xl">
-                <div className="absolute top-0 right-0">
-                  <img src="./Vector.png" alt="" className="w-16 h-24" />
+
+              <div className="flex flex-col justify-between w-96 px-3 h-full ml-2">
+                <div className="text-2xl font-opensans font-bold capitalize mb-6">
+                  {shopName}
                 </div>
-                <div className="absolute bottom-0 left-0">
-                  <img src="./Vector2.png" alt="" className="w-16 h-16" />
+
+                <div className="flex justify-between items-start w-full h-full">
+                  <div className="flex flex-col justify-center">
+                    <p className="text-customDeepOrange font-medium">100</p>
+                    <p className="text-black">Followers</p>
+                  </div>
+
+                  <div className="flex flex-col justify-center">
+                    <p className="text-customDeepOrange font-medium">100</p>
+                    <p className="text-black">Likes</p>
+                  </div>
+
+                  <div className="flex flex-col justify-center">
+                    <p className="text-customDeepOrange font-medium">100</p>
+                    <p className="text-black">Products in cart</p>
+                  </div>
                 </div>
-                <div className="w-40 h-40 relative">
-                  <Doughnut data={activityData} options={activityOptions} />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center mt-5">
-                      <p className="text-xs text-white font-opensans font-medium">
-                        Total Orders
-                      </p>
-                      <p className="text-lg font-opensans text-white font-bold">
-                        {totalOrders}
-                      </p>
+              </div>
+            </div>
+
+            <div>
+              {description && (
+                <div className="w-full px-2 mt-4">
+                  <h1 className="text-base font-opensans text-black">
+                    {description}
+                  </h1>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col">
+              {/* My Activity Chart */}
+              <div className=" my-4 w-full px-2">
+                <div className="w-full h-14 flex">
+                  <h1 className="text-base font-semibold font-opensans mx-2 translate-y-4 text-black">
+                    Quick Stats
+                  </h1>
+                </div>
+                <div className="relative bg-customOrange flex flex-col items-center rounded-xl">
+                  <div className="absolute top-0 right-0">
+                    <img src="./Vector.png" alt="" className="w-16 h-24" />
+                  </div>
+                  <div className="absolute bottom-0 left-0">
+                    <img src="./Vector2.png" alt="" className="w-16 h-16" />
+                  </div>
+                  <div className="w-40 h-40 relative">
+                    <Doughnut data={activityData} options={activityOptions} />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center mt-5">
+                        <p className="text-xs text-white font-opensans font-medium">
+                          Total Orders
+                        </p>
+                        <p className="text-lg font-opensans text-white font-bold">
+                          {totalOrders}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex mt-2 space-x-6 text-sm mb-3">
+                    <div className="flex items-center space-x-1">
+                      <span className="w-3 h-3 rounded-full bg-[#28a745]"></span>
+                      <span className="font-opensans text-white">
+                        Fulfilled ({fulfilledOrders})
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="w-3 h-3 rounded-full bg-[#6c757d]"></span>
+                      <span className="font-opensans text-white">
+                        Unfulfilled ({unfulfilledOrders})
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="w-3 h-3 rounded-full bg-[#007bff]"></span>
+                      <span className="font-opensans text-white">
+                        Incoming ({incomingOrders})
+                      </span>
                     </div>
                   </div>
                 </div>
-                <div className="flex mt-2 space-x-6 text-sm mb-3">
-                  <div className="flex items-center space-x-1">
-                    <span className="w-3 h-3 rounded-full bg-[#28a745]"></span>
-                    <span className="font-opensans text-white">
-                      Fulfilled ({fulfilledOrders})
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="w-3 h-3 rounded-full bg-[#6c757d]"></span>
-                    <span className="font-opensans text-white">
-                      Unfulfilled ({unfulfilledOrders})
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="w-3 h-3 rounded-full bg-[#007bff]"></span>
-                    <span className="font-opensans text-white">
-                      Incoming ({incomingOrders})
-                    </span>
+              </div>
+
+              {/* Profile Options */}
+              <div className="w-full mt-2 px-2">
+                <div className="w-full h-14 flex">
+                  <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
+                    Personal
+                  </h1>
+                </div>
+                <div className="flex flex-col items-center w-full">
+                  <div
+                    className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                    onClick={() => setShowDetails(!showDetails)}
+                  >
+                    <div className="flex items-center">
+                      <User className="text-black text-xl mr-4" />
+                      <h2 className="text-size font-normal text-black capitalize">
+                        Personal information
+                      </h2>
+                    </div>
+                    <ChevronRight className="text-black" />
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Profile Options */}
-            <div className="w-full mt-2 px-2">
-              <div className="w-full h-14 flex">
-                <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
-                  Personal
-                </h1>
-              </div>
-              <div className="flex flex-col items-center w-full">
+                <div className="w-full h-14 flex">
+                  <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
+                    Data
+                  </h1>
+                </div>
+                <div className="flex flex-col items-center w-full">
+                  <div
+                    className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                    onClick={() => navigate("/store-reviews")}
+                  >
+                    <div className="flex items-center">
+                      <TbHomeStar className="text-black text-xl mr-4" />
+                      <h2 className="text-size font-normal text-black capitalize">
+                        View Ratings
+                      </h2>
+                    </div>
+                    <ChevronRight className="text-black" />
+                  </div>
+                </div>
+
+                <div className="w-full h-14 flex">
+                  <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
+                    Legal
+                  </h1>
+                </div>
+                <div className="flex flex-col items-center w-full">
+                  <div
+                    className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                    onClick={() =>
+                      window.open(
+                        "/terms-and-conditions",
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }
+                  >
+                    <div className="flex items-center">
+                      <FaFileContract className="text-black text-xl mr-4" />
+                      <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
+                        Terms and Conditions
+                      </h2>
+                    </div>
+                    <ChevronRight className="text-black" />
+                  </div>
+
+                  <div
+                    className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                    onClick={() =>
+                      window.open(
+                        "/privacy-policy",
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }
+                  >
+                    <div className="flex items-center">
+                      <BsShieldFillCheck className="text-black text-xl mr-4" />
+                      <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
+                        Privacy Policy
+                      </h2>
+                    </div>
+                    <ChevronRight className="text-black" />
+                  </div>
+
+                  <div
+                    className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                    onClick={() => setShowGuides(true)}
+                  >
+                    <div className="flex items-center">
+                      <IoBook className="text-black text-xl mr-4" />
+                      <h2 className="text-size font-normal text-black capitalize">
+                        Guidelines
+                      </h2>
+                    </div>
+                    <ChevronRight className="text-black" />
+                  </div>
+                </div>
+
+                <div className="w-full h-14 flex">
+                  <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
+                    Beta
+                  </h1>
+                  <AiOutlineExperiment className="font-semibold text-lg translate-y-[14px] text-black" />
+                </div>
+                <div className="flex flex-col items-center w-full">
+                  <div
+                    className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                    onClick={() => navigate("/send-us-feedback")}
+                  >
+                    <div className="flex items-center">
+                      <MdOutlineFeedback className="text-black text-xl mr-4" />
+                      <h2 className="text-size font-normal text-black capitalize">
+                        Send us your feedback! 📣
+                      </h2>
+                    </div>
+                    <ChevronRight className="text-black" />
+                  </div>
+                  {/* Beta version text */}
+                </div>
+
                 <div
                   className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => setShowDetails(!showDetails)}
+                  onClick={handleLogout}
                 >
                   <div className="flex items-center">
-                    <User className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal text-black capitalize">
-                      Personal information
-                    </h2>
+                    <PiSignOutBold className="text-red-600 text-xl mr-4" />
+                    <p className="text-size text-black font-normal capitalize">
+                      Sign Out
+                    </p>
                   </div>
-                  <ChevronRight className="text-black" />
+                  {isLoggingOut && (
+                    <div className="flex items-center ml-auto">
+                      <RotatingLines
+                        strokeColor="#f9531e"
+                        strokeWidth="5"
+                        animationDuration="0.75"
+                        width="24"
+                        visible={true}
+                      />
+                    </div>
+                  )}
                 </div>
-              </div>
-
-              <div className="w-full h-14 flex">
-                <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
-                  Data
-                </h1>
-              </div>
-              <div className="flex flex-col items-center w-full">
-                <div
-                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => navigate("/store-reviews")}
-                >
-                  <div className="flex items-center">
-                    <TbHomeStar className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal text-black capitalize">
-                      View Ratings
-                    </h2>
-                  </div>
-                  <ChevronRight className="text-black" />
-                </div>
-              </div>
-
-              <div className="w-full h-14 flex">
-                <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
-                  Legal
-                </h1>
-              </div>
-              <div className="flex flex-col items-center w-full">
-                <div
-                  className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() =>
-                    window.open(
-                      "/terms-and-conditions",
-                      "_blank",
-                      "noopener,noreferrer"
-                    )
-                  }
-                >
-                  <div className="flex items-center">
-                    <FaFileContract className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
-                      Terms and Conditions
-                    </h2>
-                  </div>
-                  <ChevronRight className="text-black" />
-                </div>
-
-                <div
-                  className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() =>
-                    window.open(
-                      "/privacy-policy",
-                      "_blank",
-                      "noopener,noreferrer"
-                    )
-                  }
-                >
-                  <div className="flex items-center">
-                    <BsShieldFillCheck className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
-                      Privacy Policy
-                    </h2>
-                  </div>
-                  <ChevronRight className="text-black" />
-                </div>
-
-                <div
-                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => setShowGuides(true)}
-                >
-                  <div className="flex items-center">
-                    <IoBook className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal text-black capitalize">
-                      Guidelines
-                    </h2>
-                  </div>
-                  <ChevronRight className="text-black" />
-                </div>
-              </div>
-
-              <div className="w-full h-14 flex">
-                <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
-                  Beta
-                </h1>
-                <AiOutlineExperiment className="font-semibold text-lg translate-y-[14px] text-black" />
-              </div>
-              <div className="flex flex-col items-center w-full">
-                <div
-                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => navigate("/send-us-feedback")}
-                >
-                  <div className="flex items-center">
-                    <MdOutlineFeedback className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal text-black capitalize">
-                      Send us your feedback! 📣
-                    </h2>
-                  </div>
-                  <ChevronRight className="text-black" />
-                </div>
-                {/* Beta version text */}
-              </div>
-
-              <div
-                className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={handleLogout}
-              >
-                <div className="flex items-center">
-                  <PiSignOutBold className="text-red-600 text-xl mr-4" />
-                  <p className="text-size text-black font-normal capitalize">
-                    Sign Out
+                <div className="w-full text-center mt-2">
+                  <p className="text-sm font-medium text-gray-500">
+                    Beta v.1.0
                   </p>
                 </div>
-                {isLoggingOut && (
-                  <div className="flex items-center ml-auto">
-                    <RotatingLines
-                      strokeColor="#f9531e"
-                      strokeWidth="5"
-                      animationDuration="0.75"
-                      width="24"
-                      visible={true}
-                    />
-                  </div>
-                )}
-              </div>
-              <div className="w-full text-center mt-2">
-                <p className="text-sm font-medium text-gray-500">Beta v.1.0</p>
               </div>
             </div>
           </div>
-        </div>
-      ) : (
-        <>
-          {showDetails && (
-            <VprofileDetails
-              showDetails={showDetails}
-              setShowDetails={setShowDetails}
-            />
-          )}
-          {showHistory && (
-            <div className="flex flex-col items-center">
-              <ChevronLeft
-                className="text-2xl text-black cursor-pointer self-start"
-                onClick={() => setShowHistory(false)}
+        ) : (
+          <>
+            {profileOpen && (
+              <div className="flex flex-col p-2 h-actualScreenHeight bg-customOrange"
+              style={{
+                boxShadow: "0 -2px 10px rgba(0, 0, 0, 0.2)",
+                zIndex: "1100"
+              }}
+              >
+                <div className="flex justify-between mt-2 mb-3">
+                  <ChevronLeft
+                    className="text-2xl text-white cursor-pointer"
+                    onClick={() => setProfileOpen(!profileOpen)}
+                  />
+                </div>
+                  <div className="flex flex-col h-full w-full items-center justify-evenly">
+                    <div className="w-[90%] p-1 rounded-2xl border-2 border-dashed border-white">
+                      <div
+                        className="h-[400px] w-full bg-cover bg-center bg-customSoftGray flex rounded-2xl"
+                        style={{
+                          backgroundImage: loading
+                            ? "none"
+                            : !loading && marketPlaceType === "virtual"
+                            ? `url(${coverImageUrl})`
+                            : `url(${defaultImageUrl})`,
+                          backgroundSize: "cover", // Ensures the image covers the div
+                          backgroundPosition: "center", // Centers the image
+                          backgroundRepeat: "no-repeat", // Prevents repeating
+                        }}
+                      >
+                        
+                      </div>
+                    </div>
+                      
+                    {/* Share buttons */}
+                    <div className="space-y-4">
+                      <div className="text-white text-2xl font-medium text-center">
+                        Share your store link:
+                      </div>
+                      <div className="flex flex-wrap gap-4 justify-center">
+                      {/* Copy profile link */}
+                      <button
+                        className="flex justify-center items-center space-x-2 bg-white text-customOrange px-4 py-2 rounded-full shadow-md w-36"
+                        onClick={copyToClipboard}
+                      >
+                        <PiLinkBold className="w-5 h-5" />
+                        <span className="text-sm">Copy Link</span>
+                      </button>
+                      {/* Facebook share */}
+                      <button
+                        className="flex justify-center items-center space-x-2 bg-white text-customOrange px-4 py-2 rounded-full shadow-md w-36"
+                        onClick={() =>
+                          window.open(
+                            `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+                              profileLink
+                            )}`,
+                            "_blank"
+                          )
+                        }
+                      >
+                        <FaFacebookF className="w-5 h-5" />
+                        <span className="text-sm">Facebook</span>
+                      </button>
+                      {/* Twitter share */}
+                      <button
+                        className="flex justify-center items-center space-x-2 bg-white text-customOrange px-4 py-2 rounded-full shadow-md w-36"
+                        onClick={() =>
+                          window.open(
+                            `https://twitter.com/intent/tweet?url=${encodeURIComponent(
+                              profileLink
+                            )}`,
+                            "_blank"
+                          )
+                        }
+                      >
+                        <FaXTwitter className="w-5 h-5" />
+                        <span className="text-sm">Twitter</span>
+                      </button>
+                      {/* WhatsApp share */}
+                      <button
+                        className="flex justify-center items-center space-x-2 bg-white text-customOrange px-4 py-2 rounded-full shadow-md w-36"
+                        onClick={() =>
+                          window.open(
+                            `https://wa.me/?text=${encodeURIComponent(
+                              profileLink
+                            )}`,
+                            "_blank"
+                          )
+                        }
+                      >
+                        <FaWhatsapp className="w-5 h-5" />
+                        <span className="text-sm">WhatsApp</span>
+                      </button>
+                    </div>
+                    </div>
+                    
+                  </div>
+              </div>
+            )}
+            {showDetails && (
+              <VprofileDetails
+                showDetails={showDetails}
+                setShowDetails={setShowDetails}
               />
-              <h2 className="text-xl font-ubuntu mt-4">Recent Activities</h2>
-              {/* Render History content here */}
-            </div>
-          )}
-          {showGuides && (
-            <div className="flex flex-col p-2">
-              <div className="flex justify-between mt-2 mb-3">
-                <ChevronLeft
-                  className="text-2xl text-black cursor-pointer"
-                  onClick={() => setShowGuides(false)}
-                />
-                <h2 className="text-xl font-ubuntu">Guidelines</h2>
-                <div></div>
-              </div>
-
-              <div
-                className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={() => navigate("/call-guidelines")}
-              >
-                <div className="flex items-center">
-                  <IoIosCall className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal text-black capitalize">
-                    Call Guidelines
-                  </h2>
+            )}
+            {showGuides && (
+              <div className="flex flex-col p-2">
+                <div className="flex justify-between mt-2 mb-3">
+                  <ChevronLeft
+                    className="text-2xl text-black cursor-pointer"
+                    onClick={() => setShowGuides(false)}
+                  />
+                  <h2 className="text-xl font-ubuntu">Guidelines</h2>
+                  <div></div>
                 </div>
-                <ChevronRight className="text-black" />
-              </div>
 
-              <div
-                className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={() => navigate("/delivery-guidelines")}
-              >
-                <div className="flex items-center">
-                  <TbTruckDelivery className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal text-black capitalize">
-                    Delivery Guidelines
-                  </h2>
+                <div
+                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={() => navigate("/call-guidelines")}
+                >
+                  <div className="flex items-center">
+                    <IoIosCall className="text-black text-xl mr-4" />
+                    <h2 className="text-size font-normal text-black capitalize">
+                      Call Guidelines
+                    </h2>
+                  </div>
+                  <ChevronRight className="text-black" />
                 </div>
-                <ChevronRight className="text-black" />
+
+                <div
+                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={() => navigate("/delivery-guidelines")}
+                >
+                  <div className="flex items-center">
+                    <TbTruckDelivery className="text-black text-xl mr-4" />
+                    <h2 className="text-size font-normal text-black capitalize">
+                      Delivery Guidelines
+                    </h2>
+                  </div>
+                  <ChevronRight className="text-black" />
+                </div>
               </div>
-            </div>
-          )}
-        </>
-      )}
-    </div>
+            )}
+          </>
+        )}
+      </div>
     </>
   );
 };

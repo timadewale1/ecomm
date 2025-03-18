@@ -15,6 +15,7 @@ module.exports = {
         custVCard: '10.6875rem',
       },
       height : {
+        actualScreenHeight: 'calc(var(--vh) * 100)',
         c120: '120px',
       },
       colors: {

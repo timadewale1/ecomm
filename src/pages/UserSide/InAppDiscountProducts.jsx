@@ -63,16 +63,12 @@ const InAppDiscountProducts = () => {
   const sortProducts = (order) => {
     console.log("Sorting products by", order);
     setPriceOrder(order);
-    setConditionFilter("all");
-    setShowFilterDropdown(false);
   };
 
   // When selecting a condition, clear the price filter (reset to default).
   const filterCondition = (condition) => {
     console.log("Filtering products by condition", condition);
     setConditionFilter(condition);
-    setPriceOrder("high-to-low");
-    setShowFilterDropdown(false);
   };
 
   // Apply additional filters: condition and price order.
@@ -116,46 +112,66 @@ const InAppDiscountProducts = () => {
           <LuListFilter
             id="filterIcon"
             className="text-xl cursor-pointer"
-            onClick={() => setShowFilterDropdown((prev) => !prev)}
+            onClick={() => setShowFilterDropdown(!showFilterDropdown
+            )}
           />
           {showFilterDropdown && (
             <div
               ref={dropdownRef}
               className="absolute right-4 bg-white shadow-[0_0_10px_rgba(0,0,0,0.1)] top-14 p-3 w-40 h-auto rounded-2xl z-50 flex flex-col gap-2 font-opensans"
             >
+              <p className="text-customOrange text-xs">Price:</p>
               <span
-                className="text-sm ml-2 cursor-pointer"
+                className={`text-sm ml-2 cursor-pointer ${
+                  priceOrder === "high-to-low" ? "text-customOrange" : ""}`
+                }
                 onClick={() => sortProducts("high-to-low")}
               >
-                Price: High to Low
+                High to Low
               </span>
               <hr className="text-slate-300" />
               <span
-                className="text-sm ml-2 cursor-pointer"
+                className={`text-sm ml-2 cursor-pointer ${
+                  priceOrder === "low-to-high" ? "text-customOrange" : ""}`
+                }
                 onClick={() => sortProducts("low-to-high")}
               >
-                Price: Low to High
+                Low to High
+              </span>
+              <p className="text-customOrange text-xs">Condition:</p>
+              <span
+                className={`text-sm ml-2 cursor-pointer ${
+                  conditionFilter === "all" ? "text-customOrange" : ""}`}
+                onClick={() => filterCondition("all")}
+              > 
+              All
               </span>
               <hr className="text-slate-300" />
               <span
-                className="text-sm ml-2 cursor-pointer"
+                className={`text-sm ml-2 cursor-pointer ${
+                  conditionFilter === "brand new" ? "text-customOrange" : ""}` 
+                }
                 onClick={() => filterCondition("brand new")}
               >
-                Condition: Brand New
+                Brand New
               </span>
               <hr className="text-slate-300" />
               <span
-                className="text-sm ml-2 cursor-pointer"
+                className={`text-sm ml-2 cursor-pointer ${
+                  conditionFilter === "thrift" ? "text-customOrange" : ""}`
+                }
                 onClick={() => filterCondition("thrift")}
               >
-                Condition: Thrift
+                Thrift
               </span>
               <hr className="text-slate-300" />
               <span
-                className="text-sm ml-2 cursor-pointer"
+                className={`text-sm ml-2 cursor-pointer ${
+                  conditionFilter === "defect" ? "text-customOrange" : ""}`
+                }
                 onClick={() => filterCondition("defect")}
               >
-                Condition: Defect
+                Defect
               </span>
             </div>
           )}

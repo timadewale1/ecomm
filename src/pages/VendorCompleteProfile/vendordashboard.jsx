@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, {
+  useEffect,
+  useState,
+  useContext,
+  useCallback,
+  useRef,
+} from "react";
 import {
   collection,
   query,
@@ -6,29 +12,31 @@ import {
   onSnapshot,
   orderBy,
   limit,
-  doc,
-  getDoc,
+  getDocs,
+  startAfter,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 
 import toast from "react-hot-toast";
-import { FaPlus, FaBox, FaShoppingCart, FaListAlt } from "react-icons/fa";
-import { RxCopy } from "react-icons/rx";
-import { TbBell, TbCurrencyNaira } from "react-icons/tb";
 import Modal from "../../components/layout/Modal";
 import AddProduct from "../vendor/AddProducts";
 import { useNavigate } from "react-router-dom";
 // import Loading from "../../components/Loading/Loading";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  fetchRecentActivities,
+  resetActivities,
+} from "../../redux/recentActivitiesSlice.js";
 import { VendorContext } from "../../components/Context/Vendorcontext";
 import { FiPlus } from "react-icons/fi";
-import { IoIosNotificationsOutline } from "react-icons/io"; // Use the existing VendorContext
-import { BsBell, BsBoxSeam, BsCopy, BsEye, BsEyeSlash } from "react-icons/bs";
-import { CopyAllRounded } from "@mui/icons-material";
+import { BsBoxSeam, BsEye, BsEyeSlash } from "react-icons/bs";
 import { LuCopy, LuCopyCheck, LuListFilter } from "react-icons/lu";
 import NotApproved from "../../components/Infos/NotApproved";
 import Skeleton from "react-loading-skeleton";
 import ScrollToTop from "../../components/layout/ScrollToTop";
 import SEO from "../../components/Helmet/SEO";
+import Lottie from "lottie-react";
+import LoadState from "../../Animations/loadinganimation.json";
 
 const VendorDashboard = () => {
   const defaultImageUrl =
@@ -45,17 +53,40 @@ const VendorDashboard = () => {
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalProducts, setTotalProducts] = useState(0);
-  const [recentActivities, setRecentActivities] = useState([]);
+  // const [recentActivities, setRecentActivities] = useState([]);
+  // const [activityLoading, setActivityLoading] = useState(false);
   const [isModalOpen, setModalOpen] = useState(false);
+  // const [lastDoc, setLastDoc] = useState(null);
+  // const [hasMore, setHasMore] = useState(true); // If there are more activities to load
   const navigate = useNavigate();
+
+  const dispatch = useDispatch();
+  const {
+    activities,
+    lastDoc,
+    loading: activitiesLoading,
+    hasMore,
+  } = useSelector((state) => state.activities);
+
+  useEffect(() => {
+    if (vendorData?.vendorId) {
+      dispatch(resetActivities()); // optional: clear previous state if needed
+      dispatch(
+        fetchRecentActivities({
+          vendorId: vendorData.vendorId,
+          nextPage: false,
+        })
+      );
+    }
+  }, [vendorData, dispatch]);
 
   useEffect(() => {
     if (vendorData) {
       fetchStatistics(vendorData.vendorId);
-      fetchRecentActivities(vendorData.vendorId);
       fetchVendorRevenue(vendorData.vendorId);
       fetchInfo(vendorData.vendorId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorData]);
   useEffect(() => {
     if (!loading && vendorData && vendorData.profileComplete === false) {
@@ -126,7 +157,7 @@ const VendorDashboard = () => {
     }
   };
 
-  const filteredActivities = recentActivities.filter((activity) => {
+  const filteredActivities = activities.filter((activity) => {
     if (filterOptions === "All") return true;
     return activity.type === filterOptions;
   });
@@ -240,33 +271,95 @@ const VendorDashboard = () => {
   const greeting = getGreeting();
 
   // Fetch vendor's recent activities in real-time
-  const fetchRecentActivities = (vendorId) => {
-    const activityRef = collection(db, "vendors", vendorId, "activityNotes");
-    const recentActivityQuery = query(
-      activityRef,
-      orderBy("timestamp", "desc"),
-      limit(15)
-    );
+  // const fetchRecentActivities = (vendorId, nextPage = false) => {
+  //   const activityRef = collection(db, "vendors", vendorId, "activityNotes");
+  //   let recentActivityQuery;
 
-    // Listen for real-time updates to recent activities
-    const unsubscribe = onSnapshot(recentActivityQuery, (querySnapshot) => {
-      const activities = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setRecentActivities(activities);
-    });
+  //   if (!nextPage || !lastDoc) {
+  //     // INITIAL REAL‑TIME FETCH (first 15 items)
+  //     recentActivityQuery = query(
+  //       activityRef,
+  //       orderBy("timestamp", "desc"),
+  //       limit(PAGE_SIZE)
+  //     );
 
-    return () => unsubscribe();
-  };
+  //     const unsubscribe = onSnapshot(recentActivityQuery, (querySnapshot) => {
+  //       const activities = querySnapshot.docs.map((doc) => ({
+  //         id: doc.id,
+  //         ...doc.data(),
+  //       }));
+  //       setRecentActivities(activities);
 
-  const handleSwitch2Products = () => {
-    navigate("/vendor-products");
-  };
+  //       // Update last document for pagination
+  //       if (querySnapshot.docs.length === PAGE_SIZE) {
+  //         setLastDoc(querySnapshot.docs[querySnapshot.docs.length - 1]);
+  //       }
+  //       // If fewer than PAGE_SIZE items, then there is no more data
+  //       if (querySnapshot.docs.length < PAGE_SIZE) {
+  //         setHasMore(false);
+  //       }
+  //     });
 
-  const handleSwitch2Orders = () => {
-    navigate("/vendor-orders");
-  };
+  //     return () => unsubscribe();
+  //   } else {
+  //     // PAGINATION: Fetch next 15 items (non real‑time)
+  //     // (Make sure lastDoc exists before calling this)
+  //     if (!lastDoc) return;
+
+  //     setActivityLoading(true);
+  //     recentActivityQuery = query(
+  //       activityRef,
+  //       orderBy("timestamp", "desc"),
+  //       startAfter(lastDoc),
+  //       limit(PAGE_SIZE)
+  //     );
+
+  //     getDocs(recentActivityQuery).then((querySnapshot) => {
+  //       const activities = querySnapshot.docs.map((doc) => ({
+  //         id: doc.id,
+  //         ...doc.data(),
+  //       }));
+  //       // Append the new activities to the existing list
+  //       setRecentActivities((prevActivities) => [
+  //         ...prevActivities,
+  //         ...activities,
+  //       ]);
+
+  //       // Update lastDoc
+  //       if (querySnapshot.docs.length === PAGE_SIZE) {
+  //         setLastDoc(querySnapshot.docs[querySnapshot.docs.length - 1]);
+  //       }
+  //       // If fewer than PAGE_SIZE items, mark no more data
+  //       if (querySnapshot.docs.length < PAGE_SIZE) {
+  //         setHasMore(false);
+  //       }
+  //       setActivityLoading(false);
+  //     });
+  //   }
+  // };
+
+  const observer = useRef();
+  const lastActivityRef = useCallback(
+    (node) => {
+      if (activitiesLoading) return;
+      if (observer.current) observer.current.disconnect();
+
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          dispatch(
+            fetchRecentActivities({
+              vendorId: vendorData.vendorId,
+              nextPage: true,
+              lastDoc,
+            })
+          );
+        }
+      });
+
+      if (node) observer.current.observe(node);
+    },
+    [activitiesLoading, hasMore, vendorData, lastDoc, dispatch]
+  );
 
   const openModal = () => setModalOpen(true);
   const closeModal = () => setModalOpen(false);
@@ -350,16 +443,17 @@ const VendorDashboard = () => {
   }
   return (
     <>
-    <SEO 
-        title={`Vendor Dashboard - My Thrift`} 
-        description={`Manage your store on My Thrift`} 
-        url={`https://www.shopmythrift.store/vendordashboard`} 
+      <SEO
+        title={`Vendor Dashboard - My Thrift`}
+        description={`Manage your store on My Thrift`}
+        url={`https://www.shopmythrift.store/vendordashboard`}
       />
       <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-1 font-opensans ">
         <ScrollToTop />
         <div className="flex justify-between items-center">
           <div className="flex items-center">
-            <div className="overflow-hidden w-11 h-11 rounded-full flex justify-center items-center mr-1">
+            <div className="overflow-hidden w-11 h-11 rounded-full flex justify-center items-center mr-1 cursor-pointer"
+            onClick={() => navigate('/vendor-profile')}>
               <img
                 src={vendorData.coverImageUrl || defaultImageUrl}
                 alt="Vendor profile"
@@ -530,7 +624,7 @@ const VendorDashboard = () => {
                   <hr className="text-slate-300" />
                   <span
                     className={`${
-                      filterOptions === "Recent Transactions"
+                      filterOptions === "transactions"
                         ? "text-customOrange"
                         : "text-black"
                     } text-xs ml-2 cursor-pointer`}
@@ -579,7 +673,7 @@ const VendorDashboard = () => {
           </div>
 
           <div className="flex flex-col space-y-2 text-black">
-            {recentActivities && filteredActivities.length > 0 && !loading ? (
+            {activities && filteredActivities.length > 0 && !loading ? (
               <>
                 {Object.entries(
                   filteredActivities.reduce((groups, activity) => {
@@ -661,29 +755,47 @@ const VendorDashboard = () => {
                 <Skeleton square={true} height={84} className="w-full mb-2" />
                 <Skeleton square={true} height={84} className="w-full mb-2" />
               </>
-            ) : filterOptions === "All" && !loading ? (
-              <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
-                🕘 No actions taken yet. Your recent activities will appear here
-                once you start managing your store...
-              </div>
-            ) : filterOptions === "Recent Transactions" && !loading ? (
-              <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
-                📲 You have no recent transactions yet...
-              </div>
-            ) : filterOptions === "Orders" && !loading ? (
-              <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
-                🛒 You have no order updates yet...
-              </div>
-            ) : filterOptions === "Product Update" && !loading ? (
-              <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
-                📦 You have no product updates yet...
-              </div>
+            ) : filteredActivities.length < 1 && !loading ? (
+              filterOptions === "All" ? (
+                <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
+                  🕘 No actions taken yet. Your recent activities will appear
+                  here once you start managing your store...
+                </div>
+              ) : filterOptions === "transactions" ? (
+                <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
+                  📲 You have no recent transactions yet...
+                </div>
+              ) : filterOptions === "order" ? (
+                <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
+                  🛒 You have no order updates yet...
+                </div>
+              ) : filterOptions === "Product Update" ? (
+                <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
+                  📦 You have no product updates yet...
+                </div>
+              ) : (
+                <div>
+                  <img src="./Note.png" alt="" />
+                </div>
+              )
             ) : (
-              <div>
-                <img src="./Note.png" alt="" />
+              <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
+                Nothing to show here...
               </div>
             )}
+            {activitiesLoading && (
+        <div className="flex justify-center items-center">
+          <Lottie
+            className="w-10 h-10"
+            animationData={LoadState}
+            loop={true}
+            autoplay={true}
+          />
+        </div>
+      )}
+      {<div ref={lastActivityRef} />}
           </div>
+          
         </div>
       </div>
       <button
@@ -702,6 +814,8 @@ const VendorDashboard = () => {
       <Modal isOpen={isModalOpen} onClose={closeModal}>
         <AddProduct vendorId={vendorData?.vendorId} closeModal={closeModal} />
       </Modal>
+      
+      
     </>
   );
 };

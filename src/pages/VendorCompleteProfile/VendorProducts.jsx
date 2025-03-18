@@ -2,10 +2,8 @@ import React, { useEffect, useState, useContext } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {
   collection,
-  getDoc,
   arrayRemove,
   doc,
-  deleteDoc,
   updateDoc,
   addDoc,
   onSnapshot,
@@ -21,26 +19,16 @@ import { MdOutlineStarBorderPurple500 } from "react-icons/md";
 import Modal from "../../components/layout/Modal";
 import ConfirmationDialog from "../../components/layout/ConfirmationDialog";
 import {
-  FaTrashAlt,
-  FaPlus,
-  FaBoxOpen,
-  FaEdit,
   FaRegCircle,
   FaRegCheckCircle,
 } from "react-icons/fa";
 import { GrRadialSelected } from "react-icons/gr";
 import { RotatingLines } from "react-loader-spinner";
 import AddProduct from "../vendor/AddProducts";
-import { BsBox2Fill, BsPin, BsPinAngle, BsPinAngleFill } from "react-icons/bs";
-import { FaStar } from "react-icons/fa";
-import { Pin } from "@mui/icons-material";
 import { FiMoreHorizontal, FiPlus } from "react-icons/fi";
 import VendorProductModal from "../../components/layout/VendorProductModal";
 import ToggleButton from "../../components/Buttons/ToggleButton";
 import { motion } from "framer-motion";
-import Lottie from "lottie-react";
-import LoadState from "../../Animations/loadinganimation.json";
-import { FaSpinner, FaXmark } from "react-icons/fa6";
 import Skeleton from "react-loading-skeleton";
 import "./vendor.css";
 import ScrollToTop from "../../components/layout/ScrollToTop";
@@ -63,10 +51,8 @@ const VendorProducts = () => {
   const [restockValues, setRestockValues] = useState({});
   const [rLoading, setRLoading] = useState(false);
   const [oLoading, setOLoading] = useState(false);
-  const [buttonLoading, setButtonLoading] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
   const [productsLoading, setProductsLoading] = useState(false);
-  const [showPinModal, setShowPinModal] = useState(false);
   const [picking, setPicking] = useState(false);
 
   const { vendorData } = useContext(VendorContext);
@@ -80,75 +66,83 @@ const VendorProducts = () => {
   const renderVariants = (variants) => {
     const groupedVariants = groupVariantsByColor(variants);
     return Object.entries(groupedVariants).map(
-      ([color, variants], colorIndex) => (
-        <div key={colorIndex} className="bg-customSoftGray p-3 rounded-lg">
-          {/* Display the color name */}
-          <p className="text-black font-semibold text-sm mb-2">
-            Color: {color}
-          </p>
+      ([color, variants], colorIndex) => {
+        const hasOutOfStockVariant = variants.some(
+          (variant) => variant.stock === 0
+        );
 
-          {/* Vertical table layout for sizes and quantities */}
-          <table className="w-custVCard text-left border-collapse">
-            <thead>
-              <tr className="space-x-8">
-                <th className="text-black font-semibold text-sm pb-2 border-b border-customOrange border-opacity-40">
-                  Size
-                </th>
-                <th className="text-black text-right font-semibold text-sm pb-2 border-b border-customOrange border-opacity-40">
-                  Quantity
-                </th>
-              </tr>
-            </thead>
+        return (
+          <div key={colorIndex} className="bg-customSoftGray p-3 rounded-lg relative">
+            {hasOutOfStockVariant && tabOpt !== "OOS" (
+              <div className="absolute top-2 right-2 w-3 h-3 bg-customOrange rounded-full animate-ping"></div>
+            )}
+            <p className="text-black font-semibold text-sm mb-2">
+              Color: {color}
+            </p>
 
-            <tbody>
-              {variants.map((variant) => {
-                const variantKey = `${variant.color}-${variant.size}`;
-                return (
-                  <>
-                    <tr key={variantKey} className="space-x-8">
-                      <td className="py-2 text-sm font-normal border-b border-customOrange border-opacity-40">
-                        {variant.size}
-                      </td>
-                      <td
-                        className={`py-2 text-sm text-right font-normal border-b border-customOrange border-opacity-40 ${
-                          variant.stock < 1 ? "text-red-500" : ""
-                        }`}
-                      >
-                        {isRestocking ? (
-                          <input
-                            type="number"
-                            className="border text-right no-spinner p-1 ml-2 rounded-[10px] focus:outline-customOrange h-6 w-24"
-                            value={restockValues[variantKey]?.quantity || ""}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              // Prevent negative values
-                              if (value >= 0) {
-                                handleRestockInputChange(
-                                  "quantity",
-                                  variantKey,
-                                  value
-                                );
-                              } else {
-                                toast.error(
-                                  "Please enter a non-negative value."
-                                );
-                              }
-                            }}
-                          />
-                        ) : variant.stock > 0 ? (
-                          variant.stock
-                        ) : (
-                          "Out of stock"
-                        )}
-                      </td>
-                    </tr>
-                  </>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )
+            {/* Vertical table layout for sizes and quantities */}
+            <table className="w-custVCard text-left border-collapse">
+              <thead>
+                <tr className="space-x-8">
+                  <th className="text-black font-semibold text-sm pb-2 border-b border-customOrange border-opacity-40">
+                    Size
+                  </th>
+                  <th className="text-black text-right font-semibold text-sm pb-2 border-b border-customOrange border-opacity-40">
+                    Quantity
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {variants.map((variant) => {
+                  const variantKey = `${variant.color}-${variant.size}`;
+                  return (
+                    <>
+                      <tr key={variantKey} className="space-x-8">
+                        <td className="py-2 text-sm font-normal border-b border-customOrange border-opacity-40">
+                          {variant.size}
+                        </td>
+                        <td
+                          className={`py-2 text-sm text-right font-normal border-b border-customOrange border-opacity-40 ${
+                            variant.stock < 1 ? "text-red-500" : ""
+                          }`}
+                        >
+                          {isRestocking ? (
+                            <input
+                              type="number"
+                              className="border text-right no-spinner p-1 ml-2 rounded-[10px] focus:outline-customOrange h-6 w-24"
+                              value={restockValues[variantKey]?.quantity || ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                // Prevent negative values
+                                if (value >= 0) {
+                                  handleRestockInputChange(
+                                    "quantity",
+                                    variantKey,
+                                    value
+                                  );
+                                } else {
+                                  toast.error(
+                                    "Please enter a non-negative value."
+                                  );
+                                }
+                              }}
+                            />
+                          ) : variant.stock > 0 ? (
+                            variant.stock
+                          ) : (
+                            "Out of stock"
+                          )}
+                        </td>
+                      </tr>
+                    </>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
     );
   };
 
@@ -757,7 +751,7 @@ const VendorProducts = () => {
         <div className="flex justify-center space-x-5 items-center">
           <div className="flex flex-col justify-center items-center space-y-3">
             <p
-              className={`text-sm ${
+              className={`text-sm cursor-pointer ${
                 tabOpt === "Active" ? "text-customOrange" : "text-black"
               }`}
               onClick={() => setTabOpt("Active")}
@@ -772,7 +766,7 @@ const VendorProducts = () => {
           </div>
           <div className="flex flex-col justify-center items-center space-y-3">
             <p
-              className={`text-sm flex space-x-1 ${
+              className={`text-sm cursor-pointer flex space-x-1 ${
                 tabOpt === "OOS" ? "text-customOrange" : "text-black"
               }`}
               onClick={() => setTabOpt("OOS")}
@@ -792,7 +786,7 @@ const VendorProducts = () => {
           </div>
           <div className="flex flex-col justify-center items-center space-y-3">
             <p
-              className={` text-sm ${
+              className={` text-sm cursor-pointer ${
                 tabOpt === "Drafts" ? "text-customOrange" : "text-black"
               }`}
               onClick={() => setTabOpt("Drafts")}
@@ -818,7 +812,8 @@ const VendorProducts = () => {
                   <p className="text-xs font-semibold font-opensans text-green-600">
                     Discount Campaign Active: You are currently offering
                     discounts on {activeDiscountedProducts.length} product
-                    {activeDiscountedProducts.length > 1 ? "s" : ""}. Your followers will be notified🎊
+                    {activeDiscountedProducts.length > 1 ? "s" : ""}. Your
+                    followers will be notified🎊
                   </p>
                 </div>
               )
@@ -837,119 +832,135 @@ const VendorProducts = () => {
           {filteredProducts &&
           filteredProducts.length > 0 &&
           !productsLoading ? (
-            filteredProducts.map((product) => (
-              <div
-                key={product.id}
-                className="cursor-pointer"
-                onClick={() => handleProductClick(product)}
-              >
-                <div className="flex flex-col space-y-2">
-                  <div className="relative w-44 h-44 rounded-xl bg-customSoftGray">
-                    {picking ? (
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          togglePickProduct(product.id);
-                        }}
-                        className="absolute top-2 left-2"
-                      >
-                        {pickedProducts.includes(product.id) ? (
-                          <GrRadialSelected className="text-customOrange w-6 h-6" />
-                        ) : (
-                          <FaRegCircle className="text-customOrange w-6 h-6" />
-                        )}
-                      </div>
-                    ) : (
-                      // Show pin icon only if there are less than 4 pinned products
-                      tabOpt === "Active" &&
-                      ((!product.isFeatured && pinnedCount < 4) ||
-                        product.isFeatured) && (
+            filteredProducts.map((product) => {
+              // Check if any sub-product has stock of zero
+              const hasOutOfStockSubProduct = product.subProducts?.some(
+                (sp) => sp.stock === 0
+              );
+              const hasOutOfStockVariant = product.variants?.some(
+                (variant) => variant.stock === 0
+              );
+              return (
+                <div
+                  key={product.id}
+                  className="cursor-pointer"
+                  onClick={(e) =>
+                    picking
+                      ? togglePickProduct(product.id)
+                      : handleProductClick(product)
+                  }
+                >
+                  <div className="flex flex-col space-y-2">
+                    <div className="relative w-44 h-44 rounded-xl bg-customSoftGray">
+                      {(hasOutOfStockSubProduct || hasOutOfStockVariant) && tabOpt !== "OOS" && (
+                        <div className="absolute bottom-2 right-2 w-4 h-4 bg-customOrange rounded-full animate-ping"></div>
+                      )}
+                      {picking ? (
                         <div
                           onClick={(e) => {
                             e.stopPropagation();
-                            handlePinProduct(product);
+                            togglePickProduct(product.id);
                           }}
-                          className="absolute top-2 right-2 bg-white rounded-full p-1"
+                          className="absolute top-2 left-2"
                         >
-                          {product.isFeatured ? (
-                            <MdOutlineStarPurple500
-                              className={`text-customOrange  w-5 h-5`}
-                            />
+                          {pickedProducts.includes(product.id) ? (
+                            <GrRadialSelected className="text-customOrange w-6 h-6" />
                           ) : (
-                            <MdOutlineStarBorderPurple500
-                              className={`text-customOrange  w-5 h-5`}
-                            />
+                            <FaRegCircle className="text-customOrange w-6 h-6" />
                           )}
                         </div>
-                      )
-                    )}
-                    {product.discount && (
-                      <div className="absolute top-2 left-2 flex items-center">
-                        {product.discount.discountType.startsWith(
-                          "personal-freebies"
-                        ) ? (
-                          <div className="bg-customPink text-customOrange text-sm px-2 py-1 font-medium font-opensans rounded-md">
-                            {truncateText(product.discount.freebieText)}
+                      ) : (
+                        // Show pin icon only if there are less than 4 pinned products
+                        tabOpt === "Active" &&
+                        ((!product.isFeatured && pinnedCount < 4) ||
+                          product.isFeatured) && (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePinProduct(product);
+                            }}
+                            className="absolute top-2 right-2 bg-white rounded-full p-1"
+                          >
+                            {product.isFeatured ? (
+                              <MdOutlineStarPurple500
+                                className={`text-customOrange  w-5 h-5`}
+                              />
+                            ) : (
+                              <MdOutlineStarBorderPurple500
+                                className={`text-customOrange  w-5 h-5`}
+                              />
+                            )}
                           </div>
-                        ) : (
-                          <div className="bg-customPink font-opensans text-customOrange text-sm font-medium px-2 py-1 rounded-md">
-                            -{product.discount.percentageCut}%
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <img
-                      src={product.coverImageUrl}
-                      alt={product.name}
-                      className="w-full h-full object-cover rounded-xl bg-customSoftGray"
-                    />
-                  </div>
-                  <div className="flex">
-                    <p className="text-xs font-semibold font-opensans text-black truncate w-32">
-                      {product.name}
-                    </p>{" "}
-                    <p className="text-xs font-semibold font-opensans text-black truncate w-9">
-                      {/* {product.color} */}
-                    </p>{" "}
-                  </div>
-                  <div
-                    className={` ${
-                      !product.published ? "flex space-x-4" : "space-y-2"
-                    }`}
-                  >
-                    <p className="text-xs font-semibold font-opensans text-black">
-                      Total Stock: {product.stockQuantity}
-                    </p>
-                    <p className="text-xs font-medium font-opensans text-black">
-                      &#x20a6;{formatNumber(product.price)}
-                    </p>
-                  </div>
-                  {!product.published && (
-                    <p className="text-xs font-semibold font-opensans text-customOrange">
-                      Unpublished Product
-                    </p>
-                  )}
-                  <div className="mt-1">
-                    {product.discount && (
-                      <p className="text-xs font-opensans font-semibold text-customRichBrown">
-                        {product.discount.discountType.startsWith("inApp")
-                          ? "In‑App Discount"
-                          : product.discount.discountType ===
-                            "personal-monetary"
-                          ? "Personal Monetary Discount"
-                          : product.discount.discountType ===
+                        )
+                      )}
+                      {product.discount && !picking && (
+                        <div className="absolute top-2 left-2 flex items-center">
+                          {product.discount.discountType.startsWith(
                             "personal-freebies"
-                          ? `Freebie: ${truncateText(
-                              product.discount.freebieText
-                            )}`
-                          : ""}
+                          ) ? (
+                            <div className="bg-customPink text-customOrange text-sm px-2 py-1 font-medium font-opensans rounded-md">
+                              {truncateText(product.discount.freebieText)}
+                            </div>
+                          ) : (
+                            <div className="bg-customPink font-opensans text-customOrange text-sm font-medium px-2 py-1 rounded-md">
+                              -{product.discount.percentageCut}%
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <img
+                        src={product.coverImageUrl}
+                        alt={product.name}
+                        className="w-full h-full object-cover rounded-xl bg-customSoftGray"
+                      />
+                    </div>
+                    <div className="flex">
+                      <p className="text-xs font-semibold font-opensans text-black truncate w-32">
+                        {product.name}
+                      </p>{" "}
+                      <p className="text-xs font-semibold font-opensans text-black truncate w-9">
+                        {/* {product.color} */}
+                      </p>{" "}
+                    </div>
+                    <div
+                      className={` ${
+                        !product.published ? "flex space-x-4" : "space-y-2"
+                      }`}
+                    >
+                      <p className="text-xs font-semibold font-opensans text-black">
+                        Total Stock: {product.stockQuantity}
+                      </p>
+                      <p className="text-xs font-medium font-opensans text-black">
+                        &#x20a6;{formatNumber(product.price)}
+                      </p>
+                    </div>
+                    {!product.published && (
+                      <p className="text-xs font-semibold font-opensans text-customOrange">
+                        Unpublished Product
                       </p>
                     )}
+                    <div className="mt-1">
+                      {product.discount && (
+                        <p className="text-xs font-opensans font-semibold text-customRichBrown">
+                          {product.discount.discountType.startsWith("inApp")
+                            ? "In‑App Discount"
+                            : product.discount.discountType ===
+                              "personal-monetary"
+                            ? "Personal Monetary Discount"
+                            : product.discount.discountType ===
+                              "personal-freebies"
+                            ? `Freebie: ${truncateText(
+                                product.discount.freebieText
+                              )}`
+                            : ""}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : tabOpt === "Active" && !productsLoading ? (
             <p className="text-xs font-opensans mt-24">
               📭 Your store has no active products yet. Upload items to start
@@ -1301,7 +1312,10 @@ const VendorProducts = () => {
             <div className="w-full">
               {selectedProduct.subProducts &&
                 selectedProduct.subProducts.map((sp) => (
-                  <div key={sp.subProductId} className="flex items-center ">
+                  <div key={sp.subProductId} className="flex items-center relative">
+                    {sp.stock === 0 && tabOpt !== "OOS" && (
+                      <div className="absolute bottom-6 right-2 w-3 h-3 bg-customOrange rounded-full animate-ping"></div>
+                    )}
                     <div className="w-28 h-28">
                       <img
                         src={sp.images}
@@ -1347,7 +1361,7 @@ const VendorProducts = () => {
                           />
                         </>
                       ) : (
-                        <p className="text-black font-semibold text-sm">
+                        <p className={`font-semibold text-sm ${sp.stock === 0 ? "text-red-500" : "text-black"}`}>
                           Quantity:{" "}
                           <span className="font-normal">{sp.stock}</span>
                         </p>

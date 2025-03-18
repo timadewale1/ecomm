@@ -12,6 +12,7 @@ import Lottie from "lottie-react";
 import { AccessContext } from "../Context/AccesContext";
 
 import ScrollToTop from "./ScrollToTop";
+import SwipeToRefresh from "./SwipeToRefresh";
 
 const Layout = () => {
   const location = useLocation();
@@ -36,6 +37,7 @@ const Layout = () => {
     "/send-us-feedback",
     "/",
     "/vendor-reviews",
+    "/share-profile",
     "/notifications",
     "/favorites",
     "/reset-password",
@@ -117,7 +119,8 @@ const Layout = () => {
       <VendorNavigationProvider>
         {isMobile ? (
           <>
-            <div className="pb-1">
+            <div className="relative">
+          <SwipeToRefresh />
               <ScrollToTop />
               <Routers />
             </div>
@@ -139,7 +142,7 @@ const Layout = () => {
             <div className="text-center text-xl font-opensans p-20">
               We're currently optimizing our website for this screen size. For
               the best experience, we recommend accessing it on your mobile
-              device.🤦‍♀️
+              device.😅✨
             </div>
           </div>
         )}

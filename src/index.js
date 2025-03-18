@@ -10,9 +10,11 @@ import { Toaster } from "react-hot-toast";
 import { FavoritesProvider } from "./components/Context/FavoritesContext";
 import { VendorProvider } from "./components/Context/Vendorcontext";
 import { NavigationProvider } from "./components/Context/Bottombarcontext";
+import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "./custom-hooks/useAuth";
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
+  <HelmetProvider>
    <React.StrictMode> 
     <BrowserRouter>
       <Provider store={store}>
@@ -40,5 +42,6 @@ root.render(
         </AuthProvider>
       </Provider>
     </BrowserRouter>
-  </React.StrictMode> 
+  </React.StrictMode>
+  </HelmetProvider> 
 );

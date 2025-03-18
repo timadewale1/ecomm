@@ -8,7 +8,7 @@ export const fetchPersonalDiscounts = createAsyncThunk(
   "personalDiscounts/fetchPersonalDiscounts",
   async (_, { rejectWithValue }) => {
     try {
-      console.log("[fetchPersonalDiscounts] Starting fetch...");
+      // console.log("[fetchPersonalDiscounts] Starting fetch...");
 
       // If your "discount" field is an object with a key "discountType",
       // you can query like this:
@@ -21,23 +21,23 @@ export const fetchPersonalDiscounts = createAsyncThunk(
           "personal-freebies",
         ])
       );
-      console.log("[fetchPersonalDiscounts] Firestore query created:", q);
+      // console.log("[fetchPersonalDiscounts] Firestore query created:", q);
 
       const snapshot = await getDocs(q);
-      console.log(`[fetchPersonalDiscounts] Snapshot size: ${snapshot.size}`);
+      // console.log(`[fetchPersonalDiscounts] Snapshot size: ${snapshot.size}`);
 
       const personalDiscountProducts = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-      console.log(
-        "[fetchPersonalDiscounts] Fetched personal discount products:",
-        personalDiscountProducts
-      );
+      // console.log(
+      //   "[fetchPersonalDiscounts] Fetched personal discount products:",
+      //   personalDiscountProducts
+      // );
 
       // Limit to 20 if needed
       const limited = personalDiscountProducts.slice(0, 20);
-      console.log("[fetchPersonalDiscounts] Returning limited array:", limited);
+      // console.log("[fetchPersonalDiscounts] Returning limited array:", limited);
 
       return limited;
     } catch (error) {
@@ -58,12 +58,12 @@ const personalDiscountsSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchPersonalDiscounts.pending, (state) => {
-        console.log("[fetchPersonalDiscounts.pending]");
+        // console.log("[fetchPersonalDiscounts.pending]");
         state.loading = true;
         state.error = null;
       })
       .addCase(fetchPersonalDiscounts.fulfilled, (state, action) => {
-        console.log("[fetchPersonalDiscounts.fulfilled] Payload:", action.payload);
+        // console.log("[fetchPersonalDiscounts.fulfilled] Payload:", action.payload);
         state.loading = false;
         state.discounts = action.payload;
       })

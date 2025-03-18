@@ -15,6 +15,7 @@ import { marketReducer } from "./reducers/marketreducer";
 import personalDiscountsSlice from "./reducers/personalDiscount";
 import userReducer from "./reducers/userreducer";
 import vendorProfileReducer from "./vendorProfileSlice"; // Adjust the path as needed
+import recentactivitiesReducer from "./recentActivitiesSlice"; // Adjust the path as needed
 import vendorReducer from "./reducers/VendorsSlice";
 import personalDiscountsPageReducer from "./reducers/personalDiscountsPageSlice";
 import { promoReducer } from "./reducers/promoreducer";
@@ -37,6 +38,7 @@ const rootReducer = combineReducers({
   categoryProducts: categoryProductsReducer,  
 
   vendorProfile: vendorProfileReducer, 
+  activities: recentactivitiesReducer,
 });
 
 // Load cart state from local storage

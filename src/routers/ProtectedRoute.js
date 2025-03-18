@@ -112,6 +112,7 @@ const ProtectedRoute = ({ requiredRole }) => {
     "/latest-cart",
     "/online-vendors",
     "/market-vendors",
+    "/share-profile",
   ];
   const dynamicRoutes = ["/reviews/"]; // Add dynamic base routes here
 

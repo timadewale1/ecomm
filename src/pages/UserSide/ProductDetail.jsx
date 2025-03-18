@@ -1023,7 +1023,7 @@ const ProductDetailPage = () => {
           </div>
         </div>
 
-        <div className="flex justify-center h-[540px] relative">
+        <div className="flex justify-center h-[540px] relative mt-20">
           {allImages.length > 1 ? (
             <>
               <Swiper

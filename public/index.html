@@ -327,6 +327,15 @@
       To create a production bundle, use `npm run build` or `yarn build`.
     -->
     <script>
+      function setViewportHeight() {
+  let vh = window.innerHeight * 0.01; // Get 1% of viewport height
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+}
+
+// Run function on load and resize
+setViewportHeight();
+window.addEventListener('resize', setViewportHeight);
+
       // Detect if the app is running in PWA standalone mode
       const isPWAMode = () =>
         window.matchMedia("(display-mode: standalone)").matches ||

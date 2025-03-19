@@ -52,7 +52,7 @@ import WithReviewModal from "../components/Reviews/WithReview.jsx";
 import CategoryProducts from "../components/PopularCategories/CategorySection.jsx";
 import SubmitFeedback from "../pages/SubmitFeedback.jsx";
 import WithWhatsAppModal from "../components/ChannelLinkModal/WithWhatsAppModal.jsx";
-import ProfileView from "../pages/VendorCompleteProfile/profileView.jsx";
+// import ProfileView from "../pages/VendorCompleteProfile/profileView.jsx";
 const Routers = () => {
   return (
     <Routes>
@@ -254,7 +254,7 @@ const Routers = () => {
         <Route path="/vendor-products" element={<WithWhatsAppModal><VendorProducts /></WithWhatsAppModal>} />
         <Route path="/vendor-orders" element={<VendorOrders />} />
         <Route path="/store-reviews" element={<WithWhatsAppModal><StoreReviews /></WithWhatsAppModal>} />
-        <Route path='/share-profile' element={<ProfileView />} />
+        
         <Route path="/call-guidelines" element={<CallGuide />} />
         <Route path="/delivery-guidelines" element={<DeliveryGuide />} />
         {/* Add any other vendor-specific protected routes here */}

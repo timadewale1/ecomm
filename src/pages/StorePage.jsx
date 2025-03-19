@@ -365,7 +365,7 @@ const StorePage = () => {
             if (currentUser) {
               navigate("/browse-markets");
             } else {
-              navigate("/confirm-user-state");
+              navigate("/confirm-state");
             }
           }} // Disable button when loading
         >

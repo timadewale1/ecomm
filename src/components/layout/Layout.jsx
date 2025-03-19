@@ -12,7 +12,7 @@ import Lottie from "lottie-react";
 import { AccessContext } from "../Context/AccesContext";
 
 import ScrollToTop from "./ScrollToTop";
-import SwipeToRefresh from "./SwipeToRefresh";
+// import SwipeToRefresh from "./SwipeToRefresh";
 
 const Layout = () => {
   const location = useLocation();
@@ -119,8 +119,8 @@ const Layout = () => {
       <VendorNavigationProvider>
         {isMobile ? (
           <>
-            <div className="relative">
-          <SwipeToRefresh />
+            <div className="relative pb-6">
+          
               <ScrollToTop />
               <Routers />
             </div>

@@ -112,7 +112,8 @@ const ForgetPassword = () => {
                     placeholder="Enter your email"
                     value={email}
                     className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(e.target.value.toLowerCase())}
+
                   />
                 </FormGroup>
                 <div className="flex text-center flex-col -translate-y-3">

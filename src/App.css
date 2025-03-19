@@ -208,7 +208,9 @@ li::marker {
   margin: 0 auto;
   animation: slide-up 0.3s ease-in-out;
 }
-
+.profile-modal {
+  z-index: 3000;
+}
 /* Inner Content Styling */
 .review-modal-content {
   display: flex;

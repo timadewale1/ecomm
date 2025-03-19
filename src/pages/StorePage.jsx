@@ -112,6 +112,11 @@ const StorePage = () => {
 
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
+          if (!vendorData.isApproved) {
+            toast.error("Vendor is not available!");
+            setVendor(null); // Ensure vendor is null to trigger "Vendor Not Found" UI
+            return;
+          }
           vendorData.id = vendorDoc.id; // Ensure we have the vendor's document ID
           setVendor(vendorData);
 
@@ -343,19 +348,19 @@ const StorePage = () => {
 
   if (!vendor) {
     return (
-      <div className="flex flex-col justify-center items-center h-3/6">
+      <div className="flex flex-col px-6 justify-center items-center h-3/6">
         <Lottie
           className="w-full h-full"
           animationData={Productnotfund}
           loop={true}
           autoplay={true}
         />
-        <h1 className="text-xl text-center font-bold text-red-500">
+        <h1 className="text-xl text-center font-bold font-opensans text-red-500">
           Vendor is not found. You entered a wrong link or the vendor is not
           available.
         </h1>
         <button
-          className={`w-full mt-4 h-12 rounded-full border font-medium flex items-center font-opensans justify-center transition-colors duration-200 bg-customOrange text-white`}
+          className={` mt-20  py-2 rounded-full  font-medium flex items-center font-opensans px-5 justify-center transition-colors duration-200 bg-customOrange text-white`}
           onClick={() => {
             if (currentUser) {
               navigate("/browse-markets");
@@ -365,7 +370,7 @@ const StorePage = () => {
           }} // Disable button when loading
         >
           {" "}
-          Go Back
+          Go Home
         </button>
       </div>
     );

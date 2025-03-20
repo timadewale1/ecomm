@@ -7,6 +7,7 @@ const SwipeToRefresh = () => {
   const [isSwiping, setIsSwiping] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [showPullText, setShowPullText] = useState(false); // New state for pull text visibility
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
 
   useEffect(() => {
@@ -33,7 +34,7 @@ const SwipeToRefresh = () => {
         setPullDistance(Math.min(distance, 150)); // Limit pull distance
       }
       // Show text only between 20px and 60px
-      if (distance >= 20 && distance <= 80) {
+      if (pullDistance>0) {
         setShowPullText(true);
       } else {
         setShowPullText(false);
@@ -42,10 +43,17 @@ const SwipeToRefresh = () => {
 
     const handleTouchEnd = () => {
       if (pullDistance > 130) {
-        window.location.reload(); // Full page reload when pulled far enough
+        // Lock the loader on screen
+        setIsRefreshing(true);
+        // Optionally, delay the reload a moment so the user sees the loader
+        setTimeout(() => {
+          window.location.reload();
+        }, 300);
+      } else {
+        setPullDistance(0);
       }
-      setPullDistance(0); // Reset animation
       setIsSwiping(false);
+      setShowPullText(false);
     };
 
     document.addEventListener("touchstart", handleTouchStart);
@@ -79,10 +87,12 @@ const SwipeToRefresh = () => {
       <div
         className="fixed top-0 left-0 w-full flex flex-col justify-center items-center text-gray-500 z-[9999]"
         style={{
-          transform: `translateY(${pullDistance}px)`,
+          transform: isRefreshing ? "translateY(0)" : `translateY(${pullDistance}px)`,
+          // When not refreshing, animate back when pullDistance resets
           transition: pullDistance === 0 ? "transform 0.3s ease-out" : "none",
-          opacity: pullDistance > 90 ? 1 : 0,
-          pointerEvents: pullDistance > 10 ? "auto" : "none",
+          // Keep opacity at 1 when refreshing, otherwise based on pullDistance threshold
+          opacity: isRefreshing || pullDistance > 90 ? 1 : 0,
+          pointerEvents: "auto",
         }}
       >
         <div className="flex flex-col items-center p-2 bg-customGrey rounded-full shadow-md">

@@ -33,7 +33,7 @@ const SwipeToRefresh = () => {
         setPullDistance(Math.min(distance, 150)); // Limit pull distance
       }
       // Show text only between 20px and 60px
-      if (distance >= 20 && distance <= 60) {
+      if (distance >= 20 && distance <= 80) {
         setShowPullText(true);
       } else {
         setShowPullText(false);
@@ -65,10 +65,10 @@ const SwipeToRefresh = () => {
     <>
       {/* Pull to refresh text (placed outside root div for better visibility control) */}
       <p
-        className="fixed top-5 left-1/2 transform -translate-x-1/2 text-sm text-center text-sky-600  rounded-lg"
+        className="fixed top-5 left-1/2 transform -translate-x-1/2 text-sm text-center text-sky-600  rounded-lg z-[9999]"
         style={{
           opacity: showPullText ? 1 : 0,
-          transition: "opacity 0.2s ease-in-out",
+          transition: pullDistance === 0 ? "opacity 0.2s ease-in-out" : "none",
           pointerEvents: "none",
         }}
       >
@@ -77,11 +77,11 @@ const SwipeToRefresh = () => {
 
       {/* Refresh animation container */}
       <div
-        className="fixed top-0 left-0 w-full flex flex-col justify-center items-center text-gray-500"
+        className="fixed top-0 left-0 w-full flex flex-col justify-center items-center text-gray-500 z-[9999]"
         style={{
           transform: `translateY(${pullDistance}px)`,
           transition: pullDistance === 0 ? "transform 0.3s ease-out" : "none",
-          opacity: pullDistance > 10 ? 1 : 0,
+          opacity: pullDistance > 90 ? 1 : 0,
           pointerEvents: pullDistance > 10 ? "auto" : "none",
         }}
       >

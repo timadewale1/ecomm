@@ -48,9 +48,9 @@ const SwipeToRefresh = () => {
       setIsSwiping(false);
     };
 
-//     document.addEventListener("touchstart", handleTouchStart);
-//     document.addEventListener("touchmove", handleTouchMove);
-//     document.addEventListener("touchend", handleTouchEnd);
+    document.addEventListener("touchstart", handleTouchStart);
+    document.addEventListener("touchmove", handleTouchMove);
+    document.addEventListener("touchend", handleTouchEnd);
 
     return () => {
       document.removeEventListener("touchstart", handleTouchStart);

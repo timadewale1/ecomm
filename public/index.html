@@ -326,25 +326,23 @@
       To begin the development, run `npm start` or `yarn start`.
       To create a production bundle, use `npm run build` or `yarn build`.
     -->
+    <!-- In your <body> before the closing </body> tag -->
     <script>
+      // Set viewport height for mobile (using --vh)
       function setViewportHeight() {
-  let vh = window.innerHeight * 0.01; // Get 1% of viewport height
-  document.documentElement.style.setProperty('--vh', `${vh}px`);
-}
+        let vh = window.innerHeight * 0.01; // 1% of viewport height
+        document.documentElement.style.setProperty("--vh", `${vh}px`);
+      }
+      setViewportHeight();
+      window.addEventListener("resize", setViewportHeight);
 
-// Run function on load and resize
-setViewportHeight();
-window.addEventListener('resize', setViewportHeight);
-
-      // Detect if the app is running in PWA standalone mode
+      // Functions to detect PWA mode and device type
       const isPWAMode = () =>
         window.matchMedia("(display-mode: standalone)").matches ||
         window.navigator.standalone;
-
       const isChromeOnIOS = () =>
         /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
       const isAndroid = () => /android/.test(navigator.userAgent.toLowerCase());
 
       let deferredPrompt = null;
@@ -359,49 +357,70 @@ window.addEventListener('resize', setViewportHeight);
         });
       }
 
+      // Function to show the PWA modal
       function showPWAModal() {
         const modal = document.getElementById("pwa-install-modal");
         const message = document.getElementById("pwa-message");
-
+        console.log("Crios:", crios);
+        console.log("PWA:", pwa);
+        // Set the message content based on device
         message.innerHTML = crios
-          ? `Install our lightweight browser application for quicker access and a better experience!<br>Tap the <strong><svg class="inline-svg" width='30' height='30' xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" enable-background="new 0 0 50 50"><path fill="white" d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z"/><path fill="white" d="M24 7h2v21h-2z"/><path fill="white" d="M35 40H15c-1.7 0-3-1.3-3-3V19c0-1.7 1.3-3 3-3h7v2h-7c-.6 0-1 .4-1 1v18c0 .6.4 1 1 1h20c.6 0 1-.4 1-1V19c0-.6-.4-1-1-1h-7v-2h7c1.7 0 3 1.3 3 3v18c0 1.7-1.3 3-3 3z"/></svg></strong> button and select <strong>Add to Home Screen</strong> to install this app.`
+          ? `Install our lightweight browser application for quicker access and a better experience!<br>Tap the <strong><svg class="inline-svg" width="30" height="30" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50"><path fill="white" d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z"/><path fill="white" d="M24 7h2v21h-2z"/><path fill="white" d="M35 40H15c-1.7 0-3-1.3-3-3V19c0-1.7 1.3-3 3-3h7v2h-7c-.6 0-1 .4-1 1v18c0 .6.4 1 1 1h20c.6 0 1-.4 1-1V19c0-.6-.4-1-1-1h-7v-2h7c1.7 0 3 1.3 3 3v18c0 1.7-1.3 3-3 3z"/></svg></strong> button and select <strong>Add to Home Screen</strong> to install this app.`
           : "Install our light-weight browser application for quicker access and a better experience!";
-
+        // Show the modal
         modal.classList.add("show");
+        document.body.classList.add("noscroll");
       }
 
+      // Function to close the modal
       function closeModal() {
-        document.getElementById("pwa-install-modal").classList.remove("show");
+        const modal = document.getElementById("pwa-install-modal");
+        modal.classList.remove("show");
+
+        document.body.classList.remove("noscroll");
       }
 
+      // When the DOM is fully loaded
       document.addEventListener("DOMContentLoaded", () => {
         const loadingScreen = document.getElementById("custom-loading-screen");
         const installBtn = document.getElementById("install-btn");
+        const installModal = document.getElementById("pwa-install-modal");
 
+        // Ensure modal is hidden initially
+        installModal.classList.remove("show");
+        document.body.classList.remove("noscroll");
+
+        // For the loading screen
         if (loadingScreen) {
-          loadingScreen.style.display = pwaMode ? "flex" : "none";
+          // Display the loading screen only in PWA mode (if desired)
+          loadingScreen.style.display = pwa ? "flex" : "none";
         }
 
-        if (!pwaMode) {
-          setTimeout(showPWAModal, 1000); // Show modal after 1s delay
-          if (installBtn && !crios) {
-            installBtn.style.display = "block";
-            installBtn.addEventListener("click", () => {
-              if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                  if (choiceResult.outcome === "accepted") {
-                    closeModal();
-                  }
-                  deferredPrompt = null;
-                });
-              }
-            });
-          }
+        // Show the install modal after a delay if not in PWA mode
+        if (!pwa) {
+          setTimeout(() => {
+            showPWAModal();
+          }, 2000);
+        }
+
+        // Set up the install button if available and not on Chrome iOS (which handles it differently)
+        if (installBtn && !crios) {
+          installBtn.style.display = "block";
+          installBtn.addEventListener("click", () => {
+            if (deferredPrompt) {
+              deferredPrompt.prompt();
+              deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === "accepted") {
+                  closeModal();
+                }
+                deferredPrompt = null;
+              });
+            }
+          });
         }
       });
 
-      // Fallback: Hide loading screen after 5 seconds
+      // Fallback: Hide loading screen after 5 seconds (if still visible)
       setTimeout(() => {
         const loadingScreen = document.getElementById("custom-loading-screen");
         if (loadingScreen) {
@@ -411,11 +430,15 @@ window.addEventListener('resize', setViewportHeight);
     </script>
 
     <style>
+      .noscroll {
+        overflow-x: hidden;
+      }
       .pwa-modal {
-        display: flex;
+        visibility: hidden;
+        display: flex; /* Hide initially */
         justify-content: flex-end; /* Pushes content to the bottom */
         align-items: center; /* Centers horizontally */
-        font-family: open sans, sans-serif;
+        font-family: "Open sans", sans-serif;
         position: fixed;
         bottom: -150%;
         left: 0;
@@ -433,6 +456,7 @@ window.addEventListener('resize', setViewportHeight);
       }
 
       .pwa-modal.show {
+        visibility: visible;
         bottom: 0;
         opacity: 1;
         pointer-events: auto;

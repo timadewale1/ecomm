@@ -6,7 +6,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 
 // Firestore
 import { db } from "../../firebase.config";
-import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, deleteDoc, updateDoc, increment } from "firebase/firestore";
 
 // Icons
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
@@ -108,7 +108,7 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
         }
       );
 
-      // Firestore doc reference
+      // Firestore doc references
       const favDocRef = doc(
         db,
         "users",
@@ -116,18 +116,23 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
         "favorites",
         product.id
       );
+      const vendorDocRef = doc(db, "vendors", product.vendorId);
 
       if (wasFavorite) {
         // Previously was a favorite => means user wants to remove it
         await deleteDoc(favDocRef);
+        // Do nothing to the vendor's likesCount so it never decrements
       } else {
         // Previously not favorite => means user wants to add it
         await setDoc(favDocRef, {
           productId: product.id,
+          vendorId: product.vendorId, // Store vendor ID here
           name: product.name,
           price: product.price,
           createdAt: new Date(),
         });
+        // Increment vendor's likesCount
+        await updateDoc(vendorDocRef, { likesCount: increment(1) });
       }
     } catch (err) {
       console.error("Error updating favorites:", err);

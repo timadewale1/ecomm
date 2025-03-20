@@ -213,17 +213,31 @@ const Marketpg = () => {
                       </span>
                     </div>
                   </div>
-                  <div className="relative w-24 h-24">
+                  <div className="relative w-24 h-24 overflow-hidden">
+                    {/* Main image */}
                     <img
                       className="object-cover w-full h-full rounded-lg"
                       src={vendor.coverImageUrl || defaultImageUrl}
                       alt={vendor.shopName}
                     />
-                    {/* <img
-                      src="/Ribbon.svg"
-                      alt="Discount Ribbon"
-                      className="absolute top-0 left-0 w-8 h-8"
-                    /> */}
+
+                    {/* Shimmer effect overlay with pause between animations */}
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        background:
+                          "linear-gradient(45deg, transparent 20%, rgba(255,255,255,0.3) 50%, transparent 80%)",
+                        backgroundSize: "200% 200%",
+                        animation: "shimmer 6s infinite ease-in-out", // Adjusted timing
+                      }}
+                    />
+
+                    {/* Commented out ribbon
+  <img
+    src="/Ribbon.svg"
+    alt="Discount Ribbon"
+    className="absolute top-0 left-0 w-8 h-8"
+  /> */}
                   </div>
                 </div>
               </div>

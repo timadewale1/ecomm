@@ -119,8 +119,8 @@ const Layout = () => {
       <VendorNavigationProvider>
         {isMobile ? (
           <>
-            <div className="relative">
-          <SwipeToRefresh />
+            <div className="relative pb-6">
+              <SwipeToRefresh />
               <ScrollToTop />
               <Routers />
             </div>

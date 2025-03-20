@@ -163,7 +163,7 @@ const productSizes = {
     "Custom Fit",
     "Adjustable", // Extended fit options
   ],
- " Dresses": [
+ "Dresses": [
     // UK Sizes
     "UK 4",
     "UK 6",

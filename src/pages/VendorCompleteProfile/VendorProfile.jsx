@@ -35,10 +35,14 @@ import {
 } from "react-icons/fa6";
 import { BsShieldFillCheck } from "react-icons/bs";
 import { IoBook } from "react-icons/io5";
-import { IoIosCall } from "react-icons/io";
+import { IoIosCall, IoIosStats } from "react-icons/io";
+import ReactModal from "react-modal";
+import Modal from "react-modal";
 import { AiOutlineExperiment } from "react-icons/ai";
-import { MdOutlineFeedback } from "react-icons/md";
+import { MdOutlineClose, MdOutlineFeedback } from "react-icons/md";
 import SEO from "../../components/Helmet/SEO.jsx";
+import ProfileView from "./profileView.jsx";
+import { GoChevronLeft } from "react-icons/go";
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const defaultImageUrl =
@@ -52,11 +56,14 @@ const VendorProfile = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  // const [followersCount, setFollowersCount] = useState(0);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
   const [fulfilledOrders, setFulfilledOrders] = useState(0);
   const [unfulfilledOrders, setUnfulfilledOrders] = useState(0);
   const [incomingOrders, setIncomingOrders] = useState(0);
   const totalOrders = fulfilledOrders + unfulfilledOrders + incomingOrders;
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
 
   const activityData = {
     labels: ["Fulfilled", "Unfulfilled", "Incoming"],
@@ -71,6 +78,15 @@ const VendorProfile = () => {
         borderWidth: 0,
       },
     ],
+  };
+  // Function to open modal
+  const openProfileModal = () => {
+    setIsProfileModalOpen(true);
+  };
+
+  // Function to close modal
+  const closeProfileModal = () => {
+    setIsProfileModalOpen(false);
   };
 
   const activityOptions = {
@@ -116,9 +132,34 @@ const VendorProfile = () => {
 
     fetchUserData();
   }, [dispatch, currentUser]);
+  // useEffect(() => {
+  //   if (!currentUser?.uid) return; // Ensure currentUser is defined
 
-  const { shopName, coverImageUrl, marketPlaceType, description, uid } =
-    userData || {};
+  //   const fetchFollowersCount = async () => {
+  //     try {
+  //       const followersQuery = query(
+  //         collection(db, "follows"),
+  //         where("vendorId", "==", currentUser.uid)
+  //       );
+  //       const querySnapshot = await getDocs(followersQuery);
+  //       setFollowersCount(querySnapshot.size);
+  //     } catch (error) {
+  //       console.error("Error fetching followers count:", error);
+  //     }
+  //   };
+
+  //   fetchFollowersCount();
+  // }, [currentUser]);
+
+  const {
+    shopName,
+    coverImageUrl,
+    marketPlaceType,
+    description,
+    uid,
+    likesCount,
+    followersCount,
+  } = userData || {};
 
   useEffect(() => {
     const fetchOrderData = async () => {
@@ -261,9 +302,7 @@ const VendorProfile = () => {
               <div className="w-24">
                 <div
                   className="relative cursor-pointer w-28 h-28 bg-cover bg-center bg-customSoftGray flex rounded-full"
-                  onClick={
-                    () => navigate('/share-profile')
-                  }
+                  onClick={openProfileModal}
                   style={{
                     backgroundImage: loading
                       ? "none"
@@ -279,7 +318,7 @@ const VendorProfile = () => {
                 >
                   {loading && (
                     <Skeleton
-                      height={224} // Adjusted height to match the cover div height
+                      height={100} // Adjusted height to match the cover div height
                       width="100%"
                       className="absolute top-0 left-0 w-full h-full"
                     />
@@ -288,24 +327,40 @@ const VendorProfile = () => {
               </div>
 
               <div className="flex flex-col justify-between w-96 px-3 h-full ml-2">
-                <div className="text-2xl font-opensans font-bold capitalize mb-6">
+                <div className="text-2xl font-ubuntu font-bold capitalize mb-6">
                   {shopName}
                 </div>
 
-                <div className="flex justify-between items-start w-full h-full">
+                <div
+                  onClick={() => setIsStatsModalOpen(true)}
+                  className="flex justify-between items-start w-full h-full"
+                >
                   <div className="flex flex-col justify-center">
-                    <p className="text-customDeepOrange font-medium">100</p>
-                    <p className="text-black">Followers</p>
+                    <p className="text-customDeepOrange text-xl font-opensans font-semibold">
+                      {followersCount || 0}
+                    </p>
+                    <p className="text-black text-sm font-opensans">
+                      Followers
+                    </p>
                   </div>
 
                   <div className="flex flex-col justify-center">
-                    <p className="text-customDeepOrange font-medium">100</p>
-                    <p className="text-black">Likes</p>
+                    <p className="text-customDeepOrange text-xl font-opensans font-semibold">
+                      {likesCount || 0}
+                    </p>
+                    <p className="text-black text-sm font-opensans">Likes</p>
                   </div>
 
-                  <div className="flex flex-col justify-center">
-                    <p className="text-customDeepOrange font-medium">100</p>
-                    <p className="text-black">Products in cart</p>
+                  <div className="flex flex-col justify-center relative">
+                    <div className="flex flex-col justify-center relative">
+                      <div className="absolute inset-0 bg-white/30 backdrop-blur-md w-40 rounded-md"></div>
+                      <p className="text-customDeepOrange text-xl font-opensans font-semibold relative z-10 blur-sm">
+                        100
+                      </p>
+                      <p className="text-black text-sm font-opensans  relative z-10">
+                        Pending Cart Items
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -527,11 +582,12 @@ const VendorProfile = () => {
         ) : (
           <>
             {profileOpen && (
-              <div className="flex flex-col p-2 h-actualScreenHeight bg-customOrange"
-              style={{
-                boxShadow: "0 -2px 10px rgba(0, 0, 0, 0.2)",
-                zIndex: "1100"
-              }}
+              <div
+                className="flex flex-col p-2 h-actualScreenHeight bg-customOrange"
+                style={{
+                  boxShadow: "0 -2px 10px rgba(0, 0, 0, 0.2)",
+                  zIndex: "1100",
+                }}
               >
                 <div className="flex justify-between mt-2 mb-3">
                   <ChevronLeft
@@ -539,31 +595,29 @@ const VendorProfile = () => {
                     onClick={() => setProfileOpen(!profileOpen)}
                   />
                 </div>
-                  <div className="flex flex-col h-full w-full items-center justify-evenly">
-                    <div className="w-[90%] p-1 rounded-2xl border-2 border-dashed border-white">
-                      <div
-                        className="h-[400px] w-full bg-cover bg-center bg-customSoftGray flex rounded-2xl"
-                        style={{
-                          backgroundImage: loading
-                            ? "none"
-                            : !loading && marketPlaceType === "virtual"
-                            ? `url(${coverImageUrl})`
-                            : `url(${defaultImageUrl})`,
-                          backgroundSize: "cover", // Ensures the image covers the div
-                          backgroundPosition: "center", // Centers the image
-                          backgroundRepeat: "no-repeat", // Prevents repeating
-                        }}
-                      >
-                        
-                      </div>
+                <div className="flex flex-col h-full w-full items-center justify-evenly">
+                  <div className="w-[90%] p-1 rounded-2xl border-2 border-dashed border-white">
+                    <div
+                      className="h-[400px] w-full bg-cover bg-center bg-customSoftGray flex rounded-2xl"
+                      style={{
+                        backgroundImage: loading
+                          ? "none"
+                          : !loading && marketPlaceType === "virtual"
+                          ? `url(${coverImageUrl})`
+                          : `url(${defaultImageUrl})`,
+                        backgroundSize: "cover", // Ensures the image covers the div
+                        backgroundPosition: "center", // Centers the image
+                        backgroundRepeat: "no-repeat", // Prevents repeating
+                      }}
+                    ></div>
+                  </div>
+
+                  {/* Share buttons */}
+                  <div className="space-y-4">
+                    <div className="text-white text-2xl font-medium text-center">
+                      Share your store link:
                     </div>
-                      
-                    {/* Share buttons */}
-                    <div className="space-y-4">
-                      <div className="text-white text-2xl font-medium text-center">
-                        Share your store link:
-                      </div>
-                      <div className="flex flex-wrap gap-4 justify-center">
+                    <div className="flex flex-wrap gap-4 justify-center">
                       {/* Copy profile link */}
                       <button
                         className="flex justify-center items-center space-x-2 bg-white text-customOrange px-4 py-2 rounded-full shadow-md w-36"
@@ -618,9 +672,8 @@ const VendorProfile = () => {
                         <span className="text-sm">WhatsApp</span>
                       </button>
                     </div>
-                    </div>
-                    
                   </div>
+                </div>
               </div>
             )}
             {showDetails && (
@@ -670,6 +723,75 @@ const VendorProfile = () => {
           </>
         )}
       </div>
+      <ReactModal
+        isOpen={isProfileModalOpen}
+        onRequestClose={closeProfileModal}
+        className="fixed inset-0 flex items-center justify-center z-50"
+        overlayClassName="fixed profile-modal inset-0 bg-black bg-opacity-50"
+      >
+        <div className="bg-gray-100 p-4 rounded-lg w-full max-w-md shadow-lg">
+          <GoChevronLeft
+            className="absolute top-4 left-4 text-black text-3xl cursor-pointer"
+            onClick={closeProfileModal}
+          />
+          <ProfileView />
+        </div>
+      </ReactModal>
+      <Modal
+        isOpen={isStatsModalOpen}
+        onRequestClose={() => setIsStatsModalOpen(false)}
+        contentLabel="Account Stats"
+        className="bg-white p-6 rounded-lg shadow-lg w-80 mx-auto  outline-none"
+        overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+      >
+        <div className="flex items-center  justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
+              <IoIosStats className="text-customRichBrown" />
+            </div>
+            <h2 className="font-opensans text-sm font-semibold">
+              Customer Interaction Stats
+            </h2>
+          </div>
+          <MdOutlineClose
+            className="text-black text-xl cursor-pointer"
+            onClick={() => setIsStatsModalOpen(false)}
+          />
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-xs font-opensans font-medium text-gray-700">
+            <span className="font-semibold text-sm text-customDeepOrange">
+              {followersCount || 0}
+            </span>{" "}
+            people are following your store. Followers receive email
+            notifications whenever you add new products or offer discounts,
+            helping to boost engagement and sales.
+          </p>
+
+          <p className="text-xs font-medium font-opensans text-gray-700">
+            <span className="font-semibold text-sm text-customDeepOrange">
+              {likesCount || 0}
+            </span>{" "}
+            times your products have been added to customer wishlists. This
+            reflects buyer interest and potential future sales.
+          </p>
+
+          <p className="text-xs font-medium font-opensans text-gray-700">
+            pending items in customers' carts.{" "}
+            <span className="text-customOrange  italic">
+              (This feature is in beta and not yet available to you.)
+            </span>
+          </p>
+          <div className="border-t border-gray-200 translate-y-2 mt-4"></div>
+
+          <p className="text-xs  font-opensans  text-gray-600 font-light italic">
+            Having fewer followers doesn’t mean your store isn’t getting
+            attention. We receive 10K+ monthly visitors browsing different
+            stores.⭐
+          </p>
+        </div>
+      </Modal>
     </>
   );
 };

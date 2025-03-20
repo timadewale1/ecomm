@@ -115,7 +115,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
   };
 
   return (
-    <div className="flex flex-col px-3  font-opensans">
+    <div className="flex flex-col px-3   pb-12 font-opensans">
       <div className="flex flex-col font-opensans  items-center">
         {/* Header */}
         <div className="sticky  bg-white  flex items-center z-10 justify-between h-24 w-full">

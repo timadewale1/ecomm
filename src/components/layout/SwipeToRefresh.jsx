@@ -33,7 +33,7 @@ const SwipeToRefresh = () => {
         setPullDistance(Math.min(distance, 150)); // Limit pull distance
       }
       // Show text only between 20px and 60px
-      if (distance >= 20 && distance <= 60) {
+      if (distance >= 20 && distance <= 80) {
         setShowPullText(true);
       } else {
         setShowPullText(false);
@@ -81,7 +81,7 @@ const SwipeToRefresh = () => {
         style={{
           transform: `translateY(${pullDistance}px)`,
           transition: pullDistance === 0 ? "transform 0.3s ease-out" : "none",
-          opacity: pullDistance > 10 ? 1 : 0,
+          opacity: pullDistance > 90 ? 1 : 0,
           pointerEvents: pullDistance > 10 ? "auto" : "none",
         }}
       >

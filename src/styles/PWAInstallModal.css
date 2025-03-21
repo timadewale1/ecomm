@@ -1,0 +1,93 @@
+/* Prevent body from scrolling when modal is open */
+.noscroll {
+    overflow: hidden;
+  }
+  
+  /* Modal container: positioned at the bottom of the viewport */
+  .pwa-modal {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    z-index: 9999;
+
+     /* Slide & fade defaults */
+  opacity: 0;
+  transform: translateY(100%);
+  transition: opacity 1.5s ease, transform 1.5s ease;
+
+  /* pointer-events: none => so it's not clickable when hidden */
+  pointer-events: none; 
+  }
+  
+  .pwa-modal.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  } 
+
+  /* Modal content styling */
+  .pwa-modal-content {
+    background: #222;
+    padding: 15px; 
+    border-radius: 10px;
+    width: 90%;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  
+  .pwa-modal-content img {
+    border-radius: 10px;
+    width: 60px;
+    height: 60px;
+    margin: 0 auto;
+    display: block;
+  }
+  
+  .head {
+    margin-bottom: 20px;
+    color: white;
+    font-size: 1.25rem;
+  }
+  
+  .message {
+    margin-bottom: 15px;
+    color: white;
+    font-size: 1rem;
+  }
+  
+  .inst-btn,
+  .close-btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 24px;
+    margin-top: 10px;
+    cursor: pointer;
+  }
+  
+  .inst-btn {
+    background: #f9531e;
+    color: white;
+    border: none;
+  }
+  
+  .inst-btn:hover {
+    background: #da3a00;
+  }
+  
+  .close-btn {
+    background: transparent;
+    border: 2px solid #f9531e;
+    color: #f9531e;
+  }
+
+  .inline-svg {
+    display: inline-block;
+  }
+  

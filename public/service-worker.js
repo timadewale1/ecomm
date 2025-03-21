@@ -6,6 +6,7 @@ const urlsToCache = [
   '/manifest.json',
   '/logo192.png',
   '/logo512.png',
+  '/apple-splash-1284-2778.jpg'
   
 ];
 

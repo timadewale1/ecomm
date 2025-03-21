@@ -285,10 +285,12 @@
             <p>Looks like you're browsing from an app that doesn’t support this experience.</p>
             <p>Tap the "..." in the top-right and select <strong>“Open in Browser”</strong> to continue!</p>
             <br>
-            <a href="https://www.shopmythrift.store" target="_blank" 
-               style="display: inline-block; padding: 10px 20px; background: #f9531e; color: #fff; text-decoration: none; font-weight: bold; border-radius: 5px;">
-              🔗 Open in Browser
-            </a>
+           <a href="https://www.shopmythrift.store" 
+   onclick="event.preventDefault(); window.open(this.href, '_blank', 'noopener,noreferrer');" 
+   style="display: inline-block; padding: 10px 20px; background: #f9531e; color: #fff; text-decoration: none; font-weight: bold; border-radius: 5px;">
+  🔗 Open in Browser
+</a>
+
             <p>✨ See you on the other side! ✨</p>
           </div>
         `);
@@ -341,8 +343,8 @@
     <script>
       // Check if the app is running in PWA mode
       const isPWA = window.matchMedia("(display-mode: standalone)").matches;
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream; 
-
+      const isIOS =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
       // Set viewport height for mobile (using --vh)
       function setViewportHeight() {
@@ -359,10 +361,10 @@
         // For the loading screen
         if (loadingScreen) {
           // Display the loading screen only in PWA mode (if desired)
-          loadingScreen.style.display = (isPWA && isIOS) ? "flex" : "none";
+          loadingScreen.style.display = isPWA && isIOS ? "flex" : "none";
         }
-      })
- 
+      });
+
       // Fallback: Hide loading screen after 5 seconds (if still visible)
       setTimeout(() => {
         const loadingScreen = document.getElementById("custom-loading-screen");

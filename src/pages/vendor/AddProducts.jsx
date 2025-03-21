@@ -659,6 +659,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         name: productName,
         shopName: vendorData.shopName,
         id: newProductRef.id,
+        price: parseFloat(productPrice),
         vendorCoverImage: vendorCoverImage,
         coverImageUrl: coverImageUrl,
       });

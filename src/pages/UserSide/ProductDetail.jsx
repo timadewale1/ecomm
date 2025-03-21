@@ -1325,7 +1325,7 @@ const ProductDetailPage = () => {
           style={{
             background:
               "linear-gradient(to top, white, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0) 97%)",
-            zIndex: 9999,
+            zIndex: 8000,
           }}
           onClick={(e) => e.stopPropagation()} // Prevents background clicks from propagating
         >

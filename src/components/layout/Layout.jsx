@@ -12,11 +12,13 @@ import Lottie from "lottie-react";
 import { AccessContext } from "../Context/AccesContext";
 
 import ScrollToTop from "./ScrollToTop";
-import SwipeToRefresh from "./SwipeToRefresh";
+// import SwipeToRefresh from "./SwipeToRefresh";
+import PWAInstallModal from "./PwaInstallModal";
 
 const Layout = () => {
   const location = useLocation();
   const { currentUser } = useAuth(); // Custom hook to get the current user
+  const [showInstallModal, setShowInstallModal] = useState(true);
 
   // List of paths where BottomBar should not be rendered
   const noBottomBarPaths = [
@@ -117,10 +119,14 @@ const Layout = () => {
   return (
     <NavigationProvider>
       <VendorNavigationProvider>
+        {/* Render the PWAInstallModal if needed */}
+      {showInstallModal && (
+        <PWAInstallModal onClose={() => setShowInstallModal(false)} />
+      )}
         {isMobile ? (
           <>
             <div className="relative pb-6">
-              <SwipeToRefresh />
+              {/* <SwipeToRefresh /> */}
               <ScrollToTop />
               <Routers />
             </div>

@@ -147,10 +147,10 @@ const VendorLogin = () => {
 
   return (
     <>
-    <SEO 
-        title={`Vendor Login - My Thrift`} 
+      <SEO
+        title={`Vendor Login - My Thrift`}
         description={`Login to your My Thrift vendor account`}
-        url={`https://www.shopmythrift.store/vendorlogin`} 
+        url={`https://www.shopmythrift.store/vendorlogin`}
       />
       <section>
         <Container>
@@ -188,10 +188,10 @@ const VendorLogin = () => {
               </div>
               <div className="translate-y-4">
                 <div className="mb-2">
-                  <h1 className="font-ubuntu text-5xl flex font-semibold text-black">
-                    Login{" "}
-                    <span className="text-customOrange translate-y-4 text-xl">
-                      <p>(Vendor)</p>
+                  <h1 className="font-ubuntu text-5xl flex items-center font-semibold text-black gap-2">
+                    Login
+                    <span className="rounded-full px-3 py-1 bg-customOrange text-xs flex items-center justify-center">
+                      <p className="text-white text-xs leading-none">Vendor</p>
                     </span>
                   </h1>
                 </div>

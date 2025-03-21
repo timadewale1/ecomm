@@ -77,7 +77,8 @@ const notifyFollowers = async (vendorId, productDetails) => {
         id: productDetails.id,
         name: productDetails.name,
         image: productDetails.coverImageUrl || "",
-        link: `https://www.shopmythrift.store/product/${productDetails.id}`,
+        price: productDetails.price,
+        link: `https://www.shopmythrift.store/product/${productDetails.id}?shared=true`,
         createdAt: new Date(),
       };
       console.log("New product entry for email batch:", newProductEntry);

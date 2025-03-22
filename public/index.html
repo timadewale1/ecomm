@@ -270,28 +270,7 @@
       work correctly both with client-side routing and a non-root public URL.
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
-    <script>
-      function isIOSInAppWebView() {
-        const ua = navigator.userAgent || "";
-        const isIOS = /iPhone|iPad|iPod/.test(ua);
-        const isInApp = /Instagram|Snapchat/.test(ua);
-        return isIOS && isInApp;
-      }
-
-      if (isIOSInAppWebView()) {
-        document.write(`
-          <div style="padding: 2rem; font-family: sans-serif; text-align: center;">
-            <h2>😵 Stuck on a blank page?</h2>
-            <p>Looks like you're browsing from an app that doesn’t support this experience.</p>
-            <p>Tap the "..." in the top-right and select <strong>“Open in Browser”</strong> to continue!</p>
-            <br>
-
-
-            <p>✨ See you on the other side! ✨</p>
-          </div>
-        `);
-      }
-    </script>
+  
     <style>
       .splash {
         width: 100vw;

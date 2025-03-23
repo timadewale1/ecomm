@@ -1,10 +1,8 @@
+// src/components/CategoryProducts.jsx
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  fetchCategoryProducts,
-  resetCategoryProducts,
-} from "../../redux/reducers/categoryProductsSlice";
+import { fetchCategoryProducts } from "../../redux/reducers/categoryProductsSlice";
 import ProductCard from "../Products/ProductCard";
 import { GoChevronLeft } from "react-icons/go";
 import { RotatingLines } from "react-loader-spinner";
@@ -15,14 +13,14 @@ const CategoryProducts = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // Get initial products from PopularCats (used to determine category)
+  // Get initial products from PopularCats passed via location.state
   const { products: initialProducts } = location.state || {};
   const productType = initialProducts?.[0]?.productType || "Products";
   // Use productType as category
   const category = productType;
-  console.log("[Component] Using category:", category);
+  console.log("[CategoryProducts] Using category:", category);
 
-  // Get cached data for this category
+  // Retrieve cached data for this category from Redux
   const categoryData = useSelector(
     (state) => state.categoryProducts.data[category]
   ) || {
@@ -32,59 +30,67 @@ const CategoryProducts = () => {
   };
   const { products, lastVisible, noMoreProducts } = categoryData;
   const loading = useSelector((state) => state.categoryProducts.loading);
+  const error = useSelector((state) => state.categoryProducts.error);
 
   // Handle sticky header
   const [showHeader, setShowHeader] = useState(true);
   const [lastScrollPosition, setLastScrollPosition] = useState(0);
 
+  // On mount, fetch initial products only if not already cached
+  useEffect(() => {
+    if (products.length === 0) {
+      console.log(
+        "[CategoryProducts] No cached products, fetching for category:",
+        category
+      );
+      dispatch(fetchCategoryProducts({ category, loadMore: false }));
+    } else {
+      console.log(
+        "[CategoryProducts] Using cached products for category:",
+        category
+      );
+    }
+  }, [category, products, dispatch]);
+
+  // Infinite scroll and header visibility
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollPosition = window.scrollY;
-      if (currentScrollPosition > lastScrollPosition) {
-        setShowHeader(false);
-      } else {
-        setShowHeader(true);
-      }
+      setShowHeader(currentScrollPosition <= lastScrollPosition);
       setLastScrollPosition(currentScrollPosition);
 
       if (
         window.innerHeight + window.scrollY >=
         document.documentElement.scrollHeight - 100
       ) {
-        console.log(
-          "[Component] Near bottom of page, fetching more products..."
-        );
-        fetchMoreProducts();
+        if (!loading && !noMoreProducts) {
+          console.log(
+            "[CategoryProducts] Near bottom, fetching more products for category:",
+            category
+          );
+          dispatch(fetchCategoryProducts({ category, loadMore: true }));
+        }
       }
     };
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollPosition]);
+  }, [dispatch, loading, noMoreProducts, lastScrollPosition, category]);
 
-  useEffect(() => {
-    console.log("[Component] Initial fetch for category:", category);
-    fetchInitialProducts();
-    // eslint-disable-next-line
-  }, [category]);
-
-  const fetchInitialProducts = () => {
-    try {
-      dispatch(resetCategoryProducts(category));
-      dispatch(fetchCategoryProducts({ category, loadMore: false }));
-    } catch (error) {
-      console.error("[Component] Error fetching initial products:", error);
-    }
+  const handleClearSearch = () => {
+    // Implement search clear logic if needed
   };
 
-  const fetchMoreProducts = () => {
-    if (loading || noMoreProducts) return;
-    try {
-      dispatch(fetchCategoryProducts({ category, loadMore: true }));
-    } catch (error) {
-      console.error("[Component] Error fetching more products:", error);
-    }
+  const handleSearchChange = (event) => {
+    // Implement search logic if needed
   };
+
+  // Optional: If you want to support filtering and sorting locally
+  const filteredProducts = products
+    .filter(
+      (product) => product.name.toLowerCase().includes("") // Replace with searchTerm if needed
+    )
+    .sort((a, b) => 0); // Replace with sort logic if needed
 
   return (
     <>
@@ -113,7 +119,7 @@ const CategoryProducts = () => {
 
         {/* Product Grid */}
         <div className="pt-16 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {products.map((product) => (
+          {filteredProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
@@ -130,6 +136,20 @@ const CategoryProducts = () => {
             />
           </div>
         )}
+
+        {/* Error Display (Optional)
+        {error && (
+          <p className="text-red-600 font-semibold mt-4 text-center">{error}</p>
+        )} */}
+
+        {/* Fallback: Show message if no products found */}
+        {!loading &&
+          categoryData &&
+          (categoryData.noMoreProducts || products.length === 0) && (
+            <p className="text-center mt-4 text-gray-600">
+              No {productType} found. Check back for updates.
+            </p>
+          )}
       </div>
     </>
   );

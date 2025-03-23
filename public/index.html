@@ -279,7 +279,37 @@
    
   </head>
   <body>
-    
+    <!-- <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #fdfdfd;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Poppins', sans-serif;
+        text-align: center;
+        color: #222;
+      }
+
+      .message {
+        max-width: 85%;
+        padding: 24px;
+        background: #fff;
+        border: 1px solid #eee;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        border-radius: 14px;
+        font-size: 1rem;
+        line-height: 1.6;
+      }
+
+      .message strong {
+        display: block;
+        margin-bottom: 12px;
+        font-size: 1.15rem;
+      }
+    </style> -->
     <script>
       document.addEventListener("DOMContentLoaded", function () {
         const ua = navigator.userAgent;
@@ -290,15 +320,31 @@
         if (isIOS && (isInstagram || isSnapchat)) {
           document.body.innerHTML = "";
 
-          const messageDiv = document.createElement("div");
-          messageDiv.className = "message";
-          messageDiv.innerHTML = `
-            <strong>Just a quick heads-up </strong>
-            If things aren't loading right, tap the <strong>three dots</strong> in the corner and hit<br />
-            <em>"Open in Browser"</em> to keep it smooth.<br /><br />
-            You're one tap away from the good stuff 😎
-          `;
-          document.body.appendChild(messageDiv);
+                  const messageDiv = document.createElement("div");
+                  messageDiv.className = "message";
+
+                  // Add inline style to ensure visibility
+                  document.body.style.cssText = `
+                    margin: 0;
+                    padding: 0;
+                    height: 100vh;
+                    background: #fdfdfd;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-family: 'Poppins', sans-serif;
+                    text-align: center;
+                    color: #222;
+                  `;
+
+                  messageDiv.innerHTML = `
+                    <strong>Just a quick heads-up</strong>
+                    If things aren't loading right, tap the <strong>three dots</strong> in the corner and hit<br />
+                    <em>"Open in Browser"</em> to keep it smooth.<br /><br />
+                    You're one tap away from the good stuff 😎
+                  `;
+
+                  document.body.appendChild(messageDiv);
         }
       });
     </script>

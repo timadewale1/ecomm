@@ -28,7 +28,7 @@ const PersonalDiscountsPage = () => {
 
   useEffect(() => {
     // Reset the slice and fetch initial batch of personal discounts
-    dispatch(resetPersonalDiscountsPage());
+    // dispatch(resetPersonalDiscountsPage());
     dispatch(fetchPersonalDiscountsPage({ loadMore: false }));
   }, [dispatch]);
 

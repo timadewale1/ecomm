@@ -20,6 +20,7 @@ import storepageVendorsReducer from "./reducers/storepageVendorsSlice"
 import vendorReducer from "./reducers/VendorsSlice";
 import personalDiscountsPageReducer from "./reducers/personalDiscountsPageSlice";
 import { promoReducer } from "./reducers/promoreducer";
+import catsectionReducer from "./reducers/catsection";
 import categoryProductsReducer from "./reducers/categoryProductsSlice";
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -34,6 +35,7 @@ const rootReducer = combineReducers({
   personalDiscountsPage: personalDiscountsPageReducer,
   personalDiscounts: personalDiscountsSlice,
   homepage: homepageReducer,
+  catsection: catsectionReducer,
   categories: categoriesReducer,
   vendors: vendorReducer,
   condition: conditionReducer,

@@ -31,7 +31,7 @@ import { useAuth } from "../custom-hooks/useAuth";
 import { FaSpinner, FaStar } from "react-icons/fa6";
 import { CiLogin, CiSearch } from "react-icons/ci";
 
-import { MdCancel, MdClose } from "react-icons/md";
+import { MdCancel, MdClose, MdIosShare } from "react-icons/md";
 import { LuListFilter } from "react-icons/lu";
 import Lottie from "lottie-react";
 import { LiaTimesSolid } from "react-icons/lia";
@@ -359,10 +359,9 @@ const StorePage = () => {
       }
     });
 
-    if (reduxLoading) {
-      return <Loading />;
-    }
-    
+  if (reduxLoading) {
+    return <Loading />;
+  }
 
   if (!vendor) {
     return (
@@ -403,6 +402,24 @@ const StorePage = () => {
     "All",
     ...new Set(products.map((product) => product.productType)),
   ];
+  const handleShare = () => {
+    const storeUrl = `${window.location.origin}/store/${vendor.id}`;
+    if (navigator.share) {
+      navigator
+        .share({
+          title: vendor.shopName,
+          text: `Check out ${vendor.shopName} on My Thrift!`,
+          url: storeUrl,
+        })
+        .catch((err) => {
+          console.error("Share failed:", err);
+        });
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(storeUrl);
+      toast.success("Store link copied to clipboard!");
+    }
+  };
 
   return (
     <>
@@ -493,6 +510,12 @@ const StorePage = () => {
             ) : (
               <span className="text-center font-bold">{vendor.shopName}</span>
             )}
+            <button
+              onClick={handleShare}
+              className="absolute bottom-1 right-1 bg-white rounded-full p-1 shadow-md hover:bg-gray-100"
+            >
+              <MdIosShare className="text-xl text-gray-900" />
+            </button>
           </div>
         </div>
         {/* <div className="flex justify-center mt-3 mb-2">

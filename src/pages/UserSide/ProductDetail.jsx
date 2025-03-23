@@ -1033,19 +1033,37 @@ const ProductDetailPage = () => {
                   delay: 7500,
                   disableOnInteraction: false,
                 }}
-                className="product-images-swiper "
+                className="product-images-swiper"
                 onSlideChange={(swiper) =>
                   setCurrentImageIndex(swiper.activeIndex)
                 }
               >
                 {allImages.map((image, index) => (
                   <SwiperSlide key={index}>
-                    <img
-                      src={image}
-                      alt={`${product.name} image ${index + 1}`}
-                      className="object-cover w-full h-full"
-                      style={{ borderBottom: "6px solid white" }} // White line separator
-                    />
+                    <div className="relative w-full h-full">
+                      <img
+                        src={image}
+                        alt={`${product.name} image ${index + 1}`}
+                        className="object-cover w-full h-full"
+                        style={{ borderBottom: "6px solid white" }}
+                      />
+                      {/* Discount Badge inside each slide */}
+                      {index === 0 && product.discount && (
+                        <div className="absolute top-4 right-2 z-20">
+                          {product.discount.discountType.startsWith(
+                            "personal-freebies"
+                          ) ? (
+                            <div className="bg-customPink text-customOrange text-xs px-2 py-1.5 font-opensans font-medium rounded">
+                              {product.discount.freebieText}
+                            </div>
+                          ) : (
+                            <div className="bg-customPink text-customOrange text-xs px-2 py-1.5 font-opensans font-medium rounded">
+                              -{product.discount.percentageCut}%
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </SwiperSlide>
                 ))}
               </Swiper>

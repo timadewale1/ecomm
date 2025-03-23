@@ -276,79 +276,104 @@
         z-index: 9999;
       }
     </style>
-   
-  </head>
-  <body>
-    <!-- <style>
-      html, body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        background: #fdfdfd;
+    <script>
+      function isIOSInAppWebView() {
+        const ua = navigator.userAgent || "";
+        const isIOS = /iPhone|iPad|iPod/.test(ua);
+        const isInApp = /Instagram|Snapchat/.test(ua);
+        return isIOS && isInApp;
+      }
+
+      setTimeout(() => {
+        if (isIOSInAppWebView()) {
+          // Create the wrapper div
+          const wrapper = document.createElement("div");
+          wrapper.style.cssText = `
+          opacity: 0;
+          transition: opacity 1s ease-in-out;
+          padding: 2rem;
+          font-family: sans-serif;
+          text-align: center;
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background: white;
+          z-index: 9999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        `;
+
+          // Inner content
+          wrapper.innerHTML = `
+          <div>
+            <h2 style="margin-bottom: 1rem;">😵 Stuck on a blank page?</h2>
+            <p>Looks like you're browsing from an app that doesn’t support this experience.</p>
+            <p>Tap the "..." in the top-right and select <strong>“Open in Browser”</strong> to continue!</p>
+            <p style="margin-top: 1rem;">✨ See you on the other side! ✨</p>
+          </div>
+        `;
+
+          // Append to body and trigger fade-in
+          document.body.appendChild(wrapper);
+          requestAnimationFrame(() => {
+            wrapper.style.opacity = 1;
+          });
+        }
+      }, 2000);
+    </script>
+    <script>
+      function isIOSInAppWebView() {
+        const ua = navigator.userAgent || "";
+        const isIOS = /iPhone|iPad|iPod/.test(ua);
+        const isInApp = /Instagram|Snapchat/.test(ua);
+        return isIOS && isInApp;
+      }
+
+      setTimeout(() => {
+        if (isIOSInAppWebView()) {
+          // Create the wrapper div
+          const wrapper = document.createElement("div");
+          wrapper.style.cssText = `
+        opacity: 0;
+        transition: opacity 1s ease-in-out;
+        padding: 2rem;
+        font-family: sans-serif;
+        text-align: center;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: white;
+        z-index: 9999;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-family: 'Poppins', sans-serif;
-        text-align: center;
-        color: #222;
-      }
+      `;
 
-      .message {
-        max-width: 85%;
-        padding: 24px;
-        background: #fff;
-        border: 1px solid #eee;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-        border-radius: 14px;
-        font-size: 1rem;
-        line-height: 1.6;
-      }
+          // Inner content
+          wrapper.innerHTML = `
+        <div>
+          <h2 style="margin-bottom: 1rem;">😵 Stuck on a blank page?</h2>
+          <p>Looks like you're browsing from an app that doesn’t support this experience.</p>
+          <p>Tap the "..." in the top-right and select <strong>“Open in Browser”</strong> to continue!</p>
+          <p style="margin-top: 1rem;">✨ See you on the other side! ✨</p>
+        </div>
+      `;
 
-      .message strong {
-        display: block;
-        margin-bottom: 12px;
-        font-size: 1.15rem;
-      }
-    </style> -->
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        const ua = navigator.userAgent;
-        const isIOS = /iPhone|iPad|iPod/i.test(ua);
-        const isInstagram = /Instagram/i.test(ua);
-        const isSnapchat = /Snapchat/i.test(ua);
-
-        if (isIOS && (isInstagram || isSnapchat)) {
-          document.body.innerHTML = "";
-
-                  const messageDiv = document.createElement("div");
-                  messageDiv.className = "message";
-
-                  // Add inline style to ensure visibility
-                  document.body.style.cssText = `
-                    margin: 0;
-                    padding: 0;
-                    height: 100vh;
-                    background: #fdfdfd;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-family: 'Poppins', sans-serif;
-                    text-align: center;
-                    color: #222;
-                  `;
-
-                  messageDiv.innerHTML = `
-                    <strong>Just a quick heads-up</strong>
-                    If things aren't loading right, tap the <strong>three dots</strong> in the corner and hit<br />
-                    <em>"Open in Browser"</em> to keep it smooth.<br /><br />
-                    You're one tap away from the good stuff 😎
-                  `;
-
-                  document.body.appendChild(messageDiv);
+          // Append to body and trigger fade-in
+          document.body.appendChild(wrapper);
+          requestAnimationFrame(() => {
+            wrapper.style.opacity = 1;
+          });
         }
-      });
+      }, 2000);
     </script>
   </head>
+
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>

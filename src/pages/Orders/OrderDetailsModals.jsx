@@ -759,26 +759,8 @@ const OrderDetailsModal = ({
 
       console.log("Delivery update successfully sent to API.");
 
-      // Send request to transfer40vendor endpoint
-      console.log("Initiating fund transfer to vendor...");
-      const transferResponse = await fetch(`${API_BASE_URL}/transfer40vendor`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ orderReference }),
-      });
-
-      if (!transferResponse.ok) {
-        const errorData = await transferResponse.json();
-        console.error("Failed to initiate vendor fund transfer:", errorData);
-        throw new Error(`Fund transfer API error: ${transferResponse.status}`);
-      }
-
-      console.log("Fund transfer successfully initiated.");
-
-      // External calls succeeded, now update Firebase
+   
+    
       console.log("Updating order progressStatus to 'Delivered'...");
       await updateDoc(orderRef, {
         progressStatus: "Delivered",
@@ -863,7 +845,7 @@ const OrderDetailsModal = ({
         console.warn("User phone number not available, skipping SMS.");
       }
 
-      toast.success("Order marked as delivered and funds transferred.");
+      toast.success("Order marked as delivered and your funds are on their way!");
       onClose();
     } catch (error) {
       console.error("Failed to mark as delivered:", error);

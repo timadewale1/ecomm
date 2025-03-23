@@ -1,4 +1,3 @@
-// redux/slices/conditionSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   collection,
@@ -11,9 +10,6 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 
-// ------------------------------------------
-// AsyncThunk: fetchConditionProducts
-// ------------------------------------------
 export const fetchConditionProducts = createAsyncThunk(
   "condition/fetchConditionProducts",
   async (
@@ -30,13 +26,17 @@ export const fetchConditionProducts = createAsyncThunk(
       const vendorSnapshot = await getDocs(vendorsQuery);
       const approvedVendors = vendorSnapshot.docs.map((doc) => doc.id);
 
-      // 2) Build base query for products
-      //    - vendorId in approvedVendors
-      //    - isDeleted == false
-      //    - published == true
-      //    - condition == condition
-      //    - orderBy createdAt desc
-      //    - limit = batchSize
+      // If no approved vendors, return empty result immediately
+      if (approvedVendors.length === 0) {
+        console.log("No approved vendors found. Returning empty array.");
+        return {
+          condition,
+          products: [],
+          lastVisible: null,
+        };
+      }
+
+      // 2) Build the products query
       let productsQuery = query(
         collection(db, "products"),
         where("vendorId", "in", approvedVendors),
@@ -49,16 +49,7 @@ export const fetchConditionProducts = createAsyncThunk(
 
       // If we have a "lastVisible" doc, add startAfter for pagination
       if (lastVisible) {
-        productsQuery = query(
-          collection(db, "products"),
-          where("vendorId", "in", approvedVendors),
-          where("isDeleted", "==", false),
-          where("published", "==", true),
-          where("condition", "==", condition),
-          orderBy("createdAt", "desc"),
-          startAfter(lastVisible),
-          limit(batchSize)
-        );
+        productsQuery = query(productsQuery, startAfter(lastVisible));
       }
 
       // 3) Fetch products
@@ -68,8 +59,9 @@ export const fetchConditionProducts = createAsyncThunk(
         ...doc.data(),
       }));
 
-      // 4) Return data + lastVisible for pagination
+      // 4) Return data
       return {
+        condition,
         products,
         lastVisible:
           productsSnapshot.docs.length > 0
@@ -77,60 +69,93 @@ export const fetchConditionProducts = createAsyncThunk(
             : null,
       };
     } catch (error) {
+      console.error("fetchConditionProducts error:", error);
       return rejectWithValue(error.message);
     }
   }
 );
 
-// ------------------------------------------
 // Slice: conditionSlice
 const conditionSlice = createSlice({
   name: "condition",
   initialState: {
-    conditionProducts: [],
-    conditionLastVisible: null,
-    conditionStatus: "idle", // or 'loading', 'succeeded', 'failed'
-    conditionError: null,
+    // Cache data per condition.
+    // Each key will hold an object: { conditionProducts, conditionLastVisible, conditionStatus, conditionError }
+    productsByCondition: {},
   },
   reducers: {
-    resetConditionProducts(state) {
-      state.conditionProducts = [];
-      state.conditionLastVisible = null;
-      state.conditionStatus = "idle";
-      state.conditionError = null;
+    // Reset products for a particular condition if needed
+    resetConditionProducts(state, action) {
+      const { condition } = action.payload;
+      state.productsByCondition[condition] = {
+        conditionProducts: [],
+        conditionLastVisible: null,
+        conditionStatus: "idle",
+        conditionError: null,
+      };
     },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchConditionProducts.pending, (state) => {
-        state.conditionStatus = "loading";
+      .addCase(fetchConditionProducts.pending, (state, action) => {
+        const { condition } = action.meta.arg;
+        if (!state.productsByCondition[condition]) {
+          state.productsByCondition[condition] = {
+            conditionProducts: [],
+            conditionLastVisible: null,
+            conditionStatus: "loading",
+            conditionError: null,
+          };
+        } else {
+          state.productsByCondition[condition].conditionStatus = "loading";
+          state.productsByCondition[condition].conditionError = null;
+        }
       })
       .addCase(fetchConditionProducts.fulfilled, (state, action) => {
-        const { products, lastVisible } = action.payload;
-
-        // Deduplicate products based on their unique `id`
-        const existingProductIds = new Set(
-          state.conditionProducts.map((p) => p.id)
+        console.log("🔥 fetchConditionProducts.fulfilled:", action.payload);
+      
+        const { condition, products, lastVisible } = action.payload;
+      
+        if (!state.productsByCondition[condition]) {
+          state.productsByCondition[condition] = {
+            conditionProducts: [],
+            conditionLastVisible: null,
+            conditionStatus: "idle",
+            conditionError: null,
+          };
+        }
+        // Deduplicate products by id
+        const existingIds = new Set(
+          state.productsByCondition[condition].conditionProducts.map(
+            (p) => p.id
+          )
         );
-        const uniqueProducts = products.filter(
-          (product) => !existingProductIds.has(product.id)
-        );
+        const uniqueProducts = products.filter((p) => !existingIds.has(p.id));
 
-        // Append only unique products
-        state.conditionProducts = [
-          ...state.conditionProducts,
+        state.productsByCondition[condition].conditionProducts = [
+          ...state.productsByCondition[condition].conditionProducts,
           ...uniqueProducts,
         ];
-        state.conditionLastVisible = lastVisible;
-        state.conditionStatus = "succeeded";
+        state.productsByCondition[condition].conditionLastVisible = lastVisible;
+        state.productsByCondition[condition].conditionStatus = "succeeded";
       })
       .addCase(fetchConditionProducts.rejected, (state, action) => {
-        state.conditionStatus = "failed";
-        state.conditionError = action.payload || action.error.message;
+        const { condition } = action.meta.arg;
+        if (!state.productsByCondition[condition]) {
+          state.productsByCondition[condition] = {
+            conditionProducts: [],
+            conditionLastVisible: null,
+            conditionStatus: "failed",
+            conditionError: action.payload || action.error.message,
+          };
+        } else {
+          state.productsByCondition[condition].conditionStatus = "failed";
+          state.productsByCondition[condition].conditionError =
+            action.payload || action.error.message;
+        }
       });
   },
 });
 
 export const { resetConditionProducts } = conditionSlice.actions;
-
 export default conditionSlice.reducer;

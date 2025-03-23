@@ -4,6 +4,10 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
 import { getFunctions } from "firebase/functions";
+import {
+  initializeAppCheck,
+  ReCaptchaEnterpriseProvider,
+} from "firebase/app-check";
 
 // 1) Your Firebase config
 const firebaseConfig = {
@@ -17,12 +21,33 @@ const firebaseConfig = {
 
 // 2) Initialize Firebase
 const app = initializeApp(firebaseConfig);
+if (process.env.REACT_APP_FIREBASE_DEBUG_TOKEN) {
+  window.FIREBASE_APPCHECK_DEBUG_TOKEN = process.env.REACT_APP_FIREBASE_DEBUG_TOKEN;
+}
 
-// 3) Initialize other Firebase services
+// 3) Initialize App Check with reCAPTCHA Enterprise provider for production
+initializeAppCheck(app, {
+  provider: new ReCaptchaEnterpriseProvider(
+    process.env.REACT_APP_RECAPTCHA_ENTERPRISE_KEY
+  ),
+  isTokenAutoRefreshEnabled: true, // Automatically refresh App Check tokens
+});
+console.log("App Check initialized with production reCAPTCHA Enterprise.");
+
+// 4) Initialize other Firebase services
 export const auth = getAuth(app);
+console.log("Auth initialized.");
+
 export const db = getFirestore(app);
+console.log("Firestore initialized.");
+
 export const storage = getStorage(app);
+console.log("Storage initialized.");
+
 export const messaging = getMessaging(app);
+console.log("Messaging initialized.");
+
 export const functions = getFunctions(app);
+console.log("Functions initialized.");
 
 export default app;

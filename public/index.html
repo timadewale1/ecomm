@@ -11,11 +11,8 @@
       name="description"
       content="Begin your shopping journey with My Thrift – discover affordable fashion, accessories, and unique finds from a diverse range of vendors, all at your fingertips."
     />
-
     <meta name="author" content="My Thrift" />
-
     <meta name="custom-test-meta" content="Helmet is injecting meta tags!" />
-
     <meta
       http-equiv="Cache-Control"
       content="no-cache, no-store, must-revalidate"
@@ -42,8 +39,10 @@
     <meta name="twitter:image" content="" />
     <meta name="twitter:url" content="" />
     <meta name="twitter:creator" content="@mythriftng" />
+
     <link rel="icon" href="/favicon.ico" type="image/x-icon" />
     <link rel="icon" href="./logo512.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -63,7 +62,6 @@
       rel="stylesheet"
     />
     <script src="https://js.paystack.co/v2/inline.js"></script>
-
     <link
       href="https://fonts.googleapis.com/css2?family=Bodoni+Moda+SC:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&display=swap"
       rel="stylesheet"
@@ -256,27 +254,14 @@
       media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)"
     />
 
-    <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
     <link rel="manifest" href="./manifest.json" />
-    <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
 
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
     <style>
       .splash {
         width: 100vw;
         object-fit: cover;
         margin-bottom: 130px;
       }
-
       #custom-loading-screen {
         display: none;
         position: fixed;
@@ -291,6 +276,32 @@
         z-index: 9999;
       }
     </style>
+   
+  </head>
+  <body>
+    
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const ua = navigator.userAgent;
+        const isIOS = /iPhone|iPad|iPod/i.test(ua);
+        const isInstagram = /Instagram/i.test(ua);
+        const isSnapchat = /Snapchat/i.test(ua);
+
+        if (isIOS && (isInstagram || isSnapchat)) {
+          document.body.innerHTML = "";
+
+          const messageDiv = document.createElement("div");
+          messageDiv.className = "message";
+          messageDiv.innerHTML = `
+            <strong>Just a quick heads-up </strong>
+            If things aren't loading right, tap the <strong>three dots</strong> in the corner and hit<br />
+            <em>"Open in Browser"</em> to keep it smooth.<br /><br />
+            You're one tap away from the good stuff 😎
+          `;
+          document.body.appendChild(messageDiv);
+        }
+      });
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
@@ -303,225 +314,38 @@
       />
     </div>
 
-    <!-- Modal for prompting PWA install -->
-    <div id="pwa-install-modal" class="pwa-modal">
-      <div class="pwa-modal-content">
-        <h2 class="head">Add to Home Screen</h2>
-        <img src="logo192.png" alt="App-Icon" />
-        <p id="pwa-message" class="message"></p>
-        <button id="install-btn" class="inst-btn" style="display: none">
-          Install
-        </button>
-        <button class="close-btn" onclick="closeModal()">Close</button>
-      </div>
-    </div>
-
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
-
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
+    <!-- Main Scripts -->
     <script>
-      // Detect if we're in an in-app browser on iOS (Instagram/Snapchat)
-      function isInAppIOS() {
-        const ua = navigator.userAgent || "";
-        return /Instagram|Snapchat/.test(ua) && /iPhone|iPad|iPod/.test(ua);
+      // Check if the app is running in PWA mode
+      const isPWA = window.matchMedia("(display-mode: standalone)").matches;
+      const isIOS =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+      // Set viewport height for mobile (using --vh)
+      function setViewportHeight() {
+        let vh = window.innerHeight * 0.01; // 1% of viewport height
+        document.documentElement.style.setProperty("--vh", `${vh}px`);
       }
+      setViewportHeight();
+      window.addEventListener("resize", setViewportHeight);
 
-      if (!isInAppIOS()) {
-        // Run all PWA-related logic for standard browsers
-
-        // Adjust viewport height
-        function setViewportHeight() {
-          let vh = window.innerHeight * 0.01; // 1% of viewport height
-          document.documentElement.style.setProperty("--vh", `${vh}px`);
+      // When the DOM is fully loaded
+      document.addEventListener("DOMContentLoaded", () => {
+        const loadingScreen = document.getElementById("custom-loading-screen");
+        // Display the loading screen only in PWA mode (if desired)
+        if (loadingScreen) {
+          loadingScreen.style.display = isPWA && isIOS ? "flex" : "none";
         }
-        setViewportHeight();
-        window.addEventListener("resize", setViewportHeight);
+      });
 
-        // Detect if the app is running in standalone (PWA) mode
-        const isPWAMode = () =>
-          window.matchMedia("(display-mode: standalone)").matches ||
-          window.navigator.standalone;
-
-        const isChromeOnIOS = () =>
-          /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-        const isAndroid = () =>
-          /android/.test(navigator.userAgent.toLowerCase());
-
-        let deferredPrompt = null;
-        const pwa = isPWAMode();
-        const crios = isChromeOnIOS();
-
-        if (!pwa) {
-          window.addEventListener("beforeinstallprompt", (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-          });
+      // Fallback: Hide loading screen after 5 seconds (if still visible)
+      setTimeout(() => {
+        const loadingScreen = document.getElementById("custom-loading-screen");
+        if (loadingScreen) {
+          loadingScreen.style.display = "none";
         }
-
-        function showPWAModal() {
-          const modal = document.getElementById("pwa-install-modal");
-          const message = document.getElementById("pwa-message");
-
-          message.innerHTML = crios
-            ? `Install our lightweight browser application for quicker access and a better experience!<br>Tap the <strong><svg class="inline-svg" width="30" height="30" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50"><path fill="white" d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z"/><path fill="white" d="M24 7h2v21h-2z"/><path fill="white" d="M35 40H15c-1.7 0-3-1.3-3-3V19c0-1.7 1.3-3 3-3h7v2h-7c-.6 0-1 .4-1 1v18c0 .6.4 1 1 1h20c.6 0 1-.4 1-1V19c0-.6-.4-1-1-1h-7v-2h7c1.7 0 3 1.3 3 3v18c0 1.7-1.3 3-3 3z"/></svg></strong> button and select <strong>Add to Home Screen</strong> to install this app.`
-            : "Install our light-weight browser application for quicker access and a better experience!";
-
-          modal.classList.add("show");
-        }
-
-        function closeModal() {
-          document.getElementById("pwa-install-modal").classList.remove("show");
-        }
-
-        document.addEventListener("DOMContentLoaded", () => {
-          const loadingScreen = document.getElementById(
-            "custom-loading-screen"
-          );
-          const installBtn = document.getElementById("install-btn");
-
-          if (loadingScreen) {
-            // Display the loading screen if in PWA mode, otherwise hide it
-            loadingScreen.style.display = pwa ? "flex" : "none";
-          }
-
-          if (!pwa) {
-            // Show the PWA install modal after a short delay
-            setTimeout(showPWAModal, 1000);
-            if (installBtn && !crios) {
-              installBtn.style.display = "block";
-              installBtn.addEventListener("click", () => {
-                if (deferredPrompt) {
-                  deferredPrompt.prompt();
-                  deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === "accepted") {
-                      closeModal();
-                    }
-                    deferredPrompt = null;
-                  });
-                }
-              });
-            }
-          }
-        });
-
-        // Fallback: Hide loading screen after 5 seconds
-        setTimeout(() => {
-          const loadingScreen = document.getElementById(
-            "custom-loading-screen"
-          );
-          if (loadingScreen) {
-            loadingScreen.style.display = "none";
-          }
-        }, 5000);
-      } else {
-        // In in-app browsers on iOS (Instagram/Snapchat), skip all PWA logic
-        document.addEventListener("DOMContentLoaded", () => {
-          const loadingScreen = document.getElementById(
-            "custom-loading-screen"
-          );
-          if (loadingScreen) {
-            loadingScreen.style.display = "none";
-          }
-        });
-      }
+      }, 5000);
     </script>
-
-    <style>
-      .pwa-modal {
-        display: flex;
-        justify-content: flex-end; /* Pushes content to the bottom */
-        align-items: center; /* Centers horizontally */
-        font-family: open sans, sans-serif;
-        position: fixed;
-        bottom: -150%;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.7);
-        color: white;
-        text-align: center;
-        padding: 20px;
-        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
-        opacity: 0;
-        pointer-events: none;
-        transition: bottom 0.5s ease-in-out, opacity 0.2s ease-in-out;
-        z-index: 1000;
-      }
-
-      .pwa-modal.show {
-        bottom: 0;
-        opacity: 1;
-        pointer-events: auto;
-      }
-
-      .pwa-modal-content {
-        margin-top: auto;
-        flex: auto;
-        flex-direction: column;
-        justify-content: center;
-        background: #222;
-        padding: 15px;
-        border-radius: 10px;
-      }
-
-      .pwa-modal-content img {
-        border-radius: 10px;
-        width: 60px;
-        height: 60px;
-        margin-right: auto;
-        margin-left: auto;
-      }
-
-      .inline-svg {
-        display: inline-block;
-        vertical-align: middle; /* Aligns with text */
-        margin: 0 1px; /* Adjust spacing if needed */
-      }
-
-      .message {
-        margin-top: 20px;
-        margin-bottom: 20px;
-      }
-
-      .head {
-        margin-bottom: 20px;
-      }
-
-      .inst-btn {
-        margin-top: 40px;
-        background: #f9531e;
-        color: white;
-        padding: 10px 15px;
-        border-radius: 24px;
-        cursor: pointer;
-        width: 100%;
-        margin-top: 10px;
-      }
-
-      .close-btn {
-        color: #f9531e;
-        padding: 10px 15px;
-        border-width: 2px;
-        border-color: #f9531e;
-        border-radius: 24px;
-        cursor: pointer;
-        width: 100%;
-        margin-top: 10px;
-      }
-
-      .inst-btn:hover {
-        background: #da3a00;
-      }
-    </style>
 
     <script
       src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBICThXpl7hpROS8dj3mK4tXP84fs7aTwo&libraries=places"
@@ -559,7 +383,7 @@
           s.async = 1;
           s.type = "text/javascript";
           s.src = widgetSrc;
-          (d.body || d.head).appendChild(s);
+          d.body.appendChild(s);
         }
         if (d.readyState === "complete" || hS.loadImmediately) {
           r();
@@ -574,20 +398,8 @@
       window.HelpCrunch &&
         window.HelpCrunch("onReady", function () {
           console.log("HelpCrunch widget loaded and hidden by default.");
-          window.HelpCrunch("hideChatWidget"); // Hide the widget by default
+          window.HelpCrunch("hideChatWidget");
         });
     </script>
   </body>
-</html>
-<html>
-  <script type="text/javascript">
-    spPopupsScript = document.createElement("script");
-    spPopupsScript.src = "https://static.sppopups.com/assets/loader.js";
-    spPopupsScript.async = true;
-    spPopupsScript.setAttribute(
-      "data-chats-widget-id",
-      "e3193fb3-f356-4967-a371-86f84e6e95ef"
-    );
-    document.head.appendChild(spPopupsScript);
-  </script>
 </html>

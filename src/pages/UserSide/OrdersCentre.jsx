@@ -310,10 +310,10 @@ const OrdersCentre = () => {
 
   return (
     <div>
-      <SEO 
-        title={`Your Orders - My Thrift`} 
+      <SEO
+        title={`Your Orders - My Thrift`}
         description={`View your orders on My Thrift`}
-        url={`https://www.shopmythrift.store/user-orders`} 
+        url={`https://www.shopmythrift.store/user-orders`}
       />
       <ScrollToTop />
       <div className="sticky top-0 pb-2 bg-white w-full z-10">
@@ -356,7 +356,9 @@ const OrdersCentre = () => {
             </p>
             <button
               className="text-white font-opensans font-semibold h-11 mt-3 mb-14 bg-customOrange rounded-full w-32"
-              onClick={() => navigate("/login")}
+              onClick={() => {
+                navigate("/login", { state: { from: location.pathname } });
+              }}
             >
               Login
             </button>

@@ -1033,7 +1033,7 @@ const ProductDetailPage = () => {
                   delay: 7500,
                   disableOnInteraction: false,
                 }}
-                className="product-images-swiper mt-14"
+                className="product-images-swiper "
                 onSlideChange={(swiper) =>
                   setCurrentImageIndex(swiper.activeIndex)
                 }
@@ -1074,7 +1074,7 @@ const ProductDetailPage = () => {
                 className="object-cover w-full h-full rounded-b-lg"
               />
               {product.discount && (
-                <div className="absolute top-24 right-2 ">
+                <div className="absolute top-4 right-2 ">
                   {product.discount.discountType.startsWith(
                     "personal-freebies"
                   ) ? (

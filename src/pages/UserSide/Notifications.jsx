@@ -11,7 +11,7 @@ import {
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { GoChevronLeft } from "react-icons/go";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import moment from "moment";
 import Loading from "../../components/Loading/Loading";
 import NotificationItem from "../../components/Notificationtab";
@@ -25,6 +25,7 @@ const NotificationsPage = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const fetchNotifications = async (userId) => {
@@ -153,120 +154,122 @@ const NotificationsPage = () => {
 
   return (
     <>
-    <SEO 
-        title={`Notifications - My Thrift`} 
-        description={`View your notifications on My Thrift`} 
-        url={`https://www.shopmythrift.store/notifications`} 
+      <SEO
+        title={`Notifications - My Thrift`}
+        description={`View your notifications on My Thrift`}
+        url={`https://www.shopmythrift.store/notifications`}
       />
-    <div className="relative">
-      {/* Sticky Header Section */}
-      <div className="sticky top-0 z-20 bg-white w-full">
-        {/* Navigation Header */}
-        <div className="px-2 py-3 bg-white">
-          <div className="flex items-center mb-3 pb-2">
-            <GoChevronLeft
-              className="text-3xl cursor-pointer"
-              onClick={() => navigate(-1)}
-            />
-            <h1 className="text-xl font-opensans ml-4 font-semibold">
-              Notifications
-            </h1>
+      <div className="relative">
+        {/* Sticky Header Section */}
+        <div className="sticky top-0 z-20 bg-white w-full">
+          {/* Navigation Header */}
+          <div className="px-2 py-3 bg-white">
+            <div className="flex items-center mb-3 pb-2">
+              <GoChevronLeft
+                className="text-3xl cursor-pointer"
+                onClick={() => navigate(-1)}
+              />
+              <h1 className="text-xl font-opensans ml-4 font-semibold">
+                Notifications
+              </h1>
+            </div>
+            <div className="border-b border-gray-300 w-full"></div>
           </div>
-          <div className="border-b border-gray-300 w-full"></div>
-        </div>
 
-        {/* Tabs for All, Vendors, and Orders */}
-        <div className="flex space-x-3 mt-2 mb-4 px-2 bg-white">
-          <button
-            onClick={() => setActiveTab("all")}
-            className={`py-2.5 px-3 text-xs font-normal rounded-full ${
-              activeTab === "all"
-                ? "bg-customOrange text-white"
-                : "bg-transparent border text-black font-opensans"
-            }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setActiveTab("vendor")}
-            className={`py-2.5 px-3 text-xs font-normal rounded-full ${
-              activeTab === "vendor"
-                ? "bg-customOrange text-white"
-                : "bg-transparent border text-black font-opensans"
-            }`}
-          >
-            Vendors
-          </button>
-          <button
-            onClick={() => setActiveTab("order")}
-            className={`py-2.5 px-3 font-normal text-xs rounded-full ${
-              activeTab === "order"
-                ? "bg-customOrange text-white"
-                : "bg-transparent border text-black font-opensans"
-            }`}
-          >
-            Orders
-          </button>
-        </div>
-      </div>
-
-      {/* Scrollable Notification List */}
-      <div className="overflow-y-auto h-[calc(100vh-150px)] pb-16 px-2">
-        {!currentUser ? (
-          // User not logged in
-          <div className="flex flex-col px-3 items-center justify-center h-full mt-20">
-            <img
-              src={notifspic}
-              alt="Not logged in"
-              className="w-36 h-32 mb-4"
-            />
-            <h2 className="text-lg font-opensans font-semibold">
-              You are not logged in
-            </h2>
-            <p className="text-gray-500 text-xs font-opensans text-center mt-2">
-             Hey there, we can see you are not logged in, so you can't view notifications from
-              vendors you follow or check order status.
-            </p>
+          {/* Tabs for All, Vendors, and Orders */}
+          <div className="flex space-x-3 mt-2 mb-4 px-2 bg-white">
             <button
-              onClick={() => navigate("/login")}
-              className="mt-4 bg-customOrange text-white text-xs font-opensans py-2 px-4 rounded-full"
+              onClick={() => setActiveTab("all")}
+              className={`py-2.5 px-3 text-xs font-normal rounded-full ${
+                activeTab === "all"
+                  ? "bg-customOrange text-white"
+                  : "bg-transparent border text-black font-opensans"
+              }`}
             >
-              Login
+              All
+            </button>
+            <button
+              onClick={() => setActiveTab("vendor")}
+              className={`py-2.5 px-3 text-xs font-normal rounded-full ${
+                activeTab === "vendor"
+                  ? "bg-customOrange text-white"
+                  : "bg-transparent border text-black font-opensans"
+              }`}
+            >
+              Vendors
+            </button>
+            <button
+              onClick={() => setActiveTab("order")}
+              className={`py-2.5 px-3 font-normal text-xs rounded-full ${
+                activeTab === "order"
+                  ? "bg-customOrange text-white"
+                  : "bg-transparent border text-black font-opensans"
+              }`}
+            >
+              Orders
             </button>
           </div>
-        ) : notifications.length === 0 ? (
-          // User is logged in but no notifications
-          <div className="flex flex-col items-center justify-center h-full mt-20">
-            <img
-              src={notifspic}
-              alt="No notifications"
-              className="w-36 h-32 mb-4"
-            />
-            <h2 className="text-lg font-opensans font-semibold">
-              Your notifications will show here
-            </h2>
-            <p className="text-gray-500 text-xs font-opensans text-center mt-2">
-              You’ll get important alerts about vendors <br /> you follow and
-              your orders here and <br /> through your email.
-            </p>
-          </div>
-        ) : (
-          // User is logged in and has notifications
-          <div>
-            {renderNotificationsSection("Today", groupedNotifications.today)}
-            {renderNotificationsSection(
-              "This Week",
-              groupedNotifications.thisWeek
-            )}
-            {renderNotificationsSection(
-              "This Month",
-              groupedNotifications.thisMonth
-            )}
-            {renderNotificationsSection("Older", groupedNotifications.older)}
-          </div>
-        )}
+        </div>
+
+        {/* Scrollable Notification List */}
+        <div className="overflow-y-auto h-[calc(100vh-150px)] pb-16 px-2">
+          {!currentUser ? (
+            // User not logged in
+            <div className="flex flex-col px-3 items-center justify-center h-full mt-20">
+              <img
+                src={notifspic}
+                alt="Not logged in"
+                className="w-36 h-32 mb-4"
+              />
+              <h2 className="text-lg font-opensans font-semibold">
+                You are not logged in
+              </h2>
+              <p className="text-gray-500 text-xs font-opensans text-center mt-2">
+                Hey there, we can see you are not logged in, so you can't view
+                notifications from vendors you follow or check order status.
+              </p>
+              <button
+                onClick={() => {
+                  navigate("/login", { state: { from: location.pathname } });
+                }}
+                className="mt-4 bg-customOrange text-white text-xs font-opensans py-2 px-4 rounded-full"
+              >
+                Login
+              </button>
+            </div>
+          ) : notifications.length === 0 ? (
+            // User is logged in but no notifications
+            <div className="flex flex-col items-center justify-center h-full mt-20">
+              <img
+                src={notifspic}
+                alt="No notifications"
+                className="w-36 h-32 mb-4"
+              />
+              <h2 className="text-lg font-opensans font-semibold">
+                Your notifications will show here
+              </h2>
+              <p className="text-gray-500 text-xs font-opensans text-center mt-2">
+                You’ll get important alerts about vendors <br /> you follow and
+                your orders here and <br /> through your email.
+              </p>
+            </div>
+          ) : (
+            // User is logged in and has notifications
+            <div>
+              {renderNotificationsSection("Today", groupedNotifications.today)}
+              {renderNotificationsSection(
+                "This Week",
+                groupedNotifications.thisWeek
+              )}
+              {renderNotificationsSection(
+                "This Month",
+                groupedNotifications.thisMonth
+              )}
+              {renderNotificationsSection("Older", groupedNotifications.older)}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
     </>
   );
 };

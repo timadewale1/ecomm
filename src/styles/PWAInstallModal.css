@@ -56,12 +56,6 @@
     font-size: 1.25rem;
   }
   
-  .message {
-    margin-bottom: 15px;
-    color: white;
-    font-size: 1rem;
-  }
-  
   .inst-btn,
   .close-btn {
     width: 100%;

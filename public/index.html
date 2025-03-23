@@ -277,6 +277,12 @@
       }
     </style>
     <script>
+      window.ios = (
+        navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1
+      ) || /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+      window.pwa = window.matchMedia("(display-mode: standalone)").matches;
+    </script>
       function isIOSInAppWebView() {
         const ua = navigator.userAgent || "";
         const isIOS = /iPhone|iPad|iPod/.test(ua);
@@ -387,6 +393,27 @@
 
     <!-- Main Scripts -->
     <script>
+      // We'll store the event here for React to access later
+      window.beforeInstallEvent = null;
+      
+
+      function handleBeforeInstallPrompt(e) {
+        console.log("[index.html] Captured beforeinstallprompt");
+        e.preventDefault();
+        window.beforeInstallEvent = e; // store globally
+      }
+
+      // If it's not iOS, attach the event listener as early as possible
+      if (!window.ios) {
+        window.addEventListener(
+          "beforeinstallprompt",
+          handleBeforeInstallPrompt
+        );
+      }
+
+      // Check if the app is running in PWA mode
+      const isPWAA = window.matchMedia("(display-mode: standalone)").matches;
+      const isIOSD =
       // Check if the app is running in PWA mode
       const isPWA = window.matchMedia("(display-mode: standalone)").matches;
       const isIOS =
@@ -403,6 +430,11 @@
       // When the DOM is fully loaded
       document.addEventListener("DOMContentLoaded", () => {
         const loadingScreen = document.getElementById("custom-loading-screen");
+    
+        // For the loading screen
+        if (loadingScreen) {
+          // Display the loading screen only in PWA mode (if desired)
+          loadingScreen.style.display = isPWAA && isIOSD ? "flex" : "none";
         // Display the loading screen only in PWA mode (if desired)
         if (loadingScreen) {
           loadingScreen.style.display = isPWA && isIOS ? "flex" : "none";

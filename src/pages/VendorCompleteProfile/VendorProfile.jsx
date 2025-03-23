@@ -18,6 +18,7 @@ import { useAuth } from "../../custom-hooks/useAuth";
 import { TbHomeStar, TbTruckDelivery } from "react-icons/tb";
 import { PiLinkBold, PiLinkLight, PiSignOutBold } from "react-icons/pi";
 import { Doughnut } from "react-chartjs-2";
+import { BiSolidVideos } from "react-icons/bi";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import Skeleton from "react-loading-skeleton";
 import VprofileDetails from "../vendor/VprofileDetails.jsx";
@@ -463,6 +464,25 @@ const VendorProfile = () => {
                       <TbHomeStar className="text-black text-xl mr-4" />
                       <h2 className="text-size font-normal text-black capitalize">
                         View Ratings
+                      </h2>
+                    </div>
+                    <ChevronRight className="text-black" />
+                  </div>
+                </div>
+                <div className="flex flex-col items-center w-full">
+                  <div
+                    className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                    onClick={() =>
+                      window.open(
+                        "https://drive.google.com/drive/mobile/folders/1YAr1L9mz8sWwSqa0K8okE0x6BxHMr97T",
+                        "_blank"
+                      )
+                    }
+                  >
+                    <div className="flex items-center">
+                      <BiSolidVideos className="text-customOrange text-xl mr-4" />
+                      <h2 className="text-size font-normal text-black capitalize">
+                        Watch Tip Videos
                       </h2>
                     </div>
                     <ChevronRight className="text-black" />

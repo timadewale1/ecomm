@@ -15,6 +15,8 @@ import {
   increment,
   serverTimestamp,
 } from "firebase/firestore";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchStorePageData } from "../redux/reducers/storepageVendorsSlice";
 import { onAuthStateChanged } from "firebase/auth";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -29,7 +31,7 @@ import { useAuth } from "../custom-hooks/useAuth";
 import { FaSpinner, FaStar } from "react-icons/fa6";
 import { CiLogin, CiSearch } from "react-icons/ci";
 
-import { MdCancel, MdClose } from "react-icons/md";
+import { MdCancel, MdClose, MdIosShare } from "react-icons/md";
 import { LuListFilter } from "react-icons/lu";
 import Lottie from "lottie-react";
 import { LiaTimesSolid } from "react-icons/lia";
@@ -78,70 +80,88 @@ const ReviewBanner = () => {
 };
 const StorePage = () => {
   const { id } = useParams();
-  const [vendor, setVendor] = useState(null);
-  const [products, setProducts] = useState([]);
+  // const [vendor, setVendor] = useState(null);
+  // const [products, setProducts] = useState([]);
   const [favorites, setFavorites] = useState({});
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
   const { currentUser } = useAuth();
   // const [currentUser, setCurrentUser] = useState(null);
-
+  const dispatch = useDispatch();
   const [selectedType, setSelectedType] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [viewOptions, setViewOptions] = useState(false);
   // Add this line along with your other useState declarations
   const [sortOption, setSortOption] = useState(null); // 'priceAsc' or 'priceDesc'
-
+  // Instead of local "vendor" and "products" state, we read from Redux
+  const {
+    entities,
+    loading: reduxLoading,
+    error,
+  } = useSelector((state) => state.storepageVendors);
   const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isShared = searchParams.has("shared");
 
+  // useEffect(() => {
+  //   const fetchVendorData = async () => {
+  //     try {
+  //       // Set loading state to true
+  //       setLoading(true);
+
+  //       // Fetch vendor data using the vendor ID
+  //       const vendorRef = doc(db, "vendors", id);
+  //       const vendorDoc = await getDoc(vendorRef);
+
+  //       if (vendorDoc.exists()) {
+  //         const vendorData = vendorDoc.data();
+  //         if (!vendorData.isApproved) {
+  //           toast.error("Vendor is not available!");
+  //           setVendor(null); // Ensure vendor is null to trigger "Vendor Not Found" UI
+  //           return;
+  //         }
+  //         vendorData.id = vendorDoc.id; // Ensure we have the vendor's document ID
+  //         setVendor(vendorData);
+
+  //         // If the vendor has productIds, use them to fetch products
+  //         if (vendorData.productIds && vendorData.productIds.length > 0) {
+  //           await fetchVendorProducts(vendorData.productIds); // Fetch the vendor's products
+  //         } else {
+  //           // No products if the vendor has no productIds
+  //           setProducts([]);
+  //         }
+  //       } else {
+  //         // Show error if the vendor is not found
+  //         toast.error("Vendor not found!");
+  //       }
+  //     } catch (error) {
+  //       // Handle any errors during the fetch operation
+  //       toast.error("Error fetching vendor data: " + error.message);
+  //     } finally {
+  //       // Set loading state to false once fetching is complete
+  //       setLoading(false);
+  //     }
+  //   };
+
+  //   fetchVendorData(); // Fetch vendor data on mount
+  // }, [id]); // Depend on vendor ID and current user state
   useEffect(() => {
-    const fetchVendorData = async () => {
-      try {
-        // Set loading state to true
-        setLoading(true);
+    if (!entities[id]) {
+      console.log("StorePage: dispatching fetchStorePageData for id:", id);
+      dispatch(fetchStorePageData(id));
+    } else {
+      console.log("StorePage: vendor data found in Redux for id:", id);
+    }
+  }, [dispatch, id, entities]);
 
-        // Fetch vendor data using the vendor ID
-        const vendorRef = doc(db, "vendors", id);
-        const vendorDoc = await getDoc(vendorRef);
-
-        if (vendorDoc.exists()) {
-          const vendorData = vendorDoc.data();
-          if (!vendorData.isApproved) {
-            toast.error("Vendor is not available!");
-            setVendor(null); // Ensure vendor is null to trigger "Vendor Not Found" UI
-            return;
-          }
-          vendorData.id = vendorDoc.id; // Ensure we have the vendor's document ID
-          setVendor(vendorData);
-
-          // If the vendor has productIds, use them to fetch products
-          if (vendorData.productIds && vendorData.productIds.length > 0) {
-            await fetchVendorProducts(vendorData.productIds); // Fetch the vendor's products
-          } else {
-            // No products if the vendor has no productIds
-            setProducts([]);
-          }
-        } else {
-          // Show error if the vendor is not found
-          toast.error("Vendor not found!");
-        }
-      } catch (error) {
-        // Handle any errors during the fetch operation
-        toast.error("Error fetching vendor data: " + error.message);
-      } finally {
-        // Set loading state to false once fetching is complete
-        setLoading(false);
-      }
-    };
-
-    fetchVendorData(); // Fetch vendor data on mount
-  }, [id]); // Depend on vendor ID and current user state
+  // 2) Grab vendor + products from Redux
+  const storeData = entities[id]; // { vendor, products } or undefined
+  const vendor = storeData?.vendor;
+  const products = storeData?.products || [];
 
   useEffect(() => {
     setIsFollowing(false);
@@ -181,6 +201,7 @@ const StorePage = () => {
 
   //   return () => unsubscribe();
   // }, []);
+
   const handleFollowClick = async () => {
     if (!currentUser) {
       setIsLoginModalOpen(true);
@@ -287,36 +308,36 @@ const StorePage = () => {
   const handleTypeSelect = (type) => {
     setSelectedType(type);
   };
-  const fetchVendorProducts = async (productIds) => {
-    try {
-      const productsRef = collection(db, "products");
+  // const fetchVendorProducts = async (productIds) => {
+  //   try {
+  //     const productsRef = collection(db, "products");
 
-      const productChunks = [];
-      for (let i = 0; i < productIds.length; i += 10) {
-        productChunks.push(productIds.slice(i, i + 10));
-      }
+  //     const productChunks = [];
+  //     for (let i = 0; i < productIds.length; i += 10) {
+  //       productChunks.push(productIds.slice(i, i + 10));
+  //     }
 
-      const productsList = [];
-      for (const chunk of productChunks) {
-        const q = query(
-          productsRef,
-          where("__name__", "in", chunk),
-          where("published", "==", true)
-        );
-        const productsSnapshot = await getDocs(q);
-        const productsChunk = productsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        productsList.push(...productsChunk);
-      }
+  //     const productsList = [];
+  //     for (const chunk of productChunks) {
+  //       const q = query(
+  //         productsRef,
+  //         where("__name__", "in", chunk),
+  //         where("published", "==", true)
+  //       );
+  //       const productsSnapshot = await getDocs(q);
+  //       const productsChunk = productsSnapshot.docs.map((doc) => ({
+  //         id: doc.id,
+  //         ...doc.data(),
+  //       }));
+  //       productsList.push(...productsChunk);
+  //     }
 
-      setProducts(productsList);
-    } catch (error) {
-      console.error("Error fetching vendor products:", error);
-      toast.error("Error fetching products.");
-    }
-  };
+  //     setProducts(productsList);
+  //   } catch (error) {
+  //     console.error("Error fetching vendor products:", error);
+  //     toast.error("Error fetching products.");
+  //   }
+  // };
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
@@ -338,12 +359,8 @@ const StorePage = () => {
       }
     });
 
-  if (loading) {
-    return (
-      <div>
-        <Loading />
-      </div>
-    );
+  if (reduxLoading) {
+    return <Loading />;
   }
 
   if (!vendor) {
@@ -385,6 +402,24 @@ const StorePage = () => {
     "All",
     ...new Set(products.map((product) => product.productType)),
   ];
+  const handleShare = () => {
+    const storeUrl = `${window.location.origin}/store/${vendor.id}?shared=true`;
+    if (navigator.share) {
+      navigator
+        .share({
+          title: vendor.shopName,
+          text: `Check out ${vendor.shopName} on My Thrift!`,
+          url: storeUrl,
+        })
+        .catch((err) => {
+          console.error("Share failed:", err);
+        });
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(storeUrl);
+      toast.success("Store link copied to clipboard!");
+    }
+  };
 
   return (
     <>
@@ -464,7 +499,7 @@ const StorePage = () => {
 
         <div className="flex justify-center mt-6">
           <div className="relative w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
-            {loading ? (
+            {reduxLoading ? (
               <Skeleton circle={true} height={128} width={128} />
             ) : vendor.coverImageUrl ? (
               <img
@@ -475,6 +510,12 @@ const StorePage = () => {
             ) : (
               <span className="text-center font-bold">{vendor.shopName}</span>
             )}
+            <button
+              onClick={handleShare}
+              className="absolute bottom-1 right-1 bg-white rounded-full p-1 shadow-md hover:bg-gray-100"
+            >
+              <MdIosShare className="text-xl text-gray-900" />
+            </button>
           </div>
         </div>
         {/* <div className="flex justify-center mt-3 mb-2">
@@ -487,7 +528,7 @@ const StorePage = () => {
           style={{ cursor: "pointer" }}
           onClick={handleRatingClick}
         >
-          {loading ? (
+          {reduxLoading ? (
             <Skeleton width={100} height={24} />
           ) : (
             <>
@@ -503,7 +544,7 @@ const StorePage = () => {
 
         <div className="w-fit text-center bg-customGreen p-2 flex items-center justify-center rounded-full mt-3 mx-auto">
           <div className="mt-2 flex flex-wrap items-center -translate-y-1 justify-center text-textGreen text-xs space-x-1">
-            {loading ? (
+            {reduxLoading ? (
               <Skeleton width={80} height={24} count={4} inline={true} />
             ) : (
               vendor.categories.map((category, index) => (
@@ -518,7 +559,7 @@ const StorePage = () => {
           </div>
         </div>
         <div className="flex items-center justify-center mt-3">
-          {loading ? (
+          {reduxLoading ? (
             <Skeleton width={128} height={40} />
           ) : (
             <button
@@ -547,7 +588,7 @@ const StorePage = () => {
           )}
         </div>
         <p className=" text-gray-700 mt-3 text-sm font-opensans text-center">
-          {loading ? <Skeleton count={2} /> : vendor.description}
+          {reduxLoading ? <Skeleton count={2} /> : vendor.description}
         </p>
         <div className="p-2 mt-7">
           <div className="flex items-center mb-3 justify-between">
@@ -609,7 +650,7 @@ const StorePage = () => {
             ))}
           </div>
 
-          {loading ? (
+          {reduxLoading ? (
             <div className="grid mt-2 grid-cols-2 gap-2">
               {Array.from({ length: 6 }).map((_, index) => (
                 <Skeleton key={index} height={200} width="100%" />
@@ -676,16 +717,17 @@ const StorePage = () => {
               <div className="flex space-x-16">
                 <button
                   onClick={() => {
-                    navigate("/signup");
+                    navigate("/signup", { state: { from: location.pathname } });
                     setIsLoginModalOpen(false);
                   }}
                   className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border-1 rounded-full"
                 >
                   Sign Up
                 </button>
+
                 <button
                   onClick={() => {
-                    navigate("/login");
+                    navigate("/login", { state: { from: location.pathname } });
                     setIsLoginModalOpen(false);
                   }}
                   className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"

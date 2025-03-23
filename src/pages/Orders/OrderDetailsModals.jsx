@@ -759,26 +759,8 @@ const OrderDetailsModal = ({
 
       console.log("Delivery update successfully sent to API.");
 
-      // Send request to transfer40vendor endpoint
-      console.log("Initiating fund transfer to vendor...");
-      const transferResponse = await fetch(`${API_BASE_URL}/transfer40vendor`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ orderReference }),
-      });
-
-      if (!transferResponse.ok) {
-        const errorData = await transferResponse.json();
-        console.error("Failed to initiate vendor fund transfer:", errorData);
-        throw new Error(`Fund transfer API error: ${transferResponse.status}`);
-      }
-
-      console.log("Fund transfer successfully initiated.");
-
-      // External calls succeeded, now update Firebase
+   
+    
       console.log("Updating order progressStatus to 'Delivered'...");
       await updateDoc(orderRef, {
         progressStatus: "Delivered",
@@ -863,7 +845,7 @@ const OrderDetailsModal = ({
         console.warn("User phone number not available, skipping SMS.");
       }
 
-      toast.success("Order marked as delivered and funds transferred.");
+      toast.success("Order marked as delivered and your funds are on their way!");
       onClose();
     } catch (error) {
       console.error("Failed to mark as delivered:", error);
@@ -1362,7 +1344,7 @@ const OrderDetailsModal = ({
               <div className="flex items-center space-x-2">
                 <LiaCoinsSolid className="text-green-300 text-lg" />
                 <p className="font-opensans text-xs text-gray-700">
-                  Subtotal (Before Tax):
+                  Subtotal:
                 </p>
               </div>
               <p className="font-opensans text-xs font-semibold text-gray-700">
@@ -1398,26 +1380,7 @@ const OrderDetailsModal = ({
                 </p>
               </div>
             )}
-            {vendorAmounts && (
-              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                <div className="flex items-center space-x-2">
-                  <BiCoinStack className="text-customOrange" />
-                  <p className="font-opensans text-xs text-gray-700 flex items-center">
-                    Total Amount after tax:
-                    <MdOutlineInfo
-                      className="text-gray-500 ml-2 cursor-pointer"
-                      onClick={() => setIsInfoModalOpen(true)}
-                    />
-                  </p>
-                </div>
-                <p className="font-opensans text-xs bg-green-100 px-2 h-6 rounded-md flex items-center font-semibold text-gray-700">
-                  ₦
-                  {(
-                    vendorAmounts.vendor60Pay + vendorAmounts.vendor40pay
-                  ).toLocaleString() || "0.00"}
-                </p>
-              </div>
-            )}
+            
           </div>
         </div>
 

@@ -91,7 +91,8 @@ const VirtualVendor = ({
       }
 
       // Validate social media links
-      const { instagram, facebook, twitter, tiktok } = vendorData.socialMediaHandle;
+      const { instagram, facebook, twitter, tiktok } =
+        vendorData.socialMediaHandle;
       if (
         (!instagram && !facebook && !twitter && !tiktok) || // At least one handle is required
         (instagram && !isValidURL(instagram)) ||
@@ -254,6 +255,17 @@ const VirtualVendor = ({
 
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!event.target.closest(".category-dropdown")) {
+        setShowCategoryDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
   }, []);
 
   return (
@@ -480,7 +492,7 @@ const VirtualVendor = ({
                 </button>
 
                 {showCategoryDropdown && (
-                  <div className="absolute w-full text-neutral-400 bg-white border rounded-lg z-10">
+                  <div className="absolute w-full text-neutral-400 bg-white border rounded-lg category-dropdown z-10">
                     {/* Search Input */}
                     <div className="p-2">
                       <input
@@ -544,6 +556,7 @@ const VirtualVendor = ({
                 name="description"
                 placeholder="Brand Description"
                 value={vendorData.description}
+                onFocus={() => setShowCategoryDropdown(false)}
                 onChange={handleInputChange}
                 className="w-full h-12 mb-4 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
               />

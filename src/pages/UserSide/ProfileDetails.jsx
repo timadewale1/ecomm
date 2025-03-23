@@ -2,7 +2,15 @@ import React, { useState, useEffect } from "react";
 import { updateProfile } from "firebase/auth";
 import { auth, db } from "../../firebase.config";
 import toast from "react-hot-toast";
-import { doc, updateDoc, getDoc, collection, getDocs, query, where } from "firebase/firestore";
+import {
+  doc,
+  updateDoc,
+  getDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 import {
   FaTimes,
   FaEye,
@@ -17,7 +25,7 @@ import { MdEmail, MdVerified } from "react-icons/md";
 import { GrSecure } from "react-icons/gr";
 import { RiEditFill } from "react-icons/ri";
 import { RotatingLines } from "react-loader-spinner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { FaRegTimesCircle } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { updateUserData } from "../../redux/actions/useractions";
@@ -50,7 +58,7 @@ const ProfileDetails = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
-
+  const location = useLocation();
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -137,7 +145,9 @@ const ProfileDetails = ({
           </p>
           <button
             className="bg-customOrange font-opensans text-white px-4 py-2 rounded-full"
-            onClick={() => navigate("/login")}
+            onClick={() => {
+              navigate("/login", { state: { from: location.pathname } });
+            }}
           >
             Login
           </button>

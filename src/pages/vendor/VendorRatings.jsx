@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../../firebase.config";
 import {
   doc,
@@ -31,6 +31,7 @@ import SEO from "../../components/Helmet/SEO";
 const VendorRatings = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [reviews, setReviews] = useState([]);
   const [vendor, setVendor] = useState(null);
   const [inputValid, setInputValid] = useState(true);
@@ -348,341 +349,344 @@ const VendorRatings = () => {
 
   return (
     <>
-    <SEO 
+      <SEO
         title={`Reviews for ${vendor?.shopName || "Vendor"} - My Thrift`}
-        url={`https://www.shopmythrift.store/reviews/${id}`} 
+        url={`https://www.shopmythrift.store/reviews/${id}`}
       />
-    <div className="px-2 py-4">
-      <div className="sticky py-3 top-0 bg-white ">
-        <div className="flex items-center justify-between mb-3 pb-2">
-          <GoChevronLeft
-            className="text-3xl cursor-pointer"
-            onClick={() => navigate(-1)}
-          />
-          <h1 className="text-xl font-opensans font-semibold flex-grow text-center">
-            Reviews
-          </h1>
-          {/* Conditionally show FiPlus or an invisible placeholder */}
-          {!currentUser || hasDeliveredOrder ? (
-            <FiPlus
+      <div className="px-2 py-4">
+        <div className="sticky py-3 top-0 bg-white ">
+          <div className="flex items-center justify-between mb-3 pb-2">
+            <GoChevronLeft
               className="text-3xl cursor-pointer"
-              onClick={() => {
-                if (!currentUser) {
-                  setIsLoginModalOpen(true);
-                } else {
-                  setShowModal(true);
-                }
-              }}
+              onClick={() => navigate(-1)}
             />
-          ) : (
-            <div className="w-8 h-8" />
-          )}
-        </div>
-
-        <div className="flex justify-between mb-3 w-full overflow-x-auto space-x-2 scrollbar-hide">
-          {["All", 5, 4, 3, 2, 1].map((star) => (
-            <button
-              key={star}
-              onClick={() => setSelectedRating(star)} // This correctly updates selectedRating
-              className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-bold font-opensans text-black border border-gray-400 rounded-full ${
-                selectedRating === star
-                  ? "bg-customOrange text-white"
-                  : "bg-transparent"
-              }`}
-            >
-              {star === "All" ? star : `${star} stars`}
-            </button>
-          ))}
-        </div>
-
-        <div className="border-b border-gray-300 w-screen translate-y-3 relative left-1/2 transform -translate-x-1/2"></div>
-      </div>
-      <div className="flex space-x-6">
-        <div className="flex items-center justify-start my-4">
-          <div className=" rounded-full flex flex-col ">
-            {loading ? (
-              <Skeleton square={true} height={80} width={80} />
+            <h1 className="text-xl font-opensans font-semibold flex-grow text-center">
+              Reviews
+            </h1>
+            {/* Conditionally show FiPlus or an invisible placeholder */}
+            {!currentUser || hasDeliveredOrder ? (
+              <FiPlus
+                className="text-3xl cursor-pointer"
+                onClick={() => {
+                  if (!currentUser) {
+                    setIsLoginModalOpen(true);
+                  } else {
+                    setShowModal(true);
+                  }
+                }}
+              />
             ) : (
-              <>
-                <span className="text-5xl font-opensans font-semibold">
-                  {averageRating.toFixed(1)}
-                </span>
-                <div className="flex text-xs mt-2">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <FaStar
-                      key={i}
-                      className={
-                        i < Math.floor(averageRating)
-                          ? "text-yellow-500"
-                          : "text-gray-300"
-                      }
+              <div className="w-8 h-8" />
+            )}
+          </div>
+
+          <div className="flex justify-between mb-3 w-full overflow-x-auto space-x-2 scrollbar-hide">
+            {["All", 5, 4, 3, 2, 1].map((star) => (
+              <button
+                key={star}
+                onClick={() => setSelectedRating(star)} // This correctly updates selectedRating
+                className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-bold font-opensans text-black border border-gray-400 rounded-full ${
+                  selectedRating === star
+                    ? "bg-customOrange text-white"
+                    : "bg-transparent"
+                }`}
+              >
+                {star === "All" ? star : `${star} stars`}
+              </button>
+            ))}
+          </div>
+
+          <div className="border-b border-gray-300 w-screen translate-y-3 relative left-1/2 transform -translate-x-1/2"></div>
+        </div>
+        <div className="flex space-x-6">
+          <div className="flex items-center justify-start my-4">
+            <div className=" rounded-full flex flex-col ">
+              {loading ? (
+                <Skeleton square={true} height={80} width={80} />
+              ) : (
+                <>
+                  <span className="text-5xl font-opensans font-semibold">
+                    {averageRating.toFixed(1)}
+                  </span>
+                  <div className="flex text-xs mt-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <FaStar
+                        key={i}
+                        className={
+                          i < Math.floor(averageRating)
+                            ? "text-yellow-500"
+                            : "text-gray-300"
+                        }
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs mt-1 font-poppins  text-gray-600">
+                    {vendor.ratingCount}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="my-4  w-full">
+            {totalRatings > 0 ? (
+              [5, 4, 3, 2, 1].map((star) => (
+                <div key={star} className="flex items-center mb-2">
+                  <span className="w-6 text-xs font-opensans font-light">
+                    {star}
+                  </span>
+                  <ProgressBar
+                    now={calculatePercentage(ratingBreakdown[star] || 0)}
+                    className="flex-1 mx-2"
+                    style={{
+                      height: "14px",
+                      backgroundColor: "#f5f3f2",
+                      borderRadius: "10px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        backgroundColor: "#f9531e",
+                        height: "100%",
+                        width: `${calculatePercentage(
+                          ratingBreakdown[star] || 0
+                        )}%`,
+                        borderRadius: "10px",
+                      }}
                     />
-                  ))}
+                  </ProgressBar>
                 </div>
-                <span className="text-xs mt-1 font-poppins  text-gray-600">
-                  {vendor.ratingCount}
-                </span>
-              </>
+              ))
+            ) : (
+              <p className="text-xs font-opensans text-gray-600">
+                No ratings available yet.
+              </p>
             )}
           </div>
         </div>
 
-        <div className="my-4  w-full">
-          {totalRatings > 0 ? (
-            [5, 4, 3, 2, 1].map((star) => (
-              <div key={star} className="flex items-center mb-2">
-                <span className="w-6 text-xs font-opensans font-light">
-                  {star}
-                </span>
-                <ProgressBar
-                  now={calculatePercentage(ratingBreakdown[star] || 0)}
-                  className="flex-1 mx-2"
-                  style={{
-                    height: "14px",
-                    backgroundColor: "#f5f3f2",
-                    borderRadius: "10px",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      backgroundColor: "#f9531e",
-                      height: "100%",
-                      width: `${calculatePercentage(
-                        ratingBreakdown[star] || 0
-                      )}%`,
-                      borderRadius: "10px",
-                    }}
-                  />
-                </ProgressBar>
-              </div>
-            ))
-          ) : (
-            <p className="text-xs font-opensans text-gray-600">
-              No ratings available yet.
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="p-2">
-        {reviews.map((review) => (
-          <div key={review.id} className="mb-4">
-            <div className="flex items-center mb-1">
-              {review.userPhotoURL ? (
-                <img
-                  src={review.userPhotoURL}
-                  alt={review.userName}
-                  className="w-11 h-11 rounded-full mr-3"
-                />
-              ) : (
-                <div className="w-11 h-11 rounded-full bg-gray-200 flex items-center justify-center mr-3">
-                  <IoMdContact className="text-gray-500 text-xl" />
-                </div>
-              )}
-              <div>
-                <h2 className="font-semibold text-xs">{review.userName}</h2>
-              </div>
-            </div>
-            <div className="flex space-x-3">
-              <div className="flex space-x-1">
-                {Array.from({ length: review.rating }, (_, index) => (
-                  <FaStar key={index} className="text-yellow-500" />
-                ))}
-              </div>
-              <span className="ratings-text font-medium font-opensans text-gray-500">
-                {new Date(review.createdAt.seconds * 1000).toLocaleDateString()}
-              </span>
-            </div>
-            <p className="mt-2 text-black font-opensans text-sm">
-              {review.reviewText}
-            </p>
-          </div>
-        ))}
-        <div className="fixed bottom-0 left-0 w-full bg-white py-4">
-          <div className="text-center">
-            <div className="flex justify-center items-center mb-2">
-              <FaStar className="text-yellow-500 text-lg mr-2" />
-              <h2 className="text-xs font-opensans font-semibold">
-                Reviews from Verified Buyers
-              </h2>
-            </div>
-            <p className="text-xs font-opensans text-gray-700">
-              All reviews on this page are submitted by verified buyers.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {showModal && vendor && (
-        <div className="fixed inset-0 bg-white z-50">
-          <div className="flex items-center px-2 py-4 mb-2">
-            <GoChevronLeft
-              className="text-3xl cursor-pointer"
-              onClick={() => setShowModal(false)}
-            />
-            <h1 className="text-lg ml-4 font-opensans font-semibold">
-              Rate {vendor.shopName}
-            </h1>
-            <div />
-          </div>
-          <div className="border-b border-gray-300 w-full mb-2"></div>
-
-          <div className="p-3">
-            <div className="flex justify-center mb-2 ">
-              <div className="relative w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
-                {vendor.coverImageUrl ? (
+        <div className="p-2">
+          {reviews.map((review) => (
+            <div key={review.id} className="mb-4">
+              <div className="flex items-center mb-1">
+                {review.userPhotoURL ? (
                   <img
-                    className="w-32 h-32 rounded-full bg-slate-700 object-cover"
-                    src={vendor.coverImageUrl}
-                    alt={vendor.shopName}
+                    src={review.userPhotoURL}
+                    alt={review.userName}
+                    className="w-11 h-11 rounded-full mr-3"
                   />
                 ) : (
-                  <img
-                    className="w-32 h-32 rounded-full bg-slate-700 object-cover"
-                    src={DefaultImageUrl}
-                    alt=""
-                  />
+                  <div className="w-11 h-11 rounded-full bg-gray-200 flex items-center justify-center mr-3">
+                    <IoMdContact className="text-gray-500 text-xl" />
+                  </div>
                 )}
-              </div>
-            </div>
-
-            <div className="flex justify-center">
-              {/* <div className="flex items-center text-black text-lg font-semibold">
-                {vendor.socialMediaHandle}
-              </div> */}
-            </div>
-            <div className="flex justify-center mt-2">
-              <>
-                <FaStar className="text-yellow-400" size={16} />
-                <span className="flex text-xs font-opensans items-center ml-2">
-                  {averageRating.toFixed(1)}
-                  <GoDotFill className="mx-1 text-gray-300 font-opensans dot-size" />
-                  {vendor.ratingCount || 0} ratings
-                </span>
-              </>
-            </div>
-            <div className="w-fit text-center bg-customGreen p-2 flex items-center justify-center rounded-full mt-3 mx-auto">
-              <div className="mt-2 flex flex-wrap items-center -translate-y-1 justify-center text-textGreen text-xs space-x-1">
-                {loading ? (
-                  <Skeleton width={80} height={24} count={4} inline={true} />
-                ) : (
-                  vendor.categories.map((category, index) => (
-                    <React.Fragment key={index}>
-                      {index > 0 && (
-                        <GoDotFill className="mx-1 dot-size text-dotGreen" />
-                      )}
-                      <span>{category}</span>
-                    </React.Fragment>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <h1 className="font-opensans text-sm mt-4 font-semibold">
-              Rate this shop
-            </h1>
-            <div className="mt-2 mb-3 flex justify-center">
-              <ReactStars
-                count={5}
-                onChange={(newRating) => setNewRating(newRating)}
-                size={24}
-                activeColor="#ffd700"
-                emptyIcon={<RoundedStars filled={false} />}
-                filledIcon={<RoundedStars filled={true} />}
-              />
-            </div>
-            <textarea
-              value={newReview}
-              onFocus={() => {
-                const input = document.querySelector("textarea");
-                input.scrollIntoView({ behavior: "smooth" });
-              }}
-              onChange={handleReviewChange}
-              placeholder="Describe your experience with this shop (Optional)"
-              className={`w-full p-2 border h-20 text-xs text-gray-900 rounded mb-4 ${
-                inputValid ? "border-gray-300" : "border-red-500"
-              }`}
-              style={{ resize: "none" }}
-            />
-
-            <div className="fixed inset-x-0 bottom-0 p-4 bg-white">
-              <button
-                onClick={handleAddReview}
-                className={`${
-                  inputValid ? "bg-customOrange" : "bg-gray-400"
-                } text-white font-opensans font-medium h-12 px-6 rounded-full w-full flex items-center justify-center`}
-                disabled={isSubmitting || !inputValid}
-              >
-                {isSubmitting ? (
-                  <RotatingLines
-                    strokeColor="#ffffff"
-                    strokeWidth="5"
-                    animationDuration="0.75"
-                    width="24"
-                    visible={true}
-                  />
-                ) : (
-                  "Post"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {isLoginModalOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
-          onClick={handleLoginOverlayClick}
-        >
-          <div
-            className="bg-white w-9/12 max-w-md rounded-lg px-3 py-4 flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex space-x-4">
-                <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
-                  <CiLogin className="text-customRichBrown" />
+                <div>
+                  <h2 className="font-semibold text-xs">{review.userName}</h2>
                 </div>
-                <h2 className="text-lg font-opensans font-semibold">
-                  Please Log In
+              </div>
+              <div className="flex space-x-3">
+                <div className="flex space-x-1">
+                  {Array.from({ length: review.rating }, (_, index) => (
+                    <FaStar key={index} className="text-yellow-500" />
+                  ))}
+                </div>
+                <span className="ratings-text font-medium font-opensans text-gray-500">
+                  {new Date(
+                    review.createdAt.seconds * 1000
+                  ).toLocaleDateString()}
+                </span>
+              </div>
+              <p className="mt-2 text-black font-opensans text-sm">
+                {review.reviewText}
+              </p>
+            </div>
+          ))}
+          <div className="fixed bottom-0 left-0 w-full bg-white py-4">
+            <div className="text-center">
+              <div className="flex justify-center items-center mb-2">
+                <FaStar className="text-yellow-500 text-lg mr-2" />
+                <h2 className="text-xs font-opensans font-semibold">
+                  Reviews from Verified Buyers
                 </h2>
               </div>
-              <LiaTimesSolid
-                onClick={() => setIsLoginModalOpen(false)}
-                className="text-black text-xl mb-6 cursor-pointer"
-              />
-            </div>
-            <p className="mb-6 text-xs font-opensans text-gray-800 ">
-              You need to be logged in to add a review. Please log in to your
-              account, or create a new account if you don’t have one, to
-              continue.
-            </p>
-            <div className="flex space-x-16">
-              <button
-                onClick={() => {
-                  navigate("/signup");
-                  setIsLoginModalOpen(false);
-                }}
-                className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans  border-customRichBrown border-1   rounded-full"
-              >
-                Sign Up
-              </button>
-              <button
-                onClick={() => {
-                  navigate("/login");
-                  setIsLoginModalOpen(false);
-                }}
-                className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
-              >
-                Login
-              </button>
+              <p className="text-xs font-opensans text-gray-700">
+                All reviews on this page are submitted by verified buyers.
+              </p>
             </div>
           </div>
         </div>
-      )}
-    </div>
+
+        {showModal && vendor && (
+          <div className="fixed inset-0 bg-white z-50">
+            <div className="flex items-center px-2 py-4 mb-2">
+              <GoChevronLeft
+                className="text-3xl cursor-pointer"
+                onClick={() => setShowModal(false)}
+              />
+              <h1 className="text-lg ml-4 font-opensans font-semibold">
+                Rate {vendor.shopName}
+              </h1>
+              <div />
+            </div>
+            <div className="border-b border-gray-300 w-full mb-2"></div>
+
+            <div className="p-3">
+              <div className="flex justify-center mb-2 ">
+                <div className="relative w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
+                  {vendor.coverImageUrl ? (
+                    <img
+                      className="w-32 h-32 rounded-full bg-slate-700 object-cover"
+                      src={vendor.coverImageUrl}
+                      alt={vendor.shopName}
+                    />
+                  ) : (
+                    <img
+                      className="w-32 h-32 rounded-full bg-slate-700 object-cover"
+                      src={DefaultImageUrl}
+                      alt=""
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                {/* <div className="flex items-center text-black text-lg font-semibold">
+                {vendor.socialMediaHandle}
+              </div> */}
+              </div>
+              <div className="flex justify-center mt-2">
+                <>
+                  <FaStar className="text-yellow-400" size={16} />
+                  <span className="flex text-xs font-opensans items-center ml-2">
+                    {averageRating.toFixed(1)}
+                    <GoDotFill className="mx-1 text-gray-300 font-opensans dot-size" />
+                    {vendor.ratingCount || 0} ratings
+                  </span>
+                </>
+              </div>
+              <div className="w-fit text-center bg-customGreen p-2 flex items-center justify-center rounded-full mt-3 mx-auto">
+                <div className="mt-2 flex flex-wrap items-center -translate-y-1 justify-center text-textGreen text-xs space-x-1">
+                  {loading ? (
+                    <Skeleton width={80} height={24} count={4} inline={true} />
+                  ) : (
+                    vendor.categories.map((category, index) => (
+                      <React.Fragment key={index}>
+                        {index > 0 && (
+                          <GoDotFill className="mx-1 dot-size text-dotGreen" />
+                        )}
+                        <span>{category}</span>
+                      </React.Fragment>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <h1 className="font-opensans text-sm mt-4 font-semibold">
+                Rate this shop
+              </h1>
+              <div className="mt-2 mb-3 flex justify-center">
+                <ReactStars
+                  count={5}
+                  onChange={(newRating) => setNewRating(newRating)}
+                  size={24}
+                  activeColor="#ffd700"
+                  emptyIcon={<RoundedStars filled={false} />}
+                  filledIcon={<RoundedStars filled={true} />}
+                />
+              </div>
+              <textarea
+                value={newReview}
+                onFocus={() => {
+                  const input = document.querySelector("textarea");
+                  input.scrollIntoView({ behavior: "smooth" });
+                }}
+                onChange={handleReviewChange}
+                placeholder="Describe your experience with this shop (Optional)"
+                className={`w-full p-2 border h-20 text-xs text-gray-900 rounded mb-4 ${
+                  inputValid ? "border-gray-300" : "border-red-500"
+                }`}
+                style={{ resize: "none" }}
+              />
+
+              <div className="fixed inset-x-0 bottom-0 p-4 bg-white">
+                <button
+                  onClick={handleAddReview}
+                  className={`${
+                    inputValid ? "bg-customOrange" : "bg-gray-400"
+                  } text-white font-opensans font-medium h-12 px-6 rounded-full w-full flex items-center justify-center`}
+                  disabled={isSubmitting || !inputValid}
+                >
+                  {isSubmitting ? (
+                    <RotatingLines
+                      strokeColor="#ffffff"
+                      strokeWidth="5"
+                      animationDuration="0.75"
+                      width="24"
+                      visible={true}
+                    />
+                  ) : (
+                    "Post"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {isLoginModalOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+            onClick={handleLoginOverlayClick}
+          >
+            <div
+              className="bg-white w-9/12 max-w-md rounded-lg px-3 py-4 flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex space-x-4">
+                  <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
+                    <CiLogin className="text-customRichBrown" />
+                  </div>
+                  <h2 className="text-lg font-opensans font-semibold">
+                    Please Log In
+                  </h2>
+                </div>
+                <LiaTimesSolid
+                  onClick={() => setIsLoginModalOpen(false)}
+                  className="text-black text-xl mb-6 cursor-pointer"
+                />
+              </div>
+              <p className="mb-6 text-xs font-opensans text-gray-800 ">
+                You need to be logged in to add a review. Please log in to your
+                account, or create a new account if you don’t have one, to
+                continue.
+              </p>
+              <div className="flex space-x-16">
+                <button
+                  onClick={() => {
+                    navigate("/signup", { state: { from: location.pathname } });
+                    setIsLoginModalOpen(false);
+                  }}
+                  className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border-1 rounded-full"
+                >
+                  Sign Up
+                </button>
+
+                <button
+                  onClick={() => {
+                    navigate("/login", { state: { from: location.pathname } });
+                    setIsLoginModalOpen(false);
+                  }}
+                  className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
+                >
+                  Login
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 };

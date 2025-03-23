@@ -37,6 +37,7 @@ const debounce = (func, delay) => {
 const Cart = () => {
   const cart = useSelector((state) => state.cart || {});
   const dispatch = useDispatch();
+  
   const navigate = useNavigate();
   const { currentUser, loading } = useAuth();
   const [selectedVendorId, setSelectedVendorId] = useState(null);
@@ -772,24 +773,25 @@ const Cart = () => {
               continue.
             </p>
             <div className="flex space-x-16">
-              <button
-                onClick={() => {
-                  navigate("/signup");
-                  setIsLoginModalOpen(false);
-                }}
-                className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans  border-customRichBrown border-1   rounded-full"
-              >
-                Sign Up
-              </button>
-              <button
-                onClick={() => {
-                  navigate("/login");
-                  setIsLoginModalOpen(false);
-                }}
-                className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
-              >
-                Login
-              </button>
+            <button
+                  onClick={() => {
+                    navigate("/signup", { state: { from: location.pathname } });
+                    setIsLoginModalOpen(false);
+                  }}
+                  className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border-1 rounded-full"
+                >
+                  Sign Up
+                </button>
+
+                <button
+                  onClick={() => {
+                    navigate("/login", { state: { from: location.pathname } });
+                    setIsLoginModalOpen(false);
+                  }}
+                  className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
+                >
+                  Login
+                </button>
             </div>
           </div>
         </div>

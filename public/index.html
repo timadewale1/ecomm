@@ -291,6 +291,14 @@
         z-index: 9999;
       }
     </style>
+    <script>
+      window.ios = (
+        navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1
+      ) || /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+      window.pwa = window.matchMedia("(display-mode: standalone)").matches;
+    </script>
+    
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
@@ -315,10 +323,28 @@
     -->
     <!-- In your <body> before the closing </body> tag -->
     <script>
-      // Check if the app is running in PWA mode
-      const isPWA = window.matchMedia("(display-mode: standalone)").matches;
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream; 
+      // We'll store the event here for React to access later
+      window.beforeInstallEvent = null;
+      
 
+      function handleBeforeInstallPrompt(e) {
+        console.log("[index.html] Captured beforeinstallprompt");
+        e.preventDefault();
+        window.beforeInstallEvent = e; // store globally
+      }
+
+      // If it's not iOS, attach the event listener as early as possible
+      if (!window.ios) {
+        window.addEventListener(
+          "beforeinstallprompt",
+          handleBeforeInstallPrompt
+        );
+      }
+
+      // Check if the app is running in PWA mode
+      const isPWAA = window.matchMedia("(display-mode: standalone)").matches;
+      const isIOSD =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
       // Set viewport height for mobile (using --vh)
       function setViewportHeight() {
@@ -331,14 +357,14 @@
       // When the DOM is fully loaded
       document.addEventListener("DOMContentLoaded", () => {
         const loadingScreen = document.getElementById("custom-loading-screen");
-
+    
         // For the loading screen
         if (loadingScreen) {
           // Display the loading screen only in PWA mode (if desired)
-          loadingScreen.style.display = (isPWA && isIOS) ? "flex" : "none";
+          loadingScreen.style.display = isPWAA && isIOSD ? "flex" : "none";
         }
-      })
- 
+      });
+
       // Fallback: Hide loading screen after 5 seconds (if still visible)
       setTimeout(() => {
         const loadingScreen = document.getElementById("custom-loading-screen");

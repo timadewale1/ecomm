@@ -1362,7 +1362,7 @@ const OrderDetailsModal = ({
               <div className="flex items-center space-x-2">
                 <LiaCoinsSolid className="text-green-300 text-lg" />
                 <p className="font-opensans text-xs text-gray-700">
-                  Subtotal (Before Tax):
+                  Subtotal:
                 </p>
               </div>
               <p className="font-opensans text-xs font-semibold text-gray-700">
@@ -1398,26 +1398,7 @@ const OrderDetailsModal = ({
                 </p>
               </div>
             )}
-            {vendorAmounts && (
-              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                <div className="flex items-center space-x-2">
-                  <BiCoinStack className="text-customOrange" />
-                  <p className="font-opensans text-xs text-gray-700 flex items-center">
-                    Total Amount after tax:
-                    <MdOutlineInfo
-                      className="text-gray-500 ml-2 cursor-pointer"
-                      onClick={() => setIsInfoModalOpen(true)}
-                    />
-                  </p>
-                </div>
-                <p className="font-opensans text-xs bg-green-100 px-2 h-6 rounded-md flex items-center font-semibold text-gray-700">
-                  ₦
-                  {(
-                    vendorAmounts.vendor60Pay + vendorAmounts.vendor40pay
-                  ).toLocaleString() || "0.00"}
-                </p>
-              </div>
-            )}
+            
           </div>
         </div>
 

@@ -283,53 +283,6 @@
     
       window.pwa = window.matchMedia("(display-mode: standalone)").matches;
     </script>
-      function isIOSInAppWebView() {
-        const ua = navigator.userAgent || "";
-        const isIOS = /iPhone|iPad|iPod/.test(ua);
-        const isInApp = /Instagram|Snapchat/.test(ua);
-        return isIOS && isInApp;
-      }
-
-      setTimeout(() => {
-        if (isIOSInAppWebView()) {
-          // Create the wrapper div
-          const wrapper = document.createElement("div");
-          wrapper.style.cssText = `
-          opacity: 0;
-          transition: opacity 1s ease-in-out;
-          padding: 2rem;
-          font-family: sans-serif;
-          text-align: center;
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          height: 100vh;
-          background: white;
-          z-index: 9999;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        `;
-
-          // Inner content
-          wrapper.innerHTML = `
-          <div>
-            <h2 style="margin-bottom: 1rem;">😵 Stuck on a blank page?</h2>
-            <p>Looks like you're browsing from an app that doesn’t support this experience.</p>
-            <p>Tap the "..." in the top-right and select <strong>“Open in Browser”</strong> to continue!</p>
-            <p style="margin-top: 1rem;">✨ See you on the other side! ✨</p>
-          </div>
-        `;
-
-          // Append to body and trigger fade-in
-          document.body.appendChild(wrapper);
-          requestAnimationFrame(() => {
-            wrapper.style.opacity = 1;
-          });
-        }
-      }, 2000);
-    </script>
     <script>
       function isIOSInAppWebView() {
         const ua = navigator.userAgent || "";
@@ -410,10 +363,6 @@
           handleBeforeInstallPrompt
         );
       }
-
-      // Check if the app is running in PWA mode
-      const isPWAA = window.matchMedia("(display-mode: standalone)").matches;
-      const isIOSD =
       // Check if the app is running in PWA mode
       const isPWA = window.matchMedia("(display-mode: standalone)").matches;
       const isIOS =
@@ -431,10 +380,6 @@
       document.addEventListener("DOMContentLoaded", () => {
         const loadingScreen = document.getElementById("custom-loading-screen");
     
-        // For the loading screen
-        if (loadingScreen) {
-          // Display the loading screen only in PWA mode (if desired)
-          loadingScreen.style.display = isPWAA && isIOSD ? "flex" : "none";
         // Display the loading screen only in PWA mode (if desired)
         if (loadingScreen) {
           loadingScreen.style.display = isPWA && isIOS ? "flex" : "none";

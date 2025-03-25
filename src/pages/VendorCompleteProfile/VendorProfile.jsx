@@ -496,7 +496,7 @@ const VendorProfile = () => {
                 </div>
                 <div className="flex flex-col items-center w-full">
                   <div
-                    className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                    className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
                     onClick={() =>
                       window.open(
                         "/terms-and-conditions",
@@ -515,7 +515,7 @@ const VendorProfile = () => {
                   </div>
 
                   <div
-                    className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                    className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
                     onClick={() =>
                       window.open(
                         "/privacy-policy",

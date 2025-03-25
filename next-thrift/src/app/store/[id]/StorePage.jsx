@@ -404,7 +404,7 @@ export default function StorePage({ vendorId }) {
               </div>
               <div className="flex-1 flex justify-center items-center">
                 <img
-                  src="/logo512.png"
+                  src="/logobg.png"
                   alt="Logo"
                   className="object-contain max-h-[72px]"
                 />

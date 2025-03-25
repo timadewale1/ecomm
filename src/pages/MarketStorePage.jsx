@@ -422,7 +422,7 @@ const MarketStorePage = () => {
                     {/* Centered logo container uses flex-1 to take remaining space and flex to center content */}
                     <div className="flex-1 flex justify-center items-center">
                       <img
-                        src="/logo512.png"
+                        src="/logobg.png"
                         alt="Logo"
                         className="object-contain max-h-[72px]"
                       />

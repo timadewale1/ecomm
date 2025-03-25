@@ -53,8 +53,6 @@ const PWAInstallModal = ({ onClose }) => {
     onClose && onClose();
   };
 
-  if (!isVisible) return null;
-
   return (
     <div className={`pwa-modal ${isVisible ? "show" : ""}`}>
       <div className="pwa-modal-content">

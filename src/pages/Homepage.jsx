@@ -160,10 +160,9 @@ const Homepage = () => {
     if (promoImages.length === 0) {
       // Fetch promo images only if they are not already in Redux
       const images = [
-        "https://res.cloudinary.com/dtaqusjav/image/upload/v1736717421/Promo_Card_5_azm2n3.svg",
-        "https://res.cloudinary.com/dtaqusjav/image/upload/v1739645822/Valentine_s_Promo_Card_fykrup.svg",
-        // "https://res.cloudinary.com/dtaqusjav/image/upload/v1736717421/Promo_Card_2_ofyt9b.svg",
-        "https://res.cloudinary.com/dtaqusjav/image/upload/v1737022557/Promo_Card_7_gxlmrs.svg",
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1743282618/FREE_DELIVERY_whzaqc.png",
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1743282149/Thrift_Hive_Ng_3_tylnkt.png",
+        "https://res.cloudinary.com/dtaqusjav/video/upload/v1743281463/NEW_DROP_ON_3_wxhasu.mp4",
       ];
       dispatch(setPromoLoading(true));
       setTimeout(() => {
@@ -339,17 +338,30 @@ const Homepage = () => {
                           height: "12rem",
                         }}
                       >
-                        <img
-                          src={url}
-                          alt={`Promo ${index + 1}`}
-                          className="w-full h-full rounded-lg"
-                        />
+                        {url.endsWith(".mp4") ? (
+                          <video
+                            src={url}
+                            className="w-full h-full rounded-lg object-cover"
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                            preload="auto"
+                          />
+                        ) : (
+                          <img
+                            src={url}
+                            alt={`Promo ${index + 1}`}
+                            className="w-full h-full rounded-lg object-cover"
+                            loading="lazy"
+                          />
+                        )}
                       </div>
                     </SwiperSlide>
                   ))}
             </Swiper>
             {/* Dots navigation */}
-            <div className="flex justify-center mt-0">
+            <div className="flex justify-center mt-2">
               {promoImages.map((_, index) => (
                 <div
                   key={index}

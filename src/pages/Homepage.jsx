@@ -161,7 +161,7 @@ const Homepage = () => {
       // Fetch promo images only if they are not already in Redux
       const images = [
         "https://res.cloudinary.com/dtaqusjav/image/upload/v1743282618/FREE_DELIVERY_whzaqc.png",
-        "https://res.cloudinary.com/dtaqusjav/image/upload/v1743282149/Thrift_Hive_Ng_3_tylnkt.png",
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1743285776/Thrift_Hive_Ng_3_ibppde.png",
         "https://res.cloudinary.com/dtaqusjav/video/upload/v1743281463/NEW_DROP_ON_3_wxhasu.mp4",
       ];
       dispatch(setPromoLoading(true));
@@ -331,17 +331,11 @@ const Homepage = () => {
                       key={index}
                       className="transition-transform duration-500 ease-in-out rounded-lg transform hover:scale-105"
                     >
-                      <div
-                        className="w-full h-48 shadow-md object-cover rounded-lg overflow-hidden flex items-center justify-center"
-                        style={{
-                          position: "relative",
-                          height: "12rem",
-                        }}
-                      >
+                      <div className=" w-auto h-44 shadow-md rounded-lg overflow-hidden">
                         {url.endsWith(".mp4") ? (
                           <video
                             src={url}
-                            className="w-full h-full rounded-lg object-cover"
+                            className="w-full h-full object-cover object-center rounded-lg"
                             autoPlay
                             muted
                             loop
@@ -352,7 +346,7 @@ const Homepage = () => {
                           <img
                             src={url}
                             alt={`Promo ${index + 1}`}
-                            className="w-full h-full rounded-lg object-cover"
+                            className="w-full h-full object-cover object-center rounded-lg"
                             loading="lazy"
                           />
                         )}

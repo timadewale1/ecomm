@@ -83,9 +83,9 @@ const Explore = () => {
   useEffect(() => {
     if (promoImages.length === 0) {
       const images = [
-        "https://res.cloudinary.com/dtaqusjav/image/upload/v1736717421/Promo_Card_5_azm2n3.svg",
-        "https://res.cloudinary.com/dtaqusjav/image/upload/v1739645822/Valentine_s_Promo_Card_fykrup.svg",
-        "https://res.cloudinary.com/dtaqusjav/image/upload/v1737022557/Promo_Card_7_gxlmrs.svg",
+        "https://res.cloudinary.com/dtaqusjav/video/upload/v1743281463/NEW_DROP_ON_3_wxhasu.mp4",
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1743285776/Thrift_Hive_Ng_3_ibppde.png",
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1743282618/FREE_DELIVERY_whzaqc.png",
       ];
       dispatch(setPromoLoading(true));
       setTimeout(() => {
@@ -461,12 +461,25 @@ const Explore = () => {
                           key={index}
                           className="transition-transform duration-500 ease-in-out rounded-lg transform hover:scale-105"
                         >
-                          <div className="p-1 w-auto h-44 shadow-md rounded-lg overflow-hidden">
-                            <img
-                              src={url}
-                              alt={`Promo ${index + 1}`}
-                              className="w-full h-full object-cover rounded-lg"
-                            />
+                          <div className=" w-auto h-44 shadow-md rounded-lg overflow-hidden">
+                            {url.endsWith(".mp4") ? (
+                              <video
+                                src={url}
+                                className="w-full h-full object-cover object-center rounded-lg"
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                                preload="auto"
+                              />
+                            ) : (
+                              <img
+                                src={url}
+                                alt={`Promo ${index + 1}`}
+                                className="w-full h-full object-cover object-center rounded-lg"
+                                loading="lazy"
+                              />
+                            )}
                           </div>
                         </SwiperSlide>
                       ))}

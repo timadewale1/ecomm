@@ -44,10 +44,14 @@ import toast from "react-hot-toast";
 import { PiBasketFill } from "react-icons/pi";
 import { useAuth } from "../../custom-hooks/useAuth";
 import OrderPlacedModal from "../../components/OrderModal";
-import { enterStockpileMode, exitStockpileMode } from "../../redux/reducers/stockpileSlice";
+import {
+  enterStockpileMode,
+  exitStockpileMode,
+} from "../../redux/reducers/stockpileSlice";
 
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../../firebase.config";
+import { clearCart } from "../../redux/actions/action";
 const ConfirmShippingModal = ({ isOpen, onClose, onConfirm }) => {
   if (!isOpen) return null;
 
@@ -369,27 +373,21 @@ const OrdersCentre = () => {
       setIsRequestingShipping(false);
     }
   };
+  useEffect(() => {
+    if (orders.length > 0) {
+      const newOrder = orders.find((order) => order.showPopup === true);
 
-  useEffect(() => {
-    if (orders.length > 0) {
-      // Look for an order with a field "showPopup" set to true.
-      const newOrder = orders.find((order) => order.showPopup === true);
       if (newOrder) {
         setOrderForPopup(newOrder);
         setShowOrderPlacedModal(true);
+
+        // Clear the cart for that vendor immediately
+        if (newOrder.vendorId) {
+          dispatch(clearCart(newOrder.vendorId));
+        }
       }
     }
-  }, [orders]);
-  useEffect(() => {
-    if (orders.length > 0) {
-      // Look for an order with a field "showPopup" set to true.
-      const newOrder = orders.find((order) => order.showPopup === true);
-      if (newOrder) {
-        setOrderForPopup(newOrder);
-        setShowOrderPlacedModal(true);
-      }
-    }
-  }, [orders]);
+  }, [orders, dispatch]);
 
   // Function to handle closing the popup.
   // Here you could update the order document in Firestore to mark that it’s no longer new.

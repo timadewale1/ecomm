@@ -993,16 +993,16 @@ const Checkout = () => {
       </div>
       <div className="px-4">
         {!isRepiling && (
-          <div className="w-full max-w-md mx-auto flex justify-between items-center rounded-full bg-orange-200 px-1 py-1 mb-3 relative">
+          <div className="w-full max-w-md mx-auto flex justify-between items-center rounded-full bg-gray-200 px-1 py-1 mb-3 relative">
             <button
               onClick={() => setCheckoutMode("deliver")}
               className={`w-1/2 py-2 rounded-full text-sm font-opensans font-semibold transition-all duration-200 ${
                 checkoutMode === "deliver"
-                  ? "bg-customRichBrown text-white"
-                  : "text-gray-700"
+                  ? "bg-white text-customOrange"
+                  : "text-gray-800"
               }`}
             >
-              Deliver Now
+              Deliver now
             </button>
 
             <div className="relative w-1/2">
@@ -1010,8 +1010,8 @@ const Checkout = () => {
                 onClick={handleStockpileClick}
                 className={`w-full py-2 rounded-full text-sm font-opensans font-medium transition-all duration-200 ${
                   checkoutMode === "stockpile"
-                    ? "bg-customRichBrown text-white"
-                    : "text-gray-700"
+                    ? "bg-white text-customOrange"
+                    : "text-gray-800"
                 }`}
               >
                 Stockpile

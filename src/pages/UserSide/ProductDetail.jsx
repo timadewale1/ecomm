@@ -1222,7 +1222,7 @@ const ProductDetailPage = () => {
                 // 3) Style it similarly to your Product Type select
                 className="w-[109px] font-opensans text-sm"
                 classNamePrefix="custom-select"
-                isSearchable
+                isSearchable={false}
                 styles={{
                   control: (provided, state) => ({
                     ...provided,

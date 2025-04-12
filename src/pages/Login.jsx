@@ -115,6 +115,7 @@ const Login = () => {
     }
   };
 
+  // Final function with improved performance
   const signIn = async (e) => {
     e.preventDefault();
 
@@ -143,7 +144,7 @@ const Login = () => {
         // Handle `unverified-email` error
         if (data.code === "unverified-email") {
           toast.error(data.message || "Please verify your email.");
-          console.log("Verification link:", data.verifyLink); // Optional: Log or display the link
+          console.log("Verification link:", data.verifyLink); // Optional
           return;
         }
 
@@ -193,17 +194,17 @@ const Login = () => {
         return;
       }
 
-      // 5) Merge local cart with Firestore cart
-      const localCart = JSON.parse(localStorage.getItem("cart")) || {};
-      await fetchCartFromFirestore(user.uid, localCart);
-      localStorage.removeItem("cart");
-
-      // 6) Completed sign-in
+      // --- CHANGED PART: immediate sign-in completion before merging cart ---
       const Name = userData?.username || "User";
       setLoading(false);
-      toast.success(`Hello ${Name}, welcome!`);
+      toast.success(`Hello ${Name}, welcome back!`);
       const redirectTo = location.state?.from || "/newhome";
       navigate(redirectTo, { replace: true });
+
+      // 5) Merge local cart with Firestore cart in background (non-blocking)
+      const localCart = JSON.parse(localStorage.getItem("cart")) || {};
+      fetchCartFromFirestore(user.uid, localCart);
+      localStorage.removeItem("cart");
     } catch (error) {
       setLoading(false);
       console.error("Error during sign-in:", error);
@@ -229,8 +230,6 @@ const Login = () => {
         errorMessage =
           "Your account has been disabled. Please contact support.";
       }
-      // Feel free to add more else if statements for other specific error codes
-
       // Fallback or default error message
       toast.error(errorMessage);
     }

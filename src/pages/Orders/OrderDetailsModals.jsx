@@ -705,7 +705,7 @@ const OrderDetailsModal = ({
             smsMessage = `Hello, ${userName}, your new stockpile from ${vendorName} has been accepted! You can keep adding more items to your pile for an eco-friendly shopping experience. Cheers, Matilda from My Thrift.`;
           } else {
             // Repile: stockpile orders without duration
-            smsMessage = `Hello, ${userName}, your stockpile has been updated! You're doing great—keep on repiling and supporting eco-friendly fashion. Cheers, Matilda from My Thrift.`;
+            smsMessage = `Hello, ${userName}, your stockpile has been updated! You're doing great, keep on repiling and supporting eco-friendly fashion. Cheers, Matilda from My Thrift.`;
           }
         } else {
           // Normal orders

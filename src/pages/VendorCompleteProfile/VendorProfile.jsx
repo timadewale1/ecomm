@@ -295,7 +295,7 @@ const VendorProfile = () => {
         description={`Manage your My Thrift store`}
         url={`https://www.shopmythrift.store/vendor-profile`}
       />
-      <div className="font-opensans">
+      <div className="mb-20 h-full w-full font-opensans">
         {!showDetails && !showHistory && !showGuides && !profileOpen ? (
           <div className="pb-20 pt-2">
             {/* Cover Image Section */}
@@ -354,7 +354,7 @@ const VendorProfile = () => {
 
                   <div className="flex flex-col justify-center relative">
                     <div className="flex flex-col justify-center relative">
-                      <div className="absolute inset-0 bg-white/30 backdrop-blur-md w-40 rounded-md"></div>
+                      <div className="absolute inset-0 bg-white/30 backdrop-blur-md w-full rounded-md"></div>
                       <p className="text-customDeepOrange text-xl font-opensans font-semibold relative z-10 blur-sm">
                         100
                       </p>
@@ -370,7 +370,7 @@ const VendorProfile = () => {
             <div>
               {description && (
                 <div className="w-full px-2 mt-4">
-                  <h1 className="text-base font-opensans text-black">
+                  <h1 className="text-sm font-opensans text-black">
                     {description}
                   </h1>
                 </div>
@@ -429,7 +429,7 @@ const VendorProfile = () => {
               </div>
 
               {/* Profile Options */}
-              <div className="w-screen mt-2 px-2">
+              <div className="w-full mt-2 px-2">
                 <div className="w-full h-14 flex">
                   <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
                     Personal

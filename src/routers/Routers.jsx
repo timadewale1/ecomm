@@ -52,7 +52,6 @@ import WithReviewModal from "../components/Reviews/WithReview.jsx";
 import CategoryProducts from "../components/PopularCategories/CategorySection.jsx";
 import SubmitFeedback from "../pages/SubmitFeedback.jsx";
 import WithWhatsAppModal from "../components/ChannelLinkModal/WithWhatsAppModal.jsx";
-// import ProfileView from "../pages/VendorCompleteProfile/profileView.jsx";
 const Routers = () => {
   return (
     <Routes>

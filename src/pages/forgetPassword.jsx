@@ -116,7 +116,7 @@ const ForgetPassword = () => {
 
                   />
                 </FormGroup>
-                <div className="flex text-center flex-col -translate-y-3">
+                <div className="flex  text-center flex-col -translate-y-3">
                   <motion.button
                     whileTap={{ scale: 1.2 }}
                     type="submit"

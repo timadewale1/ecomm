@@ -200,15 +200,15 @@ const VendorSignup = () => {
                 />
               </div>
               <div className="translate-y-4">
-                <div className="mb-2">
-                  <h1 className="font-ubuntu text-5xl flex font-semibold text-black">
-                    Sign Up{" "}
-                    <span className="text-customOrange translate-y-4 text-xl">
-                      <p>(Vendor)</p>
+              <div className="mb-2">
+                  <h1 className="font-ubuntu text-5xl flex items-center font-semibold text-black gap-2">
+                    Sign Up
+                    <span className="rounded-full px-3 py-1 bg-customOrange text-xs flex items-center justify-center">
+                      <p className="text-white text-xs leading-none">Vendor</p>
                     </span>
                   </h1>
                 </div>
-                <p className="text-black text-sm font-semibold">
+                <p className="text-black font-opensans text-sm font-semibold">
                   Please sign up to continue
                 </p>
               </div>
@@ -368,7 +368,7 @@ const VendorSignup = () => {
                       {showConfirmPassword ? <FaRegEye /> : <FaRegEyeSlash />}
                     </motion.button>
                   </FormGroup>
-                  <div className="text-gray-600 font-opensans text-xs mt-2 leading-relaxed">
+                  <div className="text-gray-600 font-opensans text-xs mt-2 -mx-1 leading-relaxed">
                     By signing up, you agree to our
                     <span
                       onClick={() =>

@@ -277,8 +277,8 @@ const Signup = () => {
                 />
               </div>
             </div>
-            <div>
-              <div>
+            <div className="">
+              <div className="px-4">
                 <h1 className="text-3xl font-extrabold font-lato text-black mb-1">
                   Create an account
                 </h1>
@@ -287,7 +287,7 @@ const Signup = () => {
                 </p>
               </div>
 
-              <Form className="mt-4" onSubmit={signup}>
+              <Form className="mt-4 px-4 flex flex-col " onSubmit={signup}>
                 {/* Username input */}
                 <FormGroup className="relative mb-2">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
@@ -446,7 +446,7 @@ const Signup = () => {
                     )}
                   </div>
                 </FormGroup>
-                <div className="text-gray-600 font-opensans text-xs mt-2 leading-relaxed">
+                <div className="text-gray-600 font-opensans text-xs mt-2 -mx-1 leading-relaxed">
                   By signing up, you agree to our
                   <span
                     onClick={() =>
@@ -456,11 +456,11 @@ const Signup = () => {
                         "noopener,noreferrer"
                       )
                     }
-                    className="text-customOrange font-medium hover:underline cursor-pointer ml-1"
+                    className="text-customOrange font-medium hover:underline cursor-pointer mr-1"
                   >
                     Terms & Conditions
                   </span>
-                  and
+                   and
                   <span
                     onClick={() =>
                       window.open(
@@ -479,7 +479,7 @@ const Signup = () => {
                 {/* Sign Up button */}
                 <motion.button
                   type="submit"
-                  className="glow-button w-full h-12 mt-4 bg-customOrange text-white font-medium rounded-full flex justify-center items-center"
+                  className="glow-button w-full h-12 mt-4 bg-customOrange text-white font-medium rounded-full flex justify-center font-opensans items-center"
                   disabled={loading}
                 >
                   {loading ? (
@@ -497,7 +497,7 @@ const Signup = () => {
 
                 <div className="flex items-center justify-center mt-2 mb-2">
                   <div className="flex-grow border-t border-gray-300"></div>
-                  <span className="mx-4 text-gray-500">OR</span>
+                  <span className="mx-4 text-sm text-gray-500">OR</span>
                   <div className="flex-grow border-t border-gray-300"></div>
                 </div>
 
@@ -507,7 +507,7 @@ const Signup = () => {
                   className="w-full h-12 mt-2 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center"
                   onClick={handleGoogleSignUp}
                 >
-                  <FcGoogle className="mr-2 text-2xl" />
+                  <FcGoogle className="mr-2  text-2xl" />
                   Sign up with Google
                 </motion.button>
 

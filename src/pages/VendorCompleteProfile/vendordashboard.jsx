@@ -808,7 +808,7 @@ const VendorDashboard = () => {
                   autoplay={true}
                 />
               </div>
-            )}
+            
             {<div ref={lastActivityRef} />}
           </div>
         </div>

@@ -4,7 +4,15 @@ import Modal from "react-modal";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import moment from "moment";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { MdOutlineClose, MdOutlineMail, MdOutlineInfo } from "react-icons/md";
 import { BsTelephone, BsBoxSeam } from "react-icons/bs";
@@ -20,7 +28,10 @@ import {
   IoColorPaletteSharp,
   IoLocationOutline,
 } from "react-icons/io5";
+
 import notifyOrderStatusChange from "../../services/notifyorderstatus";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../../firebase.config";
 import { PiCoinsFill } from "react-icons/pi";
 import { IoIosBody, IoMdInformationCircleOutline } from "react-icons/io";
 import { FaShoppingBag } from "react-icons/fa";
@@ -30,9 +41,11 @@ import { GoChevronLeft, GoClockFill } from "react-icons/go";
 import toast from "react-hot-toast";
 import { IoMdCheckmark } from "react-icons/io";
 import { RotatingLines } from "react-loader-spinner";
+import { serverTimestamp } from "firebase/firestore";
+
 import { BiCoinStack } from "react-icons/bi";
 import addActivityNote from "../../services/activityNotes";
-import { GiStarsStack } from "react-icons/gi";
+import { GiBookPile, GiStarsStack } from "react-icons/gi";
 const OrderDetailsModal = ({
   isOpen,
   onClose,
@@ -47,17 +60,31 @@ const OrderDetailsModal = ({
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
   const [acceptLoading, setAcceptLoading] = useState(false);
+
+  // New state for tracking the remaining time (in milliseconds)
+  const [timeRemaining, setTimeRemaining] = useState(null);
+
   const [isConfirmDeliveryModalOpen, setIsConfirmDeliveryModalOpen] =
     useState(false);
   const [isSupportCallModalOpen, setIsSupportCallModalOpen] = useState(false);
   const [confirmDeliveryChecked, setConfirmDeliveryChecked] = useState(false);
   const [deliverLoading, setDeliverLoading] = useState(false);
   const [declineLoading, setDeclineLoading] = useState(false);
+  const [isMovingToShipping, setIsMovingToShipping] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  // New state variables for Rider Details
+  const [isRiderModalOpen, setIsRiderModalOpen] = useState(false);
+  const [riderName, setRiderName] = useState("");
+  const [riderNumber, setRiderNumber] = useState("");
+  const [riderNote, setRiderNote] = useState("");
+  const [isSending, setIsSending] = useState(false);
+
   const [otherReasonText, setOtherReasonText] = useState("");
   const [isDeclineInfoModalOpen, setIsDeclineInfoModalOpen] = useState(false);
   const userId = order?.userId; // Directly access userId from the order document
   const navigate = useNavigate();
+  const [stockpileOrders, setStockpileOrders] = useState([]);
+
   const [vendorName, setVendorName] = useState(
     order?.vendorName || "Your Vendor Name"
   );
@@ -148,6 +175,54 @@ const OrderDetailsModal = ({
       fetchProductDetails();
     }
   }, [isOpen, order]);
+  // Add these imports at the top if not already imported
+
+  // Effect to update countdown every second based on order.endDate
+  useEffect(() => {
+    if (order && order.endDate) {
+      const intervalId = setInterval(() => {
+        // Convert Firestore Timestamp to Date if needed
+        const endDate = order.endDate.toDate
+          ? order.endDate.toDate()
+          : order.endDate;
+        const now = moment();
+        const end = moment(endDate);
+        const diff = end.diff(now); // in ms
+        setTimeRemaining(diff > 0 ? diff : 0);
+      }, 1000);
+
+      return () => clearInterval(intervalId);
+    }
+  }, [order]);
+
+  useEffect(() => {
+    const fetchStockpileOrders = async () => {
+      if (order.isStockpile && order.stockpileDocId) {
+        const q = collection(db, "orders");
+        const stockpileQuery =
+          order.vendorId && order.stockpileDocId
+            ? query(
+                q,
+                where("vendorId", "==", order.vendorId),
+                where("stockpileDocId", "==", order.stockpileDocId)
+              )
+            : null;
+        if (stockpileQuery) {
+          const snapshot = await getDocs(stockpileQuery);
+          const ordersData = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          ordersData.sort((a, b) => a.createdAt.seconds - b.createdAt.seconds);
+          setStockpileOrders(ordersData);
+        }
+      }
+    };
+
+    if (isOpen && order && order.isStockpile) {
+      fetchStockpileOrders();
+    }
+  }, [isOpen, order]);
 
   const handleDecline = async (reason) => {
     setDeclineLoading(true);
@@ -233,8 +308,8 @@ const OrderDetailsModal = ({
         }
       }
       // Continue with the existing decline process
-      const token = process.env.REACT_APP_RESOLVE_TOKEN;
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+      const token = import.meta.env.VITE_RESOLVE_TOKEN;
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
       console.log("Token fetched from environment variable:", token);
 
       const payload = {
@@ -267,6 +342,7 @@ const OrderDetailsModal = ({
       await updateDoc(orderRef, {
         progressStatus: "Declined",
         vendorStatus: "declined",
+        isStockpile: false,
         declineReason: reason || "Reason not provided",
       });
 
@@ -302,7 +378,7 @@ const OrderDetailsModal = ({
           receiverId: orderData.userInfo?.uid || order.userId,
         };
 
-        const smsToken = process.env.REACT_APP_BETOKEN;
+        const smsToken = import.meta.env.VITE_BETOKEN;
         console.log("SMS Token fetched from environment variable:", smsToken);
         console.log("SMS Payload being sent:", smsPayload);
 
@@ -347,7 +423,92 @@ const OrderDetailsModal = ({
       console.log("handleDecline process completed.");
     }
   };
+  const handleMoveToShippingWithRider = async () => {
+    setIsMovingToShipping(true);
+    try {
+      // 1) If you don't already have stockpileOrders, fetch them
+      if (!stockpileOrders || stockpileOrders.length === 0) {
+        throw new Error("No stockpile orders available.");
+      }
 
+      // 2) Identify the primary order (e.g. first in sorted array)
+      const primaryOrder = stockpileOrders[0];
+
+      // 3) Loop over *all* orders in the stockpile
+      for (const stockOrder of stockpileOrders) {
+        // Skip if this sub-order was previously Declined
+        if (stockOrder.progressStatus === "Declined") {
+          continue; // do not overwrite Declined orders
+        }
+
+        const orderRef = doc(db, "orders", stockOrder.id);
+
+        // If it’s the primary doc, also update rider info
+        if (stockOrder.id === primaryOrder.id) {
+          await updateDoc(orderRef, {
+            progressStatus: "Shipped",
+            riderInfo: {
+              riderName,
+              riderNumber,
+              note: riderNote,
+            },
+            shippedAt: serverTimestamp(),
+          });
+        } else {
+          // For the “repile” docs, just set progressStatus to "Shipped"
+          // to keep them consistent, but skip notifications
+          await updateDoc(orderRef, { progressStatus: "Shipped" });
+        }
+      }
+
+      // 4) Optionally update the stockpile doc to set isActive = false
+      if (order.stockpileDocId) {
+        const stockpileRef = doc(db, "stockpiles", order.stockpileDocId);
+        await updateDoc(stockpileRef, { isActive: false });
+      }
+
+      // 5) Add an activity note for the vendor
+      await addActivityNote(
+        primaryOrder.vendorId,
+        "Stockpile Shipped",
+        `Stockpile (ID: ${order.stockpileDocId}) has been shipped. Rider: ${riderName}`,
+        "order"
+      );
+
+      // 6) Call the Cloud Function to notify the user (via email and SMS)
+      const notifyUserStockpileUpdate = httpsCallable(
+        functions,
+        "notifyUserStockpileUpdate"
+      );
+      await notifyUserStockpileUpdate({
+        eventType: "shipping",
+        userEmail: primaryOrder.userInfo.email, // assumes userInfo contains the email
+        userName: primaryOrder.userInfo.displayName,
+        orderId: primaryOrder.id,
+        stockpileDocId: primaryOrder.stockpileDocId,
+        vendorName, // make sure vendorName is defined in your component or passed as needed
+        riderInfo: {
+          riderName,
+          riderNumber,
+          note: riderNote,
+        },
+        userPhone: primaryOrder.userInfo.phoneNumber,
+      });
+
+      toast.success("Stockpile moved to Shipping successfully.");
+      setIsRiderModalOpen(false);
+      onClose();
+    } catch (error) {
+      console.error("Error moving stockpile to shipping:", error);
+      toast.error("Failed to move stockpile to Shipping.");
+    } finally {
+      setIsMovingToShipping(false);
+    }
+  };
+
+  const closeRiderModal = () => {
+    setIsRiderModalOpen(false);
+  };
   const handleAccept = async () => {
     setAcceptLoading(true);
     try {
@@ -444,8 +605,8 @@ const OrderDetailsModal = ({
       }
 
       // Get the token from the environment variable
-      const token = process.env.REACT_APP_RESOLVE_TOKEN;
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+      const token = import.meta.env.VITE_RESOLVE_TOKEN;
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
       console.log("Token fetched from environment variable:", token);
 
       // Constructing payload
@@ -496,35 +657,37 @@ const OrderDetailsModal = ({
 
       // Add activity note
       console.log("Adding activity note for vendor...");
-      await addActivityNote(
-        order.vendorId,
-        "Order Accepted ✅",
-        `Order with ID: ${order.id} was accepted by ${vendorName}.`,
-        "order"
-      );
-
-      let vendor60Pay = null;
-      const paymentResponse = await fetch(
-        `${API_BASE_URL}/calculateVendorPay/${orderReference}`,
-        {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (!paymentResponse.ok) {
-        throw new Error("Failed to fetch payment data.");
-      }
-      const paymentData = await paymentResponse.json();
-      vendor60Pay = paymentData.amount?.vendor60Pay;
-
-      if (vendor60Pay) {
-        const amountFormatted = `₦${vendor60Pay.toLocaleString()}`;
+      if (order.isStockpile) {
         await addActivityNote(
           order.vendorId,
-          "You’ve Been Credited 💰",
-          `You’ve received ${amountFormatted} as a 60% payout for order ID: ${order.id}.`,
+          "Stockpile Payment in Full 💰",
+          `You have been paid in full for the stockpile order (ID: ${order.id}).`,
           "transactions"
         );
+      } else {
+        let vendor60Pay = null;
+        const paymentResponse = await fetch(
+          `${API_BASE_URL}/calculateVendorPay/${orderReference}`,
+          {
+            method: "GET",
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (!paymentResponse.ok) {
+          throw new Error("Failed to fetch payment data.");
+        }
+        const paymentData = await paymentResponse.json();
+        vendor60Pay = paymentData.amount?.vendor60Pay;
+
+        if (vendor60Pay) {
+          const amountFormatted = `₦${vendor60Pay.toLocaleString()}`;
+          await addActivityNote(
+            order.vendorId,
+            "You’ve Been Credited 💰",
+            `You’ve received ${amountFormatted} as a 60% payout for order ID: ${order.id}.`,
+            "transactions"
+          );
+        }
       }
 
       // Send SMS to User
@@ -534,13 +697,28 @@ const OrderDetailsModal = ({
           ? userPhoneNumber.slice(1)
           : userPhoneNumber;
 
+        // Set SMS message conditionally for stockpile orders
+        let smsMessage = "";
+        if (order.isStockpile) {
+          if (order.stockpileDuration) {
+            // New stockpile orders with duration
+            smsMessage = `Hello, ${userName}, your new stockpile from ${vendorName} has been accepted! You can keep adding more items to your pile for an eco-friendly shopping experience. Cheers, Matilda from My Thrift.`;
+          } else {
+            // Repile: stockpile orders without duration
+            smsMessage = `Hello, ${userName}, your stockpile has been updated! You're doing great—keep on repiling and supporting eco-friendly fashion. Cheers, Matilda from My Thrift.`;
+          }
+        } else {
+          // Normal orders
+          smsMessage = `Hello, ${userName}, your order with ID ${orderId} from ${vendorName} has been accepted and is in progress. We will update you when it is shipped. Cheers, Matilda from My Thrift.`;
+        }
+
         const smsPayload = {
-          message: `Hello, ${userName}, your order with ID ${orderId} from ${vendorName} has been accepted and is in progress. We will update you when it is shipped. Cheers, Matilda from My Thrift.`,
+          message: smsMessage,
           receiverNumber: formattedPhoneNumber,
           receiverId: userId,
         };
 
-        const smsToken = process.env.REACT_APP_BETOKEN;
+        const smsToken = import.meta.env.VITE_BETOKEN;
         console.log("SMS Token fetched from environment variable:", smsToken);
         console.log("SMS Payload being sent:", smsPayload);
 
@@ -584,6 +762,13 @@ const OrderDetailsModal = ({
       console.log("handleAccept process completed.");
     }
   };
+  // Make sure to convert each order's subtotal to a number safely
+  const totalSubtotal = stockpileOrders.reduce((acc, curr) => {
+    // Only count orders that have been accepted
+    if (curr.vendorStatus !== "accepted") return acc;
+    const val = parseFloat(curr.subtotal);
+    return acc + (isNaN(val) ? 0 : val);
+  }, 0);
 
   useEffect(() => {
     const fetchVendorAmounts = async () => {
@@ -603,8 +788,8 @@ const OrderDetailsModal = ({
             console.log("Order reference from Firestore:", orderReference);
 
             if (orderReference) {
-              const token = process.env.REACT_APP_RESOLVE_TOKEN;
-              const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+              const token = import.meta.env.VITE_RESOLVE_TOKEN;
+              const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
               console.log("Authorization Token:", token);
               console.log("API_BASE_URL:", API_BASE_URL);
@@ -680,6 +865,18 @@ const OrderDetailsModal = ({
       );
     }
   }, [isOpen, order]);
+  // Determine if the stockpile has matured (end date reached)
+  const isMature = order?.endDate ? timeRemaining === 0 : false;
+
+  const formattedTime = () => {
+    if (timeRemaining === null || timeRemaining === 0) return "";
+    const duration = moment.duration(timeRemaining);
+    const days = duration.days();
+    const hours = duration.hours();
+    const minutes = duration.minutes();
+    const seconds = duration.seconds();
+    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  };
 
   const handleMarkAsDelivered = async () => {
     setDeliverLoading(true);
@@ -737,8 +934,8 @@ const OrderDetailsModal = ({
         orderReference: orderReference,
       };
 
-      const token = process.env.REACT_APP_RESOLVE_TOKEN; // Ensure your token is set up
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+      const token = import.meta.env.VITE_RESOLVE_TOKEN; // Ensure your token is set up
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
       // Send request to updateDelivery endpoint FIRST
       console.log("Sending delivery update to endpoint...");
@@ -759,12 +956,10 @@ const OrderDetailsModal = ({
 
       console.log("Delivery update successfully sent to API.");
 
-   
-    
       console.log("Updating order progressStatus to 'Delivered'...");
       await updateDoc(orderRef, {
         progressStatus: "Delivered",
-        orderDelivered: true, 
+        orderDelivered: true,
       });
       // Send notification to the user
       console.log("Sending notification about order delivery...");
@@ -811,7 +1006,7 @@ const OrderDetailsModal = ({
           receiverId: userId,
         };
 
-        const smsToken = process.env.REACT_APP_BETOKEN;
+        const smsToken = import.meta.env.VITE_BETOKEN;
 
         console.log("SMS Payload:", smsPayload);
 
@@ -845,7 +1040,9 @@ const OrderDetailsModal = ({
         console.warn("User phone number not available, skipping SMS.");
       }
 
-      toast.success("Order marked as delivered and your funds are on their way!");
+      toast.success(
+        "Order marked as delivered and your funds are on their way!"
+      );
       onClose();
     } catch (error) {
       console.error("Failed to mark as delivered:", error);
@@ -856,7 +1053,172 @@ const OrderDetailsModal = ({
       console.log("handleMarkAsDelivered process completed.");
     }
   };
+  const handleMarkStockpileAsDelivered = async () => {
+    setDeliverLoading(true);
+    try {
+      console.log("Starting handleMarkStockpileAsDelivered process...");
 
+      // 1) Ensure we have the stockpile orders
+      if (!stockpileOrders || stockpileOrders.length === 0) {
+        throw new Error("No stockpile orders available.");
+      }
+
+      // 2) Identify the primary order (the first in your sorted array)
+      const primaryOrder = stockpileOrders[0];
+
+      // Basic fields from your primaryOrder for convenience
+      const { orderId, userInfo, vendorId } = primaryOrder;
+      const userPhoneNumber = userInfo?.phoneNumber;
+      const userName = userInfo?.displayName;
+      const userId = userInfo?.uid || primaryOrder.userId;
+
+      // 3) Update every order doc in the stockpile to “Delivered”
+      //    except those that are "Declined"
+      for (const stockOrder of stockpileOrders) {
+        if (stockOrder.progressStatus === "Declined") {
+          continue; // do not overwrite Declined orders
+        }
+
+        const ref = doc(db, "orders", stockOrder.id);
+        await updateDoc(ref, {
+          progressStatus: "Delivered",
+          orderDelivered: true,
+          deliveredAt: serverTimestamp(), // store a timestamp for reference
+        });
+      }
+
+      // 4) Optionally fetch vendor cover image + product image for notifications
+      let vendorCoverImage = null;
+      if (vendorId) {
+        const vendorRef = doc(db, "vendors", vendorId);
+        const vendorSnap = await getDoc(vendorRef);
+        if (vendorSnap.exists()) {
+          vendorCoverImage = vendorSnap.data().coverImageUrl || null;
+        }
+      }
+
+      let productImage = null;
+      if (primaryOrder.cartItems && primaryOrder.cartItems.length > 0) {
+        const firstItem = primaryOrder.cartItems[0];
+        const productRef = doc(db, "products", firstItem.productId);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+          const productData = productSnap.data();
+          if (firstItem.subProductId) {
+            const sub = productData.subProducts?.find(
+              (sp) => sp.subProductId === firstItem.subProductId
+            );
+            productImage = sub?.images?.[0] || null;
+          } else {
+            productImage = productData.imageUrls?.[0] || null;
+          }
+        }
+      }
+
+      // 5) Send a "Delivered" notification for the primary order
+      console.log("Sending ‘Delivered’ notification for the primary doc...");
+      await notifyOrderStatusChange(
+        userId,
+        primaryOrder.id,
+        "Delivered",
+        vendorName,
+        vendorCoverImage,
+        productImage
+      );
+
+      // 6) Add an activity note for the vendor
+      console.log("Adding activity note for the vendor...");
+      await addActivityNote(
+        vendorId,
+        "Stockpile Delivered 😊",
+        `You’ve marked this entire stockpile as delivered. If this was a mistake, reach out immediately!`,
+        "order"
+      );
+
+      // 7) Clear and refresh vendor revenue
+      console.log("Clearing and refreshing vendor revenue cache...");
+      localStorage.removeItem(`vendorRevenue_${vendorId}`);
+      localStorage.removeItem(`vendorRevenue_time_${vendorId}`);
+      fetchVendorRevenue(vendorId)
+        .then((revenue) => {
+          setTotalRevenue(revenue);
+          console.log("Vendor revenue refreshed successfully.");
+        })
+        .catch(() => {
+          console.error("Failed to refresh vendor revenue.");
+        });
+
+      // 8) Send SMS to the user (only once)
+      // if (userPhoneNumber) {
+      //   console.log("Preparing to send SMS about delivered stockpile...");
+      //   const formattedPhoneNumber = userPhoneNumber.startsWith("0")
+      //     ? userPhoneNumber.slice(1)
+      //     : userPhoneNumber;
+
+      //   const smsPayload = {
+      //     message: `Your entire stockpile (ref: ${orderId}) has been marked delivered by ${vendorName}. We hope you love your items! If you haven't received them or this was a mistake, please contact support@shopmythrift.store.`,
+      //     receiverNumber: formattedPhoneNumber,
+      //     receiverId: userId,
+      //   };
+
+      //   const smsToken = import.meta.env.VITE_BETOKEN;
+      //   console.log("SMS Payload:", smsPayload);
+
+      //   try {
+      //     const smsResponse = await fetch(
+      //       "https://mythrift-sms.fly.dev/sendMessage",
+      //       {
+      //         method: "POST",
+      //         headers: {
+      //           "Content-Type": "application/json",
+      //           Authorization: `Bearer ${smsToken}`,
+      //         },
+      //         body: JSON.stringify(smsPayload),
+      //       }
+      //     );
+      //     const smsResult = await smsResponse.json();
+      //     console.log("SMS API Response:", smsResult);
+
+      //     if (smsResponse.ok) {
+      //       console.log(
+      //         `SMS sent successfully to user ${userPhoneNumber} (formatted: ${formattedPhoneNumber}).`
+      //       );
+      //     } else {
+      //       console.warn("SMS sending failed:", smsResult);
+      //     }
+      //   } catch (smsError) {
+      //     console.error("Error sending SMS:", smsError);
+      //   }
+      // } else {
+      //   console.warn("User phone number not available, skipping SMS.");
+      // }
+
+      // 9) Now call the Cloud Function to notify the user (via email and SMS)
+      const notifyUserStockpileUpdate = httpsCallable(
+        functions,
+        "notifyUserStockpileUpdate"
+      );
+      await notifyUserStockpileUpdate({
+        eventType: "delivered",
+        userEmail: userInfo.email,
+        userName,
+        orderId: primaryOrder.id,
+        stockpileDocId: primaryOrder.stockpileDocId,
+        vendorName,
+        userPhone: userPhoneNumber,
+      });
+
+      toast.success("Stockpile marked as delivered. Congrats!");
+      onClose();
+    } catch (error) {
+      console.error("Failed to mark stockpile as delivered:", error);
+      toast.error("Failed to mark stockpile as delivered");
+    } finally {
+      setDeliverLoading(false);
+      setIsConfirmDeliveryModalOpen(false);
+      console.log("handleMarkStockpileAsDelivered process completed.");
+    }
+  };
 
   const handleNavigation = () => {
     navigate("/delivery-guidelines");
@@ -891,6 +1253,9 @@ const OrderDetailsModal = ({
   if (!order) {
     return null;
   }
+  // If an order is a stockpile + pending, we want to hide start/end date & show doc's own subtotal
+  const shouldHideStockpileDates =
+    order.isStockpile && order.progressStatus === "Pending";
 
   const {
     userInfo,
@@ -919,8 +1284,9 @@ const OrderDetailsModal = ({
             onClick={onClose}
           />
           <h1 className="font-opensans text-black font-semibold text-base">
-            Order details
+            {order.isStockpile ? "Stockpile Details" : "Order Details"}
           </h1>
+
           {progressStatus === "Declined" ? (
             <IoMdInformationCircleOutline
               className="text-xl text-customRichBrown cursor-pointer"
@@ -1096,12 +1462,59 @@ const OrderDetailsModal = ({
                 <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
                   <BsBoxSeam className="text-gray-500 text-xl" />
                   <p className="text-gray-500 text-sm font-opensans">
-                    Order ID:
+                    {order.isStockpile ? "Stockpile ID:" : "Order ID:"}
                   </p>
                   <p className="ml-6 font-opensans text-black text-sm flex-grow">
-                    {order.id}
+                    {order.isStockpile ? order.stockpileDocId : order.id}
                   </p>
                 </div>
+                {order.isStockpile &&
+                  order.stockpileDuration &&
+                  order.progressStatus !== "Pending" && (
+                    <>
+                      {/* Duration */}
+                      <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
+                        <GiBookPile className="text-gray-500 text-xl" />
+                        <p className="text-gray-500 text-sm font-opensans">
+                          Duration:
+                        </p>
+                        <p className="ml-6 font-opensans text-black text-sm flex-grow">
+                          {order.stockpileDuration || "Not Available"} weeks
+                        </p>
+                      </div>
+
+                      {/* Start Date */}
+                      <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
+                        <GoClockFill className="text-gray-500 text-xl" />
+                        <p className="text-gray-500 text-sm font-opensans">
+                          Start Date:
+                        </p>
+                        <p className="ml-6 font-opensans text-black text-sm flex-grow">
+                          {order.startDate
+                            ? moment(order.startDate.toDate()).format(
+                                "DD/MM/YYYY"
+                              )
+                            : "Not Available"}
+                        </p>
+                      </div>
+
+                      {/* End Date */}
+                      <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
+                        <GoClockFill className="text-gray-500 text-xl" />
+                        <p className="text-gray-500 text-sm font-opensans">
+                          End Date:
+                        </p>
+                        <p className="ml-6 font-opensans text-black text-sm flex-grow">
+                          {order.endDate
+                            ? moment(order.endDate.toDate()).format(
+                                "DD/MM/YYYY"
+                              )
+                            : "Not Available"}
+                        </p>
+                      </div>
+                    </>
+                  )}
+
                 {note && (
                   <div className="flex items-start space-x-2 pb-2 border-b border-gray-100">
                     <GrNotes className="text-gray-500 text-xl mt-1" />
@@ -1161,7 +1574,6 @@ const OrderDetailsModal = ({
             </div>
           </div>
         )}
-
         {/* Product Details */}
         <div className="bg-white rounded-lg space-y-6">
           {cartItems.map((item, index) => (
@@ -1298,20 +1710,53 @@ const OrderDetailsModal = ({
                     </p>
                   </div>
 
-                  <div className="flex items-center pb-3 border-b border-gray-100">
-                    <FaTruck className="text-orange-700 text-xl" />
-                    <p className="ml-3 text-gray-500 text-sm font-opensans">
-                      Delivery Mode:
-                    </p>
-                    <p className="ml-10 font-opensans text-black text-sm flex-grow">
-                      {loading ? (
-                        <Skeleton width={100} />
-                      ) : (
-                        vendorDeliveryMode || "Not Specified"
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center pb-3 border-b border-gray-100">
+                  {!order.isStockpile && (
+                    <div className="flex items-center pb-3 border-b border-gray-100">
+                      <FaTruck className="text-orange-700 text-xl" />
+                      <p className="ml-3 text-gray-500 text-sm font-opensans">
+                        Delivery Mode:
+                      </p>
+                      <p className="ml-10 font-opensans text-black text-sm flex-grow">
+                        {loading ? (
+                          <Skeleton width={100} />
+                        ) : (
+                          vendorDeliveryMode || "Not Specified"
+                        )}
+                      </p>
+                    </div>
+                  )}
+                  {/* For Stockpile Orders, show each product's order id and creation time */}
+                  {order.isStockpile && (
+                    <>
+                      <div className="flex items-center pb-3 border-b border-gray-100">
+                        <BsBoxSeam className="text-gray-500 text-xl" />
+                        <p className="ml-3 text-gray-500 text-sm font-opensans">
+                          Order ID:
+                        </p>
+                        <p className="ml-10 font-opensans text-black text-sm flex-grow">
+                          {item._orderId || order.id}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center pb-3 border-b border-gray-100">
+                        <GoClockFill className="text-indigo-700 text-xl" />
+                        <p className="ml-3 text-gray-500 text-sm font-opensans">
+                          Created At:
+                        </p>
+                        <p className="ml-10 font-opensans text-black text-sm flex-grow">
+                          {item._orderCreatedAt
+                            ? moment(item._orderCreatedAt.toDate()).format(
+                                "MMMM DD [at] hh:mm A"
+                              )
+                            : moment(order.createdAt.seconds * 1000).format(
+                                "MMMM DD [at] hh:mm A"
+                              )}
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  {/* <div className="flex items-center pb-3 border-b border-gray-100">
                     <AiFillProduct className="text-orange-700 text-xl" />
                     <p className="ml-3 text-gray-500 text-sm font-opensans">
                       Created At:
@@ -1321,75 +1766,144 @@ const OrderDetailsModal = ({
                         "MMMM DD [at] hh:mm A"
                       )}
                     </p>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>
           ))}
         </div>
-        <div className="border border-black rounded-lg py-4 px-3">
-          <div className="flex items-center space-x-2 mb-2">
-            <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
-              <PiCoinsFill className="text-customRichBrown" />
-            </div>
-            <h2 className="font-opensans text-base text-customRichBrown font-semibold">
-              Balance
-            </h2>
-          </div>
-
-          <div className="space-y-2 mt-3">
-            {/* Total Amount */}
-
-            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-              <div className="flex items-center space-x-2">
-                <LiaCoinsSolid className="text-green-300 text-lg" />
-                <p className="font-opensans text-xs text-gray-700">
-                  Subtotal:
-                </p>
+        {!(order.isStockpile || order.stockpileDuration) && (
+          <div className="border border-black rounded-lg py-4 px-3">
+            <div className="flex items-center space-x-2 mb-2">
+              <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
+                <PiCoinsFill className="text-customRichBrown" />
               </div>
-              <p className="font-opensans text-xs font-semibold text-gray-700">
-                ₦{subtotal?.toLocaleString() || "0.00"}
-              </p>
+              <h2 className="font-opensans text-base text-customRichBrown font-semibold">
+                Balance
+              </h2>
             </div>
-            {/* Amount to Receive Now */}
-            {vendorAmounts && (
+
+            <div className="space-y-2 mt-3">
+              {/* Total Amount */}
               <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                 <div className="flex items-center space-x-2">
-                  <BiCoinStack className="text-green-500" />
+                  <LiaCoinsSolid className="text-green-300 text-lg" />
                   <p className="font-opensans text-xs text-gray-700">
-                    Amount to Receive Now (60%):
-                  </p>
-                </div>
-                <p className="font-opensans font-semibold text-xs text-gray-700">
-                  ₦{vendorAmounts.vendor60Pay.toLocaleString() || "0.00"}
-                </p>
-              </div>
-            )}
-
-            {/* Amount to Receive on Delivery */}
-            {vendorAmounts && (
-              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                <div className="flex items-center space-x-2">
-                  <BiCoinStack className="text-blue-500" />
-                  <p className="font-opensans text-xs text-gray-700">
-                    Balance to Receive on Delivery (40%):
+                    Subtotal:
                   </p>
                 </div>
                 <p className="font-opensans text-xs font-semibold text-gray-700">
-                  ₦{vendorAmounts.vendor40pay.toLocaleString() || "0.00"}
+                  ₦{subtotal?.toLocaleString() || "0.00"}
                 </p>
               </div>
-            )}
-            
+              {/* Amount to Receive Now */}
+              {vendorAmounts && (
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <div className="flex items-center space-x-2">
+                    <BiCoinStack className="text-green-500" />
+                    <p className="font-opensans text-xs text-gray-700">
+                      Amount to Receive Now (60%):
+                    </p>
+                  </div>
+                  <p className="font-opensans text-xs font-semibold text-gray-700">
+                    ₦{vendorAmounts.vendor60Pay.toLocaleString() || "0.00"}
+                  </p>
+                </div>
+              )}
+              {/* Amount to Receive on Delivery */}
+              {vendorAmounts && (
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <div className="flex items-center space-x-2">
+                    <BiCoinStack className="text-blue-500" />
+                    <p className="font-opensans text-xs text-gray-700">
+                      Balance to Receive on Delivery (40%):
+                    </p>
+                  </div>
+                  <p className="font-opensans text-xs font-semibold text-gray-700">
+                    ₦{vendorAmounts.vendor40pay.toLocaleString() || "0.00"}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+        {order.isStockpile && order.stockpileDuration && (
+          <div className="border border-black rounded-lg py-4 px-3 mt-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
+                <PiCoinsFill className="text-customRichBrown" />
+              </div>
+              <h2 className="font-opensans text-base text-customRichBrown font-semibold">
+                Stockpile value
+              </h2>
+            </div>
+
+            {/* If not hiding, we show the merged totalSubtotal (multiple orders) */}
+            {!shouldHideStockpileDates && (
+              <div className="space-y-2 mt-3">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <div className="flex items-center space-x-2">
+                    <LiaCoinsSolid className="text-green-300 text-lg" />
+                    <p className="font-opensans text-xs text-gray-700">
+                      Subtotal:
+                    </p>
+                  </div>
+                  <p className="font-opensans text-xs font-semibold text-gray-700">
+                    ₦{Number(totalSubtotal).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            )}
+            {/* If we should hide, just show single doc's own .subtotal */}
+            {shouldHideStockpileDates && (
+              <div className="space-y-2 mt-3">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <div className="flex items-center space-x-2">
+                    <LiaCoinsSolid className="text-green-300 text-lg" />
+                    <p className="font-opensans text-xs text-gray-700">
+                      Subtotal:
+                    </p>
+                  </div>
+                  <p className="font-opensans text-xs font-semibold text-gray-700">
+                    ₦{Number(order.subtotal || 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {order.isStockpile && order.progressStatus === "In Progress" && (
+          <div className="flex flex-col items-center mt-4">
+            {!(order.requestedForShipping || !order.isActive || isMature) && (
+              <div className="mb-2 bg-gray-200 text-gray-700 text-[10px] px-3 py-1 rounded-full font-opensans">
+                available in {formattedTime()}
+              </div>
+            )}
+
+            <button
+              onClick={() => setIsRiderModalOpen(true)}
+              className={`font-opensans px-16 py-2 text-base rounded-full transition-opacity duration-300
+        ${
+          order.requestedForShipping || !order.isActive || isMature
+            ? "bg-customOrange text-white"
+            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+        }`}
+              disabled={
+                !(order.requestedForShipping || !order.isActive || isMature)
+              }
+            >
+              Move to Shipping
+            </button>
+          </div>
+        )}
 
         <div className="flex justify-between mt-4">
           {order.progressStatus === "Pending" && (
             <>
               <button
                 onClick={() => setIsDeclineModalOpen(true)}
-                className="bg-transparent font-medium text-customOrange text-sm font-opensans py-2.5 px-14 rounded-full border-customBrown border-1"
+                className="bg-transparent font-medium text-customOrange text-sm font-opensans py-2.5 px-14 rounded-full border-customBrown border"
               >
                 {declineLoading ? (
                   <RotatingLines
@@ -1423,17 +1937,20 @@ const OrderDetailsModal = ({
             </>
           )}
         </div>
+        {/* Inside OrderDetailsModal's return: */}
+
         <div className="flex justify-between mt-4">
-          {progressStatus === "Shipped" && (
+          {/* If the order is Shipped AND is NOT a stockpile => normal flow */}
+          {progressStatus === "Shipped" && !order.isStockpile && (
             <>
               <button
                 onClick={handleContactUs}
-                className="bg-transparent font-medium text-customOrange text-xs font-opensans py-2.5 px-8 rounded-full border-customBrown border-1"
+                className="bg-transparent font-medium text-customOrange text-xs font-opensans py-2.5 px-8 rounded-full border-customBrown border"
               >
                 Contact Us
               </button>
               <button
-                onClick={() => setIsConfirmDeliveryModalOpen(true)}
+                onClick={() => setIsConfirmDeliveryModalOpen(true)} // existing confirm modal
                 className="text-xs font-medium text-white font-opensans py-2.5 px-8 rounded-full bg-customOrange"
                 disabled={deliverLoading}
               >
@@ -1450,6 +1967,29 @@ const OrderDetailsModal = ({
                 )}
               </button>
             </>
+          )}
+
+          {/* If the order is Shipped AND IS a stockpile => new button that calls handleMarkStockpileAsDelivered */}
+          {progressStatus === "Shipped" && order.isStockpile && (
+            <div className="w-full flex justify-center">
+              <button
+                onClick={() => setIsConfirmDeliveryModalOpen(true)}
+                className="text-xs font-medium text-white font-opensans py-2.5 px-8 rounded-full bg-customOrange"
+                disabled={deliverLoading}
+              >
+                {deliverLoading ? (
+                  <RotatingLines
+                    strokeColor="white"
+                    strokeWidth="5"
+                    animationDuration="0.75"
+                    width="20"
+                    visible={true}
+                  />
+                ) : (
+                  "Mark Stockpile as Delivered"
+                )}
+              </button>
+            </div>
           )}
         </div>
 
@@ -1542,6 +2082,68 @@ const OrderDetailsModal = ({
           </div>
         </Modal>
         <Modal
+          isOpen={isRiderModalOpen}
+          onRequestClose={closeRiderModal}
+          className="modal-content-rider h-auto"
+          overlayClassName="modal-overlay backdrop-blur-sm"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
+                <FaTruck className="text-customRichBrown" />
+              </div>
+              <h2 className="font-opensans text-base font-semibold">
+                Delivery Details
+              </h2>
+            </div>
+            <MdOutlineClose
+              className="text-xl relative -top-2"
+              onClick={closeRiderModal}
+            />
+          </div>
+          <div className="space-y-3 mb-4">
+            <h1 className="text-xs font-opensans text-black font-medium">
+              Rider's Name
+            </h1>
+            <input
+              type="text"
+              placeholder="Rider's Name"
+              value={riderName}
+              onChange={(e) => setRiderName(e.target.value)}
+              className="w-full p-2 border text-xs rounded h-10 focus:outline-none"
+            />
+            <h1 className="text-xs font-opensans text-black font-medium">
+              Rider's Number
+            </h1>
+            <input
+              type="number"
+              placeholder="Enter Rider's Phone Number"
+              value={riderNumber}
+              onChange={(e) => setRiderNumber(e.target.value.slice(0, 11))}
+              className="w-full p-2 border text-xs h-10 rounded focus:outline-none"
+            />
+            <textarea
+              placeholder="Add a short note here (optional)"
+              value={riderNote}
+              onChange={(e) => setRiderNote(e.target.value)}
+              className="w-full p-2 border text-xs h-20 rounded focus:outline-none"
+            />
+          </div>
+          <div className="flex justify-end mt-2">
+            <button
+              onClick={handleMoveToShippingWithRider}
+              className="bg-customOrange text-white font-opensans py-2 px-12 rounded-full flex items-center"
+              disabled={isMovingToShipping || isSending}
+            >
+              {isMovingToShipping ? (
+                <RotatingLines strokeColor="white" width="20" />
+              ) : (
+                "Send"
+              )}
+            </button>
+          </div>
+        </Modal>
+        <Modal
           isOpen={isConfirmDeliveryModalOpen}
           onRequestClose={() => setIsConfirmDeliveryModalOpen(false)}
           contentLabel="Confirm Delivery"
@@ -1607,12 +2209,25 @@ const OrderDetailsModal = ({
           </div>
           <div className="flex justify-end">
             <button
-              onClick={handleMarkAsDelivered}
+              onClick={() => {
+                // Call a helper that conditionally triggers the correct function
+                if (order.isStockpile) {
+                  handleMarkStockpileAsDelivered();
+                } else {
+                  handleMarkAsDelivered();
+                }
+              }}
               className="bg-customOrange text-white font-opensans py-2 px-8 rounded-full"
               disabled={!confirmDeliveryChecked || deliverLoading}
             >
               {deliverLoading ? (
-                <RotatingLines strokeColor="white" width="20" />
+                <RotatingLines
+                  strokeColor="white"
+                  strokeWidth="5"
+                  animationDuration="0.75"
+                  width="20"
+                  visible={true}
+                />
               ) : (
                 "Confirm"
               )}

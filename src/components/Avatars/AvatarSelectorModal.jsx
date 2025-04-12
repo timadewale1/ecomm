@@ -255,7 +255,7 @@ const AvatarSelectorModal = ({
         <div className=" p-6 flex flex-col mt-6 justify-between items-center bg-white w-full">
           <button
             onClick={handleRemove}
-            className="border-1 border-customBrown text-red-600 text-sm font-semibold w-80 h-12  mb-4 px-4 rounded-lg flex items-center justify-center"
+            className="border border-customBrown text-red-600 text-sm font-semibold w-80 h-12  mb-4 px-4 rounded-lg flex items-center justify-center"
             disabled={removing}
           >
             {removing ? (

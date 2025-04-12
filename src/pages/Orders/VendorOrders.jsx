@@ -1,3 +1,4 @@
+// src/components/orders/VendorOrders.jsx
 import React, { useState, useMemo } from "react";
 import { useSelector } from "react-redux";
 import { useAuth } from "../../custom-hooks/useAuth";
@@ -7,6 +8,8 @@ import PendingOrders from "./PendingOrders";
 import InProgressOrders from "./InProgressOrders";
 import ShippedOrders from "./ShippedOrders";
 import DeclinedOrders from "./DeclinedOrders";
+// Import the new StockpileOrders component:
+import StockpileOrders from "./StockpileOrders";
 import OrderDetailsModal from "./OrderDetailsModals";
 import ScrollToTop from "../../components/layout/ScrollToTop";
 import SEO from "../../components/Helmet/SEO";
@@ -16,31 +19,45 @@ const VendorOrders = () => {
   const [activeTab, setActiveTab] = useState("Pending");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [totalRevenue, setTotalRevenue] = useState(0); // Add totalRevenue state
-  // Get orders from Redux store
+  const [totalRevenue, setTotalRevenue] = useState(0);
+
   const orders = useSelector((state) => state.orders?.orders);
   const loading = orders === undefined || orders === null;
 
   const filteredOrders = useMemo(() => {
-    const filtered = orders
-      ? orders.filter((order) =>
-          activeTab === "Shipped"
-            ? ["Shipped", "Delivered"].includes(order.progressStatus)
-            : order.progressStatus === activeTab
-        )
-      : [];
+    if (!orders || !currentUser?.uid) return [];
 
-    // Sort orders from latest to earliest based on createdAt timestamp
+    let filtered = [];
+
+    if (activeTab === "Stockpiles") {
+      // Filter only stockpile orders that belong to this vendor.
+      filtered = orders.filter(
+        (order) =>
+          order.isStockpile === true &&
+          order.vendorId === currentUser.uid &&
+          order.vendorStatus === "accepted"
+      );
+    } else if (activeTab === "Shipped") {
+      filtered = orders.filter(
+        (order) =>
+          !order.isStockpile &&
+          ["Shipped", "Delivered"].includes(order.progressStatus)
+      );
+    } else {
+      filtered = orders.filter((order) => order.progressStatus === activeTab);
+    }
+
     return filtered.sort((a, b) => {
       const aTime = a.createdAt?.toMillis?.() || 0;
       const bTime = b.createdAt?.toMillis?.() || 0;
       return bTime - aTime;
     });
-  }, [orders, activeTab]);
+  }, [orders, activeTab, currentUser?.uid]);
+
   const fetchVendorRevenue = async (vendorId) => {
     try {
-      const token = process.env.REACT_APP_RESOLVE_TOKEN;
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL; // Ensure the token is correctly set
+      const token = import.meta.env.VITE_RESOLVE_TOKEN;
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
       const response = await fetch(
         `${API_BASE_URL}/vendorRevenue/${vendorId}`,
         {
@@ -57,7 +74,7 @@ const VendorOrders = () => {
       }
 
       const data = await response.json();
-      setTotalRevenue(data.revenue); // Set total revenue
+      setTotalRevenue(data.revenue);
       return data.revenue;
     } catch (error) {
       console.error("Error fetching vendor revenue:", error);
@@ -80,8 +97,15 @@ const VendorOrders = () => {
       case "Pending":
         return (
           <div className="text-center translate-y-20 text-gray-700 text-xs font-normal font-opensans">
-            📦 No pending orders at the moment. Keep an eye here -- your next
+            📦 No pending orders at the moment. Keep an eye here – your next
             sale could be just around the corner!
+          </div>
+        );
+      case "Stockpiles":
+        return (
+          <div className="text-center translate-y-20 text-gray-700 text-xs font-normal font-opensans">
+            📦 No stockpile orders yet. Once a customer places a stockpile
+            order, it will show here.
           </div>
         );
       case "In Progress":
@@ -114,75 +138,85 @@ const VendorOrders = () => {
 
   return (
     <>
-    <SEO 
-        title={`Vendor Orders - My Thrift`} 
-        description={`Orders on your My Thrift store`}
-        url={`https://www.shopmythrift.store/vendor-orders`} 
+      <SEO
+        title="Vendor Orders - My Thrift"
+        description="Orders on your My Thrift store"
+        url="https://www.shopmythrift.store/vendor-orders"
       />
-    <div className="p-3 bg-white min-h-screen flex flex-col items-center">
-      {/* Top Card Banner for Selected Tab */}
-      <ScrollToTop />
-      <div className="bg-customDeepOrange rounded-xl w-full h-28 text-center mb-4 flex items-center justify-center relative">
-        <div className="absolute top-0 right-0">
-          <img src="./Vector.png" alt="icon" className="w-16 h-20" />
-        </div>
-        <div className="flex flex-col">
-          <h1 className="font-opensans font-normal text-white text-sm capitalize">
-            {activeTab} Orders
-          </h1>
-          <p className="text-4xl font-opensans font-semibold text-white mt-2">
-            {filteredOrders.length}
-          </p>
-        </div>
-      </div>
+      <div className="p-3 bg-white min-h-screen flex flex-col items-center">
+        <ScrollToTop />
 
-      {/* Tabs for Order Status */}
-      <div className="tabs flex space-x-12 mb-1 align-items-center justify-center">
-        {["Pending", "In Progress", "Shipped", "Declined"].map((tab) => (
-          <button
-            key={tab}
-            className={`pb-2 text-xs font-normal font-opensans ${
-              activeTab === tab
-                ? "border-b-2 border-customDeepOrange text-customDeepOrange"
-                : "text-gray-500"
-            }`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {/* Render Orders List or Skeleton/Message */}
-      <div className="orders-list pb-16 w-full max-w-xs space-y-3 text-center">
-        {loading ? (
-          <Skeleton count={2} height={60} className="mb-4" />
-        ) : filteredOrders.length > 0 ? (
-          activeTab === "Pending" ? (
-            <PendingOrders orders={filteredOrders} openModal={openModal} />
-          ) : activeTab === "In Progress" ? (
-            <InProgressOrders orders={filteredOrders} openModal={openModal} />
-          ) : activeTab === "Shipped" ? (
-            <ShippedOrders orders={filteredOrders} openModal={openModal} />
-          ) : (
-            <DeclinedOrders orders={filteredOrders} openModal={openModal} />
-          )
-        ) : (
-          <div className="text-gray-500 text-sm mt-6">
-            {getEmptyStateMessage()}
+        <div className="bg-customDeepOrange rounded-xl w-full h-28 text-center mb-4 flex items-center justify-center relative">
+          <div className="absolute top-0 right-0">
+            <img src="./Vector.png" alt="icon" className="w-16 h-20" />
           </div>
-        )}
-      </div>
+          <div className="flex flex-col">
+            <h1 className="font-opensans font-normal text-white text-sm capitalize">
+              {activeTab} Orders
+            </h1>
+            <p className="text-4xl font-opensans font-semibold text-white mt-2">
+              {filteredOrders.length}
+            </p>
+          </div>
+        </div>
 
-      {/* Order Details Modal */}
-      <OrderDetailsModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        order={selectedOrder}
-        fetchVendorRevenue={fetchVendorRevenue} // Pass function as prop
-        setTotalRevenue={setTotalRevenue} // Pass state updater as prop
-      />
-    </div>
+        {/* Tabs with added Stockpiles */}
+        <div className="tabs flex flex-wrap justify-center gap-5 mb-1">
+          {["Pending", "Stockpiles", "In Progress", "Shipped", "Declined"].map(
+            (tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`pb-2 text-xs font-normal font-opensans ${
+                  activeTab === tab
+                    ? "border-b-2 border-customDeepOrange text-customDeepOrange"
+                    : "text-gray-500"
+                }`}
+              >
+                {tab}
+              </button>
+            )
+          )}
+        </div>
+
+        <div className="orders-list pb-16 w-full px-4 space-y-3 text-center">
+          {loading ? (
+            <Skeleton count={2} height={60} className="mb-4" />
+          ) : filteredOrders.length > 0 ? (
+            activeTab === "Pending" ? (
+              <PendingOrders orders={filteredOrders} openModal={openModal} />
+            ) : activeTab === "Stockpiles" ? (
+              // Render the StockpileOrders component for stockpile orders
+              // When rendering the StockpileOrders component:
+              <StockpileOrders
+                orders={filteredOrders}
+                openModal={(stockpile) => {
+                  setSelectedOrder(stockpile); // stockpile here is the merged/enriched object
+                  setIsModalOpen(true);
+                }}
+              />
+            ) : activeTab === "In Progress" ? (
+              <InProgressOrders orders={filteredOrders} openModal={openModal} />
+            ) : activeTab === "Shipped" ? (
+              <ShippedOrders orders={filteredOrders} openModal={openModal} />
+            ) : (
+              <DeclinedOrders orders={filteredOrders} openModal={openModal} />
+            )
+          ) : (
+            <div className="text-gray-500 text-sm mt-6">
+              {getEmptyStateMessage()}
+            </div>
+          )}
+        </div>
+
+        <OrderDetailsModal
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          order={selectedOrder}
+          fetchVendorRevenue={fetchVendorRevenue}
+          setTotalRevenue={setTotalRevenue}
+        />
+      </div>
     </>
   );
 };

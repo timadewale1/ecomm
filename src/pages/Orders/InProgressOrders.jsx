@@ -243,12 +243,15 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
           : userPhoneNumber;
 
         const smsPayload = {
-          message: `Hello, ${userName}, your order with ID ${selectedOrderId} is being delivered by ${riderName}. The rider is reachable at ${riderNumber}.` + (note ? ` Here's a short note from the vendor: ${note}.` : "") + " Cheers, Matilda from My Thrift.",
+          message:
+            `Hello, ${userName}, your order with ID ${selectedOrderId} is being delivered by ${riderName}. The rider is reachable at ${riderNumber}.` +
+            (note ? ` Here's a short note from the vendor: ${note}.` : "") +
+            " Cheers, Matilda from My Thrift.",
           receiverNumber: formattedPhoneNumber,
           receiverId: userId,
         };
 
-        const smsToken = process.env.REACT_APP_BETOKEN;
+        const smsToken = import.meta.env.VITE_BETOKEN;
         console.log("SMS Token fetched from environment variable:", smsToken);
         console.log("SMS Payload being sent:", smsPayload);
 
@@ -363,7 +366,7 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
                     <img
                       src={productImages[order.id][imageIndexes[order.id] || 0]}
                       alt="Product"
-                      className="w-12 h-12 p-0.5 border-dashed border-customBrown border-1 border-opacity-80 object-cover rounded mr-3"
+                      className="w-12 h-12 p-0.5 border-dashed border-customBrown border border-opacity-80 object-cover rounded mr-3"
                     />
                   ) : (
                     <div className="w-12 h-12 bg-gray-200 rounded mr-3" />
@@ -389,7 +392,7 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
                         isDropdownOpen === order.id ? null : order.id
                       );
                     }}
-                    className="bg-transparent border-blue-300 border-1 text-blue-300 font-medium font-opensans text-xs rounded-md px-2.5 py-2 flex items-center"
+                    className="bg-transparent border-blue-300 border text-blue-300 font-medium font-opensans text-xs rounded-md px-2.5 py-2 flex items-center"
                   >
                     In progress <FaChevronDown className="ml-1" />
                   </button>

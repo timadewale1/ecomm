@@ -315,7 +315,7 @@ const SubProduct = ({
             {subIndex === subProducts.length - 1 && (
               <div className="flex justify-end">
                 <button
-                  className="text-customOrange text-sm flex border-customBrown border-1 rounded-full px-4 font-opensans h-12 items-center"
+                  className="text-customOrange text-sm flex border-customBrown border rounded-full px-4 font-opensans h-12 items-center"
                   onClick={handleAddAnotherSubProduct}
                 >
                   <FiPlus className="text-lg mr-1" />

@@ -18,10 +18,7 @@ import { MdOutlineStarPurple500 } from "react-icons/md";
 import { MdOutlineStarBorderPurple500 } from "react-icons/md";
 import Modal from "../../components/layout/Modal";
 import ConfirmationDialog from "../../components/layout/ConfirmationDialog";
-import {
-  FaRegCircle,
-  FaRegCheckCircle,
-} from "react-icons/fa";
+import { FaRegCircle, FaRegCheckCircle } from "react-icons/fa";
 import { GrRadialSelected } from "react-icons/gr";
 import { RotatingLines } from "react-loader-spinner";
 import AddProduct from "../vendor/AddProducts";
@@ -72,10 +69,14 @@ const VendorProducts = () => {
         );
 
         return (
-          <div key={colorIndex} className="bg-customSoftGray p-3 rounded-lg relative">
-            {hasOutOfStockVariant && tabOpt !== "OOS" (
+          <div
+            key={colorIndex}
+            className="bg-customSoftGray p-3 rounded-lg relative"
+          >
+            {hasOutOfStockVariant && tabOpt !== "OOS" && (
               <div className="absolute top-2 right-2 w-3 h-3 bg-customOrange rounded-full animate-ping"></div>
             )}
+
             <p className="text-black font-semibold text-sm mb-2">
               Color: {color}
             </p>
@@ -852,9 +853,10 @@ const VendorProducts = () => {
                 >
                   <div className="flex flex-col space-y-2">
                     <div className="relative w-44 h-44 rounded-xl bg-customSoftGray">
-                      {(hasOutOfStockSubProduct || hasOutOfStockVariant) && tabOpt !== "OOS" && (
-                        <div className="absolute bottom-2 right-2 w-4 h-4 bg-customOrange rounded-full animate-ping"></div>
-                      )}
+                      {(hasOutOfStockSubProduct || hasOutOfStockVariant) &&
+                        tabOpt !== "OOS" && (
+                          <div className="absolute bottom-2 right-2 w-4 h-4 bg-customOrange rounded-full animate-ping"></div>
+                        )}
                       {picking ? (
                         <div
                           onClick={(e) => {
@@ -1312,7 +1314,10 @@ const VendorProducts = () => {
             <div className="w-full">
               {selectedProduct.subProducts &&
                 selectedProduct.subProducts.map((sp) => (
-                  <div key={sp.subProductId} className="flex items-center relative">
+                  <div
+                    key={sp.subProductId}
+                    className="flex items-center relative"
+                  >
                     {sp.stock === 0 && tabOpt !== "OOS" && (
                       <div className="absolute bottom-6 right-2 w-3 h-3 bg-customOrange rounded-full animate-ping"></div>
                     )}
@@ -1361,7 +1366,11 @@ const VendorProducts = () => {
                           />
                         </>
                       ) : (
-                        <p className={`font-semibold text-sm ${sp.stock === 0 ? "text-red-500" : "text-black"}`}>
+                        <p
+                          className={`font-semibold text-sm ${
+                            sp.stock === 0 ? "text-red-500" : "text-black"
+                          }`}
+                        >
                           Quantity:{" "}
                           <span className="font-normal">{sp.stock}</span>
                         </p>

@@ -821,8 +821,8 @@ const VirtualVendor = ({
                         );
                         console.log(`Selected Bank Code: ${selectedBank.code}`);
 
-                        const token = process.env.REACT_APP_RESOLVE_TOKEN;
-                        const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+                        const token = import.meta.env.VITE_RESOLVE_TOKEN;
+                        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
                         const accountNumber = value;
 
                         try {

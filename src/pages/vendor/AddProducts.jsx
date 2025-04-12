@@ -782,7 +782,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
     }
   };
   const generateDescription = async () => {
-    const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     setIsGeneratingDescription(true);
     try {
       const response = await axios.post(`${API_BASE_URL}/description`, {
@@ -1230,7 +1230,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       </div>
       {discountDetails ? (
         // If discount exists, show discount summary with delete icon
-        <div className="flex items-center justify-between p-2 rounded-lg my-2 bg-gray-50 border-1 border-customRichBrown">
+        <div className="flex items-center justify-between p-2 rounded-lg my-2 bg-gray-50 border border-customRichBrown">
           <div className="flex items-center">
             <span className="font-opensans text-sm text-customRichBrown font-semibold">
               {discountDetails.discountType.startsWith("inApp")
@@ -1455,7 +1455,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
             <span
               key={index}
               onClick={() => setTags((prev) => [...prev, suggestion])} // Add tag on click
-              className="bg-transparent animate-pulse border-1 border-customOrange font-medium text-customBrown px-4 font-opensans py-1 text-xs rounded-full cursor-pointer hover:bg-orange-600 transition-all whitespace-nowrap"
+              className="bg-transparent animate-pulse border border-customOrange font-medium text-customBrown px-4 font-opensans py-1 text-xs rounded-full cursor-pointer hover:bg-orange-600 transition-all whitespace-nowrap"
             >
               {suggestion}
             </span>
@@ -1555,7 +1555,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
             <button
               type="button"
               onClick={openSubProductModal}
-              className="mt-3 px-4 py-2 bg-transparent font-opensans text-sm text-customOrange rounded-full border-1 border-customBrown flex items-center"
+              className="mt-3 px-4 py-2 bg-transparent font-opensans text-sm text-customOrange rounded-full border border-customBrown flex items-center"
             >
               <FiPlus className="mr-2" />
               Sub-product

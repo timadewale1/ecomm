@@ -33,7 +33,7 @@ import { clearCart } from "../redux/actions/action";
 import { useDispatch, useSelector } from "react-redux";
 import { FaFileContract } from "react-icons/fa6";
 import SEO from "../components/Helmet/SEO";
-
+import { exitStockpileMode } from "../redux/reducers/stockpileSlice";
 const Profile = () => {
   const navigate = useNavigate();
 
@@ -164,6 +164,7 @@ const Profile = () => {
       localStorage.removeItem("cart");
       dispatch(clearCart()); // Clear Redux cart state
       dispatch(resetUserData());
+      dispatch(exitStockpileMode());
       console.log("Cart cleared in Redux and localStorage");
 
       toast.success("Successfully logged out", { className: "custom-toast" });
@@ -179,105 +180,108 @@ const Profile = () => {
 
   return (
     <>
-    <SEO 
-        title={`Profile - My Thrift`} 
+      <SEO
+        title={`Profile - My Thrift`}
         description={`Update your personal information, view your orders, and more.`}
-        url={`https://www.shopmythrift.store/profile`} 
+        url={`https://www.shopmythrift.store/profile`}
       />
-    <div className="py-6  pb-24">
-      {!showDetails && !showMetrics && !showFAQs ? (
-        <div className="flex flex-col items-center">
-          <h1 className="font-opensans text-xl font-semibold "> My Profile</h1>
+      <div className="py-6  pb-24">
+        {!showDetails && !showMetrics && !showFAQs ? (
+          <div className="flex flex-col items-center">
+            <h1 className="font-opensans text-xl font-semibold ">
+              {" "}
+              My Profile
+            </h1>
 
-          <div className="flex border  rounded-full p-1 justify-center mt-4 relative">
-            {loading ? (
-              <Skeleton circle={true} height={120} width={120} />
-            ) : userData && userData.photoURL ? (
-              <img
-                src={userData.photoURL}
-                alt=""
-                className="rounded-full object-cover h-28 w-28"
-                onClick={() => {
-                  if (currentUser) setIsAvatarModalOpen(true);
-                }}
-              />
-            ) : (
-              <div
-                className="rounded-full h-36 w-36 flex items-center justify-center"
-                onClick={() => {
-                  if (currentUser) setIsAvatarModalOpen(true);
-                }}
-              >
-                <IoMdContact className="text-gray-500 text-8xl" />
+            <div className="flex border  rounded-full p-1 justify-center mt-4 relative">
+              {loading ? (
+                <Skeleton circle={true} height={120} width={120} />
+              ) : userData && userData.photoURL ? (
+                <img
+                  src={userData.photoURL}
+                  alt=""
+                  className="rounded-full object-cover h-28 w-28"
+                  onClick={() => {
+                    if (currentUser) setIsAvatarModalOpen(true);
+                  }}
+                />
+              ) : (
+                <div
+                  className="rounded-full h-36 w-36 flex items-center justify-center"
+                  onClick={() => {
+                    if (currentUser) setIsAvatarModalOpen(true);
+                  }}
+                >
+                  <IoMdContact className="text-gray-500 text-8xl" />
+                </div>
+              )}
+              {currentUser && (
+                <MdModeEdit
+                  className="absolute bottom-0 right-0 border text-black mr-2 text-3xl p-2 rounded-full bg-white cursor-pointer shadow-md"
+                  onClick={() => setIsAvatarModalOpen(true)}
+                />
+              )}
+            </div>
+
+            <p className="text-lg font-semibold text-black font-opensans capitalize mt-2">
+              {loading ? <Skeleton width={100} /> : userData?.username}
+            </p>
+
+            <div className="w-full mt-2">
+              <div className="w-full h-14 flex">
+                <h1 className="text-base font-semibold mx-4 font-opensans translate-y-3 text-black">
+                  Account
+                </h1>
               </div>
-            )}
-            {currentUser && (
-              <MdModeEdit
-                className="absolute bottom-0 right-0 border text-black mr-2 text-3xl p-2 rounded-full bg-white cursor-pointer shadow-md"
-                onClick={() => setIsAvatarModalOpen(true)}
-              />
-            )}
-          </div>
 
-          <p className="text-lg font-semibold text-black font-opensans capitalize mt-2">
-            {loading ? <Skeleton width={100} /> : userData?.username}
-          </p>
+              <div className="px-2">
+                {" "}
+                <div
+                  className={`relative flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl transition-all duration-500 ease-in-out ${
+                    showHighlight
+                      ? "highlight border-red-500 bg-red-100"
+                      : "bg-customGrey"
+                  } mb-3`}
+                  onClick={() => setShowDetails(true)}
+                >
+                  <div className="flex items-center w-full">
+                    <User className="text-black text-xl mr-4" />
+                    <h2 className="text-size font-normal  text-sm  font-opensans text-black capitalize">
+                      Personal information
+                    </h2>
+                    <ChevronRight className="text-black ml-auto" />
+                  </div>
 
-          <div className="w-full mt-2">
+                  {isIncomplete && showHighlight && (
+                    <span className="absolute top-1 right-4 font-opensans text-xs text-red-500 animate-pulse">
+                      Update profile here
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center w-full px-2">
+                <div
+                  className="flex items-center justify-between w-full px-4 py-3 cursor-pointer  border-none rounded-xl bg-customGrey mb-2"
+                  onClick={() => navigate("/favorites")}
+                >
+                  <div className="flex items-center">
+                    <FaHeart className="text-red-500  text-xl mr-4" />
+                    <h2 className="text-size text-sm  font-normal font-opensans text-black capitalize">
+                      Favorites
+                    </h2>
+                  </div>
+                  <ChevronRight className="text-black" />
+                </div>
+              </div>
+            </div>
+
             <div className="w-full h-14 flex">
-              <h1 className="text-base font-semibold mx-4 font-opensans translate-y-3 text-black">
-                Account
+              <h1 className="text-base font-opensans font-semibold mx-4 translate-y-3 text-black">
+                Data
               </h1>
             </div>
-
-            <div className="px-2">
-              {" "}
-              <div
-                className={`relative flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl transition-all duration-500 ease-in-out ${
-                  showHighlight
-                    ? "highlight border-red-500 bg-red-100"
-                    : "bg-customGrey"
-                } mb-3`}
-                onClick={() => setShowDetails(true)}
-              >
-                <div className="flex items-center w-full">
-                  <User className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal  text-sm  font-opensans text-black capitalize">
-                    Personal information
-                  </h2>
-                  <ChevronRight className="text-black ml-auto" />
-                </div>
-
-                {isIncomplete && showHighlight && (
-                  <span className="absolute top-1 right-4 font-opensans text-xs text-red-500 animate-pulse">
-                    Update profile here
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center w-full px-2">
-              <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer  border-none rounded-xl bg-customGrey mb-2"
-                onClick={() => navigate("/favorites")}
-              >
-                <div className="flex items-center">
-                  <FaHeart className="text-red-500  text-xl mr-4" />
-                  <h2 className="text-size text-sm  font-normal font-opensans text-black capitalize">
-                    Favorites
-                  </h2>
-                </div>
-                <ChevronRight className="text-black" />
-              </div>
-            </div>
-          </div>
-
-          <div className="w-full h-14 flex">
-            <h1 className="text-base font-opensans font-semibold mx-4 translate-y-3 text-black">
-              Data
-            </h1>
-          </div>
-          {/* {currentUser && (
+            {/* {currentUser && (
             <>
               <div className="flex flex-col items-center px-2 w-full">
                 <div
@@ -296,224 +300,228 @@ const Profile = () => {
             </>
           )} */}
 
-          <div className="flex flex-col items-center w-full px-2">
-            <div
-              className="flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl bg-customGrey mb-3"
-              onClick={() => navigate("/user-orders")}
-            >
-              <div className="flex items-center">
-                <BsBoxSeam className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal font-opensans text-black capitalize">
-                  Orders
-                </h2>
-              </div>
-              <ChevronRight className="text-black" />
-            </div>
-          </div>
-          <div className="w-full h-14 flex">
-            <h1 className="text-base font-opensans font-semibold mx-4 translate-y-3 text-black">
-              More
-            </h1>
-          </div>
-          <div className="flex flex-col items-center w-full px-2">
-            <div
-              className="flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl bg-customGrey mb-3"
-              onClick={() => setShowFAQs(!showFAQs)}
-            >
-              <div className="flex items-center ">
-                <MdHelpOutline className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
-                  FAQs
-                </h2>
-              </div>
-              <ChevronRight className="text-black" />
-            </div>
-          </div>
-          <div className="flex flex-col items-center w-full px-2">
-            {/* Donations Section */}
-            <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-gray-100 mb-3 opacity-60">
-              <div className="flex items-center">
-                <CiMoneyBill className="text-gray-600 text-xl mr-4" />
-                <h2 className="text-size font-normal text-sm  font-opensans text-gray-600 capitalize">
-                  Donations
-                </h2>
-              </div>
-              {/* Coming Soon Message on the Far Right */}
-              <div className="flex items-center">
-                <MdHelpOutline className="text-customOrange text-lg mr-2" />
-                <span className="text-customOrange font-semibold text-xs">
-                  Coming Soon
-                </span>
+            <div className="flex flex-col items-center w-full px-2">
+              <div
+                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl bg-customGrey mb-3"
+                onClick={() => navigate("/user-orders")}
+              >
+                <div className="flex items-center">
+                  <BsBoxSeam className="text-black text-xl mr-4" />
+                  <h2 className="text-size font-normal font-opensans text-black capitalize">
+                    Orders
+                  </h2>
+                </div>
+                <ChevronRight className="text-black" />
               </div>
             </div>
-
-            {/* Declutter Section */}
-            <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-gray-100 mb-3 opacity-60">
-              <div className="flex items-center">
-                <GiClothes className="text-gray-600 text-xl mr-4" />
-                <h2 className="text-size font-normal text-sm  font-opensans text-gray-600 capitalize">
-                  Declutter
-                </h2>
-              </div>
-              {/* Coming Soon Message on the Far Right */}
-              <div className="flex items-center">
-                <MdHelpOutline className="text-customOrange text-lg mr-2" />
-                <span className="text-customOrange font-semibold text-xs">
-                  Coming Soon
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="w-full h-14 flex">
-            <h1 className="text-base font-semibold mx-4 font-opensans translate-y-3 text-black">
-              Legal
-            </h1>
-          </div>
-          <div className="flex flex-col items-center px-2 w-full">
-            <div
-              className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-              onClick={() =>
-                window.open(
-                  "/terms-and-conditions",
-                  "_blank",
-                  "noopener,noreferrer"
-                )
-              }
-            >
-              <div className="flex items-center">
-                <FaFileContract className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
-                  Terms and Conditions
-                </h2>
-              </div>
-              <ChevronRight className="text-black" />
-            </div>
-
-            <div
-              className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-              onClick={() =>
-                window.open("/privacy-policy", "_blank", "noopener,noreferrer")
-              }
-            >
-              <div className="flex items-center">
-                <BsShieldFillCheck className="text-black text-xl mr-4" />
-                <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
-                  Privacy Policy
-                </h2>
-              </div>
-              <ChevronRight className="text-black" />
-            </div>
-
-            <div className="w-full h-14 flex ml-4">
-              <h1 className="text-base font-semibold mx-2 font-opensans translate-y-3 text-black">
-                Beta
+            <div className="w-full h-14 flex">
+              <h1 className="text-base font-opensans font-semibold mx-4 translate-y-3 text-black">
+                More
               </h1>
-              <AiOutlineExperiment className="font-semibold text-lg translate-y-[14px] text-black" />
             </div>
-            <div className="flex flex-col items-center w-full">
+            <div className="flex flex-col items-center w-full px-2">
               <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={() => navigate("/send-us-feedback")}
+                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl bg-customGrey mb-3"
+                onClick={() => setShowFAQs(!showFAQs)}
               >
-                <div className="flex items-center">
-                  <MdOutlineFeedback className="text-black text-xl mr-4" />
+                <div className="flex items-center ">
+                  <MdHelpOutline className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
-                    Send us your feedback! 📣
+                    FAQs
                   </h2>
                 </div>
                 <ChevronRight className="text-black" />
               </div>
             </div>
-          </div>
+            <div className="flex flex-col items-center w-full px-2">
+              {/* Donations Section */}
+              <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-gray-100 mb-3 opacity-60">
+                <div className="flex items-center">
+                  <CiMoneyBill className="text-gray-600 text-xl mr-4" />
+                  <h2 className="text-size font-normal text-sm  font-opensans text-gray-600 capitalize">
+                    Donations
+                  </h2>
+                </div>
+                {/* Coming Soon Message on the Far Right */}
+                <div className="flex items-center">
+                  <MdHelpOutline className="text-customOrange text-lg mr-2" />
+                  <span className="text-customOrange font-semibold text-xs">
+                    Coming Soon
+                  </span>
+                </div>
+              </div>
 
-          <div className="flex flex-col items-center px-2 w-full">
-            {currentUser && (
+              {/* Declutter Section */}
+              <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-gray-100 mb-3 opacity-60">
+                <div className="flex items-center">
+                  <GiClothes className="text-gray-600 text-xl mr-4" />
+                  <h2 className="text-size font-normal text-sm  font-opensans text-gray-600 capitalize">
+                    Declutter
+                  </h2>
+                </div>
+                {/* Coming Soon Message on the Far Right */}
+                <div className="flex items-center">
+                  <MdHelpOutline className="text-customOrange text-lg mr-2" />
+                  <span className="text-customOrange font-semibold text-xs">
+                    Coming Soon
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full h-14 flex">
+              <h1 className="text-base font-semibold mx-4 font-opensans translate-y-3 text-black">
+                Legal
+              </h1>
+            </div>
+            <div className="flex flex-col items-center px-2 w-full">
               <div
-                id="contact-support-tab"
                 className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={openChat}
+                onClick={() =>
+                  window.open(
+                    "/terms-and-conditions",
+                    "_blank",
+                    "noopener,noreferrer"
+                  )
+                }
               >
                 <div className="flex items-center">
-                  <FcOnlineSupport className="text-black text-xl mr-4" />
+                  <FaFileContract className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
-                    Contact Support
+                    Terms and Conditions
                   </h2>
                 </div>
                 <ChevronRight className="text-black" />
               </div>
-            )}
-          </div>
 
-          <div className="flex flex-col items-center px-2 w-full">
-            {currentUser && (
               <div
-                className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
-                onClick={handleLogout}
+                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                onClick={() =>
+                  window.open(
+                    "/privacy-policy",
+                    "_blank",
+                    "noopener,noreferrer"
+                  )
+                }
               >
-                <div className="flex items-center justify-between w-full px-4 py-3">
-                  <PiSignOutBold className="text-red-600 text-xl mr-4" />
-                  <p className="text-size text-black text-sm  font-opensans w-full font-normal">
-                    Sign Out
-                  </p>
+                <div className="flex items-center">
+                  <BsShieldFillCheck className="text-black text-xl mr-4" />
+                  <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
+                    Privacy Policy
+                  </h2>
+                </div>
+                <ChevronRight className="text-black" />
+              </div>
 
-                  {isLoggingOut && (
-                    <RotatingLines
-                      strokeColor="#f9531e"
-                      strokeWidth="5"
-                      animationDuration="0.75"
-                      width="24"
-                      visible={true}
-                    />
-                  )}
+              <div className="w-full h-14 flex ml-4">
+                <h1 className="text-base font-semibold mx-2 font-opensans translate-y-3 text-black">
+                  Beta
+                </h1>
+                <AiOutlineExperiment className="font-semibold text-lg translate-y-[14px] text-black" />
+              </div>
+              <div className="flex flex-col items-center w-full">
+                <div
+                  className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={() => navigate("/send-us-feedback")}
+                >
+                  <div className="flex items-center">
+                    <MdOutlineFeedback className="text-black text-xl mr-4" />
+                    <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
+                      Send us your feedback! 📣
+                    </h2>
+                  </div>
+                  <ChevronRight className="text-black" />
                 </div>
               </div>
-            )}
-            {!currentUser && (
-              <div
-                className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
-                onClick={() => navigate("/login")}
-              >
-                <div className="flex items-center justify-between w-full px-4 py-3">
-                  <LuLogIn className="text-green-600 text-xl mr-4" />
-                  <p className="text-size text-black text-sm  font-opensans w-full font-normal">
-                    Login
-                  </p>
-                </div>
-              </div>
-            )}
-            {!currentUser && (
-              <div
-                className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
-                onClick={() => navigate("/confirm-state")}
-              >
-                <div className="flex items-center justify-between w-full px-4 py-3">
-                  <AiOutlineUserSwitch className="text-customOrange text-xl mr-4" />
-                  <p className="text-size text-black font-opensans w-full text-sm font-normal">
-                    Switch Role
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="w-full text-center mt-2">
-            <p className="text-sm font-medium text-gray-500">Beta v.1.0</p>
-          </div>
-        </div>
-      ) : (
-        <>
-          {showDetails && (
-            <ProfileDetails
-              currentUser={currentUser}
-              userData={userData}
-              setUserData={setUserData}
-              setShowDetails={setShowDetails}
-            />
-          )}
+            </div>
 
-          {/* {showMetrics && <UserDashboard />} */}
-          {showFAQs && <FAQs setShowFAQs={setShowFAQs} />}
-          {/* {showDonations && (
+            <div className="flex flex-col items-center px-2 w-full">
+              {currentUser && (
+                <div
+                  id="contact-support-tab"
+                  className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={openChat}
+                >
+                  <div className="flex items-center">
+                    <FcOnlineSupport className="text-black text-xl mr-4" />
+                    <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
+                      Contact Support
+                    </h2>
+                  </div>
+                  <ChevronRight className="text-black" />
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col items-center px-2 w-full">
+              {currentUser && (
+                <div
+                  className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
+                  onClick={handleLogout}
+                >
+                  <div className="flex items-center justify-between w-full px-4 py-3">
+                    <PiSignOutBold className="text-red-600 text-xl mr-4" />
+                    <p className="text-size text-black text-sm  font-opensans w-full font-normal">
+                      Sign Out
+                    </p>
+
+                    {isLoggingOut && (
+                      <RotatingLines
+                        strokeColor="#f9531e"
+                        strokeWidth="5"
+                        animationDuration="0.75"
+                        width="24"
+                        visible={true}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+              {!currentUser && (
+                <div
+                  className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
+                  onClick={() => navigate("/login")}
+                >
+                  <div className="flex items-center justify-between w-full px-4 py-3">
+                    <LuLogIn className="text-green-600 text-xl mr-4" />
+                    <p className="text-size text-black text-sm  font-opensans w-full font-normal">
+                      Login
+                    </p>
+                  </div>
+                </div>
+              )}
+              {!currentUser && (
+                <div
+                  className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
+                  onClick={() => navigate("/confirm-state")}
+                >
+                  <div className="flex items-center justify-between w-full px-4 py-3">
+                    <AiOutlineUserSwitch className="text-customOrange text-xl mr-4" />
+                    <p className="text-size text-black font-opensans w-full text-sm font-normal">
+                      Switch Role
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="w-full text-center mt-2">
+              <p className="text-sm font-medium text-gray-500">Beta v.1.0</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {showDetails && (
+              <ProfileDetails
+                currentUser={currentUser}
+                userData={userData}
+                setUserData={setUserData}
+                setShowDetails={setShowDetails}
+              />
+            )}
+
+            {/* {showMetrics && <UserDashboard />} */}
+            {showFAQs && <FAQs setShowFAQs={setShowFAQs} />}
+            {/* {showDonations && (
             <div className="flex flex-col items-center">
               <ChevronLeft
                 className="text-2xl text-black cursor-pointer self-start"
@@ -523,18 +531,18 @@ const Profile = () => {
               <Donate />
             </div>
           )} */}
-        </>
-      )}
+          </>
+        )}
 
-      {isAvatarModalOpen && (
-        <AvatarSelectorModal
-          userId={currentUser.uid}
-          onClose={() => setIsAvatarModalOpen(false)}
-          onAvatarChange={handleAvatarChange}
-          onRemoveAvatar={handleRemoveAvatar}
-        />
-      )}
-    </div>
+        {isAvatarModalOpen && (
+          <AvatarSelectorModal
+            userId={currentUser.uid}
+            onClose={() => setIsAvatarModalOpen(false)}
+            onAvatarChange={handleAvatarChange}
+            onRemoveAvatar={handleRemoveAvatar}
+          />
+        )}
+      </div>
     </>
   );
 };

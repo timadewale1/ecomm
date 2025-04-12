@@ -24,7 +24,7 @@ import Skeleton from "react-loading-skeleton";
 import { useSelector, useDispatch } from "react-redux";
 import {
   fetchHomepageData,
-  resetHomepageState,
+
 } from "../redux/actions/homepageactions";
 import "react-loading-skeleton/dist/skeleton.css";
 import { IoIosNotificationsOutline } from "react-icons/io";

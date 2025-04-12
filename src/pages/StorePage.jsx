@@ -30,13 +30,22 @@ import Loading from "../components/Loading/Loading";
 import { useAuth } from "../custom-hooks/useAuth";
 import { FaSpinner, FaStar } from "react-icons/fa6";
 import { CiLogin, CiSearch } from "react-icons/ci";
-
+import Modal from "react-modal";
+import moment from "moment";
 import { MdCancel, MdClose, MdIosShare } from "react-icons/md";
 import { LuListFilter } from "react-icons/lu";
 import Lottie from "lottie-react";
 import { LiaTimesSolid } from "react-icons/lia";
 import { AiOutlineHome } from "react-icons/ai";
 import SEO from "../components/Helmet/SEO";
+import { BsFillBasketFill } from "react-icons/bs";
+import {
+  enterStockpileMode,
+  exitStockpileMode,
+  fetchStockpileData,
+} from "../redux/reducers/stockpileSlice";
+Modal.setAppElement("#root"); // For accessibility
+
 const ReviewBanner = () => {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -106,6 +115,26 @@ const StorePage = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isShared = searchParams.has("shared");
+  const [isStockpileMode, setIsStockpileMode] = useState(false);
+  const [showPileModal, setShowPileModal] = useState(false);
+
+  const {
+    isActive,
+    vendorId: stockpileVendorId,
+    pileItems,
+    stockpileExpiry,
+    loading: stockpileLoading,
+  } = useSelector((state) => state.stockpile);
+  const isStockpileForThisVendor = isActive && stockpileVendorId === id;
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const stockpileParam = params.get("stockpile");
+    if (stockpileParam === "1" && currentUser) {
+      dispatch(enterStockpileMode({ vendorId: id })); // ✅ good!
+      setIsStockpileMode(true); // 🔴 HERE —> this is **key**
+    }
+  }, [location.search, currentUser, dispatch, id]);
 
   // useEffect(() => {
   //   const fetchVendorData = async () => {
@@ -201,6 +230,22 @@ const StorePage = () => {
 
   //   return () => unsubscribe();
   // }, []);
+  const handleOpenPileModal = () => {
+    setShowPileModal(true);
+    // dispatch the thunk
+    if (currentUser) {
+      dispatch(fetchStockpileData({ userId: currentUser.uid, vendorId: id }));
+    }
+  };
+
+  const handleClosePileModal = () => {
+    setShowPileModal(false);
+  };
+
+  // Format the expiry date with moment
+  const expiryString = stockpileExpiry
+    ? moment(stockpileExpiry).format("ddd, MMM Do YYYY")
+    : null;
 
   const handleFollowClick = async () => {
     if (!currentUser) {
@@ -423,6 +468,83 @@ const StorePage = () => {
 
   return (
     <>
+      {isActive && stockpileVendorId === id && (
+        <>
+          <button
+            onClick={handleOpenPileModal}
+            className="fixed bottom-6 right-3 z-50 
+                       w-14 h-14 rounded-full 
+                       flex items-center justify-center
+                       bg-customOrange text-white
+                       shadow-xl"
+          >
+            <BsFillBasketFill size={24} />
+          </button>
+
+          {/* Our modal for showing the user's existing pile items */}
+          <Modal
+            isOpen={showPileModal}
+            onRequestClose={handleClosePileModal}
+            className="fixed bottom-0 left-1/2 transform -translate-x-1/2  w-full max-h-[80vh] rounded-t-3xl bg-white p-4 overflow-y-auto"
+            overlayClassName="fixed z-50 inset-0 bg-black bg-opacity-50 flex justify-center items-end"
+            closeTimeoutMS={200}
+          >
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="text-xl font-opensans  font-semibold text-gray-800">
+                  Your Current Pile
+                </h2>
+                <MdClose
+                  onClick={handleClosePileModal}
+                  className="text-xl text-gray-600"
+                />
+              </div>
+              <div className="border-b border-gray-300 mb-3"></div>
+
+              {stockpileLoading ? (
+                <div className="flex justify-center items-center h-40">
+                  <Loading />
+                </div>
+              ) : (
+                <>
+                  {/* Show expiry date if we have it */}
+                  {expiryString && (
+                    <p className="mb-4 text-sm font-opensans text-gray-500">
+                      Your pile expires on{" "}
+                      <span className="font-medium text-customOrange">
+                        {expiryString}
+                      </span>
+                    </p>
+                  )}
+
+                  {pileItems.filter(
+                    (item) => item.progressStatus !== "Declined"
+                  ).length === 0 ? (
+                    <p>No items found</p>
+                  ) : (
+                    pileItems
+                      .filter((item) => item.progressStatus !== "Declined")
+                      .map((item, idx) => (
+                        <div key={idx} className="flex items-center mb-3">
+                          <img
+                            src={item.imageUrl}
+                            alt={item.name}
+                            className="w-16 h-16 object-cover rounded-md"
+                          />
+                          <div className="ml-3">
+                            <p className="font-medium text-black font-opensans text-sm">
+                              {item.name}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </>
+              )}
+            </div>
+          </Modal>
+        </>
+      )}
       <SEO
         title={`${vendor.shopName} - My Thrift`}
         description={`Shop ${vendor.shopName} on My Thrift`}
@@ -681,6 +803,7 @@ const StorePage = () => {
             </div>
           )}
         </div>
+
         {isLoginModalOpen && (
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
@@ -720,7 +843,7 @@ const StorePage = () => {
                     navigate("/signup", { state: { from: location.pathname } });
                     setIsLoginModalOpen(false);
                   }}
-                  className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border-1 rounded-full"
+                  className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border rounded-full"
                 >
                   Sign Up
                 </button>

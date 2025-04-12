@@ -395,7 +395,7 @@ const VendorProfile = () => {
                   <div className="w-40 h-40 relative">
                     <Doughnut data={activityData} options={activityOptions} />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-center mt-5">
+                      <div className="text-center mt-12">
                         <p className="text-xs text-white font-opensans font-medium">
                           Total Orders
                         </p>
@@ -429,7 +429,7 @@ const VendorProfile = () => {
               </div>
 
               {/* Profile Options */}
-              <div className="w-full mt-2 px-2">
+              <div className="w-screen mt-2 px-2">
                 <div className="w-full h-14 flex">
                   <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
                     Personal

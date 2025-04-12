@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+// src/components/orders/ReviewModal.jsx
+import React, { useEffect, useState } from "react";
 import Modal from "react-modal";
 import { useNavigate } from "react-router-dom";
 import { doc, updateDoc, getDoc } from "firebase/firestore";
@@ -17,11 +18,9 @@ const ReviewModal = ({ isOpen, onClose, orderId, orderData }) => {
   useEffect(() => {
     const fetchVendorName = async () => {
       if (!orderData?.vendorId) return;
-
       try {
         const vendorRef = doc(db, "vendors", orderData.vendorId);
         const vendorDoc = await getDoc(vendorRef);
-
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
           setVendorName(vendorData.shopName || "the vendor");
@@ -37,13 +36,11 @@ const ReviewModal = ({ isOpen, onClose, orderId, orderData }) => {
   const handleDisputeSubmit = async () => {
     const finalReason =
       disputeReason === "Other" ? otherReasonText : disputeReason;
-
     if (!finalReason) {
       alert("Please select or enter a reason for the dispute.");
       return;
     }
-
-    // Update order with `disputeOrder: true` and store the reason
+    // Update order with dispute details.
     if (orderId) {
       try {
         const orderRef = doc(db, "orders", orderId);
@@ -55,14 +52,12 @@ const ReviewModal = ({ isOpen, onClose, orderId, orderData }) => {
         console.error("Error updating order with dispute status:", error);
       }
     }
-
-    // Redirect to email client
+    // Redirect to email client for dispute.
     const emailSubject = encodeURIComponent("Dispute Claim - Order Issue");
     const emailBody = encodeURIComponent(
       `Hello Support,\n\nI have a dispute regarding my order.\nReason: ${finalReason}\n\nPlease assist me further.\n\nThanks,`
     );
     window.location.href = `mailto:support@mythrift.store?subject=${emailSubject}&body=${emailBody}`;
-
     setIsDisputeModalOpen(false);
     onClose();
   };
@@ -138,13 +133,23 @@ const ReviewModal = ({ isOpen, onClose, orderId, orderData }) => {
             />
           </div>
           <div className="px-4">
+            {/* Dynamic text changes based on whether this is a stockpile order */}
             <p className="text-sm font-opensans text-black font-normal">
-              {vendorName} has delivered your order with ID{" "}
-              <strong>[#{orderId}]</strong>. We hope you love it! Please leave a
-              review — our vendors love hearing from you. If there are any
-              issues with your order, don't worry! You can easily{" "}
-              <strong>dispute it</strong>, and our team will assist you
-              promptly.
+              {vendorName} has delivered your{" "}
+              {orderData?.isStockpile ? "stockpile" : "order"} with ID{" "}
+              <strong>
+                [{orderData?.isStockpile ? orderData.stockpileDocId : orderId}]
+              </strong>
+              . We hope you love it! Please leave a review — our vendors love
+              hearing from you.
+              {orderData?.isStockpile && (
+                <>
+                  {" "}
+                  If there are any issues with your stockpile, you can easily{" "}
+                  <strong>dispute it</strong> and our team will assist you
+                  promptly. Cheers to eco-friendly fashion!🥳
+                </>
+              )}
             </p>
 
             <div className="mt-12 flex flex-col justify-center">
@@ -156,7 +161,7 @@ const ReviewModal = ({ isOpen, onClose, orderId, orderData }) => {
               </button>
               <button
                 onClick={() => setIsDisputeModalOpen(true)}
-                className="px-6 h-12 w-full mt-4 text-sm font-opensans py-2 bg-transparent border-1 border-customRichBrown text-customRichBrown font-medium rounded-full"
+                className="px-6 h-12 w-full mt-4 text-sm font-opensans py-2 bg-transparent border-customRichBrown text-customRichBrown border font-medium rounded-full"
               >
                 Dispute
               </button>
@@ -202,7 +207,7 @@ const ReviewModal = ({ isOpen, onClose, orderId, orderData }) => {
               }`}
               onClick={() => {
                 setDisputeReason(reason);
-                if (reason !== "Other") setOtherReasonText(""); // Clear otherReasonText if not "Other"
+                if (reason !== "Other") setOtherReasonText("");
               }}
             >
               <div
@@ -220,11 +225,10 @@ const ReviewModal = ({ isOpen, onClose, orderId, orderData }) => {
             </div>
           ))}
 
-          {/* Show text input if "Other" is selected */}
           {disputeReason === "Other" && (
             <input
               type="text"
-              placeholder="Please explain well oh..."
+              placeholder="Other reason..."
               className="border px-2 h-20 text-xs rounded w-full"
               value={otherReasonText}
               onChange={(e) => setOtherReasonText(e.target.value)}

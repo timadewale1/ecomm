@@ -8,7 +8,6 @@ import {
 import "./App.css";
 import { AccessProvider } from "./components/Context/AccesContext";
 
-
 function App() {
   const { currentUser, currentUserData } = useAuth();
 
@@ -118,10 +117,9 @@ function App() {
   }, [currentUserData]);
 
   return (
-  
-      <AccessProvider>
-        <Layout />
-      </AccessProvider>
+    <AccessProvider>
+      <Layout />
+    </AccessProvider>
   );
 }
 

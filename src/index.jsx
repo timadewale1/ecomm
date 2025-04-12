@@ -1,23 +1,28 @@
 import React from "react";
+import "./index.css";
 import ReactDOM from "react-dom/client";
-import "bootstrap/dist/css/bootstrap.css";
-import App from "./App";
+// import "bootstrap/dist/css/bootstrap.css";
+import App from "./App.jsx";
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
 import { PersistGate } from "redux-persist/integration/react";
 import { BrowserRouter } from "react-router-dom";
-import store from "./redux/store";
+import store, { persistor } from "./redux/store";
 import { Provider } from "react-redux";
 import { Toaster } from "react-hot-toast";
 import { FavoritesProvider } from "./components/Context/FavoritesContext";
 import { VendorProvider } from "./components/Context/Vendorcontext";
 import { NavigationProvider } from "./components/Context/Bottombarcontext";
 import { HelmetProvider } from "react-helmet-async";
+
 import { AuthProvider } from "./custom-hooks/useAuth";
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(
+
+createRoot(document.getElementById('root')).render(
   <HelmetProvider>
-   <React.StrictMode> 
+   <StrictMode> 
     <BrowserRouter>
       <Provider store={store}>
+      <PersistGate loading={null} persistor={persistor}>
         <AuthProvider>
           <NavigationProvider>
             <VendorProvider>
@@ -40,8 +45,9 @@ root.render(
             </VendorProvider>
           </NavigationProvider>
         </AuthProvider>
+      </PersistGate>
       </Provider>
     </BrowserRouter>
-  </React.StrictMode>
+  </StrictMode>
   </HelmetProvider> 
 );

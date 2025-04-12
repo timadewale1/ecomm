@@ -8,6 +8,10 @@ import {
 } from "../redux/actions/action";
 import { LiaTimesSolid } from "react-icons/lia";
 import { FaPlus, FaMinus, FaTimes } from "react-icons/fa";
+import {
+  exitStockpileMode,
+  fetchStockpileData,
+} from "../redux/reducers/stockpileSlice";
 import toast from "react-hot-toast";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.config";
@@ -22,6 +26,8 @@ import { BiMessageDetail } from "react-icons/bi";
 import { BsPlus } from "react-icons/bs";
 import { Bars } from "react-loader-spinner";
 import SEO from "../components/Helmet/SEO";
+import { ImSad2 } from "react-icons/im";
+import { FcPaid } from "react-icons/fc";
 const debounce = (func, delay) => {
   let timeoutId;
   return (...args) => {
@@ -48,6 +54,13 @@ const Cart = () => {
   const location = useLocation();
   const [checkoutLoading, setCheckoutLoading] = useState({});
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [showExitStockpileModal, setShowExitStockpileModal] = useState(false);
+  const [pendingCheckoutVendor, setPendingCheckoutVendor] = useState(null);
+  const { pileItems } = useSelector((state) => state.stockpile);
+
+  const { isActive, vendorId: stockpileVendorId } = useSelector(
+    (state) => state.stockpile
+  );
 
   useEffect(() => {
     if (isModalOpen || isNoteModalOpen || isLoginModalOpen) {
@@ -61,8 +74,20 @@ const Cart = () => {
     };
   }, [isModalOpen, isNoteModalOpen, isLoginModalOpen]);
   const formatPrice = (price) => {
+    if (typeof price !== "number" || isNaN(price)) return "0.00";
     return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
+
+  useEffect(() => {
+    if (isActive && selectedVendorId === stockpileVendorId && currentUser) {
+      dispatch(
+        fetchStockpileData({
+          userId: currentUser.uid,
+          vendorId: selectedVendorId,
+        })
+      );
+    }
+  }, [selectedVendorId, isActive, stockpileVendorId, currentUser, dispatch]);
 
   const checkCartProducts = useCallback(async () => {
     try {
@@ -221,6 +246,12 @@ const Cart = () => {
     // Check if user's email is verified
     if (!currentUser.emailVerified) {
       toast.error("Please verify your email before proceeding to checkout.");
+      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+      return;
+    }
+    if (isActive && vendorId !== stockpileVendorId) {
+      setPendingCheckoutVendor(vendorId);
+      setShowExitStockpileModal(true);
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
@@ -404,7 +435,7 @@ const Cart = () => {
         description={`Your cart on My Thrift`}
         url={`https://www.shopmythrift.store/latest-cart`}
       />
-      <div className="flex flex-col h-screen justify-between bg-gray-200">
+      <div className="flex flex-col h-screen justify-between mb-28 bg-gray-200">
         <div className="sticky top-0 bg-white w-full h-24 flex items-center p-3 shadow-md z-10">
           {fromProductDetail && (
             <GoChevronLeft
@@ -416,17 +447,16 @@ const Cart = () => {
             My Cart
           </h1>
         </div>
-        <div className="p-2 flex-grow overflow-y-auto">
-        {Object.keys(cart).length === 0 ? (
+        <div className="p-2 overflow-y-auto flex-grow">
+          {Object.keys(cart).length === 0 ? (
             <div>
               <EmptyCart />
               <h1 className="font-ubuntu text-lg text-center text-customOrange mt-20 font-medium">
                 Oops! Can't find anything in your Cart
               </h1>
-            </div> 
-        ) : ( 
-          <div className="pb-28">
-            <div>
+            </div>
+          ) : (
+            <>
               <div className="bg-white rounded-lg p-3 shadow-md flex justify-between items-center mb-2">
                 <h2 className="font-ubuntu totaltext text-gray-600 font-medium">
                   Total
@@ -485,8 +515,11 @@ const Cart = () => {
                           onClick={() => handleViewSelection(vendorId)}
                         >
                           <h3 className="font-opensans text-black -translate-y-3 text-sm font-normal whitespace-nowrap">
-                            View Selection
+                            {isActive && vendorId === stockpileVendorId
+                              ? "View Pile"
+                              : "View Selection"}
                           </h3>
+
                           <GoChevronUp className="ml-1 -translate-y-3 text-black" />
                         </div>
                       </div>
@@ -498,8 +531,11 @@ const Cart = () => {
                       <div className="flex items-center mt-4 whitespace-nowrap">
                         <HiOutlineBuildingStorefront className="text-2xl mr-2" />
                         <span className="text-black font-opensans text-sm font-normal">
-                          Ordering from
+                          {isActive && vendorId === stockpileVendorId
+                            ? "Repiling from"
+                            : "Ordering from"}
                         </span>
+
                         <h3
                           className="font-opensans text-orange-600 underline text-sm font-normal ml-1 truncate cursor-pointer"
                           style={{
@@ -550,9 +586,8 @@ const Cart = () => {
                   );
                 })}
               </div>
-            </div>
-          </div>
-        )}
+            </>
+          )}
         </div>
 
         {/* Modal for viewing all products */}
@@ -570,8 +605,11 @@ const Cart = () => {
                 {/* Modal Header */}
                 <div className="flex justify-between pb-4 items-center">
                   <h2 className="text-2xl font-opensans font-semibold">
-                    Review Order
+                    {isActive && selectedVendorId === stockpileVendorId
+                      ? "Review Pile"
+                      : "Review Order"}
                   </h2>
+
                   <LiaTimesSolid
                     onClick={() => setIsModalOpen(false)}
                     className="text-black text-xl cursor-pointer"
@@ -580,21 +618,41 @@ const Cart = () => {
 
                 {/* Scrollable Products List */}
                 <div className="overflow-y-auto mt-4 flex-grow">
-                  {Object.entries(cart[selectedVendorId].products).map(
-                    ([productKey, product], index, productArray) => (
-                      <div key={productKey}>
-                        {/* Product details */}
+                  {[
+                    ...(isActive && selectedVendorId === stockpileVendorId
+                      ? pileItems.map((item, index) => ({
+                          ...item,
+                          selectedImageUrl: item.imageUrl || "",
+                          quantity: item.quantity || 1,
+                          __isCart: false,
+                          __index: index,
+                        }))
+                      : []),
+                    ...Object.entries(
+                      cart[selectedVendorId]?.products || {}
+                    ).map(([key, product]) => ({
+                      ...product,
+                      __isCart: true,
+                      __productKey: key,
+                    })),
+                  ].map((item, index, fullArray) => {
+                    const isCartItem = item.__isCart;
+
+                    return (
+                      <div
+                        key={isCartItem ? item.__productKey : `pile-${index}`}
+                      >
                         <div className="flex items-center justify-between mt-2">
                           {/* Product Image */}
                           <div className="relative">
                             <img
-                              src={product.selectedImageUrl}
-                              alt={product.name}
+                              src={item.selectedImageUrl}
+                              alt={item.name}
                               className="w-16 h-16 object-cover rounded-lg"
                             />
-                            {product.quantity > 1 && (
+                            {item.quantity > 1 && (
                               <div className="absolute -top-1 text-xs -right-2 bg-gray-900 bg-opacity-40 text-white rounded-full w-7 h-7 flex items-center justify-center backdrop-blur-md">
-                                +{product.quantity}
+                                +{item.quantity}
                               </div>
                             )}
                           </div>
@@ -602,45 +660,57 @@ const Cart = () => {
                           {/* Product Details */}
                           <div className="flex-grow ml-4">
                             <h3 className="font-opensans text-sm">
-                              {product.name}
+                              {item.name}
                             </h3>
-                            <p className="font-opensans text-md mt-2 text-black font-bold">
-                              ₦{formatPrice(product.price)}
-                            </p>
-                            <p className="text-gray-600 mt-2">
-                              Size:{" "}
-                              <span className="font-semibold mr-4 text-black">
-                                {product.selectedSize}
-                              </span>
-                              {product.selectedColor && (
-                                <>
-                                  Color:{" "}
-                                  <span className="font-semibold text-black">
-                                    {formatColorText(product.selectedColor)}
+
+                            {isCartItem && (
+                              <>
+                                <p className="font-opensans text-md mt-2 text-black font-bold">
+                                  ₦{formatPrice(item.price)}
+                                </p>
+                                <p className="text-gray-600 mt-2">
+                                  Size:{" "}
+                                  <span className="font-semibold mr-4 text-black">
+                                    {item.selectedSize}
                                   </span>
-                                </>
-                              )}
-                            </p>
+                                  {item.selectedColor && (
+                                    <>
+                                      Color:{" "}
+                                      <span className="font-semibold text-black">
+                                        {formatColorText(item.selectedColor)}
+                                      </span>
+                                    </>
+                                  )}
+                                </p>
+                              </>
+                            )}
                           </div>
 
-                          {/* Remove Button */}
-                          <button
-                            onClick={() =>
-                              handleRemoveFromCart(selectedVendorId, productKey)
-                            }
-                            className="text-gray-500 font-semibold font-opensans -translate-y-5 text-sm ml-2"
-                          >
-                            Remove
-                          </button>
+                          {/* Right-side Action */}
+                          {isCartItem ? (
+                            <button
+                              onClick={() =>
+                                handleRemoveFromCart(
+                                  selectedVendorId,
+                                  item.__productKey
+                                )
+                              }
+                              className="text-gray-500 font-semibold font-opensans -translate-y-5 text-sm ml-2"
+                            >
+                              Remove
+                            </button>
+                          ) : (
+                            <FcPaid className="text-2xl ml-2 -translate-y-5" />
+                          )}
                         </div>
 
                         {/* Separator */}
-                        {index < productArray.length - 1 && (
+                        {index < fullArray.length - 1 && (
                           <div className="border-t border-gray-300 my-2"></div>
                         )}
                       </div>
-                    )
-                  )}
+                    );
+                  })}
                 </div>
 
                 {/* Sticky Footer */}
@@ -785,7 +855,7 @@ const Cart = () => {
                     navigate("/signup", { state: { from: location.pathname } });
                     setIsLoginModalOpen(false);
                   }}
-                  className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border-1 rounded-full"
+                  className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border rounded-full"
                 >
                   Sign Up
                 </button>
@@ -798,6 +868,57 @@ const Cart = () => {
                   className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
                 >
                   Login
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {showExitStockpileModal && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={() => setShowExitStockpileModal(false)}
+          >
+            <div
+              className="bg-white rounded-lg p-6 max-w-sm w-full shadow-lg"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex  items-center mb-4">
+                <ImSad2 className="text-2xl text-customRichBrown mr-2" />
+                <h2 className="text-lg font-semibold  font-opensans">
+                  Exit Stockpiling?
+                </h2>
+              </div>
+
+              <p className="text-sm text-gray-800 font-opensans">
+                You're currently repiling from{" "}
+                <span className="font-semibold text-customOrange">
+                  {cart[stockpileVendorId]?.vendorName || "this vendor"}
+                </span>
+                . Checking out with another vendor will exit this pile and clear
+                your cart. Continue?
+              </p>
+
+              <div className="mt-6 flex justify-end space-x-4">
+                <button
+                  onClick={() => setShowExitStockpileModal(false)}
+                  className="px-4 py-2 bg-transparent border border-customRichBrown text-sm rounded-full font-opensans"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    // Immediately close the modal.
+                    setShowExitStockpileModal(false);
+                    // Clear only the cart for the stockpiled vendor.
+                    dispatch(clearCart(stockpileVendorId));
+                    // Exit stockpiling mode.
+                    dispatch(exitStockpileMode());
+                    // Optionally, if you want to reset the pending vendor, you can do that here:
+                    setPendingCheckoutVendor(null);
+                  }}
+                  className="px-4 py-2 bg-customOrange text-white text-sm rounded-full font-opensans"
+                >
+                  Yes, Exit
                 </button>
               </div>
             </div>

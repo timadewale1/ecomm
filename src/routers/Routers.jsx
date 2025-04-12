@@ -1,15 +1,15 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
-import ProductDetailPage from "../pages/UserSide/ProductDetail";
-import Login from "../pages/Login";
-import Signup from "../pages/Signup";
+import ProductDetailPage from "../pages/UserSide/ProductDetail.jsx";
+import Login from "../pages/Login.jsx";
+import Signup from "../pages/Signup.jsx";
 import NotificationsPage from "../pages/UserSide/Notifications.jsx";
 import ForgetPassword from "../pages/forgetPassword.jsx";
 import Donate from "../pages/Donate.jsx"; 
-import VendorSignup from "../pages/VendorSignup";
+import VendorSignup from "../pages/VendorSignup.jsx";
 import AuthActionHandler from "../custom-hooks/Authhandler.jsx";
 import VendorOrders from "../pages/Orders/VendorOrders.jsx";
-import VendorLogin from "../pages/VendorLogin";
+import VendorLogin from "../pages/VendorLogin.jsx";
 import VendorDashboard from "../pages/VendorCompleteProfile/vendordashboard.jsx";
 import FavoritesPage from "../pages/UserSide/FavoritesProducts.jsx";
 import VendorProducts from "../pages/VendorCompleteProfile/VendorProducts.jsx";
@@ -17,10 +17,10 @@ import VendorProfile from "../pages/VendorCompleteProfile/VendorProfile.jsx";
 import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
 import MarketStorePage from "../pages/MarketStorePage.jsx";
 
-import Marketpg from "../pages/Marketpg";
+import Marketpg from "../pages/Marketpg.jsx";
 import ResetPassword from "../pages/UserSide/ResetPassword.jsx";
 import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfile.jsx";
-import NewHome from "../pages/Homepage";
+import NewHome from "../pages/Homepage.jsx";
 import EmailVerification from "../pages/UserSide/ConfirmEmail.jsx";
 import LatestCart from "../pages/Cart.jsx";
 import OrdersCentre from "../pages/UserSide/OrdersCentre.jsx";
@@ -28,11 +28,11 @@ import Checkout from "../pages/NewCheckout.jsx";
 import MarketVendors from "../pages/MarketVendors.jsx";
 import Profile from "../pages/Profile.jsx";
 import ConditionProducts from "../components/Conditions/ConditionPage.jsx";
-import Explore from "../pages/Explore";
+import Explore from "../pages/Explore.jsx";
 import Marketcardpage from "../pages/marketcardpage.jsx";
 import OnlineVendors from "../pages/OnlineVendors.jsx";
 import ConfirmUserState from "../pages/ConfirmUserState.jsx";
-import ProtectedRoute from "./ProtectedRoute";
+import ProtectedRoute from "./ProtectedRoute.jsx";
 import StorePage from "../pages/StorePage.jsx";
 import CategoryPage from "../pages/UserSide/CategoryPage.jsx";
 import VendorRatings from "../pages/vendor/VendorRatings.jsx";
@@ -43,7 +43,7 @@ import TermsAndConditions from "../pages/Legal/TermsAndConditions.jsx";
 import CallGuide from "../pages/Legal/CallGuide.jsx";
 import DeliveryGuide from "../pages/Legal/DeliveryGuide.jsx";
 import PrivacyPolicy from "../pages/Legal/PrivacyPolicy.jsx";
-import NotFound from "../pages/NotFound";
+import NotFound from "../pages/NotFound.jsx";
 import StoreReviews from "../pages/vendor/StoreReviews.jsx";
 import RoleBasedAccess from "../custom-hooks/Rbac.jsx"; // Assuming this is the RoleBasedAccess component
 import { Navigate } from "react-router-dom";
@@ -52,7 +52,6 @@ import WithReviewModal from "../components/Reviews/WithReview.jsx";
 import CategoryProducts from "../components/PopularCategories/CategorySection.jsx";
 import SubmitFeedback from "../pages/SubmitFeedback.jsx";
 import WithWhatsAppModal from "../components/ChannelLinkModal/WithWhatsAppModal.jsx";
-// import ProfileView from "../pages/VendorCompleteProfile/profileView.jsx";
 const Routers = () => {
   return (
     <Routes>

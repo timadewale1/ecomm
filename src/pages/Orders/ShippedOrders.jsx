@@ -119,11 +119,11 @@ const ShippedOrders = ({ orders, openModal }) => {
     const yesterday = [];
     const thisWeek = [];
     const older = [];
-  
+
     orders.forEach((order) => {
       const orderDate = moment(order.createdAt.seconds * 1000);
       const now = moment();
-  
+
       if (orderDate.isSame(now, "day")) {
         today.push(order);
       } else if (orderDate.isSame(now.clone().subtract(1, "day"), "day")) {
@@ -134,11 +134,10 @@ const ShippedOrders = ({ orders, openModal }) => {
         older.push(order);
       }
     });
-  
+
     return { today, yesterday, thisWeek, older };
   };
-  
-  
+
   const { today, yesterday, thisWeek, older } = groupOrdersByDate(orders);
 
   // Render each group of orders
@@ -178,7 +177,7 @@ const ShippedOrders = ({ orders, openModal }) => {
                     <img
                       src={productImages[order.id][imageIndexes[order.id] || 0]}
                       alt="Product"
-                      className="w-12 h-12 p-0.5 border-dashed border-customBrown border-1 border-opacity-80 object-cover rounded mr-3"
+                      className="w-12 h-12 p-0.5 border-dashed border-customBrown border border-opacity-80 object-cover rounded mr-3"
                     />
                   ) : (
                     <div className="w-12 h-12 bg-gray-200 rounded mr-3" />
@@ -203,14 +202,14 @@ const ShippedOrders = ({ orders, openModal }) => {
       </div>
     );
 
-    return (
-      <div>
-        {renderOrderGroup("Today", today)}
-        {renderOrderGroup("Yesterday", yesterday)}
-        {renderOrderGroup("This Week", thisWeek)}
-        {renderOrderGroup("Older", older)}
-      </div>
-    );
+  return (
+    <div>
+      {renderOrderGroup("Today", today)}
+      {renderOrderGroup("Yesterday", yesterday)}
+      {renderOrderGroup("This Week", thisWeek)}
+      {renderOrderGroup("Older", older)}
+    </div>
+  );
 };
 
 export default ShippedOrders;

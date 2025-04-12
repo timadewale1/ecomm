@@ -1,9 +1,7 @@
 /* google fonts */
 @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap");
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+
 /*  css variables */
 :root {
   --card-bg-01: #fdefe6;
@@ -154,6 +152,29 @@ li::marker {
   border-radius: 10px;
   padding: 20px;
   outline: none;
+  transition: height 0.3s ease; /* Smooth height transition */
+}
+@keyframes fade-in {
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-in-out;
+}
+
+.modal-stockpile {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  background-color: white;
+  border-radius: 10px;
+  padding: 12px;
+  outline: none;
+  z-index: 3000;
   transition: height 0.3s ease; /* Smooth height transition */
 }
 .modal-content-rider {

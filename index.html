@@ -12,7 +12,7 @@
       content="Begin your shopping journey with My Thrift – discover affordable fashion, accessories, and unique finds from a diverse range of vendors, all at your fingertips."
     />
     <meta name="author" content="My Thrift" />
-    <meta name="custom-test-meta" content="Helmet is injecting meta tags!" />
+    <meta name="custom-test-meta" content="helmet" />
     <meta
       http-equiv="Cache-Control"
       content="no-cache, no-store, must-revalidate"
@@ -316,7 +316,7 @@
           wrapper.innerHTML = `
         <div>
           <h2 style="margin-bottom: 1rem;">😵 Stuck on a blank page?</h2>
-          <p>Looks like you're browsing from an app that doesn’t support this experience.</p>
+          <p>Chceck your network and try again OR</p>
           <p>Tap the "..." in the top-right and select <strong>“Open in Browser”</strong> to continue!</p>
           <p style="margin-top: 1rem;">✨ See you on the other side! ✨</p>
         </div>
@@ -335,6 +335,7 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+    <script type="module" src="/src/index.jsx"></script>
     <div id="custom-loading-screen">
       <img
         class="splash"

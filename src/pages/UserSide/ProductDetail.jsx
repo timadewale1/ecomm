@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/img-redundant-alt */
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart, removeFromCart } from "../../redux/actions/action";
@@ -28,7 +28,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import Select from "react-select";
 import "swiper/css";
 
-import SwiperCore, { Pagination, Navigation } from "swiper";
+// import SwiperCore, { Pagination,  } from "swiper";
 import { FreeMode, Autoplay } from "swiper/modules";
 import { doc, getDoc, getFirestore } from "firebase/firestore";
 import RelatedProducts from "./SimilarProducts";
@@ -82,6 +82,7 @@ const ProductDetailPage = () => {
   });
   const [toastCount, setToastCount] = useState(0);
   const [selectedImage, setSelectedImage] = useState("");
+  const { isActive, vendorId } = useSelector((state) => state.stockpile);
 
   const [vendor, setVendor] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -147,7 +148,9 @@ const ProductDetailPage = () => {
       setSelectedSize("");
     }
   }, [product]);
-
+  const isStockpileForThisVendor = useMemo(() => {
+    return isActive && vendorId === product?.vendorId;
+  }, [isActive, vendorId, product?.vendorId]);
   useEffect(() => {
     if (product) {
       // Set initial images when the main product is loaded
@@ -469,7 +472,11 @@ const ProductDetailPage = () => {
     }
 
     setIsAddedToCart(true);
-    toast.success(`Added ${product.name} to cart!`);
+    toast.success(
+      isStockpileForThisVendor
+        ? `${product.name} added to Pile!`
+        : `Added ${product.name} to cart!`
+    );
   }, [
     product,
     quantity,
@@ -765,8 +772,9 @@ const ProductDetailPage = () => {
 
     if (!product || !product.id || !selectedSize || !selectedColor) return;
 
-    const productKey = `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
-    console.log("Removing product with productKey:", productKey);
+    const productKey = selectedSubProduct
+      ? `${product.vendorId}-${product.id}-${selectedSubProduct.subProductId}`
+      : `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
 
     dispatch(removeFromCart({ vendorId: product.vendorId, productKey }));
     setIsAddedToCart(false);
@@ -1355,7 +1363,7 @@ const ProductDetailPage = () => {
               }}
               className={`bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out`}
             >
-              Add to Cart
+              {isStockpileForThisVendor ? "Add to Pile" : "Add to Cart"}
             </button>
           ) : !isAddedToCart ? (
             // The "Add to Cart" button
@@ -1366,7 +1374,7 @@ const ProductDetailPage = () => {
               }}
               className={`bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out`}
             >
-              Add to Cart
+              {isStockpileForThisVendor ? "Add to Pile" : "Add to Cart"}
             </button>
           ) : (
             // The Remove and Quantity controls

@@ -21,14 +21,14 @@ const firebaseConfig = {
 
 // 2) Initialize Firebase
 const app = initializeApp(firebaseConfig);
-if (process.env.REACT_APP_FIREBASE_DEBUG_TOKEN) {
-  window.FIREBASE_APPCHECK_DEBUG_TOKEN = process.env.REACT_APP_FIREBASE_DEBUG_TOKEN;
+if (import.meta.env.VITE_FIREBASE_DEBUG_TOKEN) {
+  window.FIREBASE_APPCHECK_DEBUG_TOKEN = import.meta.env.VITE_FIREBASE_DEBUG_TOKEN;
 }
 
 // 3) Initialize App Check with reCAPTCHA Enterprise provider for production
 initializeAppCheck(app, {
   provider: new ReCaptchaEnterpriseProvider(
-    process.env.REACT_APP_RECAPTCHA_ENTERPRISE_KEY
+    import.meta.env.VITE_RECAPTCHA_ENTERPRISE_KEY
   ),
   isTokenAutoRefreshEnabled: true, // Automatically refresh App Check tokens
 });

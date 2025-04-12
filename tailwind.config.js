@@ -1,7 +1,9 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
+  mode: "jit",
   content: [
-    "./src/**/*.{js,jsx,ts,tsx}",
+   "./index.html",          // Add this!
+    "./src/**/*.{js,jsx,ts,tsx}"
   ],
   theme: {
     extend: {

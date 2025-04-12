@@ -6,20 +6,32 @@ import { clearCart } from "../redux/actions/action";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase.config";
 import { useAuth } from "../custom-hooks/useAuth";
+import { SiAdguard } from "react-icons/si";
+import { enterStockpileMode } from "../redux/reducers/stockpileSlice";
+
+import { GiBookPile } from "react-icons/gi";
 import { FaPen } from "react-icons/fa";
 import serviceimage from "../Images/servicemodal.jpg";
 import PaystackPop from "@paystack/inline-js";
-
+import { IoIosInformationCircle } from "react-icons/io";
 import bookingimage from "../Images/bookingfee.jpg";
 import Modal from "react-modal";
+import { AiOutlineSafety } from "react-icons/ai";
 // import { createOrderAndReduceStock } from "../styles/services/Services";
-import { getDoc, doc } from "firebase/firestore";
+import {
+  getDoc,
+  doc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { db } from "../firebase.config";
 import Loading from "../components/Loading/Loading";
 import { GoChevronLeft, GoChevronRight } from "react-icons/go";
 import { CiCircleInfo } from "react-icons/ci";
 import { RiSecurePaymentFill } from "react-icons/ri";
-import { MdOutlineLock, MdSupportAgent } from "react-icons/md";
+import { MdOutlineClose, MdOutlineLock, MdSupportAgent } from "react-icons/md";
 import { LiaShippingFastSolid, LiaTimesSolid } from "react-icons/lia";
 import { FaCheck } from "react-icons/fa6";
 import Skeleton from "react-loading-skeleton";
@@ -28,7 +40,8 @@ import { IoSettingsOutline } from "react-icons/io5";
 import { calculateDeliveryFee } from "../services/states";
 import { NigerianStates } from "../services/states";
 import SEO from "../components/Helmet/SEO";
-
+import ReactSelect from "react-select";
+import { BsInfoCircle } from "react-icons/bs";
 const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
   const [selectedState, setSelectedState] = useState("");
   useEffect(() => {
@@ -251,8 +264,8 @@ const ShopSafelyModal = ({ isOpen, onClose }) => {
             Secure Shipment Guarantee
           </h3>
           <p className="text-sm font-opensans text-black mt-2">
-            Escrow Payments: A percentage of your funds are held securely and released to the vendor only after 
-             delivery is confirmed.
+            Escrow Payments: A percentage of your funds are held securely and
+            released to the vendor only after delivery is confirmed.
           </p>
         </div>
       </div>
@@ -310,7 +323,19 @@ const Checkout = () => {
   const [showServiceFeeModal, setShowServiceFeeModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showServiceFee, setShowServiceFee] = useState(false);
+  const [showBuyersFee, setShowBuyersFee] = useState(false);
   const [isFetchingOrderPreview, setIsFetchingOrderPreview] = useState(true);
+  const [checkoutMode, setCheckoutMode] = useState("deliver");
+  const [showAlreadyStockpiledModal, setShowAlreadyStockpiledModal] =
+    useState(false);
+
+  const [showNoStockpileModal, setShowNoStockpileModal] = useState(false);
+
+  const [selectedWeeks, setSelectedWeeks] = useState(null);
+  const { isActive, vendorId: stockpileVendorId } = useSelector(
+    (state) => state.stockpile
+  );
+  const isRepiling = isActive && stockpileVendorId === vendorId;
 
   const prepareOrderData = (isPreview = false) => {
     const vendorCart = cart[vendorId]?.products;
@@ -344,6 +369,12 @@ const Checkout = () => {
       }),
       userInfo,
       preview: isPreview,
+      isRepiling: isRepiling,
+      isStockpile: checkoutMode === "stockpile" || isRepiling,
+      stockpileDuration:
+        checkoutMode === "stockpile" && selectedWeeks
+          ? selectedWeeks
+          : undefined,
     };
 
     if (note) {
@@ -351,6 +382,53 @@ const Checkout = () => {
     }
 
     return orderData;
+  };
+  const AlreadyStockpiledModal = ({
+    isOpen,
+    onClose,
+    vendorId,
+    dispatch,
+    navigate,
+  }) => {
+    return (
+      <Modal
+        isOpen={isOpen}
+        onRequestClose={onClose}
+        overlayClassName="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+        className="bg-white w-[90%] max-w-md mx-auto p-6 rounded-lg"
+        ariaHideApp={false}
+      >
+        <h2 className="text-lg font-semibold font-opensans mb-3 text-center">
+          Active Stockpile Found!
+        </h2>
+        <p className="text-gray-700 text-sm text-center font-opensans mb-6">
+          You already have an active stockpile with{" "}
+          <span className="font-semibold text-customOrange">
+            {vendorsInfo[vendorId]?.shopName || "this vendor"}
+          </span>
+          . Would you like to add more items to your pile?
+        </p>
+
+        <div className="flex font-opensans px-8 flex-col gap-3">
+          <button
+            onClick={() => {
+              dispatch(enterStockpileMode({ vendorId }));
+              navigate(`/latest-cart`);
+            }}
+            className="bg-customOrange text-white py-2 rounded-lg font-semibold"
+          >
+            Repile Now
+          </button>
+
+          <button
+            onClick={onClose}
+            className="bg-transparent text-customRichBrown border-customRichBrown border   py-2 rounded-lg font-semibold"
+          >
+            Cancel
+          </button>
+        </div>
+      </Modal>
+    );
   };
 
   // Fetch the previewed fees and totals from the server
@@ -415,7 +493,7 @@ const Checkout = () => {
     };
 
     fetchOrderPreview();
-  }, [vendorId, cart, currentUser, userInfo]);
+  }, [vendorId, cart, currentUser, userInfo, checkoutMode, selectedWeeks]);
 
   useEffect(() => {
     if (!vendorId) {
@@ -448,8 +526,44 @@ const Checkout = () => {
       setSelectedDeliveryMode(vendorsInfo[vendorId].deliveryMode);
     }
   }, [vendorsInfo, vendorId]);
+  // A modal to show when vendor doesn't have stockpile
+  const NoStockpileModal = ({ isOpen, onClose }) => {
+    return (
+      <Modal
+        isOpen={isOpen}
+        onRequestClose={onClose}
+        overlayClassName="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+        className="bg-white w-[90%] max-w-md mx-auto p-6 rounded-lg"
+        ariaHideApp={false}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
+              <GiBookPile className="text-customRichBrown" />
+            </div>
+            <h2 className="font-opensans text-base font-semibold">
+              Ooops, Stockpiling Not Available
+            </h2>
+          </div>
+          <MdOutlineClose
+            className="text-black text-xl cursor-pointer"
+            onClick={onClose}
+          />
+        </div>
+
+        <p className="mb-6 text-gray-800 font-opensans text-sm">
+          Sorry, but this vendor does not offer stockpiling at the moment.
+        </p>
+      </Modal>
+    );
+  };
 
   const handleProceedToPayment = async () => {
+    if (checkoutMode === "stockpile" && !selectedWeeks) {
+      toast.error("Please select how many weeks you want to stockpile.");
+      return;
+    }
+
     try {
       setIsLoading(true); // Start loader
       const orderData = prepareOrderData();
@@ -485,6 +599,9 @@ const Checkout = () => {
       setIsLoading(false); // Stop loader
     }
   };
+  useEffect(() => {
+    console.log("selectedWeeks state updated to:", selectedWeeks);
+  }, [selectedWeeks]);
 
   useEffect(() => {
     const calculateFee = () => {
@@ -657,6 +774,82 @@ const Checkout = () => {
       </Modal>
     );
   };
+  const handleStockpileClick = async () => {
+    if (!vendorsInfo[vendorId]?.stockpile?.enabled) {
+      console.log("Vendor does not offer stockpile");
+      setShowNoStockpileModal(true);
+      return;
+    }
+
+    const stockpilesRef = collection(db, "stockpiles");
+    const q = query(
+      stockpilesRef,
+      where("userId", "==", currentUser.uid),
+      where("vendorId", "==", vendorId),
+      where("isActive", "==", true)
+    );
+
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      console.log("Stockpile found for user and vendor!");
+      setShowAlreadyStockpiledModal(true);
+    } else {
+      console.log("No stockpile found. Entering stockpile mode...");
+      setCheckoutMode("stockpile");
+
+      const maxWeeks = vendorsInfo[vendorId]?.stockpile?.durationInWeeks || 2;
+      setSelectedWeeks(2);
+    }
+  };
+
+  const BuyersFeeModal = ({ isOpen, onClose }) => {
+    useEffect(() => {
+      // Disable background scrolling when modal is open
+      if (isOpen) {
+        document.body.style.overflow = "hidden";
+      } else {
+        document.body.style.overflow = "unset";
+      }
+      return () => {
+        // Clean up when the modal is closed
+        document.body.style.overflow = "unset";
+      };
+    }, [isOpen]);
+
+    return (
+      <Modal
+        isOpen={isOpen}
+        onRequestClose={onClose}
+        className="bg-white w-full max-w-full h-[30vh] rounded-t-2xl shadow-lg overflow-y-scroll relative flex flex-col"
+        overlayClassName="fixed inset-0 bg-gray-900  backdrop-blur-sm bg-opacity-50 flex justify-center items-end z-50"
+        ariaHideApp={false}
+      >
+        <div className="relative h-full ">
+          {" "}
+          <div className="mt-6 flex items-center px-4 font-semibold  justify-between">
+            <h1 className="font-ubuntu text-2xl text-black">
+              Why do we charge this?
+            </h1>
+            <LiaTimesSolid
+              className="text-2xl cursor-pointer modals absolute top-4 right-4"
+              onClick={onClose}
+            />
+          </div>
+          <div className="px-4  flex items-center mb-4">
+            <SiAdguard className="text-9xl text-green-600" />
+            <p className="text-xs ml-4 font-opensans font-light text-black z-10">
+              The Buyer’s Protection Fee ensures a safe and secure stockpiling
+              experience. It helps protect your items while they’re reserved
+              with the vendor and offers peace of mind in case your order is
+              missing, damaged, or not as described. It’s our way of making sure
+              you’re covered — even while your order is still being piled up.
+            </p>
+          </div>
+        </div>
+      </Modal>
+    );
+  };
 
   const formatColorText = (color) => {
     if (!color) return "";
@@ -786,10 +979,10 @@ const Checkout = () => {
 
   return (
     <div className="bg-gray-100 pb-12">
-      <SEO 
-        title={`Checkout - My Thrift`} 
-        description={`Checkout your order on My Thrift`} 
-        url={`https://www.shopmythrift.store/newcheckout/`} 
+      <SEO
+        title={`Checkout - My Thrift`}
+        description={`Checkout your order on My Thrift`}
+        url={`https://www.shopmythrift.store/newcheckout/`}
       />
       <div className="flex p-3 py-3 items-center sticky top-0 bg-white w-full h-20 shadow-md z-10 mb-3 pb-2">
         <GoChevronLeft
@@ -798,343 +991,779 @@ const Checkout = () => {
         />
         <h1 className="text-xl font-opensans ml-5 font-semibold">Checkout</h1>
       </div>
-      <div className="px-3">
-        <div className="mt-4 px-4 w-full py-4 rounded-lg bg-white ">
-          <h1 className="text-black font-semibold font-opensans text-lg ">
-            Order Summary
-          </h1>
-          <div className="border-t border-gray-300 my-2"></div>
-          <div className="flex justify-between">
-            <label className="block mb-2 font-opensans ">Sub-Total</label>
-            <p className="text-lg font-opensans text-black font-semibold">
-              {isFetchingOrderPreview ? (
-                <Skeleton width={80} />
-              ) : (
-                `₦${previewedOrder.subtotal.toLocaleString()}`
-              )}
-            </p>
-          </div>
+      <div className="px-4">
+        {!isRepiling && (
+          <div className="w-full max-w-md mx-auto flex justify-between items-center rounded-full bg-orange-200 px-1 py-1 mb-3 relative">
+            <button
+              onClick={() => setCheckoutMode("deliver")}
+              className={`w-1/2 py-2 rounded-full text-sm font-opensans font-semibold transition-all duration-200 ${
+                checkoutMode === "deliver"
+                  ? "bg-customRichBrown text-white"
+                  : "text-gray-700"
+              }`}
+            >
+              Deliver Now
+            </button>
 
-          {vendorsInfo[vendorId]?.marketPlaceType === "marketplace" && (
+            <div className="relative w-1/2">
+              <button
+                onClick={handleStockpileClick}
+                className={`w-full py-2 rounded-full text-sm font-opensans font-medium transition-all duration-200 ${
+                  checkoutMode === "stockpile"
+                    ? "bg-customRichBrown text-white"
+                    : "text-gray-700"
+                }`}
+              >
+                Stockpile
+              </button>
+
+              {/* Beta Badge */}
+              <span className="absolute -top-1 -right-1 bg-customOrange text-white text-[10px] px-2 py-[2px] rounded-full font-bold uppercase">
+                Beta
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+      {checkoutMode === "deliver" ? (
+        <div className="px-3">
+          <div className="mt-4 px-4 w-full py-4 rounded-lg bg-white ">
+            <h1 className="text-black font-semibold font-opensans text-lg ">
+              {isRepiling || checkoutMode === "stockpile"
+                ? "Pile Summary"
+                : "Order Summary"}
+            </h1>
+
+            <div className="border-t border-gray-300 my-2"></div>
             <div className="flex justify-between">
-              <label className="block mb-2 font-opensans">
-                Booking Fee
-                <CiCircleInfo
-                  className="inline ml-2 text-customOrange cursor-pointer"
-                  onClick={() => setShowBookingFeeModal(true)}
-                />
+              <label className="block mb-2 font-opensans ">Sub-Total</label>
+              <p className="text-lg font-opensans text-black font-semibold">
+                {isFetchingOrderPreview ? (
+                  <Skeleton width={80} />
+                ) : (
+                  `₦${previewedOrder.subtotal.toLocaleString()}`
+                )}
+              </p>
+            </div>
+
+            {vendorsInfo[vendorId]?.marketPlaceType === "marketplace" && (
+              <div className="flex justify-between">
+                <label className="block mb-2 font-opensans">
+                  Booking Fee
+                  <CiCircleInfo
+                    className="inline ml-2 text-customOrange cursor-pointer"
+                    onClick={() => setShowBookingFeeModal(true)}
+                  />
+                </label>
+                <p className="text-lg font-opensans text-black font-semibold">
+                  {isFetchingOrderPreview ? (
+                    <Skeleton width={80} />
+                  ) : (
+                    `₦${previewedOrder.bookingFee.toLocaleString()}`
+                  )}
+                </p>
+              </div>
+            )}
+
+            {!isRepiling && (
+              <div className="flex justify-between">
+                <label className="block mb-2 font-opensans">
+                  Service Fee
+                  <CiCircleInfo
+                    className="inline ml-2 text-customOrange cursor-pointer"
+                    onClick={() => setShowServiceFeeModal(true)}
+                  />
+                </label>
+                <p
+                  className={`font-opensans font-semibold ${
+                    !showServiceFee
+                      ? "loading-text text-xs"
+                      : "text-black text-lg"
+                  }`}
+                >
+                  {isFetchingOrderPreview ? (
+                    <Skeleton width={80} />
+                  ) : showServiceFee ? (
+                    `₦${previewedOrder.serviceFee.toLocaleString()}`
+                  ) : (
+                    "Calculating fees..."
+                  )}
+                </p>
+              </div>
+            )}
+
+            <div className="border-t mt-3 border-gray-300 my-2"></div>
+            <div className="flex justify-between mt-2">
+              <label className="block mb-2 font-opensans text-lg font-semibold">
+                Total
               </label>
               <p className="text-lg font-opensans text-black font-semibold">
                 {isFetchingOrderPreview ? (
                   <Skeleton width={80} />
                 ) : (
-                  `₦${previewedOrder.bookingFee.toLocaleString()}`
+                  `₦${previewedOrder.total.toLocaleString()}`
                 )}
               </p>
             </div>
-          )}
-
-          <div className="flex justify-between">
-            <label className="block mb-2 font-opensans">
-              Service Fee
-              <CiCircleInfo
-                className="inline ml-2 text-customOrange cursor-pointer"
-                onClick={() => setShowServiceFeeModal(true)}
-              />
-            </label>
-            <p
-              className={`font-opensans font-semibold ${
-                !showServiceFee ? "loading-text text-xs" : "text-black text-lg"
+            {isRepiling && (
+              <div className="flex items-center bg-green-50 p-3 rounded-lg mt-3">
+                <GiBookPile className="text-green-600 text-3xl mr-3" />
+                <div>
+                  <p className="font-opensans text-xs text-green-700 font-semibold">
+                    You’ve saved ₦{previewedOrder.serviceFee.toLocaleString()}{" "}
+                    in service fees by choosing to stockpile.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="mt-2">
+            <div
+              className={`mt-3 px-3 w-full py-4 rounded-lg ${
+                isRepiling ? "bg-white" : "bg-white"
               }`}
             >
-              {isFetchingOrderPreview ? (
-                <Skeleton width={80} />
-              ) : showServiceFee ? (
-                `₦${previewedOrder.serviceFee.toLocaleString()}`
-              ) : (
-                "Calculating fees..."
-              )}
-            </p>
-          </div>
-          <div className="border-t mt-3 border-gray-300 my-2"></div>
-          <div className="flex justify-between mt-2">
-            <label className="block mb-2 font-opensans text-lg font-semibold">
-              Total
-            </label>
-            <p className="text-lg font-opensans text-black font-semibold">
-              {isFetchingOrderPreview ? (
-                <Skeleton width={80} />
-              ) : (
-                `₦${previewedOrder.total.toLocaleString()}`
-              )}
-            </p>
-          </div>
-        </div>
-        <div className="mt-2">
-          <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
-            <div className="flex justify-between items-center">
-              <h1 className="text-black font-semibold font-opensans text-lg">
-                Delivery Information
-              </h1>
-              <FaPen
-                className="text-black cursor-pointer"
-                onClick={() => setShowEditModal(true)}
-              />
-            </div>
-
-            <div className="border-t border-gray-300 my-2"></div>
-
-            <div className="flex">
-              <label className="block mb-2 mr-1 font-semibold font-opensans">
-                Name:
-              </label>
-              <p className="font-opensans text-black">{userInfo.displayName}</p>
-            </div>
-            <div className="flex">
-              <label className="block mb-2 mr-1 font-semibold font-opensans">
-                Phone Number:
-              </label>
-              <p className="font-opensans text-black ">
-                {userInfo.phoneNumber}
-              </p>
-            </div>
-            <div className="flex">
-              <label className="block mb-2 font-semibold mr-1 font-opensans">
-                Email:
-              </label>
-              <p className="font-opensans text-black">{userInfo.email}</p>
-            </div>
-            <div className="flex">
-              <label className="block mb-2 mr-1 font-semibold font-opensans">
-                Address:
-              </label>
-              <p className="font-opensans text-black ">{userInfo.address}</p>
-            </div>
-          </div>
-        </div>
-
-        <form className="bg-white mt-3 p-3 rounded-lg shadow-md">
-          {vendorId && cart[vendorId] && (
-            <>
-              <div className="flex justify-between">
-                <h1 className="text-black font-medium font-opensans text-lg">
-                  Shipment
+              <div className="flex justify-between items-center">
+                <h1 className="text-black font-semibold font-opensans text-lg">
+                  Delivery Information
                 </h1>
-                <h3 className="text-sm">
-                  <span className="text-gray-400 text-sm font-opensans">
-                    From:
-                  </span>
-                  {vendorsInfo[vendorId]?.shopName?.length > 8
-                    ? `${vendorsInfo[vendorId]?.shopName.slice(0, 8)}...`
-                    : vendorsInfo[vendorId]?.shopName || `Vendor ${vendorId}`}
-                </h3>
+                <FaPen
+                  className={`${
+                    isRepiling
+                      ? "text-gray-400 cursor-not-allowed"
+                      : "text-black cursor-pointer"
+                  }`}
+                  onClick={() => {
+                    if (!isRepiling) {
+                      setShowEditModal(true);
+                    }
+                  }}
+                />
               </div>
 
-              <div className="mt-2 border-t ">
-                {Object.entries(cart[vendorId].products).map(
-                  ([productKey, product]) => (
-                    <div
-                      key={productKey}
-                      className="flex items-center justify-between py-4 border-b"
-                    >
-                      <div className="flex items-center">
-                        <img
-                          src={
-                            product.selectedImageUrl ||
-                            "https://via.placeholder.com/150"
-                          }
-                          alt={product.name}
-                          className="w-16 h-16 object-cover rounded-lg mr-4"
-                          onError={(e) => {
-                            e.target.src = "https://via.placeholder.com/150";
-                          }}
-                        />
-                        <div>
-                          <h4 className="text-sm font-opensans">
-                            {product.name}
-                          </h4>
-                          <p className="font-opensans text-md mt-2 text-black font-bold">
-                            ₦{product.price.toLocaleString()}
-                          </p>
-                          <div className="flex items-center space-x-4 text-sm mt-2 ">
-                            <p className="text-black font-semibold font-opensans">
-                              <span className="font-normal text-gray-600">
-                                Size:
-                              </span>{" "}
-                              {product.selectedSize || "N/A"}
-                            </p>
-                            <p className="text-black font-semibold font-opensans">
-                              <span className="font-normal text-gray-600">
-                                Color:
-                              </span>{" "}
-                              {formatColorText(product.selectedColor)}
-                            </p>
+              <div className="border-t border-gray-300 my-2"></div>
 
-                            <p className="text-black font-semibold font-opensans">
-                              <span className="font-normal text-gray-600">
-                                Qty:
-                              </span>{" "}
-                              {product.quantity}
+              <div className="flex">
+                <label className="block mb-2 mr-1 font-semibold font-opensans">
+                  Name:
+                </label>
+                <p className="font-opensans text-black">
+                  {userInfo.displayName}
+                </p>
+              </div>
+              <div className="flex">
+                <label className="block mb-2 mr-1 font-semibold font-opensans">
+                  Phone Number:
+                </label>
+                <p className="font-opensans text-black ">
+                  {userInfo.phoneNumber}
+                </p>
+              </div>
+              <div className="flex">
+                <label className="block mb-2 font-semibold mr-1 font-opensans">
+                  Email:
+                </label>
+                <p className="font-opensans text-black">{userInfo.email}</p>
+              </div>
+              <div className="flex">
+                <label className="block mb-2 mr-1 font-semibold font-opensans">
+                  Address:
+                </label>
+                <p className="font-opensans text-black ">{userInfo.address}</p>
+              </div>
+            </div>
+          </div>
+
+          <form className="bg-white mt-3 p-3 rounded-lg shadow-md">
+            {vendorId && cart[vendorId] && (
+              <>
+                <div className="flex justify-between">
+                  <h1 className="text-black font-medium font-opensans text-lg">
+                    {isRepiling || checkoutMode === "stockpile"
+                      ? "Pile"
+                      : "Shipment"}
+                  </h1>
+                  <h3 className="text-sm">
+                    <span className="text-gray-400 text-sm font-opensans">
+                      From:
+                    </span>
+                    {vendorsInfo[vendorId]?.shopName?.length > 20
+                      ? `${vendorsInfo[vendorId]?.shopName.slice(0, 20)}...`
+                      : vendorsInfo[vendorId]?.shopName || `Vendor ${vendorId}`}
+                  </h3>
+                </div>
+
+                <div className="mt-2 border-t ">
+                  {Object.entries(cart[vendorId].products).map(
+                    ([productKey, product]) => (
+                      <div
+                        key={productKey}
+                        className="flex items-center justify-between py-4 border-b"
+                      >
+                        <div className="flex items-center">
+                          <img
+                            src={
+                              product.selectedImageUrl ||
+                              "https://via.placeholder.com/150"
+                            }
+                            alt={product.name}
+                            className="w-16 h-16 object-cover rounded-lg mr-4"
+                            onError={(e) => {
+                              e.target.src = "https://via.placeholder.com/150";
+                            }}
+                          />
+                          <div>
+                            <h4 className="text-sm font-opensans">
+                              {product.name}
+                            </h4>
+                            <p className="font-opensans text-md mt-2 text-black font-bold">
+                              ₦{product.price.toLocaleString()}
                             </p>
+                            <div className="flex items-center space-x-4 text-sm mt-2 ">
+                              <p className="text-black font-semibold font-opensans">
+                                <span className="font-normal text-gray-600">
+                                  Size:
+                                </span>{" "}
+                                {product.selectedSize || "N/A"}
+                              </p>
+                              <p className="text-black font-semibold font-opensans">
+                                <span className="font-normal text-gray-600">
+                                  Color:
+                                </span>{" "}
+                                {formatColorText(product.selectedColor)}
+                              </p>
+
+                              <p className="text-black font-semibold font-opensans">
+                                <span className="font-normal text-gray-600">
+                                  Qty:
+                                </span>{" "}
+                                {product.quantity}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
+                    )
+                  )}
+                </div>
+              </>
+            )}
+          </form>
+          {!isRepiling && (
+            <div className="bg-white mt-3 p-3 rounded-lg shadow-md">
+              {vendorId && vendorsInfo[vendorId] && (
+                <>
+                  <div className="flex items-center">
+                    <h1 className="text-black font-medium font-opensans text-lg">
+                      Delivery Method
+                    </h1>
+                  </div>
+
+                  <div className="border-t border-gray-300 my-3"></div>
+
+                  <div
+                    className={`p-3 mb-4 cursor-pointer flex items-center ${
+                      vendorsInfo[vendorId]?.deliveryMode === "Pickup"
+                        ? "border-customOrange"
+                        : "border-gray-300"
+                    }`}
+                    onClick={() => handleDeliveryModeSelection("Pickup")}
+                  >
+                    <div
+                      className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
+                        vendorsInfo[vendorId]?.deliveryMode === "Pickup"
+                          ? "border-customOrange"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      {vendorsInfo[vendorId]?.deliveryMode === "Pickup" && (
+                        <div className="w-3 h-3 rounded-full bg-orange-500" />
+                      )}
                     </div>
-                  )
-                )}
-              </div>
-            </>
-          )}
-        </form>
-        <div className="bg-white mt-3 p-3 rounded-lg shadow-md">
-          {vendorId && vendorsInfo[vendorId] && (
-            <>
-              <div className="flex items-center">
-                <h1 className="text-black font-medium font-opensans text-lg">
-                  Delivery Method
-                </h1>
-                {/* <CiCircleInfo
-                  className="text-customOrange ml-2 cursor-pointer text-xl"
-                  onClick={() => setShowDeliveryInfoModal(true)}
-                /> */}
-              </div>
-
-              <div className="border-t border-gray-300 my-3"></div>
-
-              {/* Render the delivery option based on vendor's deliveryMode */}
-              <div
-                className={`p-3 mb-4 cursor-pointer flex items-center ${
-                  vendorsInfo[vendorId]?.deliveryMode === "Pickup"
-                    ? "border-customOrange"
-                    : "border-gray-300"
-                }`}
-                onClick={() => handleDeliveryModeSelection("Pickup")}
-              >
-                <div
-                  className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
-                    vendorsInfo[vendorId]?.deliveryMode === "Pickup"
-                      ? "border-customOrange"
-                      : "border-gray-300"
-                  }`}
-                >
-                  {vendorsInfo[vendorId]?.deliveryMode === "Pickup" && (
-                    <div className="w-3 h-3 rounded-full bg-orange-500" />
-                  )}
-                </div>
-                <span className="font-opensans font-semibold ml-3 text-black text-lg">
-                  Pick-up
-                </span>
-              </div>
-              <p className="ml-12 text-black font-light font-opensans text-xs -translate-y-9">
-                1-3 working days
-              </p>
-
-              <div className="border-t border-gray-300 "></div>
-
-              <div
-                className={`p-3 mb-4 cursor-pointer flex items-center ${
-                  vendorsInfo[vendorId]?.deliveryMode === "Delivery"
-                    ? "border-customOrange"
-                    : "border-gray-300"
-                }`}
-                onClick={() => handleDeliveryModeSelection("Delivery")}
-              >
-                <div
-                  className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
-                    vendorsInfo[vendorId]?.deliveryMode === "Delivery"
-                      ? "border-customOrange"
-                      : "border-gray-300"
-                  }`}
-                >
-                  {vendorsInfo[vendorId]?.deliveryMode === "Delivery" && (
-                    <div className="w-3 h-3 rounded-full bg-orange-500" />
-                  )}
-                </div>
-                <span className="font-opensans font-semibold ml-3 text-black text-lg">
-                  Delivery
-                </span>
-              </div>
-              <p className="ml-12 text-black font-light font-opensans text-xs -translate-y-9">
-                2-7 working days
-              </p>
-              <div className="px-4 w-full py-2 rounded-lg bg-customCream">
-                <h1 className="text-black font-semibold font-opensans text-xs">
-                  Estimated Delivery Fee
-                </h1>
-                <div className="border-t border-gray-700 my-2"></div>
-                {deliveryEstimate ? (
-                  <p className="text-sm font-opensans text-black font-semibold">
-                    ₦{deliveryEstimate.toLocaleString()}
+                    <span className="font-opensans font-semibold ml-3 text-black text-lg">
+                      Pick-up
+                    </span>
+                  </div>
+                  <p className="ml-12 text-black font-light font-opensans text-xs -translate-y-9">
+                    1-3 working days
                   </p>
-                ) : !vendorsInfo[vendorId]?.state ||
-                  !userInfo.address.split(", ").pop() ? (
-                  <p className="text-sm font-opensans text-red-500 font-bold">
-                    No estimate available ☹️
-                  </p>
-                ) : (
-                  <Skeleton width={80} />
-                )}
-                <p className="text-xs font-opensans text-gray-600 mt-2">
-                  <span className="font-semibold">Note:</span> The delivery fee
-                  displayed is an estimate based on your location and items in
-                  the cart. This fee will not be charged at checkout. The vendor
-                  will contact you with the exact delivery fee details before
-                  your order is shipped.
-                </p>
-              </div>
-            </>
-          )}
-        </div>
 
-        <div className="mt-2">
-          <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
-            <div
-              onClick={() => setShowShopSafelyModal(true)}
-              className="flex justify-between items-center"
-            >
-              <h1 className="text-black font-semibold font-opensans text-lg">
-                Shop safely and sustainably
-              </h1>
-              <GoChevronRight className="text-black text-2xl cursor-pointer" />
+                  <div className="border-t border-gray-300 "></div>
+
+                  <div
+                    className={`p-3 mb-4 cursor-pointer flex items-center ${
+                      vendorsInfo[vendorId]?.deliveryMode === "Delivery"
+                        ? "border-customOrange"
+                        : "border-gray-300"
+                    }`}
+                    onClick={() => handleDeliveryModeSelection("Delivery")}
+                  >
+                    <div
+                      className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
+                        vendorsInfo[vendorId]?.deliveryMode === "Delivery"
+                          ? "border-customOrange"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      {vendorsInfo[vendorId]?.deliveryMode === "Delivery" && (
+                        <div className="w-3 h-3 rounded-full bg-orange-500" />
+                      )}
+                    </div>
+                    <span className="font-opensans font-semibold ml-3 text-black text-lg">
+                      Delivery
+                    </span>
+                  </div>
+                  <p className="ml-12 text-black font-light font-opensans text-xs -translate-y-9">
+                    2-7 working days
+                  </p>
+
+                  <div className="px-4 w-full py-2 rounded-lg bg-customCream">
+                    <h1 className="text-black font-semibold font-opensans text-xs">
+                      Estimated Delivery Fee
+                    </h1>
+                    <div className="border-t border-gray-700 my-2"></div>
+                    {deliveryEstimate ? (
+                      <p className="text-sm font-opensans text-black font-semibold">
+                        ₦{deliveryEstimate.toLocaleString()}
+                      </p>
+                    ) : !vendorsInfo[vendorId]?.state ||
+                      !userInfo.address.split(", ").pop() ? (
+                      <p className="text-sm font-opensans text-red-500 font-bold">
+                        No estimate available ☹️
+                      </p>
+                    ) : (
+                      <Skeleton width={80} />
+                    )}
+                    <p className="text-xs font-opensans text-gray-600 mt-2">
+                      <span className="font-semibold">Note:</span> The delivery
+                      fee displayed is an estimate based on your location and
+                      items in the cart. This fee will not be charged at
+                      checkout. The vendor will contact you with the exact
+                      delivery fee details before your order is shipped.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
+          )}
 
-            <div className="border-t border-gray-300 my-2"></div>
+          <div className="mt-2">
+            <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
+              <div
+                onClick={() => setShowShopSafelyModal(true)}
+                className="flex justify-between items-center"
+              >
+                <h1 className="text-black font-semibold font-opensans text-lg">
+                  Shop safely and sustainably
+                </h1>
+                <GoChevronRight className="text-black text-2xl cursor-pointer" />
+              </div>
 
-            <div className="flex mt-3 -mx-2 space-x-0.5">
-              <div className="flex items-center flex-col">
-                <RiSecurePaymentFill className="text-3xl text-green-700" />
-                <p className="text-xs text-gray-600 text-center">
-                  Secure your payment
-                </p>
-              </div>
-              <div className="flex items-center flex-col">
-                <MdOutlineLock className="text-3xl text-green-700" />
-                <p className="text-xs text-gray-600 text-center">
-                  Security & Privacy
-                </p>
-              </div>
-              <div className="flex items-center flex-col">
-                <LiaShippingFastSolid className="text-3xl text-green-700" />
-                <p className="text-xs text-gray-600 text-center">
-                  Secure Shipment Guarantee
-                </p>
-              </div>
-              <div className="flex items-center flex-col">
-                <MdSupportAgent className="text-3xl text-green-700" />
-                <p className="text-xs text-gray-600 text-center">
-                  Customer Support
-                </p>
+              <div className="border-t border-gray-300 my-2"></div>
+
+              <div className="flex mt-3 -mx-2 space-x-0.5">
+                <div className="flex items-center flex-col">
+                  <RiSecurePaymentFill className="text-3xl text-green-700" />
+                  <p className="text-xs text-gray-600 text-center">
+                    Secure your payment
+                  </p>
+                </div>
+                <div className="flex items-center flex-col">
+                  <MdOutlineLock className="text-3xl text-green-700" />
+                  <p className="text-xs text-gray-600 text-center">
+                    Security & Privacy
+                  </p>
+                </div>
+                <div className="flex items-center flex-col">
+                  <LiaShippingFastSolid className="text-3xl text-green-700" />
+                  <p className="text-xs text-gray-600 text-center">
+                    Secure Shipment Guarantee
+                  </p>
+                </div>
+                <div className="flex items-center flex-col">
+                  <MdSupportAgent className="text-3xl text-green-700" />
+                  <p className="text-xs text-gray-600 text-center">
+                    Customer Support
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="px-3">
+          <div className="bg-white text-xs font-opensans text-gray-800 px-4 py-3 rounded-lg flex items-start space-x-2 ">
+            <BsInfoCircle className="text-5xl text-gray-600" />
+            <div>
+              <p className="font-semibold font-opensans text-sm text-black mb-1">
+                You've selected Stockpiling.
+              </p>
+              <p className="mb- text-gray-800 font-opensans text-xs">
+                The vendor allows a maximum stockpile time of{" "}
+                <span className="font-semibold text-customOrange">
+                  {vendorsInfo[vendorId]?.stockpile?.durationInWeeks} weeks
+                </span>
+                .
+              </p>
+              <p className="text-xs text-gray-800">
+                Stockpiling means your order won't be shipped immediately — you
+                can keep adding more items to your pile after this order is
+                placed.
+              </p>
+            </div>
+          </div>
 
+          <div className="mt-4 px-4 w-full py-4 rounded-lg bg-white ">
+            <h1 className="text-black font-semibold font-opensans text-lg ">
+              {isRepiling || checkoutMode === "stockpile"
+                ? "Pile Summary"
+                : "Order Summary"}
+            </h1>
+
+            <div className="border-t border-gray-300 my-2"></div>
+            <div className="flex justify-between">
+              <label className="block mb-2 font-opensans ">Sub-Total</label>
+              <p className="text-lg font-opensans text-black font-semibold">
+                {isFetchingOrderPreview ? (
+                  <Skeleton width={80} />
+                ) : (
+                  `₦${previewedOrder.subtotal.toLocaleString()}`
+                )}
+              </p>
+            </div>
+
+            {vendorsInfo[vendorId]?.marketPlaceType === "marketplace" && (
+              <div className="flex justify-between">
+                <label className="block mb-2 font-opensans">
+                  Booking Fee
+                  <CiCircleInfo
+                    className="inline ml-2 text-customOrange cursor-pointer"
+                    onClick={() => setShowBookingFeeModal(true)}
+                  />
+                </label>
+                <p className="text-lg font-opensans text-black font-semibold">
+                  {isFetchingOrderPreview ? (
+                    <Skeleton width={80} />
+                  ) : (
+                    `₦${previewedOrder.bookingFee.toLocaleString()}`
+                  )}
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between">
+              <label className=" flex items-center mb-2 font-opensans">
+                Buyers Protection Fee
+                <AiOutlineSafety
+                  className="inline ml-2 text-green-600 cursor-pointer"
+                  onClick={() => setShowBuyersFee(true)}
+                />
+              </label>
+              <p
+                className={`font-opensans font-semibold ${
+                  !showServiceFee
+                    ? "loading-text text-xs"
+                    : "text-black text-lg"
+                }`}
+              >
+                {isFetchingOrderPreview ? (
+                  <Skeleton width={80} />
+                ) : showServiceFee ? (
+                  `₦${previewedOrder.serviceFee.toLocaleString()}`
+                ) : (
+                  "Calculating fees..."
+                )}
+              </p>
+            </div>
+            <div className="border-t mt-3 border-gray-300 my-2"></div>
+            <div className="flex justify-between mt-2">
+              <label className="block mb-2 font-opensans text-lg font-semibold">
+                Total
+              </label>
+              <p className="text-lg font-opensans text-black font-semibold">
+                {isFetchingOrderPreview ? (
+                  <Skeleton width={80} />
+                ) : (
+                  `₦${previewedOrder.total.toLocaleString()}`
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="bg-white mt-3 p-3 rounded-lg shadow-md">
+            {vendorId && vendorsInfo[vendorId] && (
+              <>
+                <div className="flex items-center">
+                  <h1 className="text-black font-semibold font-opensans text-lg">
+                    Stockpile Instructions
+                  </h1>
+                  {/* <CiCircleInfo
+                  className="text-customOrange ml-2 cursor-pointer text-xl"
+                  onClick={() => setShowDeliveryInfoModal(true)}
+                /> */}
+                </div>
+
+                <div className="border-t border-gray-300 my-3"></div>
+
+                <div className="mt-2">
+                  <label className="block text-sm font-opensans  mb-1">
+                    How many weeks would you like to stockpile?
+                  </label>
+                  {/* Convert the stockpile weeks into an array of {value, label} objects */}
+                  {(() => {
+                    const duration =
+                      vendorsInfo[vendorId]?.stockpile?.durationInWeeks || 2;
+
+                    // Create the array [2,3,4,...,duration]
+                    const weekOptions = Array.from(
+                      { length: duration - 1 },
+                      (_, i) => i + 2
+                    ).map((week) => ({
+                      value: week,
+                      label: `${week} weeks`,
+                    }));
+                    const customStyles = {
+                      control: (base, state) => ({
+                        ...base,
+                        borderColor: state.isFocused ? "#F97316" : "#ccc", // orange when focused
+                        boxShadow: state.isFocused
+                          ? "0 0 0 1px #f9531e"
+                          : "none",
+                        "&:hover": {
+                          borderColor: "#F97316",
+                        },
+                      }),
+                      option: (base, state) => ({
+                        ...base,
+                        backgroundColor: state.isSelected
+                          ? "#F97316"
+                          : state.isFocused
+                          ? "#fde4c5" // light orange on hover
+                          : "white",
+                        color: state.isSelected ? "white" : "#111827", // text color
+                        "&:hover": {
+                          backgroundColor: "#fde4c5",
+                        },
+                      }),
+                      singleValue: (base) => ({
+                        ...base,
+                        color: "#f9531e", // text in dropdown
+                        fontWeight: "600",
+                      }),
+                    };
+                    // Our current selection in { value, label } form
+                    const selectedOption =
+                      weekOptions.find(
+                        (opt) => opt.value === (selectedWeeks || 2)
+                      ) ||
+                      weekOptions[0] ||
+                      null;
+
+                    return (
+                      // In your ReactSelect component:
+                      <ReactSelect
+                        className="mt-3 w-32 font-opensans text-customRichBrown text-sm"
+                        options={weekOptions}
+                        value={selectedOption}
+                        onChange={(option) => {
+                          console.log("User selected weeks:", option.value); // Log the change
+                          setSelectedWeeks(option.value);
+                        }}
+                        isSearchable={false}
+                        styles={customStyles}
+                      />
+                    );
+                  })()}
+                </div>
+              </>
+            )}
+          </div>
+
+          <form className="bg-white mt-3 p-3 rounded-lg shadow-md">
+            {vendorId && cart[vendorId] && (
+              <>
+                <div className="flex justify-between">
+                  <div className="flex items-center">
+                    <h1 className="text-black font-medium mr-1 font-opensans text-lg">
+                      Pile
+                    </h1>
+                    <GiBookPile className="text-xl" />
+                  </div>
+
+                  <h3 className="text-sm">
+                    <span className="text-gray-400 text-sm font-opensans">
+                      From:
+                    </span>
+                    {vendorsInfo[vendorId]?.shopName?.length > 8
+                      ? `${vendorsInfo[vendorId]?.shopName.slice(0, 28)}`
+                      : vendorsInfo[vendorId]?.shopName || `Vendor ${vendorId}`}
+                  </h3>
+                </div>
+
+                <div className="mt-2 border-t ">
+                  {Object.entries(cart[vendorId].products).map(
+                    ([productKey, product]) => (
+                      <div
+                        key={productKey}
+                        className="flex items-center justify-between py-4 border-b"
+                      >
+                        <div className="flex items-center">
+                          <img
+                            src={
+                              product.selectedImageUrl ||
+                              "https://via.placeholder.com/150"
+                            }
+                            alt={product.name}
+                            className="w-16 h-16 object-cover rounded-lg mr-4"
+                            onError={(e) => {
+                              e.target.src = "https://via.placeholder.com/150";
+                            }}
+                          />
+                          <div>
+                            <h4 className="text-sm font-opensans">
+                              {product.name}
+                            </h4>
+                            <p className="font-opensans text-md mt-2 text-black font-bold">
+                              ₦{product.price.toLocaleString()}
+                            </p>
+                            <div className="flex items-center space-x-4 text-sm mt-2 ">
+                              <p className="text-black font-semibold font-opensans">
+                                <span className="font-normal text-gray-600">
+                                  Size:
+                                </span>{" "}
+                                {product.selectedSize || "N/A"}
+                              </p>
+                              <p className="text-black font-semibold font-opensans">
+                                <span className="font-normal text-gray-600">
+                                  Color:
+                                </span>{" "}
+                                {formatColorText(product.selectedColor)}
+                              </p>
+
+                              <p className="text-black font-semibold font-opensans">
+                                <span className="font-normal text-gray-600">
+                                  Qty:
+                                </span>{" "}
+                                {product.quantity}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              </>
+            )}
+          </form>
+
+          <div className="mt-2">
+            <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
+              <div className="flex justify-between items-center">
+                <h1 className="text-black font-semibold font-opensans text-lg">
+                  Delivery Information
+                </h1>
+                <FaPen
+                  className="text-black cursor-pointer"
+                  onClick={() => setShowEditModal(true)}
+                />
+              </div>
+
+              <div className="border-t border-gray-300 my-2"></div>
+
+              <div className="flex">
+                <label className="block mb-2 mr-1 font-semibold font-opensans">
+                  Name:
+                </label>
+                <p className="font-opensans text-black">
+                  {userInfo.displayName}
+                </p>
+              </div>
+              <div className="flex">
+                <label className="block mb-2 mr-1 font-semibold font-opensans">
+                  Phone Number:
+                </label>
+                <p className="font-opensans text-black ">
+                  {userInfo.phoneNumber}
+                </p>
+              </div>
+              <div className="flex">
+                <label className="block mb-2 font-semibold mr-1 font-opensans">
+                  Email:
+                </label>
+                <p className="font-opensans text-black">{userInfo.email}</p>
+              </div>
+              <div className="flex">
+                <label className="block mb-2 mr-1 font-semibold font-opensans">
+                  Address:
+                </label>
+                <p className="font-opensans text-black ">{userInfo.address}</p>
+              </div>
+              <p className="text-xs font-ubuntu mt-4  text-red-600">
+                This cannot be updated after now. Please ensure to put your
+                correct details
+              </p>
+            </div>
+          </div>
+          <div className="mt-2">
+            <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
+              <div
+                onClick={() => setShowShopSafelyModal(true)}
+                className="flex justify-between items-center"
+              >
+                <h1 className="text-black font-semibold font-opensans text-lg">
+                  Shop safely and sustainably
+                </h1>
+                <GoChevronRight className="text-black text-2xl cursor-pointer" />
+              </div>
+
+              <div className="border-t border-gray-300 my-2"></div>
+
+              <div className="flex mt-3 -mx-2 space-x-0.5">
+                <div className="flex items-center flex-col">
+                  <RiSecurePaymentFill className="text-3xl text-green-700" />
+                  <p className="text-xs text-gray-600 text-center">
+                    Secure your payment
+                  </p>
+                </div>
+                <div className="flex items-center flex-col">
+                  <MdOutlineLock className="text-3xl text-green-700" />
+                  <p className="text-xs text-gray-600 text-center">
+                    Security & Privacy
+                  </p>
+                </div>
+                <div className="flex items-center flex-col">
+                  <LiaShippingFastSolid className="text-3xl text-green-700" />
+                  <p className="text-xs text-gray-600 text-center">
+                    Secure Shipment Guarantee
+                  </p>
+                </div>
+                <div className="flex items-center flex-col">
+                  <MdSupportAgent className="text-3xl text-green-700" />
+                  <p className="text-xs text-gray-600 text-center">
+                    Customer Support
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <EditDeliveryModal
         isOpen={showEditModal}
         userInfo={userInfo}
         setUserInfo={setUserInfo}
         onClose={() => setShowEditModal(false)}
+      />
+      <NoStockpileModal
+        isOpen={showNoStockpileModal}
+        onClose={() => setShowNoStockpileModal(false)}
+      />
+      <AlreadyStockpiledModal
+        isOpen={showAlreadyStockpiledModal}
+        onClose={() => setShowAlreadyStockpiledModal(false)}
+        vendorId={vendorId}
+        dispatch={dispatch}
+        navigate={navigate}
       />
 
       <ShopSafelyModal
@@ -1149,6 +1778,10 @@ const Checkout = () => {
         isOpen={showServiceFeeModal}
         onClose={() => setShowServiceFeeModal(false)}
       />
+      <BuyersFeeModal
+        isOpen={showBuyersFee}
+        onClose={() => setShowBuyersFee(false)}
+      />
       <BookingFeeModal
         isOpen={showBookingFeeModal}
         onClose={() => setShowBookingFeeModal(false)}
@@ -1158,9 +1791,13 @@ const Checkout = () => {
         <button
           onClick={handleProceedToPayment}
           className={`w-full h-12 text-white text-lg font-semibold font-opensans rounded-full flex items-center justify-center ${
-            isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-customOrange"
+            isLoading || (checkoutMode === "stockpile" && !selectedWeeks)
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-customOrange"
           }`}
-          disabled={isLoading} // Disable button while loading
+          disabled={
+            isLoading || (checkoutMode === "stockpile" && !selectedWeeks)
+          }
         >
           {isLoading ? (
             <RotatingLines

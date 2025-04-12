@@ -67,22 +67,32 @@ const Login = () => {
 
   const mergeCarts = (cart1, cart2) => {
     const mergedCart = { ...cart1 };
+
     for (const vendorId in cart2) {
       if (mergedCart[vendorId]) {
         const vendorCart1 = mergedCart[vendorId].products;
         const vendorCart2 = cart2[vendorId].products;
+
         for (const productKey in vendorCart2) {
-          if (vendorCart1[productKey]) {
-            vendorCart1[productKey].quantity +=
-              vendorCart2[productKey].quantity;
-          } else {
-            vendorCart1[productKey] = vendorCart2[productKey];
+          const newProduct = vendorCart2[productKey];
+
+          const productAlreadyExists = Object.values(vendorCart1).some(
+            (existingProduct) =>
+              existingProduct.productId === newProduct.productId &&
+              existingProduct.color === newProduct.color &&
+              existingProduct.size === newProduct.size &&
+              existingProduct.variation === newProduct.variation
+          );
+
+          if (!productAlreadyExists) {
+            vendorCart1[productKey] = newProduct;
           }
         }
       } else {
         mergedCart[vendorId] = cart2[vendorId];
       }
     }
+
     return mergedCart;
   };
 
@@ -327,11 +337,11 @@ const Login = () => {
 
   return (
     <>
-    <SEO
-    title={`Login - My Thrift`} 
-    description="Login in and get to shopping on My Thrift"
-    url={`https://www.shopmythrift.store/login`}
-    />
+      <SEO
+        title={`Login - My Thrift`}
+        description="Login in and get to shopping on My Thrift"
+        url={`https://www.shopmythrift.store/login`}
+      />
       <section>
         <Container>
           <Row>

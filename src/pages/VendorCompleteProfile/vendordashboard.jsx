@@ -37,7 +37,7 @@ import ScrollToTop from "../../components/layout/ScrollToTop";
 import SEO from "../../components/Helmet/SEO";
 import Lottie from "lottie-react";
 import LoadState from "../../Animations/loadinganimation.json";
-
+import StockpileSetupModal from "../../components/StockPile.jsx";
 const VendorDashboard = () => {
   const defaultImageUrl =
     "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
@@ -124,8 +124,8 @@ const VendorDashboard = () => {
     try {
       console.log("Fetching vendor revenue for vendorId:", vendorId);
 
-      const token = process.env.REACT_APP_RESOLVE_TOKEN; // Fetch token from environment variables
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+      const token = import.meta.env.VITE_RESOLVE_TOKEN; // Fetch token from environment variables
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
       const response = await fetch(
         `${API_BASE_URL}/vendorRevenue/${vendorId}`,
         {
@@ -443,6 +443,9 @@ const VendorDashboard = () => {
   }
   return (
     <>
+     {vendorData && !vendorData.stockpile && (
+      <StockpileSetupModal vendorId={vendorData.vendorId} />
+    )}
       <SEO
         title={`Vendor Dashboard - My Thrift`}
         description={`Manage your store on My Thrift`}
@@ -797,6 +800,16 @@ const VendorDashboard = () => {
               </div>
             )}
             {<div ref={lastActivityRef} />}
+              <div className="flex justify-center items-center">
+                <Lottie
+                  className="w-10 h-10"
+                  animationData={LoadState}
+                  loop={true}
+                  autoplay={true}
+                />
+              </div>
+            
+            {<div ref={lastActivityRef} />}
           </div>
         </div>
       </div>
@@ -816,6 +829,7 @@ const VendorDashboard = () => {
       <Modal isOpen={isModalOpen} onClose={closeModal}>
         <AddProduct vendorId={vendorData?.vendorId} closeModal={closeModal} />
       </Modal>
+     
     </>
   );
 };

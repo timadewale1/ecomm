@@ -668,7 +668,7 @@ const VendorRatings = () => {
                     navigate("/signup", { state: { from: location.pathname } });
                     setIsLoginModalOpen(false);
                   }}
-                  className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border-1 rounded-full"
+                  className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border rounded-full"
                 >
                   Sign Up
                 </button>

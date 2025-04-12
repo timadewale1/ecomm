@@ -53,22 +53,23 @@ const AvatarSelectorModal = ({
   const handleImageUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
-      if (file.size > 3 * 1024 * 1024) { // Check if file size exceeds 3MB
+      if (file.size > 3 * 1024 * 1024) {
+        // Check if file size exceeds 3MB
         toast.error("File size exceeds 3MB. Please select a smaller image.", {
           className: "custom-toast",
         });
         return;
       }
-  
+
       const storageRef = ref(storage, `avatars/${userId}/${file.name}`);
       setUploading(true);
       try {
         await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(storageRef);
-  
+
         // Call onAvatarChange to update the avatar in VendorProfile component
         onAvatarChange(downloadURL);
-  
+
         toast.success("Profile picture updated successfully", {
           className: "custom-toast",
         });
@@ -82,7 +83,6 @@ const AvatarSelectorModal = ({
       }
     }
   };
-  
 
   return (
     <div className="fixed inset-0 modal flex items-center justify-center bg-black bg-opacity-50 z-50">
@@ -118,13 +118,14 @@ const AvatarSelectorModal = ({
                   src={src}
                   alt={name}
                   className={`w-44 h-44 object-cover rounded-full ${
-                    selectedAvatar === src ? "p-4 border-1 border-customBrown" : ""
+                    selectedAvatar === src
+                      ? "p-4 border border-customBrown"
+                      : ""
                   }`}
                 />
               </div>
             </SwiperSlide>
           ))}
-       
 
           <div
             className="absolute top-1/2 left-1 transform -translate-y-1/2 cursor-pointer bg-gray-200 p-3 rounded-full shadow-md z-10"
@@ -140,7 +141,7 @@ const AvatarSelectorModal = ({
           </div>
         </Swiper>
 
-        <label className="cursor-pointer p-2 flex items-center justify-center border-1 border-customBrown  bg-gray-100 rounded-full w-16 h-16 mt-16 mx-auto ">
+        <label className="cursor-pointer p-2 flex items-center justify-center border border-customBrown  bg-gray-100 rounded-full w-16 h-16 mt-16 mx-auto ">
           <IoMdImage className="text-gray-500 text-3xl" />
           <input
             type="file"
@@ -153,7 +154,7 @@ const AvatarSelectorModal = ({
         <div className="absolute bottom-0 left-0 right-0 p-6 flex justify-between items-center bg-white w-full">
           <button
             onClick={onRemoveAvatar}
-            className="border-1 border-red-600 text-red-600 font-semibold w-32 h-10 text-xs px-4 rounded-full"
+            className="border border-red-600 text-red-600 font-semibold w-32 h-10 text-xs px-4 rounded-full"
           >
             Remove
           </button>

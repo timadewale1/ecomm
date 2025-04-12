@@ -345,6 +345,14 @@ const OrderDetailsModal = ({
         isStockpile: false,
         declineReason: reason || "Reason not provided",
       });
+      if (order.isStockpile && order.stockpileDuration) {
+        console.log("Updating stockpile document to isActive: false...");
+        const stockpileRef = doc(db, "stockpiles", order.stockpileDocId);
+        await updateDoc(stockpileRef, {
+          isActive: false,
+        });
+        console.log("Stockpile document updated successfully.");
+      }
 
       console.log("Sending order status change notification...");
       await notifyOrderStatusChange(

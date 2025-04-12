@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/img-redundant-alt */
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart, removeFromCart } from "../../redux/actions/action";
@@ -229,6 +229,8 @@ const ProductDetailPage = () => {
   }, [product]);
 
   const handleSubProductClick = (subProduct) => {
+    swiperRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
     setSelectedSubProduct(subProduct);
     setSelectedImage(subProduct.images[0]);
     setSelectedColor(subProduct.color);
@@ -383,6 +385,8 @@ const ProductDetailPage = () => {
       window.removeEventListener("scroll", handleScroll);
     };
   }, []);
+  const swiperRef = useRef(null);
+
   const handleAddToCart = useCallback(() => {
     console.log("Add to Cart Triggered");
     console.log("Product:", product);
@@ -1031,7 +1035,10 @@ const ProductDetailPage = () => {
           </div>
         </div>
 
-        <div className="flex justify-center h-[540px] relative mt-20">
+        <div
+          ref={swiperRef}
+          className="flex justify-center h-[540px] relative mt-20"
+        >
           {allImages.length > 1 ? (
             <>
               <Swiper

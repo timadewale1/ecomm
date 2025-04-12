@@ -295,7 +295,7 @@ const VendorProfile = () => {
         description={`Manage your My Thrift store`}
         url={`https://www.shopmythrift.store/vendor-profile`}
       />
-      <div className="mb-20 h-full w-full font-opensans">
+      <div className="mb-20 px-2 h-full w-full font-opensans">
         {!showDetails && !showHistory && !showGuides && !profileOpen ? (
           <div className="pb-20 pt-2">
             {/* Cover Image Section */}

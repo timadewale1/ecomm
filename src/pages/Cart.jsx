@@ -434,6 +434,7 @@ const Cart = () => {
         title={`My Cart - My Thrift`}
         description={`Your cart on My Thrift`}
         url={`https://www.shopmythrift.store/latest-cart`}
+        url={`https://www.shopmythrift.store/latest-cart`}
       />
       <div className="flex flex-col h-screen justify-between mb-28 bg-gray-200">
         <div className="sticky top-0 bg-white w-full h-24 flex items-center p-3 shadow-md z-10">
@@ -508,6 +509,43 @@ const Cart = () => {
                             </p>
                           </div>
                         </div>
+                  return (
+                    <div
+                      key={vendorId}
+                      className="bg-white rounded-lg p-3 pb-6 shadow-md"
+                    >
+                      {/* Container for image, product name, and view selection on the same line */}
+                      <div className="flex justify-between items-center w-full">
+                        <div className="flex items-center flex-shrink-0">
+                          <div className="relative">
+                            <img
+                              src={firstProduct.selectedImageUrl}
+                              alt={firstProduct.name}
+                              className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                            />
+                            {productCount > 1 && (
+                              <div className="absolute -top-1 text-xs -right-2 bg-gray-900 bg-opacity-40 text-white rounded-full w-7 h-7 flex items-center justify-center backdrop-blur-md">
+                                +{productCount}
+                              </div>
+                            )}
+                          </div>
+                          <div className="ml-4 flex-shrink-0">
+                            {/* Updated code to prevent "and others" from being truncated */}
+                            <h3 className="font-roboto text-sm">
+                              <span className="whitespace-nowrap overflow-hidden overflow-ellipsis max-w-[80px] inline-block align-middle">
+                                {firstProduct.name.length > 5
+                                  ? `${firstProduct.name.substring(0, 5)}...`
+                                  : firstProduct.name}
+                              </span>
+                              <span className="text-gray-500 font-light">
+                                {productCount > 1 && " and others"}
+                              </span>
+                            </h3>
+                            <p className="font-opensans text-md text-black font-bold">
+                              ₦{formatPrice(firstProduct.price)}
+                            </p>
+                          </div>
+                        </div>
 
                         {/* "View Selection" stays on the right */}
                         <div
@@ -524,6 +562,8 @@ const Cart = () => {
                         </div>
                       </div>
 
+                      {/* Horizontal line moved down by increasing top margin */}
+                      <div className="border-t border-gray-300 mt-6 mb-2"></div>
                       {/* Horizontal line moved down by increasing top margin */}
                       <div className="border-t border-gray-300 mt-6 mb-2"></div>
 
@@ -552,6 +592,28 @@ const Cart = () => {
                         </h3>
                       </div>
 
+                      {/* Vendor-specific Checkout and Clear Selection */}
+                      <div className="flex-col flex mt-3">
+                        <button
+                          onClick={() => handleCheckout(vendorId)}
+                          disabled={checkoutLoading[vendorId]}
+                          className={`rounded-full flex justify-center items-center h-12 w-full font-opensans font-medium text-white px-4 py-2 ${
+                            checkoutLoading[vendorId]
+                              ? "bg-orange-500"
+                              : "bg-customOrange"
+                          }`}
+                        >
+                          {checkoutLoading[vendorId] ? (
+                            <Bars
+                              color="#fff"
+                              height={24}
+                              width={24}
+                              className="inline-block"
+                            />
+                          ) : (
+                            "Checkout"
+                          )}
+                        </button>
                       {/* Vendor-specific Checkout and Clear Selection */}
                       <div className="flex-col flex mt-3">
                         <button
@@ -738,7 +800,54 @@ const Cart = () => {
                     </div>
                     <GoChevronRight className="text-2xl text-gray-500" />
                   </div>
+                {/* Sticky Footer */}
+                <div className="mt-4">
+                  {/* "Leave a Message for the Vendor" */}
+                  <div className="border-t border-gray-300 my-2"></div>
+                  <div
+                    className="flex items-center mt-4 justify-between cursor-pointer"
+                    onClick={() => setIsNoteModalOpen(true)}
+                  >
+                    <div className="flex items-center">
+                      <BiMessageDetail className="text-xl mr-3" />
+                      <span className="font-opensans text-sm">
+                        {vendorNotes[selectedVendorId]
+                          ? `Note: ${
+                              vendorNotes[selectedVendorId].length > 18
+                                ? vendorNotes[selectedVendorId].substring(
+                                    0,
+                                    18
+                                  ) + "..."
+                                : vendorNotes[selectedVendorId]
+                            }`
+                          : "Leave a message for the vendor"}
+                      </span>
+                    </div>
+                    <GoChevronRight className="text-2xl text-gray-500" />
+                  </div>
 
+                  {/* "Proceed to Checkout" and "Clear Order" Buttons */}
+                  <div className="flex flex-col justify-between space-y-4 mt-4">
+                    <button
+                      onClick={() => handleCheckout(selectedVendorId)}
+                      disabled={checkoutLoading[selectedVendorId]}
+                      className={`rounded-full flex justify-center items-center h-12 w-full font-opensans font-medium text-white px-4 py-2 ${
+                        checkoutLoading[selectedVendorId]
+                          ? "bg-orange-500"
+                          : "bg-customOrange"
+                      }`}
+                    >
+                      {checkoutLoading[selectedVendorId] ? (
+                        <Bars
+                          color="#fff"
+                          height={24}
+                          width={24}
+                          className="inline-block"
+                        />
+                      ) : (
+                        "Checkout"
+                      )}
+                    </button>
                   {/* "Proceed to Checkout" and "Clear Order" Buttons */}
                   <div className="flex flex-col justify-between space-y-4 mt-4">
                     <button
@@ -773,7 +882,95 @@ const Cart = () => {
               </div>
             </div>
           )}
+                    <button
+                      onClick={() => handleClearSelection(selectedVendorId)}
+                      className="bg-gray-300 text-black font-opensans font-semibold  h-12 w-full rounded-full flex-grow"
+                    >
+                      Clear Order
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
+        {/* Modal for  a note */}
+        {isNoteModalOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center modal1"
+            onClick={handleNoteOverlayClick}
+          >
+            <div
+              className="bg-white w-full h-3/5 rounded-t-xl p-4 flex flex-col z-50 animate-modal-slide-up"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-opensans text-black font-semibold">
+                  Note for Vendor
+                </h2>
+                <LiaTimesSolid
+                  onClick={() => setIsNoteModalOpen(false)}
+                  className="text-black text-xl cursor-pointer"
+                />
+              </div>
+              {/* Text input area */}
+              <textarea
+                maxLength={50}
+                value={vendorNotes[selectedVendorId] || ""}
+                onChange={(e) =>
+                  setVendorNotes({
+                    ...vendorNotes,
+                    [selectedVendorId]: e.target.value,
+                  })
+                }
+                className="w-full mt-4 p-2 border bg-gray-200 h-44 rounded-md"
+                placeholder=""
+              />
+              {/* Send Note button */}
+              <button
+                onClick={() => {
+                  setIsNoteModalOpen(false);
+                  // Note is already saved in vendorNotes
+                }}
+                className="bg-customOrange w-full text-white font-opensans font-semibold py-3 mt-4 h-12 translate-y-10 rounded-full"
+              >
+                Send Note
+              </button>
+            </div>
+          </div>
+        )}
+        {isLoginModalOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center"
+            onClick={handleLoginOverlayClick}
+          >
+            <div
+              className="bg-white w-9/12 max-w-md rounded-lg px-3 py-4 flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex space-x-4">
+                  <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
+                    <CiLogin className="text-customRichBrown" />
+                  </div>
+                  <h2 className="text-lg font-opensans font-semibold">
+                    Please Log In
+                  </h2>
+                </div>
+                <LiaTimesSolid
+                  onClick={() => setIsLoginModalOpen(false)}
+                  className="text-black text-xl mb-6 cursor-pointer"
+                />
+              </div>
+              <p className="mb-6 text-xs font-opensans text-gray-800 ">
+                You need to be logged in to proceed to checkout. Please log in
+                to your account, or create a new account if you don’t have one,
+                to continue.
+              </p>
+              <div className="flex space-x-16">
+                <button
         {/* Modal for  a note */}
         {isNoteModalOpen && (
           <div

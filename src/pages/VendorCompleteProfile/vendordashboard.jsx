@@ -533,73 +533,74 @@ const VendorDashboard = () => {
             <p className="text-black text-lg text-start font-semibold mb-3">
               Overview
             </p>
+            <div className="flex justify-center">
+              <div className="grid grid-cols-2 gap-2 justify-center">
+                <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
+                  <div className="flex justify-between items-center">
+                    <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
+                      <BsBoxSeam className="text-sm text-customOrange" />
+                    </div>
 
-            <div className="grid grid-cols-2 gap-2 justify-center">
-              <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
-                <div className="flex justify-between items-center">
-                  <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
-                    <BsBoxSeam className="text-sm text-customOrange" />
+                    <div>
+                      <p className="text-xs text-customRichBrown font-medium">
+                        Total Orders
+                      </p>
+                    </div>
                   </div>
-
-                  <div>
-                    <p className="text-xs text-customRichBrown font-medium">
-                      Total Orders
-                    </p>
-                  </div>
-                </div>
-                <div className="text-lg font-semibold text-end">
-                  {totalOrders}
-                </div>
-              </div>
-
-              <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
-                <div className="flex justify-between items-center">
-                  <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
-                    <BsBoxSeam className="text-sm text-customOrange" />
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-customRichBrown font-medium">
-                      Total Products
-                    </p>
+                  <div className="text-lg font-semibold text-end">
+                    {totalOrders}
                   </div>
                 </div>
-                <div className="text-lg font-semibold text-end">
-                  {totalProducts}
-                </div>
-              </div>
 
-              <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
-                <div className="flex justify-between items-center">
-                  <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
-                    <BsBoxSeam className="text-sm text-customOrange" />
+                <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
+                  <div className="flex justify-between items-center">
+                    <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
+                      <BsBoxSeam className="text-sm text-customOrange" />
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-customRichBrown font-medium">
+                        Total Products
+                      </p>
+                    </div>
                   </div>
-
-                  <div>
-                    <p className="text-xs text-customRichBrown font-medium">
-                      Unfulfilled Orders
-                    </p>
-                  </div>
-                </div>
-                <div className="text-lg font-semibold text-end">
-                  {totalUnfulfilledOrders}
-                </div>
-              </div>
-
-              <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
-                <div className="flex justify-between items-center">
-                  <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
-                    <BsBoxSeam className="text-sm text-customOrange" />
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-customRichBrown font-medium">
-                      Fulfilled Orders
-                    </p>
+                  <div className="text-lg font-semibold text-end">
+                    {totalProducts}
                   </div>
                 </div>
-                <div className="text-lg font-semibold text-end">
-                  {totalFulfilledOrders}
+
+                <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
+                  <div className="flex justify-between items-center">
+                    <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
+                      <BsBoxSeam className="text-sm text-customOrange" />
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-customRichBrown font-medium">
+                        Unfulfilled Orders
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-lg font-semibold text-end">
+                    {totalUnfulfilledOrders}
+                  </div>
+                </div>
+
+                <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
+                  <div className="flex justify-between items-center">
+                    <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
+                      <BsBoxSeam className="text-sm text-customOrange" />
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-customRichBrown font-medium">
+                        Fulfilled Orders
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-lg font-semibold text-end">
+                    {totalFulfilledOrders}
+                  </div>
                 </div>
               </div>
             </div>
@@ -789,6 +790,16 @@ const VendorDashboard = () => {
               </div>
             )}
             {activitiesLoading && (
+              <div className="flex justify-center items-center">
+                <Lottie
+                  className="w-10 h-10"
+                  animationData={LoadState}
+                  loop={true}
+                  autoplay={true}
+                />
+              </div>
+            )}
+            {<div ref={lastActivityRef} />}
               <div className="flex justify-center items-center">
                 <Lottie
                   className="w-10 h-10"

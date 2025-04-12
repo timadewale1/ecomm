@@ -125,7 +125,7 @@ const Layout = () => {
       )}
         {isMobile ? (
           <>
-            <div className="relative pb-6">
+            <div className="relative">
               {/* <SwipeToRefresh /> */}
               <ScrollToTop />
               <Routers />

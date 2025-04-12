@@ -340,7 +340,7 @@ const VendorProfile = () => {
                     <p className="text-customDeepOrange text-xl font-opensans font-semibold">
                       {followersCount || 0}
                     </p>
-                    <p className="text-black text-sm font-opensans">
+                    <p className="text-black text-[12px] leading-[1.15rem] font-opensans">
                       Followers
                     </p>
                   </div>
@@ -349,7 +349,7 @@ const VendorProfile = () => {
                     <p className="text-customDeepOrange text-xl font-opensans font-semibold">
                       {likesCount || 0}
                     </p>
-                    <p className="text-black text-sm font-opensans">Likes</p>
+                    <p className="text-black text-[12px] leading-[1.15rem] font-opensans">Likes</p>
                   </div>
 
                   <div className="flex flex-col justify-center relative">
@@ -358,7 +358,7 @@ const VendorProfile = () => {
                       <p className="text-customDeepOrange text-xl font-opensans font-semibold relative z-10 blur-sm">
                         100
                       </p>
-                      <p className="text-black text-sm font-opensans  relative z-10">
+                      <p className="text-black text-[12px] leading-[1.15rem] font-opensans  relative z-10">
                         Pending Cart Items
                       </p>
                     </div>
@@ -496,7 +496,7 @@ const VendorProfile = () => {
                 </div>
                 <div className="flex flex-col items-center w-full">
                   <div
-                    className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                    className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
                     onClick={() =>
                       window.open(
                         "/terms-and-conditions",
@@ -515,7 +515,7 @@ const VendorProfile = () => {
                   </div>
 
                   <div
-                    className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                    className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
                     onClick={() =>
                       window.open(
                         "/privacy-policy",

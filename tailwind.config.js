@@ -14,7 +14,7 @@ export default {
         '2.5xl': '20px'
       },
       width : {
-        custVCard: '10.6875rem',
+        custVCard: '40vw',
       },
       height : {
         actualScreenHeight: 'calc(var(--vh) * 100)',

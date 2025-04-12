@@ -40,7 +40,6 @@
     <meta name="twitter:url" content="" />
     <meta name="twitter:creator" content="@mythriftng" />
 
-    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
     <link rel="icon" href="./logo512.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -277,52 +276,11 @@
       }
     </style>
     <script>
-      function isIOSInAppWebView() {
-        const ua = navigator.userAgent || "";
-        const isIOS = /iPhone|iPad|iPod/.test(ua);
-        const isInApp = /Instagram|Snapchat/.test(ua);
-        return isIOS && isInApp;
-      }
-
-      setTimeout(() => {
-        if (isIOSInAppWebView()) {
-          // Create the wrapper div
-          const wrapper = document.createElement("div");
-          wrapper.style.cssText = `
-          opacity: 0;
-          transition: opacity 1s ease-in-out;
-          padding: 2rem;
-          font-family: sans-serif;
-          text-align: center;
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          height: 100vh;
-          background: white;
-          z-index: 9999;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        `;
-
-          // Inner content
-          wrapper.innerHTML = `
-          <div>
-            <h2 style="margin-bottom: 1rem;">😵 Stuck on a blank page?</h2>
-            <p>Looks like you're browsing from an app that doesn’t support this experience.</p>
-            <p>Tap the "..." in the top-right and select <strong>“Open in Browser”</strong> to continue!</p>
-            <p style="margin-top: 1rem;">✨ See you on the other side! ✨</p>
-          </div>
-        `;
-
-          // Append to body and trigger fade-in
-          document.body.appendChild(wrapper);
-          requestAnimationFrame(() => {
-            wrapper.style.opacity = 1;
-          });
-        }
-      }, 2000);
+      window.ios = (
+        navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1
+      ) || /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+      window.pwa = window.matchMedia("(display-mode: standalone)").matches;
     </script>
     <script>
       function isIOSInAppWebView() {
@@ -388,6 +346,23 @@
 
     <!-- Main Scripts -->
     <script>
+      // We'll store the event here for React to access later
+      window.beforeInstallEvent = null;
+      
+
+      function handleBeforeInstallPrompt(e) {
+        console.log("[index.html] Captured beforeinstallprompt");
+        e.preventDefault();
+        window.beforeInstallEvent = e; // store globally
+      }
+
+      // If it's not iOS, attach the event listener as early as possible
+      if (!window.ios) {
+        window.addEventListener(
+          "beforeinstallprompt",
+          handleBeforeInstallPrompt
+        );
+      }
       // Check if the app is running in PWA mode
       const isPWA = window.matchMedia("(display-mode: standalone)").matches;
       const isIOS =
@@ -404,6 +379,7 @@
       // When the DOM is fully loaded
       document.addEventListener("DOMContentLoaded", () => {
         const loadingScreen = document.getElementById("custom-loading-screen");
+    
         // Display the loading screen only in PWA mode (if desired)
         if (loadingScreen) {
           loadingScreen.style.display = isPWA && isIOS ? "flex" : "none";

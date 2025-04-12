@@ -104,8 +104,8 @@ const VendorOrders = () => {
       case "Stockpiles":
         return (
           <div className="text-center translate-y-20 text-gray-700 text-xs font-normal font-opensans">
-            📦 No stockpile orders yet. Once a customer places a stockpile
-            order, it will show here.
+            📦 No stockpile orders yet. Encourage customers to stockpile,
+            support eco friendly fashion🌴.
           </div>
         );
       case "In Progress":
@@ -167,13 +167,18 @@ const VendorOrders = () => {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`pb-2 text-xs font-normal font-opensans ${
+                className={`relative pb-2 text-xs font-normal font-opensans ${
                   activeTab === tab
                     ? "border-b-2 border-customDeepOrange text-customDeepOrange"
                     : "text-gray-500"
                 }`}
               >
                 {tab}
+                {tab === "Stockpiles" && (
+                  <span className="absolute -top-2.5 -right-4 bg-customOrange text-[10px] text-white px-1 rounded-md font-bold">
+                    Beta
+                  </span>
+                )}
               </button>
             )
           )}

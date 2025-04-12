@@ -38,13 +38,12 @@ const ConfirmUserState = () => {
       navigate("/newhome");
     }
   };
-  
 
   return (
     <>
-    <SEO 
+      <SEO
         title={`Confirm User State`}
-        url={`https://www.shopmythrift.store/confirm-state`} 
+        url={`https://www.shopmythrift.store/confirm-state`}
       />
       <div className="flex px-3 py-2 mt-3 justify-between mb-3">
         <img src={logo} alt="Logo" />
@@ -73,7 +72,7 @@ const ConfirmUserState = () => {
               <div className="mt-2">
                 <h2 className="text-lg font-semibold text-black">Customer</h2>
                 <p className="text-gray-600">
-                  Find thrifted treasures from curated vendors!
+                  Find thrifted treasures from curated vendors!🧡
                 </p>
               </div>
             </div>
@@ -99,9 +98,9 @@ const ConfirmUserState = () => {
               <div className="mt-2">
                 <h2 className="text-lg font-semibold text-black">Vendor</h2>
                 <p className="text-gray-600 font-opensans text-base">
-                  List your products on{" "}
-                  <span className="text-customOrange">My Thrift</span> with
-                  seamless transactions
+                  Showcase your thrift finds on{" "}
+                  <span className="text-customOrange">My Thrift</span> and sell
+                  with ease.
                 </p>
               </div>
             </div>

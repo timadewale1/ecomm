@@ -359,7 +359,7 @@ const Login = () => {
                   }}
                 />
               </div>
-              <div className="-translate-y-4">
+              <div className="-translate-y-4 px-1 flex flex-col justify-center">
                 <div>
                   <h1 className="text-3xl font-bold font-lato text-black mb-1">
                     Welcome Back!
@@ -417,7 +417,7 @@ const Login = () => {
 
                   <motion.button
                     type="submit"
-                    className="w-full h-12 mt-4 flex items-center justify-center rounded-full bg-customOrange text-white font-semibold font-opensans text-sm hover:bg-orange-600"
+                    className="w-full h-12 mt-4 flex items-center justify-center rounded-full bg-customOrange text-white font-semibold font-opensans  hover:bg-orange-600"
                     disabled={!email || !password}
                   >
                     {loading ? (

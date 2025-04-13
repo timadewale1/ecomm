@@ -413,15 +413,22 @@ const OrdersCentre = () => {
     if (orderForPopup) {
       try {
         const orderRef = doc(db, "orders", orderForPopup.id);
-        // Update the order's showPopup field to false so that the modal doesn't show again.
         await updateDoc(orderRef, { showPopup: false });
-        // Optionally update local state if needed.
+        
+        // Update local state to set showPopup to false for the handled order
+        setOrders(prevOrders =>
+          prevOrders.map(order =>
+            order.id === orderForPopup.id ? { ...order, showPopup: false } : order
+          )
+        );
+        
         setOrderForPopup(null);
       } catch (error) {
         console.error("Error updating order showPopup field:", error);
       }
     }
   };
+  
   const handleViewOrder = (order) => {
     setSelectedOrder(order);
     setActiveProductIndex(0); // Reset to the first product

@@ -386,7 +386,7 @@ const Homepage = () => {
       <PopularCats />
       {/* <DiscountCarousel /> */}
       <PersonalDiscountCarousel />
-      <div className="p-2 mt-4 mb-24">
+      <div className="p-2 mt-4 pb-24">
         <div className="flex items-center mb-2">
           <h1 className="text-left font-medium text-lg font-ubuntu mr-1">
             Featured Products
@@ -420,7 +420,7 @@ const Homepage = () => {
             {status === "loading" ? "Loading..." : "Load More"}
           </button>
         )}
-        <div className="flex justify-center ">
+        <div className="flex justify-center  ">
           <Amazingdeals />
         </div>
       </div>

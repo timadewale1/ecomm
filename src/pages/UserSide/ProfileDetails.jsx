@@ -282,7 +282,7 @@ const ProfileDetails = ({
   };
 
   return (
-    <div className="flex flex-col p-2 items-center">
+    <div className="flex flex-col w-full h-full p-2 items-center">
       <div className="sticky top-0 bg-white z-10 flex items-center -translate-y-4 justify-between h-24 w-full">
         <div className="flex items-center space-x-2">
           <GoChevronLeft

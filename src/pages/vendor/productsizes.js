@@ -1,7 +1,7 @@
 // productSizes.js
 
 const productSizes = {
-  "Jeans": [
+  Jeans: [
     "24x28",
     "24x30",
     "24x32",
@@ -45,7 +45,7 @@ const productSizes = {
     "Custom Fit",
     "Adjustable",
   ],
-  "Skirts": [
+  Skirts: [
     "XS",
     "S",
     "M",
@@ -79,37 +79,54 @@ const productSizes = {
     "16",
     "18",
     "20",
+    "2-4",
+    "4-6",
+    "6-8",
+    "8-10",
+    "10-12",
+    "12-14",
+    "14-16",
+    "16-18",
+    "18-20",
+    "20-22",
+    "22-24",
+    "24-26",
+    "26-28",
+    "28-30",
+    "30-32",
+
     "One Size Fits All",
     "Custom Fit",
     "Adjustable", // US sizes
   ],
-  "Underwears": [
-  "XS",
-  "S",
-  "M",
-  "L",
-  "XL",
-  "XXL",
-  "3XL",
-  "4XL", // General sizes
-  "24",
-  "26",
-  "28",
-  "30",
-  "32",
-  "34",
-  "36",
-  "38",
-  "40",
-  "42",
-  "44",
-  "46",
-  "48", // Waist measurements in inches
-  
-  "One Size Fits All",
-  "Custom Fit",
-  "Adjustable"
-],
+  Underwears: [
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL",
+    "XXL",
+    "3XL",
+    "4XL", // General sizes
+    "24",
+    "26",
+    "28",
+    "30",
+    "32",
+    "34",
+    "36",
+    "38",
+    "40",
+
+    "42",
+    "44",
+    "46",
+    "48", // Waist measurements in inches
+
+    "One Size Fits All",
+    "Custom Fit",
+    "Adjustable",
+  ],
 
   "T-Shirts": [
     "XS",
@@ -126,6 +143,7 @@ const productSizes = {
     "36",
     "38",
     "40",
+
     "One Size Fits All",
     "Custom Fit",
     "Adjustable", // Chest measurements in inches
@@ -144,7 +162,7 @@ const productSizes = {
     "Custom Fit",
     "Adjustable", // Example measurements
   ],
-  "Jackets": [
+  Jackets: [
     "XS",
     "S",
     "M",
@@ -163,7 +181,7 @@ const productSizes = {
     "Custom Fit",
     "Adjustable", // Extended fit options
   ],
- "Dresses": [
+  Dresses: [
     // UK Sizes
     "UK 4",
     "UK 6",
@@ -206,7 +224,18 @@ const productSizes = {
     "EU 50",
     "EU 52",
     "EU 54",
-
+    "2-4",
+    "4-6",
+    "6-8",
+    "8-10",
+    "10-12",
+    "12-14",
+    "14-16",
+    "16-18",
+    "18-20",
+    "20-22",
+    "22-24",
+    "24-26",
     // International Sizes
     "XS",
     "S",
@@ -221,7 +250,7 @@ const productSizes = {
     "Adjustable",
     "Custom Fit",
   ],
-  "Sweatpants": [
+  Sweatpants: [
     // International Sizes
     "XS",
     "S",
@@ -242,7 +271,18 @@ const productSizes = {
     "42",
     "44",
     "46",
-
+    "2-4",
+    "4-6",
+    "6-8",
+    "8-10",
+    "10-12",
+    "12-14",
+    "14-16",
+    "16-18",
+    "18-20",
+    "20-22",
+    "22-24",
+    "24-26",
     // Inseam options (for length variations)
     "Short",
     "Regular",
@@ -253,7 +293,7 @@ const productSizes = {
     "Adjustable",
     "Custom Fit",
   ],
-  "Hats": [
+  Hats: [
     // General Sizes
     "XS",
     "S",
@@ -286,7 +326,7 @@ const productSizes = {
     "Snapback",
     "Strapback",
   ],
-  "Bags": [
+  Bags: [
     "Mini", // Smaller than small, for items like small clutches or mini backpacks
     "Small",
     "Medium",
@@ -298,14 +338,14 @@ const productSizes = {
     "Adjustable Strap",
     "One Size",
   ],
-  "Sunglasses": [
+  Sunglasses: [
     "Standard", // Default size
     "Small", // For narrower frames
     "Oversized", // Larger frame styles
     "Adjustable Fit", // For flexible frames or adjustable nose pieces
     "One Size", // Universal fit for most face sizes
   ],
-  "Perfumes": [
+  Perfumes: [
     "5 ml / 0.17 oz", // Sample or travel size
     "10 ml / 0.34 oz", // Roll-on or travel size
     "15 ml / 0.5 oz", // Small size
@@ -320,7 +360,7 @@ const productSizes = {
     "One Size", // General size category
   ],
 
-  "Gloves": [
+  Gloves: [
     "XS (6 inches)", // Extra Small
     "S (7 inches)", // Small
     "M (8 inches)", // Medium
@@ -329,7 +369,7 @@ const productSizes = {
     "XXL (11 inches)", // Extra Extra Large
     "Universal Size", // For adjustable or stretch-fit gloves
   ],
-  "Wristwatches": [
+  Wristwatches: [
     "XS (6 inches)", // Extra Small
     "S (7 inches)", // Small
     "M (8 inches)", // Medium
@@ -349,6 +389,7 @@ const productSizes = {
       "US 2",
       "US 4",
       "US 6",
+
       "US 8",
       "US 10",
       "US 12",
@@ -365,6 +406,18 @@ const productSizes = {
       "32",
       "34",
       "36",
+      "2-4",
+      "4-6",
+      "6-8",
+      "8-10",
+      "10-12",
+      "12-14",
+      "14-16",
+      "16-18",
+      "18-20",
+      "20-22",
+      "22-24",
+      "24-26",
       "XS",
       "S",
       "M",
@@ -380,6 +433,18 @@ const productSizes = {
       "US 8",
       "US 10",
       "US 12",
+      "2-4",
+      "4-6",
+      "6-8",
+      "8-10",
+      "10-12",
+      "12-14",
+      "14-16",
+      "16-18",
+      "18-20",
+      "20-22",
+      "22-24",
+      "24-26",
       "UK 8",
       "UK 10",
       "UK 12",
@@ -400,6 +465,18 @@ const productSizes = {
       "M",
       "L",
       "XL",
+      "2-4",
+      "4-6",
+      "6-8",
+      "8-10",
+      "10-12",
+      "12-14",
+      "14-16",
+      "16-18",
+      "18-20",
+      "20-22",
+      "22-24",
+      "24-26",
     ],
     PantSuits: [
       "XS",
@@ -413,12 +490,117 @@ const productSizes = {
       "US 8",
       "US 10",
       "One Size",
+      "26-28",
+      "28-30",
+      "30-32",
     ],
-    ShirtDresses: ["XS", "S", "M", "L", "XL", "One Size", "Adjustable"],
-    OfficeTops: ["XS", "S", "M", "L", "XL", "One Size", "Adjustable"],
-    BlazerDresses: ["XS", "S", "M", "L", "XL", "XXL", "One Size", "Adjustable"],
-    LongSleeveBlouses: ["XS", "S", "M", "L", "XL", "XXL", "One Size", "Adjustable"],
-    Jumpsuits: ["XS", "S", "M", "L", "XL", "One Size", "Adjustable", ],
+    ShirtDresses: [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL",
+      "One Size",
+      "Adjustable",
+      "2-4",
+      "4-6",
+      "6-8",
+      "8-10",
+      "10-12",
+      "12-14",
+      "14-16",
+      "16-18",
+      "18-20",
+      "20-22",
+      "22-24",
+      "24-26",
+    ],
+    OfficeTops: [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL",
+      "One Size",
+      "Adjustable",
+      "2-4",
+      "4-6",
+      "6-8",
+      "8-10",
+      "10-12",
+      "12-14",
+      "14-16",
+      "16-18",
+      "18-20",
+      "20-22",
+      "22-24",
+      "24-26",
+    ],
+    BlazerDresses: [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "One Size",
+      "Adjustable",
+      "2-4",
+      "4-6",
+      "6-8",
+      "8-10",
+      "10-12",
+      "12-14",
+      "14-16",
+      "16-18",
+      "18-20",
+      "20-22",
+      "22-24",
+      "24-26",
+    ],
+    LongSleeveBlouses: [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "One Size",
+      "Adjustable",
+      "2-4",
+      "4-6",
+      "6-8",
+      "8-10",
+      "10-12",
+      "12-14",
+      "14-16",
+      "16-18",
+      "18-20",
+      "20-22",
+      "22-24",
+      "24-26",
+    ],
+    Jumpsuits: [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL",
+      "One Size",
+      "Adjustable",
+      "2-4",
+      "4-6",
+      "6-8",
+      "8-10",
+      "10-12",
+      "12-14",
+      "14-16",
+      "16-18",
+      "18-20",
+      "20-22",
+      "22-24",
+      "24-26",
+    ],
   },
   "Corporate Men": {
     WhiteShirts: [
@@ -434,6 +616,21 @@ const productSizes = {
       "17",
       "17.5",
       "One Size",
+      "2-4",
+      "4-6",
+      "6-8",
+      "8-10",
+      "10-12",
+      "12-14",
+      "14-16",
+      "16-18",
+      "18-20",
+      "20-22",
+      "22-24",
+      "24-26",
+      "26-28",
+      "28-30",
+      "30-32",
     ],
     LightBlueShirts: [
       "S",
@@ -503,7 +700,7 @@ const productSizes = {
     ],
     Cardigans: ["S", "M", "L", "XL", "XXL", "One Size"],
   },
-  "Slides": [
+  Slides: [
     "EU 36",
     "EU 37",
     "EU 38",
@@ -517,7 +714,7 @@ const productSizes = {
     "EU 46",
     "Universal Size", // For adjustable or one-size-fits-all slides
   ],
-  "Footwear": [
+  Footwear: [
     "EU 36",
     "EU 37",
     "EU 38",
@@ -560,7 +757,7 @@ const productSizes = {
     "Oversized",
     "One Size",
   ],
-  "SportsBras": [
+  SportsBras: [
     "XS",
     "S",
     "M",
@@ -592,9 +789,9 @@ const productSizes = {
     "40D",
     "One Size",
   ],
-  "Earrings": ["One Size"],
-  "Necklaces": ["One Size"],
-  "Jewelry": {
+  Earrings: ["One Size"],
+  Necklaces: ["One Size"],
+  Jewelry: {
     Bracelets: ["One Size", "Adjustable", "Small", "Medium", "Large"],
     Necklaces: ["One Size", "Adjustable"],
     Earrings: ["One Size"],
@@ -623,7 +820,7 @@ const productSizes = {
     Brooches: ["One Size"],
     Pendants: ["One Size"],
   },
-  "Sportswear": {
+  Sportswear: {
     Jerseys: ["XS", "S", "M", "L", "XL", "XXL", "3XL"],
     Shorts: [
       "XS",
@@ -668,6 +865,21 @@ const productSizes = {
       "Waist 34-35",
       "One Size",
       "Adjustable",
+      "2-4",
+      "4-6",
+      "6-8",
+      "8-10",
+      "10-12",
+      "12-14",
+      "14-16",
+      "16-18",
+      "18-20",
+      "20-22",
+      "22-24",
+      "24-26",
+      "26-28",
+      "28-30",
+      "30-32",
     ],
     RunningShoes: [
       "US 5",

@@ -83,7 +83,7 @@ const Explore = () => {
   useEffect(() => {
     if (promoImages.length === 0) {
       const images = [
-        "https://res.cloudinary.com/dtaqusjav/video/upload/v1743281463/NEW_DROP_ON_3_wxhasu.mp4",
+        "https://res.cloudinary.com/dtaqusjav/video/upload/v1744666391/introducing_2_izw3tu.mp4",
         "https://res.cloudinary.com/dtaqusjav/image/upload/v1743285776/Thrift_Hive_Ng_3_ibppde.png",
         "https://res.cloudinary.com/dtaqusjav/image/upload/v1743282618/FREE_DELIVERY_whzaqc.png",
       ];

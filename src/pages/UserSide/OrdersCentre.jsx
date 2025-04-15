@@ -298,23 +298,7 @@ const OrdersCentre = () => {
 
         console.log("🧾 Final grouped orders:", finalOrders);
         setOrders(finalOrders);
-        const needsRefetch = finalOrders.some(
-          (order) =>
-            order.isStockpile && order.stockpileDuration && order.showPopup
-        );
-  
-        if (needsRefetch) {
-          console.log(
-            "A stockpile order requiring delay was detected. Waiting 2 seconds before refetching orders..."
-          );
-          // Introduce a 2-second delay
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          // Optionally, you might want to display a subtle spinner here before refetching
-          console.log("Refetching orders after delay...");
-          // Re-run the fetch (recursively) to get updated stockpile data
-          await fetchOrdersAndProducts();
-          return; // Prevent calling setLoading(false) in this pass
-        }  
+        
       } catch (error) {
         console.error("Error fetching orders and products:", error);
       } finally {
@@ -413,22 +397,15 @@ const OrdersCentre = () => {
     if (orderForPopup) {
       try {
         const orderRef = doc(db, "orders", orderForPopup.id);
+        // Update the order's showPopup field to false so that the modal doesn't show again.
         await updateDoc(orderRef, { showPopup: false });
-        
-        // Update local state to set showPopup to false for the handled order
-        setOrders(prevOrders =>
-          prevOrders.map(order =>
-            order.id === orderForPopup.id ? { ...order, showPopup: false } : order
-          )
-        );
-        
+        // Optionally update local state if needed.
         setOrderForPopup(null);
       } catch (error) {
         console.error("Error updating order showPopup field:", error);
       }
     }
   };
-  
   const handleViewOrder = (order) => {
     setSelectedOrder(order);
     setActiveProductIndex(0); // Reset to the first product

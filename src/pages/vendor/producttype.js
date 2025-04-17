@@ -360,7 +360,7 @@ const productTypes = [
     ],
     sizes: productSizes["Underwears"],
   },
-  
+
   // Hair Products
   {
     type: "Hair Products",
@@ -528,6 +528,7 @@ const productTypes = [
       "Gym Hoodie",
       "Pullover Hoodie",
       "Full Zip Hoodie",
+      "Non-Lightweight Sweatshirt",
       "Lightweight Sweatshirt",
       "Fleece Hoodie",
       "Thermal Hoodie",
@@ -536,6 +537,161 @@ const productTypes = [
     ],
     sizes: productSizes["Hoodies & Sweatshirts"],
   },
+  {
+    type: "Corsets",
+    subTypes: [
+      // Traditional & Fashion
+      "Steel-Boned Corset",
+      "Fashion Corset",
+      "Underbust Corset",
+      "Overbust Corset",
+      "Waist Trainer",
+      "Bridal Corset",
+      "Victorian Corset",
+      
+      // Modern & Comfort
+      "Latex Waist Cincher",
+      "Mesh Corset",
+      "Sports Corset",
+      "Posture Corrector",
+      
+      // Special Styles
+      "Corset Dress",
+      "Bustier Corset",
+      "Corset Top",
+      "Corset Belt",
+      "Plus Size Corset"
+    ],
+    sizes: productSizes["Corsets"],
+  },
+  {
+    type: "Tops",
+    subTypes: [
+      // Sheer & See-Through
+      "Basic Top",
+      "Lace Top",
+      "Sheer Mesh Top",
+      "Lace Trim Sheer Blouse",
+      "Chiffon Wrap Top",
+      "Transparent Organza Top",
+      "Net Panel Top",
+  
+      // Crop Tops
+      "Basic Crop Top",
+      "Ribbed Crop Top",
+      "Knot Front Crop Top",
+      "Cropped Blouse",
+      "Longline Crop Top",
+      "Cropped Sweater",
+      "Bandeau Crop Top",
+  
+      // Short Sleeve
+      "Short Sleeve Blouse",
+      "Puff Sleeve Top",
+      "Button-Up Short Sleeve",
+      "Peplum Top",
+      "Boatneck Top",
+      "Off-Shoulder Short Sleeve",
+  
+      // Long Sleeve
+      "Long Sleeve Bodysuit",
+      "Turtleneck Top",
+      "Mock Neck Blouse",
+      "Bell Sleeve Top",
+      "Cold Shoulder Top",
+      "Ribbed Long Sleeve",
+      "Wrap Front Top",
+  
+      // Trendy & Statement
+      "One-Shoulder Top",
+      "Asymmetrical Top",
+      "Cut-Out Detail Top",
+      "Corset Style Top",
+      "Metallic Thread Top",
+      "Velvet Top",
+      "Sequined Blouse",
+  
+      // Relaxed Fit
+      "Oversized Button-Down",
+      "Dolman Sleeve Top",
+      "Smock Top",
+      "Tunic Top",
+      "Kimono Sleeve Blouse"
+    ],
+    sizes: productSizes["Tops"],
+  },
+  {
+    type: "Shorts",
+    subTypes: [
+      // Denim Shorts
+      "Denim Shorts",
+      "High-Waisted Denim Shorts",
+      "Distressed Denim Shorts",
+      "Mom Fit Denim Shorts",
+      
+      // Casual & Everyday
+      "Cotton Twill Shorts",
+      "Chino Shorts",
+      "Cargo Shorts",
+      "Linen Shorts",
+      "Drawstring Waist Shorts",
+      "Jersey Shorts",
+      "Pleated Shorts",
+      "Harem Shorts",
+  
+      // Athletic & Sportswear
+      "Running Shorts",
+      "Basketball Shorts",
+      "Cycling Shorts",
+      "Training Shorts",
+      "Gym Shorts",
+      "Swim Shorts",
+      "Quick-Dry Shorts",
+      "Compression Shorts",
+  
+      // Fashion & Trendy
+      "High-Waisted Shorts",
+      "Paper Bag Waist Shorts",
+      "Biker Shorts",
+      "Hot Pants",
+      "Culotte Shorts",
+      "Wide-Leg Shorts",
+      "Leather Shorts",
+      "Metallic Shorts"
+    ],
+    sizes: productSizes["Shorts"],
+  },
+  {
+    type: "Scarves",
+    subTypes: [
+      // Light & Versatile (Popular in Warmer Climates)
+      "African Print Scarf (Ankara/Kitenge)",
+      "Lightweight Cotton Scarf",
+      "Silk Twill Scarf",
+      "Sheer Voile Scarf",
+      "Head Wrap (Gele Style)",
+      "Turban Scarf",
+      "Pashmina Shawl",
+
+      // Warm & Practical (Cooler Regions/Seasons)
+      "Wool Blanket Scarf",
+      "Fleece-Lined Winter Scarf",
+      "Knit Infinity Scarf",
+      "Chunky Crochet Scarf",
+      "Hooded Scarf (Scoodie)",
+
+      // Universal Styles
+      "Neck Gaiter (for Dust/Sun)",
+      "Reversible Scarf",
+      "Plaid Scarf",
+      "Embroidered Scarf",
+      "Tassel Trim Scarf",
+      "Oversized Square Scarf",
+      "Men's Kente Scarf",
+    ],
+    sizes: productSizes["Scarves"],
+  },
+
   {
     type: "Tights & Leggings",
     subTypes: [

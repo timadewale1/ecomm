@@ -748,16 +748,113 @@ const productSizes = {
     "Universal Size",
   ],
   "Hoodies & Sweatshirts": [
+    // Standard Letter Sizes
+    "XXS",
     "XS",
     "S",
     "M",
     "L",
     "XL",
     "XXL",
-    "Oversized",
+    "XXXL",
+    "3XL",
+    "XXXXL",
+    "4XL",
+    "5XL",
+
+    // Numeric Sizes (Unisex/Men’s)
+    "28",
+    "30",
+    "32",
+    "34",
+    "36",
+    "38",
+    "40",
+    "42",
+    "44",
+    "46",
+    "48",
+    "50",
+
+    // Women’s Specific Sizes
+    "XXS (0-2)",
+    "XS (2-4)",
+    "S (4-6)",
+    "M (6-8)",
+    "L (8-10)",
+    "XL (10-12)",
+    "XXL (14-16)",
+    "1X",
+    "2X",
+    "3X",
+    "4X",
+    "5X",
+
+    // Youth/Kids Sizes
+    "2T",
+    "3T",
+    "4T",
+    "YS (6-8)",
+    "YM (8-10)",
+    "YL (10-12)",
+    "YXL (12-14)",
+
+    // Oversized & Relaxed Fit
+    "Oversized S/M",
+    "Oversized L/XL",
+    "Boxy Fit",
+    "Relaxed Fit",
+
+    // One-Size & Adjustable
     "One Size",
+    "One Size Fits Most",
+    "Free Size",
+    "Adjustable Drawstring",
+
+    // Specialty & Extended Sizes
+    "LT",
+    "XLT",
+    "XXLT",
+    "BT (Big & Tall)",
+    "Petite",
   ],
-  SportsBras: [
+
+  Scarves: [
+    // Head Wraps & African Styles
+    "12x60 inches",
+    "18x72 inches",
+    "36x36 inches",
+    "45x45 inches",
+
+    // Lightweight & Fashion
+    "12x60 inches",
+    "20x68 inches",
+    "28x72 inches",
+    "30x80 inches",
+
+    // Winter & Warm
+    "8x60 inches",
+    "12x72 inches",
+    "30x80 inches",
+    "60x60 inches",
+
+    // Infinity/Tube
+    "10x30 inches",
+    "15x60 inches",
+    "20x80 inches",
+
+    // Shawls & Wraps
+    "28x72 inches",
+    "35x80 inches",
+    "60x90 inches",
+
+    // One-Size
+    "One Size",
+    "OSFM",
+    "Adjustable",
+  ],
+  
+  "Sports Bras": [
     "XS",
     "S",
     "M",
@@ -788,6 +885,93 @@ const productSizes = {
     "40C",
     "40D",
     "One Size",
+  ],
+  Tops: [
+    // Standard Letter Sizes
+    "XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL",
+  
+    // Numeric Single Sizes (Bust/Chest)
+    "32", "34", "36", "38", "40", "42", "44", "46", "48",
+  
+    // Numeric RANGE Sizes (Common in UK/AU sizing)
+    "4-6", "6-8", "8-10", "10-12", "12-14", "14-16", "16-18", "18-20", "20-22", "22-24",
+    
+    // Letter RANGE Sizes
+    "XS/S", "S/M", "M/L", "L/XL", "XL/XXL",
+  
+    // Plus Sizes (Single & Range)
+    "1X", "2X", "3X", "4X", "5X",
+    "16W-18W", "20W-22W", "24W-26W",
+  
+    // Petite/Tall (Single & Range)
+    "P-XS", "P-S", "P-M", "P-L",  // Petite
+    "T-S", "T-M", "T-L", "T-XL",  // Tall
+    "P-4/6", "P-8/10", // Petite Ranges
+    "T-8/10", "T-12/14", // Tall Ranges
+  
+    // One Size/Adjustable
+    "One Size",
+    "OSFM",
+    "Free Size",
+    "Adjustable"
+  ],
+  Shorts: [
+    // Women's Numeric Sizes (Waist)
+    "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34",
+  
+    // Men's Numeric Sizes (Waist)
+    "28", "30", "32", "34", "36", "38", "40", "42", "44",
+  
+    // Letter Sizes (Unisex)
+    "XS", "S", "M", "L", "XL", "XXL", "XXXL",
+  
+    // Plus Sizes
+    "1X", "2X", "3X", "4X",
+  
+    // Waist x Inseam (Men's/Bermuda)
+    "28x5", "30x5", "32x7", "34x7", "36x9", "38x9",
+  
+    // Kids/Youth
+    "Y10", "Y12", "Y14", "Y16",
+  
+    // One Size/Adjustable
+    "One Size",
+    "OSFM",
+    "Adjustable Waist"
+  ],
+  Corsets: [
+    // Standard Sizes
+    "XS",
+    "S",
+    "M", 
+    "L",
+    "XL",
+    "XXL",
+    "XXXL",
+    
+    // Numeric Waist Sizes (inches)
+    "22",
+    "24",
+    "26",
+    "28",
+    "30",
+    "32",
+    "34",
+    "36",
+    "38",
+    "40",
+    "42",
+    "44",
+    
+    // Plus Sizes
+    "1X",
+    "2X",
+    "3X",
+    "4X",
+    
+    // Custom
+    "Adjustable",
+    "One Size"
   ],
   Earrings: ["One Size"],
   Necklaces: ["One Size"],

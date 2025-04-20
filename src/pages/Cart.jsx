@@ -289,6 +289,7 @@ const Cart = () => {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           profileComplete = userData.profileComplete;
+          location = userData.location;
         }
       } catch (error) {
         console.error("Error fetching user profile from Firestore:", error);
@@ -305,11 +306,16 @@ const Cart = () => {
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
-    if (!location?.lat || !location?.lng) {
+    if (
+      typeof location?.lat !== "number" ||
+      typeof location?.lng !== "number"
+    ) {
       toast.error("Please update your delivery address before checking out.");
+      navigate("/profile?incomplete=true");
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
+    
     // Check if vendor is deactivated
     try {
       const vendorDocRef = doc(db, "vendors", vendorId);

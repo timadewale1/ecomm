@@ -282,7 +282,8 @@ const Cart = () => {
 
     // Check if user's profile is complete
     let profileComplete = currentUser.profileComplete;
-    if (profileComplete === undefined) {
+    let location = currentUser.location;
+    if (profileComplete === undefined || location === undefined) {
       try {
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
         if (userDoc.exists()) {
@@ -304,7 +305,11 @@ const Cart = () => {
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
-
+    if (!location?.lat || !location?.lng) {
+      toast.error("Please update your delivery address before checking out.");
+      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+      return;
+    }
     // Check if vendor is deactivated
     try {
       const vendorDocRef = doc(db, "vendors", vendorId);
@@ -545,9 +550,10 @@ const Cart = () => {
                               style={{ maxWidth: "100%" }}
                             >
                               <span className="font-semibold font-opensans text-xs">
-                                Click “View Selection” to leave a note for the vendor
+                                Click “View Selection” to leave a note for the
+                                vendor
                               </span>
-                            
+
                               <div className="absolute bottom-[-7px] right-1 transform -translate-x-1/2 w-4 h-4 bg-customBrown rotate-45" />
                             </div>
                           )}

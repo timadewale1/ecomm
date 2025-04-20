@@ -387,10 +387,9 @@ const VirtualVendor = ({
                 )}
               </FormGroup>
 
-            
               <div className="mb-2">
-                
                 <LocationPicker
+                  key={vendorData.Address || "new"}
                   // you can pass an initial value if you like:
                   initialAddress={vendorData.Address}
                   onLocationSelect={({ address, lat, lng }) => {
@@ -403,7 +402,6 @@ const VirtualVendor = ({
                 />
               </div>
 
-            
               <div className="relative">
                 <button
                   type="button"

@@ -193,11 +193,11 @@ const VendorDashboard = () => {
 
     return () => unsubscribe();
   };
-  const handleLocationUpdate = async ({ lat, lng, address }) => {
+  const handleLocationUpdate = async ({ lat, lng,  Address,  }) => {
     setLocationFixing(true);
     try {
       await updateDoc(doc(db, "vendors", vendorData.vendorId), {
-        Address: address,
+        Address, 
         location: { lat, lng },
       });
       toast.success("Address updated successfully!");

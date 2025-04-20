@@ -3,20 +3,36 @@ import LocationPicker from "./LocationPicker";
 import { RotatingLines } from "react-loader-spinner";
 import { FaLocationPinLock } from "react-icons/fa6";
 
-const MissingLocationModal = ({ onLocationUpdate, isLoading }) => {
+const MissingLocationModal = ({ onLocationUpdate, isLoading, closeModal }) => {
   const [selectedLocation, setSelectedLocation] = useState(null);
 
   const handleLocationSelect = (location) => {
-    setSelectedLocation(location);
+    setSelectedLocation({
+      lat: location.lat,
+      lng: location.lng,
+      Address: location.address, // ⚡ map correctly
+    });
   };
+  const isDisabled =
+    !selectedLocation?.lat ||
+    !selectedLocation?.lng ||
+    !selectedLocation?.Address;
 
-  const handleSave = () => {
-    if (selectedLocation && selectedLocation.lat && selectedLocation.lng && selectedLocation.Address) {
-      onLocationUpdate(selectedLocation);
+  const handleSave = async () => {
+    if (isDisabled) return;
+
+    try {
+      await onLocationUpdate({
+        lat: selectedLocation.lat,
+        lng: selectedLocation.lng,
+        Address: selectedLocation.Address,
+      });
+      closeModal(); // 3. close once update succeeds
+    } catch (err) {
+      console.error(err);
+      // you can toast.error here if you like
     }
   };
-
-  const isDisabled = !selectedLocation || !selectedLocation.lat || !selectedLocation.lng || !selectedLocation.address;
 
   return (
     <div className="fixed modal-overlay inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
@@ -28,8 +44,8 @@ const MissingLocationModal = ({ onLocationUpdate, isLoading }) => {
           </h2>
         </div>
         <p className="text-sm mb-4 font-opensans text-gray-600">
-          To serve your store better and ensure our riders can reach you without issues,
-          please update your current delivery address.
+          To serve your store better and ensure our riders can reach you without
+          issues, please update your current delivery address.
         </p>
 
         <LocationPicker onLocationSelect={handleLocationSelect} />
@@ -37,7 +53,9 @@ const MissingLocationModal = ({ onLocationUpdate, isLoading }) => {
         <div className="flex font-opensans justify-center mt-28 ">
           <button
             className={`${
-              isDisabled || isLoading ? "opacity-50 w-full cursor-not-allowed rounded-full" : ""
+              isDisabled || isLoading
+                ? "opacity-50 w-full cursor-not-allowed rounded-full"
+                : ""
             } bg-customOrange text-white font-semibold w-full flex justify-center px-4 py-2 rounded-full font-opensans`}
             onClick={handleSave}
             disabled={isDisabled || isLoading}

@@ -4,12 +4,15 @@ import moment from "moment";
 import { FaChevronDown } from "react-icons/fa";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
-import { db } from "../../firebase.config";
+import { db, functions } from "../../firebase.config";
 import Modal from "react-modal";
 import notifyOrderStatusChange from "../../services/notifyorderstatus";
 import { FaTruck } from "react-icons/fa6";
 import { RotatingLines } from "react-loader-spinner";
 import { MdOutlineClose } from "react-icons/md";
+
+import { httpsCallable } from "firebase/functions";
+
 import addActivityNote from "../../services/activityNotes";
 const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
   const [productImages, setProductImages] = useState({});
@@ -19,6 +22,7 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
   const [riderName, setRiderName] = useState("");
   const [riderNumber, setRiderNumber] = useState("");
   const [note, setNote] = useState("");
+  const [disableRiderFields, setDisableRiderFields] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [isSending, setIsSending] = useState(false);
   useEffect(() => {
@@ -136,87 +140,81 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
 
     return () => clearInterval(interval);
   }, [orders, productImages]);
+  const closeRiderModal = () => {
+    setIsRiderModalOpen(false);
+    setRiderName("");
+    setRiderNumber("");
+    setNote("");
+  };
 
   const handleSend = async () => {
+    /* 0 — simple front‑end validation */
     if (!riderName || !riderNumber) {
-      toast.dismiss();
-      toast.error("Please fill in both Rider's Name and Rider's Number.", {
-        duration: 3000,
-      });
+      toast.error("Please fill in both Rider's Name and Rider's Number.");
       return;
     }
-
+    const order = orders.find((o) => o.id === selectedOrderId);
+    if (!order) {
+      toast.error("Order not found – please refresh the page.");
+      return;
+    }
     setIsSending(true);
     try {
-      console.log("Fetching order details...");
-      const order = orders.find((o) => o.id === selectedOrderId);
-
-      if (!order) {
-        console.error("Order not found in the provided orders array.");
-        throw new Error("Order not found in orders array.");
-      }
-
-      const userId = order.userId || order.userInfo?.uid;
-      if (!userId) {
-        console.error("User ID is undefined in the order:", order);
-        throw new Error("User ID is undefined.");
-      }
-
-      console.log("Fetching vendor name...");
-      let vendorName = order.vendorName;
-      if (!vendorName && order.vendorId) {
-        const vendorRef = doc(db, "vendors", order.vendorId);
-        const vendorSnap = await getDoc(vendorRef);
-        if (vendorSnap.exists()) {
-          const vendorData = vendorSnap.data();
-          vendorName = vendorData.shopName || "Unknown Vendor";
-        }
-      }
-
-      console.log("Fetching vendor cover image...");
-      let vendorCoverImage = null;
-      if (order.vendorId) {
-        const vendorRef = doc(db, "vendors", order.vendorId);
-        const vendorSnap = await getDoc(vendorRef);
-        if (vendorSnap.exists()) {
-          vendorCoverImage = vendorSnap.data().coverImageUrl || null;
-        }
-      }
-
-      console.log("Fetching product image...");
-      let productImage = null;
-      if (order.cartItems && order.cartItems.length > 0) {
-        const firstItem = order.cartItems[0];
-        const productRef = doc(db, "products", firstItem.productId);
-        const productSnap = await getDoc(productRef);
-        if (productSnap.exists()) {
-          const productData = productSnap.data();
-          if (firstItem.subProductId) {
-            const subProduct = productData.subProducts?.find(
-              (sp) => sp.subProductId === firstItem.subProductId
-            );
-            productImage = subProduct?.images?.[0] || null;
-          } else {
-            productImage = productData.imageUrls?.[0] || null;
-          }
-        }
-      }
-
-      console.log("Updating order status to 'Shipped'...");
-      const orderRef = doc(db, "orders", selectedOrderId);
-      await updateDoc(orderRef, {
-        progressStatus: "Shipped",
-        riderInfo: {
-          riderName,
-          riderNumber,
-          note,
-        },
+      /* ------------------------------------------------------------
+       * 1 — call Cloud Function to do the heavy lifting
+       *     (deploy shipVendorOrder first — see below)
+       * ---------------------------------------------------------- */
+      const shipFn = httpsCallable(functions, "shipVendorOrder");
+      const { data } = await shipFn({
+        orderId: order.id,
+        riderName,
+        riderNumber,
+        note,
       });
 
-      console.log("Sending order status notification...");
+      if (data.alreadyShipped) {
+        toast.success("Order is already marked as shipped ✅");
+        onClose();
+        return;
+      }
+
+      /* ------------------------------------------------------------
+       * 2 — UI‑only helpers still run locally
+       *     (images, notifications, activity log)
+       * ---------------------------------------------------------- */
+      /* 2a. vendor name & cover image */
+      let vendorName = order.vendorName;
+      let vendorCoverImage = null;
+
+      if (!vendorName && order.vendorId) {
+        const vRef = doc(db, "vendors", order.vendorId);
+        const vSnap = await getDoc(vRef);
+        if (vSnap.exists()) {
+          const vData = vSnap.data();
+          vendorName = vData.shopName || "Unknown Vendor";
+          vendorCoverImage = vData.coverImageUrl || null;
+        }
+      }
+
+      /* 2b. product image for the first cart item */
+      let productImage = null;
+      if (order.cartItems?.length) {
+        const first = order.cartItems[0];
+        const pSnap = await getDoc(doc(db, "products", first.productId));
+        if (pSnap.exists()) {
+          const pd = pSnap.data();
+          productImage = first.subProductId
+            ? pd.subProducts?.find(
+                (sp) => sp.subProductId === first.subProductId
+              )?.images?.[0] || null
+            : pd.imageUrls?.[0] || null;
+        }
+      }
+
+      /* 2c. client‑side helper calls */
       await notifyOrderStatusChange(
-        userId,
-        selectedOrderId,
+        order.userId,
+        order.id,
         "Shipped",
         vendorName,
         vendorCoverImage,
@@ -225,7 +223,6 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
         { riderName, riderNumber, note }
       );
 
-      console.log("Adding activity note...");
       await addActivityNote(
         order.vendorId,
         "Order Shipped 🚚",
@@ -233,83 +230,35 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
         "order"
       );
 
-      const userPhoneNumber = order.userInfo?.phoneNumber;
-      const userName = order.userInfo?.displayName;
-
-      if (userPhoneNumber) {
-        console.log("Preparing to send SMS to user...");
-        const formattedPhoneNumber = userPhoneNumber.startsWith("0")
-          ? userPhoneNumber.slice(1)
-          : userPhoneNumber;
-
-        const smsPayload = {
-          message:
-            `Hello, ${userName}, your order with ID ${selectedOrderId} is being delivered by ${riderName}. The rider is reachable at ${riderNumber}.` +
-            (note ? ` Here's a short note from the vendor: ${note}.` : "") +
-            " Cheers, Matilda from My Thrift.",
-          receiverNumber: formattedPhoneNumber,
-          receiverId: userId,
-        };
-
-        const smsToken = import.meta.env.VITE_BETOKEN;
-        console.log("SMS Token fetched from environment variable:", smsToken);
-        console.log("SMS Payload being sent:", smsPayload);
-
-        try {
-          const smsResponse = await fetch(
-            "https://mythrift-sms.fly.dev/sendMessage",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${smsToken}`,
-              },
-              body: JSON.stringify(smsPayload),
-            }
-          );
-
-          const smsResult = await smsResponse.json();
-          console.log("SMS API Response:", smsResult);
-
-          if (smsResponse.ok) {
-            console.log(
-              `SMS sent successfully to user ${userPhoneNumber} (formatted: ${formattedPhoneNumber}).`
-            );
-          } else {
-            console.warn("SMS sending failed:", smsResult);
-          }
-        } catch (smsError) {
-          console.error("Error sending SMS:", smsError);
-        }
-      } else {
-        console.warn("User phone number not available, skipping SMS.");
-      }
-
-      toast.success("Order successfully updated to 'Shipped'!");
+      /* ------------------------------------------------------------
+       * 3 — UI feedback / reset
+       * ---------------------------------------------------------- */
+      toast.success("Order marked as shipped!");
       setIsRiderModalOpen(false);
-      setRiderName("");
-      setRiderNumber("");
-      setNote("");
-      setIsDropdownOpen(null);
-      setSelectedOrderId(null);
-    } catch (error) {
-      console.error("Failed to update order status:", error);
-      toast.error("Failed to update the order. Please try again.");
+      closeRiderModal();
+    } catch (err) {
+      console.error("shipVendorOrder failed:", err);
+      toast.error("Failed to move order to shipping. Please try again.");
     } finally {
       setIsSending(false);
     }
   };
 
   const openRiderModal = (orderId) => {
+    const order = orders.find((o) => o.id === orderId);
     setSelectedOrderId(orderId);
-    setIsRiderModalOpen(true);
-  };
 
-  const closeRiderModal = () => {
-    setIsRiderModalOpen(false);
-    setRiderName("");
-    setRiderNumber("");
-    setNote("");
+    if (order.kwikJob?.data?.contactUs) {
+      // pre-fill from Kwik “contactUs” (or wherever you store it)
+      setRiderName("Kwik Delivery");
+      setRiderNumber(order.kwikJob.data.contactUs.phone_no);
+      setDisableRiderFields(true);
+    } else {
+      setRiderName("");
+      setRiderNumber("");
+      setDisableRiderFields(false);
+    }
+    setIsRiderModalOpen(true);
   };
 
   const groupOrdersByDate = (orders) => {
@@ -380,6 +329,25 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
                     item(s). Once you’ve completed packaging and shipped this
                     order, please update the status to "Shipped" to keep the
                     customer informed.
+                    {order.kwikJob?.data?.pickups?.[0]
+                      ?.result_tracking_link && (
+                      <span className="ml-1 font-bold ">
+                        <a
+                          href={
+                            order.kwikJob.data.pickups[0].result_tracking_link
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-black  font-opensans"
+                          onClick={(e) => e.stopPropagation()} // so it doesn’t also open the modal
+                        >
+                          This order will be picked up by our rider{" "}
+                          <span className="text-xs text-customOrange underline font-opensans">
+                            Track Rider
+                          </span>
+                        </a>
+                      </span>
+                    )}
                   </p>
                 </div>
 
@@ -456,6 +424,7 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
               type="text"
               placeholder="Rider's Name"
               value={riderName}
+              disabled={disableRiderFields}
               onChange={(e) => setRiderName(e.target.value)}
               className="w-full p-2 border text-xs rounded h-10 focus:outline-none"
             />

@@ -193,6 +193,13 @@ const ShippedOrders = ({ orders, openModal }) => {
                     {order.progressStatus === "Delivered"
                       ? "This order has been delivered to the customer."
                       : "This order has been shipped to the customer."}
+                    {order.progressStatus === "Shipped" &&
+                      order.kwikJob?.data && (
+                        <span className="text-xs text-customOrange font-bold font-opensans mt-1">
+                          You can mark the order as delivered once you’ve handed
+                          the package to the rider. Thank you!
+                        </span>
+                      )}
                   </p>
                 </div>
               </div>

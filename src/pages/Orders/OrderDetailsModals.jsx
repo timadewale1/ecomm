@@ -28,7 +28,6 @@ import {
   IoColorPaletteSharp,
   IoLocationOutline,
 } from "react-icons/io5";
-
 import notifyOrderStatusChange from "../../services/notifyorderstatus";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../../firebase.config";
@@ -224,211 +223,75 @@ const OrderDetailsModal = ({
     }
   }, [isOpen, order]);
 
-  const handleDecline = async (reason) => {
+  const handleDecline = async () => {
+    if (!declineReason && otherReasonText === "") {
+      toast.error("Select a reason or type one.");
+      return;
+    }
+    const finalReason =
+      declineReason === "Other" ? otherReasonText : declineReason;
+
     setDeclineLoading(true);
     try {
-      console.log("Starting handleDecline process...");
+      /* ---------- 1. trigger Cloud Function ---------- */
+      const declineFn = httpsCallable(functions, "declineVendorOrder");
+      const { data } = await declineFn({
+        orderId: order.id,
+        declineReason: finalReason,
+      });
 
-      // Fetching order document and extracting orderReference
-      console.log("Fetching order document...");
-      const orderRef = doc(db, "orders", order.id);
-      const orderSnap = await getDoc(orderRef);
-      if (!orderSnap.exists()) {
-        console.error("Order document does not exist.");
-        toast.error("Order not found.");
+      if (data.alreadyDeclined) {
+        toast.success("Order already declined");
+        onClose();
         return;
       }
 
-      const orderData = orderSnap.data();
-      console.log("Order data fetched:", orderData);
+      /* ---------- 2. local helpers (images, notifications, notes) ---------- */
+      // vendorCoverImage & productImage – same look‑ups you already have
+      const vendorSnap = await getDoc(doc(db, "vendors", order.vendorId));
+      const vendorCoverImage = vendorSnap.exists()
+        ? vendorSnap.data().coverImageUrl ?? null
+        : null;
 
-      const orderId = orderData.orderId;
-      const orderReference = orderData.orderReference;
-      console.log("Order ID extracted:", orderId);
-      console.log("OrderReference extracted:", orderReference);
-
-      // Fetching user details
-      const userPhoneNumber = orderData.userInfo?.phoneNumber;
-      const userName = orderData.userInfo?.displayName;
-      if (!userPhoneNumber) {
-        console.warn("User phone number not available.");
-      } else {
-        console.log(`User phone number: ${userPhoneNumber}`);
-      }
-      if (!userName) {
-        console.warn("User name not available.");
-      } else {
-        console.log(`User name: ${userName}`);
-      }
-
-      // Fetch vendor cover image and recipient code
-      let vendorCoverImage = null;
-      let recipientCode = null;
-      if (order.vendorId) {
-        console.log(`Fetching vendor data for vendorId: ${order.vendorId}...`);
-        const vendorRef = doc(db, "vendors", order.vendorId);
-        const vendorSnap = await getDoc(vendorRef);
-        if (vendorSnap.exists()) {
-          const vendorData = vendorSnap.data();
-          console.log("Vendor data fetched:", vendorData);
-          vendorCoverImage = vendorData.coverImageUrl || null;
-          recipientCode = vendorData.recipientCode || null;
-          console.log("Vendor recipientCode:", recipientCode);
-          console.log("Vendor coverImageUrl:", vendorCoverImage);
-        } else {
-          console.error("Vendor document does not exist.");
-        }
-      }
       let productImage = null;
-      if (order.cartItems && order.cartItems.length > 0) {
-        const firstItem = order.cartItems[0];
-        console.log(
-          `Fetching product data for productId: ${firstItem.productId}...`
-        );
-        const productRef = doc(db, "products", firstItem.productId);
-        const productSnap = await getDoc(productRef);
-        if (productSnap.exists()) {
-          const productData = productSnap.data();
-          console.log("Product data fetched:", productData);
-          if (firstItem.subProductId) {
-            console.log(
-              `Searching for subProductId: ${firstItem.subProductId}...`
-            );
-            const subProduct = productData.subProducts?.find(
-              (sp) => sp.subProductId === firstItem.subProductId
-            );
-            productImage = subProduct?.images?.[0] || null;
-            console.log("Sub-product image found:", productImage);
-          } else {
-            productImage = productData.imageUrls?.[0] || null;
-            console.log("Main product image found:", productImage);
-          }
-        } else {
-          console.error("Product document does not exist.");
+      if (order.cartItems?.length) {
+        const first = order.cartItems[0];
+        const prod = await getDoc(doc(db, "products", first.productId));
+        if (prod.exists()) {
+          const pd = prod.data();
+          productImage = first.subProductId
+            ? pd.subProducts?.find(
+                (sp) => sp.subProductId === first.subProductId
+              )?.images?.[0] || null
+            : pd.imageUrls?.[0] || null;
         }
       }
-      // Continue with the existing decline process
-      const token = import.meta.env.VITE_RESOLVE_TOKEN;
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-      console.log("Token fetched from environment variable:", token);
 
-      const payload = {
-        orderReference: orderReference,
-        vendorId: order.vendorId,
-        vendorStatus: "declined",
-        recipientCode: recipientCode, // Correctly using recipientCode
-      };
-      console.log("Payload being sent:", payload);
-
-      console.log("Sending data to external endpoint...");
-      const response = await fetch(`${API_BASE_URL}/acceptOrder`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Failed to send data to external endpoint:", errorData);
-        throw new Error(`External API error: ${response.status}`);
-      }
-
-      console.log("Data successfully sent to external endpoint.");
-
-      console.log("Updating order progressStatus to 'Declined'...");
-      await updateDoc(orderRef, {
-        progressStatus: "Declined",
-        vendorStatus: "declined",
-        isStockpile: false,
-        declineReason: reason || "Reason not provided",
-      });
-      if (order.isStockpile && order.stockpileDuration) {
-        console.log("Updating stockpile document to isActive: false...");
-        const stockpileRef = doc(db, "stockpiles", order.stockpileDocId);
-        await updateDoc(stockpileRef, {
-          isActive: false,
-        });
-        console.log("Stockpile document updated successfully.");
-      }
-
-      console.log("Sending order status change notification...");
       await notifyOrderStatusChange(
-        userId, // userId
-        order.id, // orderId
-        "Declined", // newStatus
-        vendorName, // vendorName
-        vendorCoverImage, // vendorCoverImage
-        productImage, // productImage
-        reason, // declineReason
-        null // riderInfo
+        order.userId,
+        order.id,
+        "Declined",
+        vendorSnap.data()?.shopName || "Vendor",
+        vendorCoverImage,
+        productImage,
+        finalReason,
+        null
       );
 
-      console.log("Adding activity note for vendor...");
       await addActivityNote(
         order.vendorId,
         "Order Declined 🛑",
-        `Order with ID: ${order.id} was declined by ${vendorName}. Reason: ${reason}.`,
+        `Order with ID: ${order.id} was declined. Reason: ${finalReason}.`,
         "order"
       );
 
-      if (userPhoneNumber) {
-        console.log("Preparing to send SMS to user...");
-        const formattedPhoneNumber = userPhoneNumber.startsWith("0")
-          ? userPhoneNumber.slice(1)
-          : userPhoneNumber;
-
-        const smsPayload = {
-          message: `Hello, ${userName}, your order with ID ${orderId} has been declined by ${vendorName}. Here's why: ${reason}. Refunds typically take 3-7 days depending on your payment method. Matilda from My Thrift.`,
-          receiverNumber: formattedPhoneNumber,
-          receiverId: orderData.userInfo?.uid || order.userId,
-        };
-
-        const smsToken = import.meta.env.VITE_BETOKEN;
-        console.log("SMS Token fetched from environment variable:", smsToken);
-        console.log("SMS Payload being sent:", smsPayload);
-
-        try {
-          const smsResponse = await fetch(
-            "https://mythrift-sms.fly.dev/sendMessage",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${smsToken}`,
-              },
-              body: JSON.stringify(smsPayload),
-            }
-          );
-
-          const smsResult = await smsResponse.json();
-          console.log("SMS API Response:", smsResult);
-
-          if (smsResponse.ok) {
-            console.log(
-              `SMS sent successfully to user ${userPhoneNumber} (formatted: ${formattedPhoneNumber}).`
-            );
-          } else {
-            console.warn("SMS sending failed:", smsResult);
-          }
-        } catch (smsError) {
-          console.error("Error sending SMS:", smsError);
-        }
-      } else {
-        console.warn("User phone number not available, skipping SMS.");
-      }
-
       toast.success("Order declined successfully");
-      setIsDeclineModalOpen(false);
       onClose();
-    } catch (error) {
-      console.error("Error declining order:", error);
+    } catch (err) {
+      console.error("declineVendorOrder failed:", err);
       toast.error("Failed to decline the order");
     } finally {
       setDeclineLoading(false);
-      console.log("handleDecline process completed.");
     }
   };
   const handleMoveToShippingWithRider = async () => {
@@ -520,256 +383,98 @@ const OrderDetailsModal = ({
   const handleAccept = async () => {
     setAcceptLoading(true);
     try {
-      console.log("Starting handleAccept process...");
-
-      // Fetching order document and extracting orderReference
-      console.log("Fetching order document...");
+      /* ----------------------------------------------------
+       * 0.  (optional) read some quick data you still need
+       * -------------------------------------------------- */
       const orderRef = doc(db, "orders", order.id);
       const orderSnap = await getDoc(orderRef);
-
       if (!orderSnap.exists()) {
-        console.error("Order document does not exist.");
-        toast.error("Order not found.");
+        toast.error("Order not found");
         return;
       }
-
       const orderData = orderSnap.data();
-      console.log("Order data fetched:", orderData);
-      const orderId = orderData.orderId;
 
-      const userPhoneNumber = orderData.userInfo?.phoneNumber;
-      const userName = orderData.userInfo?.displayName;
-      const userId = orderData.userId;
+      /* ----------------------------------------------------
+       * 1.  call the Cloud Function
+       * -------------------------------------------------- */
+      const acceptFn = httpsCallable(functions, "acceptVendorOrder");
+      const result = await acceptFn({ orderId: order.id });
 
-      if (!orderId) {
-        console.error("Order ID is missing.");
-        setAcceptLoading(false);
+      // everything inside result.data is what you `return`‑ed
+      const { alreadyAccepted, vendor60Pay, isStockpile, stockpileDuration } =
+        result.data || {};
+
+      if (alreadyAccepted) {
+        toast.success("Order already accepted ✅");
+        onClose();
         return;
       }
 
-      console.log("Order ID extracted:", orderId);
-      const orderReference = orderData.orderReference;
-      console.log("OrderReference extracted:", orderReference);
+      /* ----------------------------------------------------
+       * 2.  do the *pure‑UI* things that still belong here
+       * -------------------------------------------------- */
 
-      if (!userPhoneNumber) {
-        console.warn("User phone number not available.");
-      } else {
-        console.log(`User phone number: ${userPhoneNumber}`);
-      }
-
-      if (!userName) {
-        console.warn("User name not available.");
-      } else {
-        console.log(`User name: ${userName}`);
-      }
-
-      // Fetch vendor cover image and recipient code
+      /* 2a — cover / product images (still local look‑ups) */
       let vendorCoverImage = null;
-      let recipientCode = null;
-      if (order.vendorId) {
-        console.log(`Fetching vendor data for vendorId: ${order.vendorId}...`);
-        const vendorRef = doc(db, "vendors", order.vendorId);
-        const vendorSnap = await getDoc(vendorRef);
-        if (vendorSnap.exists()) {
-          const vendorData = vendorSnap.data();
-          console.log("Vendor data fetched:", vendorData);
-          vendorCoverImage = vendorData.coverImageUrl || null;
-          recipientCode = vendorData.recipientCode || null;
-          console.log("Vendor recipientCode:", recipientCode);
-          console.log("Vendor coverImageUrl:", vendorCoverImage);
-        } else {
-          console.error("Vendor document does not exist.");
-        }
-      }
-
-      // Fetch product image
       let productImage = null;
-      if (order.cartItems && order.cartItems.length > 0) {
-        const firstItem = order.cartItems[0];
-        console.log(
-          `Fetching product data for productId: ${firstItem.productId}...`
-        );
-        const productRef = doc(db, "products", firstItem.productId);
-        const productSnap = await getDoc(productRef);
-        if (productSnap.exists()) {
-          const productData = productSnap.data();
-          console.log("Product data fetched:", productData);
-          if (firstItem.subProductId) {
-            console.log(
-              `Searching for subProductId: ${firstItem.subProductId}...`
-            );
-            const subProduct = productData.subProducts?.find(
-              (sp) => sp.subProductId === firstItem.subProductId
-            );
-            productImage = subProduct?.images?.[0] || null;
-            console.log("Sub-product image found:", productImage);
-          } else {
-            productImage = productData.imageUrls?.[0] || null;
-            console.log("Main product image found:", productImage);
-          }
-        } else {
-          console.error("Product document does not exist.");
+
+      const vendorSnap = await getDoc(doc(db, "vendors", order.vendorId));
+      if (vendorSnap.exists()) {
+        vendorCoverImage = vendorSnap.data().coverImageUrl || null;
+      }
+
+      if (order.cartItems?.length) {
+        const first = order.cartItems[0];
+        const prod = await getDoc(doc(db, "products", first.productId));
+        if (prod.exists()) {
+          const pd = prod.data();
+          productImage = first.subProductId
+            ? pd.subProducts?.find(
+                (sp) => sp.subProductId === first.subProductId
+              )?.images?.[0] || null
+            : pd.imageUrls?.[0] || null;
         }
       }
 
-      // Get the token from the environment variable
-      const token = import.meta.env.VITE_RESOLVE_TOKEN;
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-      console.log("Token fetched from environment variable:", token);
-
-      // Constructing payload
-      const payload = {
-        orderReference: orderReference,
-        vendorId: order.vendorId,
-        vendorStatus: "accepted",
-        recipientCode: recipientCode,
-      };
-      console.log("Payload being sent:", payload);
-
-      // Send data to the external endpoint FIRST
-      console.log("Sending data to external endpoint...");
-      const response = await fetch(`${API_BASE_URL}/acceptOrder`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Failed to send data to external endpoint:", errorData);
-        throw new Error(`External API error: ${response.status}`);
-      }
-
-      console.log("Data successfully sent to external endpoint.");
-
-      // Now that external call is successful, update Firebase
-      console.log("Updating order progressStatus to 'In Progress'...");
-      await updateDoc(orderRef, { progressStatus: "In Progress" });
-      await updateDoc(orderRef, { vendorStatus: "accepted" });
-
-      // Send notification
-      console.log("Sending order status change notification...");
+      /* 2b — local helpers */
       await notifyOrderStatusChange(
-        userId,
+        orderData.userId,
         order.id,
         "In Progress",
-        vendorName,
+        vendorSnap.data()?.shopName || "Vendor",
         vendorCoverImage,
         productImage,
         null,
         null
       );
 
-      // Add activity note
-      console.log("Adding activity note for vendor...");
-      if (order.isStockpile) {
+      if (!isStockpile && vendor60Pay) {
+        const amt = `₦${Number(vendor60Pay).toLocaleString()}`;
+        await addActivityNote(
+          order.vendorId,
+          "You’ve Been Credited 💰",
+          `You’ve received ${amt} as a 60% payout for order ID: ${order.id}.`,
+          "transactions"
+        );
+      } else if (isStockpile) {
         await addActivityNote(
           order.vendorId,
           "Stockpile Payment in Full 💰",
           `You have been paid in full for the stockpile order (ID: ${order.id}).`,
           "transactions"
         );
-      } else {
-        let vendor60Pay = null;
-        const paymentResponse = await fetch(
-          `${API_BASE_URL}/calculateVendorPay/${orderReference}`,
-          {
-            method: "GET",
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        if (!paymentResponse.ok) {
-          throw new Error("Failed to fetch payment data.");
-        }
-        const paymentData = await paymentResponse.json();
-        vendor60Pay = paymentData.amount?.vendor60Pay;
-
-        if (vendor60Pay) {
-          const amountFormatted = `₦${vendor60Pay.toLocaleString()}`;
-          await addActivityNote(
-            order.vendorId,
-            "You’ve Been Credited 💰",
-            `You’ve received ${amountFormatted} as a 60% payout for order ID: ${order.id}.`,
-            "transactions"
-          );
-        }
-      }
-
-      // Send SMS to User
-      if (userPhoneNumber) {
-        console.log("Preparing to send SMS to user...");
-        const formattedPhoneNumber = userPhoneNumber.startsWith("0")
-          ? userPhoneNumber.slice(1)
-          : userPhoneNumber;
-
-        // Set SMS message conditionally for stockpile orders
-        let smsMessage = "";
-        if (order.isStockpile) {
-          if (order.stockpileDuration) {
-            // New stockpile orders with duration
-            smsMessage = `Hello, ${userName}, your new stockpile from ${vendorName} has been accepted! You can keep adding more items to your pile for an eco-friendly shopping experience. Cheers, Matilda from My Thrift.`;
-          } else {
-            // Repile: stockpile orders without duration
-            smsMessage = `Hello, ${userName}, your stockpile has been updated! You're doing great, keep on repiling and supporting eco-friendly fashion. Cheers, Matilda from My Thrift.`;
-          }
-        } else {
-          // Normal orders
-          smsMessage = `Hello, ${userName}, your order with ID ${orderId} from ${vendorName} has been accepted and is in progress. We will update you when it is shipped. Cheers, Matilda from My Thrift.`;
-        }
-
-        const smsPayload = {
-          message: smsMessage,
-          receiverNumber: formattedPhoneNumber,
-          receiverId: userId,
-        };
-
-        const smsToken = import.meta.env.VITE_BETOKEN;
-        console.log("SMS Token fetched from environment variable:", smsToken);
-        console.log("SMS Payload being sent:", smsPayload);
-
-        try {
-          const smsResponse = await fetch(
-            "https://mythrift-sms.fly.dev/sendMessage",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${smsToken}`,
-              },
-              body: JSON.stringify(smsPayload),
-            }
-          );
-
-          const smsResult = await smsResponse.json();
-          console.log("SMS API Response:", smsResult);
-
-          if (smsResponse.ok) {
-            console.log(
-              `SMS sent successfully to user ${userPhoneNumber} (formatted: ${formattedPhoneNumber}).`
-            );
-          } else {
-            console.warn("SMS sending failed:", smsResult);
-          }
-        } catch (smsError) {
-          console.error("Error sending SMS:", smsError);
-        }
-      } else {
-        console.warn("User phone number not available, skipping SMS.");
       }
 
       toast.success("Order accepted successfully");
       onClose();
-    } catch (error) {
-      console.error("Failed to accept the order:", error);
+    } catch (err) {
+      console.error("acceptVendorOrder failed:", err);
       toast.error("Failed to accept the order");
     } finally {
       setAcceptLoading(false);
-      console.log("handleAccept process completed.");
     }
   };
+
   // Make sure to convert each order's subtotal to a number safely
   const totalSubtotal = stockpileOrders.reduce((acc, curr) => {
     // Only count orders that have been accepted
@@ -887,105 +592,66 @@ const OrderDetailsModal = ({
   };
 
   const handleMarkAsDelivered = async () => {
+    if (!confirmDeliveryChecked) return; // your checkbox guard
+
     setDeliverLoading(true);
     try {
-      console.log("Starting handleMarkAsDelivered process...");
+      // 1️⃣ Call CF to flip DB & external API
+      const markFn = httpsCallable(functions, "markOrderDelivered");
+      const { data } = await markFn({ orderId: order.id });
 
-      const orderRef = doc(db, "orders", order.id);
-      const orderSnap = await getDoc(orderRef);
-      if (!orderSnap.exists()) {
-        console.error("Order document does not exist.");
-        toast.error("Order not found.");
+      if (data.alreadyDelivered) {
+        toast.success("Order is already delivered ✅");
+        onClose();
         return;
       }
 
-      const orderData = orderSnap.data();
-      const orderReference = orderData.orderReference;
-      const orderId = orderData.orderId;
-      const userPhoneNumber = orderData.userInfo?.phoneNumber;
-      const userName = orderData.userInfo?.displayName;
-      const userId = orderData.userId; // Assuming `userInfo` contains `id`
-      console.log("Order data fetched:", orderData);
+      // 2️⃣ Now your original frontend-only bits
 
-      // Fetch vendor cover image
+      // 2a — vendorName & cover
+      let vendorName = order.vendorName;
       let vendorCoverImage = null;
-      if (order.vendorId) {
-        const vendorRef = doc(db, "vendors", order.vendorId);
-        const vendorSnap = await getDoc(vendorRef);
-        if (vendorSnap.exists()) {
-          vendorCoverImage = vendorSnap.data().coverImageUrl || null;
+      if (!vendorName && order.vendorId) {
+        const vSnap = await getDoc(doc(db, "vendors", order.vendorId));
+        if (vSnap.exists()) {
+          const vData = vSnap.data();
+          vendorName = vData.shopName || "Unknown Vendor";
+          vendorCoverImage = vData.coverImageUrl || null;
         }
       }
 
-      // Fetch product image
+      // 2b — first product image
       let productImage = null;
-      if (order.cartItems && order.cartItems.length > 0) {
-        const firstItem = order.cartItems[0];
-        const productRef = doc(db, "products", firstItem.productId);
-        const productSnap = await getDoc(productRef);
-        if (productSnap.exists()) {
-          const productData = productSnap.data();
-          if (firstItem.subProductId) {
-            const subProduct = productData.subProducts?.find(
-              (sp) => sp.subProductId === firstItem.subProductId
-            );
-            productImage = subProduct?.images?.[0] || null;
-          } else {
-            productImage = productData.imageUrls?.[0] || null;
-          }
+      if (order.cartItems?.length) {
+        const first = order.cartItems[0];
+        const pSnap = await getDoc(doc(db, "products", first.productId));
+        if (pSnap.exists()) {
+          const pd = pSnap.data();
+          productImage = first.subProductId
+            ? pd.subProducts?.find(
+                (sp) => sp.subProductId === first.subProductId
+              )?.images?.[0] || null
+            : pd.imageUrls?.[0] || null;
         }
       }
 
-      // Prepare payload for updateDelivery endpoint
-      const deliveryPayload = {
-        delivered: true,
-        orderReference: orderReference,
-      };
-
-      const token = import.meta.env.VITE_RESOLVE_TOKEN; // Ensure your token is set up
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-      // Send request to updateDelivery endpoint FIRST
-      console.log("Sending delivery update to endpoint...");
-      const deliveryResponse = await fetch(`${API_BASE_URL}/updateDelivery`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(deliveryPayload),
-      });
-
-      if (!deliveryResponse.ok) {
-        const errorData = await deliveryResponse.json();
-        console.error("Failed to update delivery status via API:", errorData);
-        throw new Error(`Delivery API error: ${deliveryResponse.status}`);
+      // 2c — in‑app notification (skip if this order came via Kwik)
+      if (!order.kwikJob) {
+        await notifyOrderStatusChange(
+          order.userId,
+          order.id,
+          "Delivered",
+          vendorName,
+          vendorCoverImage,
+          productImage
+        );
       }
 
-      console.log("Delivery update successfully sent to API.");
-
-      console.log("Updating order progressStatus to 'Delivered'...");
-      await updateDoc(orderRef, {
-        progressStatus: "Delivered",
-        orderDelivered: true,
-      });
-      // Send notification to the user
-      console.log("Sending notification about order delivery...");
-      await notifyOrderStatusChange(
-        userId, // userId
-        order.id, // orderId
-        "Delivered", // newStatus
-        vendorName, // vendorName
-        vendorCoverImage, // vendorCoverImage
-        productImage // productImage
-      );
-
-      // Add activity note
-      console.log("Adding activity note for delivery...");
+      // 2d — activity note
       await addActivityNote(
         order.vendorId,
         "Order Delivered 😊",
-        `You have marked this order as delivered. You will receive your remaining percentage shortly. If this was a mistake, reach out to us immediately!`,
+        "You marked this order as delivered.",
         "order"
       );
 
@@ -1001,132 +667,67 @@ const OrderDetailsModal = ({
           console.error("Failed to refresh vendor revenue.");
         });
 
-      // Send SMS using the new API
-      if (userPhoneNumber) {
-        console.log("Preparing to send SMS to user...");
-        const formattedPhoneNumber = userPhoneNumber.startsWith("0")
-          ? userPhoneNumber.slice(1) // Remove the leading '0'
-          : userPhoneNumber;
-
-        const smsPayload = {
-          message: `Your order with ID ${orderId} has been marked delivered by ${vendorName}. We hope you love it! If you haven't received your package or you think this was a mistake, contact support (support@shopmythrift.store).`,
-          receiverNumber: formattedPhoneNumber,
-          receiverId: userId,
-        };
-
-        const smsToken = import.meta.env.VITE_BETOKEN;
-
-        console.log("SMS Payload:", smsPayload);
-
-        try {
-          const smsResponse = await fetch(
-            "https://mythrift-sms.fly.dev/sendMessage",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${smsToken}`,
-              },
-              body: JSON.stringify(smsPayload),
-            }
-          );
-
-          const smsResult = await smsResponse.json();
-          console.log("SMS API Response:", smsResult);
-
-          if (smsResponse.ok) {
-            console.log(
-              `SMS sent successfully to user ${userPhoneNumber} (formatted: ${formattedPhoneNumber}).`
-            );
-          } else {
-            console.warn("SMS sending failed:", smsResult);
-          }
-        } catch (smsError) {
-          console.error("Error sending SMS:", smsError);
-        }
-      } else {
-        console.warn("User phone number not available, skipping SMS.");
-      }
-
-      toast.success(
-        "Order marked as delivered and your funds are on their way!"
-      );
+      // 3️⃣ UI feedback & cleanup
+      toast.success("Order marked as delivered!");
       onClose();
-    } catch (error) {
-      console.error("Failed to mark as delivered:", error);
-      toast.error("Failed to mark as delivered");
+    } catch (err) {
+      console.error("markOrderDelivered failed:", err);
+      toast.error("Failed to mark as delivered. Please try again.");
     } finally {
       setDeliverLoading(false);
       setIsConfirmDeliveryModalOpen(false);
-      console.log("handleMarkAsDelivered process completed.");
     }
   };
+
   const handleMarkStockpileAsDelivered = async () => {
     setDeliverLoading(true);
     try {
-      console.log("Starting handleMarkStockpileAsDelivered process...");
+      /* 1️⃣ call Cloud Function */
+      const markFn = httpsCallable(functions, "markStockpileDelivered");
+      const { data } = await markFn({ stockpileDocId: order.stockpileDocId });
 
-      // 1) Ensure we have the stockpile orders
-      if (!stockpileOrders || stockpileOrders.length === 0) {
-        throw new Error("No stockpile orders available.");
+      if (data.alreadyDelivered) {
+        toast.success("Stockpile already delivered ✅");
+        onClose();
+        return;
       }
 
-      // 2) Identify the primary order (the first in your sorted array)
-      const primaryOrder = stockpileOrders[0];
+      /* 2️⃣ FE‑only helpers (same as before) -------------------------- */
+      // 2a. figure out primary order (we still have stockpileOrders in state)
+      const primaryOrder =
+        stockpileOrders.find((o) => o.id === data.primaryOrderId) ||
+        stockpileOrders[0];
 
-      // Basic fields from your primaryOrder for convenience
-      const { orderId, userInfo, vendorId } = primaryOrder;
-      const userPhoneNumber = userInfo?.phoneNumber;
-      const userName = userInfo?.displayName;
-      const userId = userInfo?.uid || primaryOrder.userId;
-
-      // 3) Update every order doc in the stockpile to “Delivered”
-      //    except those that are "Declined"
-      for (const stockOrder of stockpileOrders) {
-        if (stockOrder.progressStatus === "Declined") {
-          continue; // do not overwrite Declined orders
-        }
-
-        const ref = doc(db, "orders", stockOrder.id);
-        await updateDoc(ref, {
-          progressStatus: "Delivered",
-          orderDelivered: true,
-          deliveredAt: serverTimestamp(), // store a timestamp for reference
-        });
-      }
-
-      // 4) Optionally fetch vendor cover image + product image for notifications
+      /* vendorName / cover */
+      let vendorName = order.vendorName;
       let vendorCoverImage = null;
-      if (vendorId) {
-        const vendorRef = doc(db, "vendors", vendorId);
-        const vendorSnap = await getDoc(vendorRef);
-        if (vendorSnap.exists()) {
-          vendorCoverImage = vendorSnap.data().coverImageUrl || null;
+      if (!vendorName && order.vendorId) {
+        const vSnap = await getDoc(doc(db, "vendors", order.vendorId));
+        if (vSnap.exists()) {
+          const vd = vSnap.data();
+          vendorName = vd.shopName || "Unknown Vendor";
+          vendorCoverImage = vd.coverImageUrl || null;
         }
       }
 
+      /* first product image */
       let productImage = null;
-      if (primaryOrder.cartItems && primaryOrder.cartItems.length > 0) {
-        const firstItem = primaryOrder.cartItems[0];
-        const productRef = doc(db, "products", firstItem.productId);
-        const productSnap = await getDoc(productRef);
-        if (productSnap.exists()) {
-          const productData = productSnap.data();
-          if (firstItem.subProductId) {
-            const sub = productData.subProducts?.find(
-              (sp) => sp.subProductId === firstItem.subProductId
-            );
-            productImage = sub?.images?.[0] || null;
-          } else {
-            productImage = productData.imageUrls?.[0] || null;
-          }
+      if (primaryOrder.cartItems?.length) {
+        const first = primaryOrder.cartItems[0];
+        const pSnap = await getDoc(doc(db, "products", first.productId));
+        if (pSnap.exists()) {
+          const pd = pSnap.data();
+          productImage = first.subProductId
+            ? pd.subProducts?.find(
+                (sp) => sp.subProductId === first.subProductId
+              )?.images?.[0] || null
+            : pd.imageUrls?.[0] || null;
         }
       }
 
-      // 5) Send a "Delivered" notification for the primary order
-      console.log("Sending ‘Delivered’ notification for the primary doc...");
+      /* 2b. in‑app notification + activity note */
       await notifyOrderStatusChange(
-        userId,
+        data.userId,
         primaryOrder.id,
         "Delivered",
         vendorName,
@@ -1134,97 +735,29 @@ const OrderDetailsModal = ({
         productImage
       );
 
-      // 6) Add an activity note for the vendor
-      console.log("Adding activity note for the vendor...");
       await addActivityNote(
-        vendorId,
+        data.vendorId,
         "Stockpile Delivered 😊",
-        `You’ve marked this entire stockpile as delivered. If this was a mistake, reach out immediately!`,
+        "You’ve marked this entire stockpile as delivered. If this was a mistake, reach out immediately!",
         "order"
       );
 
-      // 7) Clear and refresh vendor revenue
-      console.log("Clearing and refreshing vendor revenue cache...");
-      localStorage.removeItem(`vendorRevenue_${vendorId}`);
-      localStorage.removeItem(`vendorRevenue_time_${vendorId}`);
-      fetchVendorRevenue(vendorId)
-        .then((revenue) => {
-          setTotalRevenue(revenue);
-          console.log("Vendor revenue refreshed successfully.");
-        })
-        .catch(() => {
-          console.error("Failed to refresh vendor revenue.");
-        });
+      /* 2c. revenue refresh */
+      localStorage.removeItem(`vendorRevenue_${data.vendorId}`);
+      localStorage.removeItem(`vendorRevenue_time_${data.vendorId}`);
+      fetchVendorRevenue(data.vendorId)
+        .then((rev) => setTotalRevenue(rev))
+        .catch(() => console.error("Failed to refresh vendor revenue"));
 
-      // 8) Send SMS to the user (only once)
-      // if (userPhoneNumber) {
-      //   console.log("Preparing to send SMS about delivered stockpile...");
-      //   const formattedPhoneNumber = userPhoneNumber.startsWith("0")
-      //     ? userPhoneNumber.slice(1)
-      //     : userPhoneNumber;
-
-      //   const smsPayload = {
-      //     message: `Your entire stockpile (ref: ${orderId}) has been marked delivered by ${vendorName}. We hope you love your items! If you haven't received them or this was a mistake, please contact support@shopmythrift.store.`,
-      //     receiverNumber: formattedPhoneNumber,
-      //     receiverId: userId,
-      //   };
-
-      //   const smsToken = import.meta.env.VITE_BETOKEN;
-      //   console.log("SMS Payload:", smsPayload);
-
-      //   try {
-      //     const smsResponse = await fetch(
-      //       "https://mythrift-sms.fly.dev/sendMessage",
-      //       {
-      //         method: "POST",
-      //         headers: {
-      //           "Content-Type": "application/json",
-      //           Authorization: `Bearer ${smsToken}`,
-      //         },
-      //         body: JSON.stringify(smsPayload),
-      //       }
-      //     );
-      //     const smsResult = await smsResponse.json();
-      //     console.log("SMS API Response:", smsResult);
-
-      //     if (smsResponse.ok) {
-      //       console.log(
-      //         `SMS sent successfully to user ${userPhoneNumber} (formatted: ${formattedPhoneNumber}).`
-      //       );
-      //     } else {
-      //       console.warn("SMS sending failed:", smsResult);
-      //     }
-      //   } catch (smsError) {
-      //     console.error("Error sending SMS:", smsError);
-      //   }
-      // } else {
-      //   console.warn("User phone number not available, skipping SMS.");
-      // }
-
-      // 9) Now call the Cloud Function to notify the user (via email and SMS)
-      const notifyUserStockpileUpdate = httpsCallable(
-        functions,
-        "notifyUserStockpileUpdate"
-      );
-      await notifyUserStockpileUpdate({
-        eventType: "delivered",
-        userEmail: userInfo.email,
-        userName,
-        orderId: primaryOrder.id,
-        stockpileDocId: primaryOrder.stockpileDocId,
-        vendorName,
-        userPhone: userPhoneNumber,
-      });
-
+      /* 3️⃣ UI feedback */
       toast.success("Stockpile marked as delivered. Congrats!");
       onClose();
-    } catch (error) {
-      console.error("Failed to mark stockpile as delivered:", error);
+    } catch (err) {
+      console.error("markStockpileAsDelivered failed:", err);
       toast.error("Failed to mark stockpile as delivered");
     } finally {
       setDeliverLoading(false);
       setIsConfirmDeliveryModalOpen(false);
-      console.log("handleMarkStockpileAsDelivered process completed.");
     }
   };
 
@@ -1718,21 +1251,28 @@ const OrderDetailsModal = ({
                     </p>
                   </div>
 
-                  {!order.isStockpile && (
-                    <div className="flex items-center pb-3 border-b border-gray-100">
-                      <FaTruck className="text-orange-700 text-xl" />
-                      <p className="ml-3 text-gray-500 text-sm font-opensans">
-                        Delivery Mode:
-                      </p>
-                      <p className="ml-10 font-opensans text-black text-sm flex-grow">
-                        {loading ? (
-                          <Skeleton width={100} />
+                  <div className="flex items-center pb-3 border-b border-gray-100">
+                    <FaTruck className="text-orange-700 text-xl" />
+                    <p className="ml-3 text-gray-500 text-sm font-opensans">
+                      Delivery Mode:
+                    </p>
+                    <p className="ml-4 font-opensans text-black text-sm flex-grow">
+                      {loading ? (
+                        <Skeleton width={100} />
+                      ) : order.isStockpile ? (
+                        order.isActive ? (
+                          "Delivery when stockpile has ended"
                         ) : (
-                          vendorDeliveryMode || "Not Specified"
-                        )}
-                      </p>
-                    </div>
-                  )}
+                          "Delivery"
+                        )
+                      ) : order.deliveryInfo ? (
+                        `${vendorDeliveryMode} with Kwik Logistics`
+                      ) : (
+                        vendorDeliveryMode || "Not Specified"
+                      )}
+                    </p>
+                  </div>
+
                   {/* For Stockpile Orders, show each product's order id and creation time */}
                   {order.isStockpile && (
                     <>

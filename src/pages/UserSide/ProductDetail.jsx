@@ -1,5 +1,11 @@
 /* eslint-disable jsx-a11y/img-redundant-alt */
-import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart, removeFromCart } from "../../redux/actions/action";
@@ -1308,12 +1314,26 @@ const ProductDetailPage = () => {
             </div>
           </div>
           <div
-            className="flex justify-between items-center mt-4 mb-4 cursor-pointer"
+            className="flex items-center mt-5 mb-4 cursor-pointer"
             onClick={() => setIsModalOpen(true)}
           >
-            <p className="text-black text-md font-opensans ">Product Details</p>
-            <GoChevronRight className="text-3xl -mx-2" />
+            {/* Left label */}
+            <span className="text-black text-md font-opensans whitespace-nowrap">
+              Product Details
+            </span>
+
+            {/* Vertical divider */}
+            <span className="mx-2 h-4 border-r border-gray-300" />
+
+            {/* Truncated description */}
+            <span className="text-xs text-gray-600 truncate font-opensans max-w-[140px]">
+              {product.description?.slice(0, 20)}...
+            </span>
+
+            {/* Arrow icon */}
+            <GoChevronRight className="ml-auto text-2xl" />
           </div>
+
           <Modal
             isOpen={isModalOpen}
             onRequestClose={() => setIsModalOpen(false)}

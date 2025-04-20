@@ -275,11 +275,16 @@
         z-index: 9999;
       }
     </style>
+    <script
+      async
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDNCknLB3RrITleZDw7a9KgMx-01eeth-8&loading=async&libraries=places&callback=initMap"
+    ></script>
+
     <script>
-      window.ios = (
-        navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1
-      ) || /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    
+      window.ios =
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) ||
+        /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
       window.pwa = window.matchMedia("(display-mode: standalone)").matches;
     </script>
     <script>
@@ -348,7 +353,6 @@
     <script>
       // We'll store the event here for React to access later
       window.beforeInstallEvent = null;
-      
 
       function handleBeforeInstallPrompt(e) {
         console.log("[index.html] Captured beforeinstallprompt");
@@ -379,7 +383,7 @@
       // When the DOM is fully loaded
       document.addEventListener("DOMContentLoaded", () => {
         const loadingScreen = document.getElementById("custom-loading-screen");
-    
+
         // Display the loading screen only in PWA mode (if desired)
         if (loadingScreen) {
           loadingScreen.style.display = isPWA && isIOS ? "flex" : "none";
@@ -395,11 +399,11 @@
       }, 5000);
     </script>
 
-    <script
+    <!-- <script
       src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBICThXpl7hpROS8dj3mK4tXP84fs7aTwo&libraries=places"
       async
       defer
-    ></script>
+    ></script> -->
     <script
       async
       src="https://static.sppopups.com/assets/loader.js"

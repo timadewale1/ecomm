@@ -458,7 +458,7 @@ const VirtualVendor = ({
                 )}
               </div>
 
-              <div className="relative">
+              <div className="relative category-dropdown">
                 <button
                   type="button"
                   onClick={() => {

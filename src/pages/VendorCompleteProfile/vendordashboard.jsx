@@ -9,7 +9,9 @@ import {
   collection,
   query,
   where,
+  updateDoc,
   onSnapshot,
+  doc,
   orderBy,
   limit,
   getDocs,
@@ -38,6 +40,8 @@ import SEO from "../../components/Helmet/SEO";
 import Lottie from "lottie-react";
 import LoadState from "../../Animations/loadinganimation.json";
 import StockpileSetupModal from "../../components/StockPile.jsx";
+import MissingLocationModal from "../../components/Location/MissingLocationModal.jsx";
+
 const VendorDashboard = () => {
   const defaultImageUrl =
     "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
@@ -56,6 +60,11 @@ const VendorDashboard = () => {
   // const [recentActivities, setRecentActivities] = useState([]);
   // const [activityLoading, setActivityLoading] = useState(false);
   const [isModalOpen, setModalOpen] = useState(false);
+
+  const [showMissingLocationModal, setShowMissingLocationModal] =
+    useState(false);
+  const [locationFixing, setLocationFixing] = useState(false);
+
   // const [lastDoc, setLastDoc] = useState(null);
   // const [hasMore, setHasMore] = useState(true); // If there are more activities to load
   const navigate = useNavigate();
@@ -94,6 +103,14 @@ const VendorDashboard = () => {
       navigate("/complete-profile");
     }
   }, [vendorData, loading, navigate]);
+  useEffect(() => {
+    if (
+      vendorData &&
+      (!vendorData.location?.lat || !vendorData.location?.lng)
+    ) {
+      setShowMissingLocationModal(true);
+    }
+  }, [vendorData]);
 
   const formatRevenue = (revenue) => {
     return revenue.toLocaleString("en-US", {
@@ -175,6 +192,22 @@ const VendorDashboard = () => {
     });
 
     return () => unsubscribe();
+  };
+  const handleLocationUpdate = async ({ lat, lng, address }) => {
+    setLocationFixing(true);
+    try {
+      await updateDoc(doc(db, "vendors", vendorData.vendorId), {
+        address,
+        location: { lat, lng },
+      });
+      toast.success("Address updated successfully!");
+      setShowMissingLocationModal(false);
+    } catch (err) {
+      console.error("Failed to update address:", err);
+      toast.error("Error updating address.");
+    } finally {
+      setLocationFixing(false);
+    }
   };
 
   const fetchStatistics = (vendorId) => {
@@ -443,9 +476,17 @@ const VendorDashboard = () => {
   }
   return (
     <>
-     {vendorData && !vendorData.stockpile && (
-      <StockpileSetupModal vendorId={vendorData.vendorId} />
-    )}
+      {vendorData && !vendorData.stockpile && (
+        <StockpileSetupModal vendorId={vendorData.vendorId} />
+      )}
+      {showMissingLocationModal && (
+        <MissingLocationModal
+          onLocationUpdate={handleLocationUpdate}
+          isLoading={locationFixing}
+          closeModal={() => setShowMissingLocationModal(false)}
+        />
+      )}
+
       <SEO
         title={`Vendor Dashboard - My Thrift`}
         description={`Manage your store on My Thrift`}
@@ -800,15 +841,15 @@ const VendorDashboard = () => {
               </div>
             )}
             {<div ref={lastActivityRef} />}
-              <div className="flex justify-center items-center">
-                <Lottie
-                  className="w-10 h-10"
-                  animationData={LoadState}
-                  loop={true}
-                  autoplay={true}
-                />
-              </div>
-            
+            <div className="flex justify-center items-center">
+              <Lottie
+                className="w-10 h-10"
+                animationData={LoadState}
+                loop={true}
+                autoplay={true}
+              />
+            </div>
+
             {<div ref={lastActivityRef} />}
           </div>
         </div>
@@ -829,7 +870,6 @@ const VendorDashboard = () => {
       <Modal isOpen={isModalOpen} onClose={closeModal}>
         <AddProduct vendorId={vendorData?.vendorId} closeModal={closeModal} />
       </Modal>
-     
     </>
   );
 };

@@ -28,6 +28,7 @@ import { Bars } from "react-loader-spinner";
 import SEO from "../components/Helmet/SEO";
 import { ImSad2 } from "react-icons/im";
 import { FcPaid } from "react-icons/fc";
+import { MdClose } from "react-icons/md";
 const debounce = (func, delay) => {
   let timeoutId;
   return (...args) => {
@@ -61,6 +62,29 @@ const Cart = () => {
   const { isActive, vendorId: stockpileVendorId } = useSelector(
     (state) => state.stockpile
   );
+  const [showNoteBadge, setShowNoteBadge] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+
+  const vendorIds = Object.keys(cart);
+  const firstVendorId = vendorIds.length > 0 ? vendorIds[0] : null;
+
+  useEffect(() => {
+    if (!localStorage.getItem("deliveryNoteBadgeShown") && firstVendorId) {
+      setShowNoteBadge(true);
+      setIsVisible(true);
+      localStorage.setItem("deliveryNoteBadgeShown", "true");
+
+      const timer = setTimeout(() => {
+        setIsVisible(false);
+      }, 10000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [firstVendorId]);
+
+  const handleClose = () => {
+    setIsVisible(false);
+  };
 
   useEffect(() => {
     if (isModalOpen || isNoteModalOpen || isLoginModalOpen) {
@@ -380,6 +404,7 @@ const Cart = () => {
   };
 
   const handleViewSelection = (vendorId) => {
+    setShowNoteBadge(false);
     setSelectedVendorId(vendorId);
     setIsModalOpen(true);
   };
@@ -508,19 +533,37 @@ const Cart = () => {
                             </p>
                           </div>
                         </div>
+                        <div className="relative w-full mt-4 flex justify-between items-center">
+                          {/* Badge */}
+                          {showNoteBadge && vendorId === firstVendorId && (
+                            <div
+                              className={`absolute z-50 w-[500px] bg-customBrown text-white px-4 py-3 rounded-lg shadow-lg flex flex-col items-start space-y-1 transform -translate-x-1/2 -translate-y-20 left-1/2 transition-opacity duration-500 ${
+                                isVisible
+                                  ? "opacity-100"
+                                  : "opacity-0 pointer-events-none"
+                              }`}
+                              style={{ maxWidth: "100%" }}
+                            >
+                              <span className="font-semibold font-opensans text-xs">
+                                Click “View Selection” to leave a note for the vendor
+                              </span>
+                            
+                              <div className="absolute bottom-[-7px] right-1 transform -translate-x-1/2 w-4 h-4 bg-customBrown rotate-45" />
+                            </div>
+                          )}
 
-                        {/* "View Selection" stays on the right */}
-                        <div
-                          className="flex items-center cursor-pointer ml-auto"
-                          onClick={() => handleViewSelection(vendorId)}
-                        >
-                          <h3 className="font-opensans text-black -translate-y-3 text-sm font-normal whitespace-nowrap">
-                            {isActive && vendorId === stockpileVendorId
-                              ? "View Pile"
-                              : "View Selection"}
-                          </h3>
-
-                          <GoChevronUp className="ml-1 -translate-y-3 text-black" />
+                          {/* View Selection on far right */}
+                          <div
+                            className="ml-auto flex items-center cursor-pointer"
+                            onClick={() => handleViewSelection(vendorId)}
+                          >
+                            <h3 className="font-opensans text-black -translate-y-5 text-sm font-normal whitespace-nowrap">
+                              {isActive && vendorId === stockpileVendorId
+                                ? "View Pile"
+                                : "View Selection"}
+                            </h3>
+                            <GoChevronUp className="ml-1 -translate-y-5 text-black" />
+                          </div>
                         </div>
                       </div>
 

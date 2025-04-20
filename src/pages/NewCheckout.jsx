@@ -8,7 +8,7 @@ import { functions } from "../firebase.config";
 import { useAuth } from "../custom-hooks/useAuth";
 import { SiAdguard } from "react-icons/si";
 import { enterStockpileMode } from "../redux/reducers/stockpileSlice";
-
+import { CiWarning } from "react-icons/ci";
 import { GiBookPile } from "react-icons/gi";
 import { FaPen } from "react-icons/fa";
 import serviceimage from "../Images/servicemodal.jpg";
@@ -39,11 +39,15 @@ import { RotatingLines } from "react-loader-spinner";
 import { IoSettingsOutline } from "react-icons/io5";
 import { calculateDeliveryFee } from "../services/states";
 import { NigerianStates } from "../services/states";
+import LocationPicker from "../components/Location/LocationPicker";
+
 import SEO from "../components/Helmet/SEO";
 import ReactSelect from "react-select";
 import { BsInfoCircle } from "react-icons/bs";
 const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
-  const [selectedState, setSelectedState] = useState("");
+  const [locationSet, setLocationSet] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+
   useEffect(() => {
     if (userInfo.address) {
       const stateInAddress = NigerianStates.find((state) =>
@@ -54,15 +58,16 @@ const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
       }
     }
   }, [userInfo.address]);
-  const handleStateChange = (e) => {
-    const state = e.target.value;
-    setSelectedState(state);
 
-    // Append or replace the state in the address
-    const addressWithoutState = userInfo.address
-      .replace(new RegExp(`, ${selectedState}$`), "")
-      .trim();
-    setUserInfo({ ...userInfo, address: `${addressWithoutState}, ${state}` });
+  const handleLocationSelect = ({ lat, lng, address }) => {
+    setUserInfo({
+      ...userInfo,
+      address,
+      latitude: lat, // <-- overwrite these
+      longitude: lng,
+    });
+    setShowLocationPicker(false); // Hide the picker
+    setLocationSet(true); // Mark location as selected
   };
 
   useEffect(() => {
@@ -83,7 +88,7 @@ const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
       isOpen={isOpen}
       onRequestClose={onClose}
       className="bg-white w-full max-w-full h-[60vh] rounded-t-2xl shadow-lg px-3 py-3 relative overflow-y-scroll"
-      overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
+      overlayClassName="fixed inset-0 bg-white bg-opacity-20 backdrop-blur flex justify-center items-end z-50"
       ariaHideApp={false}
     >
       <div className="flex justify-between mt-3 items-center">
@@ -132,34 +137,34 @@ const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
             />
           </div>
           <div>
-            <label className="font-opensans">Address</label>
-            <input
-              type="text"
+            <label className="font-opensans">Delivery Address</label>
+            {!showLocationPicker ? (
+              <input
+                type="text"
+                className="border bg-gray-100 py-2.5 mt-2 rounded-lg w-full px-2 font-opensans text-gray-600"
+                value={userInfo.address}
+                readOnly
+                onClick={() => setShowLocationPicker(true)}
+                placeholder="Click to select your location"
+              />
+            ) : (
+              <LocationPicker onLocationSelect={handleLocationSelect} />
+            )}
+          </div>
+          <div>
+            <label className="font-opensans">Delivery Note</label>
+            <textarea
+              rows={3}
               className="border bg-gray-100 py-2.5 mt-2 rounded-lg w-full px-2 font-opensans text-gray-600"
-              value={userInfo.address}
+              value={userInfo.deliveryNote || ""}
               onChange={(e) =>
-                setUserInfo({ ...userInfo, address: e.target.value })
+                setUserInfo({ ...userInfo, deliveryNote: e.target.value })
               }
+              placeholder="Any special instructions? E.g. Leave at front desk…"
             />
           </div>
         </div>
-        <div>
-          <label className="font-opensans mt-2">State</label>
-          <select
-            className="border bg-gray-100 py-2.5 mt-2 rounded-lg w-full px-2 font-opensans text-gray-600"
-            value={selectedState}
-            onChange={handleStateChange}
-          >
-            <option value="" disabled>
-              Select a State
-            </option>
-            {NigerianStates.map((state) => (
-              <option key={state} value={state}>
-                {state}
-              </option>
-            ))}
-          </select>
-        </div>
+
         <div className="border-t mt-4 border-gray-300 my-2"></div>
 
         <div className="flex mt-2 flex-col">
@@ -317,6 +322,7 @@ const Checkout = () => {
     subtotal: null,
     bookingFee: null,
     serviceFee: "Calculating fees...",
+    deliveryCharge: null,
     total: null,
   });
   const [showBookingFeeModal, setShowBookingFeeModal] = useState(false);
@@ -326,6 +332,9 @@ const Checkout = () => {
   const [showBuyersFee, setShowBuyersFee] = useState(false);
   const [isFetchingOrderPreview, setIsFetchingOrderPreview] = useState(true);
   const [checkoutMode, setCheckoutMode] = useState("deliver");
+  const [deliveryNote, setDeliveryNote] = useState("");
+  const [userState, setUserState] = useState(null);
+
   const [showAlreadyStockpiledModal, setShowAlreadyStockpiledModal] =
     useState(false);
 
@@ -370,6 +379,7 @@ const Checkout = () => {
       userInfo,
       preview: isPreview,
       isRepiling: isRepiling,
+      deliveryNote: userInfo.deliveryNote,
       isStockpile: checkoutMode === "stockpile" || isRepiling,
       stockpileDuration:
         checkoutMode === "stockpile" && selectedWeeks
@@ -442,6 +452,9 @@ const Checkout = () => {
             email: userDoc.data().email || "",
             phoneNumber: userDoc.data().phoneNumber || "",
             address: userDoc.data().address || "",
+            latitude: userDoc.data().location?.lat || null,
+            longitude: userDoc.data().location?.lng || null,
+            deliveryNote: "",
           });
         } else {
           toast.error("User document does not exist.");
@@ -479,8 +492,15 @@ const Checkout = () => {
         const response = await processOrder(orderData);
 
         // Set previewed values in the state
-        const { subtotal, bookingFee, serviceFee, total } = response.data;
-        setPreviewedOrder({ subtotal, bookingFee, serviceFee, total });
+        const { subtotal, bookingFee, serviceFee, deliveryCharge, total } =
+          response.data;
+        setPreviewedOrder({
+          subtotal,
+          bookingFee,
+          deliveryCharge,
+          serviceFee,
+          total,
+        });
 
         setIsFetchingOrderPreview(false);
 
@@ -493,7 +513,17 @@ const Checkout = () => {
     };
 
     fetchOrderPreview();
-  }, [vendorId, cart, currentUser, userInfo, checkoutMode, selectedWeeks]);
+  }, [
+    vendorId,
+    cart,
+    currentUser,
+    userInfo,
+    checkoutMode,
+    userInfo.address,
+    userInfo.latitude,
+    userInfo.longitude,
+    selectedWeeks,
+  ]);
 
   useEffect(() => {
     if (!vendorId) {
@@ -602,32 +632,71 @@ const Checkout = () => {
   useEffect(() => {
     console.log("selectedWeeks state updated to:", selectedWeeks);
   }, [selectedWeeks]);
+  const getStateFromLatLng = async (lat, lng) => {
+    return new Promise((resolve, reject) => {
+      const geocoder = new window.google.maps.Geocoder();
+      const latlng = { lat, lng };
+
+      geocoder.geocode({ location: latlng }, (results, status) => {
+        if (status === "OK" && results[0]) {
+          const addressComponents = results[0].address_components;
+          const stateComponent = addressComponents.find((component) =>
+            component.types.includes("administrative_area_level_1")
+          );
+          if (stateComponent) {
+            resolve(stateComponent.long_name);
+          } else {
+            reject("State not found");
+          }
+        } else {
+          reject("Reverse geocode failed");
+        }
+      });
+    });
+  };
 
   useEffect(() => {
-    const calculateFee = () => {
-      if (!vendorsInfo[vendorId] || !userInfo.address) return;
+    const calculateFee = async () => {
+      if (!vendorsInfo[vendorId] || !userInfo.latitude || !userInfo.longitude)
+        return;
 
-      const vendorState = vendorsInfo[vendorId]?.state;
-      const userState = userInfo.address.split(", ").pop();
+      const vendorState = vendorsInfo[vendorId].state;
       const subtotal = previewedOrder.subtotal || 0;
       const isWeekend = [0, 6].includes(new Date().getDay());
 
       try {
+        // reverse‑geocode the user into a state
+        const resolvedState = await getStateFromLatLng(
+          userInfo.latitude,
+          userInfo.longitude
+        );
+        setUserState(resolvedState);
+
+        // now compute your estimate as before
         const estimatedFee = calculateDeliveryFee(
           vendorState,
-          userState,
+          resolvedState,
           subtotal,
           isWeekend
         );
         setDeliveryEstimate(estimatedFee);
       } catch (error) {
-        console.error("Error calculating delivery fee:", error.message);
+        console.error("Error calculating delivery fee:", error);
       }
     };
 
     calculateFee();
-  }, [vendorsInfo, userInfo, previewedOrder, vendorId]);
+  }, [
+    vendorsInfo,
+    userInfo.latitude,
+    userInfo.longitude,
+    previewedOrder,
+    vendorId,
+  ]);
 
+  // 3) Derive whether this is truly Lagos→Lagos:
+  const isLagosToLagos =
+    vendorsInfo[vendorId]?.state === "Lagos" && userState === "Lagos";
   const handleDeliveryModeSelection = (mode) => {
     if (mode === "Pickup" && vendorsInfo[vendorId]?.deliveryMode !== "Pickup") {
       toast.error("Vendor does not offer pick-up ☹️");
@@ -1091,6 +1160,41 @@ const Checkout = () => {
                 </p>
               </div>
             )}
+            <div>
+              {isFetchingOrderPreview ? (
+                <Skeleton width={80} />
+              ) : isRepiling ? (
+                <p className="font-opensans text-sm mt-3 text-black font-medium">
+                  Delivery fee will be charged when it’s time to ship.
+                </p>
+              ) : !isLagosToLagos ? (
+                // --- NOT Lagos→Lagos: show the orange info box ---
+                <div className="flex items-center bg-orange-50 py-3 px-2 rounded-lg mt-3">
+                  <CiWarning className="text-orange-600 text-7xl mr-3" />
+                  <div>
+                    <p className="font-opensans text-xs text-orange-700 font-semibold">
+                      Delivery is only charged for Lagos-to-Lagos orders. You
+                      won’t be billed now — the vendor will confirm the final
+                      fee when it’s time to ship.
+                    </p>
+                    {/* <p className="text-sm font-opensans text-black font-bold mt-1">
+                      Estimate Cost: ₦{deliveryEstimate.toLocaleString()}
+                    </p> */}
+                  </div>
+                </div>
+              ) : (
+                // --- Lagos→Lagos: show the actual fee ---
+                <div className="flex justify-between">
+                  <span className="font-opensans font-medium">
+                    Delivery Fee
+                  </span>
+                  <span className="text-lg font-opensans text-black font-semibold">
+                    ₦
+                    {parseFloat(previewedOrder.deliveryCharge).toLocaleString()}
+                  </span>
+                </div>
+              )}
+            </div>
 
             <div className="border-t mt-3 border-gray-300 my-2"></div>
             <div className="flex justify-between mt-2">
@@ -1105,6 +1209,7 @@ const Checkout = () => {
                 )}
               </p>
             </div>
+
             {isRepiling && (
               <div className="flex items-center bg-green-50 p-3 rounded-lg mt-3">
                 <GiBookPile className="text-green-600 text-3xl mr-3" />
@@ -1170,6 +1275,21 @@ const Checkout = () => {
                   Address:
                 </label>
                 <p className="font-opensans text-black ">{userInfo.address}</p>
+              </div>
+
+              <div className="flex flex-col space-y-1">
+                <div className="flex items-center">
+                  <label className="font-semibold mr-1">Note:</label>
+                  {userInfo.deliveryNote ? (
+                    <p className="font-opensans text-black">
+                      {userInfo.deliveryNote}
+                    </p>
+                  ) : (
+                    <p className="italic font-opensans text-sm text-gray-400">
+                      Write instructions for the rider here…
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1317,7 +1437,7 @@ const Checkout = () => {
                     2-7 working days
                   </p>
 
-                  <div className="px-4 w-full py-2 rounded-lg bg-customCream">
+                  {/* <div className="px-4 w-full py-2 rounded-lg bg-customCream">
                     <h1 className="text-black font-semibold font-opensans text-xs">
                       Estimated Delivery Fee
                     </h1>
@@ -1341,7 +1461,7 @@ const Checkout = () => {
                       checkout. The vendor will contact you with the exact
                       delivery fee details before your order is shipped.
                     </p>
-                  </div>
+                  </div> */}
                 </>
               )}
             </div>

@@ -818,7 +818,62 @@ const productSizes = {
     "BT (Big & Tall)",
     "Petite",
   ],
+"Belts": [
+  // Standard Belt Sizes (Unisex/Men’s in inches)
+  "28",
+  "30",
+  "32",
+  "34",
+  "36",
+  "38",
+  "40",
+  "42",
+  "44",
+  "46",
+  "48",
+  "50",
+  "52",
+  "54",
+  "56",
 
+  // Women’s Belt Sizes (approx waist)
+  "XS (24-26)",
+  "S (26-28)",
+  "M (28-30)",
+  "L (30-32)",
+  "XL (32-34)",
+  "XXL (34-36)",
+  "1X",
+  "2X",
+  "3X",
+
+  // Alpha Sizes
+  "XS",
+  "S",
+  "M",
+  "L",
+  "XL",
+  "XXL",
+
+  // Adjustable & Universal Fit
+  "One Size",
+  "One Size Fits Most",
+  "Adjustable Buckle",
+  "Stretch Fit",
+  "Elastic Fit",
+
+  // Specialty Sizing
+  "Petite",
+  "Plus",
+  "Big & Tall",
+
+  // Kids & Youth Belt Sizes
+  "Toddler (18-20)",
+  "Youth S (20-22)",
+  "Youth M (22-24)",
+  "Youth L (24-26)"
+]
+,
   Scarves: [
     // Head Wraps & African Styles
     "12x60 inches",
@@ -916,26 +971,59 @@ const productSizes = {
     "Adjustable"
   ],
   Shorts: [
-    // Women's Numeric Sizes (Waist)
-    "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34",
-  
-    // Men's Numeric Sizes (Waist)
-    "28", "30", "32", "34", "36", "38", "40", "42", "44",
-  
-    // Letter Sizes (Unisex)
-    "XS", "S", "M", "L", "XL", "XXL", "XXXL",
-  
-    // Plus Sizes
-    "1X", "2X", "3X", "4X",
-  
-    // Waist x Inseam (Men's/Bermuda)
-    "28x5", "30x5", "32x7", "34x7", "36x9", "38x9",
-  
-    // Kids/Youth
-    "Y10", "Y12", "Y14", "Y16",
-  
-    // One Size/Adjustable
-    "One Size",
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL",
+    "XXL",
+    "24",
+    "25",
+    "26",
+    "27",
+    "28",
+    "29",
+    "30",
+    "31",
+    "32",
+    "33",
+    "34",
+    "36",
+    "38",
+    "40",
+    "42",
+    "44", // waist measurements in inches
+    "0",
+    "2",
+    "4",
+    "6",
+    "8",
+    "10",
+    "12",
+    "14",
+    "16",
+    "18",
+    "20",
+    "2-4",
+    "4-6",
+    "6-8",
+    "8-10",
+    "10-12",
+    "12-14",
+    "14-16",
+    "16-18",
+    "18-20",
+    "20-22",
+    "22-24",
+    "24-26",
+    "26-28",
+    "28-30",
+    "30-32",
+
+    "One Size Fits All",
+    "Custom Fit",
+   
+   
     "OSFM",
     "Adjustable Waist"
   ],

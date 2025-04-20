@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { updateProfile } from "firebase/auth";
 import { auth, db } from "../../firebase.config";
 import toast from "react-hot-toast";
@@ -35,6 +35,7 @@ import Loading from "../../components/Loading/Loading";
 import { GoChevronLeft } from "react-icons/go";
 import Waiting from "../../components/Loading/Waiting";
 import Productnotofund from "../../components/Loading/Productnotofund";
+import LocationPicker from "../../components/Location/LocationPicker";
 
 const ProfileDetails = ({
   currentUser,
@@ -45,6 +46,12 @@ const ProfileDetails = ({
   const [isEditing, setIsEditing] = useState(false);
   const dispatch = useDispatch();
   const userData = useSelector((state) => state.user.userData);
+  const [locationCoords, setLocationCoords] = useState({
+    lat: null,
+    lng: null,
+  });
+  const [showMap, setShowMap] = useState(false);
+  const mapRef = useRef(null);
 
   const [editField, setEditField] = useState("");
   const [username, setUsername] = useState("");
@@ -100,6 +107,39 @@ const ProfileDetails = ({
       fetchUserData();
     }
   }, [userData, currentUser, dispatch]);
+  useEffect(() => {
+    if (editField !== "address" || !showMap) return;
+
+    const input = document.getElementById("autocomplete");
+    const autocomplete = new google.maps.places.Autocomplete(input);
+    const defaultLoc = { lat: 6.5244, lng: 3.3792 };
+    let mapInstance, marker;
+
+    autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      if (!place.geometry) return;
+      const loc = place.geometry.location;
+      setLocationCoords({ lat: loc.lat(), lng: loc.lng() });
+      setAddress(place.formatted_address);
+      if (mapInstance) marker.setPosition(loc);
+      if (mapInstance) mapInstance.setCenter(loc);
+    });
+
+    mapInstance = new google.maps.Map(mapRef.current, {
+      center: defaultLoc,
+      zoom: 13,
+    });
+
+    marker = new google.maps.Marker({
+      map: mapInstance,
+      position: defaultLoc,
+      draggable: true,
+    });
+
+    marker.addListener("dragend", (e) => {
+      setLocationCoords({ lat: e.latLng.lat(), lng: e.latLng.lng() });
+    });
+  }, [editField, showMap]);
 
   if (loading) {
     return <Loading />;
@@ -155,6 +195,7 @@ const ProfileDetails = ({
       </div>
     );
   }
+  //    but it early‐exits if not editing address or map closed:
 
   const handleEdit = (field) => {
     setEditField(field);
@@ -201,16 +242,7 @@ const ProfileDetails = ({
   const handleSave = async () => {
     if (!validateFields()) return;
 
-    if (editField === "address") {
-      const stateInAddress = NigerianStates.some((state) =>
-        address.endsWith(state)
-      );
-
-      if (!stateInAddress) {
-        toast.error("Please select a state to complete your address.");
-        return;
-      }
-    }
+    
 
     setIsLoading(true);
 
@@ -255,10 +287,29 @@ const ProfileDetails = ({
         updatedFields.phoneNumber = phoneNumber;
         setPhoneNumber(phoneNumber);
       } else if (editField === "address") {
-        await updateDoc(doc(db, "users", currentUser.uid), { address });
+        // Defensive check to ensure coordinates exist
+        if (!locationCoords.lat || !locationCoords.lng) {
+          toast.error("Please select a valid address from suggestions.");
+          return;
+        }
+      
+        await updateDoc(doc(db, "users", currentUser.uid), {
+          address, // string value (formatted address)
+          location: {
+            lat: locationCoords.lat,
+            lng: locationCoords.lng,
+          },
+        });
+      
         updatedFields.address = address;
+        updatedFields.location = {
+          lat: locationCoords.lat,
+          lng: locationCoords.lng,
+        };
+      
         setAddress(address);
-      } else if (editField === "birthday") {
+      }
+      else if (editField === "birthday") {
         await updateDoc(doc(db, "users", currentUser.uid), { birthday });
         updatedFields.birthday = birthday;
         setBirthday(birthday);
@@ -479,43 +530,15 @@ const ProfileDetails = ({
             )}
             {editField === "address" && (
               <>
-                {/* Address Input */}
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded mb-4"
-                  placeholder="Enter your address"
+                <LocationPicker
+                  onLocationSelect={({ lat, lng, address }) => {
+                    setLocationCoords({ lat, lng });
+                    if (address) setAddress(address);
+                  }}
                 />
 
-                {/* State Dropdown */}
-                <label className="block mb-2 text-sm font-medium text-gray-600">
-                  Select State
-                </label>
-                <select
-                  className="w-full p-2 border border-gray-300 rounded mb-4"
-                  onChange={(e) => {
-                    const selectedState = e.target.value;
-
-                    // Ensure the state is appended or replaced correctly
-                    const addressWithoutState = address.replace(
-                      new RegExp(`,? ${selectedState}$`),
-                      ""
-                    );
-                    setAddress(
-                      `${addressWithoutState}, ${selectedState}`.trim()
-                    );
-                  }}
-                >
-                  <option value="" disabled selected>
-                    Choose your state
-                  </option>
-                  {NigerianStates.map((state) => (
-                    <option key={state} value={state}>
-                      {state}
-                    </option>
-                  ))}
-                </select>
+                {/* State Dropdown (unchanged) */}
+       
               </>
             )}
 

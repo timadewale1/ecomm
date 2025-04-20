@@ -42,7 +42,7 @@ const CompleteProfile = () => {
       tiktok: "", // TikTok link
       facebook: "", // Facebook link
     },
-
+    location: { lat: null, lng: null },
     Address: "", // Vendor's address (could be for personal or business)
 
     // Market vendor specific fields
@@ -453,7 +453,7 @@ const CompleteProfile = () => {
         description={`Complete your vendor profile on My Thrift`}
         url={`https://www.shopmythrift.store/complete-profile`}
       />
-      <Container>
+      <section>
         <Row>
           {loading ? (
             <Loading />
@@ -598,7 +598,7 @@ const CompleteProfile = () => {
             </Form>
           )}
         </Row>
-      </Container>
+      </section>
     </>
   );
 };

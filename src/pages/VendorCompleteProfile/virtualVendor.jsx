@@ -20,6 +20,8 @@ import { IoShareSocial } from "react-icons/io5";
 import ProgressBar from "./ProgressBar";
 import toast from "react-hot-toast"; // Import from react-hot-toast
 import { RotatingLines } from "react-loader-spinner";
+import LocationPicker from "../../components/Location/LocationPicker";
+
 import { GoTrash } from "react-icons/go";
 const VirtualVendor = ({
   vendorData,
@@ -385,19 +387,23 @@ const VirtualVendor = ({
                 )}
               </FormGroup>
 
-              <input
-                type="text"
-                name="Address"
-                placeholder="Brand/Personal Address"
-                value={vendorData.Address}
-                onChange={(e) =>
-                  setVendorData({ ...vendorData, Address: e.target.value })
-                }
-                className="w-full h-12 mb-3 p-3 font-opensans text-neutral-800 border-2 rounded-lg hover:border-customOrange 
-          focus:outline-none focus:border-customOrange"
-              />
-              {/* State Dropdown */}
-              {/* State Dropdown */}
+            
+              <div className="mb-2">
+                
+                <LocationPicker
+                  // you can pass an initial value if you like:
+                  initialAddress={vendorData.Address}
+                  onLocationSelect={({ address, lat, lng }) => {
+                    setVendorData({
+                      ...vendorData,
+                      Address: address, // human‑readable
+                      location: { lat, lng }, // numeric coords
+                    });
+                  }}
+                />
+              </div>
+
+            
               <div className="relative">
                 <button
                   type="button"

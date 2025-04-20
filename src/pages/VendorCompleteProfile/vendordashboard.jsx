@@ -197,7 +197,7 @@ const VendorDashboard = () => {
     setLocationFixing(true);
     try {
       await updateDoc(doc(db, "vendors", vendorData.vendorId), {
-        address,
+        Address: address,
         location: { lat, lng },
       });
       toast.success("Address updated successfully!");

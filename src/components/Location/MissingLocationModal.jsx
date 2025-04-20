@@ -11,7 +11,7 @@ const MissingLocationModal = ({ onLocationUpdate, isLoading }) => {
   };
 
   const handleSave = () => {
-    if (selectedLocation && selectedLocation.lat && selectedLocation.lng && selectedLocation.address) {
+    if (selectedLocation && selectedLocation.lat && selectedLocation.lng && selectedLocation.Address) {
       onLocationUpdate(selectedLocation);
     }
   };

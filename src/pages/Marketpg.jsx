@@ -181,7 +181,7 @@ const Marketpg = () => {
                   onClick={() => handleStoreView(vendor)}
                 >
                   <div>
-                    <h1 className="font-poppins text-black text-xl font-medium">
+                    <h1 className="font-poppins text-black text-xl mb-1 font-medium">
                       {vendor.shopName.length > 18
                         ? `${vendor.shopName.substring(0, 18)}...`
                         : vendor.shopName}

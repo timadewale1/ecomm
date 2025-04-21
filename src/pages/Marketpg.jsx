@@ -9,6 +9,7 @@ import ReactStars from "react-rating-stars-component";
 import RoundedStar from "../components/Roundedstar";
 import { MdCancel } from "react-icons/md";
 import SEO from "../components/Helmet/SEO";
+import { IoLocationOutline } from "react-icons/io5";
 
 const Marketpg = () => {
   const dispatch = useDispatch();
@@ -195,6 +196,10 @@ const Marketpg = () => {
                         </React.Fragment>
                       ))}
                     </p>
+                    <div className="flex -ml-1  items-center  text-gray-700 font-ubuntu font-  text-xs translate-y-4 mb-1">
+                      <IoLocationOutline className="mr-1 text-customOrange" />
+                      <span>{vendor.state}</span>
+                    </div>
                     <div className="flex items-center translate-y-4">
                       <span className="text-black font-light text-xs mr-2">
                         {(vendor.rating / vendor.ratingCount || 0).toFixed(1)}

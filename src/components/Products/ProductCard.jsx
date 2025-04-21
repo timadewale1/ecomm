@@ -3,10 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-
+import { getImageKitUrl } from "../../services/imageKit";
 // Firestore
 import { db } from "../../firebase.config";
-import { doc, getDoc, setDoc, deleteDoc, updateDoc, increment } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  updateDoc,
+  increment,
+} from "firebase/firestore";
 
 // Icons
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
@@ -20,7 +27,7 @@ import { handleUserActionLimit } from "../../services/userWriteHandler";
 
 const ProductCard = ({ product, isLoading, showVendorName = true }) => {
   const navigate = useNavigate();
-
+  const [imgLoaded, setImgLoaded] = useState(false);
   // Auth state
   const { currentUser } = useAuth();
 
@@ -175,8 +182,10 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
   };
 
   // The product’s main image
-  const mainImage = product?.coverImageUrl || product?.imageUrls?.[0];
-
+  const firebaseImage = product?.coverImageUrl || product?.imageUrls?.[0];
+  const lowResImg = getImageKitUrl(firebaseImage, "w-60,q-20,bl-6");
+  // High‑res (no transform) served from ImageKit too for CDN/cache benefit
+  const highResImg = getImageKitUrl(firebaseImage);
   return (
     <>
       {/* --- MAIN CARD --- */}
@@ -220,11 +229,28 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
                   />
                 )}
 
-              <img
-                src={mainImage}
-                alt={product.name}
-                className="h-52 w-full font-opensans text-sm font-medium object-cover rounded-lg"
-              />
+              {/* blurred preview */}
+              <div className="relative h-52 w-full rounded-lg overflow-hidden">
+                {/* Low-res blurred image */}
+                <img
+                  src={lowResImg}
+                  alt={product.name}
+                  className={`absolute top-0 left-0 w-full h-full object-cover blur-sm brightness-95 transition-opacity duration-300 ${
+                    imgLoaded ? "opacity-0" : "opacity-100"
+                  }`}
+                />
+
+                {/* High-res image */}
+                <img
+                  src={highResImg}
+                  alt={product.name}
+                  loading="lazy"
+                  onLoad={() => setImgLoaded(true)}
+                  className={`absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-300 ${
+                    imgLoaded ? "opacity-100" : "opacity-0"
+                  }`}
+                />
+              </div>
             </>
           )}
 

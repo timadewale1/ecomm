@@ -16,7 +16,10 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchStorePageData } from "../redux/reducers/storepageVendorsSlice";
+import {
+  fetchStoreVendor,
+  fetchVendorProductsBatch,
+} from "../redux/reducers/storepageVendorsSlice";
 import { onAuthStateChanged } from "firebase/auth";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -44,6 +47,7 @@ import {
   exitStockpileMode,
   fetchStockpileData,
 } from "../redux/reducers/stockpileSlice";
+import { RotatingLines } from "react-loader-spinner";
 Modal.setAppElement("#root"); // For accessibility
 
 const ReviewBanner = () => {
@@ -106,11 +110,20 @@ const StorePage = () => {
   // Add this line along with your other useState declarations
   const [sortOption, setSortOption] = useState(null); // 'priceAsc' or 'priceDesc'
   // Instead of local "vendor" and "products" state, we read from Redux
+  // Get the slice
   const {
     entities,
-    loading: reduxLoading,
+    loading: vendorLoading,
     error,
   } = useSelector((state) => state.storepageVendors);
+
+  // Convenience variables for the current vendor page
+  const entry = entities[id] || {};
+  const vendor = entry.vendor;
+  const products = entry.products || [];
+  const loadingMore = entry.loadingMore;
+  const noMore = entry.noMore;
+
   const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -178,19 +191,45 @@ const StorePage = () => {
 
   //   fetchVendorData(); // Fetch vendor data on mount
   // }, [id]); // Depend on vendor ID and current user state
+  // useEffect(() => {
+  //   if (!entities[id]) {
+  //     console.log("StorePage: dispatching fetchStorePageData for id:", id);
+  //     dispatch(fetchStorePageData(id));
+  //   } else {
+  //     console.log("StorePage: vendor data found in Redux for id:", id);
+  //   }
+  // }, [dispatch, id, entities]);
   useEffect(() => {
-    if (!entities[id]) {
-      console.log("StorePage: dispatching fetchStorePageData for id:", id);
-      dispatch(fetchStorePageData(id));
-    } else {
-      console.log("StorePage: vendor data found in Redux for id:", id);
+    if (!vendor) {
+      dispatch(fetchStoreVendor(id));
     }
-  }, [dispatch, id, entities]);
+  }, [id, dispatch, vendor]);
+
+  // Fetch the first batch of twenty products as soon as the vendor is ready
+  useEffect(() => {
+    if (vendor && products.length === 0) {
+      dispatch(fetchVendorProductsBatch({ vendorId: id, loadMore: false }));
+    }
+  }, [vendor, products.length, id, dispatch]);
+
+  // Infinite scroll – load more when the user nears the bottom
+  useEffect(() => {
+    const onScroll = () => {
+      const nearBottom =
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - 150;
+
+      if (vendor && nearBottom && !loadingMore && !noMore) {
+        dispatch(fetchVendorProductsBatch({ vendorId: id, loadMore: true }));
+      }
+    };
+
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [vendor, loadingMore, noMore, id, dispatch]);
 
   // 2) Grab vendor + products from Redux
   const storeData = entities[id]; // { vendor, products } or undefined
-  const vendor = storeData?.vendor;
-  const products = storeData?.products || [];
 
   useEffect(() => {
     setIsFollowing(false);
@@ -349,6 +388,9 @@ const StorePage = () => {
   const handleRatingClick = () => {
     navigate(`/reviews/${id}`);
   };
+  if (vendorLoading || (!vendor && !error)) {
+    return <Loading />;
+  }
 
   const handleTypeSelect = (type) => {
     setSelectedType(type);
@@ -404,9 +446,9 @@ const StorePage = () => {
       }
     });
 
-  if (reduxLoading) {
-    return <Loading />;
-  }
+  // if (reduxLoading) {
+  //   return <Loading />;
+  // }
 
   if (!vendor) {
     return (
@@ -621,7 +663,7 @@ const StorePage = () => {
 
         <div className="flex justify-center mt-6">
           <div className="relative w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
-            {reduxLoading ? (
+            {vendorLoading ? (
               <Skeleton circle={true} height={128} width={128} />
             ) : vendor.coverImageUrl ? (
               <img
@@ -650,7 +692,7 @@ const StorePage = () => {
           style={{ cursor: "pointer" }}
           onClick={handleRatingClick}
         >
-          {reduxLoading ? (
+          {vendorLoading ? (
             <Skeleton width={100} height={24} />
           ) : (
             <>
@@ -666,7 +708,7 @@ const StorePage = () => {
 
         <div className="w-fit text-center bg-customGreen p-2 flex items-center justify-center rounded-full mt-3 mx-auto">
           <div className="mt-2 flex flex-wrap items-center -translate-y-1 justify-center text-textGreen text-xs space-x-1">
-            {reduxLoading ? (
+            {vendorLoading ? (
               <Skeleton width={80} height={24} count={4} inline={true} />
             ) : (
               vendor.categories.map((category, index) => (
@@ -681,7 +723,7 @@ const StorePage = () => {
           </div>
         </div>
         <div className="flex items-center justify-center mt-3">
-          {reduxLoading ? (
+          {vendorLoading ? (
             <Skeleton width={128} height={40} />
           ) : (
             <button
@@ -710,7 +752,7 @@ const StorePage = () => {
           )}
         </div>
         <p className=" text-gray-700 mt-3 text-sm font-opensans text-center">
-          {reduxLoading ? <Skeleton count={2} /> : vendor.description}
+          {vendorLoading ? <Skeleton count={2} /> : vendor.description}
         </p>
         <div className="p-2 mt-7">
           <div className="flex items-center mb-3 justify-between">
@@ -772,32 +814,44 @@ const StorePage = () => {
             ))}
           </div>
 
-          {reduxLoading ? (
+          {vendorLoading || (loadingMore && filteredProducts.length === 0) ? (
             <div className="grid mt-2 grid-cols-2 gap-2">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <Skeleton key={index} height={200} width="100%" />
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} height={200} width="100%" />
               ))}
             </div>
           ) : filteredProducts.length > 0 ? (
-            <div className="grid mt-2 grid-cols-2 gap-2">
-              {filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  isFavorite={!!favorites[product.id]}
-                  onFavoriteToggle={handleFavoriteToggle}
-                  onClick={() => {
-                    navigate(`/product/${product.id}`);
-                  }}
-                  showVendorName={false}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid mt-2 grid-cols-2 gap-2">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    isFavorite={!!favorites[product.id]}
+                    onFavoriteToggle={handleFavoriteToggle}
+                    onClick={() => navigate(`/product/${product.id}`)}
+                    showVendorName={false}
+                  />
+                ))}
+              </div>
+
+              {loadingMore && (
+                <div className="flex justify-center my-4">
+                  <RotatingLines
+                    strokeColor="#f9531e"
+                    strokeWidth="5"
+                    animationDuration="0.75"
+                    width="20"
+                    visible
+                  />
+                </div>
+              )}
+            </>
           ) : (
-            <div className="flex justify-center items-center  w-full text-center">
+            <div className="flex justify-center items-center w-full text-center">
               <p className="font-opensans text-gray-800 text-xs">
                 📭 <span className="font-semibold">{vendor.shopName}</span>{" "}
-                hasn't added any products to their online store yet. Follow this
+                hasn’t added any products to their online store yet. Follow this
                 vendor and you will be notified when they upload products!
               </p>
             </div>

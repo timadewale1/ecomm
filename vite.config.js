@@ -7,6 +7,12 @@ export default defineConfig({
   server: {
     port: 3000, // 👈 Set dev server port here
   },
+  define: {
+    global: {}, // 👈 Needed for Buffer to work
+  },
+  optimizeDeps: {
+    include: ["buffer"], // 👈 Ensures buffer is bundled correctly
+  },
   build: {
     outDir: "dist",
     sourcemap: false, // Disable source maps in production

@@ -22,7 +22,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { GoChevronLeft } from "react-icons/go";
 import { RotatingLines } from "react-loader-spinner";
 import SEO from "../../components/Helmet/SEO";
-
+import { makeSlug } from "../../services/makeSlug";
 const CompleteProfile = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
@@ -349,7 +349,7 @@ const CompleteProfile = () => {
 
       // Format the shopName to title case before saving
       const formattedShopName = toTitleCase(vendorData.shopName);
-
+      const slug = makeSlug(vendorData.shopName);
       // Check shop name availability
       console.log("Validating shop name availability...");
       const shopNameQuery = query(
@@ -420,6 +420,7 @@ const CompleteProfile = () => {
         shopName: formattedShopName, // Save the formatted shop name
         profileComplete: true,
         isDeactivated: false,
+        slug,
         bankDetails: {
           ...bankDetails,
         },

@@ -175,7 +175,7 @@ const Marketpg = () => {
             </div>
           ) : filteredVendors.length > 0 ? (
             filteredVendors.map((vendor) => (
-              <div key={vendor.id} className="vendor-item">
+              <div key={vendor.id} className="vendor-item border-b  border-gray-100 "> 
                 <div
                   className="flex justify-between p-3 mb-1 bg-white "
                   onClick={() => handleStoreView(vendor)}
@@ -196,7 +196,7 @@ const Marketpg = () => {
                         </React.Fragment>
                       ))}
                     </p>
-                    <div className="flex -ml-1  items-center  text-gray-700 font-ubuntu font-  text-xs translate-y-4 mb-1">
+                    <div className="flex -ml-1  items-center  text-gray-700 font-ubuntu font-  text-xs translate-y-4 mb-0">
                       <IoLocationOutline className="mr-1 text-customOrange" />
                       <span>{vendor.state}</span>
                     </div>

@@ -507,7 +507,9 @@ const StorePage = () => {
       toast.success("Store link copied to clipboard!");
     }
   };
-
+  const uniqueFilteredProducts = filteredProducts.filter(
+    (prod, idx, arr) => arr.findIndex((p) => p.id === prod.id) === idx
+  );
   return (
     <>
       {isActive && stockpileVendorId === id && (
@@ -823,7 +825,7 @@ const StorePage = () => {
           ) : filteredProducts.length > 0 ? (
             <>
               <div className="grid mt-2 grid-cols-2 gap-2">
-                {filteredProducts.map((product) => (
+                {uniqueFilteredProducts.map((product) => (
                   <ProductCard
                     key={product.id}
                     product={product}

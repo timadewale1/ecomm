@@ -8,7 +8,6 @@ import {
   getDocs,
   where,
   query,
-  limit,
 } from "firebase/firestore";
 
 const PAGE_SIZE = 20; // ⬅ how many products per “page”
@@ -80,11 +79,7 @@ export const fetchStoreVendorBySlug = createAsyncThunk(
   "storepageVendors/fetchBySlug",
   async (slug, { rejectWithValue }) => {
     try {
-      const q = query(
-        collection(db, "vendors"),
-        where("slug", "==", slug),
-        limit(1)
-      );
+      const q = query(collection(db, "vendors"), where("slug","==",slug), limit(1));
       const snap = await getDocs(q);
       if (snap.empty) throw new Error("Vendor not found");
       const docSnap = snap.docs[0];

@@ -62,7 +62,7 @@ const PopularCats = () => {
 
   return (
     <div className="px-2 py-3">
-      <h2 className="text-lg font-medium mb-3 font-ubuntu">
+      <h2 className="text-xl font-medium mb-3 font-ubuntu">
         Popular Categories
       </h2>
 
@@ -81,7 +81,7 @@ const PopularCats = () => {
           : // Render categories
             categories.map((category) => {
               const imgSrc = currentImages[category.type];
-
+              const approxCount = Math.floor(category.count / 10) * 10;
               return (
                 <div
                   key={category.type}
@@ -110,7 +110,7 @@ const PopularCats = () => {
                     {category.type}
                   </h3>
                   <p className="text-xs text-gray-500 font-opensans font-medium text-left">
-                    {category.count} posts
+                  {approxCount}+ posts
                   </p>
                 </div>
               );

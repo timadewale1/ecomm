@@ -27,7 +27,6 @@
     "axios": "^1.7.2",
     "bcryptjs": "^2.4.3",
     "bootstrap": "^5.3.3",
-    "buffer": "^6.0.3",
     "chart.js": "^4.4.6",
     "crypto-browserify": "^3.12.1",
     "dotenv": "^16.4.5",
@@ -89,11 +88,11 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "preview": "vite preview",
-  "generate-sitemap": "node scripts/generate-sitemap.js"
-},
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "generate-sitemap": "node scripts/generate-sitemap.js"
+  },
   "eslintConfig": {
     "extends": [
       "react-app",

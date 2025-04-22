@@ -478,6 +478,9 @@ button.bg-orange-500:hover {
 .totaltext {
   font-size: 17px;
 }
+.zen {
+  z-index: 5;
+}
 
 .progress-bar-container {
   display: flex;

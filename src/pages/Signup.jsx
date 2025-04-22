@@ -234,6 +234,8 @@ const Signup = () => {
           role: "user",
           createdAt: new Date(),
           profileComplete: false,
+          welcomeEmailSent: false,
+          welcomeEmailSendAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes from now
         });
       } else {
         console.log("User already exists in Firestore");

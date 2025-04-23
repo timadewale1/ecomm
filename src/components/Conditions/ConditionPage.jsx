@@ -125,7 +125,6 @@ function ConditionProducts() {
     }
     setLoading(true);
     try {
-      const prevLength = conditionProducts.length;
       const response = await dispatch(
         fetchConditionProducts({
           condition,
@@ -133,9 +132,14 @@ function ConditionProducts() {
           batchSize: BATCH_SIZE,
         })
       ).unwrap();
-      console.log("ConditionProducts: loadMoreProducts response:", response);
-      const newLength = conditionProducts.length;
-      if (newLength - prevLength < BATCH_SIZE) {
+
+      // if this batch came back smaller than requested, we’re done
+      if (response.products.length < BATCH_SIZE) {
+        setNoMoreProducts(true);
+      }
+
+      // (Optionally, you can also check the cursor:)
+      if (!response.lastVisible) {
         setNoMoreProducts(true);
       }
     } catch (error) {

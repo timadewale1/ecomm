@@ -32,6 +32,8 @@ import ScrollToTop from "../../components/layout/ScrollToTop";
 import { VendorContext } from "../../components/Context/Vendorcontext";
 import { LuCopy, LuCopyCheck } from "react-icons/lu";
 import SEO from "../../components/Helmet/SEO";
+import { TbRosetteDiscount, TbRosetteDiscountOff } from "react-icons/tb";
+import SingleDiscountModal from "../vendor/SingleDiscountModal";
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
@@ -43,6 +45,8 @@ const VendorProducts = () => {
   const [isViewProductModalOpen, setIsViewProductModalOpen] = useState(false);
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showDisableConfirmation, setShowDisableConfirmation] = useState(false);
+  const [disableLoading, setDisableLoading] = useState(false);
   const [action, setAction] = useState("");
   const [isRestocking, setIsRestocking] = useState(false); // New state
   const [restockValues, setRestockValues] = useState({});
@@ -51,6 +55,9 @@ const VendorProducts = () => {
   const [isPublished, setIsPublished] = useState(false);
   const [productsLoading, setProductsLoading] = useState(false);
   const [picking, setPicking] = useState(false);
+
+  
+  const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
 
   const { vendorData } = useContext(VendorContext);
 
@@ -272,6 +279,7 @@ const VendorProducts = () => {
     setSelectedProduct(product);
     setproductId(product.id);
     setIsViewProductModalOpen(true);
+    console.log(product); /*debugging purposes*/
   };
 
   const handleTogglePicking = () => {
@@ -394,6 +402,73 @@ const VendorProducts = () => {
         console.error("Failed to copy text: ", err);
       }
     }
+  };
+
+  // Reverse Engineering the discount logic
+  const closeDiscountModal = () => {
+    setIsDiscountModalOpen(false);
+  };
+
+  const disableDiscount = async () => {
+    setDisableLoading(true);
+    try {
+      const productRef = doc(db, "products", selectedProduct.id);
+
+      let initPrice = selectedProduct.discount.initialPrice;
+      let notFreebie = selectedProduct.discount.discountType !== 'personal-freebies'
+
+      notFreebie ?
+      await updateDoc(productRef, {
+        price: initPrice,
+        discount: null,
+        discountId: null,
+      }).then(setProducts((prevProducts) =>
+        prevProducts.map((p) =>
+          p.id === selectedProduct.id
+            ? {
+                ...p,
+                price: initPrice,
+                discount: null,
+                discountId: null,
+              }
+            : p
+        )
+      ))
+      : 
+      await updateDoc(productRef, {
+        discount: null,
+        discountId: null,
+      }).then(setProducts((prevProducts) =>
+        prevProducts.map((p) =>
+          p.id === selectedProduct.id
+            ? {
+                ...p,
+                discount: null,
+                discountId: null,
+              }
+            : p
+        )
+      ))
+
+      
+
+      await addActivityNote(
+        "Discount Disabled ❌",
+        `You've disabled the discount on ${selectedProduct.name}. Customers can now only buy this at the original price.`,
+        "Product Update"
+      );
+      toast.success("Discount disabled successfully.");
+      setDisableLoading(false);
+
+      // Update the pinned count after the change
+      fetchPinnedProductsCount(); // Assuming this function recalculates the pinned count
+    } catch (error) {
+      console.error("Error disabling discount", error);
+      toast.error("Error disabling discount: " + error.message);
+      setDisableLoading(false);
+    }
+    setShowDisableConfirmation(false);
+    setDisableLoading(false);
   };
 
   const handlePinProduct = async (product) => {
@@ -1207,11 +1282,34 @@ const VendorProducts = () => {
               )}
             </div>
 
+              {selectedProduct && !selectedProduct.discount && (
+              <div className="mt-4">
+                <div className="flex justify-end items-center">
+                <div
+                    className="flex justify-between space-x-1 items-center text-customOrange mb-2 font-medium font-opensans text-base cursor-pointer"
+                    onClick={() => setIsDiscountModalOpen(true)}
+                  >
+                    <div>Start a discount</div>
+                    <TbRosetteDiscount className="text-2xl" />
+                  </div>
+                </div>
+                </div>
+              )}
             {selectedProduct && selectedProduct.discount && (
-              <div className="mt-4 ">
-                <h3 className="text-lg font-semibold font-opensans mb-2">
-                  Product Discount Details
-                </h3>
+              <div className="mt-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold font-opensans mb-2">
+                    Product Discount Details
+                  </h3>
+                  <div
+                    className="flex justify-between space-x-1 items-center text-red-600 mb-2 font-medium font-opensans text-base cursor-pointer"
+                    onClick={() => setShowDisableConfirmation(true)}
+                  >
+                    <div>Disable</div>
+                    <TbRosetteDiscountOff className="text-2xl" />
+                  </div>
+                </div>
+
                 {selectedProduct.discount ? (
                   <div className="flex items-center  justify-between py-1 px-2 bg-green-100 rounded-full">
                     <span className="text-sm font-semibold font-opensans text-green-800">
@@ -1446,6 +1544,13 @@ const VendorProducts = () => {
         </VendorProductModal>
       )}
 
+{selectedProduct && isDiscountModalOpen &&(
+      <SingleDiscountModal
+        isOpen={isDiscountModalOpen}
+        onRequestClose={closeDiscountModal}
+        product={selectedProduct}
+      />)}
+
       {isAddProductModalOpen && (
         <Modal isOpen={isAddProductModalOpen} onClose={closeModals}>
           <AddProduct
@@ -1454,6 +1559,17 @@ const VendorProducts = () => {
             onProductAdded={() => fetchVendorProducts(vendorId)}
           />
         </Modal>
+      )}
+
+      {showDisableConfirmation && (
+        <ConfirmationDialog
+          isOpen={showDisableConfirmation}
+          onClose={() => setShowDisableConfirmation(false)}
+          onConfirm={disableDiscount}
+          message="Are you sure you want to disable this discount?"
+          title="Disable Product Discount"
+          loading={disableLoading}
+        />
       )}
 
       {showConfirmation &&

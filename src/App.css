@@ -370,6 +370,14 @@ li::marker {
   z-index: 10000;
   background-color: rgba(0, 0, 0, 0.5);
 }
+/* Hide scrollbar but allow scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
 
 .logo-container {
   top: 10px; /* Adjust this to position the logo vertically */

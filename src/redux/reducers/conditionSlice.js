@@ -13,7 +13,7 @@ import { db } from "../../firebase.config";
 export const fetchConditionProducts = createAsyncThunk(
   "condition/fetchConditionProducts",
   async (
-    { condition, lastVisible = null, batchSize = 5 },
+    { condition, productType = null, lastVisible = null, batchSize = 5 },
     { rejectWithValue }
   ) => {
     try {
@@ -36,22 +36,29 @@ export const fetchConditionProducts = createAsyncThunk(
         };
       }
 
-
       const conditionToQuery =
         condition.toLowerCase() === "defect" ? "Defect:" : condition;
 
-      
-      let productsQuery = query(
-        collection(db, "products"),
+      // 2️⃣ Build a constraints array so we never pass `false` into query()
+      const constraints = [
         where("vendorId", "in", approvedVendors),
         where("isDeleted", "==", false),
         where("published", "==", true),
-        where("condition", "==", conditionToQuery), // ← use the corrected value
+        where("condition", "==", conditionToQuery),
         orderBy("createdAt", "desc"),
-        limit(batchSize)
-      );
+        limit(batchSize),
+      ];
 
-      // If we have a "lastVisible" doc, add startAfter for pagination
+      // 3️⃣ Insert productType filter if provided
+      if (productType) {
+        // insert before ordering/limiting
+        constraints.splice(4, 0, where("productType", "==", productType));
+      }
+
+      // 4️⃣ Spread them into your Firestore query
+      let productsQuery = query(collection(db, "products"), ...constraints);
+
+      // 5️⃣ Add pagination cursor if needed
       if (lastVisible) {
         productsQuery = query(productsQuery, startAfter(lastVisible));
       }

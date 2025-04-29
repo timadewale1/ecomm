@@ -61,7 +61,7 @@ const PopularCats = () => {
   };
 
   return (
-    <div className="px-2 py-3">
+    <div className="px-2 ">
       <h2 className="text-xl font-medium mb-3 font-ubuntu">
         Popular Categories
       </h2>

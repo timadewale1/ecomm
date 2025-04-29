@@ -3,7 +3,7 @@ import { createStore, applyMiddleware, combineReducers } from "redux";
 import thunk from "redux-thunk";
 import { persistReducer, persistStore } from "redux-persist";
 import storage from "redux-persist/lib/storage";
-
+import conditionCategoriesSlice from "./reducers/conditionCategoriesSlice";
 // Reducers
 import { cartReducer } from "./reducers/reducer";
 import homepageReducer from "./reducers/homepagereducer";
@@ -25,6 +25,7 @@ import personalDiscountsPageReducer from "./reducers/personalDiscountsPageSlice"
 import { promoReducer } from "./reducers/promoreducer";
 import catsectionReducer from "./reducers/catsection";
 import categoryProductsReducer from "./reducers/categoryProductsSlice";
+import topVendorsReducer from "./reducers/topVendorsSlice";
 import vendorStockpileReducer from "./reducers/vendorStockpileSlice";
 // Redux Persist config (only for stockpile)
 const persistConfig = {
@@ -37,6 +38,8 @@ const persistConfig = {
 const rootReducer = combineReducers({
   auth: authReducer,
   cart: cartReducer,
+  conditionCategories: conditionCategoriesSlice,
+  topVendors: topVendorsReducer,
   product: productReducer,
   user: userReducer,
   stockpile: stockpileReducer, // will be persisted

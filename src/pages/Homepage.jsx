@@ -44,6 +44,7 @@ import Condition from "../components/Conditions/Condition";
 import SEO from "../components/Helmet/SEO";
 import DiscountCarousel from "../components/Discounts/DiscountCarousel";
 import PersonalDiscountCarousel from "../components/Discounts/PersonalDiscounts";
+import TopVendors from "../components/TopVendors/TopVendors";
 gsap.registerPlugin(ScrollTrigger);
 
 const Homepage = () => {
@@ -383,6 +384,7 @@ const Homepage = () => {
           <Market />
         </>
       )}
+      <TopVendors/>
       <PopularCats />
       {/* <DiscountCarousel /> */}
       <PersonalDiscountCarousel />

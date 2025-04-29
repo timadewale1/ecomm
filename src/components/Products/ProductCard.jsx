@@ -287,7 +287,9 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
                 {product.condition === "Defect:" &&
                   product.defectDescription && (
                     <span className="text-xs text-red-500">
-                      {product.defectDescription}
+                      {product.defectDescription?.length > 22
+                        ? product.defectDescription.slice(0, 22) + "..."
+                        : product.defectDescription}
                     </span>
                   )}
               </div>

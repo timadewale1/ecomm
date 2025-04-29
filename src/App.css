@@ -154,6 +154,19 @@ li::marker {
   outline: none;
   transition: height 0.3s ease; /* Smooth height transition */
 }
+.modal-content-defect {
+  position: fixed;
+  top: 50%;
+  
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 85%;
+  background-color: white;
+  border-radius: 10px;
+  padding: 20px;
+  outline: none;
+  transition: height 0.3s ease; /* Smooth height transition */
+}
 @keyframes fade-in {
   0% { opacity: 0; transform: translateY(4px); }
   100% { opacity: 1; transform: translateY(0); }
@@ -346,6 +359,15 @@ li::marker {
   left: 0;
   right: 0;
   bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+.modal-overlay-defect {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
   background-color: rgba(0, 0, 0, 0.5);
 }
 

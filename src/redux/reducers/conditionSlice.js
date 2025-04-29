@@ -36,13 +36,17 @@ export const fetchConditionProducts = createAsyncThunk(
         };
       }
 
-      // 2) Build the products query
+
+      const conditionToQuery =
+        condition.toLowerCase() === "defect" ? "Defect:" : condition;
+
+      
       let productsQuery = query(
         collection(db, "products"),
         where("vendorId", "in", approvedVendors),
         where("isDeleted", "==", false),
         where("published", "==", true),
-        where("condition", "==", condition),
+        where("condition", "==", conditionToQuery), // ← use the corrected value
         orderBy("createdAt", "desc"),
         limit(batchSize)
       );
@@ -113,9 +117,9 @@ const conditionSlice = createSlice({
       })
       .addCase(fetchConditionProducts.fulfilled, (state, action) => {
         console.log("🔥 fetchConditionProducts.fulfilled:", action.payload);
-      
+
         const { condition, products, lastVisible } = action.payload;
-      
+
         if (!state.productsByCondition[condition]) {
           state.productsByCondition[condition] = {
             conditionProducts: [],

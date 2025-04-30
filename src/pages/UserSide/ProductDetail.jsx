@@ -1079,7 +1079,7 @@ const ProductDetailPage = () => {
                           )}
                         </div>
                       )}
-                      {product.defectDescription && (
+                      {index === 0 && product.defectDescription && (
                         <div
                           onClick={handleOpenModal}
                           className="px-3 w-28 py-1 absolute bg-opacity-40 bottom-16 right-2 bg-black rounded-md cursor-pointer"

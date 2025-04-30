@@ -132,9 +132,9 @@ export default function TopVendors() {
   if (vendors.length === 0) return null;
 
   return (
-    <div className="my-1 mb-2 mt-2 px-4">
-      <h2 className="text-lg font-opensans font-semibold mb-2 mt-4">
-        Handpicked just for you🧡
+    <div className="my-1 mb-2 mt-6 px-4">
+      <h2 className="text-xl font-medium mb-3 font-ubuntu mt-4">
+        Handpicked just for you 🧡
       </h2>
       <div className="flex space-x-8 overflow-x-scroll scrollbar-hide pb-4">
         {vendors.map((vendor) => (
@@ -164,16 +164,16 @@ export default function TopVendors() {
                         {Array.from({ length: fullStars }).map((_, i) => (
                           <FaStar
                             key={"f" + i}
-                            className="text-yellow-400 text-sm"
+                            className="text-yellow-400 text-base"
                           />
                         ))}
                         {hasHalf && (
-                          <FaStarHalfAlt className="text-yellow-400 text-sm" />
+                          <FaStarHalfAlt className="text-yellow-400 text-base" />
                         )}
                         {Array.from({ length: emptyStars }).map((_, i) => (
                           <FaRegStar
                             key={"e" + i}
-                            className="text-yellow-400 text-sm"
+                            className="text-yellow-400 text-base"
                           />
                         ))}
                       </>
@@ -186,8 +186,8 @@ export default function TopVendors() {
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="mt-2 text-lg font-opensans font-medium">
-                  {vendor.shopName?.length > 12
-                    ? `${vendor.shopName.slice(0, 12)}…`
+                  {vendor.shopName?.length > 15
+                    ? `${vendor.shopName.slice(0, 15)}…`
                     : vendor.shopName}
                 </h3>
                 <p className="text-xs font-opensans text-gray-700">

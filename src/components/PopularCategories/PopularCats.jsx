@@ -81,7 +81,15 @@ const PopularCats = () => {
           : // Render categories
             categories.map((category) => {
               const imgSrc = currentImages[category.type];
-              const approxCount = Math.floor(category.count / 10) * 10;
+              const exactCount = category.count;
+              const approxCount = Math.floor(exactCount / 10) * 10;
+
+              // If fewer than 10, show the exact count.
+              const displayText =
+                exactCount < 10
+                  ? `${exactCount} post${exactCount === 1 ? "" : "s"}`
+                  : `${approxCount}+ posts`;
+
               return (
                 <div
                   key={category.type}
@@ -89,7 +97,7 @@ const PopularCats = () => {
                   onClick={() => handleCategoryClick(category)}
                 >
                   {/* 
-                  Outer container stays the same size/shape. 
+                  Outer conatainer stays the same size/shape. 
                   If imgSrc is null or empty, show logo.svg in a circular wrapper. 
                 */}
                   <div className="rounded-lg overflow-hidden flex items-center justify-center bg-gray-100 w-28 h-28">
@@ -110,7 +118,7 @@ const PopularCats = () => {
                     {category.type}
                   </h3>
                   <p className="text-xs text-gray-500 font-opensans font-medium text-left">
-                  {approxCount}+ posts
+                  {displayText}
                   </p>
                 </div>
               );

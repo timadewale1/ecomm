@@ -25,7 +25,8 @@ import { db, auth } from "../../firebase.config";
 import { handleUserActionLimit } from "../../services/userWriteHandler";
 import toast from "react-hot-toast";
 import { useAuth } from "../../custom-hooks/useAuth";
-
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 export default function TopVendors() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -111,21 +112,34 @@ export default function TopVendors() {
 
   if (status === "loading") {
     return (
-      <div className="flex justify-center py-10">
-        <RotatingLines
-          strokeColor="#f9531e"
-          strokeWidth="5"
-          animationDuration="0.75"
-          width="40"
-          visible
-        />
+      <div className="my-1 mb-2 mt-6 px-4">
+        <h2 className="text-xl font-medium mb-3 font-ubuntu mt-4">
+          Handpicked just for you 🧡
+        </h2>
+        <div className="flex space-x-8 overflow-x-scroll scrollbar-hide pb-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="min-w-[250px] max-w-[250px] cursor-pointer">
+              {/* image skeleton */}
+              <Skeleton className="w-full h-36 rounded-md" />
+
+              {/* title & desc skeleton */}
+              <div className="mt-2">
+                <Skeleton width="60%" height={20} />
+                <Skeleton width="80%" height={14} className="mt-1" />
+              </div>
+
+              {/* follow button skeleton
+              <Skeleton className="mt-3 w-24 h-9 rounded-md" /> */}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
   if (status === "failed") {
     return (
-      <p className="text-red-600 text-center py-6">
-        Error loading top vendors: {error}
+      <p className="text-red-600 font-opensans text-center py-6">
+        We are having some technical issues. Please try again later.
       </p>
     );
   }

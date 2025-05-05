@@ -42,7 +42,7 @@ const ConfirmUserState = () => {
   return (
     <>
       <SEO
-        title={`Confirm User State`}
+        title={`Let’s Get You Started`}
         url={`https://www.shopmythrift.store/confirm-state`}
       />
       <div className="flex px-3 py-2 mt-3 justify-between mb-3">

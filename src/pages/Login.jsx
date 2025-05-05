@@ -277,15 +277,17 @@ const Login = () => {
           username: user.displayName,
           email: user.email,
           profileComplete: false,
+          welcomeEmailSent: false,
           role: "user",
           createdAt: new Date(),
         });
         console.log("New user document created in Firestore");
       }
 
-      // Merge cart
-      await fetchCartFromFirestore(user.uid);
-
+      const localCart = JSON.parse(localStorage.getItem("cart")) || {};
+      await fetchCartFromFirestore(user.uid, localCart);
+      localStorage.removeItem("cart");
+      
       // Done
       toast.success(`Welcome back ${user.displayName}!`);
       navigate("/newhome");

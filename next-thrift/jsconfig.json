@@ -3,7 +3,8 @@
     "baseUrl": ".", // Ensure the base directory is set
     "paths": {
       "@/*": ["src/*"],
-      "@/lib/*": ["lib/*"]
+      "@/lib/*": ["lib/*"],
+      "firebase.config": ["firebase.config"] 
     }
   }
 }

@@ -490,7 +490,7 @@ const StorePage = () => {
     ...new Set(products.map((product) => product.productType)),
   ];
   const handleShare = () => {
-    const storeUrl = `${window.location.origin}/store/${vendor.id}?shared=true`;
+    const storeUrl = `https://mx.shopmythrift.store/u/${vendor.id}?shared=true`;
     if (navigator.share) {
       navigator
         .share({

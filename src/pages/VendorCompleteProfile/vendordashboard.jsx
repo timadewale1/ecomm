@@ -239,7 +239,7 @@ const VendorDashboard = () => {
 
   const textToCopy =
     vendorData.vendorId &&
-    `https://shopmythrift.store/${
+    `https://mx.shopmythrift.store/${
       vendorData &&
       (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
     }/${vendorData.vendorId}?shared=true`;

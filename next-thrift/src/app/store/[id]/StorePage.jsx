@@ -48,7 +48,7 @@ import { useAuth } from "@/custom-hooks/useAuth";
 
 // Services
 import { handleUserActionLimit } from "@/services/userWriteHandler";
-import Head from "next/head";
+
 
 export default function StorePage({ vendorId }) {
   // ===============================

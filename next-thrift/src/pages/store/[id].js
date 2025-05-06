@@ -49,8 +49,7 @@ export default function StoreSSR({ vendor }) {
   const description =
     vendor.description || "Check out this vendor on My Thrift!";
   const url = `https://shopmythrift.store/store/${vendor.id}`;
-  const image = vendor.coverImageUrl || "/https://blog.shopmythrift.store/favicon.ico";
-
+  const image = vendor.coverImageUrl 
   return (
     <>
       <Head>

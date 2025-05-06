@@ -7,7 +7,7 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 
 // Firestore
-import { db } from "@/firebase.config";
+import { db } from "@/firebase";
 import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 
 // Icons

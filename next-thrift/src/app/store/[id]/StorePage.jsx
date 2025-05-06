@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 // Firebase
-import { db } from "firebase.config";
+import { db } from "@/firebase";
 import {
   doc,
   getDoc,

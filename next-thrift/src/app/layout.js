@@ -31,38 +31,7 @@ const openSans = Open_Sans({
   variable: "--font-opensans",
 });
 
-export const metadata = {
-  title: "My Thrift Blog",
-  description:
-    "Tap into our world—insider tips, smart thrift shopping guides, exclusive drops, product updates, and more.",
-  icons: {
-    icon: "/favicon.png",
-    apple: "/favicon.png",
-    shortcut: "/favicon.png",
-  },
-  openGraph: {
-    title: "My Thrift Blog",
-    description:
-      "Tap into our world—insider tips, smart thrift shopping guides, exclusive drops, product updates, and more.",
-    url: "https://blog.shopmythrift.store/",
-    images: [
-      {
-        url: "https://blog.shopmythrift.store/Logo-og.png",
-        width: 1200,
-        height: 630,
-        alt: "My Thrift Blog",
-      },
-    ],
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "My Thrift Blog",
-    description:
-      "Tap into our world—insider tips, smart thrift shopping guides, exclusive drops, product updates, and more.",
-    images: ["https://blog.shopmythrift.store/Logo-og.png"],
-  },
-};
+
 
 export default function RootLayout({ children }) {
   return (

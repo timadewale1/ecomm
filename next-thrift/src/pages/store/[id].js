@@ -40,6 +40,15 @@ export async function getServerSideProps({ params }) {
 
   return { props: { vendor } };
 }
+function getCleanImagekitUrl(firebaseUrl) {
+  const imagekitBase = "https://ik.imagekit.io/mythrift/mythrift-proxy";
+  const decodedPath = decodeURIComponent(
+    firebaseUrl
+      .replace("https://firebasestorage.googleapis.com", "")
+      .split("?")[0]
+  );
+  return `${imagekitBase}${decodedPath}`;
+}
 
 /* ------------------------------------------------------------------ */
 /* React component: renders meta tags, then hands off to StorePage     */
@@ -49,7 +58,9 @@ export default function StoreSSR({ vendor }) {
   const description =
     vendor.description || "Check out this vendor on My Thrift!";
   const url = `https://shopmythrift.store/store/${vendor.id}`;
-  const image = vendor.coverImageUrl 
+  const firebaseCover = vendor.coverImageUrl; // Firebase Storage URL
+  const image = getCleanImagekitUrl(firebaseCover);
+   
   return (
     <>
       <Head>

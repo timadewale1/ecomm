@@ -1,3 +1,4 @@
+// src/pages/store/[id].js
 import Head from "next/head";
 import dynamic from "next/dynamic";
 import { initAdmin } from "lib/firebaseAdmin.js";
@@ -52,34 +53,13 @@ export default function StoreSSR({ vendor }) {
   const description =
     vendor.description || "Check out this vendor on My Thrift!";
   const url = `https://shopmythrift.store/store/${vendor.id}`;
-  
-  // Handle Firebase Storage URLs specifically for WhatsApp compatibility
-  let image = vendor.coverImageUrl || "";
-  
-  // If image exists but isn't a valid URL, make it absolute
-  if (image && !image.startsWith('http')) {
-    image = `https://shopmythrift.store${image.startsWith('/') ? '' : '/'}${image}`;
-  }
-  
-  // Add a cache-busting parameter for WhatsApp
-  if (image && image.includes('firebasestorage.googleapis.com')) {
-    // Add a timestamp to force WhatsApp to fetch a fresh copy
-    const cacheBuster = new Date().getTime();
-    image = image.includes('?') 
-      ? `${image}&_wb=${cacheBuster}` 
-      : `${image}?_wb=${cacheBuster}`;
-  }
-  
-  // Fallback image if none exists or is invalid
-  if (!image || image.trim() === '') {
-    image = "https://shopmythrift.store/default-store-cover.jpg"; // Ensure you have this default image
-  }
+  const image = vendor.coverImageUrl;
 
   return (
     <>
       <Head>
         <title>{title}</title>
-        
+
         {/* ——— Open Graph ——— */}
         <meta property="og:type" content="website" key="og:type" />
         <meta property="og:title" content={title} key="og:title" />
@@ -95,14 +75,9 @@ export default function StoreSSR({ vendor }) {
           content={image}
           key="og:image:secure"
         />
-        <meta property="og:image:width" content="1200" key="og:image:width" />
-        <meta property="og:image:height" content="630" key="og:image:height" />
-        
-        {/* WhatsApp specific meta tags */}
-        <meta property="og:image:type" content="image/jpeg" key="og:image:type" />
-        <meta name="whatsapp:image:cache" content="no" />
-        <meta property="og:image:alt" content={title} />
-        
+        <meta property="og:image:width" content="800" key="og:image:width" />
+        <meta property="og:image:height" content="600" key="og:image:height" />
+
         {/* ——— Twitter ——— */}
         <meta name="twitter:card" content="summary_large_image" key="tw:card" />
         <meta name="twitter:title" content={title} key="tw:title" />

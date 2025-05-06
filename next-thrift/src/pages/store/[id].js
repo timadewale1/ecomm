@@ -4,18 +4,16 @@ import dynamic from "next/dynamic";
 import { initAdmin } from "lib/firebaseAdmin.js";
 import { AuthProvider } from "@/custom-hooks/useAuth";
 import { FavoritesProvider } from "@/components/context/FavoritesContext";
-// 1️⃣  Lazy-load the interactive client component
+import { Timestamp } from "firebase-admin/firestore";
+
+// 1️⃣ Lazy-load the interactive client component (no SSR)
 const StorePage = dynamic(() => import("../../app/store/StorePage"), {
   ssr: false,
 });
 
-/* ------------------------------------------------------------------ */
-/* Helper: recursively convert Firestore Timestamps to JSON-safe data */
-/* ------------------------------------------------------------------ */
-import { Timestamp } from "firebase-admin/firestore";
-
+// Helper: recursively convert Firestore Timestamps to JSON-safe data
 function toJSON(value) {
-  if (value == null) return value; // null | undefined
+  if (value == null) return value;
   if (value instanceof Timestamp) return value.toDate().toISOString();
   if (Array.isArray(value)) return value.map(toJSON);
   if (typeof value === "object") {
@@ -23,37 +21,43 @@ function toJSON(value) {
       Object.entries(value).map(([k, v]) => [k, toJSON(v)])
     );
   }
-  return value; // string, number, boolean…
+  return value;
 }
 
-/* ------------------------------------------------------------------ */
-/* Server-side data fetch                                             */
-/* ------------------------------------------------------------------ */
-export async function getServerSideProps({ params }) {
+// Server-side data fetch + UA detection for redirect
+export async function getServerSideProps({ req, params }) {
+  const ua = req.headers["user-agent"] || "";
+  const isBot = /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp)/i.test(ua);
+
+  // Redirect real users straight to the React app
+  if (!isBot) {
+    return {
+      redirect: {
+        destination: `https://shopmythrift.store/store/${params.id}`,
+        permanent: false,
+      },
+    };
+  }
+
+  // Bots get the metadata
   const db = initAdmin();
   const snap = await db.collection("vendors").doc(params.id).get();
-
   if (!snap.exists) return { notFound: true };
 
-  // Convert EVERY field (createdSince, lastUpdate, etc.)
   const vendor = toJSON({ id: snap.id, ...snap.data() });
-
   return { props: { vendor } };
 }
 
-/* ------------------------------------------------------------------ */
-/* React component: renders meta tags, then hands off to StorePage     */
-/* ------------------------------------------------------------------ */
 export default function StoreSSR({ vendor }) {
   const title = vendor.shopName;
   const description =
     vendor.description || "Check out this vendor on My Thrift!";
   const url = `https://shopmythrift.store/store/${vendor.id}`;
-  const image = vendor.coverImageUrl 
+  const image = vendor.coverImageUrl;
+
   return (
     <>
       <Head>
-        {/* vendor-specific */}
         <title>{title}</title>
 
         {/* ——— Open Graph ——— */}

@@ -376,7 +376,7 @@ const VendorProducts = () => {
   };
   const [productId, setproductId] = useState("null");
 
-  const textToCopy = `${window.location.origin}/product/${
+  const textToCopy = `https://mx.shopmythrift.store/product/${
     productId || "null"
   }?shared=true`;
 

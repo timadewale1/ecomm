@@ -1,4 +1,3 @@
-// src/pages/store/[id].js
 import Head from "next/head";
 import dynamic from "next/dynamic";
 import { initAdmin } from "lib/firebaseAdmin.js";
@@ -6,12 +5,12 @@ import { AuthProvider } from "@/custom-hooks/useAuth";
 import { FavoritesProvider } from "@/components/context/FavoritesContext";
 import { Timestamp } from "firebase-admin/firestore";
 
-// 1️⃣ Lazy-load the interactive client component (no SSR)
+// 1️⃣ Lazy-load your client-only StorePage
 const StorePage = dynamic(() => import("../../app/store/StorePage"), {
   ssr: false,
 });
 
-// Helper: recursively convert Firestore Timestamps to JSON-safe data
+// Helper: turn Firestore Timestamps into ISO
 function toJSON(value) {
   if (value == null) return value;
   if (value instanceof Timestamp) return value.toDate().toISOString();
@@ -24,10 +23,11 @@ function toJSON(value) {
   return value;
 }
 
-// Server-side data fetch + UA detection for redirect
 export async function getServerSideProps({ req, params }) {
   const ua = req.headers["user-agent"] || "";
-  const isBot = /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp)/i.test(ua);
+  const isBot =
+    /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp|Snapchat)/i.test(ua);
+
   // Redirect real users straight to the React app
   if (!isBot) {
     return {
@@ -38,7 +38,7 @@ export async function getServerSideProps({ req, params }) {
     };
   }
 
-  // Bots get the metadata
+  // Bots get the OG meta
   const db = initAdmin();
   const snap = await db.collection("vendors").doc(params.id).get();
   if (!snap.exists) return { notFound: true };
@@ -52,7 +52,10 @@ export default function StoreSSR({ vendor }) {
   const description =
     vendor.description || "Check out this vendor on My Thrift!";
   const url = `https://shopmythrift.store/store/${vendor.id}`;
-  const image = vendor.coverImageUrl;
+
+  // Build a proxy URL for the crawler to fetch a clean image
+  const raw = encodeURIComponent(vendor.coverImageUrl);
+  const image = `https://shopmythrift.store/api/image-proxy?url=${raw}`;
 
   return (
     <>

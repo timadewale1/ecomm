@@ -799,7 +799,7 @@ const ProductDetailPage = () => {
 
   const copyProductLink = async () => {
     try {
-      const shareableLink = `${window.location.origin}/product/${id}?shared=true`;
+      const shareableLink = `https://mx.shopmythrift.store/product/${id}?shared=true`;
 
       await navigator.clipboard.writeText(
         `Hey, check out this item I saw on ${vendor.shopName}'s store on My Thrift: ${shareableLink}`

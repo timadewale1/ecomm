@@ -27,10 +27,9 @@ function toJSON(value) {
 // Server-side data fetch + UA detection for redirect
 export async function getServerSideProps({ req, params }) {
   const ua = req.headers["user-agent"] || "";
-  const isBot = /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp|Snapchat)/i.test(ua);
+  const isBot = /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp)/i.test(ua);
   // Redirect real users straight to the React app
-    // if it’s a shared link or a real browser, redirect
-    if (query.shared === "true" || !isBot){
+  if (!isBot) {
     return {
       redirect: {
         destination: `https://shopmythrift.store/store/${params.id}?shared=true`,

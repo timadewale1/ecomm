@@ -6,9 +6,6 @@ import { AuthProvider } from "@/custom-hooks/useAuth";
 import { FavoritesProvider } from "@/components/context/FavoritesContext";
 import { Timestamp } from "firebase-admin/firestore";
 
-// pull in your ImageKit helper
-import { getOgImageUrl } from "lib/imageKit";
-
 // 1️⃣ Lazy-load the interactive client component (no SSR)
 const StorePage = dynamic(() => import("../../app/store/StorePage"), {
   ssr: false,
@@ -30,9 +27,7 @@ function toJSON(value) {
 // Server-side data fetch + UA detection for redirect
 export async function getServerSideProps({ req, params }) {
   const ua = req.headers["user-agent"] || "";
-  const isBot =
-    /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp|Snapchat)/i.test(ua);
-
+  const isBot = /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp|Snapchat)/i.test(ua);
   // Redirect real users straight to the React app
   if (!isBot) {
     return {
@@ -57,9 +52,7 @@ export default function StoreSSR({ vendor }) {
   const description =
     vendor.description || "Check out this vendor on My Thrift!";
   const url = `https://shopmythrift.store/store/${vendor.id}`;
-
-  // transform your Firebase URL into a 1200×630 OG image via ImageKit
-  const image = getOgImageUrl(vendor.coverImageUrl);
+  const image = vendor.coverImageUrl;
 
   return (
     <>
@@ -81,8 +74,8 @@ export default function StoreSSR({ vendor }) {
           content={image}
           key="og:image:secure"
         />
-        <meta property="og:image:width" content="1200" key="og:image:width" />
-        <meta property="og:image:height" content="630" key="og:image:height" />
+        <meta property="og:image:width" content="800" key="og:image:width" />
+        <meta property="og:image:height" content="600" key="og:image:height" />
 
         {/* ——— Twitter ——— */}
         <meta name="twitter:card" content="summary_large_image" key="tw:card" />

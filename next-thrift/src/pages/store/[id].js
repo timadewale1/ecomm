@@ -1,3 +1,4 @@
+// src/pages/store/[id].js
 import Head from "next/head";
 import dynamic from "next/dynamic";
 import { initAdmin } from "lib/firebaseAdmin.js";
@@ -5,12 +6,11 @@ import { AuthProvider } from "@/custom-hooks/useAuth";
 import { FavoritesProvider } from "@/components/context/FavoritesContext";
 import { Timestamp } from "firebase-admin/firestore";
 import { getOgImageUrl } from "lib/imageKit";
-// 1️⃣ Lazy-load your client-only StorePage
+
 const StorePage = dynamic(() => import("../../app/store/StorePage"), {
   ssr: false,
 });
 
-// Helper: turn Firestore Timestamps into ISO
 function toJSON(value) {
   if (value == null) return value;
   if (value instanceof Timestamp) return value.toDate().toISOString();
@@ -25,11 +25,17 @@ function toJSON(value) {
 
 export async function getServerSideProps({ req, params }) {
   const ua = req.headers["user-agent"] || "";
-  const isBot =
-    /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp|Snapchat)/i.test(ua);
 
-  // Redirect real users straight to the React app
-  if (!isBot) {
+  // 1️⃣ Only the true crawlers:
+  const isBot = /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp|SnapchatExternalHit)/i.test(
+    ua
+  );
+
+  // 2️⃣ But the **mobile** Snapchat app:
+  const isSnapchatApp = /Snapchat(?!ExternalHit)/i.test(ua);
+
+  // 3️⃣ Everyone else (normal browsers and the Snapchat app) → your React SPA:
+  if (!isBot || isSnapchatApp) {
     return {
       redirect: {
         destination: `https://shopmythrift.store/store/${params.id}?shared=true`,
@@ -38,11 +44,10 @@ export async function getServerSideProps({ req, params }) {
     };
   }
 
-  // Bots get the OG meta
+  // 4️⃣ True bots get the SSR meta + OG tags
   const db = initAdmin();
   const snap = await db.collection("vendors").doc(params.id).get();
   if (!snap.exists) return { notFound: true };
-
   const vendor = toJSON({ id: snap.id, ...snap.data() });
   return { props: { vendor } };
 }
@@ -53,7 +58,7 @@ export default function StoreSSR({ vendor }) {
     vendor.description || "Check out this vendor on My Thrift!";
   const url = `https://shopmythrift.store/store/${vendor.id}`;
 
-  // Build a proxy URL for the crawler to fetch a clean image
+  // proxy + crop via your ImageKit endpoint
   const image = getOgImageUrl(vendor.coverImageUrl);
 
   return (
@@ -76,8 +81,8 @@ export default function StoreSSR({ vendor }) {
           content={image}
           key="og:image:secure"
         />
-        <meta property="og:image:width" content="800" key="og:image:width" />
-        <meta property="og:image:height" content="600" key="og:image:height" />
+        <meta property="og:image:width" content="1200" key="og:image:width" />
+        <meta property="og:image:height" content="630" key="og:image:height" />
 
         {/* ——— Twitter ——— */}
         <meta name="twitter:card" content="summary_large_image" key="tw:card" />
@@ -86,7 +91,6 @@ export default function StoreSSR({ vendor }) {
         <meta name="twitter:image" content={image} key="tw:image" />
       </Head>
 
-      {/* Client-only UI */}
       <FavoritesProvider>
         <AuthProvider>
           <StorePage vendorId={vendor.id} />

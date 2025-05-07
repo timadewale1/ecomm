@@ -11,6 +11,8 @@
   "dependencies": {
     "firebase": "^11.2.0",
     "firebase-admin": "^13.3.0",
+    "imagekit": "^6.0.0",
+    "imagekit-javascript": "^4.0.1",
     "lottie-react": "^2.4.1",
     "next": "^15.1.6",
     "react": "^19.0.0",

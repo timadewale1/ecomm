@@ -29,10 +29,11 @@ export async function getServerSideProps({ req, params }) {
   const ua = req.headers["user-agent"] || "";
   const isBot = /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp|Snapchat)/i.test(ua);
   // Redirect real users straight to the React app
-  if (!isBot) {
+    // if it’s a shared link or a real browser, redirect
+    if (query.shared === "true" || !isBot){
     return {
       redirect: {
-        destination: `https://shopmythrift.store/store/${params.id}`,
+        destination: `https://shopmythrift.store/store/${params.id}?shared=true`,
         permanent: false,
       },
     };

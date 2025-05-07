@@ -1,25 +1,21 @@
 // lib/imageKit.js
-
 /**
- * Build a 1.91:1, 1200×630 crop URL for any Firebase Storage raw URL.
+ * Build a 1.91:1, 1200×630 center-crop URL for any Firebase Storage raw URL,
+ * preserving the encoded path so ImageKit’s proxy can find it.
  */
 export function getOgImageUrl(firebaseUrl) {
     if (!firebaseUrl) return "";
   
-    // Parse out the “/o/…?token=” portion
-    let path = "";
     try {
       const url = new URL(firebaseUrl);
-      const [, encoded] = url.pathname.split("/o/");
-      path = decodeURIComponent(encoded);
-    } catch (e) {
-      // fallback if parsing fails
+      // everything after “/o/” is still URL-encoded (e.g. vendorImages%2F…)
+      const [, encodedPath] = url.pathname.split("/o/");
+      const query = url.search; // “?alt=media&token=…”
+      const endpoint = "https://ik.imagekit.io/mythrift/mythrift-proxy";
+      // note: no slash after proxy, because encodedPath already starts with vendorImages%2F…
+      return `${endpoint}/${encodedPath}${query}&tr=w-1200,h-630,cm-center`;
+    } catch {
       return firebaseUrl;
     }
-  
-    // Compose your ImageKit proxy + transformation string
-    // NOTE: must end your endpoint with a slash
-    const endpoint = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
-    return `${endpoint}tr:w-1200,h-630,cm-center/${path}`;
   }
   

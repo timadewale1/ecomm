@@ -4,7 +4,7 @@ import { initAdmin } from "lib/firebaseAdmin.js";
 import { AuthProvider } from "@/custom-hooks/useAuth";
 import { FavoritesProvider } from "@/components/context/FavoritesContext";
 import { Timestamp } from "firebase-admin/firestore";
-
+import { getOgImageUrl } from "lib/imageKit";
 // 1️⃣ Lazy-load your client-only StorePage
 const StorePage = dynamic(() => import("../../app/store/StorePage"), {
   ssr: false,
@@ -54,8 +54,7 @@ export default function StoreSSR({ vendor }) {
   const url = `https://shopmythrift.store/store/${vendor.id}`;
 
   // Build a proxy URL for the crawler to fetch a clean image
-  const raw = encodeURIComponent(vendor.coverImageUrl);
-  const image = `https://shopmythrift.store/api/image-proxy?url=${raw}`;
+  const image = getOgImageUrl(vendor.coverImageUrl);
 
   return (
     <>

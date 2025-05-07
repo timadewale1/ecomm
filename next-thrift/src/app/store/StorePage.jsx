@@ -306,7 +306,7 @@ export default function StorePage({ vendorId }) {
             className="w-full mt-4 h-12 rounded-full bg-customOrange text-white"
             onClick={() => router.push("/browse-markets")}
           >
-            Go Back
+            Go 
           </button>
         ) : (
           <button

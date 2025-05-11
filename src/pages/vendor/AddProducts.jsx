@@ -218,6 +218,26 @@ const AddProduct = ({ vendorId, closeModal }) => {
     setSelectedProductType(selectedOption);
     setSelectedSubType(null); // Reset sub-type when product type changes
   };
+  useEffect(() => {
+    if (
+      productName &&
+      category &&
+      selectedProductType &&
+      selectedSubType &&
+      productVariants.length &&
+      productCondition
+    ) {
+      generateDescription();
+    }
+  }, [
+    productName,
+    category,
+    selectedProductType,
+    selectedSubType,
+    productVariants,
+    discountDetails, // reflect price cuts / freebies
+    productCondition,
+  ]);
 
   // Log the subTypeOptions array
   const subTypeOptions =
@@ -226,12 +246,6 @@ const AddProduct = ({ vendorId, closeModal }) => {
         ? { label: subType, value: subType }
         : { label: subType.name, value: subType.name }
     ) || [];
-
-  useEffect(() => {
-    if (productName && category && productType && size.length && color) {
-      generateDescription();
-    }
-  }, [productName, category, productType, size, color]);
 
   const handleFileChange = async (e) => {
     const files = Array.from(e.target.files);
@@ -781,24 +795,42 @@ const AddProduct = ({ vendorId, closeModal }) => {
       console.error("Error logging activity: ", error);
     }
   };
+
   const generateDescription = async () => {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_AI;
     setIsGeneratingDescription(true);
+
     try {
-      const response = await axios.post(`${API_BASE_URL}/description`, {
-        name: productName,
+      // collect colours and sizes from the variants UI
+      const colours = productVariants
+        .map((v) => v.color.trim())
+        .filter(Boolean); // e.g. ["Black", "Wine"]
+
+      const sizes = productVariants
+        .flatMap((v) => v.sizes.map((s) => s.size))
+        .filter(Boolean); // e.g. ["M", "L"]
+
+      const payload = {
+        name: productName.trim(),
         category,
-        productType,
-        size: size.map((s) => s.value).join(", "),
-        color,
-      });
-      setProductDescription(response.data.description);
-    } catch (error) {
-      console.error("Error generating description:", error);
+        productType: selectedProductType?.value || "",
+        subType: selectedSubType?.value || "",
+        colours, // ← array, not stock counts
+        sizes, // ← array, not stock counts
+        condition: productCondition, // brand new / thrift / defect
+        discount: discountDetails ?? null, // include only when set
+      };
+
+      const { data } = await axios.post(`${API_BASE_URL}/description`, payload);
+      setProductDescription(data.description);
+    } catch (err) {
+      console.error("Error generating description:", err);
+      toast.error("Couldn’t generate description 😕");
     } finally {
       setIsGeneratingDescription(false);
     }
   };
+
   const formatToCurrency = (value) => {
     // Ensure the input is always treated as cents and formatted accordingly
     let numericValue = value.replace(/\D/g, ""); // Remove non-digit characters
@@ -1394,7 +1426,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
             value={productDescription}
             onChange={(e) => {
               // Enforce the character limit
-              if (e.target.value.length <= 250) {
+              if (e.target.value.length <= 700) {
                 setProductDescription(e.target.value);
               }
             }}
@@ -1402,12 +1434,11 @@ const AddProduct = ({ vendorId, closeModal }) => {
           />
           {/* Character Counter */}
           <div className="absolute bottom-2 right-2 font-opensans text-gray-500 ratings-text">
-            {productDescription.length}/250
+            {productDescription.length}/700
           </div>
         </div>
 
-        {/* <div className="flex justify-end mt-2">
-         
+        <div className="flex justify-end mt-2">
           <button
             type="button"
             onClick={generateDescription}
@@ -1426,7 +1457,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
               <GiRegeneration />
             )}
           </button>
-        </div> */}
+        </div>
       </div>
       <div className="mb-4">
         <label className="font-opensans mb-1 text-sm font-medium text-black">

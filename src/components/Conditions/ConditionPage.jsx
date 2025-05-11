@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -12,7 +12,9 @@ import ProductCard from "../Products/ProductCard";
 import { RotatingLines } from "react-loader-spinner";
 import { GoChevronLeft } from "react-icons/go";
 import SEO from "../Helmet/SEO";
-
+import { fetchConditionCategories } from "../../redux/reducers/conditionCategoriesSlice";
+import { BsFilterRight } from "react-icons/bs";
+import { IoFilter } from "react-icons/io5";
 function ConditionProducts() {
   const { condition: slug } = useParams();
   const dispatch = useDispatch();
@@ -48,6 +50,19 @@ function ConditionProducts() {
   const [selectedType, setSelectedType] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState(null);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowFilterDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Load initial products if none cached for this condition
   useEffect(() => {
@@ -65,12 +80,27 @@ function ConditionProducts() {
     }
   }, [condition, conditionProducts, dispatch]);
 
+  const categories =
+    useSelector((s) => s.conditionCategories.byCondition[condition]) || [];
+
+  useEffect(() => {
+    if (!categories.length) {
+      dispatch(fetchConditionCategories(condition));
+    }
+  }, [condition, categories.length, dispatch]);
+  const sortProducts = (direction) => {
+    // direction: "high-to-low" or "low-to-high"
+    setSortOption(direction);
+    setShowFilterDropdown(false);
+  };
+
   const loadInitialProducts = async () => {
     setLoading(true);
     try {
       const response = await dispatch(
         fetchConditionProducts({
           condition,
+          productType: selectedType === "All" ? null : selectedType,
           lastVisible: null,
           batchSize: BATCH_SIZE,
         })
@@ -125,17 +155,22 @@ function ConditionProducts() {
     }
     setLoading(true);
     try {
-      const prevLength = conditionProducts.length;
       const response = await dispatch(
         fetchConditionProducts({
           condition,
+          productType: selectedType === "All" ? null : selectedType,
           lastVisible: conditionLastVisible,
           batchSize: BATCH_SIZE,
         })
       ).unwrap();
-      console.log("ConditionProducts: loadMoreProducts response:", response);
-      const newLength = conditionProducts.length;
-      if (newLength - prevLength < BATCH_SIZE) {
+
+      // if this batch came back smaller than requested, we’re done
+      if (response.products.length < BATCH_SIZE) {
+        setNoMoreProducts(true);
+      }
+
+      // (Optionally, you can also check the cursor:)
+      if (!response.lastVisible) {
         setNoMoreProducts(true);
       }
     } catch (error) {
@@ -191,18 +226,33 @@ function ConditionProducts() {
         (selectedType === "All" || product.productType === selectedType)
     )
     .sort((a, b) => {
-      if (sortOption === "priceAsc") {
-        return parseFloat(a.price) - parseFloat(b.price);
-      } else if (sortOption === "priceDesc") {
+      if (sortOption === "high-to-low") {
         return parseFloat(b.price) - parseFloat(a.price);
+      }
+      if (sortOption === "low-to-high") {
+        return parseFloat(a.price) - parseFloat(b.price);
       }
       return 0;
     });
 
-  const productTypes = [
-    "All",
-    ...new Set(conditionProducts.map((p) => p.productType)),
-  ];
+  const productTypes = ["All", ...categories];
+  const handleTypeSelect = (type) => {
+    setSelectedType(type);
+
+    // clear cache so Redux knows we want fresh data
+    dispatch(resetConditionProducts({ condition }));
+
+    // refetch first page, passing the productType if not "All"
+    dispatch(
+      fetchConditionProducts({
+        condition,
+        productType: type === "All" ? null : type,
+        lastVisible: null,
+
+        batchSize: BATCH_SIZE,
+      })
+    );
+  };
 
   return (
     <>
@@ -213,7 +263,7 @@ function ConditionProducts() {
         description={`Shop ${condition} items on My Thrift`}
         url={`https://www.shopmythrift.store/condition/${slug}`}
       />
-      <div className="px-2 py-14">
+      <div className="px-2 py-28">
         {/* Header Section */}
         <div className="w-full h-48 bg-gray-200">{getHeaderContent()}</div>
 
@@ -222,14 +272,73 @@ function ConditionProducts() {
             showHeader ? "translate-y-0" : "-translate-y-full"
           }`}
         >
-          <div className="flex items-center">
-            <GoChevronLeft
-              className="text-2xl cursor-pointer mr-2"
-              onClick={() => navigate(-1)}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <GoChevronLeft
+                className="text-2xl cursor-pointer mr-2"
+                onClick={() => navigate(-1)}
+              />
+              <h2 className="text-sm font-opensans font-semibold">
+                {condition.charAt(0).toUpperCase() + condition.slice(1)} Items
+              </h2>
+            </div>
+            <IoFilter
+              onClick={() => setShowFilterDropdown((v) => !v)}
+              className="text-xl text-gray-600 cursor-pointer"
+              title="Sort by price"
             />
-            <h2 className="text-sm font-opensans font-semibold">
-              {condition.charAt(0).toUpperCase() + condition.slice(1)} Items
-            </h2>
+            {showFilterDropdown && (
+              <div
+                ref={dropdownRef}
+                className="absolute right-0 top-12 bg-white shadow-lg rounded-2xl w-40 p-3 z-50 font-opensans"
+              >
+                <span
+                  className={`flex items-center justify-between text-xs cursor-pointer py-1 
+        hover:text-customOrange ${
+          sortOption === "high-to-low"
+            ? "text-customOrange font-semibold"
+            : "text-gray-700"
+        }`}
+                  onClick={() => sortProducts("high-to-low")}
+                >
+                  Price: High → Low
+                  {sortOption === "high-to-low" && (
+                    <span className="ml-2 text-customOrange">✓</span>
+                  )}
+                </span>
+                <hr className="my-1 text-gray-200" />
+                <span
+                  className={`flex items-center justify-between text-xs cursor-pointer py-1 
+        hover:text-customOrange ${
+          sortOption === "low-to-high"
+            ? "text-customOrange font-semibold"
+            : "text-gray-700"
+        }`}
+                  onClick={() => sortProducts("low-to-high")}
+                >
+                  Price: Low → High
+                  {sortOption === "low-to-high" && (
+                    <span className="ml-2 text-customOrange">✓</span>
+                  )}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="flex mt-5 w-full overflow-x-auto space-x-2 scrollbar-hide px-1">
+            {productTypes.map((type) => (
+              <button
+                key={type}
+                onClick={() => handleTypeSelect(type)}
+                className={`flex-shrink-0 h-10 px-4 py-2 text-xs font-semibold font-opensans border rounded-full
+        ${
+          selectedType === type
+            ? "bg-customOrange text-white border-customOrange"
+            : "bg-transparent text-black border-gray-200"
+        }`}
+              >
+                {type}
+              </button>
+            ))}
           </div>
         </div>
 

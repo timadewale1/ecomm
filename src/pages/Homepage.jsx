@@ -44,6 +44,7 @@ import Condition from "../components/Conditions/Condition";
 import SEO from "../components/Helmet/SEO";
 import DiscountCarousel from "../components/Discounts/DiscountCarousel";
 import PersonalDiscountCarousel from "../components/Discounts/PersonalDiscounts";
+import TopVendors from "../components/TopVendors/TopVendors";
 gsap.registerPlugin(ScrollTrigger);
 
 const Homepage = () => {
@@ -383,12 +384,13 @@ const Homepage = () => {
           <Market />
         </>
       )}
+      <TopVendors/>
       <PopularCats />
       {/* <DiscountCarousel /> */}
       <PersonalDiscountCarousel />
       <div className="p-2 mt-4 pb-24">
-        <div className="flex items-center mb-2">
-          <h1 className="text-left font-medium text-lg font-ubuntu mr-1">
+        <div className="flex items-center mb-4">
+          <h1 className="text-left font-medium text-xl font-ubuntu mr-1">
             Featured Products
           </h1>
           <PiStarFill className="text-xl text-yellow-300" />

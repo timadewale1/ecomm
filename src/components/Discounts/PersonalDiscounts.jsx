@@ -37,7 +37,7 @@ const PersonalDiscountCarousel = () => {
       {/* Header */}
       <div className="flex items-center justify-between px-2 py-2 w-full bg-white">
         <div className="flex items-center">
-          <h2 className="font-ubuntu text-black text-lg font-medium mr-1">
+          <h2 className="font-ubuntu text-black text-xl font-medium mr-1">
             {headerName}
           </h2>
           <RiDiscountPercentFill className="text-xl text-green-700" />

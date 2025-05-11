@@ -10,6 +10,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 import ReactStars from "react-rating-stars-component";
 import RoundedStar from "../components/Roundedstar";
 import SEO from "../components/Helmet/SEO";
+import { IoLocationOutline } from "react-icons/io5";
 // import ProductCard from "../components/Products/ProductCard"; // if needed
 
 const OnlineVendors = () => {
@@ -208,7 +209,7 @@ const OnlineVendors = () => {
                 <button
                   key={category}
                   onClick={() => handleCategoryClick(category)}
-                  className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-bold font-opensans text-black border border-gray-400 rounded-full ${
+                  className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-bold font-opensans text-black border border-gray-200 rounded-full ${
                     selectedCategory === category
                       ? "bg-customOrange text-white"
                       : "bg-transparent"
@@ -248,13 +249,13 @@ const OnlineVendors = () => {
                 ratingCount > 0 ? vendor.rating / ratingCount : 0;
 
               return (
-                <div key={vendor.id} className="vendor-item">
+                <div key={vendor.id} className="vendor-item  border-b  border-gray-100">
                   <div
                     className="flex justify-between p-3 mb-1 bg-white"
                     onClick={() => handleStoreView(vendor)}
                   >
                     <div>
-                      <h1 className="font-poppins text-black text-xl font-medium">
+                      <h1 className="font-poppins text-black text-xl mb-1 font-medium">
                         {vendor.shopName.length > 18
                           ? `${vendor.shopName.substring(0, 18)}...`
                           : vendor.shopName}
@@ -269,6 +270,10 @@ const OnlineVendors = () => {
                           </React.Fragment>
                         ))}
                       </p>
+                      <div className="flex -ml-1  items-center  text-gray-700 font-ubuntu font-  text-xs translate-y-4 mb-0">
+                        <IoLocationOutline className="mr-1 text-customOrange" />
+                        <span>{vendor.state}</span>
+                      </div>
                       <div className="flex items-center translate-y-4">
                         <span className="text-black font-light text-xs mr-2">
                           {averageRating.toFixed(1)}

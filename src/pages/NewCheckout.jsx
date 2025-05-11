@@ -1595,6 +1595,17 @@ const Checkout = () => {
                 )}
               </p>
             </div>
+            <div className="flex items-center bg-orange-50 py-3 px-2 rounded-lg mt-3">
+              <CiWarning className="text-orange-600 text-7xl mr-3" />
+              <div>
+                <p className="font-opensans text-xs text-orange-700 font-semibold">
+                  You won’t be charged any delivery fees until your stockpile
+                  ships. The vendor will share an estimated cost with you once
+                  it’s ready to go.
+                </p>
+              </div>
+            </div>
+
             <div className="border-t mt-3 border-gray-300 my-2"></div>
             <div className="flex justify-between mt-2">
               <label className="block mb-2 font-opensans text-lg font-semibold">

@@ -61,8 +61,8 @@ const PopularCats = () => {
   };
 
   return (
-    <div className="px-2 py-3">
-      <h2 className="text-lg font-medium mb-3 font-ubuntu">
+    <div className="px-2 ">
+      <h2 className="text-xl font-medium mb-3 font-ubuntu">
         Popular Categories
       </h2>
 
@@ -81,6 +81,14 @@ const PopularCats = () => {
           : // Render categories
             categories.map((category) => {
               const imgSrc = currentImages[category.type];
+              const exactCount = category.count;
+              const approxCount = Math.floor(exactCount / 10) * 10;
+
+              // If fewer than 10, show the exact count.
+              const displayText =
+                exactCount < 10
+                  ? `${exactCount} post${exactCount === 1 ? "" : "s"}`
+                  : `${approxCount}+ posts`;
 
               return (
                 <div
@@ -89,7 +97,7 @@ const PopularCats = () => {
                   onClick={() => handleCategoryClick(category)}
                 >
                   {/* 
-                  Outer container stays the same size/shape. 
+                  Outer conatainer stays the same size/shape. 
                   If imgSrc is null or empty, show logo.svg in a circular wrapper. 
                 */}
                   <div className="rounded-lg overflow-hidden flex items-center justify-center bg-gray-100 w-28 h-28">
@@ -110,7 +118,7 @@ const PopularCats = () => {
                     {category.type}
                   </h3>
                   <p className="text-xs text-gray-500 font-opensans font-medium text-left">
-                    {category.count} posts
+                  {displayText}
                   </p>
                 </div>
               );

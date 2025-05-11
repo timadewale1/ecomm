@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 // Firebase
-import { db } from "firebase.config";
+import { db } from "@/firebase";
 import {
   doc,
   getDoc,
@@ -48,7 +48,7 @@ import { useAuth } from "@/custom-hooks/useAuth";
 
 // Services
 import { handleUserActionLimit } from "@/services/userWriteHandler";
-import Head from "next/head";
+
 
 export default function StorePage({ vendorId }) {
   // ===============================
@@ -306,7 +306,7 @@ export default function StorePage({ vendorId }) {
             className="w-full mt-4 h-12 rounded-full bg-customOrange text-white"
             onClick={() => router.push("/browse-markets")}
           >
-            Go Back
+            Go 
           </button>
         ) : (
           <button
@@ -338,36 +338,7 @@ export default function StorePage({ vendorId }) {
   // ===============================
   return (
     <>
-      <Head>
-        <title>{vendor.shopName} - My Thrift</title>
-        <meta
-          name="description"
-          content={vendor.description || "Check out this vendor!"}
-        />
-        <meta property="og:title" content={vendor.shopName} />
-        <meta
-          property="og:description"
-          content={vendor.description || "Check out this vendor!"}
-        />
-        <meta
-          property="og:image"
-          content={vendor.coverImageUrl || "/default-thumbnail.png"}
-        />
-        <meta
-          property="og:url"
-          content={`https://www.shopmythrift.store/store/${vendor.id}`}
-        />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={vendor.shopName} />
-        <meta
-          name="twitter:description"
-          content={vendor.description || "Check out this vendor!"}
-        />
-        <meta
-          name="twitter:image"
-          content={vendor.coverImageUrl || "/default-thumbnail.png"}
-        />
-      </Head>
+      
       <div className="p-3 mb-24">
         {/* Top nav bar area */}
         <div className="sticky top-0 bg-white h-20 z-10 flex items-center border-b border-gray-300 w-full">

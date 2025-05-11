@@ -12,7 +12,7 @@ import { addToCart, removeFromCart } from "../../redux/actions/action";
 import { fetchProduct } from "../../redux/actions/productaction";
 import Loading from "../../components/Loading/Loading";
 import { PiShoppingCartBold } from "react-icons/pi";
-import { FaSmileBeam, FaStar } from "react-icons/fa";
+import { FaExclamationTriangle, FaSmileBeam, FaStar } from "react-icons/fa";
 import { CiCircleInfo } from "react-icons/ci";
 import { TbInfoOctagon } from "react-icons/tb";
 import { TbInfoTriangle } from "react-icons/tb";
@@ -101,7 +101,10 @@ const ProductDetailPage = () => {
 
   // Inside your ProductDetailPage component
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showModal, setShowModal] = useState(false);
 
+  const handleOpenModal = () => setShowModal(true);
+  const handleCloseModal = () => setShowModal(false);
   const db = getFirestore();
 
   const cart = useSelector((state) => state.cart || {});
@@ -251,6 +254,10 @@ const ProductDetailPage = () => {
     const swiperInstance = document.querySelector(".swiper").swiper;
     swiperInstance.slideTo(index);
   };
+  // const truncatedText =
+  //   product.defectDescription?.length > 10
+  //     ? product.defectDescription.slice(0, 10) + "... tap to view"
+  //     : product.defectDescription;
 
   useEffect(() => {
     if (product && product.variants) {
@@ -364,18 +371,6 @@ const ProductDetailPage = () => {
     ? product.coverImageUrl
     : `${window.location.origin}/logo512.png`;
   const metaUrl = encodeURI(`${window.location.origin}/product/${id}`);
-
-  const handleDisclaimer = () => {
-    const userAgreed = window.confirm(
-      "Important Disclaimer: By agreeing to purchase this product, you acknowledge that it may have defects as described by the vendor. My Thrift does not assume any responsibility for any damages or defects associated with the product. The vendor has disclosed the condition of the product, and by proceeding with the purchase, you agree to accept the product in its current condition."
-    );
-
-    if (userAgreed) {
-      console.log("User agreed to the disclaimer.");
-    } else {
-      console.log("User did not agree to the disclaimer.");
-    }
-  };
 
   const handleScroll = () => {
     if (window.scrollY > 50) {
@@ -804,7 +799,7 @@ const ProductDetailPage = () => {
 
   const copyProductLink = async () => {
     try {
-      const shareableLink = `${window.location.origin}/product/${id}?shared=true`;
+      const shareableLink = `https://mx.shopmythrift.store/product/${id}?shared=true`;
 
       await navigator.clipboard.writeText(
         `Hey, check out this item I saw on ${vendor.shopName}'s store on My Thrift: ${shareableLink}`
@@ -1084,6 +1079,17 @@ const ProductDetailPage = () => {
                           )}
                         </div>
                       )}
+                      {index === 0 && product.defectDescription && (
+                        <div
+                          onClick={handleOpenModal}
+                          className="px-3 w-28 py-1 absolute bg-opacity-40 bottom-16 right-2 bg-black rounded-md cursor-pointer"
+                        >
+                          
+                          <p className="text-[10px]  text-white font-opensans">
+                            Tap to view defect description
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </SwiperSlide>
                 ))}
@@ -1127,6 +1133,19 @@ const ProductDetailPage = () => {
                   )}
                 </div>
               )}
+              {product.defectDescription && (
+                <div
+                  onClick={handleOpenModal}
+                  className="px-3 w-28 py-1 absolute bg-opacity-40 bottom-16 right-2 bg-black rounded-md cursor-pointer"
+                >
+                  <p className="text-xs text-white font-opensans truncate">
+                    {product.defectDescription.slice(0, 20)} ...
+                  </p>
+                  <span className="text-[10px]  text-white font-opensans">
+                    Tap to view defect
+                  </span>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -1139,17 +1158,10 @@ const ProductDetailPage = () => {
             <div className="">
               {product.condition &&
               product.condition.toLowerCase().includes("defect") ? (
-                <div className="flex items-center mt-2">
-                  <TbInfoTriangle
-                    className="text-red-500 cursor-pointer"
-                    onClick={handleDisclaimer} // Optional: Add an actual function for handling disclaimers
-                    title="Click for important information about product defects"
-                  />
+                <div className="flex  items-center mt-2">
+                  <TbInfoTriangle className="text-red-500  cursor-pointer" />
                   <p className="ml-2 text-xs text-red-500">
-                    {product.condition}
-                    {product.defectDescription
-                      ? ` ${product.defectDescription}`
-                      : ""}
+                    {product.condition.replace(/:$/, "")}
                   </p>
                 </div>
               ) : product.condition.toLowerCase() === "brand new" ? (
@@ -1372,7 +1384,52 @@ const ProductDetailPage = () => {
         <div className="border-t-8 border-gray-100 mt-4"></div>
 
         <RelatedProducts product={product} />
+        <Modal
+          isOpen={showModal}
+          onRequestClose={handleCloseModal}
+          contentLabel="Product Defect Details"
+          ariaHideApp={false}
+          className="modal-content-defect"
+          overlayClassName="modal-overlay-defect"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 bg-red-100 flex justify-center items-center rounded-full">
+                <FaExclamationTriangle className="text-red-600" />
+              </div>
+              <h2 className="font-opensans text-base font-semibold">
+                Defect Details
+              </h2>
+            </div>
+          </div>
 
+          {/* Defect description */}
+          <p className="text-sm text-gray-800 font-opensans mb-4">
+            {product.defectDescription}
+          </p>
+
+          {/* Important Disclaimer */}
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 px-1 py-2 rounded-md shadow-sm">
+            <h3 className="text-sm font-semibold font-opensans text-yellow-700 mb-1">
+              Important Disclaimer
+            </h3>
+            <p className="text-xs text-yellow-800 font-opensans">
+              By purchasing this product, you acknowledge the disclosed defects.{" "}
+              By proceeding, you accept the product as-is.
+            </p>
+          </div>
+
+          {/* Close button */}
+          <div className="flex justify-end mt-6">
+            <button
+              onClick={handleCloseModal}
+              className="bg-customOrange text-white font-opensans py-2 px-6 rounded-full"
+            >
+              Got it
+            </button>
+          </div>
+        </Modal>
         <div
           className="fixed bottom-0 left-0 right-0 z-50 p-3 flex justify-between items-center"
           style={{

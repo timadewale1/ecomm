@@ -154,6 +154,19 @@ li::marker {
   outline: none;
   transition: height 0.3s ease; /* Smooth height transition */
 }
+.modal-content-defect {
+  position: fixed;
+  top: 50%;
+  
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 85%;
+  background-color: white;
+  border-radius: 10px;
+  padding: 20px;
+  outline: none;
+  transition: height 0.3s ease; /* Smooth height transition */
+}
 @keyframes fade-in {
   0% { opacity: 0; transform: translateY(4px); }
   100% { opacity: 1; transform: translateY(0); }
@@ -348,6 +361,23 @@ li::marker {
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
 }
+.modal-overlay-defect {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+/* Hide scrollbar but allow scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
 
 .logo-container {
   top: 10px; /* Adjust this to position the logo vertically */
@@ -477,6 +507,9 @@ button.bg-orange-500:hover {
 }
 .totaltext {
   font-size: 17px;
+}
+.zen {
+  z-index: 5;
 }
 
 .progress-bar-container {

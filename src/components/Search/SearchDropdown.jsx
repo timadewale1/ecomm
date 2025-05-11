@@ -179,7 +179,7 @@ const SearchDropdown = ({ products, vendors }) => {
                         borderRadius: "5px",
                         marginRight: "10px",
                       }}
-                    />
+                    /> 
                     <div className="flex flex-col">
                       <span className="font-opensans mb-1 font-medium">
                         {item.name || item.shopName}

@@ -40,7 +40,7 @@
     <meta name="twitter:url" content="" />
     <meta name="twitter:creator" content="@mythriftng" />
 
-    <link rel="icon" href="./logo512.png" />
+    <link rel="icon" href="./logo.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -341,13 +341,24 @@
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
     <script type="module" src="/src/index.jsx"></script>
-    <div id="custom-loading-screen">
+    <!-- <div id="custom-loading-screen">
       <img
         class="splash"
-        src="./apple-splash-1284-2778.jpg"
+        src="./splash.png"
         alt="Splash Screen"
       />
-    </div>
+    </div> -->
+
+    <div
+  id="custom-loading-screen"
+  style="
+    background-image: url('./splash.png');
+    background-size: cover;
+    background-position: center;
+    width: 100vw;
+    height: 100vh;
+  "
+></div>
 
     <!-- Main Scripts -->
     <script>

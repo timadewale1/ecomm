@@ -817,6 +817,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         subType: selectedSubType?.value || "",
         colours, // ← array, not stock counts
         sizes, // ← array, not stock counts
+        price: parseFloat(productPrice),
         condition: productCondition, // brand new / thrift / defect
         discount: discountDetails ?? null, // include only when set
       };

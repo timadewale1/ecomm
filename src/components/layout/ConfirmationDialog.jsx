@@ -7,6 +7,7 @@ import LoadState from "../../Animations/loadinganimation.json";
 const ConfirmationDialog = ({
   isOpen,
   title,
+  icon,
   message,
   onClose,
   onConfirm,
@@ -41,7 +42,8 @@ const ConfirmationDialog = ({
                 autoplay={true}
               />
             ) : (
-              <IoTrashOutline className="w-4 h-4" />
+              // 
+              <div>{icon}</div>
             )}
           </div>
           <hr className="w-full text-slate-800" />

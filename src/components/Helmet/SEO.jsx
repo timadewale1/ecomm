@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 const SEO = ({
   title = "My Thrift - The Real Marketplace", 
   description = "Shop pre-loved items at unbeatable prices.", 
-  image = "/logo512.png", 
+  image = "/logo.png", 
   url = "https://www.shopmythrift.store" 
 }) => {
   
@@ -41,7 +41,7 @@ const SEO = ({
       <meta name="twitter:creator" content="@mythriftng" />
 
       {/* Favicon (Optional) */}
-      <link rel="icon" href="/logo512.png" type="image/x-icon" />
+      <link rel="icon" href="/logo.png" type="image/x-icon" />
     </Helmet>
   );
 };

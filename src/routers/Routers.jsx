@@ -247,12 +247,12 @@ const Routers = () => {
       {/* Vendor Protected Routes */}
       <Route element={<ProtectedRoute requiredRole="vendor" />}>
         <Route path="/vendordashboard" element={
-          <WithWhatsAppModal>
-          <VendorDashboard /></WithWhatsAppModal>} />
-        <Route path="/vendor-profile" element={<WithWhatsAppModal><VendorProfile /></WithWhatsAppModal>} />
-        <Route path="/vendor-products" element={<WithWhatsAppModal><VendorProducts /></WithWhatsAppModal>} />
+          /*<WithWhatsAppModal>*/
+          <VendorDashboard />/*</WithWhatsAppModal>*/} />
+        <Route path="/vendor-profile" element={/*<WithWhatsAppModal>*/<VendorProfile />/*</WithWhatsAppModal>*/} />
+        <Route path="/vendor-products" element={/*<WithWhatsAppModal>*/<VendorProducts />/*</WithWhatsAppModal>*/} />
         <Route path="/vendor-orders" element={<VendorOrders />} />
-        <Route path="/store-reviews" element={<WithWhatsAppModal><StoreReviews /></WithWhatsAppModal>} />
+        <Route path="/store-reviews" element={/*<WithWhatsAppModal>*/<StoreReviews />/*</WithWhatsAppModal>*/} />
         
         <Route path="/call-guidelines" element={<CallGuide />} />
         <Route path="/delivery-guidelines" element={<DeliveryGuide />} />

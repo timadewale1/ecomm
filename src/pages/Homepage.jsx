@@ -45,6 +45,7 @@ import SEO from "../components/Helmet/SEO";
 import DiscountCarousel from "../components/Discounts/DiscountCarousel";
 import PersonalDiscountCarousel from "../components/Discounts/PersonalDiscounts";
 import TopVendors from "../components/TopVendors/TopVendors";
+import BlogImageGrid from "../components/Blog/BlogCarousel";
 gsap.registerPlugin(ScrollTrigger);
 
 const Homepage = () => {
@@ -384,6 +385,7 @@ const Homepage = () => {
           <Market />
         </>
       )}
+      <BlogImageGrid/>
       <TopVendors/>
       <PopularCats />
       {/* <DiscountCarousel /> */}

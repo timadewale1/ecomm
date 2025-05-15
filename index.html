@@ -366,8 +366,8 @@
         alt="Splash Screen"
       />
     </div> -->
-
-    <div
+   <!-- Custom Splash -->
+    <!-- <div
       id="custom-loading-screen"
       style="
         background-image: url('./splash.png');
@@ -376,7 +376,7 @@
         width: 100vw;
         height: 100vh;
       "
-    ></div>
+    ></div> --> 
 
     <!-- Main Scripts -->
     <script>
@@ -410,22 +410,22 @@
       window.addEventListener("resize", setViewportHeight);
 
       // When the DOM is fully loaded
-      document.addEventListener("DOMContentLoaded", () => {
-        const loadingScreen = document.getElementById("custom-loading-screen");
+      //document.addEventListener("DOMContentLoaded", () => {
+       // const loadingScreen = document.getElementById("custom-loading-screen");
 
         // Display the loading screen only in PWA mode (if desired)
-        if (loadingScreen) {
-          loadingScreen.style.display = isPWA && isIOS ? "flex" : "none";
-        }
-      });
+       // if (loadingScreen) {
+         // loadingScreen.style.display = isPWA && isIOS ? "flex" : "none";
+        //}
+      //});
 
       // Fallback: Hide loading screen after 5 seconds (if still visible)
-      setTimeout(() => {
-        const loadingScreen = document.getElementById("custom-loading-screen");
-        if (loadingScreen) {
-          loadingScreen.style.display = "none";
-        }
-      }, 5000);
+      //setTimeout(() => {
+       // const loadingScreen = document.getElementById("custom-loading-screen");
+        //if (loadingScreen) {
+         // loadingScreen.style.display = "none";
+       // }
+      //}, 5000); 
     </script>
 
     <!-- <script

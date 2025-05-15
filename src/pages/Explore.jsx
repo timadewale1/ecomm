@@ -286,7 +286,7 @@ const Explore = () => {
                 ))}
               </div>
               <div className="flex justify-between items-center">
-                <div className="flex text-customOrange">{sortOrder && `Sorting Price: ${sortOrder.charAt(0).toUpperCase() + sortOrder.slice(1)}`}</div>
+                <div className="flex text-customOrange font-opensans">{sortOrder && `Sorting Price: ${sortOrder.charAt(0).toUpperCase() + sortOrder.slice(1)}`}</div>
                 <div className="relative flex">
                   <LuListFilter
                     className="text-xl text-customOrange cursor-pointer"

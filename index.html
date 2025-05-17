@@ -95,6 +95,10 @@
     </style>
 
     <!-- Google Maps (replace key as needed) -->
+    <script>
+      // provide a no‐op initMap so the Google script never errors
+      window.initMap = () => {};
+    </script>
     <script
       async
       src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDNCknLB3RrITleZDw7a9KgMx-01eeth-8&libraries=places&callback=initMap"
@@ -107,7 +111,7 @@
     <script type="module" src="/src/index.jsx"></script>
 
     <!-- Chat widget -->
-    <script
+    <!-- <script
       async
       src="https://static.sppopups.com/assets/loader.js"
       data-chats-widget-id="e3193fb3-f356-4967-a371-86f84e6e95ef"
@@ -142,6 +146,6 @@
         window.HelpCrunch("onReady", function () {
           window.HelpCrunch("hideChatWidget");
         });
-    </script>
+    </script> -->
   </body>
 </html>

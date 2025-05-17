@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { handleUserActionLimit } from "../services/userWriteHandler";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../firebase.config";
@@ -18,6 +18,7 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchStoreVendor,
+  saveStoreScroll,
   fetchVendorProductsBatch,
 } from "../redux/reducers/storepageVendorsSlice";
 import { onAuthStateChanged } from "firebase/auth";
@@ -119,10 +120,7 @@ const StorePage = () => {
 
   // Convenience variables for the current vendor page
   const entry = entities[id] || {};
-  const vendor = entry.vendor;
-  const products = entry.products || [];
-  const loadingMore = entry.loadingMore;
-  const noMore = entry.noMore;
+  const { vendor, products = [], loadingMore, noMore, scrollY } = entry;
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -139,7 +137,15 @@ const StorePage = () => {
     loading: stockpileLoading,
   } = useSelector((state) => state.stockpile);
   const isStockpileForThisVendor = isActive && stockpileVendorId === id;
+  const lastScrollY = useRef(0);
 
+  useEffect(() => {
+    const onScroll = () => {
+      lastScrollY.current = window.scrollY;
+    };
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const stockpileParam = params.get("stockpile");
@@ -149,61 +155,37 @@ const StorePage = () => {
     }
   }, [location.search, currentUser, dispatch, id]);
 
-  // useEffect(() => {
-  //   const fetchVendorData = async () => {
-  //     try {
-  //       // Set loading state to true
-  //       setLoading(true);
-
-  //       // Fetch vendor data using the vendor ID
-  //       const vendorRef = doc(db, "vendors", id);
-  //       const vendorDoc = await getDoc(vendorRef);
-
-  //       if (vendorDoc.exists()) {
-  //         const vendorData = vendorDoc.data();
-  //         if (!vendorData.isApproved) {
-  //           toast.error("Vendor is not available!");
-  //           setVendor(null); // Ensure vendor is null to trigger "Vendor Not Found" UI
-  //           return;
-  //         }
-  //         vendorData.id = vendorDoc.id; // Ensure we have the vendor's document ID
-  //         setVendor(vendorData);
-
-  //         // If the vendor has productIds, use them to fetch products
-  //         if (vendorData.productIds && vendorData.productIds.length > 0) {
-  //           await fetchVendorProducts(vendorData.productIds); // Fetch the vendor's products
-  //         } else {
-  //           // No products if the vendor has no productIds
-  //           setProducts([]);
-  //         }
-  //       } else {
-  //         // Show error if the vendor is not found
-  //         toast.error("Vendor not found!");
-  //       }
-  //     } catch (error) {
-  //       // Handle any errors during the fetch operation
-  //       toast.error("Error fetching vendor data: " + error.message);
-  //     } finally {
-  //       // Set loading state to false once fetching is complete
-  //       setLoading(false);
-  //     }
-  //   };
-
-  //   fetchVendorData(); // Fetch vendor data on mount
-  // }, [id]); // Depend on vendor ID and current user state
-  // useEffect(() => {
-  //   if (!entities[id]) {
-  //     console.log("StorePage: dispatching fetchStorePageData for id:", id);
-  //     dispatch(fetchStorePageData(id));
-  //   } else {
-  //     console.log("StorePage: vendor data found in Redux for id:", id);
-  //   }
-  // }, [dispatch, id, entities]);
   useEffect(() => {
     if (!vendor) {
       dispatch(fetchStoreVendor(id));
     }
   }, [id, dispatch, vendor]);
+  const prevPath = useRef(location.pathname);
+  // right after you declare lastScrollY = useRef(0)
+
+  /* save JUST BEFORE un-mount, using the buffered value, not window.scrollY */
+  useEffect(() => {
+    return () => {
+      console.log(
+        `🛑 saving scrollY=${lastScrollY.current} for vendor ${id} (un-mount)`
+      );
+      dispatch(saveStoreScroll({ vendorId: id, scrollY: lastScrollY.current }));
+    };
+  }, [dispatch, id]);
+
+  // useEffect(() => {
+  //   // if we were on `/store/:id` and now we're not → time to save
+  //   if (
+  //     prevPath.current.startsWith(`/store/${id}`) &&
+  //     !location.pathname.startsWith(`/store/${id}`)
+  //   ) {
+  //     console.log(
+  //       `🛑 saving scrollY=${lastScrollY.current} for vendor ${id} on route change`
+  //     );
+  //     dispatch(saveStoreScroll({ vendorId: id, scrollY: lastScrollY.current }));
+  //   }
+  //   prevPath.current = location.pathname;
+  // }, [location.pathname, dispatch, id]);
 
   // Fetch the first batch of twenty products as soon as the vendor is ready
   useEffect(() => {
@@ -227,9 +209,6 @@ const StorePage = () => {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, [vendor, loadingMore, noMore, id, dispatch]);
-
-  // 2) Grab vendor + products from Redux
-  const storeData = entities[id]; // { vendor, products } or undefined
 
   useEffect(() => {
     setIsFollowing(false);
@@ -258,17 +237,24 @@ const StorePage = () => {
     checkIfFollowing();
   }, [currentUser, vendor]);
 
-  // useEffect(() => {
-  //   const unsubscribe = onAuthStateChanged(auth, (user) => {
-  //     if (user) {
-  //       setCurrentUser(user);
-  //     } else {
-  //       setCurrentUser(null);
-  //     }
-  //   });
-
-  //   return () => unsubscribe();
-  // }, []);
+  const restored = useRef(false);
+  useLayoutEffect(() => {
+    console.log(
+      `🔍 trying to restore scroll to ${scrollY} (restored? ${restored.current})`
+    );
+    if (
+      !restored.current &&
+      products.length > 0 &&
+      !loadingMore &&
+      scrollY != null
+    ) {
+      requestAnimationFrame(() => {
+        console.log(`🚀 restoring scroll to ${scrollY}`);
+        window.scrollTo(0, scrollY);
+        restored.current = true;
+      });
+    }
+  }, [products.length, loadingMore, scrollY]);
   const handleOpenPileModal = () => {
     setShowPileModal(true);
     // dispatch the thunk

@@ -10,11 +10,12 @@ import {
   where,
   query,
   writeBatch,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import { MdOutlineStarPurple500 } from "react-icons/md";
+import { MdOutlineStarPurple500, MdOutlineUnpublished, MdPublishedWithChanges } from "react-icons/md";
 import { MdOutlineStarBorderPurple500 } from "react-icons/md";
 import Modal from "../../components/layout/Modal";
 import ConfirmationDialog from "../../components/layout/ConfirmationDialog";
@@ -32,6 +33,12 @@ import ScrollToTop from "../../components/layout/ScrollToTop";
 import { VendorContext } from "../../components/Context/Vendorcontext";
 import { LuCopy, LuCopyCheck } from "react-icons/lu";
 import SEO from "../../components/Helmet/SEO";
+import { TbRosetteDiscount, TbRosetteDiscountOff } from "react-icons/tb";
+import SingleDiscountModal from "../vendor/SingleDiscountModal";
+import { start } from "@cloudinary/url-gen/qualifiers/textAlignment";
+import { IoTrashOutline } from "react-icons/io5";
+import { IoMdCheckmarkCircleOutline } from "react-icons/io";
+import MultiDiscountModal from "../vendor/MultiDiscountModal";
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
@@ -43,6 +50,8 @@ const VendorProducts = () => {
   const [isViewProductModalOpen, setIsViewProductModalOpen] = useState(false);
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showDisableConfirmation, setShowDisableConfirmation] = useState(false);
+  const [disableLoading, setDisableLoading] = useState(false);
   const [action, setAction] = useState("");
   const [isRestocking, setIsRestocking] = useState(false); // New state
   const [restockValues, setRestockValues] = useState({});
@@ -52,10 +61,17 @@ const VendorProducts = () => {
   const [productsLoading, setProductsLoading] = useState(false);
   const [picking, setPicking] = useState(false);
 
+  const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
+  const [isMultiDiscountModalOpen, setIsMultiDiscountModalOpen] = useState(false);
+
   const { vendorData } = useContext(VendorContext);
 
   const [pickedProducts, setPickedProducts] = useState([]);
   const [pinnedCount, setPinnedCount] = useState(0);
+
+  const [pickState, setPickState] = useState(null);
+  const [viewPickOption, setViewPickOption] = useState(false);
+  const [viewSubOptions, setViewSubOptions] = useState(false);
 
   const auth = getAuth();
   const navigate = useNavigate();
@@ -272,10 +288,20 @@ const VendorProducts = () => {
     setSelectedProduct(product);
     setproductId(product.id);
     setIsViewProductModalOpen(true);
+    console.log(product); /*debugging purposes*/
   };
 
   const handleTogglePicking = () => {
-    setPicking((prev) => !prev);
+    // setPicking((prev) => !prev);
+    setPickedProducts([]); // Reset picked products when toggling
+    setViewPickOption((prev) => !prev);
+    setViewSubOptions(false);
+    setPickState(null);
+    setPicking(false); // Reset picking state when toggling
+  };
+
+  const startPicking = () => {
+    setPicking(true);
     setPickedProducts([]); // Reset picked products when toggling
   };
 
@@ -317,7 +343,11 @@ const VendorProducts = () => {
           : "Selected products unpublished successfully."
       );
       setPickedProducts([]);
-      setPicking(false);
+      setViewPickOption((prev) => !prev);
+      setViewSubOptions(false);
+      setPickState(null);
+      setAction("");
+      setPicking(false); // Reset picking state when toggling
       setShowConfirmation(false);
     } catch (error) {
       console.error("Error changing publish state: ", error);
@@ -344,8 +374,12 @@ const VendorProducts = () => {
       }
       toast.success("Selected products deleted successfully.");
       setPickedProducts([]);
-      setPicking(false);
+      setViewPickOption((prev) => !prev);
+      setViewSubOptions(false);
+      setPickState(null);
+      setPicking(false); // Reset picking state when toggling
       setShowConfirmation(false);
+      setAction("");
 
       await addActivityNote(
         "Deleted Products 🗑",
@@ -355,6 +389,71 @@ const VendorProducts = () => {
     } catch (error) {
       console.error("Error deleting products: ", error);
       toast.error("Error deleting products: " + error.message);
+    } finally {
+      setOLoading(false);
+    }
+  };
+
+  const handleBulkDiscountRemoval = async () => {
+    if (pickedProducts.length === 0) return;
+    setOLoading(true);
+    const updatedProducts = []; // Store updated products for state update
+    try {
+      for (const productId of pickedProducts) {
+        const productRef = doc(db, "products", productId);
+        const productSnap = await getDoc(productRef);
+
+        if (!productSnap.exists()) continue;
+
+        const productData = productSnap.data();
+        const discount = productData.discount;
+        const initPrice = discount?.initialPrice;
+        const notFreebie = discount?.discountType !== "personal-freebies";
+
+        if (notFreebie) {
+          await updateDoc(productRef, {
+            price: initPrice,
+            discount: null,
+            discountId: null,
+          });
+          updatedProducts.push({
+            ...productData,
+            id: productId,
+            price: initPrice,
+            discount: null,
+            discountId: null,
+          });
+        } else {
+          await updateDoc(productRef, {
+            discount: null,
+            discountId: null,
+          });
+          updatedProducts.push({
+            ...productData,
+            id: productId,
+            discount: null,
+            discountId: null,
+          });
+        }
+      }
+
+      await addActivityNote(
+        "Discounts Disabled ❌",
+        `You've disabled the discount on some products. Customers can now only buy them at their original prices.`,
+        "Product Update"
+      );
+      toast.success("Discounts removed from selected product(s).");
+
+      setPickedProducts([]);
+      setAction("");
+      setViewPickOption((prev) => !prev);
+      setViewSubOptions(false);
+      setPickState(null);
+      setPicking(false); // Reset picking state when toggling
+      setShowConfirmation(false);
+    } catch (error) {
+      console.error("Error in bulk discount removal: ", error);
+      toast.error("Error in bulk discount removal: " + error.message);
     } finally {
       setOLoading(false);
     }
@@ -394,6 +493,80 @@ const VendorProducts = () => {
         console.error("Failed to copy text: ", err);
       }
     }
+  };
+
+  // Reverse Engineering the discount logic
+  const closeDiscountModal = () => {
+    setIsDiscountModalOpen(false);
+  };
+
+  const closeMultiDiscountModal = () => {
+    setIsMultiDiscountModalOpen(false);
+    setAction("");
+  };
+
+  const disableDiscount = async () => {
+    setDisableLoading(true);
+    try {
+      const productRef = doc(db, "products", selectedProduct.id);
+
+      let initPrice = selectedProduct.discount.initialPrice;
+      let notFreebie =
+        selectedProduct.discount.discountType !== "personal-freebies";
+
+      notFreebie
+        ? await updateDoc(productRef, {
+            price: initPrice,
+            discount: null,
+            discountId: null,
+          }).then(
+            setProducts((prevProducts) =>
+              prevProducts.map((p) =>
+                p.id === selectedProduct.id
+                  ? {
+                      ...p,
+                      price: initPrice,
+                      discount: null,
+                      discountId: null,
+                    }
+                  : p
+              )
+            )
+          )
+        : await updateDoc(productRef, {
+            discount: null,
+            discountId: null,
+          }).then(
+            setProducts((prevProducts) =>
+              prevProducts.map((p) =>
+                p.id === selectedProduct.id
+                  ? {
+                      ...p,
+                      discount: null,
+                      discountId: null,
+                    }
+                  : p
+              )
+            )
+          );
+
+      await addActivityNote(
+        "Discount Disabled ❌",
+        `You've disabled the discount on ${selectedProduct.name}. Customers can now only buy this at the original price.`,
+        "Product Update"
+      );
+      toast.success("Discount disabled successfully.");
+      setDisableLoading(false);
+
+      // Update the pinned count after the change
+      fetchPinnedProductsCount(); // Assuming this function recalculates the pinned count
+    } catch (error) {
+      console.error("Error disabling discount", error);
+      toast.error("Error disabling discount: " + error.message);
+      setDisableLoading(false);
+    }
+    setShowDisableConfirmation(false);
+    setDisableLoading(false);
   };
 
   const handlePinProduct = async (product) => {
@@ -519,6 +692,7 @@ const VendorProducts = () => {
       toast.error("Error deleting product: " + error.message);
     } finally {
       setOLoading(false);
+      setAction("");
       setShowConfirmation(false);
       fetchVendorProducts(vendorId);
     }
@@ -669,11 +843,27 @@ const VendorProducts = () => {
   const filteredProducts = products
     .filter((p) => {
       if (tabOpt === "Active") {
-        return p.published && p.stockQuantity > 0;
+        if (pickState === "addDisc") {
+          return (
+            p.published && p.stockQuantity > 0 && !p.discountId && !p.discount
+          );
+        } else if (pickState === "remDisc") {
+          return (
+            p.published && p.stockQuantity > 0 && p.discountId && p.discount
+          );
+        } else return p.published && p.stockQuantity > 0;
       } else if (tabOpt === "OOS") {
-        return p.stockQuantity === 0;
+        if (pickState === "addDisc") {
+          return p.stockQuantity === 0 && !p.discountId && !p.discount;
+        } else if (pickState === "remDisc") {
+          return p.stockQuantity === 0 && p.discountId && p.discount;
+        } else return p.stockQuantity === 0;
       } else {
-        return !p.published;
+        if (pickState === "addDisc") {
+          return !p.published && !p.discountId && !p.discount;
+        } else if (pickState === "remDisc") {
+          return !p.published && p.discountId && p.discount;
+        } else return !p.published;
       }
     })
     .sort((a, b) => {
@@ -700,16 +890,68 @@ const VendorProducts = () => {
         <ScrollToTop />
         <div className="flex justify-end">
           <div className="relative flex justify-center items-center">
+            {/* {picking && pickedProducts.length < 1 && ( */}
+            {viewPickOption && !viewSubOptions && !picking && (
+              <div className="absolute top-10 right-[28px] items-center flex flex-col justify-center  w-[300px] h-[104px] p-4 space-y-1 bg-white border shadow-lg rounded-2xl z-50 text-[16px]">
+                <div
+                  className="flex justify-between w-full items-center py-2 cursor-pointer"
+                  onClick={() => {
+                    setPickState("manage"); // Publish, Unpublish and Delete
+                    startPicking();
+                  }}
+                >
+                  <p className="font-semibold text-black">Product Management</p>
+                </div>
+                <hr className="w-[250px]" />
+                <div
+                  className="flex relative justify-between w-full items-center py-2 cursor-pointer"
+                  onClick={() => {
+                    setViewSubOptions(true);
+                  }}
+                >
+                  <p className="font-semibold text-black">Manage Discounts</p>
+                </div>
+              </div>
+            )}
+            {viewSubOptions && !picking && (
+              <div className="absolute top-10 right-[28px] items-center flex flex-col justify-center  w-[300px] h-[52px] p-4 space-y-1 bg-white border shadow-lg rounded-2xl z-50 text-[16px]">
+                {/* <div
+                  className="flex justify-between w-full items-center py-2 cursor-pointer"
+                  onClick={() => {
+                    setPickState("addDisc"); //add discount
+                    startPicking();
+                  }}
+                >
+                  <p className="font-semibold text-black">Add Discounts</p>
+                  <TbRosetteDiscount className="text-2xl" />
+                </div>
+                <hr className="w-[250px]" /> */}
+                <div
+                  className="flex relative justify-between w-full items-center py-2 cursor-pointer"
+                  onClick={() => {
+                    setPickState("remDisc"); //remove discount
+                    startPicking();
+                  }}
+                >
+                  <p className="font-semibold text-black">Remove Discounts</p>
+                  <TbRosetteDiscountOff className="text-2xl" />
+                </div>
+              </div>
+            )}
             {picking && pickedProducts.length < 1 && (
-              <div className="absolute top-10 right-[28px] items-center flex justify-between w-[300px] h-[52px] p-4 bg-white shadow-lg rounded-2xl z-50 text-[16px]">
-                <p className=" font-semibold text-black">Select a Product</p>
+              <div className="absolute top-10 right-[28px] items-center flex justify-between  w-[300px] h-[52px] p-4 bg-white border shadow-lg rounded-2xl z-50 text-[16px]">
+                <p className="font-semibold text-black">Select a Product</p>
                 <FaRegCheckCircle />
               </div>
             )}
-            {!picking ? (
+            {/* {!picking ? ( */}
+            {!viewPickOption ? (
               <div
                 className="cursor-pointer relative rounded-full w-11 h-11 bg-customOrange bg-opacity-10 flex justify-center items-center"
                 onClick={handleTogglePicking}
+                // onClick={() => {
+                //   setViewPickOption((prev) => !prev);
+                // }}
               >
                 <FiMoreHorizontal className="w-6 h-6" />
               </div>
@@ -717,6 +959,9 @@ const VendorProducts = () => {
               <p
                 className="cursor-pointer text-[16px] my-2.5"
                 onClick={handleTogglePicking}
+                // onClick={() => {
+                //   setViewPickOption((prev) => !prev);
+                // }}
               >
                 Cancel
               </p>
@@ -1052,7 +1297,7 @@ const VendorProducts = () => {
         </button>
       )}
 
-      {picking && pickedProducts.length > 0 && (
+      {picking && pickedProducts.length > 0 && pickState === "manage" ? (
         <motion.div
           initial={{ y: "100%" }}
           animate={{ y: 0 }}
@@ -1063,7 +1308,7 @@ const VendorProducts = () => {
           } py-3 bg-white text-white w-full h-[94px] shadow-lg focus:outline-none`}
         >
           {canPublishOrUnpublish() && (
-            <p className="text-lg font-semibold font-opensans text-customRichBrown">
+            <p className="text-lg font-semibold font-opensans text-customRichBrown cursor-pointer">
               {tabOpt === "Active" ? (
                 <p
                   className="text-lg font-semibold text-customRichBrown"
@@ -1073,7 +1318,7 @@ const VendorProducts = () => {
                 </p>
               ) : (
                 <p
-                  className="text-lg font-semibold font-opensans text-customRichBrown"
+                  className="text-lg font-semibold font-opensans text-customRichBrown cursor-pointer"
                   onClick={handlePublish}
                 >
                   Publish
@@ -1082,12 +1327,50 @@ const VendorProducts = () => {
             </p>
           )}
           <p
-            className="text-lg font-semibold font-opensans text-customRichBrown mb-4"
+            className="text-lg font-semibold font-opensans text-customRichBrown mb-4 cursor-pointer"
             onClick={() => handleBulkDelete()}
           >
             Delete
           </p>
         </motion.div>
+      ) : (
+        picking &&
+        pickedProducts.length > 0 && (
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", stiffness: 100, damping: 20 }}
+            className={`fixed bottom-0 z-[1001] flex px-4 justify-center py-3 bg-white text-white w-full h-[94px] shadow-lg focus:outline-none`}
+          >
+            <p className="text-lg font-semibold font-opensans text-customRichBrown">
+              {pickState === "addDisc" ? (
+                <p
+                  className="text-lg font-semibold text-customRichBrown cursor-pointer"
+                  // onClick={handleBulkAddDiscount}
+                  onClick={() => {
+                    setAction("addDiscount");
+                    setIsMultiDiscountModalOpen(true);
+                  }}
+                >
+                  Add Discount
+                </p>
+              ) : (
+                pickState === "remDisc" && (
+                  <p
+                    className="text-lg font-semibold font-opensans text-customRichBrown cursor-pointer"
+                    onClick={() => {
+                      setAction("removeDiscount");
+                      setShowConfirmation(true);
+                    }}
+                  >
+                    Remove Discount
+                  </p>
+                )
+              )}
+            </p>
+          </motion.div>
+        )
       )}
 
       {selectedProduct && (
@@ -1207,11 +1490,34 @@ const VendorProducts = () => {
               )}
             </div>
 
+            {selectedProduct && !selectedProduct.discount && (
+              <div className="mt-4">
+                <div className="flex justify-end items-center">
+                  <div
+                    className="flex justify-between space-x-1 items-center text-customOrange mb-2 font-medium font-opensans text-base cursor-pointer"
+                    onClick={() => setIsDiscountModalOpen(true)}
+                  >
+                    <div>Start a discount</div>
+                    <TbRosetteDiscount className="text-2xl" />
+                  </div>
+                </div>
+              </div>
+            )}
             {selectedProduct && selectedProduct.discount && (
-              <div className="mt-4 ">
-                <h3 className="text-lg font-semibold font-opensans mb-2">
-                  Product Discount Details
-                </h3>
+              <div className="mt-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold font-opensans mb-2">
+                    Product Discount Details
+                  </h3>
+                  <div
+                    className="flex justify-between space-x-1 items-center text-red-600 mb-2 font-medium font-opensans text-base cursor-pointer"
+                    onClick={() => setShowDisableConfirmation(true)}
+                  >
+                    <div>Disable</div>
+                    <TbRosetteDiscountOff className="text-2xl" />
+                  </div>
+                </div>
+
                 {selectedProduct.discount ? (
                   <div className="flex items-center  justify-between py-1 px-2 bg-green-100 rounded-full">
                     <span className="text-sm font-semibold font-opensans text-green-800">
@@ -1446,6 +1752,14 @@ const VendorProducts = () => {
         </VendorProductModal>
       )}
 
+      {selectedProduct && isDiscountModalOpen && (
+        <SingleDiscountModal
+          isOpen={isDiscountModalOpen}
+          onRequestClose={closeDiscountModal}
+          product={selectedProduct}
+        />
+      )}
+
       {isAddProductModalOpen && (
         <Modal isOpen={isAddProductModalOpen} onClose={closeModals}>
           <AddProduct
@@ -1456,6 +1770,17 @@ const VendorProducts = () => {
         </Modal>
       )}
 
+      {showDisableConfirmation && (
+        <ConfirmationDialog
+          isOpen={showDisableConfirmation}
+          onClose={() => setShowDisableConfirmation(false)}
+          onConfirm={disableDiscount}
+          message="Are you sure you want to disable this discount?"
+          title="Disable Product Discount"
+          loading={disableLoading}
+        />
+      )}
+
       {showConfirmation &&
         (action === "delete" ? (
           <ConfirmationDialog
@@ -1463,15 +1788,17 @@ const VendorProducts = () => {
             onClose={() => setShowConfirmation(false)}
             onConfirm={confirmDeleteProduct}
             message="Are you sure you want to delete this product?"
+            icon= {<IoTrashOutline className="w-4 h-4" />}
             title="Delete Product"
             loading={oLoading}
-          />
-        ) : action === "bulkDelete" ? (
-          <ConfirmationDialog
+            />
+          ) : action === "bulkDelete" ? (
+            <ConfirmationDialog
             isOpen={showConfirmation}
             onClose={() => setShowConfirmation(false)}
             onConfirm={confirmBulkDeleteProduct}
             message="Are you sure you want to delete these products?"
+            icon= {<IoTrashOutline className="w-4 h-4" />}
             title="Delete Products"
             loading={oLoading}
           />
@@ -1481,19 +1808,38 @@ const VendorProducts = () => {
             onClose={() => setShowConfirmation(false)}
             onConfirm={bulkPublishStateChange}
             message="Are you sure you want to publish these products?"
+            icon={<MdPublishedWithChanges className="w-4 h-4" />}
             title="Publish Products"
             loading={oLoading}
-          />
-        ) : action === "unpublish" ? (
-          <ConfirmationDialog
+            />
+          ) : action === "unpublish" ? (
+            <ConfirmationDialog
             isOpen={showConfirmation}
             onClose={() => setShowConfirmation(false)}
             onConfirm={bulkPublishStateChange}
             message="Are you sure you want to unpublish these products?"
+            icon= {<MdOutlineUnpublished className="w-4 h-4" />}
             title="Unpublish Products"
             loading={oLoading}
           />
+        ) : action === "removeDiscount" ? (
+          <ConfirmationDialog
+            isOpen={showConfirmation}
+            onClose={() => setShowConfirmation(false)}
+            onConfirm={handleBulkDiscountRemoval}
+            message="Are you sure you want to remove discount from the selected product(s)?"
+            icon = {<TbRosetteDiscountOff className="w-4 h-4" />}
+            title="Remove Discount"
+            loading={oLoading}
+          />
         ) : null)}
+
+        {action === "addDiscount" && (
+          <MultiDiscountModal 
+          isOpen={isMultiDiscountModalOpen}
+          onRequestClose={closeMultiDiscountModal}
+          product={pickedProducts}
+          />)}
     </>
   );
 };

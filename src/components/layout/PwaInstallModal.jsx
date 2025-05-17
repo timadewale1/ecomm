@@ -12,6 +12,7 @@
 //     return window.matchMedia("(display-mode: standalone)").matches;
 //   }, []);
 
+
 //   useEffect(() => {
 //     if (!pwa) {
 //       // Show modal after 10 seconds
@@ -91,5 +92,6 @@
 //     </div>
 //   );
 // };
+
 
 // export default PWAInstallModal;

@@ -1,5 +1,5 @@
 import { Helmet } from "react-helmet-async";
-
+import React from "react";
 const SEO = ({
   title = "My Thrift - The Real Marketplace", 
   description = "Shop pre-loved items at unbeatable prices.", 

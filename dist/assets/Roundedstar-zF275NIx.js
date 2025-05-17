@@ -1,0 +1,1 @@
+import{j as e}from"./index-B6_tP4YQ.js";const s=({filled:s})=>e.jsx("svg",{width:"24",height:"24",viewBox:"0 0 24 24",fill:s?"#ffd700":"#e0e0e0",xmlns:"http://www.w3.org/2000/svg",children:e.jsx("path",{d:"M12 17.3L18.2 21L16.5 14L22 9.3L14.8 8.6L12 2L9.2 8.6L2 9.3L7.5 14L5.8 21L12 17.3Z",stroke:"none",fillRule:"evenodd"})});export{s as R};

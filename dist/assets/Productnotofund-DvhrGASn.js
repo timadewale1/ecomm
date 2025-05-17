@@ -1,0 +1,1 @@
+import{j as s,R as l}from"./index-B6_tP4YQ.js";import{P as a}from"./productnotfound-BYH9w9yZ.js";const o=()=>s.jsx("div",{children:s.jsx("div",{className:"flex w-full h-full justify-center items-center",children:s.jsx(l,{className:"w-full h-full",animationData:a,loop:!0,autoplay:!0})})});export{o as P};

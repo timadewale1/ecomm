@@ -1,0 +1,1 @@
+import{ad as r,j as t}from"./index-B6_tP4YQ.js";class e extends r.Component{constructor(r){super(r),this.state={hasError:!1}}static getDerivedStateFromError(r){return{hasError:!0}}componentDidCatch(r,t){}render(){return this.state.hasError?t.jsx("h1",{children:"Something went wrong."}):this.props.children}}export{e as default};

@@ -291,7 +291,7 @@ const SearchPage = () => {
                         },
                       })}
                       value={searchTerm}
-                      className="w-full border font-opensans text-black text-sm border-gray-300 rounded-full px-3 py-2 font-medium focus:outline-customOrange"
+                     className="w-full border font-opensans text-black text-base border-gray-300 rounded-full px-3 py-2 font-medium focus:outline-customOrange"
                     />
                     <CiSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-2xl text-gray-400" />
 
@@ -304,6 +304,38 @@ const SearchPage = () => {
                     )}
                   </div>
                 </div>
+                {!searchTerm && (
+                  <div className="mb-4">
+                    <div className="flex items-center mb-2">
+                      <MdTrendingUp className="text-customOrange mr-1" />
+                      <span className="font-opensans font-semibold text-sm">
+                        Trending Searches
+                      </span>
+                    </div>
+                    <div
+                      ref={trendingRef}
+                      className="w-full overflow-x-auto whitespace-nowrap scrollbar-hide py-2"
+                    >
+                      {trendingSearches.map((term) => (
+                        <motion.button
+                          key={term}
+                          onClick={() => {
+                            setSearchTerm(term);
+                            setTimeout(() => openMenuRef.current(), 0);
+                          }}
+                          className="inline-block mr-3 px-3 py-1 rounded-full bg-gray-100 hover:bg-customOrange hover:text-white transition font-opensans text-xs"
+                          initial={{ opacity: 0, y: 5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          {term}
+                        </motion.button>
+                      ))}
+                    </div>
+                    <div className="border-b border-gray-200 mt-2" />
+                  </div>
+                )}
+
                 <ul
                   {...getMenuProps()}
                   className="absolute z-50 w-full bg-white rounded-lg mt-1"
@@ -376,38 +408,6 @@ const SearchPage = () => {
                     !searchTerm &&
                     searchHistory.length > 0 && (
                       <>
-                        {/* Trending Searches Bar */}
-                        <div className="mb-4">
-                          <div className="flex items-center mb-2">
-                            <MdTrendingUp className="text-customOrange mr-1" />
-                            <span className="font-opensans font-semibold text-sm">
-                              Trending Searches
-                            </span>
-                          </div>
-                          <div
-                            ref={trendingRef}
-                            className="w-full overflow-x-auto whitespace-nowrap scrollbar-hide py-2"
-                          >
-                            {trendingSearches.map((term) => (
-                              <motion.button
-                                key={term}
-                                onClick={() => {
-                                  setSearchTerm(term);
-                                  // kick open the downshift menu
-                                  setTimeout(() => openMenuRef.current(), 0);
-                                }}
-                                className="inline-block mr-3 px-3 py-1 rounded-full bg-gray-100 hover:bg-customOrange hover:text-white transition font-opensans text-xs"
-                                initial={{ opacity: 0, y: 5 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.3 }}
-                              >
-                                {term}
-                              </motion.button>
-                            ))}
-                          </div>
-                          <div className="border-b border-gray-200 mt-2" />
-                        </div>
-
                         <li className="text-black font-opensans font-medium text-sm px-3 py-2">
                           Recent
                         </li>

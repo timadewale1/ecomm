@@ -1,8 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { LiaTimesSolid } from "react-icons/lia";
 import { gsap } from "gsap";
 import { GoChevronLeft } from "react-icons/go";
-import { FaTrash, FaTrashAlt } from "react-icons/fa";
 import { IoTrashOutline } from "react-icons/io5";
 
 const VendorProductModal = ({ isOpen, onClose, children, onDel }) => {

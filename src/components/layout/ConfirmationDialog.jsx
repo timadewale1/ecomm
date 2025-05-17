@@ -1,14 +1,13 @@
 import React from "react";
 import { MdOutlineCancel } from "react-icons/md";
-import { FaTrashAlt } from "react-icons/fa";
 import { IoTrashOutline } from "react-icons/io5";
-import Loading from "../Loading/Loading";
 import Lottie from "lottie-react";
 import LoadState from "../../Animations/loadinganimation.json";
 
 const ConfirmationDialog = ({
   isOpen,
   title,
+  icon,
   message,
   onClose,
   onConfirm,
@@ -30,7 +29,7 @@ const ConfirmationDialog = ({
               title === "Delete Product" || "Delete Products"
                 ? "text-red-600"
                 : "text-customOrange"
-            } text-sm flex justify-between py-2 focus:outline-none`}
+            } text-sm flex justify-between py-2 focus:outline-none cursor-pointer`}
             onClick={onConfirm}
           >
             {title}
@@ -43,12 +42,13 @@ const ConfirmationDialog = ({
                 autoplay={true}
               />
             ) : (
-              <IoTrashOutline className="w-4 h-4" />
+              // 
+              <div>{icon}</div>
             )}
           </div>
           <hr className="w-full text-slate-800" />
           <div
-            className="w-full items-center text-sm flex justify-between py-2"
+            className="w-full items-center text-sm flex justify-between py-2 cursor-pointer"
             onClick={onClose}
           >
             Cancel

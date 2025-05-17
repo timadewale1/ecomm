@@ -12,10 +12,6 @@ import {
   updateDoc,
   onSnapshot,
   doc,
-  orderBy,
-  limit,
-  getDocs,
-  startAfter,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 
@@ -840,16 +836,6 @@ const VendorDashboard = () => {
                 />
               </div>
             )}
-            {<div ref={lastActivityRef} />}
-            <div className="flex justify-center items-center">
-              <Lottie
-                className="w-10 h-10"
-                animationData={LoadState}
-                loop={true}
-                autoplay={true}
-              />
-            </div>
-
             {<div ref={lastActivityRef} />}
           </div>
         </div>

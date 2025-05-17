@@ -69,17 +69,13 @@ const Explore = () => {
 
     fetchApprovedVendors();
   }, []);
-  // =========================================================
 
   const cld = new Cloudinary({
-    cloud: {
-      cloudName: "dtaqusjav",
-    },
+    cloud: { cloudName: "dtaqusjav" },
   });
 
   const dispatch = useDispatch();
 
-  // Load promo images from Redux (simulate API delay)
   useEffect(() => {
     if (promoImages.length === 0) {
       const images = [
@@ -94,18 +90,18 @@ const Explore = () => {
     }
   }, [dispatch, promoImages]);
 
-  const handleClickOutside = (event) => {
-    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-      setShowFilterDropdown(false);
-    }
-  };
+  // const handleClickOutside = (event) => {
+  //   if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+  //     setShowFilterDropdown(false);
+  //   }
+  // };
 
-  useEffect(() => {
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+  // useEffect(() => {
+  //   document.addEventListener("mousedown", handleClickOutside);
+  //   return () => {
+  //     document.removeEventListener("mousedown", handleClickOutside);
+  //   };
+  // }, []);
 
   useEffect(() => {
     if (selectedProductType) {
@@ -123,8 +119,7 @@ const Explore = () => {
     }
   }, [searchTerm, selectedProductType]);
 
-  // ======== FETCH PRODUCTS & FILTER BY APPROVED VENDORS ========
-  const fetchProducts = async (productType, subType, category) => {
+  const fetchProducts = async (productType, category) => {
     setIsLoadingProducts(true);
     try {
       const productsRef = collection(db, "products");
@@ -132,25 +127,19 @@ const Explore = () => {
         productsRef,
         where("published", "==", true),
         where("isDeleted", "==", false),
-        where("productType", "==", productType),
-        where("subType", "==", subType)
+        where("productType", "==", productType)
       );
-
       if (category !== "All") {
         q = query(q, where("productCategory", "==", category));
       }
-
       const querySnapshot = await getDocs(q);
       const productsData = [];
-
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        // Only push products where vendorId is in the approved set
         if (approvedVendors.has(data.vendorId)) {
           productsData.push({ id: doc.id, ...data });
         }
       });
-
       setProducts(productsData);
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -158,24 +147,19 @@ const Explore = () => {
       setIsLoadingProducts(false);
     }
   };
-  // ============================================================
 
   const handleProductTypeClick = (productType) => {
     setSelectedProductType(productType);
     setSelectedSubType(null);
     setProducts([]);
     setSearchTerm("");
+    fetchProducts(productType.type, selectedCategory);
   };
 
   const handleSubTypeClick = (subType) => {
     setSelectedSubType(subType);
     setActiveSubType(subType);
     setSearchTerm("");
-    fetchProducts(
-      selectedProductType.type,
-      subType.name || subType,
-      selectedCategory
-    );
   };
 
   const toggleFilterDropdown = () => {
@@ -194,29 +178,29 @@ const Explore = () => {
   const handleBackClick = () => {
     if (selectedSubType) {
       setSelectedSubType(null);
-      setProducts([]);
       setSearchTerm("");
+      setShowFilterDropdown(false);
     } else {
       setSelectedProductType(null);
       setSearchTerm("");
+      setShowFilterDropdown(false);
     }
   };
 
   const handleCategoryClick = (category) => {
     navigate(`/category/${category}`);
   };
+
   const maleImg = cld
     .image("male_kfm4n5")
     .format("auto")
     .quality("auto")
     .resize(auto().gravity(autoGravity()).width(1000).height(1000));
-
   const kidImg = cld
     .image("kid_ec5vky")
     .format("auto")
     .quality("auto")
     .resize(auto().gravity(autoGravity()).width(1000).height(1000));
-
   const femaleImg = cld
     .image("female_s5qaln")
     .format("auto")
@@ -229,10 +213,17 @@ const Explore = () => {
     setFilteredProductTypes(productTypes);
   };
 
-  const filteredProducts = products.filter(
-    (product) =>
-      product.price >= priceRange[0] && product.price <= priceRange[1]
-  );
+  const filteredProducts = products
+    .filter(
+      (product) =>
+        product.price >= priceRange[0] && product.price <= priceRange[1]
+    )
+    .filter(
+      (product) =>
+        selectedSubType === "All" ||
+        selectedSubType === null ||
+        product.subType === selectedSubType
+    );
 
   if (loading || isLoadingProducts) {
     return <Loading />;
@@ -247,8 +238,8 @@ const Explore = () => {
       />
       <div className="pb-28">
         {/* Top Bar */}
-        <div className="sticky py-4 px-2 w-full top-0 bg-white z-10">
-          <div className="flex items-center justify-between mb-3 pb-2 px-2.5">
+        <div className="sticky pt-4 px-2 w-full top-0 bg-white z-10">
+          <div className="flex items-center justify-between pb-2">
             <div className="flex items-center">
               {(selectedProductType || selectedSubType) && (
                 <IoChevronBackOutline
@@ -271,88 +262,128 @@ const Explore = () => {
             />
           </div>
 
-          {/* Filter dropdown */}
-          {showFilterDropdown && (
-            <div
-              ref={dropdownRef}
-              className="absolute right-4 bg-white shadow-[0_0_10px_rgba(0,0,0,0.1)] top-14 p-3 w-40 h-24 rounded-2.5xl z-50 flex flex-col justify-between font-opensans"
-            >
-              <span
-                className="text-sm ml-2 font-opensans cursor-pointer"
-                onClick={() => sortProducts("high-to-low")}
-              >
-                Price: High to Low
-              </span>
-              <hr className="text-slate-300" />
-              <span
-                className="text-sm ml-2 font-opensans cursor-pointer"
-                onClick={() => sortProducts("low-to-high")}
-              >
-                Price: Low to High
-              </span>
-            </div>
+          {selectedProductType && (
+            <>
+              <div className="flex justify-between mb-3 w-full overflow-x-auto space-x-2 scrollbar-hide">
+                {[
+                  "All",
+                  ...filteredSubTypes.map((sub) =>
+                    typeof sub === "string" ? sub : sub.name
+                  ),
+                ].map((subTypeName) => (
+                  <button
+                    key={subTypeName}
+                    onClick={() => setSelectedSubType(subTypeName)}
+                    className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-bold font-opensans text-black border border-gray-400 rounded-full ${
+                      selectedSubType === subTypeName ||
+                      (selectedSubType === null && subTypeName === "All")
+                        ? "bg-customOrange text-white"
+                        : "bg-transparent"
+                    }`}
+                  >
+                    {subTypeName}
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-between items-center">
+                <div className="flex text-customOrange font-opensans">{sortOrder && `Sorting Price: ${sortOrder.charAt(0).toUpperCase() + sortOrder.slice(1)}`}</div>
+                <div className="relative flex">
+                  <LuListFilter
+                    className="text-xl text-customOrange cursor-pointer"
+                    onClick={toggleFilterDropdown}
+                  />
+                  {/* Filter dropdown */}
+                  {showFilterDropdown && (
+                    <div
+                      ref={dropdownRef}
+                      className="absolute right-4 bg-white shadow-[0_0_10px_rgba(0,0,0,0.1)] top-2 p-3 w-40 h-24 rounded-2xl z-50 flex flex-col justify-between font-opensans"
+                    >
+                      <span
+                        className="text-sm ml-2 font-opensans cursor-pointer"
+                        onClick={() => sortProducts("high-to-low")}
+                      >
+                        Price: High to Low
+                      </span>
+                      <hr className="text-slate-300" />
+                      <span
+                        className="text-sm ml-2 font-opensans cursor-pointer"
+                        onClick={() => sortProducts("low-to-high")}
+                      >
+                        Price: Low to High
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
           )}
-          <div className="border-t border-gray-300 mt-6"></div>
+
+          <div className="border-t border-gray-300 mt-2"></div>
         </div>
 
         {/* Main Content */}
         <div className="">
           {/* If we have selected a SubType, show products grid */}
-          {selectedSubType ? (
-            <div className="grid grid-cols-2 gap-2 p-4">
-              {filteredProducts.length > 0 ? (
-                filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    vendorId={product.vendorId}
-                    vendorName={product.vendorName}
-                  />
-                ))
-              ) : (
-                <div className="col-span-2 text-center mt-4 text-lg font-medium text-gray-500">
-                  <Lottie
-                    animationData={noProductAnimation}
-                    loop={true}
-                    style={{ height: 200, width: 200, margin: "0 auto" }}
-                  />
-                  <h2 className="text-xl font-semibold font-opensans text-black">
-                    Oops! Nothing here yet.
-                  </h2>
-                  <p className="text-gray-600 font-opensans">
-                    Please try searching for another product.
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : selectedProductType ? (
-            // If we have selected a ProductType but not a SubType, show subType list
-            <div className="space-y-4 p-4">
-              {filteredSubTypes.length > 0 ? (
-                filteredSubTypes.map((subType) => (
-                  <div
-                    key={subType.name || subType}
-                    onClick={() => handleSubTypeClick(subType)}
-                    className="flex justify-between items-center py-2 cursor-pointer"
-                  >
-                    <span className="text-neutral-800 font-opensans">
-                      {typeof subType === "string" ? subType : subType.name}
-                    </span>
-                    <ChevronRight className="text-neutral-400" />
+          {selectedProductType ? (
+            <>
+              <div className="grid grid-cols-2 gap-2 p-4">
+                {filteredProducts.length > 0 ? (
+                  filteredProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      vendorId={product.vendorId}
+                      vendorName={product.vendorName}
+                    />
+                  ))
+                ) : (
+                  <div className="col-span-2 text-center mt-4 text-lg font-medium text-gray-500">
+                    <Lottie
+                      animationData={noProductAnimation}
+                      loop={true}
+                      style={{ height: 200, width: 200, margin: "0 auto" }}
+                    />
+                    <h2 className="text-xl font-semibold font-opensans text-black">
+                      Oops! Nothing here yet.
+                    </h2>
+                    <p className="text-gray-600 font-opensans">
+                      Please try searching for another product.
+                    </p>
                   </div>
-                ))
-              ) : (
-                <div className="text-center mt-4 text-lg font-medium text-gray-500">
-                  <h2 className="text-xl font-semibold text-black">
-                    No results found
-                  </h2>
-                  <p className="text-gray-600">
-                    Please try searching for another product.
-                  </p>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </>
           ) : (
+            // :
+            // selectedProductType ? (
+            //   // If we have selected a ProductType but not a SubType, show subType list
+            //   <div className="space-y-4 p-4">
+            //     {filteredSubTypes.length > 0 ? (
+            //       filteredSubTypes.map((subType) => (
+            //         <div
+            //           key={subType.name || subType}
+            //           onClick={() => handleSubTypeClick(subType)}
+            //           className="flex justify-between items-center py-2 cursor-pointer"
+            //         >
+            //           <span className="text-neutral-800 font-opensans">
+            //             {typeof subType === "string" ? subType : subType.name}
+            //           </span>
+            //           <ChevronRight className="text-neutral-400" />
+            //         </div>
+            //       ))
+            //     )
+            //      : (
+            //       <div className="text-center mt-4 text-lg font-medium text-gray-500">
+            //         <h2 className="text-xl font-semibold text-black">
+            //           No results found
+            //         </h2>
+            //         <p className="text-gray-600">
+            //           Please try searching for another product.
+            //         </p>
+            //       </div>
+            //     )}
+            //   </div>
+            // )
             // If no ProductType selected, show list of productTypes + promo slides
             <>
               <div className="">

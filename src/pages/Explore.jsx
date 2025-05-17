@@ -236,6 +236,15 @@ const Explore = () => {
     "Shirt",
     "Jeans",
     "Tops",
+    "Thrift",
+    "Shorts",
+    "Shoes",
+    "Jacket",
+    "Dress",
+    "Skirt",
+    "Sweater",
+    "Scarves",
+    "Accessories",
     "Bag",
     "Bikini",
     "Tote Bag",
@@ -508,9 +517,7 @@ const Explore = () => {
                               </motion.button>
                             ))}
                           </div>
-                          <div className="border-b  mt-4 border-gray-50">
-
-                          </div>
+                          <div className="border-b  mt-4 border-gray-50"></div>
                         </div>
                       )}
                     </>

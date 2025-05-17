@@ -7,7 +7,7 @@ import { useSearchParams } from "react-router-dom";
 
 import { FaTimes } from "react-icons/fa";
 import { CiSearch } from "react-icons/ci";
-import { MdCancel, MdMyLocation } from "react-icons/md";
+import { MdCancel, MdMyLocation, MdTrendingUp } from "react-icons/md";
 import { GoDotFill } from "react-icons/go";
 import { PiGenderMaleBold, PiGenderFemaleBold } from "react-icons/pi";
 import { FaGenderless, FaChildren } from "react-icons/fa6";
@@ -20,7 +20,7 @@ const SearchPage = () => {
   const [searchParams] = useSearchParams();
   const initialQuery = searchParams.get("query") || "";
   const [searchTerm, setSearchTerm] = useState(initialQuery);
-  
+
   const [searchHistory, setSearchHistory] = useState([]);
   const [products, setProducts] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -77,6 +77,37 @@ const SearchPage = () => {
 
     fetchData();
   }, [db]);
+  const trendingSearches = [
+    "Okirks",
+    "Shirt",
+    "Jeans",
+    "Tops",
+    "Bag",
+    "Shoes",
+    "Dress",
+    "Skirt",
+    "Shorts",
+    "watch",
+    "T-shirt",
+    "Pants",
+    "Sweater",
+    "Coat",
+    "Sunglasses",
+    "Hat",
+    "Scarf",
+    "Belt",
+    "Gloves",
+    "Jacket",
+    "Socks",
+    "Bikini",
+    "Tote Bag",
+    "Lee",
+
+    "Jewelry",
+    "Cargos",
+    "Corporate",
+    "Perfumes",
+  ];
 
   const getFilteredItems = () => {
     const searchTermLower = searchTerm.toLowerCase();
@@ -137,8 +168,8 @@ const SearchPage = () => {
     if (selectedItem) {
       // Check if the item already exists in local storage
       const updatedHistory = [
-        ...searchHistory.filter((item) => item.id !== selectedItem.id),
         selectedItem,
+        ...searchHistory.filter((item) => item.id !== selectedItem.id),
       ].slice(0, 8);
 
       setSearchHistory(updatedHistory);
@@ -151,13 +182,28 @@ const SearchPage = () => {
         if (selectedItem.marketPlaceType === "Online") {
           navigate(`/store/${selectedItem.id}`);
         } else {
-          navigate(`/marketstorepage/${selectedItem.id}`);
+          navigate(`/store/${selectedItem.id}`);
         }
       }
     }
   };
 
   const openMenuRef = useRef(null);
+  const trendingRef = useRef(null);
+
+  useEffect(() => {
+    const el = trendingRef.current;
+    if (!el) return;
+    const iv = setInterval(() => {
+      // wrap-around scroll
+      if (el.scrollLeft + el.clientWidth >= el.scrollWidth) {
+        el.scrollLeft = 0;
+      } else {
+        el.scrollLeft += 1;
+      }
+    }, 30);
+    return () => clearInterval(iv);
+  }, []);
 
   // when the page mounts with a query, open the suggestions
   useEffect(() => {
@@ -327,10 +373,41 @@ const SearchPage = () => {
                       </li>
                     )
                   ) : (
-                    isOpen &&
                     !searchTerm &&
                     searchHistory.length > 0 && (
                       <>
+                        {/* Trending Searches Bar */}
+                        <div className="mb-4">
+                          <div className="flex items-center mb-2">
+                            <MdTrendingUp className="text-customOrange mr-1" />
+                            <span className="font-opensans font-semibold text-sm">
+                              Trending Searches
+                            </span>
+                          </div>
+                          <div
+                            ref={trendingRef}
+                            className="w-full overflow-x-auto whitespace-nowrap scrollbar-hide py-2"
+                          >
+                            {trendingSearches.map((term) => (
+                              <motion.button
+                                key={term}
+                                onClick={() => {
+                                  setSearchTerm(term);
+                                  // kick open the downshift menu
+                                  setTimeout(() => openMenuRef.current(), 0);
+                                }}
+                                className="inline-block mr-3 px-3 py-1 rounded-full bg-gray-100 hover:bg-customOrange hover:text-white transition font-opensans text-xs"
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3 }}
+                              >
+                                {term}
+                              </motion.button>
+                            ))}
+                          </div>
+                          <div className="border-b border-gray-200 mt-2" />
+                        </div>
+
                         <li className="text-black font-opensans font-medium text-sm px-3 py-2">
                           Recent
                         </li>
@@ -367,7 +444,7 @@ const SearchPage = () => {
                                   marginRight: "10px",
                                 }}
                               />
-                              <div className="flex flex-col">
+                              <div className="flex flex-col font-opensans">
                                 <span className="font-opensans text-gray-800 mb-1 font-medium">
                                   {item.name || item.shopName}
                                 </span>

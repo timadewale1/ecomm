@@ -27,11 +27,15 @@ import toast from "react-hot-toast";
 import { useAuth } from "../../custom-hooks/useAuth";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import Modal from "react-modal";
+import { CiLogin } from "react-icons/ci";
+import { LiaTimesSolid } from "react-icons/lia";
+Modal.setAppElement("#root");
 export default function TopVendors() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   // 1️⃣ Fetch top vendors slice
   const {
     list: vendors,
@@ -69,9 +73,11 @@ export default function TopVendors() {
 
   const handleFollowClick = async (vendorId) => {
     if (!currentUser) {
-      toast.error("Please log in to follow vendors.");
+      // trigger login/signup modal
+      setIsLoginModalOpen(true);
       return;
     }
+
     const newState = !followedVendors[vendorId];
     setFollowedVendors((prev) => ({ ...prev, [vendorId]: newState }));
 
@@ -241,6 +247,61 @@ export default function TopVendors() {
           </div>
         ))}
       </div>
+      {/* ——— Login / Sign Up Modal ——— */}
+      <Modal
+        isOpen={isLoginModalOpen}
+        onRequestClose={() => setIsLoginModalOpen(false)}
+        overlayClassName="fixed inset-0 modal-overlay bg-black bg-opacity-50 z-50 flex items-center justify-center"
+        className="bg-transparent flex items-center justify-center p-4"
+      >
+        <div
+          className="bg-white w-11/12 max-w-md rounded-lg px-3 py-4 flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex space-x-4">
+              <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
+                <CiLogin className="text-customRichBrown" />
+              </div>
+              <h2 className="text-lg font-opensans font-semibold">
+                Please Log In
+              </h2>
+            </div>
+            <LiaTimesSolid
+              onClick={() => setIsLoginModalOpen(false)}
+              className="text-black text-xl mb-6 cursor-pointer"
+            />
+          </div>
+
+          <p className="mb-6 text-xs font-opensans text-gray-800">
+            You need to be logged in to follow vendors and get updates. Please
+            log in to your account, or create a new account if you don’t have
+            one, to continue.
+          </p>
+
+          <div className="flex space-x-16">
+            <button
+              onClick={() => {
+                navigate("/signup", { state: { from: location.pathname } });
+                setIsLoginModalOpen(false);
+              }}
+              className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border rounded-full"
+            >
+              Sign Up
+            </button>
+            <button
+              onClick={() => {
+                navigate("/login", { state: { from: location.pathname } });
+                setIsLoginModalOpen(false);
+              }}
+              className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
+            >
+              Login
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

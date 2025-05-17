@@ -79,7 +79,11 @@ export const fetchStoreVendorBySlug = createAsyncThunk(
   "storepageVendors/fetchBySlug",
   async (slug, { rejectWithValue }) => {
     try {
-      const q = query(collection(db, "vendors"), where("slug","==",slug), limit(1));
+      const q = query(
+        collection(db, "vendors"),
+        where("slug", "==", slug),
+        limit(1)
+      );
       const snap = await getDocs(q);
       if (snap.empty) throw new Error("Vendor not found");
       const docSnap = snap.docs[0];
@@ -113,6 +117,13 @@ const storepageVendorsSlice = createSlice({
     resetVendorPage: (state, { payload: vendorId }) => {
       delete state.entities[vendorId];
     },
+    saveStoreScroll: (state, { payload }) => {
+      if (!state.entities[payload.vendorId]) {
+        console.warn("saveStoreScroll: vendor entry missing");
+        return;
+      }
+      state.entities[payload.vendorId].scrollY = payload.scrollY;
+    },
   },
   extraReducers: (builder) => {
     /* vendor document ---------------------------------------------------- */
@@ -130,6 +141,7 @@ const storepageVendorsSlice = createSlice({
           nextIdx: existing?.nextIdx ?? 0,
           noMore: existing?.noMore ?? false,
           loadingMore: existing?.loadingMore ?? false,
+          scrollY: existing?.scrollY ,
         };
       })
 
@@ -165,5 +177,6 @@ const storepageVendorsSlice = createSlice({
   },
 });
 
-export const { resetVendorPage } = storepageVendorsSlice.actions;
+export const { resetVendorPage, saveStoreScroll } =
+  storepageVendorsSlice.actions;
 export default storepageVendorsSlice.reducer;

@@ -12,50 +12,39 @@ const PWAInstallModal = ({ onClose }) => {
     return window.matchMedia("(display-mode: standalone)").matches;
   }, []);
 
-  const LAST_INTERACTION_KEY = "lastPwaInteraction";
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-
-useEffect(() => {
-  if (!pwa) {
-    const lastInteraction = localStorage.getItem(LAST_INTERACTION_KEY);
-    const now = Date.now();
-
-    // Only show modal if no interaction or 7 days have passed
-    if (!lastInteraction || now - Number(lastInteraction) > SEVEN_DAYS_MS) {
+  useEffect(() => {
+    if (!pwa) {
+      // Show modal after 10 seconds
       const timer = setTimeout(() => {
         setIsVisible(true);
-        document.body.classList.add("noscroll");
+        document.body.classList.add("noscroll"); // disable scrolling
       }, 3000);
-
       return () => {
         clearTimeout(timer);
         document.body.classList.remove("noscroll");
       };
     }
-  }
-}, [ios, pwa]);
+  }, [ios, pwa]);
 
-const handleInstallClick = async () => {
-  window.beforeInstallEvent.prompt();
-  const { outcome } = await window.beforeInstallEvent.userChoice;
-  if (outcome === "accepted") {
-    localStorage.setItem(LAST_INTERACTION_KEY, Date.now().toString());
-    handleClose();
-  }
-};
+  const handleInstallClick = async () => {
+    window.beforeInstallEvent.prompt();
+    const { outcome } = await window.beforeInstallEvent.userChoice;
+    if (outcome === "accepted") {
+      handleClose();
+    }
+  };
 
-const handleClose = () => {
-  setIsVisible(false);
-  document.body.classList.remove("noscroll");
-  localStorage.setItem(LAST_INTERACTION_KEY, Date.now().toString());
-  onClose && onClose();
-};
+  const handleClose = () => {
+    setIsVisible(false);
+    document.body.classList.remove("noscroll");
+    onClose && onClose();
+  };
 
   return (
     <div className={`pwa-modal ${isVisible ? "show" : ""}`}>
       <div className="pwa-modal-content">
         <h2 className="head">Add to Home Screen</h2>
-        <img src="/logo.png" alt="App-Icon" />
+        <img src="/logo192.png" alt="App-Icon" />
         <p className="mt-[10px] text-white">
           Install our lightweight browser application for quicker access and a
           better experience!

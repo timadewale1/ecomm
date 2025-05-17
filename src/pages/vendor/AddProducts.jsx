@@ -817,6 +817,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         subType: selectedSubType?.value || "",
         colours, // ← array, not stock counts
         sizes, // ← array, not stock counts
+        price: parseFloat(productPrice),
         condition: productCondition, // brand new / thrift / defect
         discount: discountDetails ?? null, // include only when set
       };
@@ -1421,21 +1422,35 @@ const AddProduct = ({ vendorId, closeModal }) => {
         <label className="mb-1 text-black font-medium font-opensans text-sm">
           Product Description
         </label>
-        <div className="relative">
+        <div
+          className={`relative ${
+            isGeneratingDescription ? "thinking-border" : ""
+          }`}
+        >
           <textarea
             value={productDescription}
             onChange={(e) => {
-              // Enforce the character limit
-              if (e.target.value.length <= 700) {
+              if (e.target.value.length <= 700)
                 setProductDescription(e.target.value);
-              }
             }}
             className="mt-1 block w-full px-4 py-2 border-2 text-sm rounded-lg focus:outline-none focus:border-customOrange font-opensans hover:border-customOrange h-24 resize-none"
           />
-          {/* Character Counter */}
-          <div className="absolute bottom-2 right-2 font-opensans text-gray-500 ratings-text">
+
+          {/* live counter */}
+          <div className="absolute bottom-2 right-2 font-opensans text-gray-500 text-xs">
             {productDescription.length}/700
           </div>
+
+          {/* thinking overlay */}
+          {isGeneratingDescription && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-sm rounded-lg z-20">
+              <p className="text-customOrange font-ubuntu text-sm animate-pulse text-center px-4">
+                Matilda is thinking…
+                <br />
+                getting the right words for you…
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end mt-2">

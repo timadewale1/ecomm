@@ -13,7 +13,7 @@ import { AccessContext } from "../Context/AccesContext";
 
 import ScrollToTop from "./ScrollToTop";
 // import SwipeToRefresh from "./SwipeToRefresh";
-import PWAInstallModal from "./PwaInstallModal";
+// import PWAInstallModal from "./PwaInstallModal";
 
 const Layout = () => {
   const location = useLocation();
@@ -120,9 +120,9 @@ const Layout = () => {
     <NavigationProvider>
       <VendorNavigationProvider>
         {/* Render the PWAInstallModal if needed */}
-      {showInstallModal && (
+      {/* {showInstallModal && (
         <PWAInstallModal onClose={() => setShowInstallModal(false)} />
-      )}
+      )} */}
         {isMobile ? (
           <>
             <div className="relative">

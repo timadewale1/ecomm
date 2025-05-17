@@ -1,8 +1,13 @@
-import React, { useState, useEffect, useRef } from "react";
-
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import {
+  fetchExploreProducts,
+  resetExploreType,
+} from "../redux/reducers/exploreSlice";
 import { IoChevronBackOutline } from "react-icons/io5";
 import { LuListFilter } from "react-icons/lu";
 import { CiSearch } from "react-icons/ci";
+import { RotatingLines } from "react-loader-spinner";
+import { saveExploreUi } from "../redux/reducers/exploreUiSlice";
 import Loading from "../components/Loading/Loading";
 import Skeleton from "react-loading-skeleton";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -13,8 +18,9 @@ import { auto } from "@cloudinary/url-gen/actions/resize";
 import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
 import { AdvancedImage } from "@cloudinary/react";
 import productTypes from "../pages/vendor/producttype";
-import { db } from "../firebase.config";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { GoChevronLeft, GoChevronRight } from "react-icons/go";
+import { MdTrendingUp } from "react-icons/md";
+import { motion, AnimatePresence } from "framer-motion";
 import ProductCard from "../components/Products/ProductCard";
 import Lottie from "lottie-react";
 import noProductAnimation from "../Animations/noproduct.json";
@@ -23,16 +29,40 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { setPromoImages, setPromoLoading } from "../redux/actions/promoaction";
 import SEO from "../components/Helmet/SEO";
+
+// import { ChevronRight } from "lucide-react";       // keep if you still use itimport { FaRocket } from "react-icons/fa";
 const Explore = () => {
+  const priceRanges = [
+    { label: "Under ₦5 000", min: 0, max: 4_999 },
+    { label: "₦5 000–₦10 000", min: 5_000, max: 10_000 },
+    { label: "Over ₦10 000", min: 10_001, max: Infinity },
+  ];
   const loading = useSelector((state) => state.product.loading);
+  const cachedUi = useSelector((s) => s.exploreUi);
+  const [selectedProductType, setSelectedProductType] = useState(
+    cachedUi.selectedType
+      ? productTypes.find((p) => p.type === cachedUi.selectedType)
+      : null
+  );
+  const [selectedSubType, setSelectedSubType] = useState(
+    cachedUi.selectedSubType
+  );
+  const [selectedPriceRange, setSelectedPriceRange] = useState(
+    priceRanges.find((r) => r.label === cachedUi.selectedPrice) || null
+  );
 
-  const [selectedCategory] = useState("All");
-  const [selectedProductType, setSelectedProductType] = useState(null);
-  const [selectedSubType, setSelectedSubType] = useState(null);
-  const [activeSubType, setActiveSubType] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
-
+  const exploreState = useSelector((s) =>
+    selectedProductType
+      ? s.explore.byType[selectedProductType.type] || {
+          products: [],
+          lastVisible: null,
+          status: "idle",
+        }
+      : { products: [], lastVisible: null, status: "idle" }
+  );
+  const { products, lastVisible, status } = exploreState;
+  // const { products, status } = exploreState;
+  const isLoadingProducts = status === "loading";
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const { promoImages, promoLoading } = useSelector((state) => state.promo);
@@ -40,36 +70,10 @@ const Explore = () => {
   const [filteredProductTypes, setFilteredProductTypes] =
     useState(productTypes);
   const [filteredSubTypes, setFilteredSubTypes] = useState([]);
-  const [priceRange] = useState([1000, 10000]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [sortOrder, setSortOrder] = useState(null);
-  const dropdownRef = useRef(null);
 
-  // 1) State for approved & active vendors
-  const [approvedVendors, setApprovedVendors] = useState(new Set());
-
-  // ======= FETCH ONLY APPROVED & ACTIVE VENDORS ONCE =======
-  useEffect(() => {
-    const fetchApprovedVendors = async () => {
-      try {
-        const vendorSnapshot = await getDocs(
-          query(
-            collection(db, "vendors"),
-            where("isApproved", "==", true),
-            where("isDeactivated", "==", false)
-          )
-        );
-        const approvedSet = new Set();
-        vendorSnapshot.forEach((doc) => approvedSet.add(doc.id));
-        setApprovedVendors(approvedSet);
-      } catch (error) {
-        console.error("Error fetching approved vendors:", error);
-      }
-    };
-
-    fetchApprovedVendors();
-  }, []);
-
+  const restoredRef = useRef(false);
   const cld = new Cloudinary({
     cloud: { cloudName: "dtaqusjav" },
   });
@@ -90,18 +94,40 @@ const Explore = () => {
     }
   }, [dispatch, promoImages]);
 
-  // const handleClickOutside = (event) => {
-  //   if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-  //     setShowFilterDropdown(false);
-  //   }
-  // };
+  useEffect(() => {
+    if (!selectedProductType) return;
 
-  // useEffect(() => {
-  //   document.addEventListener("mousedown", handleClickOutside);
-  //   return () => {
-  //     document.removeEventListener("mousedown", handleClickOutside);
-  //   };
-  // }, []);
+    // fetch only if we’ve never loaded this type
+    if (status === "idle" && products.length === 0) {
+      dispatch(
+        fetchExploreProducts({
+          productType: selectedProductType.type,
+          batchSize: 20,
+        })
+      );
+    }
+  }, [selectedProductType, status, products.length, dispatch]);
+  // 2) Infinite scroll handler
+  useEffect(() => {
+    const onScroll = () => {
+      if (
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - 100
+      ) {
+        if (status !== "loading" && lastVisible) {
+          dispatch(
+            fetchExploreProducts({
+              productType: selectedProductType.type,
+              lastVisible,
+              batchSize: 20,
+            })
+          );
+        }
+      }
+    };
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [lastVisible, status, selectedProductType, dispatch]);
 
   useEffect(() => {
     if (selectedProductType) {
@@ -119,47 +145,62 @@ const Explore = () => {
     }
   }, [searchTerm, selectedProductType]);
 
-  const fetchProducts = async (productType, category) => {
-    setIsLoadingProducts(true);
-    try {
-      const productsRef = collection(db, "products");
-      let q = query(
-        productsRef,
-        where("published", "==", true),
-        where("isDeleted", "==", false),
-        where("productType", "==", productType)
+  useEffect(() => {
+    return () => {
+      // fires when Explore unmounts
+      dispatch(
+        saveExploreUi({
+          selectedType: selectedProductType ? selectedProductType.type : null,
+          selectedSubType,
+          selectedPrice: selectedPriceRange ? selectedPriceRange.label : null,
+          scrollY: window.scrollY,
+        })
       );
-      if (category !== "All") {
-        q = query(q, where("productCategory", "==", category));
-      }
-      const querySnapshot = await getDocs(q);
-      const productsData = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (approvedVendors.has(data.vendorId)) {
-          productsData.push({ id: doc.id, ...data });
-        }
-      });
-      setProducts(productsData);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-    } finally {
-      setIsLoadingProducts(false);
+    };
+  }, [dispatch, selectedProductType, selectedSubType, selectedPriceRange]);
+  useEffect(() => {
+    if (cachedUi.scrollY) {
+      setTimeout(() => window.scrollTo(0, cachedUi.scrollY), 0);
     }
-  };
+  }, []); // run once
+  useLayoutEffect(() => {
+    if (restoredRef.current) return; // already done
+    if (cachedUi.scrollY == null) return; // nothing to restore
+
+    /* wait until we’re NOT fetching anymore, otherwise height==0            */
+    const doneLoading =
+      status !== "loading" && // items for a type
+      !loading; // global product slice
+
+    if (doneLoading) {
+      window.scrollTo(0, cachedUi.scrollY);
+      restoredRef.current = true;
+    }
+  }, [status, loading, cachedUi.scrollY]);
 
   const handleProductTypeClick = (productType) => {
     setSelectedProductType(productType);
     setSelectedSubType(null);
-    setProducts([]);
+    setSelectedPriceRange(null);
     setSearchTerm("");
-    fetchProducts(productType.type, selectedCategory);
   };
 
   const handleSubTypeClick = (subType) => {
-    setSelectedSubType(subType);
-    setActiveSubType(subType);
-    setSearchTerm("");
+    if (selectedSubType === subType) {
+      setSelectedSubType(null);
+    } else {
+      setSelectedSubType(subType);
+    }
+    setSelectedPriceRange(null);
+  };
+
+  const handlePriceRangeClick = (range) => {
+    if (selectedPriceRange?.label === range.label) {
+      setSelectedPriceRange(null);
+    } else {
+      setSelectedPriceRange(range);
+    }
+    setSelectedSubType(null);
   };
 
   const toggleFilterDropdown = () => {
@@ -167,10 +208,6 @@ const Explore = () => {
   };
 
   const sortProducts = (order) => {
-    const sorted = [...products].sort((a, b) => {
-      return order === "high-to-low" ? b.price - a.price : a.price - b.price;
-    });
-    setProducts(sorted);
     setSortOrder(order);
     setShowFilterDropdown(false);
   };
@@ -182,6 +219,8 @@ const Explore = () => {
       setShowFilterDropdown(false);
     } else {
       setSelectedProductType(null);
+      setSelectedSubType(null);
+      setSelectedPriceRange(null);
       setSearchTerm("");
       setShowFilterDropdown(false);
     }
@@ -190,42 +229,68 @@ const Explore = () => {
   const handleCategoryClick = (category) => {
     navigate(`/category/${category}`);
   };
+  const scrollRef = useRef(null);
 
-  const maleImg = cld
-    .image("male_kfm4n5")
-    .format("auto")
-    .quality("auto")
-    .resize(auto().gravity(autoGravity()).width(1000).height(1000));
-  const kidImg = cld
-    .image("kid_ec5vky")
-    .format("auto")
-    .quality("auto")
-    .resize(auto().gravity(autoGravity()).width(1000).height(1000));
-  const femaleImg = cld
-    .image("female_s5qaln")
-    .format("auto")
-    .quality("auto")
-    .resize(auto().gravity(autoGravity()).width(1000).height(1000));
-
+  const topSearches = [
+    "Okirks",
+    "Shirt",
+    "Jeans",
+    "Tops",
+    "Bag",
+    "Bikini",
+    "Tote Bag",
+    "Lee",
+    "Pants",
+    "Jewelry",
+    "Cargos",
+    "Corporate",
+    "Perfumes",
+  ];
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const iv = setInterval(() => {
+      if (el.scrollLeft + el.clientWidth >= el.scrollWidth) {
+        el.scrollLeft = 0;
+      } else {
+        el.scrollLeft += 1;
+      }
+    }, 30);
+    return () => clearInterval(iv);
+  }, []);
   const handleClearSearch = () => {
     setSearchTerm("");
     setIsSearching(false);
     setFilteredProductTypes(productTypes);
   };
 
-  const filteredProducts = products
-    .filter(
-      (product) =>
-        product.price >= priceRange[0] && product.price <= priceRange[1]
-    )
-    .filter(
-      (product) =>
-        selectedSubType === "All" ||
-        selectedSubType === null ||
-        product.subType === selectedSubType
-    );
+  const filteredProducts = React.useMemo(() => {
+    let list = [...products];
 
-  if (loading || isLoadingProducts) {
+    // 1️⃣ price-range filter
+    if (selectedPriceRange) {
+      list = list.filter(
+        (p) =>
+          p.price >= selectedPriceRange.min && p.price <= selectedPriceRange.max
+      );
+    }
+
+    // 2️⃣ sub-type filter
+    if (selectedSubType && selectedSubType !== "All") {
+      list = list.filter((p) => p.subType === selectedSubType);
+    }
+
+    // 3️⃣ sort
+    if (sortOrder === "high-to-low") {
+      list.sort((a, b) => b.price - a.price);
+    } else if (sortOrder === "low-to-high") {
+      list.sort((a, b) => a.price - b.price);
+    }
+
+    return list;
+  }, [products, selectedPriceRange, selectedSubType, sortOrder]);
+
+  if (loading || (status === "loading" && products.length === 0)) {
     return <Loading />;
   }
 
@@ -242,7 +307,7 @@ const Explore = () => {
           <div className="flex items-center justify-between pb-2">
             <div className="flex items-center">
               {(selectedProductType || selectedSubType) && (
-                <IoChevronBackOutline
+                <GoChevronLeft
                   className="text-3xl cursor-pointer mr-2"
                   onClick={handleBackClick}
                 />
@@ -267,53 +332,49 @@ const Explore = () => {
               <div className="flex justify-between mb-3 w-full overflow-x-auto space-x-2 scrollbar-hide">
                 {[
                   "All",
+                  ...priceRanges.map((r) => r.label),
                   ...filteredSubTypes.map((sub) =>
                     typeof sub === "string" ? sub : sub.name
                   ),
-                ].map((subTypeName) => (
-                  <button
-                    key={subTypeName}
-                    onClick={() => setSelectedSubType(subTypeName)}
-                    className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-bold font-opensans text-black border border-gray-400 rounded-full ${
-                      selectedSubType === subTypeName ||
-                      (selectedSubType === null && subTypeName === "All")
-                        ? "bg-customOrange text-white"
-                        : "bg-transparent"
-                    }`}
-                  >
-                    {subTypeName}
-                  </button>
-                ))}
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex text-customOrange font-opensans">{sortOrder && `Sorting Price: ${sortOrder.charAt(0).toUpperCase() + sortOrder.slice(1)}`}</div>
-                <div className="relative flex">
-                  <LuListFilter
-                    className="text-xl text-customOrange cursor-pointer"
-                    onClick={toggleFilterDropdown}
-                  />
-                  {/* Filter dropdown */}
-                  {showFilterDropdown && (
-                    <div
-                      ref={dropdownRef}
-                      className="absolute right-4 bg-white shadow-[0_0_10px_rgba(0,0,0,0.1)] top-2 p-3 w-40 h-24 rounded-2xl z-50 flex flex-col justify-between font-opensans"
+                ].map((subTypeName) => {
+                  const isPrice = priceRanges.some(
+                    (r) => r.label === subTypeName
+                  );
+
+                  // “All” only active if neither a subtype nor a price range is selected
+                  const isAll = subTypeName === "All";
+                  const isActive = isAll
+                    ? selectedSubType === null && selectedPriceRange === null
+                    : isPrice
+                    ? selectedPriceRange?.label === subTypeName
+                    : selectedSubType === subTypeName;
+
+                  return (
+                    <button
+                      key={subTypeName}
+                      onClick={() => {
+                        if (isAll) {
+                          setSelectedSubType(null);
+                          setSelectedPriceRange(null);
+                        } else if (isPrice) {
+                          const range = priceRanges.find(
+                            (r) => r.label === subTypeName
+                          );
+                          handlePriceRangeClick(range);
+                        } else {
+                          handleSubTypeClick(subTypeName);
+                        }
+                      }}
+                      className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-semibold font-opensans mt-4 text-black border border-gray-100 rounded-full ${
+                        isActive
+                          ? "bg-customOrange text-white"
+                          : "bg-transparent"
+                      }`}
                     >
-                      <span
-                        className="text-sm ml-2 font-opensans cursor-pointer"
-                        onClick={() => sortProducts("high-to-low")}
-                      >
-                        Price: High to Low
-                      </span>
-                      <hr className="text-slate-300" />
-                      <span
-                        className="text-sm ml-2 font-opensans cursor-pointer"
-                        onClick={() => sortProducts("low-to-high")}
-                      >
-                        Price: Low to High
-                      </span>
-                    </div>
-                  )}
-                </div>
+                      {subTypeName}
+                    </button>
+                  );
+                })}
               </div>
             </>
           )}
@@ -352,6 +413,19 @@ const Explore = () => {
                   </div>
                 )}
               </div>
+              {selectedProductType &&
+                products.length > 0 &&
+                status === "loading" && (
+                  <div className="flex justify-center my-4">
+                    <RotatingLines
+                      strokeColor="#f9531e"
+                      strokeWidth="5"
+                      animationDuration="0.75"
+                      width="32"
+                      visible={true}
+                    />
+                  </div>
+                )}
             </>
           ) : (
             // :
@@ -387,7 +461,7 @@ const Explore = () => {
             // If no ProductType selected, show list of productTypes + promo slides
             <>
               <div className="">
-                <div className="flex justify-center mt-3 px-2 gap-2">
+                <div className="flex justify- mt-3 px-2 gap-2">
                   {loading ? (
                     Array.from({ length: 3 }).map((_, index) => (
                       <div
@@ -399,42 +473,46 @@ const Explore = () => {
                     ))
                   ) : (
                     <>
-                      <div
-                        className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer"
-                        onClick={() => handleCategoryClick("Mens")}
-                      >
-                        <AdvancedImage
-                          cldImg={maleImg}
-                          className="w-full h-full object-cover"
-                        />
-                        <h2 className="absolute bottom-0 w-full text-center text-white font-semibold text-sm bg-transparent">
-                          MEN
-                        </h2>
-                      </div>
-                      <div
-                        className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer"
-                        onClick={() => handleCategoryClick("Womens")}
-                      >
-                        <AdvancedImage
-                          cldImg={femaleImg}
-                          className="w-full h-full object-cover"
-                        />
-                        <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">
-                          WOMEN
-                        </h2>
-                      </div>
-                      <div
-                        className="relative w-32 h-28 rounded-lg bg-gray-200 overflow-hidden cursor-pointer"
-                        onClick={() => handleCategoryClick("Kids")}
-                      >
-                        <AdvancedImage
-                          cldImg={kidImg}
-                          className="w-full h-full object-cover"
-                        />
-                        <h2 className="absolute bottom-0 w-full text-center text-white font-semibold bg-transparent text-sm">
-                          KIDS
-                        </h2>
-                      </div>
+                      {!selectedProductType && (
+                        <div className="bg-white    w-full  border-gray-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <MdTrendingUp
+                              className="text-customOrange"
+                              size={18}
+                            />
+                            <h3 className="text-sm font-semibold font-opensans mb-3 text-gray-900">
+                              Trending Searches
+                            </h3>
+                          </div>
+
+                          {/* this is the scrollable row */}
+                          <div
+                            ref={scrollRef}
+                            className="w-full overflow-x-auto whitespace-nowrap scrollbar-hide"
+                          >
+                            {topSearches.map((term) => (
+                              <motion.button
+                                key={term}
+                                onClick={() =>
+                                  navigate(
+                                    `/search?query=${encodeURIComponent(term)}`
+                                  )
+                                }
+                                className="inline-block mr-4 py-2 px-3 font-medium rounded-full font-opensans text-xs bg-gray-100 hover:bg-customOrange hover:text-white transition"
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -5 }}
+                                transition={{ duration: 0.3 }}
+                              >
+                                {term}
+                              </motion.button>
+                            ))}
+                          </div>
+                          <div className="border-b  mt-4 border-gray-50">
+
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -450,7 +528,7 @@ const Explore = () => {
                       <span className="text-base font-opensans font-medium text-neutral-800">
                         {productType.type}
                       </span>
-                      <ChevronRight className="text-neutral-400" />
+                      <GoChevronRight className="text-neutral-400" />
                     </div>
                   ))
                 ) : (

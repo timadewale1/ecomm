@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import Downshift from "downshift";
 import { IoChevronBackOutline } from "react-icons/io5";
+import { useSearchParams } from "react-router-dom";
+
 import { FaTimes } from "react-icons/fa";
 import { CiSearch } from "react-icons/ci";
 import { MdCancel, MdMyLocation } from "react-icons/md";
@@ -15,7 +17,10 @@ import { query, where } from "firebase/firestore";
 import SEO from "../../components/Helmet/SEO";
 
 const SearchPage = () => {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchParams] = useSearchParams();
+  const initialQuery = searchParams.get("query") || "";
+  const [searchTerm, setSearchTerm] = useState(initialQuery);
+  
   const [searchHistory, setSearchHistory] = useState([]);
   const [products, setProducts] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -152,6 +157,15 @@ const SearchPage = () => {
     }
   };
 
+  const openMenuRef = useRef(null);
+
+  // when the page mounts with a query, open the suggestions
+  useEffect(() => {
+    if (initialQuery) {
+      // next tick so Downshift is initialized
+      setTimeout(() => openMenuRef.current(), 0);
+    }
+  }, [initialQuery]);
   const getCategoryIcon = (category) => {
     switch (category?.toLowerCase()) {
       case "men":
@@ -179,214 +193,219 @@ const SearchPage = () => {
 
   return (
     <>
-    <SEO 
-        title={`Search - My Thrift`} 
+      <SEO
+        title={`Search - My Thrift`}
         description={`Search for products and vendors on My Thrift`}
-        url={`https://www.shopmythrift.store/search`} 
+        url={`https://www.shopmythrift.store/search`}
       />
-    <motion.div
-      initial={{ x: "100%" }}
-      animate={{ x: 0 }}
-      exit={{ x: "100%" }}
-      transition={{ type: "spring", stiffness: 100, damping: 20 }}
-      className="w-full h-screen p-2 mt-3 bg-white"
-    >
-      <Downshift
-        onChange={handleChange}
-        itemToString={(item) => (item ? item.name || item.shopName : "")}
+      <motion.div
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", stiffness: 100, damping: 20 }}
+        className="w-full h-screen p-2 mt-3 bg-white"
       >
-        {({
-          getInputProps,
-          getItemProps,
-          getMenuProps,
-          isOpen,
-          highlightedIndex,
-          selectedItem,
-          openMenu,
-          closeMenu,
-        }) => (
-          <div className="relative w-full">
-            <div className="flex items-center mb-4">
-              <IoChevronBackOutline
-                className="text-2xl text-black cursor-pointer mr-2"
-                onClick={() => {
-                  clearSearch();
-                  closeMenu();
-                  navigate(-1);
-                }}
-              />
-              <div className="relative flex-1">
-                <input
-                  {...getInputProps({
-                    placeholder: "Search my thrift",
-                    onChange: (e) => {
-                      setSearchTerm(e.target.value);
-                      openMenu();
-                    },
-                    onFocus: () => {
-                      if (!searchTerm) openMenu();
-                    },
-                  })}
-                  value={searchTerm}
-                  className="w-full border font-opensans text-black text-sm border-gray-300 rounded-full px-3 py-2 font-medium focus:outline-customOrange"
-                />
-                <CiSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-2xl text-gray-400" />
+        <Downshift
+          onChange={handleChange}
+          itemToString={(item) => (item ? item.name || item.shopName : "")}
+        >
+          {({
+            getInputProps,
+            getItemProps,
+            getMenuProps,
+            isOpen,
+            highlightedIndex,
+            selectedItem,
+            openMenu,
+            closeMenu,
+          }) => {
+            openMenuRef.current = openMenu;
 
-                {/* Add the cancel (X) button */}
-                {searchTerm && (
-                  <MdCancel
-                    className="absolute right-10 top-1/2 transform -translate-y-1/2 text-xl text-gray-400 cursor-pointer"
-                    onClick={() => setSearchTerm("")}
+            return (
+              <div className="relative w-full">
+                <div className="flex items-center mb-4">
+                  <IoChevronBackOutline
+                    className="text-2xl text-black cursor-pointer mr-2"
+                    onClick={() => {
+                      clearSearch();
+                      closeMenu();
+                      navigate(-1);
+                    }}
                   />
-                )}
-              </div>
-            </div>
-            <ul
-              {...getMenuProps()}
-              className="absolute z-50 w-full bg-white rounded-lg mt-1"
-            >
-              {isOpen && searchTerm ? (
-                getFilteredItems().length > 0 ? (
-                  getFilteredItems().map((item, index) => (
-                    <li
-                      {...getItemProps({
-                        key: item.id,
-                        index,
-                        item,
-                        style: {
-                          backgroundColor:
-                            highlightedIndex === index
-                              ? "var(--custom-orange)"
-                              : "white",
-                          fontWeight: selectedItem === item ? "bold" : "normal",
-                          padding: "10px",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
+                  <div className="relative flex-1">
+                    <input
+                      {...getInputProps({
+                        placeholder: "Search my thrift",
+                        onChange: (e) => {
+                          setSearchTerm(e.target.value);
+                          openMenu();
+                        },
+                        onFocus: () => {
+                          if (!searchTerm) openMenu();
                         },
                       })}
-                    >
-                      <div className="flex items-center">
-                        <img
-                          src={item.coverImageUrl || defaultImageUrl}
-                          alt={item.name || item.shopName}
-                          style={{
-                            width: "40px",
-                            height: "40px",
-                            objectFit: "cover",
-                            borderRadius: "5px",
-                            marginRight: "10px",
-                          }}
-                        />
-                        <div className="flex flex-col">
-                          <span className="font-opensans text-gray-800 mb-1 font-medium">
-                            {item.name || item.shopName}
-                          </span>
-                          {item.type === "product" && (
-                            <span className="text-gray-800 font-opensans text-xs flex items-center">
-                              {getCategoryIcon(item.category)}
-                              {item.category}
-                              <GoDotFill className="mx-1 dot-size" />
-                              <AiFillProduct className="mr-1" />
-                              {item.productType}
-                            </span>
-                          )}
-                          {item.type === "vendor" && (
-                            <span className="text-gray-800 font-opensans text-xs flex items-center">
-                              <MdMyLocation className="mr-1 ratings-text" />
-                              {item.marketPlaceType || "Online"}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </li>
-                  ))
-                ) : (
-                  <li className="text-center text-gray-600 text-sm py-4 font-opensans">
-                    ☹️ No results found, try searching for another vendor or
-                    product.
-                  </li>
-                )
-              ) : (
-                isOpen &&
-                !searchTerm &&
-                searchHistory.length > 0 && (
-                  <>
-                    <li className="text-black font-opensans font-medium text-sm px-3 py-2">
-                      Recent
-                    </li>
-                    {searchHistory.map((item, index) => (
-                      <li
-                        {...getItemProps({
-                          key: item.id,
-                          index,
-                          item,
-                          style: {
-                            backgroundColor:
-                              highlightedIndex === index
-                                ? "var(--customOrange)"
-                                : "white",
-                            fontWeight:
-                              selectedItem === item ? "bold" : "normal",
-                            padding: "10px",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                          },
-                        })}
-                      >
-                        <div className="flex items-center">
-                          <img
-                            src={item.coverImageUrl || defaultImageUrl}
-                            alt={item.name || item.shopName}
-                            style={{
-                              width: "40px",
-                              height: "40px",
-                              objectFit: "cover",
-                              borderRadius: "5px",
-                              marginRight: "10px",
-                            }}
-                          />
-                          <div className="flex flex-col">
-                            <span className="font-opensans text-gray-800 mb-1 font-medium">
-                              {item.name || item.shopName}
-                            </span>
-                            {item.type === "product" && (
-                              <span className="text-gray-800 text-xs flex items-center">
-                                {getCategoryIcon(item.category)}
-                                {item.category}
-                                <GoDotFill className="mx-1 dot-size" />
-                                <AiFillProduct className="mr-1" />
-                                {item.productType}
+                      value={searchTerm}
+                      className="w-full border font-opensans text-black text-sm border-gray-300 rounded-full px-3 py-2 font-medium focus:outline-customOrange"
+                    />
+                    <CiSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-2xl text-gray-400" />
+
+                    {/* Add the cancel (X) button */}
+                    {searchTerm && (
+                      <MdCancel
+                        className="absolute right-10 top-1/2 transform -translate-y-1/2 text-xl text-gray-400 cursor-pointer"
+                        onClick={() => setSearchTerm("")}
+                      />
+                    )}
+                  </div>
+                </div>
+                <ul
+                  {...getMenuProps()}
+                  className="absolute z-50 w-full bg-white rounded-lg mt-1"
+                >
+                  {isOpen && searchTerm ? (
+                    getFilteredItems().length > 0 ? (
+                      getFilteredItems().map((item, index) => (
+                        <li
+                          {...getItemProps({
+                            key: item.id,
+                            index,
+                            item,
+                            style: {
+                              backgroundColor:
+                                highlightedIndex === index
+                                  ? "var(--custom-orange)"
+                                  : "white",
+                              fontWeight:
+                                selectedItem === item ? "bold" : "normal",
+                              padding: "10px",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                            },
+                          })}
+                        >
+                          <div className="flex items-center">
+                            <img
+                              src={item.coverImageUrl || defaultImageUrl}
+                              alt={item.name || item.shopName}
+                              style={{
+                                width: "40px",
+                                height: "40px",
+                                objectFit: "cover",
+                                borderRadius: "5px",
+                                marginRight: "10px",
+                              }}
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-opensans text-gray-800 mb-1 font-medium">
+                                {item.name || item.shopName}
                               </span>
-                            )}
-                            {item.type === "vendor" && (
-                              <span className="text-gray-800 font-opensans text-xs flex items-center">
-                                <MdMyLocation className="mr-1 ratings-text" />
-                                {item.marketPlaceType || "Online"}
-                              </span>
-                            )}
+                              {item.type === "product" && (
+                                <span className="text-gray-800 font-opensans text-xs flex items-center">
+                                  {getCategoryIcon(item.category)}
+                                  {item.category}
+                                  <GoDotFill className="mx-1 dot-size" />
+                                  <AiFillProduct className="mr-1" />
+                                  {item.productType}
+                                </span>
+                              )}
+                              {item.type === "vendor" && (
+                                <span className="text-gray-800 font-opensans text-xs flex items-center">
+                                  <MdMyLocation className="mr-1 ratings-text" />
+                                  {item.marketPlaceType || "Online"}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <FaTimes
-                          className="text-gray-400 cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeHistoryItem(item.id);
-                          }}
-                        />
+                        </li>
+                      ))
+                    ) : (
+                      <li className="text-center text-gray-600 text-sm py-4 font-opensans">
+                        ☹️ No results found, try searching for another vendor or
+                        product.
                       </li>
-                    ))}
-                  </>
-                )
-              )}
-            </ul>
-          </div>
-        )}
-      </Downshift>
-    </motion.div>
+                    )
+                  ) : (
+                    isOpen &&
+                    !searchTerm &&
+                    searchHistory.length > 0 && (
+                      <>
+                        <li className="text-black font-opensans font-medium text-sm px-3 py-2">
+                          Recent
+                        </li>
+                        {searchHistory.map((item, index) => (
+                          <li
+                            {...getItemProps({
+                              key: item.id,
+                              index,
+                              item,
+                              style: {
+                                backgroundColor:
+                                  highlightedIndex === index
+                                    ? "var(--customOrange)"
+                                    : "white",
+                                fontWeight:
+                                  selectedItem === item ? "bold" : "normal",
+                                padding: "10px",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                              },
+                            })}
+                          >
+                            <div className="flex items-center">
+                              <img
+                                src={item.coverImageUrl || defaultImageUrl}
+                                alt={item.name || item.shopName}
+                                style={{
+                                  width: "40px",
+                                  height: "40px",
+                                  objectFit: "cover",
+                                  borderRadius: "5px",
+                                  marginRight: "10px",
+                                }}
+                              />
+                              <div className="flex flex-col">
+                                <span className="font-opensans text-gray-800 mb-1 font-medium">
+                                  {item.name || item.shopName}
+                                </span>
+                                {item.type === "product" && (
+                                  <span className="text-gray-800 text-xs flex items-center">
+                                    {getCategoryIcon(item.category)}
+                                    {item.category}
+                                    <GoDotFill className="mx-1 dot-size" />
+                                    <AiFillProduct className="mr-1" />
+                                    {item.productType}
+                                  </span>
+                                )}
+                                {item.type === "vendor" && (
+                                  <span className="text-gray-800 font-opensans text-xs flex items-center">
+                                    <MdMyLocation className="mr-1 ratings-text" />
+                                    {item.marketPlaceType || "Online"}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <FaTimes
+                              className="text-gray-400 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeHistoryItem(item.id);
+                              }}
+                            />
+                          </li>
+                        ))}
+                      </>
+                    )
+                  )}
+                </ul>
+              </div>
+            );
+          }}
+        </Downshift>
+      </motion.div>
     </>
   );
 };

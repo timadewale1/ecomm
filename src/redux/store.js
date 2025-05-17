@@ -23,6 +23,8 @@ import stockpileReducer from "./reducers/stockpileSlice";
 import vendorReducer from "./reducers/VendorsSlice";
 import personalDiscountsPageReducer from "./reducers/personalDiscountsPageSlice";
 import { promoReducer } from "./reducers/promoreducer";
+import exploreReducer from "./reducers/exploreSlice";
+import exploreUiReducer from "./reducers/exploreUiSlice";
 import catsectionReducer from "./reducers/catsection";
 import categoryProductsReducer from "./reducers/categoryProductsSlice";
 import topVendorsReducer from "./reducers/topVendorsSlice";
@@ -41,6 +43,8 @@ const rootReducer = combineReducers({
   conditionCategories: conditionCategoriesSlice,
   topVendors: topVendorsReducer,
   product: productReducer,
+  explore: exploreReducer,
+  exploreUi: exploreUiReducer,
   user: userReducer,
   stockpile: stockpileReducer, // will be persisted
   storepageVendors: storepageVendorsReducer,

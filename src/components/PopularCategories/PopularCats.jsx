@@ -109,7 +109,7 @@ const PopularCats = () => {
                       />
                     ) : (
                       <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-                        <img src="/logo.svg" alt="logo" className="w-7 h-7" />
+                        <img src="/logo.png" alt="logo" className="w-7 h-7" />
                       </div>
                     )}
                   </div>

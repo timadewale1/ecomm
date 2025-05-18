@@ -22,10 +22,7 @@ import {
 import { FreeMode, Autoplay } from "swiper/modules";
 import Skeleton from "react-loading-skeleton";
 import { useSelector, useDispatch } from "react-redux";
-import {
-  fetchHomepageData,
-
-} from "../redux/actions/homepageactions";
+import { fetchHomepageData } from "../redux/actions/homepageactions";
 import "react-loading-skeleton/dist/skeleton.css";
 import { IoIosNotificationsOutline } from "react-icons/io";
 import gsap from "gsap";
@@ -164,7 +161,6 @@ const Homepage = () => {
       const images = [
         "https://res.cloudinary.com/dtaqusjav/video/upload/v1744666391/introducing_2_izw3tu.mp4",
         "https://res.cloudinary.com/dtaqusjav/image/upload/v1744671718/NEW_STORE_1080_x_420_px_t3rmma.png",
-
       ];
       dispatch(setPromoLoading(true));
       setTimeout(() => {
@@ -385,8 +381,8 @@ const Homepage = () => {
           <Market />
         </>
       )}
-      <BlogImageGrid/>
-      <TopVendors/>
+      <BlogImageGrid />
+      <TopVendors />
       <PopularCats />
       {/* <DiscountCarousel /> */}
       <PersonalDiscountCarousel />

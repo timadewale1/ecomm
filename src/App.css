@@ -1,9 +1,7 @@
 /* google fonts */
 @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap");
 
-
- css variables
-:root {
+css variables :root {
   --card-bg-01: #fdefe6;
   --card-bg-02: #d6e5fb;
   --card-bg-03: #ceebe9;
@@ -157,7 +155,7 @@ li::marker {
 .modal-content-defect {
   position: fixed;
   top: 50%;
-  
+
   left: 50%;
   transform: translate(-50%, -50%);
   width: 85%;
@@ -168,8 +166,14 @@ li::marker {
   transition: height 0.3s ease; /* Smooth height transition */
 }
 @keyframes fade-in {
-  0% { opacity: 0; transform: translateY(4px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fade-in {
@@ -317,9 +321,15 @@ li::marker {
 }
 /*  === AI-thinking border  ===================================== */
 @keyframes spin-border {
-  0%   { background-position:   0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position:   0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .thinking-border {
@@ -330,22 +340,15 @@ li::marker {
   content: "";
   position: absolute;
   z-index: 10;
-  inset: -2px;                     /* expand 2 px outwards */
-  border-radius: 0.5rem;           /* match your rounded-lg */
-  padding: 2px;                    /* thickness */
-  background: linear-gradient(
-      60deg,
-      #f97316,
-      #ffb86c,
-      #f97316
-  );
+  inset: -2px; /* expand 2 px outwards */
+  border-radius: 0.5rem; /* match your rounded-lg */
+  padding: 2px; /* thickness */
+  background: linear-gradient(60deg, #f97316, #ffb86c, #f97316);
   background-size: 300% 300%;
   animation: spin-border 2s linear infinite;
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;     /* punch out the center */
-          mask-composite: exclude;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; /* punch out the center */
+  mask-composite: exclude;
   pointer-events: none;
 }
 
@@ -357,7 +360,7 @@ li::marker {
   width: 100%;
   height: 100%;
   background-color: white;
-  
+
   padding: 0px;
   z-index: 2000;
   outline: none;
@@ -368,8 +371,19 @@ li::marker {
   padding: 7em;
   transition: background-color 0.3s ease, border 0.3s ease;
 }
-.modal-overlay{
+.modal-overlay {
   z-index: 3000;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .transition-transform {
@@ -583,7 +597,6 @@ button.bg-orange-500:hover {
   display: none; /* Chrome, Safari, and Opera */
 }
 
-
 @keyframes marquee {
   0% {
     transform: translateX(100%);
@@ -597,4 +610,3 @@ button.bg-orange-500:hover {
   animation: marquee 10s linear infinite; /* 10 seconds for smooth scrolling */
   display: inline-flex; /* Ensure items are in a row */
 }
-

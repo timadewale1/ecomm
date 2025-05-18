@@ -1,3 +1,4 @@
+// src/components/RelatedProducts.jsx
 import React, { useEffect, useState } from "react";
 import {
   collection,
@@ -9,124 +10,120 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import { db } from "../../firebase.config"; // Firestore instance
+import { db } from "../../firebase.config";
 import ProductCard from "../../components/Products/ProductCard";
 import LoadProducts from "../../components/Loading/LoadProducts";
 
 const RelatedProducts = ({ product }) => {
-  const [relatedProductsFromVendor, setRelatedProductsFromVendor] = useState(
-    []
-  );
-  const [
-    relatedProductsFromOtherVendors,
-    setRelatedProductsFromOtherVendors,
-  ] = useState([]);
+  const [ownType, setOwnType] = useState([]); // same vendor & same productType
+  const [othersType, setOthersType] = useState([]); // other vendors & same productType
+  const [othersCat, setOthersCat] = useState([]); // other vendors & same category
+  const [ownCat, setOwnCat] = useState([]); // same vendor & same category (diff type)
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Helper function to check vendor's status
-  const isVendorActiveAndApproved = async (vendorId) => {
-    const vendorRef = doc(db, "vendors", vendorId);
-    const vendorSnap = await getDoc(vendorRef);
-    if (vendorSnap.exists()) {
-      const { isApproved, isDeactivated } = vendorSnap.data();
-      return isApproved === true && isDeactivated === false;
-    }
-    // If vendor doc doesn't exist or missing fields, treat as inactive
-    return false;
+  // only show products whose vendor is approved & active
+  const isVendorActive = async (vendorId) => {
+    const snap = await getDoc(doc(db, "vendors", vendorId));
+    if (!snap.exists()) return false;
+    const { isApproved, isDeactivated } = snap.data();
+    return isApproved && !isDeactivated;
   };
 
   useEffect(() => {
-    const fetchRelatedProducts = async () => {
+    const fetchRelated = async () => {
       if (!product) return;
-      try {
-        let productsFromVendor = [];
-        let productsFromOtherVendors = [];
+      setLoading(true);
 
-        const productsRef = collection(db, "products");
+      const productsRef = collection(db, "products");
+      const rOwnType = [];
+      const rOthersType = [];
+      const rOthersCat = [];
+      const rOwnCat = [];
 
-        // Query for products from the same vendor and matching category
-        const vendorProductsQuery = query(
-          productsRef,
-          where("vendorId", "==", product.vendorId),
-          where("category", "==", product.category),
-          where("published", "==", true),
-          where("isDeleted", "==", false), // Exclude deleted products
-          limit(2)
-        );
-
-        const vendorSnapshot = await getDocs(vendorProductsQuery);
-        productsFromVendor = vendorSnapshot.docs
-          .map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
-          .filter((item) => item.id !== product.id); // Exclude the current product
-
-        // Query for products from other vendors matching category
-        const otherVendorsQuery = query(
-          productsRef,
-          where("vendorId", "!=", product.vendorId),
-          where("category", "==", product.category),
-          where("published", "==", true),
-          where("isDeleted", "==", false), // Exclude deleted products
-          limit(10)
-        );
-
-        const otherVendorsSnapshot = await getDocs(otherVendorsQuery);
-        productsFromOtherVendors = otherVendorsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        // Filter out products whose vendors are not approved or are deactivated
-        const filteredVendorProducts = [];
-        for (const p of productsFromVendor) {
-          if (await isVendorActiveAndApproved(p.vendorId)) {
-            filteredVendorProducts.push(p);
-          }
+      // 1) same vendor & same productType
+      const q1 = query(
+        productsRef,
+        where("vendorId", "==", product.vendorId),
+        where("productType", "==", product.productType),
+        where("published", "==", true),
+        where("isDeleted", "==", false),
+        limit(5)
+      );
+      const snap1 = await getDocs(q1);
+      for (const d of snap1.docs) {
+        if (d.id === product.id) continue;
+        if (await isVendorActive(d.data().vendorId)) {
+          rOwnType.push({ id: d.id, ...d.data() });
+          if (rOwnType.length >= 4) break;
         }
-
-        const filteredOtherVendorProducts = [];
-        for (const p of productsFromOtherVendors) {
-          if (await isVendorActiveAndApproved(p.vendorId)) {
-            filteredOtherVendorProducts.push(p);
-          }
-        }
-
-        setRelatedProductsFromVendor(filteredVendorProducts);
-        setRelatedProductsFromOtherVendors(filteredOtherVendorProducts);
-      } catch (error) {
-        console.error("Error fetching related products:", error);
-      } finally {
-        setLoading(false);
       }
+
+      // 2) other vendors & same productType
+      const q2 = query(
+        productsRef,
+        where("vendorId", "!=", product.vendorId),
+        where("productType", "==", product.productType),
+        where("published", "==", true),
+        where("isDeleted", "==", false),
+        limit(15)
+      );
+      const snap2 = await getDocs(q2);
+      for (const d of snap2.docs) {
+        if (await isVendorActive(d.data().vendorId)) {
+          rOthersType.push({ id: d.id, ...d.data() });
+          if (rOthersType.length >= 10) break;
+        }
+      }
+
+      // 3) other vendors & same category
+      const q3 = query(
+        productsRef,
+        where("category", "==", product.category),
+        where("published", "==", true),
+        where("isDeleted", "==", false),
+        limit(15)
+      );
+      const snap3 = await getDocs(q3);
+      for (const d of snap3.docs) {
+        if (d.id === product.id) continue;
+        const vId = d.data().vendorId;
+        const isOwn = vId === product.vendorId;
+        if (!(await isVendorActive(vId))) continue;
+
+        // skip those already in type‐based lists
+        if (
+          rOwnType.some((p) => p.id === d.id) ||
+          rOthersType.some((p) => p.id === d.id)
+        ) {
+          continue;
+        }
+
+        if (!isOwn) {
+          rOthersCat.push({ id: d.id, ...d.data() });
+          if (rOthersCat.length >= 10) continue;
+        } else {
+          // same vendor but different type
+          rOwnCat.push({ id: d.id, ...d.data() });
+          if (rOwnCat.length >= 4) continue;
+        }
+      }
+
+      setOwnType(rOwnType);
+      setOthersType(rOthersType);
+      setOthersCat(rOthersCat);
+      setOwnCat(rOwnCat);
+      setLoading(false);
     };
 
-    if (product) {
-      fetchRelatedProducts();
-    }
+    fetchRelated();
   }, [product]);
 
-  if (loading) {
-    return (
-      <div>
-        <LoadProducts />
-      </div>
-    );
-  }
+  if (loading) return <LoadProducts />;
 
-  // Hide the section if no related products are found
-  if (
-    relatedProductsFromVendor.length === 0 &&
-    relatedProductsFromOtherVendors.length === 0
-  ) {
-    return null;
-  }
+  const allSuggestions = [...ownType, ...othersType, ...othersCat, ...ownCat];
 
-  const handleShowAll = () => {
-    navigate(`/category/${product.category}`);
-  };
+  if (allSuggestions.length === 0) return null;
 
   return (
     <div className="related-products p-3">
@@ -135,32 +132,29 @@ const RelatedProducts = ({ product }) => {
           You might also like
         </h2>
         <button
-          onClick={handleShowAll}
+          onClick={() =>
+            navigate(`/producttype/${product.productType}`, {
+              state: { products: allSuggestions },
+            })
+          }
           className="text-xs font-normal text-customOrange"
         >
-          Show All
+          Show all
         </button>
       </div>
 
-      <div className="grid grid-cols-2 mt-2 gap-4">
-        {relatedProductsFromVendor.map((relatedProduct) => (
-          <ProductCard
-            key={relatedProduct.id}
-            product={relatedProduct}
-            isLoading={false}
-            vendorName={relatedProduct.vendorName}
-            vendorId={relatedProduct.vendorId}
-          />
+      <div className="grid grid-cols-2 gap-4">
+        {ownType.map((p) => (
+          <ProductCard key={p.id} product={p} vendorId={p.vendorId} />
         ))}
-
-        {relatedProductsFromOtherVendors.map((relatedProduct) => (
-          <ProductCard
-            key={relatedProduct.id}
-            product={relatedProduct}
-            isLoading={false}
-            vendorName={relatedProduct.vendorName}
-            vendorId={relatedProduct.vendorId}
-          />
+        {othersType.map((p) => (
+          <ProductCard key={p.id} product={p} vendorId={p.vendorId} />
+        ))}
+        {othersCat.map((p) => (
+          <ProductCard key={p.id} product={p} vendorId={p.vendorId} />
+        ))}
+        {ownCat.map((p) => (
+          <ProductCard key={p.id} product={p} vendorId={p.vendorId} />
         ))}
       </div>
     </div>

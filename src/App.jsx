@@ -117,9 +117,39 @@ function App() {
   }, [currentUserData]);
 
   return (
-    <AccessProvider>
-      <Layout />
-    </AccessProvider>
+    <>
+      {/* Hidden sitemap for crawlers */}
+      <nav className="sr-only" aria-label="Site map">
+        <ul>
+          <li>
+            <a href="/newhome">Shop Now</a>
+          </li>
+          <li>
+            <a href="/explore">Explore</a>
+          </li>
+
+          <li>
+            <a href="/producttype/Tops">Tops</a>
+          </li>
+          <li>
+            <a href="/browse-markets">Markets</a>
+          </li>
+          <li>
+            <a
+              href="https://blog.shopmythrift.store"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Check our Blog
+            </a>
+          </li>
+        </ul>
+      </nav>
+
+      <AccessProvider>
+        <Layout />
+      </AccessProvider>
+    </>
   );
 }
 

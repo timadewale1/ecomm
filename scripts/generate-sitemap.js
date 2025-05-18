@@ -1,11 +1,14 @@
 // scripts/generate-sitemap.js
-require('dotenv').config();               // ← loads .env
-
+require("dotenv").config(); // ← loads .env
+if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+  console.error(
+    "❌ Missing FIREBASE_SERVICE_ACCOUNT – check your .env or Vercel settings"
+  );
+  process.exit(1);
+}
 // 1) Firebase Admin setup
 const admin = require("firebase-admin");
-const serviceAccount = JSON.parse(
-  process.env.FIREBASE_SERVICE_ACCOUNT 
-);
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),

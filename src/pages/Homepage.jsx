@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { IoArrowBack } from "react-icons/io5";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
-import logo from "../Images/png";
+import logo from "../Images/logo.png";
 import { PiStarFill } from "react-icons/pi";
 import "swiper/css/free-mode";
 import { CiSearch } from "react-icons/ci";

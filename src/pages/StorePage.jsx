@@ -154,24 +154,25 @@ const StorePage = () => {
       setIsStockpileMode(true); // 🔴 HERE —> this is **key**
     }
   }, [location.search, currentUser, dispatch, id]);
+  // ✅ hydrate scrollY once the vendor slice entry exists
+  useEffect(() => {
+    if (!vendor) return;
+    const saved = localStorage.getItem(`storeScroll_${id}`);
+    if (saved != null) {
+      dispatch(
+        saveStoreScroll({
+          vendorId: id,
+          scrollY: parseFloat(saved),
+        })
+      );
+    }
+  }, [vendor, id, dispatch]);
 
   useEffect(() => {
     if (!vendor) {
       dispatch(fetchStoreVendor(id));
     }
   }, [id, dispatch, vendor]);
-  const prevPath = useRef(location.pathname);
-  // right after you declare lastScrollY = useRef(0)
-
-  /* save JUST BEFORE un-mount, using the buffered value, not window.scrollY */
-  useEffect(() => {
-    return () => {
-      console.log(
-        `🛑 saving scrollY=${lastScrollY.current} for vendor ${id} (un-mount)`
-      );
-      dispatch(saveStoreScroll({ vendorId: id, scrollY: lastScrollY.current }));
-    };
-  }, [dispatch, id]);
 
   // useEffect(() => {
   //   // if we were on `/store/:id` and now we're not → time to save
@@ -342,7 +343,15 @@ const StorePage = () => {
       setIsFollowLoading(false);
     }
   };
-
+  useEffect(() => {
+    return () => {
+      console.log(
+        `🛑 saving scrollY=${lastScrollY.current} for vendor ${id} (un-mount)`
+      );
+      dispatch(saveStoreScroll({ vendorId: id, scrollY: lastScrollY.current }));
+      localStorage.setItem(`storeScroll_${id}`, String(lastScrollY.current));
+    };
+  }, [dispatch, id]);
   useEffect(() => {
     if (isLoginModalOpen) {
       document.body.style.overflow = "hidden";

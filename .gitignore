@@ -11,7 +11,7 @@
 firebase.config.js
 # production
 /build
-
+/scripts/serviceAccountKey.json
 # misc
 .DS_Store
 .env.local

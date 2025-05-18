@@ -1,76 +1,78 @@
-const fs = require('fs');
-const { db, collection, getDocs } = require('../scripts/firebase.server.config.js');
-
-
-const BASE_URL = 'https://www.shopmythrift.store';
-
-// Function to fetch all products
-async function getAllProducts() {
-    const productsRef = collection(db, 'products'); // Correct way to get collection
-    const snapshot = await getDocs(productsRef);
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        updatedAt: doc.data().updatedAt || new Date().toISOString()
-    }));
+// scripts/generate-sitemap.js
+require("dotenv").config(); // ← loads .env
+if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+  console.error(
+    "❌ Missing FIREBASE_SERVICE_ACCOUNT – check your .env or Vercel settings"
+  );
+  process.exit(1);
 }
+// 1) Firebase Admin setup
+const admin = require("firebase-admin");
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
-// Function to fetch all vendors
-async function getAllVendors() {
-    const vendorsRef = collection(db, 'vendors'); // Correct way to get collection
-    const snapshot = await getDocs(vendorsRef);
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        updatedAt: doc.data().updatedAt || new Date().toISOString()
-    }));
-}
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
-// Function to generate the sitemap
-async function generateSitemap() {
-    console.log("Fetching products and vendors from Firebase...");
-    const products = await getAllProducts();
-    const vendors = await getAllVendors();
+const db = admin.firestore();
 
-    let sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-    sitemap += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+// 2) Sitemap & FS imports
+const { SitemapStream, streamToPromise } = require("sitemap");
+const { createWriteStream } = require("fs");
+const { Readable } = require("stream");
+const path = require("path");
 
-    // Homepage
-    sitemap += `
-      <url>
-        <loc>${BASE_URL}</loc>
-        <changefreq>weekly</changefreq>
-        <priority>1.0</priority>
-      </url>\n
-    `;
+async function build() {
+  const hostname = "https://www.shopmythrift.store";
+  const now = new Date().toISOString();
 
-    // Product pages
-    products.forEach(product => {
-        sitemap += `
-          <url>
-            <loc>${BASE_URL}/product/${product.id}</loc>
-            <lastmod>${product.updatedAt}</lastmod>
-            <changefreq>weekly</changefreq>
-            <priority>0.8</priority>
-          </url>\n
-        `;
+  // 3) Static top-level pages
+  const links = [
+    { url: "/", changefreq: "daily", priority: 1.0, lastmod: now },
+    { url: "/newhome", changefreq: "weekly", priority: 0.8, lastmod: now },
+    { url: "/explore", changefreq: "weekly", priority: 0.8, lastmod: now },
+    {
+      url: "/producttype/Tops",
+      changefreq: "monthly",
+      priority: 0.6,
+      lastmod: now,
+    },
+    {
+      url: "/browse-markets",
+      changefreq: "weekly",
+      priority: 0.7,
+      lastmod: now,
+    },
+  ];
+
+  // 4) Pull every vendor doc ID
+  const snapshot = await db.collection("vendors").get();
+  console.log(`Fetched ${snapshot.size} vendor docs.`);
+  snapshot.docs.forEach((doc) => {
+    // you can also filter here if you only want approved vendors:
+    // const { isApproved } = doc.data();
+    // if (!isApproved) return;
+
+    links.push({
+      url: `/store/${doc.id}`,
+      changefreq: "weekly",
+      priority: 0.7,
+      lastmod: now,
     });
+    console.log(` → added /store/${doc.id}`);
+  });
 
-    // Vendor pages
-    vendors.forEach(vendor => {
-        sitemap += `
-          <url>
-            <loc>${BASE_URL}/store/${vendor.id}</loc>
-            <changefreq>weekly</changefreq>
-            <priority>0.7</priority>
-          </url>\n
-        `;
-    });
+  // 5) Generate sitemap XML
+  const stream = new SitemapStream({ hostname });
+  const xml = await streamToPromise(Readable.from(links).pipe(stream));
 
-    sitemap += `</urlset>`;
-
-    // Save to public folder
-    fs.writeFileSync('./public/sitemap.xml', sitemap);
-    console.log('✅ Sitemap generated successfully!');
+  // 6) Write it into public/sitemap.xml
+  const outputPath = path.resolve(__dirname, "../public/sitemap.xml");
+  createWriteStream(outputPath).write(xml.toString());
+  console.log("✅ sitemap.xml generated at", outputPath);
 }
 
-// Run the script
-generateSitemap().catch(console.error);
+build().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

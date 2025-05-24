@@ -136,7 +136,7 @@ const LinkShareModal = ({
             Link is ready to share!
           </h2>
 
-          <MdClose className="-top-1 left-4 relative" onClick={onClose} />
+          <MdClose className="-top-1 left-10 relative" onClick={onClose} />
         </div>
 
         {expiresAt && (

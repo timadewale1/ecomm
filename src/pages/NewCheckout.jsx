@@ -6,6 +6,7 @@ import { clearCart } from "../redux/actions/action";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase.config";
 import { useAuth } from "../custom-hooks/useAuth";
+import { RiShareForwardBoxLine } from "react-icons/ri";
 import { SiAdguard } from "react-icons/si";
 import { enterStockpileMode } from "../redux/reducers/stockpileSlice";
 import { CiWarning } from "react-icons/ci";
@@ -16,6 +17,7 @@ import PaystackPop from "@paystack/inline-js";
 import { IoIosInformationCircle } from "react-icons/io";
 import bookingimage from "../Images/bookingfee.jpg";
 import Modal from "react-modal";
+import { IoCopyOutline } from "react-icons/io5";
 import { AiOutlineSafety } from "react-icons/ai";
 // import { createOrderAndReduceStock } from "../styles/services/Services";
 import {
@@ -44,6 +46,7 @@ import LocationPicker from "../components/Location/LocationPicker";
 import SEO from "../components/Helmet/SEO";
 import ReactSelect from "react-select";
 import { BsInfoCircle } from "react-icons/bs";
+import Link from "../components/Loading/Link";
 const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
   const [locationSet, setLocationSet] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
@@ -328,12 +331,17 @@ const Checkout = () => {
   const [showBookingFeeModal, setShowBookingFeeModal] = useState(false);
   const [showServiceFeeModal, setShowServiceFeeModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingLink, setIsLoadingLink] = useState(false);
   const [showServiceFee, setShowServiceFee] = useState(false);
   const [showBuyersFee, setShowBuyersFee] = useState(false);
   const [isFetchingOrderPreview, setIsFetchingOrderPreview] = useState(true);
   const [checkoutMode, setCheckoutMode] = useState("deliver");
   const [deliveryNote, setDeliveryNote] = useState("");
   const [userState, setUserState] = useState(null);
+  const [expiresAt, setExpiresAt] = useState(null);
+  const [countdown, setCountdown] = useState("");
+  const [shareUrl, setShareUrl] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const [showAlreadyStockpiledModal, setShowAlreadyStockpiledModal] =
     useState(false);
@@ -524,6 +532,22 @@ const Checkout = () => {
     userInfo.longitude,
     selectedWeeks,
   ]);
+  useEffect(() => {
+    if (!expiresAt) return;
+    const interval = setInterval(() => {
+      const diff = expiresAt - Date.now();
+      if (diff <= 0) {
+        clearInterval(interval);
+        setCountdown("Expired");
+      } else {
+        const mins = String(Math.floor(diff / 60000)).padStart(2, "0");
+        const secs = String(Math.floor((diff % 60000) / 1000)).padStart(2, "0");
+        setCountdown(`${mins}:${secs}`);
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [expiresAt]);
 
   useEffect(() => {
     if (!vendorId) {
@@ -629,6 +653,36 @@ const Checkout = () => {
       setIsLoading(false); // Stop loader
     }
   };
+  // inside your Checkout component, alongside handleProceedToPayment:
+  const handleShareLink = async () => {
+    if (checkoutMode === "stockpile" && !selectedWeeks) {
+      toast.error("Please select how many weeks you want to stockpile.");
+      return;
+    }
+
+    setIsLoadingLink(true);
+    try {
+      const orderData = prepareOrderData();
+      if (!orderData) return;
+
+      const payload = { ...orderData, shareOnly: true };
+      const processOrder = httpsCallable(functions, "processOrder");
+      const { data } = await processOrder(payload);
+      dispatch(clearCart(vendorId));
+      navigate("/user-orders", {
+        state: {
+          draftShareUrl: data.shareUrl, // so the centre can pop a toast/modal if you want
+          draftExpires: data.expiresAt,
+        },
+        replace: true,
+      });
+    } catch (err) {
+      toast.error(err.message || "Could not generate share link.");
+    } finally {
+      setIsLoadingLink(false);
+    }
+  };
+
   useEffect(() => {
     console.log("selectedWeeks state updated to:", selectedWeeks);
   }, [selectedWeeks]);
@@ -925,11 +979,6 @@ const Checkout = () => {
     return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
   };
 
-  // const handleFullDeliveryPayment = (e) => {
-  //   e.preventDefault();
-  //   handleVendorPayment("full");
-  // };
-
   if (loading || isFetchingOrderPreview) {
     // Show skeleton placeholders instead of the Loading component
     return (
@@ -1053,6 +1102,8 @@ const Checkout = () => {
         description={`Checkout your order on My Thrift`}
         url={`https://www.shopmythrift.store/newcheckout/`}
       />
+      {isLoadingLink && <Link />}
+
       <div className="flex p-3 py-3 items-center sticky top-0 bg-white w-full h-20 shadow-md z-10 mb-3 pb-2">
         <GoChevronLeft
           className="text-3xl cursor-pointer"
@@ -1919,29 +1970,44 @@ const Checkout = () => {
       />
 
       <div className="fixed bottom-0 left-0 right-0 p-3  bg-white shadow-lg">
-        <button
-          onClick={handleProceedToPayment}
-          className={`w-full h-12 text-white text-lg font-semibold font-opensans rounded-full flex items-center justify-center ${
-            isLoading || (checkoutMode === "stockpile" && !selectedWeeks)
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-customOrange"
-          }`}
-          disabled={
-            isLoading || (checkoutMode === "stockpile" && !selectedWeeks)
-          }
-        >
-          {isLoading ? (
-            <RotatingLines
-              strokeColor="white"
-              strokeWidth="5"
-              animationDuration="0.75"
-              width="24"
-              visible={true}
-            />
-          ) : (
-            "Proceed to Payment"
-          )}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={handleShareLink}
+            className={`w-full h-12 text-customRichBrown text-sm font-semibold font-opensans rounded-full flex items-center justify-center ${
+              isLoading || (checkoutMode === "stockpile" && !selectedWeeks)
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-transparent border border-customRichBrown "
+            }`}
+            disabled={
+              isLoadingLink || (checkoutMode === "stockpile" && !selectedWeeks)
+            }
+          >
+            Pay For Me
+          </button>
+          <button
+            onClick={handleProceedToPayment}
+            className={`w-full h-12 px-1 text-white text-sm font-semibold font-opensans rounded-full flex items-center justify-center ${
+              isLoading || (checkoutMode === "stockpile" && !selectedWeeks)
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-customOrange"
+            }`}
+            disabled={
+              isLoading || (checkoutMode === "stockpile" && !selectedWeeks)
+            }
+          >
+            {isLoading ? (
+              <RotatingLines
+                strokeColor="white"
+                strokeWidth="5"
+                animationDuration="0.75"
+                width="24"
+                visible={true}
+              />
+            ) : (
+              "Proceed to Pay"
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

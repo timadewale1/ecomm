@@ -8,9 +8,11 @@ import {
   query,
   where,
   getDocs,
+  onSnapshot,
   doc,
   getDoc,
   updateDoc,
+  Timestamp,
   limit,
   documentId,
 } from "firebase/firestore";
@@ -24,10 +26,12 @@ import {
   MdOutlineAddToPhotos,
   MdPendingActions,
 } from "react-icons/md";
+import { FaMoneyBillTransfer } from "react-icons/fa6";
 import moment from "moment";
 import { TbTruckDelivery } from "react-icons/tb";
+import { enrichWithProductInfo } from "../../services/enrichWithProductInfo";
 import { FaTimes } from "react-icons/fa";
-import { IoTimeOutline } from "react-icons/io5";
+import { IoCopyOutline, IoTimeOutline } from "react-icons/io5";
 import { MdOutlinePendingActions } from "react-icons/md";
 // import { GoChevronLeft } from "react-icons/go";
 import { useDispatch } from "react-redux";
@@ -52,6 +56,7 @@ import {
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../../firebase.config";
 import { clearCart } from "../../redux/actions/action";
+import { RiShareForwardBoxLine } from "react-icons/ri";
 const ConfirmShippingModal = ({ isOpen, onClose, onConfirm }) => {
   if (!isOpen) return null;
 
@@ -84,6 +89,86 @@ const ConfirmShippingModal = ({ isOpen, onClose, onConfirm }) => {
     </div>
   );
 };
+const Countdown = ({ expiresAtMs }) => {
+  const [text, setText] = useState("");
+
+  useEffect(() => {
+    const update = () => {
+      const diff = expiresAtMs - Date.now();
+      if (diff <= 0) {
+        setText("Expired");
+      } else {
+        const mins = String(Math.floor(diff / 60000)).padStart(2, "0");
+        const secs = String(Math.floor((diff % 60000) / 1000)).padStart(2, "0");
+        setText(`${mins}:${secs}`);
+      }
+    };
+
+    update(); // initialize immediately
+    const iv = setInterval(update, 500);
+    return () => clearInterval(iv);
+  }, [expiresAtMs]);
+
+  return <>{text}</>;
+};
+const LinkShareModal = ({
+  isOpen,
+  shareUrl,
+  countdown,
+  expiresAt,
+  onClose,
+}) => {
+  if (!isOpen) return null;
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-lg p-4 w-[90%] max-w-sm"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center  space-x-2 mb-4">
+          <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
+            <RiShareForwardBoxLine className="text-customRichBrown" />
+          </div>
+          <h2 className="font-opensans text-base font-semibold">
+            Link is ready to share!
+          </h2>
+
+          <MdClose className="-top-1 left-4 relative" onClick={onClose} />
+        </div>
+
+        {expiresAt && (
+          <p className="text-sm font-opensans mb-2 text-gray-900">
+            Expires in{" "}
+            <span className="text-customOrange font-bold">
+              <Countdown expiresAtMs={expiresAt.getTime()} />
+            </span>
+          </p>
+        )}
+
+        <p className="text-xs mb-4 font-opensans text-gray-900">
+          We’re holding this order for you! As soon as we receive your payment,
+          we’ll send you a confirmation email and the vendor will start
+          processing it. Please note that this order hasn’t been finalized yet.
+        </p>
+
+        <div className="flex items-center border border-customRichBrown rounded-md mt-8 px-3 py-2">
+          <p className="truncate w-full font-opensans text-sm">{shareUrl}</p>
+          <IoCopyOutline
+            className="ml-2 text-lg text-gray-600 cursor-pointer hover:text-gray-800"
+            onClick={() => {
+              navigator.clipboard.writeText(shareUrl);
+              toast.success("Copied!");
+            }}
+            title="Copy link"
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const OrdersCentre = () => {
   const navigate = useNavigate();
@@ -91,6 +176,8 @@ const OrdersCentre = () => {
   const [vendors, setVendors] = useState({});
   const [activeTab, setActiveTab] = useState("All");
   const [userId, setUserId] = useState(null);
+  const [draftOrders, setDraftOrders] = useState([]);
+  const [allOrders, setAll] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null); // Selected order for modal
@@ -106,6 +193,11 @@ const OrdersCentre = () => {
   const [showOrderPlacedModal, setShowOrderPlacedModal] = useState(false);
   const [orderForPopup, setOrderForPopup] = useState(null); // The order that triggers the popup
   const [isRequestingShipping, setIsRequestingShipping] = useState(false);
+  const [shareUrl, setShareUrl] = useState(null);
+  const [expiresAt, setExpiresAt] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+
+  const countdown = expiresAt ? Math.max(0, expiresAt - Date.now()) : 0; // you can transform to “mm:ss” later if you like
 
   const location = useLocation();
   const { currentUser } = useAuth();
@@ -114,8 +206,15 @@ const OrdersCentre = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
   });
+  useEffect(() => {
+    if (!location.state?.draftShareUrl) return;
+    setShareUrl(location.state.draftShareUrl);
+    setExpiresAt(new Date(location.state.draftExpires));
+    setShowShareModal(true);
+    // clean out the history state, so refresh doesn’t open it again
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location]);
 
-  // Inside your useEffect where you fetch orders
   useEffect(() => {
     if (!userId || ordersFetched.current) return;
 
@@ -298,7 +397,6 @@ const OrdersCentre = () => {
 
         console.log("🧾 Final grouped orders:", finalOrders);
         setOrders(finalOrders);
-        
       } catch (error) {
         console.error("Error fetching orders and products:", error);
       } finally {
@@ -374,6 +472,47 @@ const OrdersCentre = () => {
       setIsRequestingShipping(false);
     }
   };
+
+  useEffect(() => {
+    if (!userId) return;
+    const now = Timestamp.fromDate(new Date());
+    const draftQ = query(
+      collection(db, "draftOrders"),
+      where("ownerId", "==", userId),
+      where("status", "==", "PAY_IN_PROGRESS"),
+      where("expiresAt", ">", now)
+    );
+
+    const unsub = onSnapshot(draftQ, async (snap) => {
+      // 1) build your raw drafts array
+      const rawDrafts = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        _isDraft: true,
+        progressStatus: "Awaiting Payment",
+      }));
+
+      // 2) enrich with product info exactly like we do for real orders
+      const filledDrafts = await enrichWithProductInfo(rawDrafts);
+
+      // 3) finally update state
+      setDraftOrders(filledDrafts);
+    });
+
+    return unsub;
+  }, [userId]);
+
+  useEffect(() => {
+    // naive merge; if an id clashes the "real" order wins
+    const merged = [...draftOrders, ...orders].sort(
+      (a, b) =>
+        (b.createdAt?.seconds || b.createdAt) -
+        (a.createdAt?.seconds || a.createdAt)
+    );
+
+    setAll(merged);
+  }, [orders, draftOrders]);
+
   useEffect(() => {
     if (orders.length > 0) {
       const newOrder = orders.find((order) => order.showPopup === true);
@@ -487,43 +626,44 @@ const OrdersCentre = () => {
   }
 
   const filterOrdersByStatus = (status) => {
-    if (status === "All") return orders;
+    if (status === "All") return allOrders;
     if (status === "Stockpile")
-      return orders.filter((order) => order.isStockpile);
+      return allOrders.filter((order) => order.isStockpile);
 
     // Check for Pending filter
     if (status === "Pending") {
-      return orders.filter(
-        (order) =>
-          order.isStockpile
-            ? order.firstOrderStatus === "Pending" // For stockpile use first order status
-            : order.progressStatus === "Pending" // For normal orders
+      return allOrders.filter((order) =>
+        order._isDraft
+          ? true // show every draft in “Pending”
+          : order.isStockpile
+          ? order.firstOrderStatus === "Pending"
+          : order.progressStatus === "Pending"
       );
     }
 
     if (status === "Processing")
-      return orders.filter((order) =>
+      return allOrders.filter((order) =>
         order.isStockpile
           ? order.firstOrderStatus === "In Progress"
           : order.progressStatus === "In Progress"
       );
 
     if (status === "Delivered")
-      return orders.filter((order) =>
+      return allOrders.filter((order) =>
         order.isStockpile
           ? order.firstOrderStatus === "Delivered"
           : order.progressStatus === "Delivered"
       );
 
     if (status === "Shipped")
-      return orders.filter((order) =>
+      return allOrders.filter((order) =>
         order.isStockpile
           ? order.firstOrderStatus === "Shipped"
           : order.progressStatus === "Shipped"
       );
 
     if (status === "Declined")
-      return orders.filter((order) =>
+      return allOrders.filter((order) =>
         order.isStockpile
           ? order.firstOrderStatus === "Declined"
           : order.progressStatus === "Declined"
@@ -561,6 +701,14 @@ const OrdersCentre = () => {
         url={`https://www.shopmythrift.store/user-orders`}
       />
       <ScrollToTop />
+      <LinkShareModal
+        isOpen={showShareModal}
+        shareUrl={shareUrl}
+        countdown={countdown}
+        expiresAt={expiresAt}
+        onClose={() => setShowShareModal(false)}
+      />
+
       {showOrderPlacedModal && orderForPopup && (
         <OrderPlacedModal
           showPopup={showOrderPlacedModal}
@@ -656,7 +804,13 @@ const OrdersCentre = () => {
 
               return (
                 <div key={order.id} className="px-3 py-2">
-                  <div className="bg-white shadow-lg px-3 py-4 rounded-lg">
+                  <div
+                    className={`shadow-lg px-3 py-4 rounded-lg ${
+                      order._isDraft
+                        ? "bg-gray-50 border border-dashed border-gray-300 opacity-75"
+                        : "bg-white"
+                    }`}
+                  >
                     <div className="flex justify-between  items-start mb-2">
                       <div className="flex flex-col">
                         <div className="flex items-center space-x-2">
@@ -726,6 +880,13 @@ const OrdersCentre = () => {
                                     In Progress
                                   </span>
                                 </>
+                              ) : order._isDraft ? (
+                                <>
+                                  <FaMoneyBillTransfer className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
+                                  <span className="text-sm text-black font-semibold font-opensans">
+                                    Awaiting Payment
+                                  </span>
+                                </>
                               ) : order.progressStatus === "Pending" ? (
                                 <>
                                   <MdPendingActions className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
@@ -748,15 +909,29 @@ const OrdersCentre = () => {
                             </>
                           )}
                         </div>
-
-                        <div className="ml-9">
-                          <span className="text-xs text-gray-700 font-opensans">
-                            {order.createdAt
-                              ? moment(order.createdAt.seconds * 1000).format(
-                                  "HH:mm, DD/MM/YYYY"
-                                )
-                              : "Date not available"}
-                          </span>
+                        <div className="ml-9 -translate-y-1">
+                          {order._isDraft ? (
+                            // DRAFT: show only the countdown
+                            order.expiresAt && (
+                              <p className="text-xs text-gray-700 font-opensans">
+                                This order will expire in{" "}
+                                <span className="text-xs text-red-500 font-semibold font-opensans">
+                                  <Countdown
+                                    expiresAtMs={order.expiresAt
+                                      .toDate()
+                                      .getTime()}
+                                  />
+                                </span>
+                              </p>
+                            )
+                          ) : (
+                            // REAL ORDER: show placed-at timestamp
+                            <span className="text-xs text-gray-700 font-opensans">
+                              {moment(order.createdAt.seconds * 1000).format(
+                                "HH:mm, DD/MM/YYYY"
+                              )}
+                            </span>
+                          )}
                         </div>
 
                         {/* Aligning date under the order status */}
@@ -821,9 +996,7 @@ const OrdersCentre = () => {
                       }
                       isStockpile={order.isStockpile}
                     />
-
                     <div className="border-t border-gray-300 my-2"></div>
-
                     {order.cartItems ? (
                       order.cartItems.map((item, index) => {
                         const itemOrder = item._orderId
@@ -894,21 +1067,37 @@ const OrdersCentre = () => {
                         No products found in this order.
                       </p>
                     )}
-
                     <div className="mt-2">
-                      <div className="flex justify-end">
-                        <span className="text-sm font-opensans font-normal">
-                          Order Total:
-                        </span>
-                        <span className="text-sm font-opensans font-semibold ml-1">
-                          ₦{" "}
-                          {order.isStockpile && order.combinedTotal
-                            ? Number(order.combinedTotal).toLocaleString()
-                            : order.total
-                            ? Number(order.total).toLocaleString()
-                            : "0"}
-                        </span>
-                      </div>
+                      {order._isDraft ? (
+                        <div className="mt-2 flex justify-end">
+                          <button
+                            onClick={() => {
+                              const link = `${window.location.origin}/pay/${order.id}`;
+                              navigator.clipboard.writeText(link);
+                              toast.success("Link copied!");
+                            }}
+                            className="px-2 py-1.5 bg-customOrange text-white rounded-md text-xs font-opensans"
+                          >
+                            Copy Payment Link
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="mt-2">
+                          <div className="flex justify-end">
+                            <span className="text-sm font-opensans font-normal">
+                              Order Total:
+                            </span>
+                            <span className="text-sm font-opensans font-semibold ml-1">
+                              ₦{" "}
+                              {order.isStockpile && order.combinedTotal
+                                ? Number(order.combinedTotal).toLocaleString()
+                                : order.total
+                                ? Number(order.total).toLocaleString()
+                                : "0"}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -944,7 +1133,12 @@ const OrdersCentre = () => {
                         <span className="text-sm font-medium">
                           {selectedOrder.isStockpile
                             ? `(${selectedOrder.stockpileDocId})`
-                            : `(${selectedOrder.id})`}
+                            : `(${
+                                selectedOrder._isDraft
+                                  ? `${selectedOrder.id.slice(0, 5)}…`
+                                  : selectedOrder.id
+                              }
+                            )`}
                         </span>
                       </h2>
                     </div>
@@ -1096,9 +1290,10 @@ const OrdersCentre = () => {
                     {[
                       {
                         label: "Order ID:",
-                        value:
-                          selectedOrder.cartItems[activeProductIndex]
-                            ._orderId || selectedOrder.id,
+                        value: selectedOrder._isDraft
+                          ? `${selectedOrder.id.slice(0, 5)}…`
+                          : selectedOrder.cartItems[activeProductIndex]
+                              ._orderId || selectedOrder.id,
                       },
                       {
                         label: "Time Placed:",
@@ -1249,45 +1444,75 @@ const OrdersCentre = () => {
                     </div>
                     <div className="border-b mb-2"></div>
 
-                    {[
-                      {
-                        label: "Subtotal:",
-                        value: `₦${
-                          selectedOrder.isStockpile
-                            ? Number(
-                                selectedOrder.combinedSubtotal || 0
-                              ).toLocaleString()
-                            : Number(
-                                selectedOrder.subtotal || 0
-                              ).toLocaleString()
-                        }`,
-                      },
-                      {
-                        label: selectedOrder.isStockpile
-                          ? "Buyers Protection Fee:"
-                          : "Service Fee:",
-                        value: `₦${
-                          selectedOrder.isStockpile
-                            ? Number(
-                                selectedOrder.firstOrderServiceFee || 0
-                              ).toLocaleString()
-                            : Number(
-                                selectedOrder.serviceFee || 0
-                              ).toLocaleString()
-                        }`,
-                      },
-                      {
-                        label: "Order Total:",
-                        value: `₦${
-                          selectedOrder.isStockpile
-                            ? Number(
-                                selectedOrder.combinedTotal || 0
-                              ).toLocaleString()
-                            : Number(selectedOrder.total || 0).toLocaleString()
-                        }`,
-                      },
-                    ].map(({ label, value }, index) => (
-                      <React.Fragment key={index}>
+                    {(selectedOrder._isDraft
+                      ? [
+                          {
+                            label: "Order Total:",
+                            value: `₦${Number(
+                              selectedOrder.amount || 0
+                            ).toLocaleString()}`,
+                          },
+                        ]
+                      : (() => {
+                          // build up the summary rows for a “real” order
+                          const rows = [
+                            {
+                              label: "Subtotal:",
+                              value: `₦${
+                                selectedOrder.isStockpile
+                                  ? Number(
+                                      selectedOrder.combinedSubtotal || 0
+                                    ).toLocaleString()
+                                  : Number(
+                                      selectedOrder.subtotal || 0
+                                    ).toLocaleString()
+                              }`,
+                            },
+                          ];
+                          // insert delivery fee if present (and not stockpile)
+                          if (
+                            !selectedOrder.isStockpile &&
+                            selectedOrder.deliveryFee != null
+                          ) {
+                            rows.push({
+                              label: "Delivery Fee:",
+                              value: `₦${Number(
+                                selectedOrder.deliveryFee
+                              ).toLocaleString()}`,
+                            });
+                          }
+                          // service/buyer protection fee
+                          rows.push({
+                            label: selectedOrder.isStockpile
+                              ? "Buyers Protection Fee:"
+                              : "Service Fee:",
+                            value: `₦${
+                              selectedOrder.isStockpile
+                                ? Number(
+                                    selectedOrder.firstOrderServiceFee || 0
+                                  ).toLocaleString()
+                                : Number(
+                                    selectedOrder.serviceFee || 0
+                                  ).toLocaleString()
+                            }`,
+                          });
+                          // final total
+                          rows.push({
+                            label: "Order Total:",
+                            value: `₦${
+                              selectedOrder.isStockpile
+                                ? Number(
+                                    selectedOrder.combinedTotal || 0
+                                  ).toLocaleString()
+                                : Number(
+                                    selectedOrder.total || 0
+                                  ).toLocaleString()
+                            }`,
+                          });
+                          return rows;
+                        })()
+                    ).map(({ label, value }, idx, arr) => (
+                      <React.Fragment key={idx}>
                         <div className="flex justify-between items-center my-2">
                           <p className="text-sm font-opensans text-black font-semibold w-1/2">
                             {label}
@@ -1296,7 +1521,10 @@ const OrdersCentre = () => {
                             {value}
                           </p>
                         </div>
-                        {index < 2 && <div className="border-b my-2"></div>}
+                        {/* draw a separator under every row except the last */}
+                        {idx < arr.length - 1 && (
+                          <div className="border-b my-2"></div>
+                        )}
                       </React.Fragment>
                     ))}
                   </div>

@@ -55,6 +55,7 @@ export default {
         },
       animation: {
         'modal-slide-up': 'modal-slide-up 4s ease-out',
+        
       },
     },
   },

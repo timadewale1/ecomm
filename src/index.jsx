@@ -19,7 +19,7 @@ import { AuthProvider } from "./custom-hooks/useAuth";
 
 createRoot(document.getElementById('root')).render(
   <HelmetProvider>
-   {/* <StrictMode>  */}
+   <StrictMode> 
     <BrowserRouter>
       <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
@@ -48,6 +48,6 @@ createRoot(document.getElementById('root')).render(
       </PersistGate>
       </Provider>
     </BrowserRouter>
-  {/* </StrictMode> */}
+  </StrictMode>
   </HelmetProvider> 
 );

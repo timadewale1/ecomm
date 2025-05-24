@@ -16,7 +16,7 @@ import VendorProducts from "../pages/VendorCompleteProfile/VendorProducts.jsx";
 import VendorProfile from "../pages/VendorCompleteProfile/VendorProfile.jsx";
 import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
 import MarketStorePage from "../pages/MarketStorePage.jsx";
-
+import PayPage from "../pages/UserSide/PayPage.jsx";
 import Marketpg from "../pages/Marketpg.jsx";
 import ResetPassword from "../pages/UserSide/ResetPassword.jsx";
 import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfile.jsx";
@@ -59,7 +59,7 @@ const Routers = () => {
       <Route path="/" element={<ConfirmUserState />} />
 
       {/* Public Routes */}
-
+      <Route path="/pay/:token" element={<PayPage />} />
       <Route path="/confirm-state" element={<ConfirmUserState />} />
       <Route path="product/:id" element={<ProductDetailPage />} />
       <Route path="signup" element={<Signup />} />

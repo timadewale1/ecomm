@@ -71,6 +71,16 @@ a {
 img {
   width: 100px;
 }
+/* 1) Prevent Safari from inflating text on rotate/zoom */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* 2) Make all text inputs at least 16px so Safari won’t auto-zoom on focus */
+input,
+textarea {
+  font-size: 16px;
+}
 
 /* section {
   padding: 60px 0;

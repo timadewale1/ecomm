@@ -69,6 +69,7 @@ const Layout = () => {
     "/store/:id",
     "/payment-approve/:reference",
     "category/:id",
+    "/pay/:token",
     "marketstorepage/:id",
     "/newcheckout/:vendorId",
   ];

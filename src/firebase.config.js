@@ -1,6 +1,11 @@
+// firebase.config.js
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
+import {
+  initializeFirestore,
+  enableIndexedDbPersistence,
+  CACHE_SIZE_UNLIMITED,
+} from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
 import { getFunctions } from "firebase/functions";
@@ -21,32 +26,40 @@ const firebaseConfig = {
 
 // 2) Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// 3) App Check
 if (import.meta.env.VITE_FIREBASE_DEBUG_TOKEN) {
   window.FIREBASE_APPCHECK_DEBUG_TOKEN = import.meta.env.VITE_FIREBASE_DEBUG_TOKEN;
 }
-
-// 3) Initialize App Check with reCAPTCHA Enterprise provider for production
 initializeAppCheck(app, {
   provider: new ReCaptchaEnterpriseProvider(
     import.meta.env.VITE_RECAPTCHA_ENTERPRISE_KEY
   ),
-  isTokenAutoRefreshEnabled: true, // Automatically refresh App Check tokens
+  isTokenAutoRefreshEnabled: true,
 });
 console.log("App Check initialized with production reCAPTCHA Enterprise.");
 
-// 4) Initialize other Firebase services
+// 4) Auth + local persistence
 export const auth = getAuth(app);
-console.log("Auth initialized.");
+setPersistence(auth, browserLocalPersistence).catch(err =>
+  console.error("Auth persistence failed:", err)
+);
+console.log("Auth initialized with local persistence.");
 
-export const db = getFirestore(app);
-console.log("Firestore initialized.");
+// 5) Firestore + IndexedDB cache
+export const db = initializeFirestore(app, {
+  cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+});
+enableIndexedDbPersistence(db).catch(() => {
+  /* multi-tab or unsupported; ignore */
+});
+console.log("Firestore initialized with IndexedDB persistence.");
 
+// 6) The rest
 export const storage = getStorage(app);
 console.log("Storage initialized.");
-
 export const messaging = getMessaging(app);
 console.log("Messaging initialized.");
-
 export const functions = getFunctions(app);
 console.log("Functions initialized.");
 

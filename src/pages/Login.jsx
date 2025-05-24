@@ -287,10 +287,11 @@ const Login = () => {
       const localCart = JSON.parse(localStorage.getItem("cart")) || {};
       await fetchCartFromFirestore(user.uid, localCart);
       localStorage.removeItem("cart");
-      
-      // Done
+
+     
+      const redirectTo = location.state?.from || "/newhome";
       toast.success(`Welcome back ${user.displayName}!`);
-      navigate("/newhome");
+      navigate(redirectTo, { replace: true });
     } catch (error) {
       setLoading(false);
       console.error("Google Sign-In Error:", error);

@@ -77,10 +77,7 @@ html {
 }
 
 /* 2) Make all text inputs at least 16px so Safari won’t auto-zoom on focus */
-input,
-textarea {
-  font-size: 16px;
-}
+
 
 /* section {
   padding: 60px 0;

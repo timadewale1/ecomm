@@ -224,7 +224,7 @@ const VendorSignup = () => {
                       placeholder="First Name"
                       value={vendorData.firstName}
                       onChange={handleInputChange}
-                      className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
+                      className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-base focus:outline-none focus:ring-2 focus:ring-customOrange"
                       required
                     />
                   </FormGroup>
@@ -238,7 +238,7 @@ const VendorSignup = () => {
                       placeholder="Last Name"
                       value={vendorData.lastName}
                       onChange={handleInputChange}
-                      className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
+                      className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-base focus:outline-none focus:ring-2 focus:ring-customOrange"
                       required
                     />
                   </FormGroup>
@@ -252,7 +252,7 @@ const VendorSignup = () => {
                       placeholder="Email"
                       value={vendorData.email}
                       onChange={handleInputChange}
-                      className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
+                      className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-base focus:outline-none focus:ring-2 focus:ring-customOrange"
                       required
                     />
                   </FormGroup>
@@ -284,7 +284,7 @@ const VendorSignup = () => {
                       placeholder="Password"
                       value={vendorData.password}
                       onChange={handleInputChange}
-                      className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
+                      className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-base focus:outline-none focus:ring-2 focus:ring-customOrange"
                       required
                       onFocus={() => setShowPasswordCriteria(true)}
                       onBlur={() => setShowPasswordCriteria(false)}
@@ -354,7 +354,7 @@ const VendorSignup = () => {
                       placeholder="Confirm Password"
                       value={vendorData.confirmPassword}
                       onChange={handleInputChange}
-                      className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-customOrange"
+                      className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-base focus:outline-none focus:ring-2 focus:ring-customOrange"
                       required
                     />
                     <motion.button

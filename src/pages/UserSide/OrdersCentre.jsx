@@ -807,7 +807,7 @@ const OrdersCentre = () => {
                   <div
                     className={`shadow-lg px-3 py-4 rounded-lg ${
                       order._isDraft
-                        ? "bg-gray-50 border border-dashed border-gray-300 opacity-75"
+                        ? "bg-gray-50 border border-dashed border-gray-300 "
                         : "bg-white"
                     }`}
                   >
@@ -828,6 +828,13 @@ const OrdersCentre = () => {
                                   <FaTimes className="text-white bg-gray-200 h-7 w-7 rounded-full p-1 text-lg" />
                                   <span className="text-sm text-black font-semibold font-opensans">
                                     Cancelled
+                                  </span>
+                                </>
+                              ) : order._isDraft ? (
+                                <>
+                                  <FaMoneyBillTransfer className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
+                                  <span className="text-sm text-black font-semibold font-opensans">
+                                    Awaiting Payment
                                   </span>
                                 </>
                               ) : order.firstOrderStatus === "In Progress" ? (
@@ -964,7 +971,8 @@ const OrdersCentre = () => {
                             );
                           } else {
                             // Check if the stockpile is inactive:
-                            const repileDisabled = order.isActive === false;
+                            const repileDisabled =
+                              order.isActive === false || order._isDraft;
                             return (
                               <TbBasketPlus
                                 className={`text-2xl ${
@@ -1076,7 +1084,7 @@ const OrdersCentre = () => {
                               navigator.clipboard.writeText(link);
                               toast.success("Link copied!");
                             }}
-                            className="px-2 py-1.5 bg-customOrange text-white rounded-md text-xs font-opensans"
+                            className="px-2 py-1.5 z-50 bg-customOrange text-white rounded-md text-xs font-opensans"
                           >
                             Copy Payment Link
                           </button>
@@ -1132,13 +1140,16 @@ const OrdersCentre = () => {
                         Order{" "}
                         <span className="text-sm font-medium">
                           {selectedOrder.isStockpile
-                            ? `(${selectedOrder.stockpileDocId})`
-                            : `(${
-                                selectedOrder._isDraft
-                                  ? `${selectedOrder.id.slice(0, 5)}…`
-                                  : selectedOrder.id
-                              }
-                            )`}
+                            ? selectedOrder._isDraft
+                              ? // draft stockpile → show the draft’s own ID
+                                `(${selectedOrder.id.slice(0, 5)}…)`
+                              : // real stockpile → show the stockpileDocId
+                                `(${selectedOrder.stockpileDocId})`
+                            : selectedOrder._isDraft
+                            ? // non-stockpile draft
+                              `(${selectedOrder.id.slice(0, 5)}…)`
+                            : // fully placed, non-stockpile
+                              `(${selectedOrder.id})`}
                         </span>
                       </h2>
                     </div>
@@ -1537,7 +1548,8 @@ const OrdersCentre = () => {
                         isFirstDeclined ||
                         isRequestingShipping ||
                         selectedOrder?.requestedForShipping ||
-                        selectedOrder?.isActive === false
+                        selectedOrder?.isActive === false ||
+                        selectedOrder._isDraft
                       }
                       onClick={() => {
                         if (isFirstPending) {
@@ -1554,6 +1566,7 @@ const OrdersCentre = () => {
                       className={`font-opensans px-2 text-xs rounded-md w-full border ${
                         isFirstDeclined ||
                         isFirstPending ||
+                        selectedOrder._isDraft ||
                         isRequestingShipping ||
                         selectedOrder?.requestedForShipping ||
                         selectedOrder?.isActive === false
@@ -1571,6 +1584,7 @@ const OrdersCentre = () => {
                     <button
                       disabled={
                         isFirstPending ||
+                        selectedOrder._isDraft ||
                         isFirstDeclined ||
                         selectedOrder?.isActive === false
                       }
@@ -1592,6 +1606,7 @@ const OrdersCentre = () => {
                       className={`text-sm font-opensans px-4 py-2 rounded-md w-full ${
                         isFirstDeclined ||
                         isFirstPending ||
+                        selectedOrder._isDraft ||
                         selectedOrder?.isActive === false
                           ? "bg-gray-300 text-white cursor-not-allowed"
                           : "bg-customOrange text-xs font-medium text-white"

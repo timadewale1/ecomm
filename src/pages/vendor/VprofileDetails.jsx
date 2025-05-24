@@ -13,7 +13,7 @@ import { doc, getDoc } from "firebase/firestore";
 import Loading from "../../components/Loading/Loading";
 import { BsBank2 } from "react-icons/bs";
 import { BiSolidCategoryAlt } from "react-icons/bi";
-import { CiClock1, CiClock2 } from "react-icons/ci";
+import { CiClock1, CiClock2, CiLocationOn } from "react-icons/ci";
 import { FaBuilding, FaRegCalendarAlt, FaShippingFast } from "react-icons/fa";
 import { MdEdit } from "react-icons/md";
 import EditFieldModal from "./EditFieldModal"; // Import the modal component
@@ -73,6 +73,9 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
     email = "",
     bankDetails = {},
     categories = [],
+    Address = "",
+    location = { lat: null, lng: null },
+
     complexNumber = "",
     description = "",
     marketPlaceType = "",
@@ -86,7 +89,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
   const categoriesList = categories.map((category) => category).join(", ");
   const daysAvailabilityList = daysAvailability.map((day) => day).join(", ");
 
-  const handleEdit = async (field, value) => {
+  const handleEdit = async (field, value, coords) => {
     if (!currentUser) {
       toast.error("User not authenticated");
       return;
@@ -95,11 +98,34 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
     try {
       const vendorDocRef = doc(db, "vendors", currentUser.uid);
 
-      // Update the specified field in Firestore
-      await updateDoc(vendorDocRef, { [field]: value });
+      let updateObj;
+      let newProfile;
 
-      // Update Redux state to reflect the changes
-      dispatch(setVendorProfile({ ...userData, [field]: value }));
+      if (field === "Address" && coords) {
+        // update both the string and the coords
+        updateObj = {
+          Address: value,
+          location: {
+            lat: coords.lat,
+            lng: coords.lng,
+          },
+        };
+        newProfile = {
+          ...userData,
+          Address: value,
+          location: { lat: coords.lat, lng: coords.lng },
+        };
+      } else {
+        // every other field
+        updateObj = { [field]: value };
+        newProfile = { ...userData, [field]: value };
+      }
+
+      // write to Firestore
+      await updateDoc(vendorDocRef, updateObj);
+
+      // update Redux once
+      dispatch(setVendorProfile(newProfile));
 
       toast.success(`${field} updated successfully!`, {
         className: "custom-toast",
@@ -149,7 +175,6 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                   firstName && lastName ? "text-green-500" : "text-yellow-500"
                 } text-2xl ml-2`}
               />
-             
             </div>
           </div>
 
@@ -189,7 +214,19 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               />
             </div>
           </div>
-
+          <div className="flex flex-col bg-customGrey rounded mb-2 w-full">
+            <h1 className="text-xs text-gray-500 pl-6 pt-2">Address</h1>
+            <div className="flex items-center justify-between px-4 py-3">
+              <CiLocationOn className="text-xl mr-4" />
+              <p className="flex-1">{Address || "Not set"}</p>
+              <RiEditFill
+                className="text-2xl cursor-pointer"
+                onClick={() =>
+                  setEditingField({ field: "Address", value: Address })
+                }
+              />
+            </div>
+          </div>
           {/* Conditional Render for Marketplace */}
           {marketPlaceType === "marketplace" && (
             <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">

@@ -1084,7 +1084,7 @@ const OrdersCentre = () => {
                               navigator.clipboard.writeText(link);
                               toast.success("Link copied!");
                             }}
-                            className="px-2 py-1.5 z-50 bg-customOrange text-white rounded-md text-xs font-opensans"
+                            className="px-2 py-1.5  bg-customOrange text-white rounded-md text-xs font-opensans"
                           >
                             Copy Payment Link
                           </button>

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Lottie from "lottie-react";
 import LoadState from "../../Animations/loadinganimation.json";
+import LocationPicker from "../../components/Location/LocationPicker";
 
 const DAYS_OF_WEEK = [
   { label: "Monday", value: "Monday" },
@@ -18,95 +19,139 @@ const PREDEFINED_OPTIONS = [
   { label: "Only Weekends", value: "Only Weekends" },
 ];
 
-const EditFieldModal = ({ show, handleClose, field, currentValue, processing, onSave }) => {
+const EditFieldModal = ({
+  show,
+  handleClose,
+  field,
+  currentValue,
+  processing,
+  onSave,
+}) => {
+  // Local state for the edited value
   const [value, setValue] = useState(currentValue);
+  // For Address, capture lat/lng
+  const [locationCoords, setLocationCoords] = useState({
+    lat: null,
+    lng: null,
+  });
 
+  // Whenever the modal opens (show=true) or the field changes, reset local state
   useEffect(() => {
-    setValue(currentValue); // Reset value when modal opens
-  }, [currentValue]);
-
-  const handleSave = () => {
-    if (field === "daysAvailability" && value.length === 0) {
-      alert("Please select at least one day.");
-      return;
+    setValue(currentValue);
+    if (field === "Address") {
+      // clear coords when re-opening Address
+      setLocationCoords({ lat: null, lng: null });
     }
-    onSave(field, value);
+  }, [currentValue, field]);
+
+  // Save handler: validation per field, then call onSave
+  const handleSave = () => {
+    if (field === "daysAvailability") {
+      if (!Array.isArray(value) || value.length === 0) {
+        alert("Please select at least one day.");
+        return;
+      }
+    }
+    if (field === "Address") {
+      // require lat & lng
+      if (!locationCoords.lat || !locationCoords.lng) {
+        alert("Please pick a location on the map.");
+        return;
+      }
+      // Address needs the string + coords
+      onSave(field, value, locationCoords);
+    } else {
+      onSave(field, value);
+    }
     handleClose();
   };
 
+  // Build the list of time options every :00 and :30
   const timeOptions = Array.from({ length: 24 }, (_, hour) => {
-    const formattedHour = hour < 10 ? `0${hour}` : hour;
-    return [`${formattedHour}:00`, `${formattedHour}:30`];
+    const h = hour < 10 ? `0${hour}` : hour;
+    return [`${h}:00`, `${h}:30`];
   }).flat();
 
-  const handlePredefinedSelection = (option) => {
-    if (option === "All Days") {
-      setValue(DAYS_OF_WEEK.map((day) => day.value));
-    } else if (option === "Only Weekdays") {
+  // Predefined day-sets
+  const handlePredefinedSelection = (opt) => {
+    if (opt === "All Days") {
+      setValue(DAYS_OF_WEEK.map((d) => d.value));
+    } else if (opt === "Only Weekdays") {
       setValue(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
-    } else if (option === "Only Weekends") {
+    } else {
       setValue(["Saturday", "Sunday"]);
     }
   };
 
-  const handleDayToggle = (day) => {
+  // Toggle a single day in daysAvailability
+  const handleDayToggle = (day) =>
     setValue((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
     );
-  };
 
+  // Depending on the field, render the appropriate input
   const renderInputField = () => {
+    // Time dropdowns
     if (field === "openTime" || field === "closeTime") {
       return (
         <select
-          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring focus:ring-customOrange"
           value={value}
           onChange={(e) => setValue(e.target.value)}
+          className="w-full px-3 py-2 border rounded-lg focus:ring-customOrange"
         >
-          {timeOptions.map((time) => (
-            <option key={time} value={time}>
-              {time}
+          {timeOptions.map((t) => (
+            <option key={t} value={t}>
+              {t}
             </option>
           ))}
         </select>
       );
     }
 
+    // Days of week multi-select
     if (field === "daysAvailability") {
       return (
         <>
           <div className="mb-4">
             <h6 className="font-medium mb-2">Predefined Options</h6>
-            {PREDEFINED_OPTIONS.map((option) => (
+            {PREDEFINED_OPTIONS.map((opt) => (
               <button
+                key={opt.value}
                 type="button"
-                key={option.value}
-                className={`px-2 py-2 rounded-lg text-xs font-medium mr-1 ${
-                  (option.value === "All Days" && value.length === 7) ||
-                  (option.value === "Only Weekdays" &&
+                className={`px-2 py-2 rounded-lg text-xs mr-1 ${
+                  (opt.value === "All Days" &&
+                    Array.isArray(value) &&
+                    value.length === 7) ||
+                  (opt.value === "Only Weekdays" &&
                     JSON.stringify(value) ===
-                      JSON.stringify(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"])) ||
-                  (option.value === "Only Weekends" &&
-                    JSON.stringify(value) === JSON.stringify(["Saturday", "Sunday"]))
+                      JSON.stringify([
+                        "Monday",
+                        "Tuesday",
+                        "Wednesday",
+                        "Thursday",
+                        "Friday",
+                      ])) ||
+                  (opt.value === "Only Weekends" &&
+                    JSON.stringify(value) ===
+                      JSON.stringify(["Saturday", "Sunday"]))
                     ? "bg-customOrange text-white"
                     : "bg-gray-200 text-black"
                 }`}
-                onClick={() => handlePredefinedSelection(option.value)}
+                onClick={() => handlePredefinedSelection(opt.value)}
               >
-                {option.label}
+                {opt.label}
               </button>
             ))}
           </div>
-
           <div>
             <h6 className="font-medium mb-2">Select Days</h6>
             <div className="grid grid-cols-3 gap-2">
               {DAYS_OF_WEEK.map((day) => (
                 <button
-                  type="button"
                   key={day.value}
-                  className={`px-3 py-2 rounded-lg text-xs font-medium ${
-                    value.includes(day.value)
+                  type="button"
+                  className={`px-3 py-2 rounded-lg text-xs ${
+                    Array.isArray(value) && value.includes(day.value)
                       ? "bg-customOrange text-white"
                       : "bg-gray-200 text-black"
                   }`}
@@ -121,16 +166,30 @@ const EditFieldModal = ({ show, handleClose, field, currentValue, processing, on
       );
     }
 
+    // Address uses your LocationPicker
+    if (field === "Address") {
+      return (
+        <LocationPicker
+          initialAddress={value}
+          onLocationSelect={({ address, lat, lng }) => {
+            setValue(address);
+            setLocationCoords({ lat, lng });
+          }}
+        />
+      );
+    }
+
+    // Fallback: free-form textarea
     return (
       <textarea
-        type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring focus:ring-customOrange"
+        className="w-full px-3 py-2 border rounded-lg focus:ring-customOrange"
       />
     );
   };
 
+  // Compute a friendly title to display
   const title =
     field === "openTime"
       ? "Opening Time"
@@ -140,40 +199,41 @@ const EditFieldModal = ({ show, handleClose, field, currentValue, processing, on
       ? "Days of Availability"
       : field === "complexNumber"
       ? "Complex Number"
+      : field === "Address"
+      ? "Address"
       : "Description";
 
   if (!show) return null;
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="relative bg-white rounded-lg shadow-lg w-11/12 max-w-md p-6">
-        <div className="mb-4">
-          <h3 className="text-lg font-bold">{`Edit ${title}`}</h3>
-        </div>
-        <div className="mb-4">
-          <form>
-            <label className="block mb-2 text-sm font-medium text-gray-700">{title}</label>
-            {renderInputField()}
-          </form>
-        </div>
-        <div className="flex justify-end gap-4">
+      <div className="bg-white rounded-lg shadow-lg w-11/12 max-w-md p-6">
+        <h3 className="text-lg font-bold mb-4">{`Edit ${title}`}</h3>
+        <label className="block mb-2 font-medium">{title}</label>
+        {renderInputField()}
+        <div className="flex justify-end gap-4 mt-6">
           <button
             onClick={handleClose}
-            className="bg-gray-200 text-black px-4 py-2 rounded-lg"
+            className="px-4 py-2 bg-gray-200 rounded-lg"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="bg-customOrange text-white px-4 py-2 rounded-lg"
+            disabled={
+              processing ||
+              (field === "Address" &&
+                (!locationCoords.lat || !locationCoords.lng))
+            }
+            className={`px-4 py-2 rounded-lg text-white flex items-center justify-center ${
+              processing ||
+              (field === "Address" &&
+                (!locationCoords.lat || !locationCoords.lng))
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-customOrange"
+            }`}
           >
             {processing ? (
-              <Lottie
-                className="w-4 h-4 text-white"
-                animationData={LoadState}
-                loop={true}
-                autoplay={true}
-              />
+              <Lottie className="w-6 h-6" animationData={LoadState} loop />
             ) : (
               "Save"
             )}

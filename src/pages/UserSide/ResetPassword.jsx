@@ -83,7 +83,7 @@ const ResetPassword = () => {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md border border-gray-300 text-xs focus:outline-none focus:ring-2 focus:ring-customOrange"
+                className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md border border-gray-300 text-base focus:outline-none focus:ring-2 focus:ring-customOrange"
                 placeholder="Enter new password"
                 required
               />
@@ -112,7 +112,7 @@ const ResetPassword = () => {
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md border border-gray-300 text-xs focus:outline-none focus:ring-2 focus:ring-customOrange"
+                className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md border border-gray-300 text-base focus:outline-none focus:ring-2 focus:ring-customOrange"
                 placeholder="Confirm new password"
                 required
               />

@@ -210,7 +210,7 @@ const VendorLogin = () => {
                       placeholder="Enter your email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full h-12 bg-white text-black font-opensans rounded-md text-sm border border-gray-200 pl-14 focus:outline-none focus:ring-2 focus:ring-customOrange"
+                      className="w-full h-12 bg-white text-black font-opensans rounded-md text-base border border-gray-200 pl-14 focus:outline-none focus:ring-2 focus:ring-customOrange"
                       required
                     />
                   </FormGroup>
@@ -223,7 +223,7 @@ const VendorLogin = () => {
                       placeholder="Enter your password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full h-12 bg-white text-black font-opensans rounded-md text-sm border border-gray-200 pl-14 focus:outline-none focus:ring-2 focus:ring-customOrange"
+                      className="w-full h-12 bg-white text-black font-opensans rounded-md text-base border border-gray-200 pl-14 focus:outline-none focus:ring-2 focus:ring-customOrange"
                       required
                     />
                     <div

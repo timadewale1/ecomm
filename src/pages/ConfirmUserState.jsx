@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCheck } from "react-icons/fa";
 import logo from "../Images/logo.png";
@@ -10,31 +10,37 @@ import SEO from "../components/Helmet/SEO";
 
 const ConfirmUserState = () => {
   const navigate = useNavigate();
-  const [selectedRole, setSelectedRole] = useState(null);
   const { currentUser, currentUserData, loading } = useAuth();
+  const [selectedRole, setSelectedRole] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleContinue = async () => {
-    if (selectedRole === "vendor") {
-      if (loading) {
-        setIsProcessing(true);
-        // Fallback timeout in case loading takes too long
-        setTimeout(() => {
-          if (currentUser && currentUserData?.role === "vendor") {
-            navigate("/vendordashboard");
-          } else {
-            navigate("/vendorlogin");
-          }
-          setIsProcessing(false);
-        }, 3000); // 3-second fallback
-        return;
-      }
-      if (currentUserData?.role === "vendor") {
-        navigate("/vendordashboard");
+  // As soon as we hit “Continue” we turn on the spinner
+  // and wait for loading → false, then navigate exactly once.
+  useEffect(() => {
+    if (isProcessing && !loading) {
+      if (currentUser && currentUserData?.role === "vendor") {
+        navigate("/vendordashboard", { replace: true });
+      } else if (selectedRole === "vendor") {
+        navigate("/vendorlogin", { replace: true });
       } else {
-        navigate("/vendorlogin");
+        navigate("/newhome", { replace: true });
       }
-    } else if (selectedRole === "customer") {
+      setIsProcessing(false);
+    }
+  }, [
+    isProcessing,
+    loading,
+    currentUser,
+    currentUserData,
+    navigate,
+    selectedRole,
+  ]);
+
+  const handleContinue = () => {
+    if (!selectedRole) return;
+    if (selectedRole === "vendor") {
+      setIsProcessing(true);
+    } else {
       navigate("/newhome");
     }
   };
@@ -65,16 +71,14 @@ const ConfirmUserState = () => {
             } cursor-pointer`}
             onClick={() => setSelectedRole("customer")}
           >
-            <div className="w-12 h-12 rounded-full bg-lighOrange flex-shrink-0 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-lighOrange flex items-center justify-center">
               <GiClothes className="text-lg text-customBrown" />
             </div>
-            <div className="flex items-center">
-              <div className="mt-2">
-                <h2 className="text-lg font-semibold text-black">Customer</h2>
-                <p className="text-gray-600">
-                  Find thrifted treasures from curated vendors!🧡
-                </p>
-              </div>
+            <div className="mt-2">
+              <h2 className="text-lg font-semibold text-black">Customer</h2>
+              <p className="text-gray-600">
+                Find thrifted treasures from curated vendors!🧡
+              </p>
             </div>
             {selectedRole === "customer" && (
               <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-customOrange flex items-center justify-center">
@@ -91,18 +95,16 @@ const ConfirmUserState = () => {
             } cursor-pointer`}
             onClick={() => setSelectedRole("vendor")}
           >
-            <div className="w-12 h-12 rounded-full bg-lighOrange flex-shrink-0 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-lighOrange flex items-center justify-center">
               <BsShop className="text-lg text-customBrown" />
             </div>
-            <div className="flex items-center">
-              <div className="mt-2">
-                <h2 className="text-lg font-semibold text-black">Vendor</h2>
-                <p className="text-gray-600 font-opensans text-base">
-                  Showcase your thrift finds on{" "}
-                  <span className="text-customOrange">My Thrift</span> and sell
-                  with ease.
-                </p>
-              </div>
+            <div className="mt-2">
+              <h2 className="text-lg font-semibold text-black">Vendor</h2>
+              <p className="text-gray-600 font-opensans text-base">
+                Showcase your thrift finds on{" "}
+                <span className="text-customOrange">My Thrift</span> and sell with
+                ease.
+              </p>
             </div>
             {selectedRole === "vendor" && (
               <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-customOrange flex items-center justify-center">
@@ -115,8 +117,10 @@ const ConfirmUserState = () => {
         <div className="fixed bottom-0 left-0 right-0 flex justify-center p-3">
           <button
             onClick={handleContinue}
-            className={`w-full h-14 text-white font-semibold justify-center items-center flex rounded-full ${
-              selectedRole
+            className={`w-full h-14 flex items-center justify-center rounded-full font-semibold text-white ${
+              isProcessing
+                ? "bg-customOrange"
+                : selectedRole
                 ? "bg-customOrange"
                 : "bg-gray-300 cursor-not-allowed"
             }`}

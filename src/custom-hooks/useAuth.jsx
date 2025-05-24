@@ -1,6 +1,7 @@
+// hooks/useAuth.js
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, getDocFromCache } from "firebase/firestore";
 import { auth, db } from "../firebase.config";
 import toast from "react-hot-toast";
 
@@ -18,83 +19,100 @@ const retryGetDoc = async (ref, retries = 3, delay = 1000) => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [currentUserData, setCurrentUserData] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => auth.currentUser);
+  const [currentUserData, setCurrentUserData] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("mythrift:userData"));
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [accountDeactivated, setAccountDeactivated] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setLoading(true); // Start loading
-      setAccountDeactivated(false); // Reset deactivated account status
+      setLoading(true);
+      setAccountDeactivated(false);
 
       if (user) {
+        // 1️⃣  Try cache first
+        const userRef = doc(db, "users", user.uid);
         try {
-          // Check if email is verified
-          if (!user.emailVerified) {
-            toast.error("Please verify your email to access the application.");
-            await signOut(auth); // Sign out the user immediately
-            setCurrentUser(null);
-            setCurrentUserData(null);
-            setLoading(false);
-            return;
+          const cacheSnap = await getDocFromCache(userRef);
+          if (cacheSnap.exists()) {
+            const data = { ...cacheSnap.data(), role: "user" };
+            setCurrentUserData(data);
+            localStorage.setItem("mythrift:userData", JSON.stringify(data));
           }
+        } catch {
+          // no cache yet
+        }
 
-          // Fetch user data
-          const userRef = doc(db, "users", user.uid);
+        // 2️⃣  Then network (with retry)
+        try {
           const userDoc = await retryGetDoc(userRef);
-
           if (userDoc && userDoc.exists()) {
             if (userDoc.data().isDeactivated) {
               await signOut(auth);
               setAccountDeactivated(true);
             } else {
+              const data = { ...userDoc.data(), role: "user" };
               setCurrentUser(user);
-              setCurrentUserData({ ...userDoc.data(), role: "user" });
+              setCurrentUserData(data);
+              localStorage.setItem("mythrift:userData", JSON.stringify(data));
+            }
+            setLoading(false);
+            return;
+          }
+        } catch {}
+
+        // 3️⃣  Not a normal user → check vendor
+        const vendorRef = doc(db, "vendors", user.uid);
+        try {
+          const cacheSnap = await getDocFromCache(vendorRef);
+          if (cacheSnap.exists()) {
+            const data = { ...cacheSnap.data(), role: "vendor" };
+            setCurrentUserData(data);
+            localStorage.setItem("mythrift:userData", JSON.stringify(data));
+          }
+        } catch {}
+
+        try {
+          const vendorDoc = await retryGetDoc(vendorRef);
+          if (vendorDoc && vendorDoc.exists()) {
+            if (vendorDoc.data().isDeactivated) {
+              await signOut(auth);
+              setAccountDeactivated(true);
+            } else {
+              const data = { ...vendorDoc.data(), role: "vendor" };
+              setCurrentUser(user);
+              setCurrentUserData(data);
+              localStorage.setItem("mythrift:userData", JSON.stringify(data));
             }
           } else {
-            const vendorRef = doc(db, "vendors", user.uid);
-            const vendorDoc = await retryGetDoc(vendorRef);
-
-            if (vendorDoc && vendorDoc.exists()) {
-              if (vendorDoc.data().isDeactivated) {
-                await signOut(auth);
-                setAccountDeactivated(true);
-              } else {
-                setCurrentUser(user);
-                setCurrentUserData({ ...vendorDoc.data(), role: "vendor" });
-              }
-            } else {
-              toast.error("Unauthorized access. Please contact support.");
-              await signOut(auth);
-            }
+            toast.error("Unauthorized access. Please contact support.");
+            await signOut(auth);
           }
-
-          // After setting currentUserData
-          setLoading(false);
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-          setLoading(false);
+        } catch (err) {
+          console.error("Error fetching vendor data:", err);
         }
+
+        setLoading(false);
       } else {
+        // signed out
         setCurrentUser(null);
         setCurrentUserData(null);
-        setLoading(false); // Stop loading
+        localStorage.removeItem("mythrift:userData");
+        setLoading(false);
       }
     });
 
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
-  const startOTPVerification = () => {
-    // If needed, you can set an OTP verification state here
-  };
-
-  const endOTPVerification = () => {
-    // If needed, you can clear the OTP verification state here
-  };
+  const startOTPVerification = () => {};
+  const endOTPVerification = () => {};
 
   return (
     <AuthContext.Provider

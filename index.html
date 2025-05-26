@@ -324,46 +324,7 @@
         if (loadingScreen) loadingScreen.style.display = "none";
       }, 5000);
 
-      function isIOSInAppWebView() {
-        const ua = navigator.userAgent || "";
-        const isIOS = /iPhone|iPad|iPod/.test(ua);
-        const isInApp = /Instagram|Snapchat/.test(ua);
-        return isIOS && isInApp;
-      }
-      setTimeout(() => {
-        if (isIOSInAppWebView()) {
-          const wrapper = document.createElement("div");
-          wrapper.style.cssText = `
-            opacity: 0;
-            transition: opacity 1s ease-in-out;
-            padding: 2rem;
-            font-family: sans-serif;
-            text-align: center;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: white;
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          `;
-          wrapper.innerHTML = `
-            <div>
-              <h2 style="margin-bottom: 1rem;">😵 Stuck on a blank page?</h2>
-              <p>Check your network and try again OR</p>
-              <p>Tap the "..." in the top-right and select <strong>“Open in Browser”</strong> to continue!</p>
-              <p style="margin-top: 1rem;">✨ See you on the other side! ✨</p>
-            </div>
-          `;
-          document.body.appendChild(wrapper);
-          requestAnimationFrame(() => {
-            wrapper.style.opacity = 1;
-          });
-        }
-      }, 4000);
+    
     </script>
 
     <script

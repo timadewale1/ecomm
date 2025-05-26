@@ -2,7 +2,7 @@
 import { createStore, applyMiddleware, combineReducers } from "redux";
 import thunk from "redux-thunk";
 import { persistReducer, persistStore } from "redux-persist";
-import storage from "redux-persist/lib/storage";
+import { safeStorage as storage } from "../services/storage";
 import conditionCategoriesSlice from "./reducers/conditionCategoriesSlice";
 // Reducers
 import { cartReducer } from "./reducers/reducer";
@@ -70,11 +70,10 @@ const persistedReducer = persistReducer(persistConfig, rootReducer);
 // Manually handle cart persistence (still valid)
 const loadCartState = () => {
   try {
-    const serializedCart = localStorage.getItem("cart");
-    if (!serializedCart) return undefined;
-    return { cart: JSON.parse(serializedCart) };
-  } catch (e) {
-    return undefined;
+    const c = window.localStorage?.getItem("cart");
+    return c ? { cart: JSON.parse(c) } : undefined;
+  } catch {
+    return undefined; // IG/Snap WebView path
   }
 };
 
@@ -87,10 +86,10 @@ const store = createStore(
 // Save cart changes manually
 store.subscribe(() => {
   try {
-    const state = store.getState();
-    localStorage.setItem("cart", JSON.stringify(state.cart));
-  } catch (e) {
-    // Ignore errors
+    const { cart } = store.getState();
+    window.localStorage?.setItem("cart", JSON.stringify(cart));
+  } catch {
+   
   }
 });
 

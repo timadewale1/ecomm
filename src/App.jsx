@@ -35,27 +35,27 @@ function App() {
   window.addEventListener("load", setVh);
 
   // Safe service-worker registration (won’t crash IG/Snap/Telegram on iOS)
-  // useEffect(() => {
-  //   if (!("serviceWorker" in navigator)) return;
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
 
-  //   const onLoad = () => {
-  //     try {
-  //       navigator.serviceWorker
-  //         .register("/service-worker.js")
-  //         .then((reg) => console.log("Service Worker registered:", reg))
-  //         .catch((err) => {
-  //           // WKWebView in Instagram/Snapchat/Telegram iOS throws “SecurityError”
-  //           console.warn("SW registration skipped:", err.message);
-  //         });
-  //     } catch (err) {
-  //       // Very old Safari can throw synchronously
-  //       console.warn("SW register threw:", err.message);
-  //     }
-  //   };
+    const onLoad = () => {
+      try {
+        navigator.serviceWorker
+          .register("/service-worker.js")
+          .then((reg) => console.log("Service Worker registered:", reg))
+          .catch((err) => {
+            // WKWebView in Instagram/Snapchat/Telegram iOS throws “SecurityError”
+            console.warn("SW registration skipped:", err.message);
+          });
+      } catch (err) {
+        // Very old Safari can throw synchronously
+        console.warn("SW register threw:", err.message);
+      }
+    };
 
-  //   window.addEventListener("load", onLoad);
-  //   return () => window.removeEventListener("load", onLoad);
-  // }, []); 
+    window.addEventListener("load", onLoad);
+    return () => window.removeEventListener("load", onLoad);
+  }, []); 
 
   setVh(); // Set the initial viewport height
 

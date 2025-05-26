@@ -1,6 +1,10 @@
 // firebase.config.js
 import { initializeApp } from "firebase/app";
-import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
+import {
+  getAuth,
+  setPersistence,
+  browserLocalPersistence,
+} from "firebase/auth";
 import {
   initializeFirestore,
   enableIndexedDbPersistence,
@@ -29,7 +33,8 @@ const app = initializeApp(firebaseConfig);
 
 // 3) App Check
 if (import.meta.env.VITE_FIREBASE_DEBUG_TOKEN) {
-  window.FIREBASE_APPCHECK_DEBUG_TOKEN = import.meta.env.VITE_FIREBASE_DEBUG_TOKEN;
+  window.FIREBASE_APPCHECK_DEBUG_TOKEN =
+    import.meta.env.VITE_FIREBASE_DEBUG_TOKEN;
 }
 initializeAppCheck(app, {
   provider: new ReCaptchaEnterpriseProvider(
@@ -41,7 +46,7 @@ console.log("App Check initialized with production reCAPTCHA Enterprise.");
 
 // 4) Auth + local persistence
 export const auth = getAuth(app);
-setPersistence(auth, browserLocalPersistence).catch(err =>
+setPersistence(auth, browserLocalPersistence).catch((err) =>
   console.error("Auth persistence failed:", err)
 );
 console.log("Auth initialized with local persistence.");
@@ -58,8 +63,27 @@ console.log("Firestore initialized with IndexedDB persistence.");
 // 6) The rest
 export const storage = getStorage(app);
 console.log("Storage initialized.");
-export const messaging = getMessaging(app);
-console.log("Messaging initialized.");
+let messagingInstance = null; // will stay null in WKWebView
+export const messagingReady = (async () => {
+  try {
+    const ok =
+      (await messagingIsSupported()) && // Firebase helper
+      "Notification" in window &&
+      "serviceWorker" in navigator &&
+      "PushManager" in window;
+    if (ok) {
+      messagingInstance = getMessaging(app);
+      console.log("Firebase Messaging initialised");
+    } else {
+      console.log("Firebase Messaging skipped – unsupported environment");
+    }
+  } catch (e) {
+    console.warn("Messaging initialisation failed:", e);
+  }
+  return messagingInstance; // may be null
+})();
+export const messaging = () => messagingInstance; // getter for components
+
 export const functions = getFunctions(app);
 console.log("Functions initialized.");
 

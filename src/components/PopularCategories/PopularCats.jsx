@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { fetchCategories } from "../../redux/reducers/categoriesSlice";
 import { useNavigate } from "react-router-dom";
 import Skeleton from "react-loading-skeleton";
-
+import IkImage from "../../services/IkImage";
 const PopularCats = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -102,7 +102,7 @@ const PopularCats = () => {
                 */}
                   <div className="rounded-lg overflow-hidden flex items-center justify-center bg-gray-100 w-28 h-28">
                     {imgSrc ? (
-                      <img
+                      <IkImage
                         src={imgSrc}
                         alt="" // remove category.type from alt
                         className="w-28 h-28 object-cover"

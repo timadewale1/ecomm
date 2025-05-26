@@ -9,6 +9,7 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import ReactStars from "react-rating-stars-component";
 import RoundedStar from "../components/Roundedstar";
+import IkImage from "../services/IkImage";
 import SEO from "../components/Helmet/SEO";
 import { IoLocationOutline } from "react-icons/io5";
 // import ProductCard from "../components/Products/ProductCard"; // if needed
@@ -294,7 +295,7 @@ const OnlineVendors = () => {
                     </div>
                     <div className="relative w-24 h-24 overflow-hidden">
                       {/* Main image */}
-                      <img
+                      <IkImage
                         className="object-cover w-full h-full rounded-lg"
                         src={vendor.coverImageUrl || defaultImageUrl}
                         alt={vendor.shopName}

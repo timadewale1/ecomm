@@ -24,7 +24,7 @@ import { useFavorites } from "../../components/Context/FavoritesContext";
 
 // Import the handleUserActionLimit helper
 import { handleUserActionLimit } from "../../services/userWriteHandler";
-
+import IkImage from "../../services/IkImage"; 
 const ProductCard = ({ product, isLoading, showVendorName = true }) => {
   const navigate = useNavigate();
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -230,27 +230,11 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
                 )}
 
               {/* blurred preview */}
-              <div className="relative h-52 w-full rounded-lg overflow-hidden">
-                {/* Low-res blurred image */}
-                <img
-                  src={lowResImg}
-                  alt={product.name}
-                  className={`absolute top-0 left-0 w-full h-full object-cover blur-sm brightness-95 transition-opacity duration-300 ${
-                    imgLoaded ? "opacity-0" : "opacity-100"
-                  }`}
-                />
-
-                {/* High-res image */}
-                <img
-                  src={highResImg}
-                  alt={product.name}
-                  loading="lazy"
-                  onLoad={() => setImgLoaded(true)}
-                  className={`absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-300 ${
-                    imgLoaded ? "opacity-100" : "opacity-0"
-                  }`}
-                />
-              </div>
+              <IkImage
+                src={firebaseImage}
+                alt={product.name}
+                className="h-52 w-full"
+              />
             </>
           )}
 

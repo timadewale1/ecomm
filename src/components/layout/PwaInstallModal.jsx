@@ -81,7 +81,7 @@ const PWAInstallModal = ({ onClose }) => {
             className="inst-btn"
             onClick={handleInstallClick}
           >
-            Install
+            Install Now
           </button>
         )}
         <button className="close-btn" onClick={handleClose}>

@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchTopVendors } from "../../redux/reducers/topVendorsSlice";
 import { useNavigate } from "react-router-dom";
+import IkImage from "../../services/IkImage";
 import { RotatingLines } from "react-loader-spinner";
 import {
   FaStar,
@@ -164,7 +165,7 @@ export default function TopVendors() {
             onClick={() => navigate(`/store/${vendor.id}`)}
           >
             <div className="relative">
-              <img
+              <IkImage
                 src={
                   vendor.coverImageUrl ||
                   "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg"

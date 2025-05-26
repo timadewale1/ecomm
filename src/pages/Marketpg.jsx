@@ -10,7 +10,7 @@ import RoundedStar from "../components/Roundedstar";
 import { MdCancel } from "react-icons/md";
 import SEO from "../components/Helmet/SEO";
 import { IoLocationOutline } from "react-icons/io5";
-
+import IkImage from "../services/IkImage";
 const Marketpg = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -220,7 +220,7 @@ const Marketpg = () => {
                   </div>
                   <div className="relative w-24 h-24 overflow-hidden">
                     {/* Main image */}
-                    <img
+                    <IkImage
                       className="object-cover w-full h-full rounded-lg"
                       src={vendor.coverImageUrl || defaultImageUrl}
                       alt={vendor.shopName}

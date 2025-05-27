@@ -41,6 +41,7 @@ import RelatedProducts from "./SimilarProducts";
 import Productnotofund from "../../components/Loading/Productnotofund";
 import { decreaseQuantity, increaseQuantity } from "../../redux/actions/action";
 import { AiOutlineHome } from "react-icons/ai";
+import IkImage from "../../services/IkImage";
 import SEO from "../../components/Helmet/SEO";
 Modal.setAppElement("#root");
 
@@ -961,60 +962,57 @@ const ProductDetailPage = () => {
         url={`https://www.shopmythrift.store/product/${product.id}`}
       />
       <div className="relative pb-20">
-        <div className="fixed top-0 px-2 py-4 bg-white left-0 h-20 w-full z-20 shadow-md">
+        <div className="fixed top-0 left-0 w-full h-20 px-4 py-12 bg-white z-20 shadow-md">
           <div className="flex items-center justify-between h-full">
             {isShared ? (
               <>
-                <div className="flex items-center">
-                  <AiOutlineHome
-                    onClick={() => navigate("/newhome")}
-                    className="text-2xl cursor-pointer"
-                  />
-                </div>
-
-                {/* Centered logo container uses flex-1 to take remaining space and flex to center content */}
-                <div className="flex-1 flex justify-center items-center">
+                <div className="w-full " >
+                  {/* LEFT: logo */}
                   <img
-                    src="/logobg.png"
+                    src="/newlogo.png"
                     alt="Logo"
-                    className="object-contain max-h-20"
+                    onClick={() => navigate("/newhome")}
+                    className="h-8 w-16 object-contain"
                   />
-                </div>
 
-                <div className="flex items-center mr-2 relative">
-                  <PiShoppingCartBold
-                    onClick={() =>
-                      navigate("/latest-cart", {
-                        state: { fromProductDetail: true },
-                      })
-                    }
-                    className="text-2xl cursor-pointer"
-                  />
-                  {cartItemCount > 0 && (
-                    <div className="-top-1 absolute right-0">
-                      <Badge count={cartItemCount} />
-                    </div>
-                  )}
+                  {/* RIGHT: login & sign up */}
+                  <div className="flex mt-4 justify-between  gap-4 w-full items-center ">
+                    <button
+                      onClick={() => navigate("/login")}
+                      className="px-4 py-1 text-sm w-full font-opensans text-customRichBrown border border-customRichBrown rounded-full"
+                    >
+                      Login
+                    </button>
+                    <button
+                      onClick={() => navigate("/signup")}
+                      className="px-4 py-1 w-full text-sm font-opensans text-white bg-customOrange rounded-full"
+                    >
+                      Sign Up
+                    </button>
+                  </div>
                 </div>
               </>
             ) : (
               <>
-                <div className="flex items-center">
+                {/* your existing “back + title” on the left */}
+                <div className="flex items-center space-x-4">
                   <GoChevronLeft
                     onClick={() => navigate(-1)}
                     className="text-3xl cursor-pointer"
                   />
-                  <span className="ml-4 text-lg font-opensans font-semibold">
+                  <span className="text-lg font-opensans font-semibold">
                     Details
                   </span>
                 </div>
-                <div className="flex items-center mr-2 relative">
+
+                {/* your existing copy/cart on the right */}
+                <div className="flex items-center space-x-4">
                   {isLinkCopied ? (
-                    <LuCopyCheck className="text-2xl mr-4 cursor-pointer" />
+                    <LuCopyCheck className="text-2xl cursor-pointer" />
                   ) : (
                     <LuCopy
                       onClick={copyProductLink}
-                      className="text-2xl mr-4 cursor-pointer"
+                      className="text-2xl cursor-pointer"
                     />
                   )}
                   <PiShoppingCartBold
@@ -1025,11 +1023,7 @@ const ProductDetailPage = () => {
                     }
                     className="text-2xl cursor-pointer"
                   />
-                  {cartItemCount > 0 && (
-                    <div className="-top-1 absolute right-0">
-                      <Badge count={cartItemCount} />
-                    </div>
-                  )}
+                  {cartItemCount > 0 && <Badge count={cartItemCount} />}
                 </div>
               </>
             )}
@@ -1057,7 +1051,7 @@ const ProductDetailPage = () => {
                 {allImages.map((image, index) => (
                   <SwiperSlide key={index}>
                     <div className="relative w-full h-full">
-                      <img
+                      <IkImage
                         src={image}
                         alt={`${product.name} image ${index + 1}`}
                         className="object-cover w-full h-full"
@@ -1084,7 +1078,6 @@ const ProductDetailPage = () => {
                           onClick={handleOpenModal}
                           className="px-3 w-28 py-1 absolute bg-opacity-40 bottom-16 right-2 bg-black rounded-md cursor-pointer"
                         >
-                          
                           <p className="text-[10px]  text-white font-opensans">
                             Tap to view defect description
                           </p>
@@ -1113,7 +1106,7 @@ const ProductDetailPage = () => {
           ) : (
             // Single image fallback
             <>
-              <img
+              <IkImage
                 src={allImages[0]}
                 alt={`${product.name} image`}
                 className="object-cover w-full h-full rounded-b-lg"

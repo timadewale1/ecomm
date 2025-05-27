@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchVendors } from "../redux/reducers/VendorsSlice";
+import { fetchVendorsRanked } from "../redux/reducers/VendorsSlice";
 import { GoDotFill, GoChevronLeft } from "react-icons/go";
 import { CiSearch } from "react-icons/ci";
 import Skeleton from "react-loading-skeleton";
@@ -28,7 +28,7 @@ const Marketpg = () => {
   useEffect(() => {
     // Fetch vendors only if not already fetched
     if (!isFetched) {
-      dispatch(fetchVendors());
+      dispatch(fetchVendorsRanked());
     }
   }, [dispatch, isFetched]);
 
@@ -102,7 +102,7 @@ const Marketpg = () => {
                 />
                 <input
                   type="text"
-                  className="flex-1 border font-opensans text-black text-sm border-gray-300 rounded-full px-3 py-2 font-medium focus:outline-none"
+                  className="flex-1 border font-opensans text-black text-base border-gray-300 rounded-full px-3 py-2 font-medium focus:outline-none"
                   value={searchTerm}
                   onChange={handleSearchChange}
                   placeholder="Search vendors..."
@@ -175,7 +175,10 @@ const Marketpg = () => {
             </div>
           ) : filteredVendors.length > 0 ? (
             filteredVendors.map((vendor) => (
-              <div key={vendor.id} className="vendor-item border-b  border-gray-100 "> 
+              <div
+                key={vendor.id}
+                className="vendor-item border-b  border-gray-100 "
+              >
                 <div
                   className="flex justify-between p-3 mb-1 bg-white "
                   onClick={() => handleStoreView(vendor)}

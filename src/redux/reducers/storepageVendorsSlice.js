@@ -7,10 +7,46 @@ import {
   collection,
   getDocs,
   where,
+  limit, // ✅  new
+  orderBy, // ✅  new
+  startAfter,
   query,
 } from "firebase/firestore";
 
 const PAGE_SIZE = 20; // ⬅ how many products per “page”
+export const fetchVendorCategories = createAsyncThunk(
+  "storepageVendors/fetchVendorCategories",
+  async (vendorId, { rejectWithValue }) => {
+    console.log(`[cats] start fetchVendorCategories(${vendorId})`);
+    try {
+      const seen = new Set();
+      let cursor = null;
+
+      do {
+        const constraints = [
+          where("vendorId", "==", vendorId),
+          where("published", "==", true),
+          orderBy("createdAt", "desc"),
+          limit(20),
+        ];
+        if (cursor) constraints.push(startAfter(cursor));
+
+        const snap = await getDocs(
+          query(collection(db, "products"), ...constraints)
+        );
+        console.log(`[cats] batch size ${snap.size}`);
+        snap.forEach((d) => seen.add(d.data().productType || "Other"));
+        cursor = snap.docs[snap.docs.length - 1];
+      } while (cursor);
+
+      console.log(`[cats] finished → ${[...seen]}`);
+      return { vendorId, categories: [...seen] };
+    } catch (e) {
+      console.error("[cats] failed:", e.message);
+      return rejectWithValue(e.message);
+    }
+  }
+);
 
 /* ──────────────────────────────────────────────────────────────
    1)  Fetch only the vendor document (no products here)
@@ -141,7 +177,7 @@ const storepageVendorsSlice = createSlice({
           nextIdx: existing?.nextIdx ?? 0,
           noMore: existing?.noMore ?? false,
           loadingMore: existing?.loadingMore ?? false,
-          scrollY: existing?.scrollY ,
+          scrollY: existing?.scrollY,
         };
       })
 
@@ -173,7 +209,15 @@ const storepageVendorsSlice = createSlice({
           if (state.entities[id]) state.entities[id].loadingMore = false;
           state.error = payload || "Something went wrong.";
         }
+      )
+    .addCase(fetchVendorCategories.fulfilled, (state, { payload }) => {
+      const { vendorId, categories } = payload;
+      console.log(
+        `[cats] reducer got ${categories.length} categories for ${vendorId}`
       );
+      state.entities[vendorId] ??= { products: [] };
+      state.entities[vendorId].categories = categories;
+    });
   },
 });
 

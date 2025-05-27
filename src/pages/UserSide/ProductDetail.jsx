@@ -962,11 +962,11 @@ const ProductDetailPage = () => {
         url={`https://www.shopmythrift.store/product/${product.id}`}
       />
       <div className="relative pb-20">
-        <div className="fixed top-0 left-0 w-full h-20 px-4 py-12 bg-white z-20 shadow-md">
+        <div className="fixed top-0 left-0 w-full h-20 px-2 py-12 bg-white z-20 shadow-md">
           <div className="flex items-center justify-between h-full">
             {isShared ? (
               <>
-                <div className="w-full " >
+                <div className="w-full ">
                   {/* LEFT: logo */}
                   <img
                     src="/newlogo.png"
@@ -995,7 +995,7 @@ const ProductDetailPage = () => {
             ) : (
               <>
                 {/* your existing “back + title” on the left */}
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
                   <GoChevronLeft
                     onClick={() => navigate(-1)}
                     className="text-3xl cursor-pointer"
@@ -1006,7 +1006,7 @@ const ProductDetailPage = () => {
                 </div>
 
                 {/* your existing copy/cart on the right */}
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2 relative">
                   {isLinkCopied ? (
                     <LuCopyCheck className="text-2xl cursor-pointer" />
                   ) : (
@@ -1023,7 +1023,11 @@ const ProductDetailPage = () => {
                     }
                     className="text-2xl cursor-pointer"
                   />
-                  {cartItemCount > 0 && <Badge count={cartItemCount} />}
+                  {cartItemCount > 0 && (
+                    <div className="-top-1 absolute right-0">
+                      <Badge count={cartItemCount} />
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -1059,7 +1063,7 @@ const ProductDetailPage = () => {
                       />
                       {/* Discount Badge inside each slide */}
                       {index === 0 && product.discount && (
-                        <div className="absolute top-4 right-2 z-20">
+                        <div className="absolute top-10 right-2 z-20">
                           {product.discount.discountType.startsWith(
                             "personal-freebies"
                           ) ? (
@@ -1112,7 +1116,7 @@ const ProductDetailPage = () => {
                 className="object-cover w-full h-full rounded-b-lg"
               />
               {product.discount && (
-                <div className="absolute top-4 right-2 ">
+                <div className="absolute top-10 right-2 ">
                   {product.discount.discountType.startsWith(
                     "personal-freebies"
                   ) ? (

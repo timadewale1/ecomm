@@ -601,8 +601,8 @@ const StorePage = () => {
                 type="text"
                 value={searchTerm}
                 onChange={handleSearchChange}
-                placeholder="Search store..."
-                className="flex-1 border rounded-full font-opensans text-black text-sm border-gray-300 px-3 py-2 font-medium shadow-xl focus:outline-none"
+               placeholder={"Search " + (vendor?.shopName || "") + "..."}
+                className="flex-1 border rounded-full font-opensans text-black text-base border-gray-300 px-3 py-2 font-medium shadow-xl focus:outline-none"
               />
               {searchTerm && (
                 <MdCancel

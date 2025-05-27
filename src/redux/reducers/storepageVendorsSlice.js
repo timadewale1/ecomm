@@ -17,33 +17,16 @@ const PAGE_SIZE = 20; // ⬅ how many products per “page”
 export const fetchVendorCategories = createAsyncThunk(
   "storepageVendors/fetchVendorCategories",
   async (vendorId, { rejectWithValue }) => {
-    console.log(`[cats] start fetchVendorCategories(${vendorId})`);
     try {
-      const seen = new Set();
-      let cursor = null;
-
-      do {
-        const constraints = [
-          where("vendorId", "==", vendorId),
-          where("published", "==", true),
-          orderBy("createdAt", "desc"),
-          limit(20),
-        ];
-        if (cursor) constraints.push(startAfter(cursor));
-
-        const snap = await getDocs(
-          query(collection(db, "products"), ...constraints)
-        );
-        console.log(`[cats] batch size ${snap.size}`);
-        snap.forEach((d) => seen.add(d.data().productType || "Other"));
-        cursor = snap.docs[snap.docs.length - 1];
-      } while (cursor);
-
-      console.log(`[cats] finished → ${[...seen]}`);
-      return { vendorId, categories: [...seen] };
-    } catch (e) {
-      console.error("[cats] failed:", e.message);
-      return rejectWithValue(e.message);
+      const snap = await getDoc(doc(db, "vendors", vendorId));
+      if (!snap.exists()) throw new Error("Vendor not found");
+      const data = snap.data();
+      // Firestore field is called `categories`
+      const cats = Array.isArray(data.categories) ? data.categories : [];
+      return { vendorId, categories: cats };
+    } catch (err) {
+      console.error("[cats] failed fetching vendor.categories:", err);
+      return rejectWithValue(err.message);
     }
   }
 );
@@ -210,14 +193,11 @@ const storepageVendorsSlice = createSlice({
           state.error = payload || "Something went wrong.";
         }
       )
-    .addCase(fetchVendorCategories.fulfilled, (state, { payload }) => {
-      const { vendorId, categories } = payload;
-      console.log(
-        `[cats] reducer got ${categories.length} categories for ${vendorId}`
-      );
-      state.entities[vendorId] ??= { products: [] };
-      state.entities[vendorId].categories = categories;
-    });
+      .addCase(fetchVendorCategories.fulfilled, (state, { payload }) => {
+        const { vendorId, categories } = payload;
+        state.entities[vendorId] ??= { products: [] };
+        state.entities[vendorId].categories = categories;
+      });
   },
 });
 

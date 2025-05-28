@@ -1055,7 +1055,7 @@ const ProductDetailPage = () => {
                 {allImages.map((image, index) => (
                   <SwiperSlide key={index}>
                     <div className="relative w-full h-full">
-                      <IkImage
+                      <img
                         src={image}
                         alt={`${product.name} image ${index + 1}`}
                         className="object-cover w-full h-full"

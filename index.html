@@ -316,7 +316,7 @@
       document.addEventListener("DOMContentLoaded", () => {
         const loadingScreen = document.getElementById("custom-loading-screen");
         if (loadingScreen) {
-          loadingScreen.style.display = isPWA && isIOS ? "flex" : "none";
+          loadingScreen.style.display = isPWA ? "flex" : "none";
         }
       });
       setTimeout(() => {

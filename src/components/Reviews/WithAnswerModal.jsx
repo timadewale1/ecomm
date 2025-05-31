@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { collection, query, where, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { useAuth } from "../../custom-hooks/useAuth"; // or however you get currentUser 
 import { db } from "../../firebase.config";
-import AnswerModal from "./AnswermODAL.JSX";
+import AnswerModal from "./AnswerModal.JSX";
 
 const WithAnswerModal = ({ children }) => {
   const { currentUser } = useAuth(); // assumes your hook returns { currentUser }

@@ -12,7 +12,7 @@ import { db } from "../../firebase.config";
 // IMPORTANT: tell React Modal where to mount
 Modal.setAppElement("#root");
 
-const AnswerModal = ({ isOpen, onClose, inquiryId, inquiryData }) => {
+const AnswerModz = ({ isOpen, onClose, inquiryId, inquiryData }) => {
   const navigate = useNavigate();
 
   // Local state for reporting overlay
@@ -378,4 +378,4 @@ const AnswerModal = ({ isOpen, onClose, inquiryId, inquiryData }) => {
   );
 };
 
-export default AnswerModal;
+export default AnswerModz;

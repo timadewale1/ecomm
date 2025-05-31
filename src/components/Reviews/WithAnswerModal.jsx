@@ -3,8 +3,7 @@ import React, { useState, useEffect } from "react";
 import { collection, query, where, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { useAuth } from "../../custom-hooks/useAuth"; // or however you get currentUser 
 import { db } from "../../firebase.config";
-import AnswerModal from "./AnswerModal.JSX";
-
+import AnswerModz from "./AnswerModz";
 const WithAnswerModal = ({ children }) => {
   const { currentUser } = useAuth(); // assumes your hook returns { currentUser }
   const [showModal, setShowModal] = useState(false);
@@ -63,7 +62,7 @@ const WithAnswerModal = ({ children }) => {
       {children}
 
       {inquiryData && (
-        <AnswerModal
+        <AnswerModz
           isOpen={showModal}
           onClose={handleCloseModal}
           inquiryId={inquiryId}

@@ -1491,12 +1491,14 @@ const ProductDetailPage = () => {
                   animate={{ opacity: 0.8 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
+                  onClick={() => setIsAskModalOpen(false)}
                   className="fixed inset-0 bg-black z-[8000]"
                 />
                 <motion.div
                   initial={{ y: "100%" }}
                   animate={{ y: 0 }}
                   exit={{ y: "100%" }}
+                  onClick={e => e.stopPropagation()}
                   transition={{ type: "tween", duration: 0.3 }}
                   className="fixed bottom-0 left-0 h-60% right-0 z-[8100]  bg-white rounded-t-xl p-6 shadow-lg"
                 >

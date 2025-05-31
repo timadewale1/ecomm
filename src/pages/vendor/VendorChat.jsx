@@ -7,11 +7,12 @@ import {
   subscribeToInquiry,
   clearChat,
 } from "../../redux/reducers/chatSlice";
+import { fetchCustomerProfile } from "../../redux/reducers/vendorChatSlice";
 import { GoChevronLeft } from "react-icons/go";
 import { FiMoreHorizontal } from "react-icons/fi";
 import { MdOutlineClose, MdFlag } from "react-icons/md";
 import { Oval } from "react-loader-spinner";
-import { IoMdSend } from "react-icons/io";
+import { IoMdContact, IoMdSend } from "react-icons/io";
 import toast from "react-hot-toast";
 import { doc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "../../firebase.config";
@@ -22,10 +23,24 @@ export default function VendorChat() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // Pull everything from the Redux slice
+  // ── 1) Fetch the full inquiry/product/customer payload as before ─────────────
   const { inquiry, product, customer, loading, error } = useSelector(
     (state) => state.chat
   );
+
+  // ── 2) Pull only photoURL & displayName from vendorChats.profiles ────────────
+  //     (this mimics what ChatListItem did)
+  const customerData = useSelector(
+    (state) => state.vendorChats.profiles[inquiry?.customerId]
+  );
+
+  // If we don’t have photoURL/displayName in Redux yet, dispatch to fetch it
+  React.useEffect(() => {
+    if (inquiry?.customerId && !customerData) {
+      dispatch(fetchCustomerProfile(inquiry.customerId));
+    }
+  }, [dispatch, inquiry?.customerId, customerData]);
+
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -38,7 +53,8 @@ export default function VendorChat() {
   const [ackOpen, setAckOpen] = useState(false);
   const [showAlreadyReportedModal, setShowAlreadyReportedModal] =
     useState(false);
-  // 1) On mount: fetch inquiry/product/customer once, then subscribe
+
+  // ── 3) On mount: fetch inquiry/product/customer once, then subscribe ─────────
   useEffect(() => {
     if (!inquiryId) return;
 
@@ -107,7 +123,7 @@ export default function VendorChat() {
 
   return (
     <div className="flex flex-col h-screen w-full mx-auto bg-white">
-      {/* TOP BAR */}
+      {/* ── TOP BAR ────────────────────────────────────────────────────────────────── */}
       <div className="sticky top-0 bg-white z-20 border-b px-4 py-3 flex items-center">
         <GoChevronLeft
           className="cursor-pointer mr-4 text-2xl text-gray-700"
@@ -119,7 +135,11 @@ export default function VendorChat() {
               {product?.name || "Product"}
             </div>
             <div className="text-sm text-gray-500 font-opensans">
-              Chat with {customer?.username || inquiry?.customerId}
+              {/* ← Use displayName from customerData, fallback to whatever was in chat.customer */}
+              Chat with{" "}
+              {customerData?.displayName ||
+                customer?.username ||
+                inquiry?.customerId}
             </div>
           </div>
 
@@ -165,7 +185,7 @@ export default function VendorChat() {
         </div>
       </div>
 
-      {/* PRODUCT INFO + “Tap to View” OVERLAY */}
+      {/* ── PRODUCT INFO + “Tap to View” OVERLAY ─────────────────────────────────── */}
       {product && (
         <div className="relative px-4 py-4 flex flex-col items-start">
           <div
@@ -183,8 +203,11 @@ export default function VendorChat() {
           </div>
 
           <p className="text-xs font-opensans mt-2">
-            One‐way chat — {customer?.username || inquiry?.customerId} asked
-            about{" "}
+            One‐way chat —{" "}
+            {customerData?.displayName ||
+              customer?.username ||
+              inquiry?.customerId}{" "}
+            asked about{" "}
             <span className="uppercase text-customOrange font-semibold">
               {product.name}
             </span>
@@ -193,14 +216,20 @@ export default function VendorChat() {
         </div>
       )}
 
-      {/* SCROLLABLE CHAT AREA */}
+      {/* ── SCROLLABLE CHAT AREA ─────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto p-4 space-y-6">
         <div className="flex">
-          <img
-            src={customer?.photoURL || "/default-avatar.png"}
-            alt="customer avatar"
-            className="w-10 h-10 rounded-full object-cover mr-3"
-          />
+          {/* ← Show avatar from customerData.photoURL, fallback to icon */}
+          {customerData?.photoURL ? (
+            <img
+              src={customerData.photoURL}
+              alt="customer avatar"
+              className="w-10 h-10 rounded-full object-cover mr-3"
+            />
+          ) : (
+            <IoMdContact className="w-10 h-10 text-gray-400 mr-3" />
+          )}
+
           <div>
             <div className="bg-gray-100 text-gray-800 rounded-lg px-4 py-2 font-opensans max-w-xs">
               {inquiry?.question}
@@ -225,13 +254,13 @@ export default function VendorChat() {
         )}
       </div>
 
-      {/* REPLY INPUT AREA */}
+      {/* ── REPLY INPUT AREA ─────────────────────────────────────────────────────── */}
       {inquiry?.status === "open" && (
         <div className="border-t px-4 py-3">
           <div className="relative">
             <input
               type="text"
-              className="w-full border border-gray-300 rounded-full px-4 py-2 pr-16 text-sm font-opensans focus:outline-none focus:ring-2 focus:ring-customOrange"
+              className="w-full border border-gray-300 rounded-full px-4 py-2 pr-16 text-base font-opensans focus:outline-none focus:ring-2 focus:ring-customOrange"
               placeholder="Type your reply…"
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
@@ -263,7 +292,7 @@ export default function VendorChat() {
         </div>
       )}
 
-      {/* FOOTER DISCLAIMER */}
+      {/* ── FOOTER DISCLAIMER ────────────────────────────────────────────────────── */}
       {inquiry?.status === "open" ? (
         <div className="text-center text-xs text-gray-500 py-2 font-opensans">
           Chats are monitored in real‐time.
@@ -275,7 +304,7 @@ export default function VendorChat() {
         </div>
       )}
 
-      {/* ── REPORT CHAT “MODAL” REPLACEMENT ──────────────────────────── */}
+      {/* ── REPORT CHAT “MODAL” REPLACEMENT ──────────────────────────────────────── */}
       {showAlreadyReportedModal && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center"
@@ -429,7 +458,7 @@ export default function VendorChat() {
         </div>
       )}
 
-      {/* ── ACKNOWLEDGEMENT POPUP ───────────────────────────────────── */}
+      {/* ── ACKNOWLEDGEMENT POPUP ──────────────────────────────────────────────── */}
       {ackOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center"

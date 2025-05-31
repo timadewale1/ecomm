@@ -6,6 +6,7 @@ import {
   signInWithPopup,
   onAuthStateChanged,
 } from "firebase/auth";
+import { emailBelongsToVendor } from "../services/authHelper";
 import { FcGoogle } from "react-icons/fc";
 import { auth, db, functions } from "../firebase.config";
 import {
@@ -215,67 +216,70 @@ const Signup = () => {
   // Google sign-up remains purely client-side
   const handleGoogleSignUp = async () => {
     const provider = new GoogleAuthProvider();
+
     try {
       setLoading(true);
-      console.log("Opening Google sign-up popup…");
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      const userEmail = user.email;
 
-      // 1) Check if email already exists in "vendors" collection
-      const vendorsRef = collection(db, "vendors");
-      const vendorQuery = query(vendorsRef, where("email", "==", userEmail));
-      const vendorSnapshot = await getDocs(vendorQuery);
-      if (!vendorSnapshot.empty) {
-        // If found a vendor with that email, sign out and show error
-        await auth.signOut();
+      // 1️⃣  Open Google popup
+      const { user } = await signInWithPopup(auth, provider);
+      const emailLower = (user.email || "").toLowerCase();
+
+      // 2️⃣  Block if that email is already a vendor
+      if (await emailBelongsToVendor(emailLower)) {
+        await signOut(auth);
         toast.error("This email is already used for a Vendor account!");
+        setLoading(false);
         return;
       }
 
-      // 2) Check if a user document already exists with role="vendor"
+      // 3️⃣  Block if an existing /users doc has role="vendor"
       const usersRef = collection(db, "users");
-      const userQuery = query(usersRef, where("email", "==", userEmail));
-      const userSnapshot = await getDocs(userQuery);
-      if (!userSnapshot.empty) {
-        const existingUserData = userSnapshot.docs[0].data();
-        if (existingUserData.role === "vendor") {
-          await auth.signOut();
+      const sameEmailUsers = await getDocs(
+        query(usersRef, where("emailLower", "==", emailLower))
+      );
+      if (!sameEmailUsers.empty) {
+        const existing = sameEmailUsers.docs[0].data();
+        if (existing.role === "vendor") {
+          await signOut(auth);
           toast.error("This email is already used for a Vendor account!");
+          setLoading(false);
           return;
         }
       }
 
-      // 3) If we reach here, we know no vendor already uses this email,
-      //    so we can safely create/update the "users" document.
+      // 4️⃣  Create (or update) user doc
       const userRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userRef);
-      if (!userDoc.exists()) {
-        await setDoc(userRef, {
-          uid: user.uid,
-          username: user.displayName || "",
-          email: userEmail,
-          role: "user",
-          profileComplete: false,
-          welcomeEmailSent: false,
-          createdAt: new Date(),
-        });
-        console.log("New user document created in Firestore");
+      const userSnap = await getDoc(userRef);
+
+      const baseData = {
+        uid: user.uid,
+        username: user.displayName || "",
+        email: user.email,
+        emailLower,
+        role: "user",
+        profileComplete: false,
+        welcomeEmailSent: false,
+        createdAt: new Date(),
+      };
+
+      if (!userSnap.exists()) {
+        await setDoc(userRef, baseData);
+        console.log("Created new user document");
       } else {
-        console.log("User already exists in Firestore");
+        console.log("User doc exists; not overwriting sensitive fields.");
       }
 
       toast.success("Signed up with Google successfully!");
       navigate("/newhome");
     } catch (error) {
       console.error("Google Sign-Up Error:", error);
-      let errorMessage = "Google Sign-Up failed. Please try again.";
+      let msg = "Google Sign-Up failed. Please try again.";
       if (error.code === "auth/account-exists-with-different-credential") {
-        errorMessage = "An account with the same email already exists.";
+        msg = "An account with the same email already exists.";
       } else if (error.code === "auth/popup-closed-by-user") {
-        errorMessage = "Popup closed before completing sign-up.";
+        msg = "Popup closed before completing sign-up.";
       }
-      toast.error(errorMessage);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

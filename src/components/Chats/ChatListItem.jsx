@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { fetchCustomerProfile } from "../../redux/reducers/vendorChatSlice";
+import { IoMdContact } from "react-icons/io";
 
 const DEFAULT_AVATAR = "/default-avatar.png";
 
@@ -56,11 +57,15 @@ export default function ChatListItem({ inquiry }) {
       onClick={handleClick}
     >
       {/* Avatar */}
-      <img
-        src={customerData?.photoURL || DEFAULT_AVATAR}
-        alt="avatar"
-        className="w-12 h-12 rounded-full object-cover mr-4"
-      />
+      {customerData?.photoURL ? (
+        <img
+          src={customerData.photoURL}
+          alt="avatar"
+          className="w-12 h-12 rounded-full object-cover mr-4"
+        />
+      ) : (
+        <IoMdContact className="w-12 h-12 text-gray-400 mr-4" />
+      )}
 
       {/* Name + question preview */}
       <div className="flex-1 min-w-0">

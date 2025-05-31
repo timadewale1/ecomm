@@ -505,7 +505,7 @@ const Profile = () => {
               )}
             </div>
             <div className="w-full text-center mt-2">
-              <p className="text-sm font-medium text-gray-500">Beta v.1.0</p>
+              <p className="text-sm font-poppins font-medium text-gray-500"> v.2.8</p>
             </div>
           </div>
         ) : (

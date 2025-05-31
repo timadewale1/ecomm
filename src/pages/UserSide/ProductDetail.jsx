@@ -25,7 +25,7 @@ import { FiPlus } from "react-icons/fi";
 import { FiMinus } from "react-icons/fi";
 import { TbSquareRoundedCheck } from "react-icons/tb";
 import Badge from "../../components/Badge/Badge";
-import { MdOutlineCancel, MdOutlineClose } from "react-icons/md";
+import { MdCancel, MdOutlineCancel, MdOutlineClose } from "react-icons/md";
 import "swiper/css/free-mode";
 import { TbFileDescription } from "react-icons/tb";
 import "swiper/css/autoplay";
@@ -33,16 +33,29 @@ import { useLocation } from "react-router-dom";
 import { Swiper, SwiperSlide } from "swiper/react";
 import Select from "react-select";
 import "swiper/css";
+import { RotatingLines } from "react-loader-spinner";
 
+import { AnimatePresence, motion } from "framer-motion";
 // import SwiperCore, { Pagination,  } from "swiper";
 import { FreeMode, Autoplay } from "swiper/modules";
-import { doc, getDoc, getFirestore } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  getFirestore,
+  collection,
+  serverTimestamp,
+  addDoc,
+} from "firebase/firestore";
 import RelatedProducts from "./SimilarProducts";
 import Productnotofund from "../../components/Loading/Productnotofund";
 import { decreaseQuantity, increaseQuantity } from "../../redux/actions/action";
 import { AiOutlineHome } from "react-icons/ai";
+import { auth, db } from "../../firebase.config";
 import IkImage from "../../services/IkImage";
 import SEO from "../../components/Helmet/SEO";
+import QuestionandA from "../../components/Loading/QuestionandA";
+import { LiaTimesSolid } from "react-icons/lia";
+import { handleUserActionLimit } from "../../services/userWriteHandler";
 Modal.setAppElement("#root");
 
 const debounce = (func, delay) => {
@@ -90,6 +103,8 @@ const ProductDetailPage = () => {
   const [toastCount, setToastCount] = useState(0);
   const [selectedImage, setSelectedImage] = useState("");
   const { isActive, vendorId } = useSelector((state) => state.stockpile);
+  const [isSending, setIsSending] = useState(false);
+  const [isThankYouOpen, setIsThankYouOpen] = useState(false);
 
   const [vendor, setVendor] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -100,6 +115,10 @@ const ProductDetailPage = () => {
   const [allImages, setAllImages] = useState([]);
   const [isLinkCopied, setIsLinkCopied] = useState(false);
 
+  const currentUser = auth.currentUser;
+  const userData = useSelector((state) => state.user.userData);
+  const [isAskModalOpen, setIsAskModalOpen] = useState(false);
+  const [questionText, setQuestionText] = useState("");
   // Inside your ProductDetailPage component
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
@@ -493,6 +512,62 @@ const ProductDetailPage = () => {
     selectedImage,
     cart,
   ]);
+  const handleSendQuestion = useCallback(async () => {
+    console.log("[Q&A] send button clicked, questionText:", questionText);
+    const q = questionText.trim();
+    if (!q) {
+      console.log("[Q&A] no text, aborting");
+      return toast.error("Please enter a question.");
+    }
+
+    // Immediately show spinner/disable UI
+    setIsSending(true);
+
+    // 1) Enforce a daily limit of 3 questions
+    try {
+      await handleUserActionLimit(
+        currentUser.uid,
+        "askQuestion",
+        {}, // no extra userData
+        { dayLimit: 3 } // cap at 3 per 24 hours
+      );
+    } catch (limitError) {
+      // Rate limit hit: hide spinner and show error instantly
+      setIsSending(false);
+      return toast.error(limitError.message);
+    }
+
+    // build your object so you can inspect it
+    const inquiryPayload = {
+      productId: id,
+      productName: product.name,
+      vendorId: product.vendorId,
+      customerId: currentUser.uid,
+      question: q,
+      status: "open",
+      createdAt: serverTimestamp(),
+      hasRead: false,
+      customerHasRead: false,
+      uid: currentUser.uid,
+      email: currentUser.email,
+    };
+
+    console.log("[Q&A] payload to write:", inquiryPayload);
+
+    try {
+      console.log("[Q&A] writing to Firestore…");
+      await addDoc(collection(db, "inquiries"), inquiryPayload);
+      console.log("[Q&A] write succeeded");
+      setIsAskModalOpen(false);
+      setIsThankYouOpen(true);
+    } catch (err) {
+      console.error("[Q&A] write failed:", err);
+      toast.error("Failed to send. Please try again.");
+    } finally {
+      console.log("[Q&A] send handler complete");
+      setIsSending(false);
+    }
+  }, [questionText, id, product, currentUser, db]);
 
   const handleIncreaseQuantity = useCallback(() => {
     console.log("Increase Quantity Triggered");
@@ -1087,6 +1162,25 @@ const ProductDetailPage = () => {
                           </p>
                         </div>
                       )}
+                      <div className="absolute bottom-12 left-2 bg-white bg-opacity-40 px-2 py-1 rounded-lg shadow-md flex items-center space-x-2">
+                        <p className="text-xs font-opensans text-gray-700">
+                          Still not sure?
+                        </p>
+                        <button
+                          onClick={() => {
+                            if (!currentUser) {
+                              navigate("/login", {
+                                state: { from: location.pathname },
+                              });
+                            } else {
+                              setIsAskModalOpen(true);
+                            }
+                          }}
+                          className="text-xs font-semibold font-opensans text-customOrange hover:underline focus:outline-none"
+                        >
+                          Ask a question
+                        </button>
+                      </div>
                     </div>
                   </SwiperSlide>
                 ))}
@@ -1143,6 +1237,26 @@ const ProductDetailPage = () => {
                   </span>
                 </div>
               )}
+
+              <div className="absolute bottom-4 left-2 bg-white bg-opacity-60 px-2 py-1 rounded-lg shadow-md flex items-center space-x-2">
+                <p className="text-xs font-opensans text-gray-700">
+                  Still not sure?
+                </p>
+                <button
+                  onClick={() => {
+                    if (!currentUser) {
+                      navigate("/login", {
+                        state: { from: location.pathname },
+                      });
+                    } else {
+                      setIsAskModalOpen(true);
+                    }
+                  }}
+                  className="text-xs font-semibold font-opensans text-customOrange hover:underline focus:outline-none"
+                >
+                  Ask a question
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -1323,7 +1437,7 @@ const ProductDetailPage = () => {
             </div>
           </div>
           <div
-            className="flex items-center mt-5 mb-4 cursor-pointer"
+            className="flex items-center mt-5 mb-2 cursor-pointer"
             onClick={() => setIsModalOpen(true)}
           >
             {/* Left label */}
@@ -1369,6 +1483,79 @@ const ProductDetailPage = () => {
               </p>
             </div>
           </Modal>
+          <AnimatePresence>
+            {isAskModalOpen && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.8 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="fixed inset-0 bg-black z-[8000]"
+                />
+                <motion.div
+                  initial={{ y: "100%" }}
+                  animate={{ y: 0 }}
+                  exit={{ y: "100%" }}
+                  transition={{ type: "tween", duration: 0.3 }}
+                  className="fixed bottom-0 left-0 h-60% right-0 z-[8100]  bg-white rounded-t-xl p-6 shadow-lg"
+                >
+                  <div>
+                    <QuestionandA />
+                  </div>
+                  <h2 className="text-xl font-semibold font-ubuntu mb-2">
+                    One-off question
+                  </h2>
+                  <p className="text-xs font-opensans text-gray-600 mb-4">
+                    This is a single ask use it if you’re unsure of product
+                    details or want to know more before buying. The vendor will
+                    reply as soon as possible. This feature is limited to 3 uses
+                    per day while in beta.
+                  </p>
+
+                  <label className="block text-xs font-medium font-opensans text-gray-700 mb-1">
+                    Your email (We will send the response here)
+                  </label>
+                  <input
+                    type="email"
+                    value={currentUser.email}
+                    readOnly
+                    className="w-full mb-4 px-3 py-2 border font-opensans rounded bg-gray-100 text-sm"
+                  />
+
+                  <label className="block text-xs font-medium font-opensans text-gray-700 mb-1">
+                    Ask question here
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="what do you wanna know?..."
+                    value={questionText}
+                    onChange={(e) => setQuestionText(e.target.value)}
+                    maxLength={700}
+                    className="w-full mb-4 px-3 py-2 border rounded resize-none font-opensans focus:outline-none text-sm"
+                  />
+
+                  <div className="flex px-4 justify-center ">
+                    <button
+                      onClick={handleSendQuestion}
+                      disabled={isSending}
+                      className="px-4 py-2 bg-customOrange w-full font-opensans text-white rounded-full text-base font-semibold flex justify-center items-center"
+                    >
+                      {isSending ? (
+                        <RotatingLines
+                          width="24"
+                          strokeColor="#fff"
+                          strokeWidth="5"
+                        />
+                      ) : (
+                        "Send"
+                      )}
+                    </button>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
 
         {shouldShowAlikeProducts && (
@@ -1381,6 +1568,55 @@ const ProductDetailPage = () => {
         <div className="border-t-8 border-gray-100 mt-4"></div>
 
         <RelatedProducts product={product} />
+        <Modal
+          isOpen={isThankYouOpen}
+          onRequestClose={() => setIsThankYouOpen(false)}
+          overlayClassName="fixed  inset-0 bg-black p-12 bg-opacity-50 z-[9000]"
+          className="absolute inset-x-4 top-1/4   py-6 px-4 bg-white rounded-lg  shadow-lg"
+          closeTimeoutMS={300}
+          ariaHideApp={false}
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0 }}
+            transition={{ type: "spring", stiffness: 300 }}
+            className="flex flex-col "
+          >
+            <div className="flex items-center  ">
+              <FaSmileBeam className="text-xl mr-2 text-customRichBrown " />
+              <h2 className="text-base font-medium font-opensans ">
+                Message Sent!
+              </h2>
+            </div>
+            <LiaTimesSolid
+              onClick={() => setIsThankYouOpen(false)}
+              className="absolute top-4 right-4"
+            />
+            <p className="text-sm mt-5 text-gray-800 font-opensans">
+              <span className="text-customOrange font-medium">
+                {vendorLoading ? (
+                  /* make sure this loader renders inline or wrap it in a span */
+                  <span className="inline-block">
+                    <LoadProducts />
+                  </span>
+                ) : vendor ? (
+                  /* use <span> instead of <div> */
+                  <span>{vendor.shopName}</span>
+                ) : (
+                  /* use <span> instead of <p> */
+                  <span className="text-xs text-gray-500">
+                    Vendor information not available
+                  </span>
+                )}
+              </span>{" "}
+              has your question and will reply within 6 hours or less. Please
+              check your spam folder if you don’t see their answer in your email
+              inbox.
+            </p>
+          </motion.div>
+        </Modal>
+
         <Modal
           isOpen={showModal}
           onRequestClose={handleCloseModal}

@@ -217,26 +217,50 @@ const Signup = () => {
     const provider = new GoogleAuthProvider();
     try {
       setLoading(true);
-      console.log("Opening Google sign-up popup...");
+      console.log("Opening Google sign-up popup…");
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+      const userEmail = user.email;
 
-      console.log("Google user authenticated:", user);
+      // 1) Check if email already exists in "vendors" collection
+      const vendorsRef = collection(db, "vendors");
+      const vendorQuery = query(vendorsRef, where("email", "==", userEmail));
+      const vendorSnapshot = await getDocs(vendorQuery);
+      if (!vendorSnapshot.empty) {
+        // If found a vendor with that email, sign out and show error
+        await auth.signOut();
+        toast.error("This email is already used for a Vendor account!");
+        return;
+      }
 
+      // 2) Check if a user document already exists with role="vendor"
+      const usersRef = collection(db, "users");
+      const userQuery = query(usersRef, where("email", "==", userEmail));
+      const userSnapshot = await getDocs(userQuery);
+      if (!userSnapshot.empty) {
+        const existingUserData = userSnapshot.docs[0].data();
+        if (existingUserData.role === "vendor") {
+          await auth.signOut();
+          toast.error("This email is already used for a Vendor account!");
+          return;
+        }
+      }
+
+      // 3) If we reach here, we know no vendor already uses this email,
+      //    so we can safely create/update the "users" document.
       const userRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userRef);
-
       if (!userDoc.exists()) {
         await setDoc(userRef, {
           uid: user.uid,
-          username: user.displayName,
-          email: user.email,
+          username: user.displayName || "",
+          email: userEmail,
           role: "user",
-          createdAt: new Date(),
           profileComplete: false,
           welcomeEmailSent: false,
-          // welcomeEmailSendAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes from now
+          createdAt: new Date(),
         });
+        console.log("New user document created in Firestore");
       } else {
         console.log("User already exists in Firestore");
       }
@@ -259,10 +283,10 @@ const Signup = () => {
 
   return (
     <>
-    <SEO 
-        title={`Signup - My Thrift`} 
-        description={`Get started with an amazing shopping experience on My Thrift!`} 
-        url={`https://www.shopmythrift.store/signup`} 
+      <SEO
+        title={`Signup - My Thrift`}
+        description={`Get started with an amazing shopping experience on My Thrift!`}
+        url={`https://www.shopmythrift.store/signup`}
       />
       <Container>
         <Row>
@@ -462,7 +486,7 @@ const Signup = () => {
                   >
                     Terms & Conditions
                   </span>
-                   and
+                  and
                   <span
                     onClick={() =>
                       window.open(

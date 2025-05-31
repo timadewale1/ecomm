@@ -14,8 +14,12 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { toast } from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
-import { MdOutlineStarPurple500, MdOutlineUnpublished, MdPublishedWithChanges } from "react-icons/md";
+import { useNavigate, useLocation } from "react-router-dom";
+import {
+  MdOutlineStarPurple500,
+  MdOutlineUnpublished,
+  MdPublishedWithChanges,
+} from "react-icons/md";
 import { MdOutlineStarBorderPurple500 } from "react-icons/md";
 import Modal from "../../components/layout/Modal";
 import ConfirmationDialog from "../../components/layout/ConfirmationDialog";
@@ -62,7 +66,8 @@ const VendorProducts = () => {
   const [picking, setPicking] = useState(false);
 
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
-  const [isMultiDiscountModalOpen, setIsMultiDiscountModalOpen] = useState(false);
+  const [isMultiDiscountModalOpen, setIsMultiDiscountModalOpen] =
+    useState(false);
 
   const { vendorData } = useContext(VendorContext);
 
@@ -75,6 +80,8 @@ const VendorProducts = () => {
 
   const auth = getAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { highlightId } = location.state || {};
 
   const renderVariants = (variants) => {
     const groupedVariants = groupVariantsByColor(variants);
@@ -326,6 +333,19 @@ const VendorProducts = () => {
       (tabOpt === "Drafts" && isAllDrafted)
     );
   };
+  useEffect(() => {
+    if (!highlightId || productsLoading) return;
+
+    // Small timeout so that React has actually rendered all cards into the DOM first:
+    setTimeout(() => {
+      const el = document.getElementById(`product-${highlightId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("highlight-animation");
+        setTimeout(() => el.classList.remove("highlight-animation"), 2000);
+      }
+    }, 300);
+  }, [highlightId, productsLoading, products]);
 
   const bulkPublishStateChange = async () => {
     setOLoading(true);
@@ -1089,120 +1109,136 @@ const VendorProducts = () => {
               return (
                 <div
                   key={product.id}
-                  className="cursor-pointer"
+                  id={`product-${product.id}`}
+                  className={`
+                  cursor-pointer
+                  p-2
+                  
+                `}
                   onClick={(e) =>
                     picking
                       ? togglePickProduct(product.id)
                       : handleProductClick(product)
                   }
                 >
-                  <div className="flex flex-col space-y-2">
-                    <div className="relative w-44 h-44 rounded-xl bg-customSoftGray">
-                      {(hasOutOfStockSubProduct || hasOutOfStockVariant) &&
-                        tabOpt !== "OOS" && (
-                          <div className="absolute bottom-2 right-2 w-4 h-4 bg-customOrange rounded-full animate-ping"></div>
-                        )}
-                      {picking ? (
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            togglePickProduct(product.id);
-                          }}
-                          className="absolute top-2 left-2"
-                        >
-                          {pickedProducts.includes(product.id) ? (
-                            <GrRadialSelected className="text-customOrange w-6 h-6" />
-                          ) : (
-                            <FaRegCircle className="text-customOrange w-6 h-6" />
+                  <div
+                    className={`
+      relative w-44 h-44 rounded-xl bg-customSoftGray
+      ${
+        highlightId === product.id
+          ? "ring-4 ring-customOrange animate-pulse"
+          : ""
+      }
+    `}
+                  >
+                    <div className="flex flex-col space-y-2">
+                      <div className="relative w-44 h-44 rounded-xl bg-customSoftGray">
+                        {(hasOutOfStockSubProduct || hasOutOfStockVariant) &&
+                          tabOpt !== "OOS" && (
+                            <div className="absolute bottom-2 right-2 w-4 h-4 bg-customOrange rounded-full animate-ping"></div>
                           )}
-                        </div>
-                      ) : (
-                        // Show pin icon only if there are less than 4 pinned products
-                        tabOpt === "Active" &&
-                        ((!product.isFeatured && pinnedCount < 4) ||
-                          product.isFeatured) && (
+                        {picking ? (
                           <div
                             onClick={(e) => {
                               e.stopPropagation();
-                              handlePinProduct(product);
+                              togglePickProduct(product.id);
                             }}
-                            className="absolute top-2 right-2 bg-white rounded-full p-1"
+                            className="absolute top-2 left-2"
                           >
-                            {product.isFeatured ? (
-                              <MdOutlineStarPurple500
-                                className={`text-customOrange  w-5 h-5`}
-                              />
+                            {pickedProducts.includes(product.id) ? (
+                              <GrRadialSelected className="text-customOrange w-6 h-6" />
                             ) : (
-                              <MdOutlineStarBorderPurple500
-                                className={`text-customOrange  w-5 h-5`}
-                              />
+                              <FaRegCircle className="text-customOrange w-6 h-6" />
                             )}
                           </div>
-                        )
-                      )}
-                      {product.discount && !picking && (
-                        <div className="absolute top-2 left-2 flex items-center">
-                          {product.discount.discountType.startsWith(
-                            "personal-freebies"
-                          ) ? (
-                            <div className="bg-customPink text-customOrange text-sm px-2 py-1 font-medium font-opensans rounded-md">
-                              {truncateText(product.discount.freebieText)}
+                        ) : (
+                          // Show pin icon only if there are less than 4 pinned products
+                          tabOpt === "Active" &&
+                          ((!product.isFeatured && pinnedCount < 4) ||
+                            product.isFeatured) && (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePinProduct(product);
+                              }}
+                              className="absolute top-2 right-2 bg-white rounded-full p-1"
+                            >
+                              {product.isFeatured ? (
+                                <MdOutlineStarPurple500
+                                  className={`text-customOrange  w-5 h-5`}
+                                />
+                              ) : (
+                                <MdOutlineStarBorderPurple500
+                                  className={`text-customOrange  w-5 h-5`}
+                                />
+                              )}
                             </div>
-                          ) : (
-                            <div className="bg-customPink font-opensans text-customOrange text-sm font-medium px-2 py-1 rounded-md">
-                              -{product.discount.percentageCut}%
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <img
-                        src={product.coverImageUrl}
-                        alt={product.name}
-                        className="w-full h-full object-cover rounded-xl bg-customSoftGray"
-                      />
-                    </div>
-                    <div className="flex">
-                      <p className="text-xs font-semibold font-opensans text-black truncate w-32">
-                        {product.name}
-                      </p>{" "}
-                      <p className="text-xs font-semibold font-opensans text-black truncate w-9">
-                        {/* {product.color} */}
-                      </p>{" "}
-                    </div>
-                    <div
-                      className={` ${
-                        !product.published ? "flex space-x-4" : "space-y-2"
-                      }`}
-                    >
-                      <p className="text-xs font-semibold font-opensans text-black">
-                        Total Stock: {product.stockQuantity}
-                      </p>
-                      <p className="text-xs font-medium font-opensans text-black">
-                        &#x20a6;{formatNumber(product.price)}
-                      </p>
-                    </div>
-                    {!product.published && (
-                      <p className="text-xs font-semibold font-opensans text-customOrange">
-                        Unpublished Product
-                      </p>
-                    )}
-                    <div className="mt-1">
-                      {product.discount && (
-                        <p className="text-xs font-opensans font-semibold text-customRichBrown">
-                          {product.discount.discountType.startsWith("inApp")
-                            ? "In‑App Discount"
-                            : product.discount.discountType ===
-                              "personal-monetary"
-                            ? "Personal Monetary Discount"
-                            : product.discount.discountType ===
+                          )
+                        )}
+                        {product.discount && !picking && (
+                          <div className="absolute top-2 left-2 flex items-center">
+                            {product.discount.discountType.startsWith(
                               "personal-freebies"
-                            ? `Freebie: ${truncateText(
-                                product.discount.freebieText
-                              )}`
-                            : ""}
+                            ) ? (
+                              <div className="bg-customPink text-customOrange text-sm px-2 py-1 font-medium font-opensans rounded-md">
+                                {truncateText(product.discount.freebieText)}
+                              </div>
+                            ) : (
+                              <div className="bg-customPink font-opensans text-customOrange text-sm font-medium px-2 py-1 rounded-md">
+                                -{product.discount.percentageCut}%
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <img
+                          src={product.coverImageUrl}
+                          alt={product.name}
+                          className="w-full h-full object-cover rounded-xl bg-customSoftGray"
+                        />
+                      </div>
+                      <div className="flex">
+                        <p className="text-xs font-semibold font-opensans text-black truncate w-32">
+                          {product.name}
+                        </p>{" "}
+                        <p className="text-xs font-semibold font-opensans text-black truncate w-9">
+                          {/* {product.color} */}
+                        </p>{" "}
+                      </div>
+                      <div
+                        className={` ${
+                          !product.published ? "flex space-x-4" : "space-y-2"
+                        }`}
+                      >
+                        <p className="text-xs font-semibold font-opensans text-black">
+                          Total Stock: {product.stockQuantity}
+                        </p>
+                        <p className="text-xs font-medium font-opensans text-black">
+                          &#x20a6;{formatNumber(product.price)}
+                        </p>
+                      </div>
+                      {!product.published && (
+                        <p className="text-xs font-semibold font-opensans text-customOrange">
+                          Unpublished Product
                         </p>
                       )}
+                      <div className="mt-1">
+                        {product.discount && (
+                          <p className="text-xs font-opensans font-semibold text-customRichBrown">
+                            {product.discount.discountType.startsWith("inApp")
+                              ? "In‑App Discount"
+                              : product.discount.discountType ===
+                                "personal-monetary"
+                              ? "Personal Monetary Discount"
+                              : product.discount.discountType ===
+                                "personal-freebies"
+                              ? `Freebie: ${truncateText(
+                                  product.discount.freebieText
+                                )}`
+                              : ""}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1788,17 +1824,17 @@ const VendorProducts = () => {
             onClose={() => setShowConfirmation(false)}
             onConfirm={confirmDeleteProduct}
             message="Are you sure you want to delete this product?"
-            icon= {<IoTrashOutline className="w-4 h-4" />}
+            icon={<IoTrashOutline className="w-4 h-4" />}
             title="Delete Product"
             loading={oLoading}
-            />
-          ) : action === "bulkDelete" ? (
-            <ConfirmationDialog
+          />
+        ) : action === "bulkDelete" ? (
+          <ConfirmationDialog
             isOpen={showConfirmation}
             onClose={() => setShowConfirmation(false)}
             onConfirm={confirmBulkDeleteProduct}
             message="Are you sure you want to delete these products?"
-            icon= {<IoTrashOutline className="w-4 h-4" />}
+            icon={<IoTrashOutline className="w-4 h-4" />}
             title="Delete Products"
             loading={oLoading}
           />
@@ -1811,14 +1847,14 @@ const VendorProducts = () => {
             icon={<MdPublishedWithChanges className="w-4 h-4" />}
             title="Publish Products"
             loading={oLoading}
-            />
-          ) : action === "unpublish" ? (
-            <ConfirmationDialog
+          />
+        ) : action === "unpublish" ? (
+          <ConfirmationDialog
             isOpen={showConfirmation}
             onClose={() => setShowConfirmation(false)}
             onConfirm={bulkPublishStateChange}
             message="Are you sure you want to unpublish these products?"
-            icon= {<MdOutlineUnpublished className="w-4 h-4" />}
+            icon={<MdOutlineUnpublished className="w-4 h-4" />}
             title="Unpublish Products"
             loading={oLoading}
           />
@@ -1828,18 +1864,19 @@ const VendorProducts = () => {
             onClose={() => setShowConfirmation(false)}
             onConfirm={handleBulkDiscountRemoval}
             message="Are you sure you want to remove discount from the selected product(s)?"
-            icon = {<TbRosetteDiscountOff className="w-4 h-4" />}
+            icon={<TbRosetteDiscountOff className="w-4 h-4" />}
             title="Remove Discount"
             loading={oLoading}
           />
         ) : null)}
 
-        {action === "addDiscount" && (
-          <MultiDiscountModal 
+      {action === "addDiscount" && (
+        <MultiDiscountModal
           isOpen={isMultiDiscountModalOpen}
           onRequestClose={closeMultiDiscountModal}
           product={pickedProducts}
-          />)}
+        />
+      )}
     </>
   );
 };

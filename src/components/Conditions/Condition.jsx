@@ -49,7 +49,7 @@ const Condition = () => {
         className="flex flex-col items-center cursor-pointer w-[calc(25%-8px)]"
         onClick={() => handleNavigate("defect")}
       >
-        <div className="flex-none bg-lightPurple text-white border border rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
+        <div className="flex-none bg-lightPurple text-white border  rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
           <div className="w-4/5 h-4/5 flex items-center justify-center">
             <DefectsIcon />
           </div>
@@ -61,7 +61,7 @@ const Condition = () => {
 
       {/* What's New Container */}
       <div className="flex flex-col items-center cursor-pointer w-[calc(25%-8px)]">
-        <div className="flex-none bg-lightPurple text-white border border rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
+        <div className="flex-none bg-lightPurple text-white border  rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
           <div className="w-4/5 h-4/5 flex items-center justify-center">
             <WhatsNew />
           </div>

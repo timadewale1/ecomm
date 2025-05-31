@@ -119,7 +119,7 @@ export default function VendorChatList() {
               <p className="font-opensans text-xs  text-center text-gray-600">
                 {" "}
                 You don’t have any open chats right now. When a customer wants
-                to know more about one of your products, you’ll see it here.
+                to know more about one of your products, you’ll see it here. Please check your email spams as notifications may be there
               </p>
             ) : (
               <p className="font-opensans  text-xs  text-center text-gray-600">

@@ -104,6 +104,9 @@ html {
 .confirmation {
   z-index: 4000;
 }
+.confirm {
+  z-index: 8900;
+}
 /* global.css or your component's css file */
 li {
   list-style-type: none; /* Removes bullets or markers */
@@ -220,6 +223,9 @@ li::marker {
   align-items: flex-end; /* Position modal at the bottom */
   justify-content: center;
   z-index: 1000;
+}
+.qanda{
+  padding: 20px;
 }
 
 /* Modal Content Styles */

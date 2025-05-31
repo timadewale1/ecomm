@@ -186,9 +186,15 @@ const Cart = () => {
   useEffect(() => {
     const fetchVendorInfo = async () => {
       try {
-        const vendorIds = Object.keys(cart);
+        // Build a unique set of IDs: whatever’s in the cart plus the stockpile vendor
+        const ids = new Set(
+          [...Object.keys(cart), stockpileVendorId].filter(Boolean)
+        );
+
         const newVendorsInfo = { ...vendorsInfo };
-        for (const vendorId of vendorIds) {
+
+        for (const vendorId of ids) {
+          // only fetch if we don’t already have it
           if (!newVendorsInfo[vendorId]) {
             const vendorDoc = await getDoc(doc(db, "vendors", vendorId));
             if (vendorDoc.exists()) {
@@ -198,13 +204,15 @@ const Cart = () => {
             }
           }
         }
+
         setVendorsInfo(newVendorsInfo);
       } catch (error) {
         console.error("Error fetching vendor info:", error);
       }
     };
+
     fetchVendorInfo();
-  }, [cart]);
+  }, [cart, stockpileVendorId]);
 
   useEffect(() => {
     if (cart && Object.keys(cart).length > 0) {
@@ -315,7 +323,7 @@ const Cart = () => {
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
-    
+
     // Check if vendor is deactivated
     try {
       const vendorDocRef = doc(db, "vendors", vendorId);
@@ -445,6 +453,10 @@ const Cart = () => {
       setIsLoginModalOpen(false);
     }
   };
+  const exitVendorName =
+    cart[stockpileVendorId]?.vendorName ||
+    vendorsInfo[stockpileVendorId]?.shopName ||
+    "this vendor";
 
   const handleNoteOverlayClick = (e) => {
     if (e.target === e.currentTarget) {
@@ -947,7 +959,7 @@ const Cart = () => {
               <p className="text-sm text-gray-800 font-opensans">
                 You're currently repiling from{" "}
                 <span className="font-semibold text-customOrange">
-                  {cart[stockpileVendorId]?.vendorName || "this vendor"}
+                  {exitVendorName}
                 </span>
                 . Checking out with another vendor will exit this pile and clear
                 your cart. Continue?

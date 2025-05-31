@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { GoHome } from "react-icons/go";
-import { HiOutlineUser } from "react-icons/hi2";
-import { BsBoxSeam } from "react-icons/bs";
+import { GoHome, GoHomeFill} from "react-icons/go";
+import { HiOutlineUser, HiUser } from "react-icons/hi2";
+import { BsBoxSeam, BsBoxSeamFill } from "react-icons/bs";
+import { IoChatbubbles, IoChatbubblesOutline } from "react-icons/io5";
+
 import { AiFillProduct, AiOutlineProduct } from "react-icons/ai";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useVendorNavigation } from "../Context/VendorBottomBarCtxt"; // Updated import
@@ -20,25 +22,31 @@ const VendorBottomBar = ({ isSearchFocused }) => {
   const navItems = [
     {
       icon: GoHome,
-      activeIcon: GoHome,
+      activeIcon: GoHomeFill,
       label: "Dashboard",
       route: "/vendordashboard",
     },
     {
       icon: BsBoxSeam,
-      activeIcon: BsBoxSeam,
+      activeIcon: BsBoxSeamFill,
       label: "Orders",
       route: "/vendor-orders",
     },
     {
+      icon: IoChatbubblesOutline,
+      activeIcon: IoChatbubbles,
+      label: "Chats",
+      route: "/vchats",
+    },
+    {
       icon: AiOutlineProduct,
       activeIcon: AiFillProduct,
-      label: "Products",
+      label: "Inventory",
       route: "/vendor-products",
     },
     {
       icon: HiOutlineUser,
-      activeIcon: HiOutlineUser,
+      activeIcon: HiUser,
       label: "Profile",
       route: "/vendor-profile",
     },

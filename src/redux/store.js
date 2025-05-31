@@ -25,6 +25,8 @@ import personalDiscountsPageReducer from "./reducers/personalDiscountsPageSlice"
 import { promoReducer } from "./reducers/promoreducer";
 import exploreReducer from "./reducers/exploreSlice";
 import exploreUiReducer from "./reducers/exploreUiSlice";
+import chatReducer from "./reducers/chatSlice";
+import vendorChatReducer from "./reducers/vendorChatSlice";
 import catsectionReducer from "./reducers/catsection";
 import categoryProductsReducer from "./reducers/categoryProductsSlice";
 import topVendorsReducer from "./reducers/topVendorsSlice";
@@ -46,12 +48,14 @@ const rootReducer = combineReducers({
   explore: exploreReducer,
   exploreUi: exploreUiReducer,
   user: userReducer,
+  vendorChats: vendorChatReducer,
   stockpile: stockpileReducer, // will be persisted
   storepageVendors: storepageVendorsReducer,
   orders: orderReducer,
   discountProducts: discountProductsReducer,
   market: marketReducer,
   promo: promoReducer,
+  chat: chatReducer,
   vendorStockpile: vendorStockpileReducer,
   personalDiscountsPage: personalDiscountsPageReducer,
   personalDiscounts: personalDiscountsSlice,
@@ -88,9 +92,7 @@ store.subscribe(() => {
   try {
     const { cart } = store.getState();
     window.localStorage?.setItem("cart", JSON.stringify(cart));
-  } catch {
-   
-  }
+  } catch {}
 });
 
 export const persistor = persistStore(store);

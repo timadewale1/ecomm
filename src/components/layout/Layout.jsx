@@ -67,6 +67,7 @@ const Layout = () => {
     "/inapp-discounts/:discountName",
     "/products/condition/:condition",
     "/store/:id",
+    "/vchats/:inquiryId",
     "/payment-approve/:reference",
     "category/:id",
     "/pay/:token",
@@ -97,6 +98,7 @@ const Layout = () => {
   const vendorPaths = [
     "/vendordashboard",
     "/vendor-orders",
+    "/vchats",
     "/store-reviews",
     "/vendor-profile",
     "/vendor-products",

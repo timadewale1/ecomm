@@ -21,11 +21,15 @@ export const fetchVendorCategories = createAsyncThunk(
       const snap = await getDoc(doc(db, "vendors", vendorId));
       if (!snap.exists()) throw new Error("Vendor not found");
       const data = snap.data();
-      // Firestore field is called `categories`
-      const cats = Array.isArray(data.categories) ? data.categories : [];
+
+      // Firestore field is now `productCategories` (instead of `categories`)
+      const cats = Array.isArray(data.productCategories)
+        ? data.productCategories
+        : [];
+
       return { vendorId, categories: cats };
     } catch (err) {
-      console.error("[cats] failed fetching vendor.categories:", err);
+      console.error("[cats] failed fetching vendor.productCategories:", err);
       return rejectWithValue(err.message);
     }
   }

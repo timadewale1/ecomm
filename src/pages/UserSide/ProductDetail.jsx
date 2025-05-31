@@ -55,6 +55,7 @@ import IkImage from "../../services/IkImage";
 import SEO from "../../components/Helmet/SEO";
 import QuestionandA from "../../components/Loading/QuestionandA";
 import { LiaTimesSolid } from "react-icons/lia";
+import { handleUserActionLimit } from "../../services/userWriteHandler";
 Modal.setAppElement("#root");
 
 const debounce = (func, delay) => {
@@ -519,6 +520,23 @@ const ProductDetailPage = () => {
       return toast.error("Please enter a question.");
     }
 
+    // Immediately show spinner/disable UI
+    setIsSending(true);
+
+    // 1) Enforce a daily limit of 3 questions
+    try {
+      await handleUserActionLimit(
+        currentUser.uid,
+        "askQuestion",
+        {}, // no extra userData
+        { dayLimit: 3 } // cap at 3 per 24 hours
+      );
+    } catch (limitError) {
+      // Rate limit hit: hide spinner and show error instantly
+      setIsSending(false);
+      return toast.error(limitError.message);
+    }
+
     // build your object so you can inspect it
     const inquiryPayload = {
       productId: id,
@@ -529,14 +547,13 @@ const ProductDetailPage = () => {
       status: "open",
       createdAt: serverTimestamp(),
       hasRead: false,
-
+      customerHasRead: false,
       uid: currentUser.uid,
       email: currentUser.email,
     };
 
     console.log("[Q&A] payload to write:", inquiryPayload);
 
-    setIsSending(true);
     try {
       console.log("[Q&A] writing to Firestore…");
       await addDoc(collection(db, "inquiries"), inquiryPayload);
@@ -550,7 +567,7 @@ const ProductDetailPage = () => {
       console.log("[Q&A] send handler complete");
       setIsSending(false);
     }
-  }, [questionText, id, product, currentUser, db /*, userData */]);
+  }, [questionText, id, product, currentUser, db]);
 
   const handleIncreaseQuantity = useCallback(() => {
     console.log("Increase Quantity Triggered");
@@ -1145,6 +1162,25 @@ const ProductDetailPage = () => {
                           </p>
                         </div>
                       )}
+                      <div className="absolute bottom-12 left-2 bg-white bg-opacity-40 px-2 py-1 rounded-lg shadow-md flex items-center space-x-2">
+                        <p className="text-xs font-opensans text-gray-700">
+                          Still not sure?
+                        </p>
+                        <button
+                          onClick={() => {
+                            if (!currentUser) {
+                              navigate("/login", {
+                                state: { from: location.pathname },
+                              });
+                            } else {
+                              setIsAskModalOpen(true);
+                            }
+                          }}
+                          className="text-xs font-semibold font-opensans text-customOrange hover:underline focus:outline-none"
+                        >
+                          Ask a question
+                        </button>
+                      </div>
                     </div>
                   </SwiperSlide>
                 ))}
@@ -1201,6 +1237,26 @@ const ProductDetailPage = () => {
                   </span>
                 </div>
               )}
+
+              <div className="absolute bottom-4 left-2 bg-white bg-opacity-60 px-2 py-1 rounded-lg shadow-md flex items-center space-x-2">
+                <p className="text-xs font-opensans text-gray-700">
+                  Still not sure?
+                </p>
+                <button
+                  onClick={() => {
+                    if (!currentUser) {
+                      navigate("/login", {
+                        state: { from: location.pathname },
+                      });
+                    } else {
+                      setIsAskModalOpen(true);
+                    }
+                  }}
+                  className="text-xs font-semibold font-opensans text-customOrange hover:underline focus:outline-none"
+                >
+                  Ask a question
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -1400,25 +1456,7 @@ const ProductDetailPage = () => {
             {/* Arrow icon */}
             <GoChevronRight className="ml-auto text-2xl" />
           </div>
-          <div className="border-t border-gray-100 mt-3 mb-2 "></div>
-          <div className="flex items-center  space-x-2">
-            <p className="text-xs font-opensans text-gray-600">
-              Still not sure?
-            </p>
-            <button
-              onClick={() => {
-                if (!currentUser) {
-                  // redirect to login if they’re not signed in
-                  navigate("/login", { state: { from: location.pathname } });
-                } else {
-                  setIsAskModalOpen(true);
-                }
-              }}
-              className="text-sm text-customOrange font-lato font-medium hover:underline focus:outline-none"
-            >
-              Ask a question
-            </button>
-          </div>
+
           <Modal
             isOpen={isModalOpen}
             onRequestClose={() => setIsModalOpen(false)}
@@ -1471,7 +1509,8 @@ const ProductDetailPage = () => {
                   <p className="text-xs font-opensans text-gray-600 mb-4">
                     This is a single ask use it if you’re unsure of product
                     details or want to know more before buying. The vendor will
-                    reply as soon as possible. You can only send one message.
+                    reply as soon as possible. This feature is limited to 3 uses
+                    per day while in beta.
                   </p>
 
                   <label className="block text-xs font-medium font-opensans text-gray-700 mb-1">

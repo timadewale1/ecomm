@@ -59,10 +59,15 @@ export default function VendorChatList() {
   return (
     <div className="max-w-xl mx-auto h-full flex flex-col">
       {/* HEADER */}
-      <header className="sticky top-0 bg-white z-10   p-4">
+      <header className="sticky top-0 bg-white z-10 p-4 relative">
         <h1 className="text-2xl font-medium font-ubuntu text-gray-800">
           Message Box
         </h1>
+
+        {/* “Beta” badge, positioned exactly like your example */}
+        <span className="absolute top-3 right-48 bg-customOrange text-[10px] text-white px-1 rounded-md font-bold">
+          Beta
+        </span>
       </header>
 
       {/* SEARCH BAR */}
@@ -71,7 +76,7 @@ export default function VendorChatList() {
           <input
             type="text"
             placeholder="Search messages..."
-            className="w-full border border-gray-200 rounded-full px-4 py-2 pr-10 text-sm font-opensans focus:outline-none focus:ring-2 focus:ring-customOrange"
+            className="w-full border border-gray-200 rounded-full px-4 py-2 pr-10 text-base font-opensans focus:outline-none focus:ring-2 focus:ring-customOrange"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -111,9 +116,17 @@ export default function VendorChatList() {
           <div className="h-full flex flex-col items-center justify-center p-8 text-gray-500">
             <NoMessage />
             {selectedTab === "open" ? (
-              <p className="font-opensans text-xs  text-center text-gray-600"> You don’t have any open chats right now. When a customer wants to know more about one of your products, you’ll see it here.</p>
+              <p className="font-opensans text-xs  text-center text-gray-600">
+                {" "}
+                You don’t have any open chats right now. When a customer wants
+                to know more about one of your products, you’ll see it here.
+              </p>
             ) : (
-              <p className="font-opensans  text-xs  text-center text-gray-600"> You don’t have any closed chats yet. Once you reply to a question, it will appear here.</p>
+              <p className="font-opensans  text-xs  text-center text-gray-600">
+                {" "}
+                You don’t have any closed chats yet. Once you reply to a
+                question, it will appear here.
+              </p>
             )}
           </div>
         ) : (

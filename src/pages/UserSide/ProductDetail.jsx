@@ -1534,7 +1534,7 @@ const ProductDetailPage = () => {
                     value={questionText}
                     onChange={(e) => setQuestionText(e.target.value)}
                     maxLength={700}
-                    className="w-full mb-4 px-3 py-2 border rounded resize-none font-opensans focus:outline-none text-sm"
+                    className="w-full mb-4 px-3 py-2 border rounded resize-none font-opensans focus:outline-none text-base"
                   />
 
                   <div className="flex px-4 justify-center ">

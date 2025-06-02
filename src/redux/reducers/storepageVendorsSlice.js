@@ -7,10 +7,33 @@ import {
   collection,
   getDocs,
   where,
+  limit, // ✅  new
+  orderBy, // ✅  new
+  startAfter,
   query,
 } from "firebase/firestore";
 
 const PAGE_SIZE = 20; // ⬅ how many products per “page”
+export const fetchVendorCategories = createAsyncThunk(
+  "storepageVendors/fetchVendorCategories",
+  async (vendorId, { rejectWithValue }) => {
+    try {
+      const snap = await getDoc(doc(db, "vendors", vendorId));
+      if (!snap.exists()) throw new Error("Vendor not found");
+      const data = snap.data();
+
+      // Firestore field is now `productCategories` (instead of `categories`)
+      const cats = Array.isArray(data.productCategories)
+        ? data.productCategories
+        : [];
+
+      return { vendorId, categories: cats };
+    } catch (err) {
+      console.error("[cats] failed fetching vendor.productCategories:", err);
+      return rejectWithValue(err.message);
+    }
+  }
+);
 
 /* ──────────────────────────────────────────────────────────────
    1)  Fetch only the vendor document (no products here)
@@ -141,7 +164,7 @@ const storepageVendorsSlice = createSlice({
           nextIdx: existing?.nextIdx ?? 0,
           noMore: existing?.noMore ?? false,
           loadingMore: existing?.loadingMore ?? false,
-          scrollY: existing?.scrollY ,
+          scrollY: existing?.scrollY,
         };
       })
 
@@ -173,7 +196,12 @@ const storepageVendorsSlice = createSlice({
           if (state.entities[id]) state.entities[id].loadingMore = false;
           state.error = payload || "Something went wrong.";
         }
-      );
+      )
+      .addCase(fetchVendorCategories.fulfilled, (state, { payload }) => {
+        const { vendorId, categories } = payload;
+        state.entities[vendorId] ??= { products: [] };
+        state.entities[vendorId].categories = categories;
+      });
   },
 });
 

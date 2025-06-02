@@ -1,89 +1,102 @@
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../../firebase.config";
 
-// Action Types
-const FETCH_VENDORS_REQUEST = "vendors/FETCH_VENDORS_REQUEST";
-const FETCH_VENDORS_SUCCESS = "vendors/FETCH_VENDORS_SUCCESS";
-const FETCH_VENDORS_FAILURE = "vendors/FETCH_VENDORS_FAILURE";
+/** Helper that returns vendor docs for a given place type */
+const getVendorsByType = async (type) => {
+  const snap = await getDocs(
+    query(
+      collection(db, "vendors"),
+      where("marketPlaceType", "==", type),
+      where("isApproved", "==", true),
+      where("isDeactivated", "==", false)
+    )
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+};
 
-// Initial State
+/** Counts how many orders a vendor has fulfilled */
+const getOrderCount = async (vendorId) => {
+  const snap = await getDocs(
+    query(collection(db, "orders"), where("vendorId", "==", vendorId))
+  );
+  return snap.size;
+};
+
+/** Fetches local + online vendors, assigns product & order counts, then ranks. */
+export const fetchVendorsRanked = createAsyncThunk(
+  "vendors/fetchRanked",
+  async (_, { rejectWithValue }) => {
+    try {
+      // 1 ─ grab vendors by type
+      const [marketVendors, onlineVendors] = await Promise.all([
+        getVendorsByType("marketplace"),
+        getVendorsByType("virtual"),
+      ]);
+
+      // 2 ─ enrich with counts + score
+      const enrich = async (vList) =>
+        Promise.all(
+          vList.map(async (v) => {
+            const productCount = Array.isArray(v.productIds)
+              ? v.productIds.length
+              : 0;
+            const orderCount = await getOrderCount(v.id);
+            return {
+              ...v,
+              productCount,
+              orderCount,
+              score: productCount + orderCount,
+            };
+          })
+        );
+
+      const [localEnriched, onlineEnriched] = await Promise.all([
+        enrich(marketVendors),
+        enrich(onlineVendors),
+      ]);
+
+      // 3 ─ rank each list (highest score first)
+      localEnriched.sort((a, b) => b.score - a.score);
+      onlineEnriched.sort((a, b) => b.score - a.score);
+
+      return { local: localEnriched, online: onlineEnriched };
+    } catch (err) {
+      console.error("fetchVendorsRanked:", err);
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
 const initialState = {
   local: [],
   online: [],
   isFetched: false,
-  status: "idle", // idle, loading, succeeded, failed
+  status: "idle", // idle | loading | succeeded | failed
   error: null,
 };
 
-// Action Creators
-export const fetchVendorsRequest = () => ({
-  type: FETCH_VENDORS_REQUEST,
+const vendorsSlice = createSlice({
+  name: "vendors",
+  initialState,
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchVendorsRanked.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(fetchVendorsRanked.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.local = action.payload.local; // already sorted
+        state.online = action.payload.online; // already sorted
+        state.isFetched = true;
+      })
+      .addCase(fetchVendorsRanked.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+      });
+  },
 });
 
-export const fetchVendorsSuccess = (payload) => ({
-  type: FETCH_VENDORS_SUCCESS,
-  payload,
-});
-
-export const fetchVendorsFailure = (error) => ({
-  type: FETCH_VENDORS_FAILURE,
-  error,
-});
-
-// Async Thunk to Fetch Vendors
-export const fetchVendors = () => async (dispatch) => {
-  dispatch(fetchVendorsRequest());
-
-  try {
-    const localVendorQuery = query(
-      collection(db, "vendors"),
-      where("marketPlaceType", "==", "marketplace"),
-      where("isDeactivated", "==", false),
-      where("isApproved", "==", true)
-    );
-    const localVendorSnapshot = await getDocs(localVendorQuery);
-    const localVendors = localVendorSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    const onlineVendorQuery = query(
-      collection(db, "vendors"),
-      where("marketPlaceType", "==", "virtual"),
-      where("isDeactivated", "==", false),
-      where("isApproved", "==", true)
-    );
-    const onlineVendorSnapshot = await getDocs(onlineVendorQuery);
-    const onlineVendors = onlineVendorSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    dispatch(fetchVendorsSuccess({ localVendors, onlineVendors }));
-  } catch (error) {
-    dispatch(fetchVendorsFailure(error.message));
-  }
-};
-
-// Reducer
-const vendorReducer = (state = initialState, action) => {
-  switch (action.type) {
-    case FETCH_VENDORS_REQUEST:
-      return { ...state, status: "loading", error: null };
-    case FETCH_VENDORS_SUCCESS:
-      return {
-        ...state,
-        local: action.payload.localVendors,
-        online: action.payload.onlineVendors,
-        isFetched: true,
-        status: "succeeded",
-        error: null,
-      };
-    case FETCH_VENDORS_FAILURE:
-      return { ...state, status: "failed", error: action.error };
-    default:
-      return state;
-  }
-};
-
-export default vendorReducer;
+export default vendorsSlice.reducer;

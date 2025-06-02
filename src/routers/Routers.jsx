@@ -5,7 +5,7 @@ import Login from "../pages/Login.jsx";
 import Signup from "../pages/Signup.jsx";
 import NotificationsPage from "../pages/UserSide/Notifications.jsx";
 import ForgetPassword from "../pages/forgetPassword.jsx";
-import Donate from "../pages/Donate.jsx"; 
+import Donate from "../pages/Donate.jsx";
 import VendorSignup from "../pages/VendorSignup.jsx";
 import AuthActionHandler from "../custom-hooks/Authhandler.jsx";
 import VendorOrders from "../pages/Orders/VendorOrders.jsx";
@@ -44,9 +44,12 @@ import CallGuide from "../pages/Legal/CallGuide.jsx";
 import DeliveryGuide from "../pages/Legal/DeliveryGuide.jsx";
 import PrivacyPolicy from "../pages/Legal/PrivacyPolicy.jsx";
 import NotFound from "../pages/NotFound.jsx";
+import VendorChat from "../pages/vendor/VendorChat.jsx";
+import VendorChatList from "../pages/vendor/VendorChatList.jsx";
 import StoreReviews from "../pages/vendor/StoreReviews.jsx";
 import RoleBasedAccess from "../custom-hooks/Rbac.jsx"; // Assuming this is the RoleBasedAccess component
 import { Navigate } from "react-router-dom";
+import WithAnswerModal from "../components/Reviews/WithAnswerModal.jsx";
 import PersonalDiscountsPage from "../components/Discounts/PersonalDiscountsPage.jsx";
 import WithReviewModal from "../components/Reviews/WithReview.jsx";
 import CategoryProducts from "../components/PopularCategories/CategorySection.jsx";
@@ -63,7 +66,10 @@ const Routers = () => {
       <Route path="/confirm-state" element={<ConfirmUserState />} />
       <Route path="product/:id" element={<ProductDetailPage />} />
       <Route path="signup" element={<Signup />} />
-      <Route path="/inapp-discounts/:discountName" element={<InAppDiscountProducts />} />
+      <Route
+        path="/inapp-discounts/:discountName"
+        element={<InAppDiscountProducts />}
+      />
       <Route path="vendor-signup" element={<VendorSignup />} />
       <Route path="login" element={<Login />} />
       <Route path="vendorlogin" element={<VendorLogin />} />
@@ -99,9 +105,11 @@ const Routers = () => {
         path="/newhome"
         element={
           <RoleBasedAccess allowedRoles={["user"]}>
-            <WithReviewModal>
-              <NewHome />
-            </WithReviewModal>
+            <WithAnswerModal>
+              <WithReviewModal>
+                <NewHome />
+              </WithReviewModal>
+            </WithAnswerModal>
           </RoleBasedAccess>
         }
       />
@@ -175,7 +183,7 @@ const Routers = () => {
       />
       <Route
         path="/store/:id"
-        element={ 
+        element={
           <RoleBasedAccess allowedRoles={["user", null]}>
             <StorePage />
           </RoleBasedAccess>
@@ -246,14 +254,34 @@ const Routers = () => {
 
       {/* Vendor Protected Routes */}
       <Route element={<ProtectedRoute requiredRole="vendor" />}>
-        <Route path="/vendordashboard" element={
-          /*<WithWhatsAppModal>*/
-          <VendorDashboard />/*</WithWhatsAppModal>*/} />
-        <Route path="/vendor-profile" element={/*<WithWhatsAppModal>*/<VendorProfile />/*</WithWhatsAppModal>*/} />
-        <Route path="/vendor-products" element={/*<WithWhatsAppModal>*/<VendorProducts />/*</WithWhatsAppModal>*/} />
+        <Route
+          path="/vendordashboard"
+          element={
+            /*<WithWhatsAppModal>*/
+            <VendorDashboard /> /*</WithWhatsAppModal>*/
+          }
+        />
+        <Route
+          path="/vendor-profile"
+          element={
+            /*<WithWhatsAppModal>*/ <VendorProfile /> /*</WithWhatsAppModal>*/
+          }
+        />
+        <Route
+          path="/vendor-products"
+          element={
+            /*<WithWhatsAppModal>*/ <VendorProducts /> /*</WithWhatsAppModal>*/
+          }
+        />
         <Route path="/vendor-orders" element={<VendorOrders />} />
-        <Route path="/store-reviews" element={/*<WithWhatsAppModal>*/<StoreReviews />/*</WithWhatsAppModal>*/} />
-        
+        <Route
+          path="/store-reviews"
+          element={
+            /*<WithWhatsAppModal>*/ <StoreReviews /> /*</WithWhatsAppModal>*/
+          }
+        />
+        <Route path="/vchats" element={<VendorChatList />} />
+        <Route path="/vchats/:inquiryId" element={<VendorChat />} />
         <Route path="/call-guidelines" element={<CallGuide />} />
         <Route path="/delivery-guidelines" element={<DeliveryGuide />} />
         {/* Add any other vendor-specific protected routes here */}

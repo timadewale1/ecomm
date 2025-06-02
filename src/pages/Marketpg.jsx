@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchVendors } from "../redux/reducers/VendorsSlice";
+import { fetchVendorsRanked } from "../redux/reducers/VendorsSlice";
 import { GoDotFill, GoChevronLeft } from "react-icons/go";
 import { CiSearch } from "react-icons/ci";
 import Skeleton from "react-loading-skeleton";
@@ -22,27 +22,32 @@ const Marketpg = () => {
 
   const [selectedTab, setSelectedTab] = useState("online"); // Toggle between 'local' and 'online'
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredVendors, setFilteredVendors] = useState([]);
+
   const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     // Fetch vendors only if not already fetched
     if (!isFetched) {
-      dispatch(fetchVendors());
+      dispatch(fetchVendorsRanked());
     }
   }, [dispatch, isFetched]);
+ const vendors = selectedTab === "local" ? local : online;
+  const filteredVendors = React.useMemo(() => {
+    if (!searchTerm) return vendors;
+    const q = searchTerm.toLowerCase();
+    return vendors.filter((v) => v.shopName.toLowerCase().includes(q));
+  }, [vendors, searchTerm]);
+  // useEffect(() => {
+  //   // Filter vendors based on the selected tab and search term
+  //   const vendors = selectedTab === "local" ? local : online;
+  //   const filtered = searchTerm
+  //     ? vendors.filter((vendor) =>
+  //         vendor.shopName.toLowerCase().includes(searchTerm.toLowerCase())
+  //       )
+  //     : vendors;
 
-  useEffect(() => {
-    // Filter vendors based on the selected tab and search term
-    const vendors = selectedTab === "local" ? local : online;
-    const filtered = searchTerm
-      ? vendors.filter((vendor) =>
-          vendor.shopName.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      : vendors;
-
-    setFilteredVendors(filtered);
-  }, [local, online, selectedTab, searchTerm]);
+  //   setFilteredVendors(filtered);
+  // }, [local, online, selectedTab, searchTerm]);
 
   const handleTabChange = (tab) => {
     setSelectedTab(tab);
@@ -56,13 +61,18 @@ const Marketpg = () => {
   const handleClearSearch = () => {
     setSearchTerm("");
   };
-
+ 
   const handleStoreView = (vendor) => {
     if (selectedTab === "local") {
       navigate(`/marketstorepage/${vendor.id}`);
     } else {
       navigate(`/store/${vendor.id}`);
     }
+  };
+  // helper (define once near the top of the component file)
+  const avgRating = (vendor) => {
+    const { rating = 0, ratingCount = 0 } = vendor;
+    return ratingCount > 0 ? rating / ratingCount : 0;
   };
 
   const defaultImageUrl =
@@ -102,7 +112,7 @@ const Marketpg = () => {
                 />
                 <input
                   type="text"
-                  className="flex-1 border font-opensans text-black text-sm border-gray-300 rounded-full px-3 py-2 font-medium focus:outline-none"
+                  className="flex-1 border font-opensans text-black text-base border-gray-300 rounded-full px-3 py-2 font-medium focus:outline-none"
                   value={searchTerm}
                   onChange={handleSearchChange}
                   placeholder="Search vendors..."
@@ -175,7 +185,10 @@ const Marketpg = () => {
             </div>
           ) : filteredVendors.length > 0 ? (
             filteredVendors.map((vendor) => (
-              <div key={vendor.id} className="vendor-item border-b  border-gray-100 "> 
+              <div
+                key={vendor.id}
+                className="vendor-item border-b  border-gray-100 "
+              >
                 <div
                   className="flex justify-between p-3 mb-1 bg-white "
                   onClick={() => handleStoreView(vendor)}
@@ -187,14 +200,16 @@ const Marketpg = () => {
                         : vendor.shopName}
                     </h1>
                     <p className="font-sans text-gray-300 text-xs flex items-center -translate-y-1">
-                      {vendor.categories.slice(0, 3).map((category, index) => (
-                        <React.Fragment key={index}>
-                          {index > 0 && (
-                            <GoDotFill className="mx-1 dot-size text-gray-300" />
-                          )}
-                          {category}
-                        </React.Fragment>
-                      ))}
+                      {(vendor.categories?.slice(0, 3) || []).map(
+                        (category, index) => (
+                          <React.Fragment key={index}>
+                            {index > 0 && (
+                              <GoDotFill className="mx-1 dot-size text-gray-300" />
+                            )}
+                            {category}
+                          </React.Fragment>
+                        )
+                      )}
                     </p>
                     <div className="flex -ml-1  items-center  text-gray-700 font-ubuntu font-  text-xs translate-y-4 mb-0">
                       <IoLocationOutline className="mr-1 text-customOrange" />
@@ -202,7 +217,7 @@ const Marketpg = () => {
                     </div>
                     <div className="flex items-center translate-y-4">
                       <span className="text-black font-light text-xs mr-2">
-                        {(vendor.rating / vendor.ratingCount || 0).toFixed(1)}
+                        {avgRating(vendor).toFixed(1)}
                       </span>
                       <ReactStars
                         count={5}

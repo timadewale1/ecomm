@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useLayoutEffect,
+  useCallback,
+} from "react";
 import { handleUserActionLimit } from "../services/userWriteHandler";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../firebase.config";
@@ -19,6 +25,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   fetchStoreVendor,
   saveStoreScroll,
+  fetchVendorCategories,
   fetchVendorProductsBatch,
 } from "../redux/reducers/storepageVendorsSlice";
 import { onAuthStateChanged } from "firebase/auth";
@@ -106,6 +113,8 @@ const StorePage = () => {
   const dispatch = useDispatch();
   const [selectedType, setSelectedType] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
+  const [loadingAll, setLoadingAll] = useState(false);
+
   const [isSearching, setIsSearching] = useState(false);
   const [viewOptions, setViewOptions] = useState(false);
   // Add this line along with your other useState declarations
@@ -173,28 +182,36 @@ const StorePage = () => {
       dispatch(fetchStoreVendor(id));
     }
   }, [id, dispatch, vendor]);
-
-  // useEffect(() => {
-  //   // if we were on `/store/:id` and now we're not → time to save
-  //   if (
-  //     prevPath.current.startsWith(`/store/${id}`) &&
-  //     !location.pathname.startsWith(`/store/${id}`)
-  //   ) {
-  //     console.log(
-  //       `🛑 saving scrollY=${lastScrollY.current} for vendor ${id} on route change`
-  //     );
-  //     dispatch(saveStoreScroll({ vendorId: id, scrollY: lastScrollY.current }));
-  //   }
-  //   prevPath.current = location.pathname;
-  // }, [location.pathname, dispatch, id]);
-
-  // Fetch the first batch of twenty products as soon as the vendor is ready
+  useEffect(() => {
+    if (vendor && (!entry.categories || entry.categories.length === 0)) {
+      console.log("[page] dispatch fetchVendorCategories()");
+      dispatch(fetchVendorCategories(id));
+    }
+  }, [vendor, entry.categories, id, dispatch]);
   useEffect(() => {
     if (vendor && products.length === 0) {
       dispatch(fetchVendorProductsBatch({ vendorId: id, loadMore: false }));
     }
   }, [vendor, products.length, id, dispatch]);
-
+  const ensureAllProductsLoaded = useCallback(async () => {
+    if (!vendor || entry.noMore) return; // already complete
+    setLoadingAll(true);
+    try {
+      while (true) {
+        const { noMore } = await dispatch(
+          fetchVendorProductsBatch({ vendorId: id, loadMore: true })
+        ).unwrap();
+        if (noMore) break;
+      }
+    } finally {
+      setLoadingAll(false);
+    }
+  }, [vendor, entry.noMore, dispatch, id]);
+  const openSearch = useCallback(async () => {
+    setIsSearching(true);
+    await ensureAllProductsLoaded(); // pull the whole catalogue once
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [ensureAllProductsLoaded]);
   // Infinite scroll – load more when the user nears the bottom
   useEffect(() => {
     const onScroll = () => {
@@ -267,6 +284,22 @@ const StorePage = () => {
   const handleClosePileModal = () => {
     setShowPileModal(false);
   };
+  // 👉 helper: normalises strings once
+  const normal = (s = "") => s.toString().toLowerCase().trim();
+
+  // 👉 helper: does the product match the query?
+  const matches = (p, q) => {
+    const qn = normal(q);
+    return (
+      normal(p.name).includes(qn) ||
+      normal(p.productType).includes(qn) ||
+      (Array.isArray(p.tags) && p.tags.some((t) => normal(t).includes(qn)))
+    );
+  };
+
+  // 👉 helper: true = we’re currently doing a “global” search
+  const searchingUI = (isSearching, searchTerm) =>
+    isSearching && normal(searchTerm) !== "";
 
   // Format the expiry date with moment
   const expiryString = stockpileExpiry
@@ -387,58 +420,23 @@ const StorePage = () => {
     return <Loading />;
   }
 
-  const handleTypeSelect = (type) => {
+  const handleTypeSelect = async (type) => {
     setSelectedType(type);
+    if (type !== "All") {
+      await ensureAllProductsLoaded(); // make sure every product is present
+    }
   };
-  // const fetchVendorProducts = async (productIds) => {
-  //   try {
-  //     const productsRef = collection(db, "products");
-
-  //     const productChunks = [];
-  //     for (let i = 0; i < productIds.length; i += 10) {
-  //       productChunks.push(productIds.slice(i, i + 10));
-  //     }
-
-  //     const productsList = [];
-  //     for (const chunk of productChunks) {
-  //       const q = query(
-  //         productsRef,
-  //         where("__name__", "in", chunk),
-  //         where("published", "==", true)
-  //       );
-  //       const productsSnapshot = await getDocs(q);
-  //       const productsChunk = productsSnapshot.docs.map((doc) => ({
-  //         id: doc.id,
-  //         ...doc.data(),
-  //       }));
-  //       productsList.push(...productsChunk);
-  //     }
-
-  //     setProducts(productsList);
-  //   } catch (error) {
-  //     console.error("Error fetching vendor products:", error);
-  //     toast.error("Error fetching products.");
-  //   }
-  // };
-
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
   };
 
   const filteredProducts = products
-    .filter(
-      (product) =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        (selectedType === "All" || product.productType === selectedType)
-    )
+    .filter((p) => matches(p, searchTerm))
+    .filter((p) => selectedType === "All" || p.productType === selectedType)
     .sort((a, b) => {
-      if (sortOption === "priceAsc") {
-        return parseFloat(a.price) - parseFloat(b.price);
-      } else if (sortOption === "priceDesc") {
-        return parseFloat(b.price) - parseFloat(a.price);
-      } else {
-        return 0; // No sorting applied
-      }
+      if (sortOption === "priceAsc") return a.price - b.price;
+      if (sortOption === "priceDesc") return b.price - a.price;
+      return 0;
     });
 
   // if (reduxLoading) {
@@ -480,10 +478,7 @@ const StorePage = () => {
   // Calculate the average rating
   const averageRating =
     vendor.ratingCount > 0 ? vendor.rating / vendor.ratingCount : 0;
-  const productTypes = [
-    "All",
-    ...new Set(products.map((product) => product.productType)),
-  ];
+  const productTypes = ["All", ...(entry.categories || [])];
   const handleShare = () => {
     const storeUrl = `https://mx.shopmythrift.store/store/${vendor.id}?shared=true`;
     if (navigator.share) {
@@ -592,13 +587,13 @@ const StorePage = () => {
       />
       <div className="p-3 mb-24">
         <ReviewBanner />
-        <div className="sticky top-0 bg-white h-20 z-10 flex items-center border-b border-gray-300 w-full">
+        <div className="sticky top-0 bg-white h-24 z-10 flex items-center   border-gray-300 w-full">
           {isSearching ? (
             <div className="flex items-center w-full relative px-2">
               <FaAngleLeft
                 onClick={() => {
-                  setIsSearching(false);
-                  handleClearSearch(); // Clear input when exiting search
+                  setIsSearching(false); // 🆕 really close the search UI
+                  handleClearSearch();
                 }}
                 className="cursor-pointer text-2xl mr-2"
               />
@@ -606,8 +601,8 @@ const StorePage = () => {
                 type="text"
                 value={searchTerm}
                 onChange={handleSearchChange}
-                placeholder="Search store..."
-                className="flex-1 border rounded-full font-opensans text-black text-sm border-gray-300 px-3 py-2 font-medium focus:outline-none"
+               placeholder={"Search " + (vendor?.shopName || "") + "..."}
+                className="flex-1 border rounded-full font-opensans text-black text-base border-gray-300 px-3 py-2 font-medium shadow-xl focus:outline-none"
               />
               {searchTerm && (
                 <MdCancel
@@ -618,27 +613,38 @@ const StorePage = () => {
             </div>
           ) : isShared ? (
             <>
-              <div className="flex items-center">
-                <AiOutlineHome
-                  onClick={() => navigate("/newhome")}
-                  className="text-2xl cursor-pointer"
-                />
-              </div>
+              <div className="w-full ">
+                {/* LEFT: logo */}
+                <div className="flex items-center justify-between"> 
+                  <img
+                    src="/newlogo.png"
+                    alt="Logo"
+                    onClick={() => navigate("/newhome")}
+                    className="h-8 w-16 object-contain"
+                  />
+                  <div className="flex items-center mr-2 relative">
+                    <CiSearch
+                      className="text-black text-3xl cursor-pointer"
+                      onClick={openSearch}
+                    />
+                  </div>
+                </div>
 
-              {/* Centered logo container uses flex-1 to take remaining space and flex to center content */}
-              <div className="flex-1 flex justify-center items-center">
-                <img
-                  src="/logo512.png"
-                  alt="Logo"
-                  className="object-contain max-h-[72px]"
-                />
-              </div>
-
-              <div className="flex items-center mr-2 relative">
-                <CiSearch
-                  className="text-black text-3xl cursor-pointer"
-                  onClick={() => setIsSearching(true)}
-                />
+                {/* RIGHT: login & sign up */}
+                <div className="flex mt-4 justify-between  gap-4 w-full items-center ">
+                  <button
+                    onClick={() => navigate("/login")}
+                    className="px-4 py-1 text-sm w-full font-opensans text-customRichBrown border border-customRichBrown rounded-full"
+                  >
+                    Login
+                  </button>
+                  <button
+                    onClick={() => navigate("/signup")}
+                    className="px-4 py-1 w-full text-sm font-opensans text-white bg-customOrange rounded-full"
+                  >
+                    Sign Up
+                  </button>
+                </div>
               </div>
             </>
           ) : (
@@ -652,105 +658,107 @@ const StorePage = () => {
               </h1>
               <CiSearch
                 className="text-black text-3xl cursor-pointer"
-                onClick={() => setIsSearching(true)}
+                onClick={openSearch}
               />
             </div>
           )}
         </div>
+        <div className="border-t border-300 mt-1"></div>
+        {!searchingUI(isSearching, searchTerm) && (
+          <>
+            <div className="flex justify-center mt-6">
+              <div className="relative w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
+                {vendorLoading ? (
+                  <Skeleton circle={true} height={128} width={128} />
+                ) : vendor.coverImageUrl ? (
+                  <img
+                    className="w-32 h-32 rounded-full bg-slate-700 object-cover"
+                    src={vendor.coverImageUrl}
+                    alt={vendor.shopName}
+                  />
+                ) : (
+                  <span className="text-center font-bold">
+                    {vendor.shopName}
+                  </span>
+                )}
+                <button
+                  onClick={handleShare}
+                  className="absolute bottom-1 right-1 bg-white rounded-full p-1 shadow-md hover:bg-gray-100"
+                >
+                  <MdIosShare className="text-xl text-gray-900" />
+                </button>
+              </div>
+            </div>
 
-        <div className="flex justify-center mt-6">
-          <div className="relative w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
-            {vendorLoading ? (
-              <Skeleton circle={true} height={128} width={128} />
-            ) : vendor.coverImageUrl ? (
-              <img
-                className="w-32 h-32 rounded-full bg-slate-700 object-cover"
-                src={vendor.coverImageUrl}
-                alt={vendor.shopName}
-              />
-            ) : (
-              <span className="text-center font-bold">{vendor.shopName}</span>
-            )}
-            <button
-              onClick={handleShare}
-              className="absolute bottom-1 right-1 bg-white rounded-full p-1 shadow-md hover:bg-gray-100"
+            <div
+              className="flex justify-center mt-2"
+              style={{ cursor: "pointer" }}
+              onClick={handleRatingClick}
             >
-              <MdIosShare className="text-xl text-gray-900" />
-            </button>
-          </div>
-        </div>
-        {/* <div className="flex justify-center mt-3 mb-2">
-        <div className="flex items-center text-black text-lg font-medium">
-          {vendor.socialMediaHandle}
-        </div>
-      </div> */}
-        <div
-          className="flex justify-center mt-2"
-          style={{ cursor: "pointer" }}
-          onClick={handleRatingClick}
-        >
-          {vendorLoading ? (
-            <Skeleton width={100} height={24} />
-          ) : (
-            <>
-              <FaStar className="text-yellow-400" size={16} />
-              <span className="flex text-xs font-opensans items-center ml-2">
-                {averageRating.toFixed(1)}
-                <GoDotFill className="mx-1 text-gray-300 font-opensans dot-size" />
-                {vendor.ratingCount || 0} ratings
-              </span>
-            </>
-          )}
-        </div>
-
-        <div className="w-fit text-center bg-customGreen p-2 flex items-center justify-center rounded-full mt-3 mx-auto">
-          <div className="mt-2 flex flex-wrap items-center -translate-y-1 justify-center text-textGreen text-xs space-x-1">
-            {vendorLoading ? (
-              <Skeleton width={80} height={24} count={4} inline={true} />
-            ) : (
-              vendor.categories.map((category, index) => (
-                <React.Fragment key={index}>
-                  {index > 0 && (
-                    <GoDotFill className="mx-1 dot-size text-dotGreen" />
-                  )}
-                  <span>{category}</span>
-                </React.Fragment>
-              ))
-            )}
-          </div>
-        </div>
-        <div className="flex items-center justify-center mt-3">
-          {vendorLoading ? (
-            <Skeleton width={128} height={40} />
-          ) : (
-            <button
-              className={`w-full h-12 rounded-full border font-medium flex items-center font-opensans justify-center transition-colors duration-200 ${
-                isFollowing
-                  ? "bg-customOrange text-white"
-                  : "bg-customOrange text-white"
-              }`}
-              onClick={handleFollowClick}
-              disabled={isFollowLoading}
-            >
-              {isFollowLoading ? (
-                <FaSpinner className="animate-spin mr-2" />
-              ) : isFollowing ? (
-                <>
-                  <FaCheck className="mr-2" />
-                  Following
-                </>
+              {vendorLoading ? (
+                <Skeleton width={100} height={24} />
               ) : (
                 <>
-                  <FaPlus className="mr-2" />
-                  Follow
+                  <FaStar className="text-yellow-400" size={16} />
+                  <span className="flex text-xs font-opensans items-center ml-2">
+                    {averageRating.toFixed(1)}
+                    <GoDotFill className="mx-1 text-gray-300 font-opensans dot-size" />
+                    {vendor.ratingCount || 0} ratings
+                  </span>
                 </>
               )}
-            </button>
-          )}
-        </div>
-        <p className=" text-gray-700 mt-3 text-sm font-opensans text-center">
-          {vendorLoading ? <Skeleton count={2} /> : vendor.description}
-        </p>
+            </div>
+
+            <div className="w-fit text-center bg-customGreen p-2 flex items-center justify-center rounded-full mt-3 mx-auto">
+              <div className="mt-2 flex flex-wrap items-center -translate-y-1 justify-center text-textGreen text-xs space-x-1">
+                {vendorLoading ? (
+                  <Skeleton width={80} height={24} count={4} inline={true} />
+                ) : (
+                  vendor.categories.map((category, index) => (
+                    <React.Fragment key={index}>
+                      {index > 0 && (
+                        <GoDotFill className="mx-1 dot-size text-dotGreen" />
+                      )}
+                      <span>{category}</span>
+                    </React.Fragment>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-center mt-3">
+              {vendorLoading ? (
+                <Skeleton width={128} height={40} />
+              ) : (
+                <button
+                  className={`w-full h-12 rounded-full border font-medium flex items-center font-opensans justify-center transition-colors duration-200 ${
+                    isFollowing
+                      ? "bg-customOrange text-white"
+                      : "bg-customOrange text-white"
+                  }`}
+                  onClick={handleFollowClick}
+                  disabled={isFollowLoading}
+                >
+                  {isFollowLoading ? (
+                    <FaSpinner className="animate-spin mr-2" />
+                  ) : isFollowing ? (
+                    <>
+                      <FaCheck className="mr-2" />
+                      Following
+                    </>
+                  ) : (
+                    <>
+                      <FaPlus className="mr-2" />
+                      Follow
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+            <p className=" text-gray-700 mt-3 text-sm font-opensans text-center">
+              {vendorLoading ? <Skeleton count={2} /> : vendor.description}
+            </p>
+          </>
+        )}
         <div className="p-2 mt-7">
           <div className="flex items-center mb-3 justify-between">
             <h1 className="font-opensans text-lg  font-semibold">Products</h1>
@@ -795,22 +803,23 @@ const StorePage = () => {
               </span>
             </div>
           </div>
-          <div className="flex  mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
-            {productTypes.map((type) => (
-              <button
-                key={type}
-                onClick={() => handleTypeSelect(type)}
-                className={`flex-shrink-0 h-12 px-4 py-2 text-xs font-semibold font-opensans text-black border border-gray-200 rounded-full ${
-                  selectedType === type
-                    ? "bg-customOrange text-white"
-                    : "bg-transparent"
-                }`}
-              >
-                {type}
-              </button>
-            ))}
-          </div>
-
+          {!searchingUI(isSearching, searchTerm) && (
+            <div className="flex  mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
+              {productTypes.map((type) => (
+                <button
+                  key={type}
+                  onClick={() => handleTypeSelect(type)}
+                  className={`flex-shrink-0 h-12 px-4 py-2 text-xs font-semibold font-opensans text-black border border-gray-200 rounded-full ${
+                    selectedType === type
+                      ? "bg-customOrange text-white"
+                      : "bg-transparent"
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          )}
           {vendorLoading || (loadingMore && filteredProducts.length === 0) ? (
             <div className="grid mt-2 grid-cols-2 gap-2">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -843,6 +852,17 @@ const StorePage = () => {
                   />
                 </div>
               )}
+              {/* {loadingAll && (
+                <div className="flex justify-center my-4">
+                  <RotatingLines
+                    strokeColor="#f9531e"
+                    strokeWidth="5"
+                    animationDuration="0.75"
+                    width="20"
+                    visible
+                  />
+                </div>
+              )} */}
             </>
           ) : (
             <div className="flex justify-center items-center w-full text-center">

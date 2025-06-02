@@ -2,11 +2,27 @@ import { useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { getImageKitUrl } from "./imageKit";
 
-const IkImage = ({ src, alt, className = "" }) => {
-  const [loaded, setLoaded] = useState(false);
-  const { ref, inView } = useInView({ triggerOnce: true, rootMargin: "100px" });
+const PLACEHOLDER =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
-  /* Build ImageKit URLs */
+/*  ❗  Early–return if src is missing */
+export default function IkImage({ src, alt = "", className = "" }) {
+  if (!src) {
+    return (
+      <img
+        src={PLACEHOLDER}
+        alt={alt}
+        className={`object-cover ${className}`}
+      />
+    );
+  }
+
+  const { ref, inView } = useInView({
+    triggerOnce: true,
+    rootMargin: "100px",
+  });
+  const [loaded, setLoaded] = useState(false);
+
   const base = getImageKitUrl(src);
   const tiny = `${base}?tr=w-20,q-10,bl-4,f-auto,lqpr=0.6`;
   const srcSet = [
@@ -21,16 +37,18 @@ const IkImage = ({ src, alt, className = "" }) => {
       ref={ref}
       className={`relative overflow-hidden bg-gray-100 rounded-lg ${className}`}
     >
-      {/* ultra-small blurred placeholder */}
+      {/* blurred placeholder */}
       <img
         src={tiny}
         alt=""
         aria-hidden
         className={`absolute inset-0 w-full h-full object-cover scale-110 blur-sm
-          transition-opacity duration-300 ${loaded ? "opacity-0" : "opacity-100"}`}
+        transition-opacity duration-300 ${
+          loaded ? "opacity-0" : "opacity-100"
+        }`}
       />
 
-      {/* real image (loaded only when in view) */}
+      {/* real image */}
       {inView && (
         <img
           src={`${base}?tr=w-400,q-50,f-auto`}
@@ -38,13 +56,11 @@ const IkImage = ({ src, alt, className = "" }) => {
           sizes="(max-width:640px) 50vw, (max-width:1024px) 25vw, 20vw"
           alt={alt}
           loading="lazy"
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300
-            ${loaded ? "opacity-100" : "opacity-0"}`}
           onLoad={() => setLoaded(true)}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300
+          ${loaded ? "opacity-100" : "opacity-0"}`}
         />
       )}
     </div>
   );
-};
-
-export default IkImage;
+}

@@ -430,7 +430,7 @@ const OrdersCentre = () => {
       if (updatedStockpileSnap.exists()) {
         updatedStockpileData = updatedStockpileSnap.data();
       }
-
+      dispatch(exitStockpileMode());
       toast.success("Shipping request sent successfully!");
 
       // Update local UI State

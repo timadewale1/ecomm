@@ -6,6 +6,7 @@ import {
   signInWithPopup,
   onAuthStateChanged,
 } from "firebase/auth";
+import { emailBelongsToVendor } from "../services/authHelper";
 import { FcGoogle } from "react-icons/fc";
 import { auth, db, functions } from "../firebase.config";
 import {
@@ -215,43 +216,70 @@ const Signup = () => {
   // Google sign-up remains purely client-side
   const handleGoogleSignUp = async () => {
     const provider = new GoogleAuthProvider();
+
     try {
       setLoading(true);
-      console.log("Opening Google sign-up popup...");
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
 
-      console.log("Google user authenticated:", user);
+      // 1️⃣  Open Google popup
+      const { user } = await signInWithPopup(auth, provider);
+      const emailLower = (user.email || "").toLowerCase();
 
+      // 2️⃣  Block if that email is already a vendor
+      if (await emailBelongsToVendor(emailLower)) {
+        await signOut(auth);
+        toast.error("This email is already used for a Vendor account!");
+        setLoading(false);
+        return;
+      }
+
+      // 3️⃣  Block if an existing /users doc has role="vendor"
+      const usersRef = collection(db, "users");
+      const sameEmailUsers = await getDocs(
+        query(usersRef, where("emailLower", "==", emailLower))
+      );
+      if (!sameEmailUsers.empty) {
+        const existing = sameEmailUsers.docs[0].data();
+        if (existing.role === "vendor") {
+          await signOut(auth);
+          toast.error("This email is already used for a Vendor account!");
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 4️⃣  Create (or update) user doc
       const userRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userRef);
+      const userSnap = await getDoc(userRef);
 
-      if (!userDoc.exists()) {
-        await setDoc(userRef, {
-          uid: user.uid,
-          username: user.displayName,
-          email: user.email,
-          role: "user",
-          createdAt: new Date(),
-          profileComplete: false,
-          welcomeEmailSent: false,
-          // welcomeEmailSendAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes from now
-        });
+      const baseData = {
+        uid: user.uid,
+        username: user.displayName || "",
+        email: user.email,
+        emailLower,
+        role: "user",
+        profileComplete: false,
+        welcomeEmailSent: false,
+        createdAt: new Date(),
+      };
+
+      if (!userSnap.exists()) {
+        await setDoc(userRef, baseData);
+        console.log("Created new user document");
       } else {
-        console.log("User already exists in Firestore");
+        console.log("User doc exists; not overwriting sensitive fields.");
       }
 
       toast.success("Signed up with Google successfully!");
       navigate("/newhome");
     } catch (error) {
       console.error("Google Sign-Up Error:", error);
-      let errorMessage = "Google Sign-Up failed. Please try again.";
+      let msg = "Google Sign-Up failed. Please try again.";
       if (error.code === "auth/account-exists-with-different-credential") {
-        errorMessage = "An account with the same email already exists.";
+        msg = "An account with the same email already exists.";
       } else if (error.code === "auth/popup-closed-by-user") {
-        errorMessage = "Popup closed before completing sign-up.";
+        msg = "Popup closed before completing sign-up.";
       }
-      toast.error(errorMessage);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -259,10 +287,10 @@ const Signup = () => {
 
   return (
     <>
-    <SEO 
-        title={`Signup - My Thrift`} 
-        description={`Get started with an amazing shopping experience on My Thrift!`} 
-        url={`https://www.shopmythrift.store/signup`} 
+      <SEO
+        title={`Signup - My Thrift`}
+        description={`Get started with an amazing shopping experience on My Thrift!`}
+        url={`https://www.shopmythrift.store/signup`}
       />
       <Container>
         <Row>
@@ -462,7 +490,7 @@ const Signup = () => {
                   >
                     Terms & Conditions
                   </span>
-                   and
+                  and
                   <span
                     onClick={() =>
                       window.open(

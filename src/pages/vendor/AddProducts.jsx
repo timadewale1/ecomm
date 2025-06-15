@@ -38,6 +38,8 @@ import Modal from "react-modal";
 import productSizes from "./productsizes";
 import { LuBadgeInfo } from "react-icons/lu";
 import { MdOutlineCancel, MdOutlineClose } from "react-icons/md";
+
+import Compressor from "compressorjs";
 const animatedComponents = makeAnimated();
 const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
 
@@ -247,25 +249,25 @@ const AddProduct = ({ vendorId, closeModal }) => {
         : { label: subType.name, value: subType.name }
     ) || [];
 
-  const handleFileChange = async (e) => {
-    const files = Array.from(e.target.files);
-    const validFiles = [];
+  // const handleFileChange = async (e) => {
+  //   const files = Array.from(e.target.files);
+  //   const validFiles = [];
 
-    files.forEach((file) => {
-      if (file.size <= MAX_FILE_SIZE) {
-        validFiles.push(file);
-      } else {
-        toast.error(`${file.name} exceeds the maximum file size of 3MB.`);
-      }
-    });
+  //   files.forEach((file) => {
+  //     if (file.size <= MAX_FILE_SIZE) {
+  //       validFiles.push(file);
+  //     } else {
+  //       toast.error(`${file.name} exceeds the maximum file size of 3MB.`);
+  //     }
+  //   });
 
-    if (validFiles.length + productImages.length > 4) {
-      toast.error("You can only upload a maximum of 4 images.");
-      return;
-    }
+  //   if (validFiles.length + productImages.length > 4) {
+  //     toast.error("You can only upload a maximum of 4 images.");
+  //     return;
+  //   }
 
-    setProductImages((prevImages) => [...prevImages, ...validFiles]);
-  };
+  //   setProductImages((prevImages) => [...prevImages, ...validFiles]);
+  // };
 
   const handleRemoveImage = (index) => {
     const updatedImages = productImages.filter((_, i) => i !== index);
@@ -333,14 +335,14 @@ const AddProduct = ({ vendorId, closeModal }) => {
       setTags(tags.slice(0, -1)); // Remove the last tag
     }
   };
-  const handleMultipleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    if (additionalImages.length + files.length > MAX_IMAGES - 1) {
-      alert("You can upload a maximum of 4 images");
-      return;
-    }
-    setAdditionalImages([...additionalImages, ...files]);
-  };
+  // const handleMultipleFileChange = (e) => {
+  //   const files = Array.from(e.target.files);
+  //   if (additionalImages.length + files.length > MAX_IMAGES - 1) {
+  //     alert("You can upload a maximum of 4 images");
+  //     return;
+  //   }
+  //   setAdditionalImages([...additionalImages, ...files]);
+  // };
 
   const addSizeUnderColor = (colorIndex) => {
     const updatedVariants = [...productVariants];
@@ -470,7 +472,8 @@ const AddProduct = ({ vendorId, closeModal }) => {
     try {
       // Upload main product images
       const imageUrls = [];
-      for (const imageFile of productImages) {
+      for (const imageObj of productImages) {
+        const imageFile = imageObj.file || imageObj; // fallback if structure is mixed
         if (!imageFile || !imageFile.name) {
           console.error("Image file or filename is missing:", imageFile);
           toast.error("One of the images is missing a filename.");
@@ -515,7 +518,16 @@ const AddProduct = ({ vendorId, closeModal }) => {
       for (const subProduct of subProducts) {
         // Upload sub-product images
         const subProductImageUrls = [];
-        for (const imageFile of subProduct.images) {
+        for (const imageObj of subProduct.images) {
+          const imageFile = imageObj.file || imageObj; // fallback in case it's still raw File
+
+          if (!imageFile || !imageFile.name) {
+            console.error("Invalid image file in sub-product:", imageFile);
+            toast.error(
+              "An image is missing or invalid in one of the sub-products."
+            );
+            continue;
+          }
           const storageRef = ref(
             storage,
             `${vendorId}/products/${productName}/subProducts/${subProduct.color}_${subProduct.size}/${imageFile.name}`
@@ -706,27 +718,44 @@ const AddProduct = ({ vendorId, closeModal }) => {
       setIsLoading(false);
     }
   };
-
   const handleImageUpload = (e) => {
+    const loadingToastId = toast.loading("Compressing image...");
     const files = Array.from(e.target.files); // Convert to an array of File objects
     const validFiles = [];
 
-    files.forEach((file) => {
-      if (file.size <= MAX_FILE_SIZE) {
-        validFiles.push(file); // Only add files that meet the size requirement
-      } else {
-        toast.error(`${file.name} exceeds the maximum file size of 3MB.`);
-      }
+    let completed = 0;
+
+    files.forEach((file, index) => {
+      new Compressor(file, {
+        quality: 0.6,
+        success(result) {
+          validFiles.push({
+            file: result,
+            preview: URL.createObjectURL(result),
+          });
+
+          // Check if adding these files exceeds the MAX_IMAGES limit
+          if (validFiles.length + productImages.length > MAX_IMAGES) {
+            toast.error("You can only upload a maximum of 4 images.");
+            return;
+          }
+
+          // Add to state
+          setProductImages((prevImages) => [...prevImages, ...validFiles]);
+
+          completed++;
+          if (completed === files.length) {
+            toast.dismiss(loadingToastId); // Dismiss loading
+            toast.success("Images compressed!");
+          }
+        },
+        error(err) {
+          console.error("Compression error:", err.message);
+          toast.dismiss(loadingToastId);
+          toast.error("Image compression failed.");
+        },
+      });
     });
-
-    // Check if adding these files exceeds the MAX_IMAGES limit
-    if (validFiles.length + productImages.length > MAX_IMAGES) {
-      toast.error("You can only upload a maximum of 4 images.");
-      return;
-    }
-
-    // Add valid files to productImages (as File objects, not URLs)
-    setProductImages((prevImages) => [...prevImages, ...validFiles]);
   };
 
   const productTypeOptions = productTypes.map((item) => ({
@@ -891,7 +920,10 @@ const AddProduct = ({ vendorId, closeModal }) => {
                 >
                   <img
                     src={
-                      image instanceof File ? URL.createObjectURL(image) : image
+                      image.preview ||
+                      (image instanceof File
+                        ? URL.createObjectURL(image)
+                        : image)
                     }
                     alt={`Product ${index + 1}`}
                     className="w-full h-full object-cover rounded-md"
@@ -1447,7 +1479,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
               <p className="text-customOrange font-ubuntu text-sm animate-pulse text-center px-4">
                 Matilda is thinking…
                 <br />
-                getting the right words for you…
+                Getting the right words for you…
               </p>
             </div>
           )}

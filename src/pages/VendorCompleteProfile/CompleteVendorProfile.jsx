@@ -86,6 +86,8 @@ const CompleteProfile = () => {
     "Thrifts",
     "Mens",
     "Womens",
+    "Books",
+    "Dairies",
     "Underwears",
     "Y2K",
     "Jewelry",
@@ -385,7 +387,7 @@ const CompleteProfile = () => {
       const token = import.meta.env.VITE_RESOLVE_TOKEN;
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
       try {
-        const response = await fetch(`${API_BASE_URL}/createTransferRec`, {
+        const response = await fetch(`${API_BASE_URL}/transfer-recipient`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -397,14 +399,18 @@ const CompleteProfile = () => {
         const result = await response.json();
         console.log("API Response from createTransferRec:", result);
 
-        if (!response.ok || !result || !result.recipientCode) {
+        // extract from the nested data object first
+        const extractedCode = result.data?.recipientCode;
+        console.log("Extracted recipientCode:", extractedCode);
+
+        if (!response.ok || !extractedCode) {
           throw new Error(
             result.message || "Failed to create transfer recipient"
           );
         }
 
-        // Extract recipientCode
-        recipientCode = result.recipientCode;
+        // assign to our outer variable
+        recipientCode = extractedCode;
       } catch (error) {
         console.error("Error during createTransferRec API call:", error);
         toast.error(error.message, {

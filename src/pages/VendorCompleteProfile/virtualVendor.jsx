@@ -387,11 +387,8 @@ const VirtualVendor = ({
                 )}
               </FormGroup>
 
-            
               <div className="mb-2">
-                
                 <LocationPicker
-                
                   // you can pass an initial value if you like:
                   initialAddress={vendorData.Address}
                   onLocationSelect={({ address, lat, lng }) => {
@@ -404,7 +401,6 @@ const VirtualVendor = ({
                 />
               </div>
 
-            
               <div className="relative">
                 <button
                   type="button"
@@ -836,7 +832,7 @@ const VirtualVendor = ({
                           setIsResolving(true);
 
                           // Build URL using query parameters
-                          const url = `${API_BASE_URL}/resolveAccount?accountNumber=${accountNumber}&bankCode=${selectedBank.code}`;
+                          const url = `${API_BASE_URL}/resolve-account?accountNumber=${accountNumber}&bankCode=${selectedBank.code}`;
                           console.log(`API URL: ${url}`);
 
                           const res = await fetch(url, {
@@ -847,16 +843,21 @@ const VirtualVendor = ({
                             },
                           });
 
-                          const data = await res.json();
-                          console.log(`API Response:`, data);
+                          const json = await res.json();
+                          console.log("API Response:", json);
 
-                          if (res.ok && data.status === true && data.data) {
-                            console.log(
-                              `Resolved Account Name: ${data.data.account_name}`
-                            );
-                            setBankDetails((prevDetails) => ({
-                              ...prevDetails,
-                              accountName: data.data.account_name,
+                          // guard for all the nested levels
+                          if (
+                            res.ok &&
+                            json.status === true &&
+                            json.data?.data?.account_name
+                          ) {
+                            const accountName = json.data.data.account_name;
+
+                            console.log("Resolved Account Name:", accountName);
+                            setBankDetails((prev) => ({
+                              ...prev,
+                              accountName,
                               error: "",
                             }));
                             toast.success("Account resolved successfully");

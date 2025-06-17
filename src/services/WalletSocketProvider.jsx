@@ -12,7 +12,7 @@ export default function WalletSocketProvider({ children }) {
 
   useEffect(() => {
     if (!vendorData?.vendorId) return; // not logged-in yet
-    const socket = io("https://staging.mythriftpayments.site/wallet", {
+    const socket = io("https://prod.mythriftpayments.site/wallet", {
       path: "/wallet",
       transports: ["websocket"],
       auth: {

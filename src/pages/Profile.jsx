@@ -165,6 +165,7 @@ const Profile = () => {
       dispatch(clearCart()); // Clear Redux cart state
       dispatch(resetUserData());
       dispatch(exitStockpileMode());
+      localStorage.removeItem("mythrift_role");
       console.log("Cart cleared in Redux and localStorage");
 
       toast.success("Successfully logged out", { className: "custom-toast" });
@@ -493,7 +494,10 @@ const Profile = () => {
               {!currentUser && (
                 <div
                   className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
-                  onClick={() => navigate("/confirm-state")}
+                  onClick={() => {
+                    localStorage.removeItem("mythrift_role");
+                    navigate("/confirm-state");
+                  }}
                 >
                   <div className="flex items-center justify-between w-full px-4 py-3">
                     <AiOutlineUserSwitch className="text-customOrange text-xl mr-4" />
@@ -505,7 +509,10 @@ const Profile = () => {
               )}
             </div>
             <div className="w-full text-center mt-2">
-              <p className="text-sm font-poppins font-medium text-gray-500"> v.2.8</p>
+              <p className="text-sm font-poppins font-medium text-gray-500">
+                {" "}
+                v.2.8
+              </p>
             </div>
           </div>
         ) : (

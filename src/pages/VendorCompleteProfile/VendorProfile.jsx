@@ -254,7 +254,7 @@ const VendorProfile = () => {
 
       // Sign out from Firebase authentication
       await signOut(auth);
-
+      localStorage.removeItem("mythrift_role");
       // Dispatch clearOrders action to clear orders from Redux store
       dispatch(clearOrders());
 

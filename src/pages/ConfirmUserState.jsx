@@ -14,8 +14,21 @@ const ConfirmUserState = () => {
   const [selectedRole, setSelectedRole] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // As soon as we hit “Continue” we turn on the spinner
-  // and wait for loading → false, then navigate exactly once.
+  useEffect(() => {
+    const savedRole = localStorage.getItem("mythrift_role"); // "customer" | "vendor"
+    if (!savedRole) return; // first launch → stay on selector
+
+    if (savedRole === "vendor") {
+      // you still need the auth check, but this mimics your existing logic
+      if (currentUser && currentUserData?.role === "vendor") {
+        navigate("/vendordashboard", { replace: true });
+      } else {
+        navigate("/vendorlogin", { replace: true });
+      }
+    } else {
+      navigate("/newhome", { replace: true });
+    }
+  }, [currentUser, currentUserData, navigate]);
   useEffect(() => {
     if (isProcessing && !loading) {
       if (currentUser && currentUserData?.role === "vendor") {
@@ -38,6 +51,7 @@ const ConfirmUserState = () => {
 
   const handleContinue = () => {
     if (!selectedRole) return;
+    localStorage.setItem("mythrift_role", selectedRole);
     if (selectedRole === "vendor") {
       setIsProcessing(true);
     } else {
@@ -102,8 +116,8 @@ const ConfirmUserState = () => {
               <h2 className="text-lg font-semibold text-black">Vendor</h2>
               <p className="text-gray-600 font-opensans text-base">
                 Showcase your thrift finds on{" "}
-                <span className="text-customOrange">My Thrift</span> and sell with
-                ease.
+                <span className="text-customOrange">My Thrift</span> and sell
+                with ease.
               </p>
             </div>
             {selectedRole === "vendor" && (

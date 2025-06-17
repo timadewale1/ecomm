@@ -341,6 +341,12 @@ export default function WalletPage() {
 
   return (
     <>
+      <SEO
+        title="Wallet - My Thrift"
+        description="View your balance, track transactions, and withdraw earnings securely from your My Thrift wallet."
+        url="https://www.shopmythrift.store/vendor-wallet"
+      />
+
       <div className="p-4 w-full mx-auto font-opensans">
         {/* Header */}
         <div className="relative flex items-center justify-center mb-6">
@@ -706,11 +712,13 @@ export default function WalletPage() {
           </h2>
         </div>
         <p className="text-sm font-opensans text-gray-700 mb-2">
-          <span className="text-customOrange font-semibold">What is pending balance?</span> This is the amount that’s due to be added to
-          your available wallet balance on the next scheduled payout day.
-          Payouts are processed every Monday, Wednesday, and Friday. Please note
-          that pending funds cannot be withdrawn until they’re cleared into your
-          main balance.
+          <span className="text-customOrange font-semibold">
+            What is pending balance?
+          </span>{" "}
+          This is the amount that’s due to be added to your available wallet
+          balance on the next scheduled payout day. Payouts are processed every
+          Monday, Wednesday, and Friday. Please note that pending funds cannot
+          be withdrawn until they’re cleared into your main balance.
         </p>
         <div className="text-center mt-6">
           <button

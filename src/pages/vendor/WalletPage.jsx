@@ -29,7 +29,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import WithdrawLoad from "../../components/Loading/WithdrawLoad";
 import FailedWithdraw from "../../components/Loading/FailedWithdraw";
 import Paymentsuccess from "../../components/Loading/PaymentSuccess";
-
+import SEO from "../../components/Helmet/SEO";
 Modal.setAppElement("#root");
 
 export default function WalletPage() {

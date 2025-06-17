@@ -7,6 +7,7 @@ import { BsShop } from "react-icons/bs";
 import { useAuth } from "../custom-hooks/useAuth";
 import { RotatingLines } from "react-loader-spinner";
 import SEO from "../components/Helmet/SEO";
+import Loading from "../components/Loading/Loading";
 
 const ConfirmUserState = () => {
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ const ConfirmUserState = () => {
   useEffect(() => {
     const savedRole = localStorage.getItem("mythrift_role"); // "customer" | "vendor"
     if (!savedRole) return; // first launch → stay on selector
-
+    if (loading) return;
     if (savedRole === "vendor") {
       // you still need the auth check, but this mimics your existing logic
       if (currentUser && currentUserData?.role === "vendor") {
@@ -28,7 +29,7 @@ const ConfirmUserState = () => {
     } else {
       navigate("/newhome", { replace: true });
     }
-  }, [currentUser, currentUserData, navigate]);
+  }, [loading, currentUser, currentUserData, navigate]);
   useEffect(() => {
     if (isProcessing && !loading) {
       if (currentUser && currentUserData?.role === "vendor") {
@@ -58,7 +59,9 @@ const ConfirmUserState = () => {
       navigate("/newhome");
     }
   };
-
+  if (loading) {
+    return <Loading />;
+  }
   return (
     <>
       <SEO

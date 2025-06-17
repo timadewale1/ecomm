@@ -47,8 +47,8 @@ const WalletSetupModal = ({ isOpen }) => {
     >
       <div className="flex flex-col h-full px-4">
         {/* Animated Illustration */}
-        <div className="flex justify-center ">
-          <WalletAnim />
+        <div className="flex justify-center h-40 -translate-y-8 ">
+          <WalletAnim/>
         </div>
 
         {/* Header */}

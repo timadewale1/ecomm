@@ -49,11 +49,13 @@ import VendorChatList from "../pages/vendor/VendorChatList.jsx";
 import StoreReviews from "../pages/vendor/StoreReviews.jsx";
 import RoleBasedAccess from "../custom-hooks/Rbac.jsx"; // Assuming this is the RoleBasedAccess component
 import { Navigate } from "react-router-dom";
+import WalletPage from "../pages/vendor/WalletPage.jsx";
 import WithAnswerModal from "../components/Reviews/WithAnswerModal.jsx";
 import PersonalDiscountsPage from "../components/Discounts/PersonalDiscountsPage.jsx";
 import WithReviewModal from "../components/Reviews/WithReview.jsx";
 import CategoryProducts from "../components/PopularCategories/CategorySection.jsx";
 import SubmitFeedback from "../pages/SubmitFeedback.jsx";
+import WithWalletSetupModal from "../components/Reviews/WithWalletSetupModal.jsx";
 import WithWhatsAppModal from "../components/ChannelLinkModal/WithWhatsAppModal.jsx";
 const Routers = () => {
   return (
@@ -257,30 +259,43 @@ const Routers = () => {
         <Route
           path="/vendordashboard"
           element={
-            /*<WithWhatsAppModal>*/
-            <VendorDashboard /> /*</WithWhatsAppModal>*/
+            <WithWalletSetupModal>
+              <VendorDashboard />
+            </WithWalletSetupModal>
           }
         />
-        <Route
-          path="/vendor-profile"
-          element={
-            /*<WithWhatsAppModal>*/ <VendorProfile /> /*</WithWhatsAppModal>*/
-          }
-        />
+        <Route path="/vendor-profile" element={<VendorProfile />} />
         <Route
           path="/vendor-products"
           element={
-            /*<WithWhatsAppModal>*/ <VendorProducts /> /*</WithWhatsAppModal>*/
+            <WithWalletSetupModal>
+              <VendorProducts />
+            </WithWalletSetupModal>
           }
         />
-        <Route path="/vendor-orders" element={<VendorOrders />} />
+        <Route path="/vendor-wallet" element={<WalletPage />} />
+        <Route
+          path="/vendor-orders"
+          element={
+            <WithWalletSetupModal>
+              <VendorOrders />
+            </WithWalletSetupModal>
+          }
+        />
         <Route
           path="/store-reviews"
           element={
             /*<WithWhatsAppModal>*/ <StoreReviews /> /*</WithWhatsAppModal>*/
           }
         />
-        <Route path="/vchats" element={<VendorChatList />} />
+        <Route
+          path="/vchats"
+          element={
+            <WithWalletSetupModal>
+              <VendorChatList />
+            </WithWalletSetupModal>
+          }
+        />
         <Route path="/vchats/:inquiryId" element={<VendorChat />} />
         <Route path="/call-guidelines" element={<CallGuide />} />
         <Route path="/delivery-guidelines" element={<DeliveryGuide />} />

@@ -484,100 +484,108 @@ const OrderDetailsModal = ({
   }, 0);
 
   useEffect(() => {
-    const fetchVendorAmounts = async () => {
-      if (order && order.id) {
-        console.log("Fetching vendor amounts...");
-        try {
-          const orderRef = doc(db, "orders", order.id);
-          console.log("Fetching Firestore order document for ID:", order.id);
+    /*  ───────────────────────────────────────────────────────────────
+      Fetch the vendor 40 / 60 percentages for the given order
+  ────────────────────────────────────────────────────────────────── */
+    const fetchVendorPercentages = async () => {
+      console.groupCollapsed("[Vendor %] 🔄 fetchVendorPercentages()");
+      try {
+        /* ── 0. Sanity-check props ─────────────────────────────── */
+        console.log("isOpen prop →", isOpen);
+        console.log("order prop  →", order);
 
-          const orderSnap = await getDoc(orderRef);
-
-          if (orderSnap.exists()) {
-            console.log("Order document found in Firestore.");
-            const orderData = orderSnap.data();
-            const orderReference = orderData.orderReference;
-
-            console.log("Order reference from Firestore:", orderReference);
-
-            if (orderReference) {
-              const token = import.meta.env.VITE_RESOLVE_TOKEN;
-              const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-              console.log("Authorization Token:", token);
-              console.log("API_BASE_URL:", API_BASE_URL);
-
-              const response = await fetch(
-                `${API_BASE_URL}/calculateVendorPay/${orderReference}`,
-                {
-                  method: "GET",
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                  },
-                }
-              );
-
-              console.log(
-                `API response status: ${response.status}, statusText: ${response.statusText}`
-              );
-
-              if (response.ok) {
-                const data = await response.json();
-                console.log("API response data:", data);
-
-                if (data && data.amount) {
-                  setVendorAmounts(data.amount);
-                  console.log(
-                    "Vendor amounts successfully fetched:",
-                    data.amount
-                  );
-                } else {
-                  console.warn(
-                    "API response does not contain 'amount'. Full response:",
-                    data
-                  );
-                }
-              } else {
-                console.error(
-                  "Failed to fetch vendor amounts. Response details:",
-                  await response.json()
-                );
-              }
-            } else {
-              console.warn(
-                "Order reference is undefined or null. Skipping API request."
-              );
-            }
-          } else {
-            console.error(
-              "Order document does not exist in Firestore for ID:",
-              order.id
-            );
-          }
-        } catch (firestoreError) {
-          console.error(
-            "Error fetching order document from Firestore:",
-            firestoreError
-          );
+        if (!order?.id) {
+          console.warn("⌛ No order.id – aborting.");
+          return;
         }
-      } else {
-        console.warn(
-          "Order or order.id is undefined. Ensure 'order' is passed as a prop and contains an 'id'."
+
+        /* ── 1. Load Firestore order doc ────────────────────────── */
+        const orderRef = doc(db, "orders", order.id);
+        console.log("📄 Getting Firestore doc → orders/%s", order.id);
+        const orderSnap = await getDoc(orderRef);
+
+        if (!orderSnap.exists()) {
+          console.error("❌ Firestore doc not found (orders/%s)", order.id);
+          return;
+        }
+
+        const orderData = orderSnap.data();
+        console.log("✅ Firestore data:", orderData);
+
+        const { orderReference, vendorId } = orderData;
+        if (!orderReference || !vendorId) {
+          console.warn("⚠️ orderReference or vendorId missing on doc.");
+          return;
+        }
+
+        /* ── 2. Build the API URL ──────────────────────────────── */
+        const base = import.meta.env.VITE_API_BASE_URL;
+        const token = import.meta.env.VITE_RESOLVE_TOKEN;
+        console.log("🔐 ENV  VITE_API_BASE_URL   →", base);
+        console.log(
+          "🔐 ENV  VITE_RESOLVE_TOKEN →",
+          token ? "[present]" : "[undefined]"
         );
+
+        const url =
+          base.replace(/\/$/, "") + // remove trailing slash if present
+          "/transaction-percentages" + // add our endpoint
+          `?vendorId=${encodeURIComponent(vendorId)}` +
+          `&orderReference=${encodeURIComponent(orderReference)}`;
+
+        /* ── 3. Call the endpoint ──────────────────────────────── */
+        const response = await fetch(url.toString(), {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log(`↩︎  HTTP ${response.status} – ${response.statusText}`);
+
+        /* ── 4. Parse body (even on errors for debugging) ───────── */
+        const bodyText = await response.text();
+        let body;
+        try {
+          body = JSON.parse(bodyText);
+        } catch {
+          body = bodyText;
+        }
+        console.log("📝 Response body:", body);
+
+        if (!response.ok) {
+          console.error("❌ Network / server error – aborting.");
+          return;
+        }
+
+        if (!body || body.status !== true || !body.data) {
+          console.warn("⚠️ Unexpected JSON shape:", body);
+          return;
+        }
+
+        /* ── 5. Normalise & set state ──────────────────────────── */
+        const { "forty-percent": forty, "sixty-percent": sixty } = body.data;
+        setVendorAmounts({ vendor40Pay: forty, vendor60Pay: sixty });
+
+        console.log("💾 State updated →", {
+          vendor40Pay: forty,
+          vendor60Pay: sixty,
+        });
+      } catch (err) {
+        console.error("🚨 Exception in fetchVendorPercentages:", err);
+      } finally {
+        console.groupEnd();
       }
     };
 
+    /* Trigger only when the sheet is open & an order is present */
     if (isOpen && order) {
-      console.log(
-        "Modal is open, and order data is available. Starting fetchVendorAmounts."
-      );
-      fetchVendorAmounts();
+      fetchVendorPercentages();
     } else {
       console.log(
-        "Modal is not open or order data is unavailable. Skipping fetchVendorAmounts."
+        "[Vendor %] Sheet closed or order undefined – skipping fetch."
       );
     }
-  }, [isOpen, order]);
+  }, [isOpen, order, db]);
+
   // Determine if the stockpile has matured (end date reached)
   const isMature = order?.endDate ? timeRemaining === 0 : false;
 
@@ -1350,7 +1358,7 @@ const OrderDetailsModal = ({
                   <div className="flex items-center space-x-2">
                     <BiCoinStack className="text-green-500" />
                     <p className="font-opensans text-xs text-gray-700">
-                      Amount to Receive Now (60%):
+                      Wallet Amount to Receive Now (60%):
                     </p>
                   </div>
                   <p className="font-opensans text-xs font-semibold text-gray-700">
@@ -1364,11 +1372,11 @@ const OrderDetailsModal = ({
                   <div className="flex items-center space-x-2">
                     <BiCoinStack className="text-blue-500" />
                     <p className="font-opensans text-xs text-gray-700">
-                      Balance to Receive on Delivery (40%):
+                      Wallet to be Credited on Delivery (40%):
                     </p>
                   </div>
                   <p className="font-opensans text-xs font-semibold text-gray-700">
-                    ₦{vendorAmounts.vendor40pay.toLocaleString() || "0.00"}
+                    ₦{vendorAmounts.vendor40Pay.toLocaleString() || "0.00"}
                   </p>
                 </div>
               )}

@@ -39,6 +39,7 @@ const Layout = () => {
     "/send-us-feedback",
     "/",
     "/vendor-reviews",
+    "/vendor-wallet",
     "/share-profile",
     "/notifications",
     "/favorites",

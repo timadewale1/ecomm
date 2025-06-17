@@ -1110,136 +1110,120 @@ const VendorProducts = () => {
                 <div
                   key={product.id}
                   id={`product-${product.id}`}
-                  className={`
-                  cursor-pointer
-                  p-2
-                  
-                `}
+                  className="cursor-pointer p-2"
                   onClick={(e) =>
                     picking
                       ? togglePickProduct(product.id)
                       : handleProductClick(product)
                   }
                 >
+                  {/* Image container */}
                   <div
                     className={`
-      relative w-44 h-44 rounded-xl bg-customSoftGray
-      ${
-        highlightId === product.id
-          ? "ring-4 ring-customOrange animate-pulse"
-          : ""
-      }
-    `}
+        relative w-44 h-44 rounded-xl bg-customSoftGray overflow-hidden
+        ${
+          highlightId === product.id
+            ? "ring-4 ring-customOrange animate-pulse"
+            : ""
+        }
+      `}
                   >
-                    <div className="flex flex-col space-y-2">
-                      <div className="relative w-44 h-44 rounded-xl bg-customSoftGray">
-                        {(hasOutOfStockSubProduct || hasOutOfStockVariant) &&
-                          tabOpt !== "OOS" && (
-                            <div className="absolute bottom-2 right-2 w-4 h-4 bg-customOrange rounded-full animate-ping"></div>
+                    {(hasOutOfStockSubProduct || hasOutOfStockVariant) &&
+                      tabOpt !== "OOS" && (
+                        <div className="absolute bottom-2 right-2 w-4 h-4 bg-customOrange rounded-full animate-ping" />
+                      )}
+
+                    {picking ? (
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          togglePickProduct(product.id);
+                        }}
+                        className="absolute top-2 left-2"
+                      >
+                        {pickedProducts.includes(product.id) ? (
+                          <GrRadialSelected className="text-customOrange w-6 h-6" />
+                        ) : (
+                          <FaRegCircle className="text-customOrange w-6 h-6" />
+                        )}
+                      </div>
+                    ) : (
+                      tabOpt === "Active" &&
+                      ((!product.isFeatured && pinnedCount < 4) ||
+                        product.isFeatured) && (
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePinProduct(product);
+                          }}
+                          className="absolute top-2 right-2 bg-white rounded-full p-1"
+                        >
+                          {product.isFeatured ? (
+                            <MdOutlineStarPurple500 className="text-customOrange w-5 h-5" />
+                          ) : (
+                            <MdOutlineStarBorderPurple500 className="text-customOrange w-5 h-5" />
                           )}
-                        {picking ? (
-                          <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              togglePickProduct(product.id);
-                            }}
-                            className="absolute top-2 left-2"
-                          >
-                            {pickedProducts.includes(product.id) ? (
-                              <GrRadialSelected className="text-customOrange w-6 h-6" />
-                            ) : (
-                              <FaRegCircle className="text-customOrange w-6 h-6" />
-                            )}
+                        </div>
+                      )
+                    )}
+
+                    {!picking && product.discount && (
+                      <div className="absolute top-2 left-2 flex items-center">
+                        {product.discount.discountType.startsWith(
+                          "personal-freebies"
+                        ) ? (
+                          <div className="bg-customPink text-customOrange text-sm px-2 py-1 font-medium rounded-md">
+                            {truncateText(product.discount.freebieText)}
                           </div>
                         ) : (
-                          // Show pin icon only if there are less than 4 pinned products
-                          tabOpt === "Active" &&
-                          ((!product.isFeatured && pinnedCount < 4) ||
-                            product.isFeatured) && (
-                            <div
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlePinProduct(product);
-                              }}
-                              className="absolute top-2 right-2 bg-white rounded-full p-1"
-                            >
-                              {product.isFeatured ? (
-                                <MdOutlineStarPurple500
-                                  className={`text-customOrange  w-5 h-5`}
-                                />
-                              ) : (
-                                <MdOutlineStarBorderPurple500
-                                  className={`text-customOrange  w-5 h-5`}
-                                />
-                              )}
-                            </div>
-                          )
-                        )}
-                        {product.discount && !picking && (
-                          <div className="absolute top-2 left-2 flex items-center">
-                            {product.discount.discountType.startsWith(
-                              "personal-freebies"
-                            ) ? (
-                              <div className="bg-customPink text-customOrange text-sm px-2 py-1 font-medium font-opensans rounded-md">
-                                {truncateText(product.discount.freebieText)}
-                              </div>
-                            ) : (
-                              <div className="bg-customPink font-opensans text-customOrange text-sm font-medium px-2 py-1 rounded-md">
-                                -{product.discount.percentageCut}%
-                              </div>
-                            )}
+                          <div className="bg-customPink text-customOrange text-sm font-medium px-2 py-1 rounded-md">
+                            -{product.discount.percentageCut}%
                           </div>
                         )}
+                      </div>
+                    )}
 
-                        <img
-                          src={product.coverImageUrl}
-                          alt={product.name}
-                          className="w-full h-full object-cover rounded-xl bg-customSoftGray"
-                        />
-                      </div>
-                      <div className="flex">
-                        <p className="text-xs font-semibold font-opensans text-black truncate w-32">
-                          {product.name}
-                        </p>{" "}
-                        <p className="text-xs font-semibold font-opensans text-black truncate w-9">
-                          {/* {product.color} */}
-                        </p>{" "}
-                      </div>
-                      <div
-                        className={` ${
-                          !product.published ? "flex space-x-4" : "space-y-2"
-                        }`}
-                      >
-                        <p className="text-xs font-semibold font-opensans text-black">
-                          Total Stock: {product.stockQuantity}
-                        </p>
-                        <p className="text-xs font-medium font-opensans text-black">
-                          &#x20a6;{formatNumber(product.price)}
-                        </p>
-                      </div>
-                      {!product.published && (
-                        <p className="text-xs font-semibold font-opensans text-customOrange">
-                          Unpublished Product
-                        </p>
-                      )}
-                      <div className="mt-1">
-                        {product.discount && (
-                          <p className="text-xs font-opensans font-semibold text-customRichBrown">
-                            {product.discount.discountType.startsWith("inApp")
-                              ? "In‑App Discount"
-                              : product.discount.discountType ===
-                                "personal-monetary"
-                              ? "Personal Monetary Discount"
-                              : product.discount.discountType ===
-                                "personal-freebies"
-                              ? `Freebie: ${truncateText(
-                                  product.discount.freebieText
-                                )}`
-                              : ""}
-                          </p>
-                        )}
-                      </div>
+                    <img
+                      src={product.coverImageUrl}
+                      alt={product.name}
+                      className="w-full h-full object-cover rounded-xl bg-customSoftGray"
+                    />
+                  </div>
+
+                  {/* Text container */}
+                  <div className="mt-2 flex flex-col space-y-1">
+                    <div className="flex">
+                      <p className="text-xs font-semibold font-opensans text-black truncate w-32">
+                        {product.name}
+                      </p>
                     </div>
+
+                    <div className="flex justify-between">
+                      <p className="text-xs font-semibold font-opensans text-black">
+                        Total Stock: {product.stockQuantity}
+                      </p>
+                    </div>
+                    <p className="text-xs font-medium font-opensans text-black">
+                      &#x20a6;{formatNumber(product.price)}
+                    </p>
+                    {!product.published && (
+                      <p className="text-xs font-semibold font-opensans text-customOrange">
+                        Unpublished Product
+                      </p>
+                    )}
+
+                    {product.discount && (
+                      <p className="text-xs font-opensans font-semibold text-customRichBrown">
+                        {product.discount.discountType.startsWith("inApp")
+                          ? "In-App Discount"
+                          : product.discount.discountType ===
+                            "personal-monetary"
+                          ? "Personal Monetary Discount"
+                          : `Freebie: ${truncateText(
+                              product.discount.freebieText
+                            )}`}
+                      </p>
+                    )}
                   </div>
                 </div>
               );

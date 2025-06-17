@@ -11,9 +11,11 @@ import {
   collection,
   query,
   where,
+  serverTimestamp,
   getDocs,
   updateDoc,
 } from "firebase/firestore";
+import { TfiWallet } from "react-icons/tfi";
 import { useAuth } from "../../custom-hooks/useAuth";
 import { TbHomeStar, TbTruckDelivery } from "react-icons/tb";
 import { PiLinkBold, PiLinkLight, PiSignOutBold } from "react-icons/pi";
@@ -349,7 +351,9 @@ const VendorProfile = () => {
                     <p className="text-customDeepOrange text-xl font-opensans font-semibold">
                       {likesCount || 0}
                     </p>
-                    <p className="text-black text-[12px] leading-[1.15rem] font-opensans">Likes</p>
+                    <p className="text-black text-[12px] leading-[1.15rem] font-opensans">
+                      Likes
+                    </p>
                   </div>
 
                   <div className="flex flex-col justify-center relative">
@@ -444,6 +448,23 @@ const VendorProfile = () => {
                       <User className="text-black text-xl mr-4" />
                       <h2 className="text-size font-normal text-black capitalize">
                         Personal information
+                      </h2>
+                    </div>
+                    <ChevronRight className="text-black" />
+                  </div>
+                </div>
+                <div className="flex flex-col items-center w-full">
+                  <div
+                    className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                    onClick={() => navigate("/vendor-wallet")}
+                  >
+                    <div className="flex items-center relative">
+                      <TfiWallet className="text-black text-xl mr-4" />
+                      <h2 className="text-size font-normal text-black capitalize relative">
+                        My Wallet
+                        <span className="absolute -top-1 animate-pulse -right-10 text-[8px] font-bold text-white bg-customOrange px-2 py-0.5 rounded-md shadow-sm">
+                          NEW
+                        </span>
                       </h2>
                     </div>
                     <ChevronRight className="text-black" />

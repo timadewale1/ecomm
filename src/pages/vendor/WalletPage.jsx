@@ -1,5 +1,5 @@
 // src/pages/WalletPage.jsx
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useMemo } from "react";
 import Modal from "react-modal";
 import toast from "react-hot-toast";
 import { BsEye, BsEyeSlash } from "react-icons/bs";
@@ -47,9 +47,6 @@ export default function WalletPage() {
       return [];
     }
   });
-  const PAYOUT_DAYS = [1, 3, 5];
-
-  const [nextPayoutAt, setNextPayoutAt] = useState(null);
   const [countdown, setCountdown] = useState("");
   /* “hide balance” preference */
   const [hideBalance, setHideBalance] = useState(() => {
@@ -73,6 +70,10 @@ export default function WalletPage() {
   const [resultAmount, setResultAmount] = useState(0);
   const [resultReference, setResultReference] = useState("");
   const [resultError, setResultError] = useState("");
+ // ── payout-day helpers (for the MAIN card button only) ────────────────
+  const PAYOUT_DAYS = [1, 3, 5]; // Mon, Wed, Fri
+  const isPayoutDay = PAYOUT_DAYS.includes(new Date().getDay());
+   const nextPayoutAt = React.useMemo(getNextPayoutDate, []);
 
   // Wallet setup PIN flow
   const [showPinModal, setShowPinModal] = useState(false);
@@ -117,16 +118,25 @@ export default function WalletPage() {
       return [];
     }
   };
-  function formatCountdown(ms) {
-    if (ms <= 0) return "now";
-    const secs = Math.floor(ms / 1e3) % 60;
-    const mins = Math.floor(ms / 6e4) % 60;
-    const hrs = Math.floor(ms / 3.6e6) % 24;
-    const days = Math.floor(ms / 8.64e7);
 
-    const pad = (n) => n.toString().padStart(2, "0");
-    return `${days ? days + " d " : ""}${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
-  }
+  useEffect(() => {
+    const tick = () => {
+      const diff = nextPayoutAt - Date.now();
+      if (diff <= 0) return setCountdown("now");
+
+      const s = Math.floor(diff / 1e3) % 60;
+      const m = Math.floor(diff / 6e4) % 60;
+      const h = Math.floor(diff / 3.6e6) % 24;
+      const d = Math.floor(diff / 8.64e7);
+
+      const pad = (n) => n.toString().padStart(2, "0");
+      setCountdown(`${d ? d + " d " : ""}${pad(h)}:${pad(m)}:${pad(s)}`);
+    };
+
+    tick(); // first run
+    const id = setInterval(tick, 1_000);
+    return () => clearInterval(id);
+  }, [nextPayoutAt]);
 
   useEffect(() => {
     if (!vendorData?.vendorId) return;
@@ -168,25 +178,12 @@ export default function WalletPage() {
       setShowPinModal(true);
     }
   }, [vendorData, vendorLoading]);
-  useEffect(() => {
-    const next = getNextPayoutDate(); // helper you already have
-    setNextPayoutAt(next);
-
-    // ⬇️ compute immediately
-    setCountdown(formatCountdown(next - Date.now()));
-
-    const id = setInterval(() => {
-      setCountdown(formatCountdown(next - Date.now()));
-    }, 1_000);
-    return () => clearInterval(id);
-  }, []); // once on mount
-
+ 
   useEffect(() => {
     if (!showWithdrawPinModal) setWithdrawPin("");
   }, [showWithdrawPinModal]);
   const resolvedVendorId = vendorData?.vendorId || vendorData?.uid || "";
-  // ─── Helpers ────────────────────────────────────────────────────────────────
-
+ 
   const createWallet = async () => {
     if (pinLoading) return;
     setPinLoading(true);
@@ -238,7 +235,7 @@ export default function WalletPage() {
       setPinLoading(false);
     }
   };
-
+ 
   // PIN pad handler for setup
   const onKeyPress = (k) => {
     if (k === "⌫") {
@@ -373,7 +370,7 @@ export default function WalletPage() {
   const raw = withdrawAmount.replace(/\D/g, "");
   const formatted = raw ? new Intl.NumberFormat("en-NG").format(+raw) : "";
   const displayAmount = formatted ? `₦${formatted}` : "₦0.00";
-  const isPayoutDay = PAYOUT_DAYS.includes(new Date().getDay());
+
   const canWithdraw =
     isPayoutDay && Number(raw) >= 100 && Number(raw) <= balance;
 
@@ -434,18 +431,17 @@ export default function WalletPage() {
           </div>
           <button
             onClick={() => {
-              setShowWithdrawModal(false);
-              setShowWithdrawPinModal(true);
+              if (isPayoutDay) setShowWithdrawModal(true); // open modal only today
             }}
-            disabled={!canWithdraw}
-            className={`w-full mt-8 text-sm font-opensans rounded-full py-2.5 font-medium
-              ${
-                canWithdraw
-                  ? "bg-customOrange text-white"
-                  : "bg-white animate-pulse bg-opacity-70 text-gray-500 cursor-not-allowed"
-              }`}
+            disabled={!isPayoutDay} // disable on off-days
+            className={`w-full mt-8 py-2.5 text-sm font-opensans rounded-full font-semibold
+    ${
+      isPayoutDay
+        ? "bg-white text-customOrange" // today → active
+        : "bg-white bg-opacity-70 text-gray-500 cursor-not-allowed animate-pulse"
+    }`}
           >
-            {isPayoutDay ? `Withdraw}` : `Withdrawals open in ${countdown}`}
+            {isPayoutDay ? "Withdraw" : `Withdrawals open in ${countdown}`}
           </button>
         </div>
 

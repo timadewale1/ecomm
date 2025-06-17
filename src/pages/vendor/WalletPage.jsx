@@ -26,6 +26,8 @@ import {
 import { db } from "../../firebase.config";
 import Loading from "../../components/Loading/Loading";
 import { motion, AnimatePresence } from "framer-motion";
+import { MdOutlineContentPasteSearch } from "react-icons/md";
+
 import WithdrawLoad from "../../components/Loading/WithdrawLoad";
 import FailedWithdraw from "../../components/Loading/FailedWithdraw";
 import Paymentsuccess from "../../components/Loading/PaymentSuccess";
@@ -425,37 +427,44 @@ export default function WalletPage() {
           <h3 className="text-xs font-opensans font-medium mb-2">
             Transaction History
           </h3>
-          <ul className="space-y-2">
-            {history.map((tx) => (
-              <li
-                key={tx.id}
-                className="flex justify-between border-b border-gray-200 py-3 last:border-0 hover:bg-gray-50"
-              >
-                <span className="flex items-center space-x-2">
-                  {tx.type === "withdrawal" ? (
-                    <GoArrowDownRight className="text-xl text-gray-600" />
-                  ) : (
-                    <GoArrowUpRight className="text-xl text-gray-600" />
-                  )}
-                  <span className="text-sm font-semibold">
-                    {tx.type === "withdrawal" ? "Withdrawal" : "Paid"}
+          {history.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8">
+              <MdOutlineContentPasteSearch className="text-5xl text-customOrange" />
+              <p className="text-xs text-center text-gray-500 mt-2">Your recent transactions willl appear here</p>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {history.map((tx) => (
+                <li
+                  key={tx.id}
+                  className="flex justify-between border-b border-gray-200 py-3 last:border-0 hover:bg-gray-50"
+                >
+                  <span className="flex items-center space-x-2">
+                    {tx.type === "withdrawal" ? (
+                      <GoArrowDownRight className="text-xl text-gray-600" />
+                    ) : (
+                      <GoArrowUpRight className="text-xl text-gray-600" />
+                    )}
+                    <span className="text-sm font-semibold">
+                      {tx.type === "withdrawal" ? "Withdrawal" : "Paid"}
+                    </span>
                   </span>
-                </span>
-                <div className="text-right">
-                  <p
-                    className={`font-bold  font-opensans text-base ${
-                      tx.type === "withdrawal"
-                        ? "text-gray-700"
-                        : "text-green-600"
-                    }`}
-                  >
-                    ₦{tx.amount.toLocaleString()}
-                  </p>
-                  <p className="text-xs text-gray-500">{tx.date}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  <div className="text-right">
+                    <p
+                      className={`font-bold font-opensans text-base ${
+                        tx.type === "withdrawal"
+                          ? "text-gray-700"
+                          : "text-green-600"
+                      }`}
+                    >
+                      ₦{tx.amount.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-gray-500">{tx.date}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 

@@ -7,7 +7,6 @@ const urlsToCache = [
   '/logo192.png',
   '/logo512.png',
   '/logo.png',
-  '/apple-splash-1284-2778.jpg',
   '/apple-splash-640-1136.jpg',
   '/apple-splash-750-1334.jpg',
   '/apple-splash-828-1792.jpg',

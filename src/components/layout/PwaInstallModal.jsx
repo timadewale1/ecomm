@@ -13,7 +13,7 @@ const PWAInstallModal = ({ onClose }) => {
   }, []);
 
   useEffect(() => {
-  if (pwa || ios) return;
+  if (pwa) return;
 
   const lastPrompt = localStorage.getItem("pwaPromptDismissedAt");
   const now = Date.now();

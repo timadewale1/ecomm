@@ -40,16 +40,13 @@
     <meta name="twitter:url" content="" />
     <meta name="twitter:creator" content="@mythriftng" />
 
-
     <link rel="icon" href="./logo.ico" />
 
-  
     <link rel="manifest" href="./manifest.json" />
 
     <meta name="theme-color" content="#ffffff" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -293,27 +290,25 @@
     </div>
 
     <script>
-      window.beforeInstallEvent = null;
-      function handleBeforeInstallPrompt(e) {
-        e.preventDefault();
-        window.beforeInstallEvent = e;
-      }
-      if (!/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+      document.addEventListener("DOMContentLoaded", () => {
+        window.beforeInstallEvent = null;
+        function handleBeforeInstallPrompt(e) {
+          e.preventDefault();
+          window.beforeInstallEvent = e;
+        }
         window.addEventListener(
           "beforeinstallprompt",
           handleBeforeInstallPrompt
         );
-      }
-      const isPWA = window.matchMedia("(display-mode: standalone)").matches;
-      const isIOS =
-        /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-      function setViewportHeight() {
-        let vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty("--vh", `${vh}px`);
-      }
-      setViewportHeight();
-      window.addEventListener("resize", setViewportHeight);
-      document.addEventListener("DOMContentLoaded", () => {
+        const isPWA = window.matchMedia("(display-mode: standalone)").matches;
+        const isIOS =
+          /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        function setViewportHeight() {
+          let vh = window.innerHeight * 0.01;
+          document.documentElement.style.setProperty("--vh", `${vh}px`);
+        }
+        setViewportHeight();
+        window.addEventListener("resize", setViewportHeight);
         const loadingScreen = document.getElementById("custom-loading-screen");
         if (loadingScreen) {
           loadingScreen.style.display = isPWA ? "flex" : "none";
@@ -323,8 +318,6 @@
         const loadingScreen = document.getElementById("custom-loading-screen");
         if (loadingScreen) loadingScreen.style.display = "none";
       }, 5000);
-
-    
     </script>
 
     <script

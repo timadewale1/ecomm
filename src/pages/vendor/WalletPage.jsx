@@ -27,7 +27,7 @@ import { db } from "../../firebase.config";
 import Loading from "../../components/Loading/Loading";
 import { motion, AnimatePresence } from "framer-motion";
 import WithdrawLoad from "../../components/Loading/WithdrawLoad";
-import FailedWithdraw from "../../components/Loading/failedwithdraw";
+import FailedWithdraw from "../../components/Loading/FailedWithdraw";
 import Paymentsuccess from "../../components/Loading/PaymentSuccess";
 
 Modal.setAppElement("#root");

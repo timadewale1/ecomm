@@ -47,7 +47,10 @@ export default function WalletPage() {
       return [];
     }
   });
+  const PAYOUT_DAYS = [1, 3, 5];
 
+  const [nextPayoutAt, setNextPayoutAt] = useState(null);
+  const [countdown, setCountdown] = useState("");
   /* “hide balance” preference */
   const [hideBalance, setHideBalance] = useState(() => {
     try {
@@ -114,6 +117,16 @@ export default function WalletPage() {
       return [];
     }
   };
+  function formatCountdown(ms) {
+    if (ms <= 0) return "now";
+    const secs = Math.floor(ms / 1e3) % 60;
+    const mins = Math.floor(ms / 6e4) % 60;
+    const hrs = Math.floor(ms / 3.6e6) % 24;
+    const days = Math.floor(ms / 8.64e7);
+
+    const pad = (n) => n.toString().padStart(2, "0");
+    return `${days ? days + " d " : ""}${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+  }
 
   useEffect(() => {
     if (!vendorData?.vendorId) return;
@@ -155,6 +168,18 @@ export default function WalletPage() {
       setShowPinModal(true);
     }
   }, [vendorData, vendorLoading]);
+  useEffect(() => {
+    const next = getNextPayoutDate(); // helper you already have
+    setNextPayoutAt(next);
+
+    // ⬇️ compute immediately
+    setCountdown(formatCountdown(next - Date.now()));
+
+    const id = setInterval(() => {
+      setCountdown(formatCountdown(next - Date.now()));
+    }, 1_000);
+    return () => clearInterval(id);
+  }, []); // once on mount
 
   useEffect(() => {
     if (!showWithdrawPinModal) setWithdrawPin("");
@@ -311,7 +336,19 @@ export default function WalletPage() {
       setWithdrawAmount("");
     }
   };
+  function getNextPayoutDate(from = new Date()) {
+    const today = new Date(from);
+    today.setHours(0, 0, 0, 0);
 
+    for (let i = 0; i < 7; i++) {
+      const candidate = new Date(today);
+      candidate.setDate(candidate.getDate() + i);
+      if (PAYOUT_DAYS.includes(candidate.getDay())) {
+        if (i > 0 || from < candidate) return candidate; // first future payout day
+      }
+    }
+    return null; // should never hit
+  }
   const onWithdrawKey = (k) => {
     if (withdrawLoading) return;
 
@@ -336,7 +373,9 @@ export default function WalletPage() {
   const raw = withdrawAmount.replace(/\D/g, "");
   const formatted = raw ? new Intl.NumberFormat("en-NG").format(+raw) : "";
   const displayAmount = formatted ? `₦${formatted}` : "₦0.00";
-  const canWithdraw = Number(raw) >= 100 && Number(raw) <= balance;
+  const isPayoutDay = PAYOUT_DAYS.includes(new Date().getDay());
+  const canWithdraw =
+    isPayoutDay && Number(raw) >= 100 && Number(raw) <= balance;
 
   const displayPin = isConfirming ? confirmPin : initialPin;
   const promptText = isConfirming ? "Confirm Your PIN" : "Set up Your PIN";
@@ -394,10 +433,19 @@ export default function WalletPage() {
             </button>
           </div>
           <button
-            onClick={() => setShowWithdrawModal(true)}
-            className="w-full mt-8 text-sm font-opensans bg-white text-customOrange rounded-full py-2.5 font-semibold"
+            onClick={() => {
+              setShowWithdrawModal(false);
+              setShowWithdrawPinModal(true);
+            }}
+            disabled={!canWithdraw}
+            className={`w-full mt-8 text-sm font-opensans rounded-full py-2.5 font-medium
+              ${
+                canWithdraw
+                  ? "bg-customOrange text-white"
+                  : "bg-white animate-pulse bg-opacity-70 text-gray-500 cursor-not-allowed"
+              }`}
           >
-            Withdraw
+            {isPayoutDay ? `Withdraw}` : `Withdrawals open in ${countdown}`}
           </button>
         </div>
 
@@ -422,6 +470,11 @@ export default function WalletPage() {
               ₦{pending.toLocaleString()}{" "}
             </p>{" "}
           </div>
+          {!isPayoutDay && (
+            <p className="text-[10px] text-gray-500 mt-1">
+              Withdrawals are processed only on Mon, Wed &amp; Fri.
+            </p>
+          )}
         </div>
         <div className="border border-gray-200 rounded-2xl p-4 bg-white">
           <h3 className="text-xs font-opensans font-medium mb-2">
@@ -430,7 +483,9 @@ export default function WalletPage() {
           {history.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8">
               <MdOutlineContentPasteSearch className="text-5xl text-customOrange" />
-              <p className="text-xs text-center text-gray-500 mt-2">Your recent transactions willl appear here</p>
+              <p className="text-xs text-center text-gray-500 mt-2">
+                Your recent transactions willl appear here
+              </p>
             </div>
           ) : (
             <ul className="space-y-2">

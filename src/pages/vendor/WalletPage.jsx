@@ -70,10 +70,13 @@ export default function WalletPage() {
   const [resultAmount, setResultAmount] = useState(0);
   const [resultReference, setResultReference] = useState("");
   const [resultError, setResultError] = useState("");
- // ── payout-day helpers (for the MAIN card button only) ────────────────
+  // ── payout-day helpers (for the MAIN card button only) ────────────────
   const PAYOUT_DAYS = [1, 3, 5]; // Mon, Wed, Fri
-  const isPayoutDay = PAYOUT_DAYS.includes(new Date().getDay());
-   const nextPayoutAt = React.useMemo(getNextPayoutDate, []);
+  const PAYOUT_OPEN_HOUR = 2;
+  const now = new Date();
+  const isPayoutWindow =
+    PAYOUT_DAYS.includes(now.getDay()) && now.getHours() >= PAYOUT_OPEN_HOUR;
+  const nextPayoutAt = React.useMemo(getNextPayoutWindow, []);
 
   // Wallet setup PIN flow
   const [showPinModal, setShowPinModal] = useState(false);
@@ -178,12 +181,12 @@ export default function WalletPage() {
       setShowPinModal(true);
     }
   }, [vendorData, vendorLoading]);
- 
+
   useEffect(() => {
     if (!showWithdrawPinModal) setWithdrawPin("");
   }, [showWithdrawPinModal]);
   const resolvedVendorId = vendorData?.vendorId || vendorData?.uid || "";
- 
+
   const createWallet = async () => {
     if (pinLoading) return;
     setPinLoading(true);
@@ -235,7 +238,7 @@ export default function WalletPage() {
       setPinLoading(false);
     }
   };
- 
+
   // PIN pad handler for setup
   const onKeyPress = (k) => {
     if (k === "⌫") {
@@ -333,19 +336,25 @@ export default function WalletPage() {
       setWithdrawAmount("");
     }
   };
-  function getNextPayoutDate(from = new Date()) {
-    const today = new Date(from);
-    today.setHours(0, 0, 0, 0);
+  function getNextPayoutWindow(from = new Date()) {
+    const start = new Date(from); // clone
+    start.setMinutes(0, 0, 0); // zero out smaller units
 
-    for (let i = 0; i < 7; i++) {
-      const candidate = new Date(today);
-      candidate.setDate(candidate.getDate() + i);
-      if (PAYOUT_DAYS.includes(candidate.getDay())) {
-        if (i > 0 || from < candidate) return candidate; // first future payout day
+    // iterate forward; first day in PAYOUT_DAYS whose 02:00 we haven’t passed yet
+    for (let i = 0; i < 8; i++) {
+      const cand = new Date(start);
+      cand.setDate(cand.getDate() + i);
+      cand.setHours(PAYOUT_OPEN_HOUR); // 02:00 that day
+      if (
+        PAYOUT_DAYS.includes(cand.getDay()) &&
+        cand > from // still in the future
+      ) {
+        return cand;
       }
     }
-    return null; // should never hit
+    return null; // should never happen
   }
+
   const onWithdrawKey = (k) => {
     if (withdrawLoading) return;
 
@@ -372,7 +381,7 @@ export default function WalletPage() {
   const displayAmount = formatted ? `₦${formatted}` : "₦0.00";
 
   const canWithdraw =
-    isPayoutDay && Number(raw) >= 100 && Number(raw) <= balance;
+    isPayoutWindow && Number(raw) >= 100 && Number(raw) <= balance;
 
   const displayPin = isConfirming ? confirmPin : initialPin;
   const promptText = isConfirming ? "Confirm Your PIN" : "Set up Your PIN";
@@ -431,17 +440,17 @@ export default function WalletPage() {
           </div>
           <button
             onClick={() => {
-              if (isPayoutDay) setShowWithdrawModal(true); // open modal only today
+              if (isPayoutWindow) setShowWithdrawModal(true); // open modal only today
             }}
-            disabled={!isPayoutDay} // disable on off-days
+            disabled={!isPayoutWindow} // disable on off-days
             className={`w-full mt-8 py-2.5 text-sm font-opensans rounded-full font-semibold
     ${
-      isPayoutDay
+      isPayoutWindow
         ? "bg-white text-customOrange" // today → active
         : "bg-white bg-opacity-70 text-gray-500 cursor-not-allowed animate-pulse"
     }`}
           >
-            {isPayoutDay ? "Withdraw" : `Withdrawals open in ${countdown}`}
+            {isPayoutWindow ? "Withdraw" : `Withdrawals open in ${countdown}`}
           </button>
         </div>
 
@@ -466,7 +475,7 @@ export default function WalletPage() {
               ₦{pending.toLocaleString()}{" "}
             </p>{" "}
           </div>
-          {!isPayoutDay && (
+          {!isPayoutWindow && (
             <p className="text-[10px] text-gray-500 mt-1">
               Withdrawals are processed only on Mon, Wed &amp; Fri.
             </p>

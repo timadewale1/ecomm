@@ -22,6 +22,7 @@ import { LuCopyCheck, LuCopy } from "react-icons/lu";
 import toast from "react-hot-toast";
 import Modal from "react-modal";
 import { FiPlus } from "react-icons/fi";
+import { buildCartKey } from "../../services/cartKey";
 import { FiMinus } from "react-icons/fi";
 import { TbSquareRoundedCheck } from "react-icons/tb";
 import Badge from "../../components/Badge/Badge";
@@ -46,6 +47,7 @@ import {
   serverTimestamp,
   addDoc,
 } from "firebase/firestore";
+import { findVariant } from "../../services/getVariant";
 import RelatedProducts from "./SimilarProducts";
 import Productnotofund from "../../components/Loading/Productnotofund";
 import { decreaseQuantity, increaseQuantity } from "../../redux/actions/action";
@@ -214,14 +216,25 @@ const ProductDetailPage = () => {
       setSubProducts(product.subProducts || []); // Store sub-products if available
     }
   }, [product]);
+  // put this near the top, right after you pull `product` from redux
+  const isFashion = product?.isFashion; // boolean – AddProduct already writes it
+
+  const variants = React.useMemo(
+    () => (Array.isArray(product?.variants) ? product.variants : []),
+    [product]
+  );
 
   useEffect(() => {
     if (product && selectedSize && selectedColor) {
       // Generate product key based on whether it's a sub-product or a variant
-      const productKey = selectedSubProduct
-        ? `${product.vendorId}-${product.id}-${selectedSubProduct.subProductId}`
-        : `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
-
+      const productKey = buildCartKey({
+        vendorId: product.vendorId,
+        productId: product.id,
+        isFashion,
+        selectedSize,
+        selectedColor,
+        subProductId: selectedSubProduct?.subProductId,
+      });
       console.log("Checking cart for productKey:", productKey);
 
       // Check if the item exists in the cart
@@ -336,15 +349,17 @@ const ProductDetailPage = () => {
   // Automatically select color if only one is available
 
   useEffect(() => {
-    if (selectedColor && selectedSize) {
-      const matchingVariant = product.variants.find(
-        (variant) =>
-          variant.color === selectedColor && variant.size === selectedSize
-      );
-      setSelectedVariantStock(matchingVariant ? matchingVariant.stock : 0);
+    // Only run for products that really have variants
+    if (!Array.isArray(product?.variants)) {
+      setSelectedVariantStock(0);
+      return;
     }
-  }, [selectedColor, selectedSize, product]);
 
+    if (selectedColor && selectedSize) {
+      const variant = findVariant(product, selectedSize, selectedColor);
+      setSelectedVariantStock(variant ? variant.stock : 0);
+    }
+  }, [product, selectedColor, selectedSize]);
   useEffect(() => {
     dispatch(fetchProduct(id)).catch((err) => {
       console.error("Failed to fetch product:", err);
@@ -421,14 +436,10 @@ const ProductDetailPage = () => {
       return;
     }
 
-    if (!selectedSize) {
-      toast.error("Please select a size before adding to cart!");
-      return;
-    }
-
-    if (!selectedColor) {
-      toast.error("Please select a color before adding to cart!");
-      return;
+    // Ask for size / colour ONLY when it’s a fashion item
+    if (isFashion) {
+      if (!selectedSize) return toast.error("Please select a size first!");
+      if (!selectedColor) return toast.error("Please select a color first!");
     }
 
     if (!product.id || !product.vendorId) {
@@ -437,19 +448,17 @@ const ProductDetailPage = () => {
       return;
     }
 
-    // Determine stock based on selected product
+    /* ---------- determine stock ---------- */
     let maxStock = 0;
+
     if (selectedSubProduct) {
       maxStock = selectedSubProduct.stock;
-      console.log("Sub-Product Stock:", maxStock);
-      if (quantity > maxStock) {
-        toast.error("Selected quantity exceeds stock availability!");
-        return;
-      }
-    } else {
-      const matchingVariant = product.variants.find(
-        (variant) =>
-          variant.color === selectedColor && variant.size === selectedSize
+    } else if (isFashion) {
+      // only check variants for true fashion items
+      const matchingVariant = findVariant(
+        { variants },
+        selectedSize,
+        selectedColor
       );
       if (!matchingVariant) {
         toast.error("Selected variant is not available!");
@@ -459,12 +468,15 @@ const ProductDetailPage = () => {
         return;
       }
       maxStock = matchingVariant.stock;
-      console.log("Variant Stock:", maxStock);
-      if (quantity > maxStock) {
-        toast.error("Selected quantity exceeds stock availability!");
-        return;
-      }
+    } else {
+      maxStock = Number(product.stockQuantity ?? product.stock ?? 1);
     }
+
+    if (quantity > maxStock) {
+      toast.error("Selected quantity exceeds stock availability!");
+      return;
+    }
+    /* ---------- /determine stock ---------- */
 
     const productToAdd = {
       ...product,
@@ -476,24 +488,22 @@ const ProductDetailPage = () => {
       subProductId: selectedSubProduct ? selectedSubProduct.subProductId : null,
     };
 
-    const productKey = selectedSubProduct
-      ? `${product.vendorId}-${product.id}-${selectedSubProduct.subProductId}`
-      : `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
+    const productKey = buildCartKey({
+      vendorId: product.vendorId,
+      productId: product.id,
+      isFashion,
+      selectedSize,
+      selectedColor,
+      subProductId: selectedSubProduct?.subProductId,
+    });
     console.log("Generated productKey in add:", productKey);
 
     const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
-    console.log("Existing Cart Item in add:", existingCartItem);
 
     if (existingCartItem) {
-      const updatedProduct = {
-        ...existingCartItem,
-        quantity: quantity,
-      };
-      dispatch(addToCart(updatedProduct, true));
-      console.log("Updated product in cart with new quantity:", updatedProduct);
+      dispatch(addToCart({ ...existingCartItem, quantity }, true));
     } else {
       dispatch(addToCart(productToAdd, true));
-      console.log("Added new product to cart:", productToAdd);
     }
 
     setIsAddedToCart(true);
@@ -512,6 +522,7 @@ const ProductDetailPage = () => {
     selectedImage,
     cart,
   ]);
+
   const handleSendQuestion = useCallback(async () => {
     console.log("[Q&A] send button clicked, questionText:", questionText);
     const q = questionText.trim();
@@ -577,24 +588,25 @@ const ProductDetailPage = () => {
     console.log("Selected Sub-Product:", selectedSubProduct);
     console.log("Current Quantity:", quantity);
 
-    if (!product) {
-      console.error("Product not found.");
-      return;
+    if (!product) return console.error("Product not found.");
+
+    // Fashion items still need size + colour picked
+    if (isFashion && (!selectedSize || !selectedColor)) {
+      return toast.error(
+        "Please select a size and color before adjusting quantity."
+      );
     }
 
-    if (!selectedSize || !selectedColor) {
-      toast.error("Please select a size and color before adjusting quantity.");
-      return;
-    }
+    /* ---------- figure out maxStock ---------- */
+    let maxStock;
 
-    let maxStock = 0;
     if (selectedSubProduct) {
       maxStock = selectedSubProduct.stock;
-      console.log("Sub-Product Stock in increase:", maxStock);
-    } else {
-      const matchingVariant = product.variants.find(
-        (variant) =>
-          variant.color === selectedColor && variant.size === selectedSize
+    } else if (isFashion) {
+      const matchingVariant = findVariant(
+        { variants },
+        selectedSize,
+        selectedColor
       );
       if (!matchingVariant) {
         toast.error("Selected variant is not available!");
@@ -604,35 +616,38 @@ const ProductDetailPage = () => {
         return;
       }
       maxStock = matchingVariant.stock;
-      console.log("Variant Stock in increase:", maxStock);
-    }
-
-    if (quantity < maxStock) {
-      const updatedQuantity = quantity + 1;
-
-      const productKey = selectedSubProduct
-        ? `${product.vendorId}-${product.id}-${selectedSubProduct.subProductId}`
-        : `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
-      console.log("Generated Product Key in increase:", productKey);
-
-      const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
-      console.log("Existing Cart Item in increase:", existingCartItem);
-
-      if (existingCartItem) {
-        dispatch(increaseQuantity({ vendorId: product.vendorId, productKey }));
-        console.log("Increased quantity for product:", existingCartItem);
-        setQuantity(updatedQuantity);
-      } else {
-        console.error("Product not found in cart for productKey:", productKey);
-        toast.error("Product not found in cart");
-      }
     } else {
+      maxStock = Number(product.stockQuantity ?? product.stock ?? 1);
+    }
+    /* ---------- /figure out maxStock ---------- */
+
+    if (quantity >= maxStock) {
       if (!toastShown.stockError) {
         toast.error("Cannot exceed available stock!");
         setToastShown((prev) => ({ ...prev, stockError: true }));
       }
-      console.warn("Stock limit reached. Quantity exceeds stock quantity.");
+      return;
     }
+
+    const updatedQuantity = quantity + 1;
+
+    const productKey = buildCartKey({
+      vendorId: product.vendorId,
+      productId: product.id,
+      isFashion,
+      selectedSize,
+      selectedColor,
+      subProductId: selectedSubProduct?.subProductId,
+    });
+
+    const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
+    if (!existingCartItem) {
+      console.error("Product not found in cart for productKey:", productKey);
+      return toast.error("Product not found in cart");
+    }
+
+    dispatch(increaseQuantity({ vendorId: product.vendorId, productKey }));
+    setQuantity(updatedQuantity);
   }, [
     product,
     quantity,
@@ -642,6 +657,7 @@ const ProductDetailPage = () => {
     toastShown,
     cart,
     selectedSubProduct,
+    isFashion,
   ]);
 
   const handleDecreaseQuantity = useCallback(() => {
@@ -652,40 +668,38 @@ const ProductDetailPage = () => {
     console.log("Selected Sub-Product:", selectedSubProduct);
     console.log("Current Quantity:", quantity);
 
-    if (!product) {
-      console.error("Product not found.");
-      return;
+    if (!product) return console.error("Product not found.");
+
+    if (isFashion && (!selectedSize || !selectedColor)) {
+      return toast.error(
+        "Please select a size and color before adjusting quantity."
+      );
     }
 
-    if (!selectedSize || !selectedColor) {
-      toast.error("Please select a size and color before adjusting quantity.");
-      return;
-    }
-
-    if (quantity > 1) {
-      const updatedQuantity = quantity - 1;
-
-      // Generate a unique product key based on whether this is a sub-product or a variant
-      const productKey = selectedSubProduct
-        ? `${product.vendorId}-${product.id}-${selectedSubProduct.subProductId}`
-        : `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
-      console.log("Generated Product Key:", productKey);
-
-      const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
-
-      if (existingCartItem) {
-        // Dispatch action to decrease quantity
-        dispatch(decreaseQuantity({ vendorId: product.vendorId, productKey }));
-        console.log("Decreased quantity for product:", existingCartItem);
-        setQuantity(updatedQuantity);
-      } else {
-        console.error("Product not found in cart for productKey:", productKey);
-        toast.error("Product not found in cart");
-      }
-    } else {
+    if (quantity <= 1) {
       console.warn("Quantity is already at 1. Cannot decrease further.");
-      toast.error("Quantity cannot be less than 1");
+      return toast.error("Quantity cannot be less than 1");
     }
+
+    const updatedQuantity = quantity - 1;
+
+    const productKey = buildCartKey({
+      vendorId: product.vendorId,
+      productId: product.id,
+      isFashion,
+      selectedSize,
+      selectedColor,
+      subProductId: selectedSubProduct?.subProductId,
+    });
+
+    const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
+    if (!existingCartItem) {
+      console.error("Product not found in cart for productKey:", productKey);
+      return toast.error("Product not found in cart");
+    }
+
+    dispatch(decreaseQuantity({ vendorId: product.vendorId, productKey }));
+    setQuantity(updatedQuantity);
   }, [
     product,
     quantity,
@@ -706,7 +720,7 @@ const ProductDetailPage = () => {
 
   // Check if a color is available for the selected size
   const isColorAvailableForSize = (color) => {
-    return product.variants.some(
+    return variants.some(
       (variant) => variant.size === selectedSize && variant.color === color
     );
   };
@@ -779,12 +793,17 @@ const ProductDetailPage = () => {
 
   // Function to check if a specific size has stock for the selected color
   const isSizeInStock = (size) => {
+    // Everyday items (no variants) don’t gate on size at all
+    if (!isFashion) return true;
+
+    // Sub-product path
     if (selectedSubProduct) {
       return selectedSubProduct.size === size && selectedSubProduct.stock > 0;
-    } else if (selectedColor) {
-      const matchingVariant = product.variants.find(
-        (variant) => variant.color === selectedColor && variant.size === size
-      );
+    }
+
+    // Regular fashion variant path
+    if (selectedColor) {
+      const matchingVariant = findVariant({ variants }, size, selectedColor);
       return matchingVariant && matchingVariant.stock > 0;
     }
     return true;
@@ -813,7 +832,7 @@ const ProductDetailPage = () => {
     }
 
     // Fallback to the main product's variants if no sub-product is selected
-    return product.variants.some(
+    return variants.some(
       (variant) => variant.color === selectedColor && variant.size === size
     );
   };
@@ -851,17 +870,32 @@ const ProductDetailPage = () => {
     console.log("Selected Color:", selectedColor);
     console.log("Selected Sub-Product:", selectedSubProduct);
 
-    if (!product || !product.id || !selectedSize || !selectedColor) return;
+    if (!product || !product.id) return; // basic guard
 
-    const productKey = selectedSubProduct
-      ? `${product.vendorId}-${product.id}-${selectedSubProduct.subProductId}`
-      : `${product.vendorId}-${product.id}-${selectedSize}-${selectedColor}`;
+    // Only gate on size/colour for fashion items
+    if (isFashion && (!selectedSize || !selectedColor)) return;
+
+    const productKey = buildCartKey({
+      vendorId: product.vendorId,
+      productId: product.id,
+      isFashion,
+      selectedSize,
+      selectedColor,
+      subProductId: selectedSubProduct?.subProductId,
+    });
 
     dispatch(removeFromCart({ vendorId: product.vendorId, productKey }));
     setIsAddedToCart(false);
     setQuantity(1);
     toast.success(`${product.name} removed from cart!`);
-  }, [dispatch, product, selectedSize, selectedColor, selectedSubProduct]);
+  }, [
+    dispatch,
+    product,
+    selectedSize,
+    selectedColor,
+    selectedSubProduct,
+    isFashion,
+  ]);
 
   const sizes =
     product && product.size
@@ -1317,8 +1351,7 @@ const ProductDetailPage = () => {
               Vendor information not available
             </p>
           )}
-
-          {availableColors.length > 0 && (
+          {isFashion && availableColors.length > 0 && (
             <div className="mt-3">
               <label
                 htmlFor="color-select"
@@ -1387,55 +1420,57 @@ const ProductDetailPage = () => {
             </div>
           )}
           {/* Size Selection */}
-          <div className="mt-3">
-            <p className="text-sm font-semibold text-black font-opensans mb-2">
-              Sizes
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {availableSizes.map((size, index) => {
-                const inStock = isSizeInStock(size);
-                const isSelected = selectedSize === size && inStock;
+          {isFashion && (
+            <div className="mt-3">
+              <p className="text-sm font-semibold text-black font-opensans mb-2">
+                Sizes
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {availableSizes.map((size, index) => {
+                  const inStock = isSizeInStock(size);
+                  const isSelected = selectedSize === size && inStock;
 
-                return (
-                  <div
-                    key={index}
-                    onClick={() => {
-                      if (inStock) {
-                        handleSizeClick(size);
-                      }
-                    }}
-                    className={`relative py-2 px-4 border rounded-lg ${
-                      isSelected
-                        ? "bg-customOrange text-white cursor-pointer"
-                        : inStock
-                        ? "bg-transparent text-black cursor-pointer"
-                        : "bg-gray-200 text-black opacity-50 cursor-not-allowed"
-                    }`}
-                    style={{ position: "relative" }}
-                  >
-                    <span className="text-xs font-opensans font-semibold">
-                      {size}
-                    </span>
-                    {!inStock && (
-                      <span
-                        className="absolute inset-0 animate-pulse flex items-center justify-center bg-gray-800 bg-opacity-50  text-customOrange font-opensans font-semibold text-xs text-center rounded-lg"
-                        style={{
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          zIndex: 10,
-                          pointerEvents: "none", // Prevents clicks on out-of-stock items
-                        }}
-                      >
-                        Out of Stock
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => {
+                        if (inStock) {
+                          handleSizeClick(size);
+                        }
+                      }}
+                      className={`relative py-2 px-4 border rounded-lg ${
+                        isSelected
+                          ? "bg-customOrange text-white cursor-pointer"
+                          : inStock
+                          ? "bg-transparent text-black cursor-pointer"
+                          : "bg-gray-200 text-black opacity-50 cursor-not-allowed"
+                      }`}
+                      style={{ position: "relative" }}
+                    >
+                      <span className="text-xs font-opensans font-semibold">
+                        {size}
                       </span>
-                    )}
-                  </div>
-                );
-              })}
+                      {!inStock && (
+                        <span
+                          className="absolute inset-0 animate-pulse flex items-center justify-center bg-gray-800 bg-opacity-50  text-customOrange font-opensans font-semibold text-xs text-center rounded-lg"
+                          style={{
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            zIndex: 10,
+                            pointerEvents: "none", // Prevents clicks on out-of-stock items
+                          }}
+                        >
+                          Out of Stock
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
           <div
             className="flex items-center mt-5 mb-2 cursor-pointer"
             onClick={() => setIsModalOpen(true)}
@@ -1498,7 +1533,7 @@ const ProductDetailPage = () => {
                   initial={{ y: "100%" }}
                   animate={{ y: 0 }}
                   exit={{ y: "100%" }}
-                  onClick={e => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                   transition={{ type: "tween", duration: 0.3 }}
                   className="fixed bottom-0 left-0 h-60% right-0 z-[8100]  bg-white rounded-t-xl p-6 shadow-lg"
                 >
@@ -1674,7 +1709,7 @@ const ProductDetailPage = () => {
           }}
           onClick={(e) => e.stopPropagation()} // Prevents background clicks from propagating
         >
-          {!selectedSize || !selectedColor ? (
+          {isFashion && (!selectedSize || !selectedColor) ? (
             // Prompt user to select size and color
             <button
               onClick={() => {

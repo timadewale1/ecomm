@@ -18,6 +18,7 @@ import { auto } from "@cloudinary/url-gen/actions/resize";
 import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
 import { AdvancedImage } from "@cloudinary/react";
 import productTypes from "../pages/vendor/producttype";
+import everydayTypers from "./vendor/everydayTypers";
 import { GoChevronLeft, GoChevronRight } from "react-icons/go";
 import { MdTrendingUp } from "react-icons/md";
 import { motion, AnimatePresence } from "framer-motion";
@@ -32,6 +33,7 @@ import SEO from "../components/Helmet/SEO";
 
 // import { ChevronRight } from "lucide-react";       // keep if you still use itimport { FaRocket } from "react-icons/fa";
 const Explore = () => {
+  const ALL_TYPES = [...productTypes, ...everydayTypers];
   const priceRanges = [
     { label: "Under ₦5 000", min: 0, max: 4_999 },
     { label: "₦5 000–₦10 000", min: 5_000, max: 10_000 },
@@ -41,7 +43,7 @@ const Explore = () => {
   const cachedUi = useSelector((s) => s.exploreUi);
   const [selectedProductType, setSelectedProductType] = useState(
     cachedUi.selectedType
-      ? productTypes.find((p) => p.type === cachedUi.selectedType)
+      ? ALL_TYPES.find((p) => p.type === cachedUi.selectedType)
       : null
   );
   const [selectedSubType, setSelectedSubType] = useState(
@@ -67,8 +69,7 @@ const Explore = () => {
   const [isSearching, setIsSearching] = useState(false);
   const { promoImages, promoLoading } = useSelector((state) => state.promo);
   const navigate = useNavigate();
-  const [filteredProductTypes, setFilteredProductTypes] =
-    useState(productTypes);
+  const [filteredProductTypes, setFilteredProductTypes] = useState(ALL_TYPES);
   const [filteredSubTypes, setFilteredSubTypes] = useState([]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [sortOrder, setSortOrder] = useState(null);

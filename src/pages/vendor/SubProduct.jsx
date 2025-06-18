@@ -5,6 +5,7 @@ import Select from "react-select";
 import { BiSolidImageAdd } from "react-icons/bi";
 import { TiCameraOutline } from "react-icons/ti";
 import toast from "react-hot-toast";
+import Compressor from "compressorjs";
 
 const MAX_FILE_SIZE = 3 * 1024 * 1024;
 const MAX_SUB_PRODUCTS = 4;
@@ -31,37 +32,103 @@ const SubProduct = ({
   const scrollContainerRef = useRef(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+  // const handleFileChange = (index, event) => {
+  //   const files = Array.from(event.target.files);
+  //   const updatedSubProducts = [...subProducts];
+
+  //   // Validate each file's size
+  //   const validFiles = [];
+  //   files.forEach((file) => {
+  //     if (file.size > MAX_FILE_SIZE) {
+  //       toast.dismiss();
+  //       toast.error(`${file.name} exceeds the maximum file size of 3MB`, {
+  //         duration: 3000,
+  //       });
+  //     } else {
+  //       validFiles.push(file);
+  //     }
+  //   });
+
+  //   // Check the number of images
+  //   if (validFiles.length + updatedSubProducts[index].images.length > 2) {
+  //     toast.dismiss();
+  //     toast.error("You can upload a maximum of 2 images", { duration: 3000 });
+  //     return;
+  //   }
+
+  //   updatedSubProducts[index].images = [
+  //     ...updatedSubProducts[index].images,
+  //     ...validFiles,
+  //   ];
+
+  //   setSubProducts(updatedSubProducts);
+  // };
+
   const handleFileChange = (index, event) => {
-    const files = Array.from(event.target.files);
-    const updatedSubProducts = [...subProducts];
+  const files = Array.from(event.target.files);
+  const updatedSubProducts = [...subProducts];
 
-    // Validate each file's size
-    const validFiles = [];
-    files.forEach((file) => {
-      if (file.size > MAX_FILE_SIZE) {
-        toast.dismiss();
-        toast.error(`${file.name} exceeds the maximum file size of 3MB`, {
-          duration: 3000,
-        });
-      } else {
-        validFiles.push(file);
-      }
-    });
+  const loadingToastId = toast.loading("Compressing image...");
 
-    // Check the number of images
-    if (validFiles.length + updatedSubProducts[index].images.length > 2) {
-      toast.dismiss();
-      toast.error("You can upload a maximum of 2 images", { duration: 3000 });
+  let completed = 0;
+  const compressedImages = [];
+
+  files.forEach((file) => {
+    // Check file size first
+    if (file.size > MAX_FILE_SIZE) {
+      toast.dismiss(loadingToastId);
+      toast.error(`${file.name} exceeds the maximum file size of 3MB`, {
+        duration: 3000,
+      });
       return;
     }
 
-    updatedSubProducts[index].images = [
-      ...updatedSubProducts[index].images,
-      ...validFiles,
-    ];
+    // Compress valid file
+    new Compressor(file, {
+      quality: 0.6,
+      success(result) {
+        // Create preview URL
+        const preview = URL.createObjectURL(result);
 
-    setSubProducts(updatedSubProducts);
-  };
+        compressedImages.push({
+          file: result,
+          preview,
+        });
+
+        completed++;
+
+        // When all files are processed
+        if (completed === files.length) {
+          // Check if adding these would exceed the limit
+          const totalImages =
+            updatedSubProducts[index].images.length + compressedImages.length;
+          if (totalImages > 2) {
+            toast.dismiss(loadingToastId);
+            toast.error("You can upload a maximum of 2 images", {
+              duration: 3000,
+            });
+            return;
+          }
+
+          // Update subProducts with new images
+          updatedSubProducts[index].images = [
+            ...updatedSubProducts[index].images,
+            ...compressedImages,
+          ];
+
+          setSubProducts(updatedSubProducts);
+          toast.dismiss(loadingToastId);
+          toast.success("Images compressed!");
+        }
+      },
+      error(err) {
+        console.error("Compression error:", err.message);
+        toast.dismiss(loadingToastId);
+        toast.error("Image compression failed.");
+      },
+    });
+  });
+};
 
   const handleRemoveImage = (subIndex, imageIndex) => {
     const updatedSubProducts = [...subProducts];
@@ -183,7 +250,7 @@ const SubProduct = ({
                         } transition-opacity duration-300`}
                       >
                         <img
-                          src={URL.createObjectURL(image)}
+                          src={image.preview || (image instanceof File ? URL.createObjectURL(image) : image)}
                           alt={`SubProduct ${subIndex} Image ${index + 1}`}
                           className="w-full h-full object-cover rounded-md"
                         />

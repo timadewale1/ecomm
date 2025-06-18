@@ -30,6 +30,7 @@
     "bcryptjs": "^2.4.3",
     "bootstrap": "^5.3.3",
     "chart.js": "^4.4.6",
+    "compressorjs": "^1.2.1",
     "crypto-browserify": "^3.12.1",
     "downshift": "^9.0.8",
     "firebase": "^10.7.0",

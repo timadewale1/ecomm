@@ -41,6 +41,8 @@ import DiscountToggle from "../../components/Toggle/DiscountToggle";
 import VariationsToggle from "../../components/Toggle/SubProductToggle";
 import { LuBadgeInfo } from "react-icons/lu";
 import { MdOutlineCancel, MdOutlineClose } from "react-icons/md";
+
+import Compressor from "compressorjs";
 const animatedComponents = makeAnimated();
 const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
 
@@ -263,25 +265,25 @@ const AddProduct = ({ vendorId, closeModal }) => {
         : { label: subType.name, value: subType.name }
     ) || [];
 
-  const handleFileChange = async (e) => {
-    const files = Array.from(e.target.files);
-    const validFiles = [];
+  // const handleFileChange = async (e) => {
+  //   const files = Array.from(e.target.files);
+  //   const validFiles = [];
 
-    files.forEach((file) => {
-      if (file.size <= MAX_FILE_SIZE) {
-        validFiles.push(file);
-      } else {
-        toast.error(`${file.name} exceeds the maximum file size of 3MB.`);
-      }
-    });
+  //   files.forEach((file) => {
+  //     if (file.size <= MAX_FILE_SIZE) {
+  //       validFiles.push(file);
+  //     } else {
+  //       toast.error(`${file.name} exceeds the maximum file size of 3MB.`);
+  //     }
+  //   });
 
-    if (validFiles.length + productImages.length > 4) {
-      toast.error("You can only upload a maximum of 4 images.");
-      return;
-    }
+  //   if (validFiles.length + productImages.length > 4) {
+  //     toast.error("You can only upload a maximum of 4 images.");
+  //     return;
+  //   }
 
-    setProductImages((prevImages) => [...prevImages, ...validFiles]);
-  };
+  //   setProductImages((prevImages) => [...prevImages, ...validFiles]);
+  // };
 
   useEffect(() => {
     if (hasVariations && !showSubProductModal) {
@@ -355,14 +357,14 @@ const AddProduct = ({ vendorId, closeModal }) => {
       setTags(tags.slice(0, -1)); // Remove the last tag
     }
   };
-  const handleMultipleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    if (additionalImages.length + files.length > MAX_IMAGES - 1) {
-      alert("You can upload a maximum of 4 images");
-      return;
-    }
-    setAdditionalImages([...additionalImages, ...files]);
-  };
+  // const handleMultipleFileChange = (e) => {
+  //   const files = Array.from(e.target.files);
+  //   if (additionalImages.length + files.length > MAX_IMAGES - 1) {
+  //     alert("You can upload a maximum of 4 images");
+  //     return;
+  //   }
+  //   setAdditionalImages([...additionalImages, ...files]);
+  // };
 
   const addSizeUnderColor = (colorIndex) => {
     const updatedVariants = [...productVariants];
@@ -500,7 +502,8 @@ const AddProduct = ({ vendorId, closeModal }) => {
     try {
       // Upload main product images
       const imageUrls = [];
-      for (const imageFile of productImages) {
+      for (const imageObj of productImages) {
+        const imageFile = imageObj.file || imageObj; // fallback if structure is mixed
         if (!imageFile || !imageFile.name) {
           console.error("Image file or filename is missing:", imageFile);
           toast.error("One of the images is missing a filename.");
@@ -572,7 +575,6 @@ const AddProduct = ({ vendorId, closeModal }) => {
         totalStockQuantity = Number(stockQuantity);
       }
 
-      // totalStockQuantity, variantsData, and subProductsData are now ready
 
       // Fetch vendor's data
       const vendorDocRef = doc(db, "vendors", vendorId);
@@ -746,27 +748,44 @@ const AddProduct = ({ vendorId, closeModal }) => {
       setIsLoading(false);
     }
   };
-
   const handleImageUpload = (e) => {
+    const loadingToastId = toast.loading("Compressing image...");
     const files = Array.from(e.target.files); // Convert to an array of File objects
     const validFiles = [];
 
-    files.forEach((file) => {
-      if (file.size <= MAX_FILE_SIZE) {
-        validFiles.push(file); // Only add files that meet the size requirement
-      } else {
-        toast.error(`${file.name} exceeds the maximum file size of 3MB.`);
-      }
+    let completed = 0;
+
+    files.forEach((file, index) => {
+      new Compressor(file, {
+        quality: 0.6,
+        success(result) {
+          validFiles.push({
+            file: result,
+            preview: URL.createObjectURL(result),
+          });
+
+          // Check if adding these files exceeds the MAX_IMAGES limit
+          if (validFiles.length + productImages.length > MAX_IMAGES) {
+            toast.error("You can only upload a maximum of 4 images.");
+            return;
+          }
+
+          // Add to state
+          setProductImages((prevImages) => [...prevImages, ...validFiles]);
+
+          completed++;
+          if (completed === files.length) {
+            toast.dismiss(loadingToastId); // Dismiss loading
+            toast.success("Images compressed!");
+          }
+        },
+        error(err) {
+          console.error("Compression error:", err.message);
+          toast.dismiss(loadingToastId);
+          toast.error("Image compression failed.");
+        },
+      });
     });
-
-    // Check if adding these files exceeds the MAX_IMAGES limit
-    if (validFiles.length + productImages.length > MAX_IMAGES) {
-      toast.error("You can only upload a maximum of 4 images.");
-      return;
-    }
-
-    // Add valid files to productImages (as File objects, not URLs)
-    setProductImages((prevImages) => [...prevImages, ...validFiles]);
   };
 
   const activeList = itemClass === "fashion" ? productTypes : everydayType;
@@ -963,10 +982,12 @@ const AddProduct = ({ vendorId, closeModal }) => {
                     document.getElementById("coverFileInput").click()
                   }
                 >
+
                   <BiSolidImageAdd className="h-16 w-16 text-customOrange opacity-20" />
                   <h2 className="font-opensans px-10 text-center font-light text-xs text-customOrange opacity-90">
                     Upload product image here. Image must not be more than 3MB
                   </h2>
+
                 </div>
               )}
 
@@ -1439,6 +1460,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
             />
           </div>
         )}
+
 
         <div className="mb-4">
           <label className="font-opensans mb-1 font-medium text-sm text-black">

@@ -13,38 +13,59 @@ const PWAInstallModal = ({ onClose }) => {
   }, []);
 
   useEffect(() => {
-    if (!pwa) {
-      // Show modal after 10 seconds
-      const timer = setTimeout(() => {
+  if (pwa) return;
+
+  const lastPrompt = localStorage.getItem("pwaPromptDismissedAt");
+  const now = Date.now();
+  const timeElapsed = now - Number(lastPrompt);
+
+  const shouldShowModal = !lastPrompt || timeElapsed > 24 * 60 * 60 * 1000;
+
+  if (!shouldShowModal) return;
+
+  const checkAndShow = () => {
+    if (window.beforeInstallEvent) {
+      setTimeout(() => {
         setIsVisible(true);
-        document.body.classList.add("noscroll"); // disable scrolling
+        document.body.classList.add("noscroll");
       }, 3000);
-      return () => {
-        clearTimeout(timer);
-        document.body.classList.remove("noscroll");
-      };
     }
-  }, [ios, pwa]);
+  };
+
+  checkAndShow();
+  const interval = setInterval(checkAndShow, 500);
+  const cleanupTimeout = setTimeout(() => clearInterval(interval), 5000);
+
+  return () => {
+    clearInterval(interval);
+    clearTimeout(cleanupTimeout);
+    document.body.classList.remove("noscroll");
+  };
+}, [pwa, ios]);
+
 
   const handleInstallClick = async () => {
-    window.beforeInstallEvent.prompt();
-    const { outcome } = await window.beforeInstallEvent.userChoice;
-    if (outcome === "accepted") {
-      handleClose();
-    }
-  };
+  window.beforeInstallEvent.prompt();
+  const { outcome } = await window.beforeInstallEvent.userChoice;
+  if (outcome === "accepted") {
+    localStorage.setItem("pwaPromptDismissedAt", Date.now().toString());
+    handleClose();
+  }
+};
 
-  const handleClose = () => {
-    setIsVisible(false);
-    document.body.classList.remove("noscroll");
-    onClose && onClose();
-  };
+const handleClose = () => {
+  setIsVisible(false);
+  document.body.classList.remove("noscroll");
+  localStorage.setItem("pwaPromptDismissedAt", Date.now().toString());
+  onClose && onClose();
+};
+
 
   return (
     <div className={`pwa-modal ${isVisible ? "show" : ""}`}>
       <div className="pwa-modal-content">
         <h2 className="head">Add to Home Screen</h2>
-        <img src="/logo192.png" alt="App-Icon" />
+        <img src="/logo.png" alt="App-Icon" />
         <p className="mt-[10px] text-white">
           Install our lightweight browser application for quicker access and a
           better experience!

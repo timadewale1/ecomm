@@ -920,8 +920,8 @@ const AddProduct = ({ vendorId, closeModal }) => {
   // Console log for tracking the product variations toggle
 
   return (
-    <div className="flex flex-col  h-dvh bg-white">
-      <div className="flex-1 overflow-y-auto scrollbar-hide px-4 pb-10 space-y-6">
+    <div className="flex flex-col max-h-full  h-full bg-white">
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide px-4 pb-20 space-y-6">
         {isUploadingImage && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
             <RotatingLines
@@ -1664,7 +1664,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         {/* Debug console log for modal status */}
       </div>
       <div
-        className="sticky bottom-0 left-0 w-full py-4 px-2 bg-white 
+        className="sticky bottom-0 left-0 w-full py-8 px-2 translate-y-7 bg-white 
                     shadow-[0_-2px_6px_rgba(0,0,0,0.04)] z-10"
       >
         <button

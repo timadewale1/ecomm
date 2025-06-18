@@ -2,7 +2,7 @@
 import { db } from "../../firebase.config";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth } from "../../firebase.config"; // Import auth to get the current user
-
+import { buildCartKey } from "../../services/cartKey";
 export const ADD_TO_CART = "ADD_TO_CART";
 export const REMOVE_FROM_CART = "REMOVE_FROM_CART";
 export const CLEAR_CART = "CLEAR_CART";
@@ -45,10 +45,14 @@ export const addToCart =
     }
 
     // Generate product key including subProductId if available
-    const productKey = subProductId
-      ? `${vendorId}-${id}-${subProductId}`
-      : `${vendorId}-${id}-${selectedSize}-${selectedColor}`;
-
+    const productKey = buildCartKey({
+      vendorId,
+      productId: id,
+      isFashion: product.isFashion,
+      selectedSize,
+      selectedColor,
+      subProductId,
+    });
     const cart = getState().cart;
     const vendorCart = cart[vendorId] || {
       vendorName: product.vendorName,
@@ -126,30 +130,28 @@ export const removeFromCart =
   };
 
 // Clear Cart (Vendor-specific or All)
-export const clearCart =
-  (vendorId) =>
-  async (dispatch, getState) => {
-    if (vendorId) {
-      console.log("Clearing cart for vendor:", vendorId);
-      dispatch({ type: CLEAR_CART, payload: { vendorId } });
-    } else {
-      console.log("Clearing entire cart");
-      dispatch({ type: CLEAR_CART, payload: {} });
-    }
+export const clearCart = (vendorId) => async (dispatch, getState) => {
+  if (vendorId) {
+    console.log("Clearing cart for vendor:", vendorId);
+    dispatch({ type: CLEAR_CART, payload: { vendorId } });
+  } else {
+    console.log("Clearing entire cart");
+    dispatch({ type: CLEAR_CART, payload: {} });
+  }
 
-    const updatedCart = getState().cart;
+  const updatedCart = getState().cart;
 
-    // Save cart to Firestore if user is authenticated
-    const userId = auth.currentUser?.uid;
-    console.log("Current user ID:", userId);
-    if (userId) {
-      await saveCartToFirestore(userId, updatedCart);
-    } else {
-      console.log("User not authenticated; cart not saved to Firestore.");
-    }
+  // Save cart to Firestore if user is authenticated
+  const userId = auth.currentUser?.uid;
+  console.log("Current user ID:", userId);
+  if (userId) {
+    await saveCartToFirestore(userId, updatedCart);
+  } else {
+    console.log("User not authenticated; cart not saved to Firestore.");
+  }
 
-    saveCartToLocalStorage(updatedCart);
-  };
+  saveCartToLocalStorage(updatedCart);
+};
 
 // Increase Quantity (Vendor-specific)
 export const increaseQuantity =

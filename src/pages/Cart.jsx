@@ -377,7 +377,13 @@ const Cart = () => {
               `${product.name} (${product.selectedColor}, ${product.selectedSize})`
             );
           }
-        } else {
+        } else if (typeof productData.stockQuantity === "number") {
+          // Everyday/non-fashion item
+          if (productData.stockQuantity < product.quantity) {
+            outOfStockItems.push(product.name);
+          }
+        } else if (typeof productData.stock === "number") {
+          // (legacy field kept for backward compatibility)
           if (productData.stock < product.quantity) {
             outOfStockItems.push(product.name);
           }
@@ -735,20 +741,24 @@ const Cart = () => {
                                 <p className="font-opensans text-md mt-2 text-black font-bold">
                                   ₦{formatPrice(item.price)}
                                 </p>
-                                <p className="text-gray-600 mt-2">
-                                  Size:{" "}
-                                  <span className="font-semibold mr-4 text-black">
-                                    {item.selectedSize}
-                                  </span>
-                                  {item.selectedColor && (
-                                    <>
-                                      Color:{" "}
-                                      <span className="font-semibold text-black">
-                                        {formatColorText(item.selectedColor)}
-                                      </span>
-                                    </>
-                                  )}
-                                </p>
+
+                                {/* only show size if this product is fashion */}
+                                {item.isFashion && (
+                                  <p className="text-gray-600 mt-2">
+                                    Size:{" "}
+                                    <span className="font-semibold mr-4 text-black">
+                                      {item.selectedSize}
+                                    </span>
+                                    {item.selectedColor && (
+                                      <>
+                                        Color:{" "}
+                                        <span className="font-semibold text-black">
+                                          {formatColorText(item.selectedColor)}
+                                        </span>
+                                      </>
+                                    )}
+                                  </p>
+                                )}
                               </>
                             )}
                           </div>

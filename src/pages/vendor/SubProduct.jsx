@@ -102,8 +102,8 @@ const SubProduct = ({
   };
 
   const handleProceed = () => {
-    addSubProduct(subProducts);
-    closeModal();
+    addSubProduct(subProducts); // sends data to parent
+    closeModal(false); // NOT cancelled → keep toggle
   };
 
   const handleScroll = () => {
@@ -134,10 +134,13 @@ const SubProduct = ({
   const allSubProductsValid = subProducts.every(isSubProductValid);
 
   return (
-    <div className="fixed inset-0 bg-white z-50 -mx-3 overflow-y-auto flex flex-col">
+    <div className="fixed inset-0  bg-white z-50  overflow-y-auto flex flex-col">
       {/* Modal Header */}
       <div className="relative flex items-center justify-center p-4">
-        <button className="absolute left-4 text-black" onClick={closeModal}>
+        <button
+          className="absolute left-4 text-black"
+          onClick={() => closeModal(false)}
+        >
           <GoChevronLeft className="h-6 w-6" />
         </button>
         <h2 className="text-lg font-opensans font-semibold">Sub-product</h2>

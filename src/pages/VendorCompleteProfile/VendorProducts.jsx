@@ -1616,9 +1616,9 @@ const VendorProducts = () => {
                 )}
               </div>
             )}
-            {selectedProduct.variants.slice(1) && (
+            {selectedProduct?.variants?.length > 1 && (
               <p className="text-lg font-opensans text-black font-semibold mb-2">
-                {selectedProduct.variants.slice(1).length === 1
+                {selectedProduct.variants.length - 1 === 1
                   ? "Product Variant"
                   : "Product Variants"}
               </p>

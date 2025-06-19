@@ -288,6 +288,32 @@ li::marker {
 .hide-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
 }
+/*  ───────────────────  shimmer rainbow glass  ─────────────────── */
+@keyframes rainbowGlass {
+  0%   { background-position: 0% 50%; opacity: .4; }
+  50%  { background-position: 100% 50%; opacity: .7; }
+  100% { background-position: 0% 50%; opacity: .4; }
+}
+
+.breathing-gradient::before {
+  content: '';
+  position: absolute;
+  inset: 0;                   /* cover the element fully      */
+  border-radius: inherit;     /* keep rounded corners          */
+  pointer-events: none;       /* let clicks through            */
+  background: linear-gradient(
+      130deg,
+      #ff9d9d 0%,
+      #f9cb65 20%,
+      #ffe57e 40%,
+      #83e8ff 60%,
+      #bda6ff 80%,
+      #ff9d9d 100%);
+  background-size: 400% 400%;
+  mix-blend-mode: overlay;    /* subtle glass-y look           */
+  animation: rainbowGlass 4s ease-in-out infinite;
+  filter: blur(4px);          /* soften a bit                  */
+}
 
 .shimmer-effect::after {
   content: "";

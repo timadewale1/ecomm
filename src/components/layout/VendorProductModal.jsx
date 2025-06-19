@@ -33,7 +33,7 @@ const VendorProductModal = ({ isOpen, onClose, children, onDel }) => {
           <h2 className="text-xl font-opensans text-center font-semibold text-black">
             Product Details
           </h2>
-<div></div>
+
           <button onClick={onDel}>
             <IoTrashOutline className="h-8 w-8 p-1 text-customOrange" />
           </button>

@@ -647,10 +647,18 @@ const Checkout = () => {
 
       // The user will be redirected to the callback_url after completing the payment
       setIsLoading(false); // Stop loader
-    } catch (error) {
-      console.error("Error in payment process:", error.message || error);
-      toast.error("Failed to initialize payment. Please try again.");
-      setIsLoading(false); // Stop loader
+    } catch (err) {
+      console.error("Error in payment process:", err);
+
+     
+      const friendly =
+        err?.message || 
+        err?.details?.message || 
+        err?.data?.message || 
+        "Failed to initialize payment. We are looking into this, try again later."; // fallback
+
+      toast.error(friendly);
+      setIsLoading(false);
     }
   };
   // inside your Checkout component, alongside handleProceedToPayment:
@@ -1391,19 +1399,22 @@ const Checkout = () => {
                               ₦{product.price.toLocaleString()}
                             </p>
                             <div className="flex items-center space-x-4 text-sm mt-2 ">
-                              <p className="text-black font-semibold font-opensans">
-                                <span className="font-normal text-gray-600">
-                                  Size:
-                                </span>{" "}
-                                {product.selectedSize || "N/A"}
-                              </p>
-                              <p className="text-black font-semibold font-opensans">
-                                <span className="font-normal text-gray-600">
-                                  Color:
-                                </span>{" "}
-                                {formatColorText(product.selectedColor)}
-                              </p>
-
+                              {product.isFashion && (
+                                <>
+                                  <p className="text-black font-semibold font-opensans">
+                                    <span className="font-normal text-gray-600">
+                                      Size:
+                                    </span>{" "}
+                                    {product.selectedSize || "N/A"}
+                                  </p>
+                                  <p className="text-black font-semibold font-opensans">
+                                    <span className="font-normal text-gray-600">
+                                      Color:
+                                    </span>{" "}
+                                    {formatColorText(product.selectedColor)}
+                                  </p>
+                                </>
+                              )}
                               <p className="text-black font-semibold font-opensans">
                                 <span className="font-normal text-gray-600">
                                   Qty:
@@ -1804,23 +1815,28 @@ const Checkout = () => {
                             <h4 className="text-sm font-opensans">
                               {product.name}
                             </h4>
+
                             <p className="font-opensans text-md mt-2 text-black font-bold">
                               ₦{product.price.toLocaleString()}
                             </p>
-                            <div className="flex items-center space-x-4 text-sm mt-2 ">
-                              <p className="text-black font-semibold font-opensans">
-                                <span className="font-normal text-gray-600">
-                                  Size:
-                                </span>{" "}
-                                {product.selectedSize || "N/A"}
-                              </p>
-                              <p className="text-black font-semibold font-opensans">
-                                <span className="font-normal text-gray-600">
-                                  Color:
-                                </span>{" "}
-                                {formatColorText(product.selectedColor)}
-                              </p>
 
+                            <div className="flex items-center space-x-4 text-sm mt-2 ">
+                              {product.isFashion && (
+                                <>
+                                  <p className="text-black font-semibold font-opensans">
+                                    <span className="font-normal text-gray-600">
+                                      Size:
+                                    </span>{" "}
+                                    {product.selectedSize || "N/A"}
+                                  </p>
+                                  <p className="text-black font-semibold font-opensans">
+                                    <span className="font-normal text-gray-600">
+                                      Color:
+                                    </span>{" "}
+                                    {formatColorText(product.selectedColor)}
+                                  </p>
+                                </>
+                              )}
                               <p className="text-black font-semibold font-opensans">
                                 <span className="font-normal text-gray-600">
                                   Qty:
@@ -1974,12 +1990,16 @@ const Checkout = () => {
           <button
             onClick={handleShareLink}
             className={`w-full h-12 text-customRichBrown text-sm font-semibold font-opensans rounded-full flex items-center justify-center ${
-              isLoading || (checkoutMode === "stockpile" && !selectedWeeks)
+              isLoadingLink ||
+              isLoading ||
+              (checkoutMode === "stockpile" && !selectedWeeks)
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-transparent border border-customRichBrown "
             }`}
             disabled={
-              isLoadingLink || (checkoutMode === "stockpile" && !selectedWeeks)
+              isLoadingLink ||
+              isLoading ||
+              (checkoutMode === "stockpile" && !selectedWeeks)
             }
           >
             Pay For Me

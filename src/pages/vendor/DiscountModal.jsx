@@ -151,7 +151,7 @@ const DiscountModal = ({ isOpen, onRequestClose, handleSaveDiscount }) => {
     <>
       <Modal
         isOpen={isOpen}
-        onRequestClose={onRequestClose}
+        onRequestClose={() => onRequestClose(true)}
         className="discount-modal"
         overlayClassName="modal-overlay"
       >
@@ -166,7 +166,7 @@ const DiscountModal = ({ isOpen, onRequestClose, handleSaveDiscount }) => {
           </span>
           <MdOutlineClose
             className="text-black text-xl cursor-pointer"
-            onClick={onRequestClose}
+            onClick={() => onRequestClose(true)}
           />
         </div>
 

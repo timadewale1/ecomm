@@ -1707,7 +1707,7 @@ const VendorProducts = () => {
             </div>
 
             {selectedProduct && (
-              <div className="px-3 my-4 flex flex-col justify-between space-y-3">
+              <div className="my-4 flex flex-col justify-between space-y-3">
                 <div className="flex justify-between">
                   <p className="text-black font-opensans text-sm font-bold">
                     Unpublish/Publish Product

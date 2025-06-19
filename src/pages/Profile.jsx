@@ -33,6 +33,7 @@ import { clearCart } from "../redux/actions/action";
 import { useDispatch, useSelector } from "react-redux";
 import { FaFileContract } from "react-icons/fa6";
 import SEO from "../components/Helmet/SEO";
+import { useTawk } from "../components/Context/TawkProvider";
 import { exitStockpileMode } from "../redux/reducers/stockpileSlice";
 const Profile = () => {
   const navigate = useNavigate();
@@ -83,30 +84,6 @@ const Profile = () => {
     };
     fetchUserData();
   }, [currentUser, location.search]);
-  const openChat = () => {
-    if (window.HelpCrunch) {
-      console.log("Opening HelpCrunch chat...");
-      window.HelpCrunch("openChat");
-    } else {
-      console.error("HelpCrunch is not initialized.");
-    }
-  };
-
-  useEffect(() => {
-    // Ensure HelpCrunch is fully initialized
-    const initializeHelpCrunch = () => {
-      if (window.HelpCrunch) {
-        window.HelpCrunch("onReady", () => {
-          console.log("HelpCrunch is ready.");
-          window.HelpCrunch("hideChatWidget"); // Ensure widget is hidden
-        });
-      } else {
-        console.error("HelpCrunch is not loaded.");
-      }
-    };
-
-    initializeHelpCrunch();
-  }, []);
 
   const handleAvatarChange = (newAvatar) => {
     dispatch(updateUserData({ photoURL: newAvatar }));
@@ -129,56 +106,70 @@ const Profile = () => {
   };
 
   const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true); // Start the loading spinner
+  try {
+    setIsLoggingOut(true);
+    console.log("🚪 Starting logout …");
 
-      console.log("Starting logout process...");
-
-      // Logout from HelpCrunch
-      if (window.HelpCrunch) {
-        console.log("Logging out from HelpCrunch...");
-        window.HelpCrunch("logout", function (data) {
-          if (data && data.success) {
-            console.log("Successfully logged out from HelpCrunch.");
-          } else {
-            console.error(
-              "HelpCrunch logout failed or returned no data:",
-              data
-            );
-          }
+    if (window.Tawk_API?.logout) {
+      console.log("[Tawk] Logging out visitor");
+      await new Promise((resolve) => {
+        window.Tawk_API.logout(() => {
+          console.log("[Tawk] Visitor logged out ✔");
+          const guestPayload = {
+            name: "Guest",
+            email: "",
+            phone: "",
+            jobTitle: "",
+            uid: "",
+            role: "",
+          };
+          window.Tawk_API.setAttributes(guestPayload, (err) => {
+            if (err) console.error("[Tawk] Guest attrs error", err);
+            else console.log("[Tawk] ✓ Guest attrs set");
+            if (window.Tawk_API.hideWidget) {
+              window.Tawk_API.hideWidget();
+              console.log("[Tawk] Widget hidden");
+            }
+            resolve();
+          });
         });
-      } else {
-        console.warn(
-          "HelpCrunch is not initialized. Skipping HelpCrunch logout."
-        );
-      }
-
-      console.log("Saving cart data before Firebase logout...");
-      await setDoc(doc(db, "carts", currentUser.uid), { cart });
-      console.log("Cart saved to Firestore:", { cart }); // Log after saving to Firestore
-
-      console.log("Logging out from Firebase...");
-      await signOut(auth);
-
-      console.log("Clearing local storage and Redux state...");
-      localStorage.removeItem("cart");
-      dispatch(clearCart()); // Clear Redux cart state
-      dispatch(resetUserData());
-      dispatch(exitStockpileMode());
-      localStorage.removeItem("mythrift_role");
-      console.log("Cart cleared in Redux and localStorage");
-
-      toast.success("Successfully logged out", { className: "custom-toast" });
-      navigate("/newhome");
-    } catch (error) {
-      console.error("Error logging out:", error);
-      toast.error("Error logging out", { className: "custom-toast" });
-    } finally {
-      setIsLoggingOut(false); // Stop the loading spinner
-      console.log("Logout process completed.");
+      });
+    } else {
+      console.warn("[Tawk] logout() not available");
     }
-  };
 
+    // Persist cart (optional)
+    if (currentUser?.uid) {
+      console.log("Saving cart to Firestore …");
+      await setDoc(doc(db, "carts", currentUser.uid), { cart });
+      console.log("✓ Cart saved");
+    }
+
+    // Firebase sign-out
+    console.log("Signing out from Firebase …");
+    await signOut(auth);
+    console.log("✓ Firebase signed out");
+
+    // Local + Redux cleanup
+    localStorage.removeItem("cart");
+    localStorage.removeItem("mythrift_role");
+    dispatch(clearCart());
+    dispatch(resetUserData());
+    dispatch(exitStockpileMode());
+    console.log("✓ Redux & localStorage cleared");
+
+    toast.success("Successfully logged out", { className: "custom-toast" });
+    navigate("/newhome");
+  } catch (err) {
+    console.error("Logout error:", err);
+    toast.error("Error logging out", { className: "custom-toast" });
+  } finally {
+    setIsLoggingOut(false);
+    console.log("Logout sequence complete");
+  }
+};
+
+  const { openChat } = useTawk();
   return (
     <>
       <SEO

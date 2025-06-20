@@ -93,24 +93,36 @@ const Layout = () => {
   const handleEnableNotifs = async () => {
     console.log("▶️ handleEnableNotifs started");
     setEnabling(true);
+
     try {
-      console.log("Requesting notification permission...");
-      const perm = await Notification.requestPermission();
-      console.log("Notification.permission:", perm);
+      // 1️⃣ Check current Notification permission
+      console.log("Current Notification.permission:", Notification.permission);
+      let perm = Notification.permission;
+
+      // 2️⃣ Only prompt if they haven't decided yet
+      if (perm === "default") {
+        console.log("Requesting notification permission…");
+        perm = await Notification.requestPermission();
+        console.log("Notification.permission after request:", perm);
+      }
+
+      // 3️⃣ If not granted, abort
       if (perm !== "granted") {
-        console.warn("User denied notifications");
+        console.warn("User denied notifications, aborting token retrieval.");
         return;
       }
 
-      console.log("Waiting for messagingReady...");
+      // 4️⃣ Wait for Firebase Messaging support
+      console.log("Waiting for messagingReady…");
       const messaging = await messagingReady;
-      console.log("messagingReady:", messaging);
+      console.log("messagingReady returned:", messaging);
       if (!messaging) {
         console.warn("FCM not supported here");
         return;
       }
 
-      console.log("Retrieving FCM token...");
+      // 5️⃣ Retrieve (or refresh) the FCM token
+      console.log("Retrieving FCM token…");
       const vapidKey = import.meta.env.VITE_VAPID_KEY;
       console.log("Using VAPID key:", vapidKey);
       const fcmToken = await getToken(messaging, { vapidKey });
@@ -120,10 +132,11 @@ const Layout = () => {
         return;
       }
 
-      console.log("Calling saveFcmToken Cloud Function...");
+      // 6️⃣ Send it up to your Cloud Function
+      console.log("Calling saveFcmToken Cloud Function…");
       const saveToken = httpsCallable(functions, "saveFcmToken");
       const result = await saveToken({ token: fcmToken });
-      console.log("saveFcmToken result:", result.data);
+      console.log("saveFcmToken() result:", result.data);
     } catch (err) {
       console.error("❌ Error in handleEnableNotifs:", err);
     } finally {

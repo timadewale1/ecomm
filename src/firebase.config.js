@@ -1,4 +1,5 @@
-// firebase.config.js
+// src/firebase.config.js
+
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
@@ -11,7 +12,10 @@ import {
   CACHE_SIZE_UNLIMITED,
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getMessaging } from "firebase/messaging";
+import {
+  getMessaging,
+  isSupported as messagingIsSupported,
+} from "firebase/messaging";
 import { getFunctions } from "firebase/functions";
 import {
   initializeAppCheck,
@@ -60,14 +64,16 @@ enableIndexedDbPersistence(db).catch(() => {
 });
 console.log("Firestore initialized with IndexedDB persistence.");
 
-// 6) The rest
+// 6) Storage
 export const storage = getStorage(app);
 console.log("Storage initialized.");
-let messagingInstance = null; // will stay null in WKWebView
+
+// 7) Messaging
+let messagingInstance = null;
 export const messagingReady = (async () => {
   try {
     const ok =
-      (await messagingIsSupported()) && // Firebase helper
+      (await messagingIsSupported()) &&
       "Notification" in window &&
       "serviceWorker" in navigator &&
       "PushManager" in window;
@@ -82,8 +88,9 @@ export const messagingReady = (async () => {
   }
   return messagingInstance; // may be null
 })();
-export const messaging = () => messagingInstance; // getter for components
+export const messaging = () => messagingInstance;
 
+// 8) Cloud Functions
 export const functions = getFunctions(app);
 console.log("Functions initialized.");
 

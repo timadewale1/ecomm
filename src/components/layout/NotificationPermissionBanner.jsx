@@ -4,8 +4,8 @@ import { Oval } from "react-loader-spinner";
 
 export default function NotificationPermissionBanner({ onEnable, loading }) {
   return (
-    <div className="fixed top-0 left-0 w-full bg-customRichBrown text-white flex items-center justify-between px-4 py-4 z-50 shadow-md">
-      <div className="text-xs font-satoshi">
+    <div className="fixed top-0 left-0 w-full bg-gradient-to-b from-white to-customBrown text-customRichBrown flex items-center justify-between px-4 py-4 h-20 z-50 shadow-md">
+      <div className="text-sm font-medium font-opensans">
         Push notifications are active! Enable them so you never miss any update!🧡
       </div>
       <button

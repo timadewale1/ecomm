@@ -138,6 +138,11 @@ const Layout = () => {
       const saveToken = httpsCallable(functions, "saveFcmToken");
       const result = await saveToken({ token: fcmToken });
       console.log("saveFcmToken() result:", result.data);
+
+      // Local patch: update currentUserData to immediately hide banner
+      if (currentUserData) {
+        currentUserData.notificationAllowed = true;
+      }
     } catch (err) {
       console.error("❌ Error in handleEnableNotifs:", err);
     } finally {

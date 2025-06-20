@@ -84,8 +84,9 @@ const Layout = () => {
     "/newcheckout/:vendorId",
   ];
   const showBanner =
-    currentUser && currentUserData?.notificationAllowed !== true;
-
+    currentUser &&
+    isPWA && // only in PWA
+    currentUserData?.notificationAllowed !== true;
   // Function to check if the current path matches any dynamic paths
   const isDynamicPath = (pathname) => {
     return dynamicPaths.some((path) => matchPath(path, pathname));

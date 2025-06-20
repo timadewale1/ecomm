@@ -9,7 +9,7 @@ import {
 import "./App.css";
 import { AccessProvider } from "./components/Context/AccesContext";
 
-import { useFCM } from "./custom-hooks/useFcm";
+import { useFCM } from "./custom-hooks/useFCM";
 function App() {
   // ←— TRIGGER FCM setup (SW registration, permission, token save, etc.)
   useFCM();

@@ -236,49 +236,48 @@ const VendorProfile = () => {
   // }, [currentUser]);
 
   const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true); // show spinner
-      console.log("🚪  Starting logout …");
+  try {
+    setIsLoggingOut(true);                       // show spinner
+    console.log("🚪  Starting logout …");
 
-      /* 1️⃣  End the current Tawk visitor session (if widget loaded) */
-      if (window.Tawk_API?.logout) {
-        console.log("[Tawk] logging out visitor");
-        await new Promise((res) => {
-          window.Tawk_API.logout(() => {
-            console.log("[Tawk] visitor logged-out ✔");
+    /* 1️⃣  End the current Tawk visitor session (if widget loaded) */
+    if (window.Tawk_API?.logout) {
+      console.log("[Tawk] logging out visitor");
+      await new Promise((res) => {
+        window.Tawk_API.logout(() => {
+          console.log("[Tawk] visitor logged-out ✔");
 
-            // scrub visible fields so the next user starts clean
-            window.Tawk_API.setAttributes(
-              { name: "Guest", email: "", phone: "", jobTitle: "", uid: "" },
-              () => res()
-            );
-          });
+          // scrub visible fields so the next user starts clean
+          window.Tawk_API.setAttributes(
+            { name: "Guest", email: "", phone: "", jobTitle: "", uid: "" },
+            () => res()
+          );
         });
-      } else {
-        console.warn(
-          "[Tawk] logout() not available – widget may still be loading"
-        );
-      }
-
-      /* 2️⃣  Firebase sign-out */
-      await signOut(auth);
-      console.log("✓ Firebase signed-out");
-
-      /* 3️⃣  Local / Redux cleanup */
-      localStorage.removeItem("mythrift_role");
-      dispatch(clearOrders());
-      console.log("✓ Redux + localStorage cleared");
-
-      /* 4️⃣  Finish up */
-      toast.success("Successfully logged out", { className: "custom-toast" });
-      navigate("/vendorlogin");
-    } catch (err) {
-      console.error("Logout error:", err);
-      toast.error("Error logging out", { className: "custom-toast" });
-    } finally {
-      setIsLoggingOut(false); // hide spinner
+      });
+    } else {
+      console.warn("[Tawk] logout() not available – widget may still be loading");
     }
-  };
+
+    /* 2️⃣  Firebase sign-out */
+    await signOut(auth);
+    console.log("✓ Firebase signed-out");
+
+    /* 3️⃣  Local / Redux cleanup */
+    localStorage.removeItem("mythrift_role");
+    dispatch(clearOrders());
+    console.log("✓ Redux + localStorage cleared");
+
+    /* 4️⃣  Finish up */
+    toast.success("Successfully logged out", { className: "custom-toast" });
+    navigate("/vendorlogin");
+  } catch (err) {
+    console.error("Logout error:", err);
+    toast.error("Error logging out", { className: "custom-toast" });
+  } finally {
+    setIsLoggingOut(false);                      // hide spinner
+  }
+};
+
 
   const profileLink = `https://shopmythrift.store/${
     userData && (marketPlaceType === "virtual" ? "store" : "marketstorepage")
@@ -600,20 +599,22 @@ const VendorProfile = () => {
                   </div>
                   {/* Beta version text */}
                 </div>
-                <div className="flex flex-col items-center  w-full">
-                  <div
-                    id="contact-support-tab"
-                    className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                    onClick={openChat}
-                  >
-                    <div className="flex items-center">
-                      <FcOnlineSupport className="text-black text-xl mr-4" />
-                      <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
-                        Contact Support
-                      </h2>
+                <div className="flex flex-col items-center px-2 w-full">
+                 
+                    <div
+                      id="contact-support-tab"
+                      className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                      onClick={openChat}
+                    >
+                      <div className="flex items-center">
+                        <FcOnlineSupport className="text-black text-xl mr-4" />
+                        <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
+                          Contact Support
+                        </h2>
+                      </div>
+                      <ChevronRight className="text-black" />
                     </div>
-                    <ChevronRight className="text-black" />
-                  </div>
+                 
                 </div>
 
                 <div

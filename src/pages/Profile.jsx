@@ -106,68 +106,65 @@ const Profile = () => {
   };
 
   const handleLogout = async () => {
-  try {
-    setIsLoggingOut(true);
-    console.log("🚪 Starting logout …");
+    try {
+      setIsLoggingOut(true);
+      console.log("🚪  Starting logout …");
 
-    if (window.Tawk_API?.logout) {
-      console.log("[Tawk] Logging out visitor");
-      await new Promise((resolve) => {
-        window.Tawk_API.logout(() => {
-          console.log("[Tawk] Visitor logged out ✔");
-          const guestPayload = {
-            name: "Guest",
-            email: "",
-            phone: "",
-            jobTitle: "",
-            uid: "",
-            role: "",
-          };
-          window.Tawk_API.setAttributes(guestPayload, (err) => {
-            if (err) console.error("[Tawk] Guest attrs error", err);
-            else console.log("[Tawk] ✓ Guest attrs set");
-            if (window.Tawk_API.hideWidget) {
-              window.Tawk_API.hideWidget();
-              console.log("[Tawk] Widget hidden");
-            }
-            resolve();
+      /* 1️⃣  End current Tawk visitor session */
+      if (window.Tawk_API?.logout) {
+        console.log("[Tawk] logging out visitor");
+        await new Promise((res) => {
+          window.Tawk_API.logout(() => {
+            console.log("[Tawk] visitor logged-out ✔");
+
+            // scrub every visible field (use nested {value:…} syntax!)
+            window.Tawk_API.setAttributes(
+              {
+                name: { value: "Guest" },
+                email: { value: "" },
+                phone: { value: "" },
+                jobTitle: { value: "" },
+                uid: { value: "" },
+                role: { value: "" },
+              },
+              () => res()
+            );
           });
         });
-      });
-    } else {
-      console.warn("[Tawk] logout() not available");
+      } else {
+        console.warn("[Tawk] logout() not available");
+      }
+
+      /* 2️⃣  Persist cart (optional) */
+      if (currentUser?.uid) {
+        console.log("Saving cart to Firestore …");
+        await setDoc(doc(db, "carts", currentUser.uid), { cart });
+        console.log("✓ cart saved");
+      }
+
+      /* 3️⃣  Firebase sign-out */
+      console.log("Signing out from Firebase …");
+      await signOut(auth);
+      console.log("✓ Firebase signed-out");
+
+      /* 4️⃣  Local + Redux cleanup */
+      localStorage.removeItem("cart");
+      localStorage.removeItem("mythrift_role");
+      dispatch(clearCart());
+      dispatch(resetUserData());
+      dispatch(exitStockpileMode());
+      console.log("✓ Redux & localStorage cleared");
+
+      toast.success("Successfully logged out", { className: "custom-toast" });
+      navigate("/vendorlogin"); // or "/newhome" for buyers
+    } catch (err) {
+      console.error("Logout error:", err);
+      toast.error("Error logging out", { className: "custom-toast" });
+    } finally {
+      setIsLoggingOut(false);
+      console.log("Logout sequence complete");
     }
-
-    // Persist cart (optional)
-    if (currentUser?.uid) {
-      console.log("Saving cart to Firestore …");
-      await setDoc(doc(db, "carts", currentUser.uid), { cart });
-      console.log("✓ Cart saved");
-    }
-
-    // Firebase sign-out
-    console.log("Signing out from Firebase …");
-    await signOut(auth);
-    console.log("✓ Firebase signed out");
-
-    // Local + Redux cleanup
-    localStorage.removeItem("cart");
-    localStorage.removeItem("mythrift_role");
-    dispatch(clearCart());
-    dispatch(resetUserData());
-    dispatch(exitStockpileMode());
-    console.log("✓ Redux & localStorage cleared");
-
-    toast.success("Successfully logged out", { className: "custom-toast" });
-    navigate("/newhome");
-  } catch (err) {
-    console.error("Logout error:", err);
-    toast.error("Error logging out", { className: "custom-toast" });
-  } finally {
-    setIsLoggingOut(false);
-    console.log("Logout sequence complete");
-  }
-};
+  };
 
   const { openChat } = useTawk();
   return (

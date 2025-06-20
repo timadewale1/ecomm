@@ -8,19 +8,25 @@ import { NavigationProvider } from "../Context/Bottombarcontext";
 import { VendorNavigationProvider } from "../Context/VendorBottomBarCtxt";
 import phoneTransition from "../../Animations/PhoneTransitionScene.json";
 import Lottie from "lottie-react";
-
+import NotificationPermissionBanner from "./NotificationPermissionBanner";
 import { AccessContext } from "../Context/AccesContext";
 
 import ScrollToTop from "./ScrollToTop";
 import PWAInstallModal from "./PwaInstallModal";
-// import SwipeToRefresh from "./SwipeToRefresh";
-// import PWAInstallModal from "./PwaInstallModal";
-
+import { messagingReady, functions } from "../../firebase.config";
+import { getToken } from "firebase/messaging";
+import { httpsCallable } from "firebase/functions";
 const Layout = () => {
   const location = useLocation();
   const { currentUser } = useAuth(); // Custom hook to get the current user
   const [showInstallModal, setShowInstallModal] = useState(true);
-
+  const [isPWA, setIsPWA] = useState(false);
+  useEffect(() => {
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true;
+    setIsPWA(standalone);
+  }, []);
   // List of paths where BottomBar should not be rendered
   const noBottomBarPaths = [
     "/login",
@@ -81,6 +87,27 @@ const Layout = () => {
   const isDynamicPath = (pathname) => {
     return dynamicPaths.some((path) => matchPath(path, pathname));
   };
+  const handleEnableNotifs = async () => {
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") return console.warn("User denied notifications");
+
+      const messaging = await messagingReady;
+      if (!messaging) return console.warn("FCM not supported here");
+
+      const vapidKey = import.meta.env.VITE_VAPID_KEY;
+      const fcmToken = await getToken(messaging, { vapidKey });
+      if (!fcmToken) throw new Error("No FCM token retrieved");
+
+      console.log("🔔 FCM token:", fcmToken);
+
+      const saveToken = httpsCallable(functions, "saveFcmToken");
+      await saveToken({ token: fcmToken });
+      console.log("✅ FCM token saved");
+    } catch (err) {
+      console.error("Error enabling notifications:", err);
+    }
+  };
 
   // Check if bottom bar should be hidden
   const hideBottomBar =
@@ -125,11 +152,14 @@ const Layout = () => {
     <NavigationProvider>
       <VendorNavigationProvider>
         {/* Render the PWAInstallModal if needed */}
-      {showInstallModal && (
-        <PWAInstallModal onClose={() => setShowInstallModal(false)} />
-      )}
+        {showInstallModal && (
+          <PWAInstallModal onClose={() => setShowInstallModal(false)} />
+        )}
         {isMobile ? (
           <>
+            {currentUser && isPWA && (
+              <NotificationPermissionBanner onEnable={handleEnableNotifs} />
+            )}
             <div className="relative">
               {/* <SwipeToRefresh /> */}
               <ScrollToTop />

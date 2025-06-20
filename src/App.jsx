@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useEffect } from "react";
 import { useAuth } from "./custom-hooks/useAuth";
 import Layout from "./components/layout/Layout";
@@ -8,8 +9,12 @@ import {
 import "./App.css";
 import { AccessProvider } from "./components/Context/AccesContext";
 
+import { useFCM } from "./custom-hooks/useFCM";
 function App() {
-  const { currentUser, currentUserData } = useAuth();
+  // ←— TRIGGER FCM setup (SW registration, permission, token save, etc.)
+  useFCM();
+
+  const { currentUser } = useAuth();
 
   // Initialize Order Listener
   useEffect(() => {
@@ -17,7 +22,6 @@ function App() {
       console.log("Initializing order listener for:", currentUser.uid);
       initializeOrderListener(currentUser.uid);
     }
-
     return () => {
       console.log("Removing order listener...");
       removeOrderListener();
@@ -31,9 +35,6 @@ function App() {
     console.log("Viewport height updated:", `${vh}px`);
   };
 
-  window.addEventListener("resize", setVh);
-  window.addEventListener("load", setVh);
-
   // Safe service-worker registration (won’t crash IG/Snap/Telegram on iOS)
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -44,23 +45,27 @@ function App() {
           .register("/service-worker.js")
           .then((reg) => console.log("Service Worker registered:", reg))
           .catch((err) => {
-            // WKWebView in Instagram/Snapchat/Telegram iOS throws “SecurityError”
             console.warn("SW registration skipped:", err.message);
           });
       } catch (err) {
-        // Very old Safari can throw synchronously
         console.warn("SW register threw:", err.message);
       }
     };
 
     window.addEventListener("load", onLoad);
     return () => window.removeEventListener("load", onLoad);
-  }, []); 
+  }, []);
 
-  setVh(); // Set the initial viewport height
-
-  // // HelpCrunch User Update
- 
+  // Apply initial viewport height
+  useEffect(() => {
+    setVh();
+    window.addEventListener("resize", setVh);
+    window.addEventListener("load", setVh);
+    return () => {
+      window.removeEventListener("resize", setVh);
+      window.removeEventListener("load", setVh);
+    };
+  }, []);
 
   return (
     <>
@@ -73,7 +78,6 @@ function App() {
           <li>
             <a href="/explore">Explore</a>
           </li>
-
           <li>
             <a href="/producttype/Tops">Tops</a>
           </li>

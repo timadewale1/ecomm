@@ -599,7 +599,7 @@ const VendorProfile = () => {
                   </div>
                   {/* Beta version text */}
                 </div>
-                <div className="flex flex-col items-center px-2 w-full">
+                <div className="flex flex-col items-center  w-full">
                  
                     <div
                       id="contact-support-tab"

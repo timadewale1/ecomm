@@ -156,7 +156,7 @@ const Profile = () => {
       console.log("✓ Redux & localStorage cleared");
 
       toast.success("Successfully logged out", { className: "custom-toast" });
-      navigate("/vendorlogin"); // or "/newhome" for buyers
+      navigate("/newhome"); // or "/newhome" for buyers
     } catch (err) {
       console.error("Logout error:", err);
       toast.error("Error logging out", { className: "custom-toast" });

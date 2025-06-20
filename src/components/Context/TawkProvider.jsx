@@ -39,7 +39,6 @@ export const TawkProvider = ({ children }) => {
         console.log("[Tawk] Widget ready — hiding by default");
         window.Tawk_API.hideWidget(); // Hide initially
         setLoaded(true);
-        // Set attributes if user is already logged in
         if (currentUser && role) {
           pushAttrs(currentUser, role, "onLoad");
         } else {
@@ -49,7 +48,6 @@ export const TawkProvider = ({ children }) => {
     };
     document.head.appendChild(script);
 
-    // Cleanup (optional, if component unmounts)
     return () => {
       if (script.parentNode) script.parentNode.removeChild(script);
     };
@@ -63,10 +61,20 @@ export const TawkProvider = ({ children }) => {
       if (currentUser) {
         console.log("[Tawk] Fetching user role …");
         try {
-          const userSnap = await getDoc(doc(db, "users", currentUser.uid));
-          const userRole = userSnap.exists()
-            ? userSnap.data().role || "user"
-            : "user";
+          let userRole = "user";
+
+          // Check if the user has a vendor document first
+          const vendorSnap = await getDoc(doc(db, "vendors", currentUser.uid));
+          if (vendorSnap.exists()) {
+            userRole = "vendor";
+          } else {
+            // If not a vendor, check the users collection
+            const userSnap = await getDoc(doc(db, "users", currentUser.uid));
+            if (userSnap.exists()) {
+              userRole = userSnap.data().role || "user";
+            }
+          }
+
           setRole(userRole);
           await pushAttrs(currentUser, userRole, "auth-change");
         } catch (e) {

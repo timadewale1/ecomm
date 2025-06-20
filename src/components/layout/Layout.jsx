@@ -18,9 +18,10 @@ import { getToken } from "firebase/messaging";
 import { httpsCallable } from "firebase/functions";
 const Layout = () => {
   const location = useLocation();
-  const { currentUser } = useAuth(); // Custom hook to get the current user
+  const { currentUser, currentUserData } = useAuth();
   const [showInstallModal, setShowInstallModal] = useState(true);
   const [isPWA, setIsPWA] = useState(false);
+  const [enabling, setEnabling] = useState(false);
   useEffect(() => {
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
@@ -82,30 +83,52 @@ const Layout = () => {
     "marketstorepage/:id",
     "/newcheckout/:vendorId",
   ];
+  const showBanner =
+    currentUser && currentUserData?.notificationAllowed !== true;
 
   // Function to check if the current path matches any dynamic paths
   const isDynamicPath = (pathname) => {
     return dynamicPaths.some((path) => matchPath(path, pathname));
   };
   const handleEnableNotifs = async () => {
+    console.log("▶️ handleEnableNotifs started");
+    setEnabling(true);
     try {
+      console.log("Requesting notification permission...");
       const perm = await Notification.requestPermission();
-      if (perm !== "granted") return console.warn("User denied notifications");
+      console.log("Notification.permission:", perm);
+      if (perm !== "granted") {
+        console.warn("User denied notifications");
+        return;
+      }
 
+      console.log("Waiting for messagingReady...");
       const messaging = await messagingReady;
-      if (!messaging) return console.warn("FCM not supported here");
+      console.log("messagingReady:", messaging);
+      if (!messaging) {
+        console.warn("FCM not supported here");
+        return;
+      }
 
+      console.log("Retrieving FCM token...");
       const vapidKey = import.meta.env.VITE_VAPID_KEY;
+      console.log("Using VAPID key:", vapidKey);
       const fcmToken = await getToken(messaging, { vapidKey });
-      if (!fcmToken) throw new Error("No FCM token retrieved");
+      console.log("getToken() returned:", fcmToken);
+      if (!fcmToken) {
+        console.error("No FCM token retrieved");
+        return;
+      }
 
-      console.log("🔔 FCM token:", fcmToken);
-
+      console.log("Calling saveFcmToken Cloud Function...");
       const saveToken = httpsCallable(functions, "saveFcmToken");
-      await saveToken({ token: fcmToken });
-      console.log("✅ FCM token saved");
+      const result = await saveToken({ token: fcmToken });
+      console.log("saveFcmToken result:", result.data);
     } catch (err) {
-      console.error("Error enabling notifications:", err);
+      console.error("❌ Error in handleEnableNotifs:", err);
+    } finally {
+      console.log("▶️ handleEnableNotifs finished");
+      setEnabling(false);
     }
   };
 
@@ -157,7 +180,7 @@ const Layout = () => {
         )}
         {isMobile ? (
           <>
-            {currentUser && isPWA && (
+            {showBanner && (
               <NotificationPermissionBanner onEnable={handleEnableNotifs} />
             )}
             <div className="relative">

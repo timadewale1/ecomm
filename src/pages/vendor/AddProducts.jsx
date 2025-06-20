@@ -575,7 +575,6 @@ const AddProduct = ({ vendorId, closeModal }) => {
         totalStockQuantity = Number(stockQuantity);
       }
 
-
       // Fetch vendor's data
       const vendorDocRef = doc(db, "vendors", vendorId);
       const vendorDoc = await getDoc(vendorDocRef);
@@ -750,32 +749,28 @@ const AddProduct = ({ vendorId, closeModal }) => {
   };
   const handleImageUpload = (e) => {
     const loadingToastId = toast.loading("Compressing image...");
-    const files = Array.from(e.target.files); // Convert to an array of File objects
-    const validFiles = [];
+    const files = Array.from(e.target.files);
 
     let completed = 0;
 
-    files.forEach((file, index) => {
+    files.forEach((file) => {
       new Compressor(file, {
         quality: 0.6,
         success(result) {
-          validFiles.push({
-            file: result,
-            preview: URL.createObjectURL(result),
+          const preview = URL.createObjectURL(result);
+
+          setProductImages((prev) => {
+            // Prevent exceeding max count
+            if (prev.length + 1 > MAX_IMAGES) {
+              toast.error("You can only upload a maximum of 4 images.");
+              return prev;
+            }
+            return [...prev, { file: result, preview }];
           });
 
-          // Check if adding these files exceeds the MAX_IMAGES limit
-          if (validFiles.length + productImages.length > MAX_IMAGES) {
-            toast.error("You can only upload a maximum of 4 images.");
-            return;
-          }
-
-          // Add to state
-          setProductImages((prevImages) => [...prevImages, ...validFiles]);
-
-          completed++;
+          completed += 1;
           if (completed === files.length) {
-            toast.dismiss(loadingToastId); // Dismiss loading
+            toast.dismiss(loadingToastId);
             toast.success("Images compressed!");
           }
         },
@@ -942,39 +937,45 @@ const AddProduct = ({ vendorId, closeModal }) => {
           <div className="flex flex-col items-center">
             <div
               ref={scrollContainerRef}
-              className={`relative w-full h-80 flex overflow-x-scroll snap-x snap-mandatory space-x-4`}
+              className="relative w-full h-80 flex overflow-x-scroll snap-x snap-mandatory space-x-4"
               style={{ scrollBehavior: "smooth" }}
               onScroll={handleScroll}
             >
               {productImages.length > 0 ? (
-                productImages.map((image, index) => (
-                  <div
-                    key={index}
-                    className={`relative flex-shrink-0 w-full h-full border-2 border-dashed border-customBrown border-opacity-30 rounded-md snap-center ${
-                      index === currentImageIndex ? "opacity-100" : "opacity-65"
-                    } transition-opacity duration-300`}
-                  >
-                    <img
-                      src={
-                        image instanceof File
-                          ? URL.createObjectURL(image)
-                          : image
-                      }
-                      alt={`Product ${index + 1}`}
-                      className="w-full h-full object-cover rounded-md"
-                    />
-                    <button
-                      type="button"
-                      className="absolute top-2 right-2 bg-customBrown text-white rounded-full p-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveImage(index);
-                      }}
+                productImages.map((image, index) => {
+                  const src =
+                    image.preview ??
+                    (image instanceof File
+                      ? URL.createObjectURL(image)
+                      : image);
+
+                  return (
+                    <div
+                      key={index}
+                      className={`relative flex-shrink-0 w-full h-full border-2 border-dashed border-customBrown border-opacity-30 rounded-md snap-center ${
+                        index === currentImageIndex
+                          ? "opacity-100"
+                          : "opacity-65"
+                      } transition-opacity duration-300`}
                     >
-                      <GoTrash className="h-4 w-4 text-white" />
-                    </button>
-                  </div>
-                ))
+                      <img
+                        src={src}
+                        alt={`Product ${index + 1}`}
+                        className="w-full h-full object-cover rounded-md"
+                      />
+                      <button
+                        type="button"
+                        className="absolute top-2 right-2 bg-customBrown text-white rounded-full p-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveImage(index);
+                        }}
+                      >
+                        <GoTrash className="h-4 w-4 text-white" />
+                      </button>
+                    </div>
+                  );
+                })
               ) : (
                 <div
                   className="w-full h-full border-opacity-30 border-2 border-dashed border-customBrown rounded-md flex items-center flex-col justify-center cursor-pointer"
@@ -982,12 +983,10 @@ const AddProduct = ({ vendorId, closeModal }) => {
                     document.getElementById("coverFileInput").click()
                   }
                 >
-
                   <BiSolidImageAdd className="h-16 w-16 text-customOrange opacity-20" />
                   <h2 className="font-opensans px-10 text-center font-light text-xs text-customOrange opacity-90">
                     Upload product image here. Image must not be more than 3MB
                   </h2>
-
                 </div>
               )}
 
@@ -995,7 +994,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
                 id="coverFileInput"
                 type="file"
                 accept="image/*"
-                onChange={(e) => handleImageUpload(e)}
+                onChange={handleImageUpload}
                 className="hidden"
               />
             </div>
@@ -1040,6 +1039,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
             />
           </div>
         </div>
+
         <div
           className="w-full max-w-md mx-auto flex justify-between items-center
                 rounded-full bg-gray-200 px-1 py-1 mb-6"
@@ -1461,7 +1461,6 @@ const AddProduct = ({ vendorId, closeModal }) => {
           </div>
         )}
 
-
         <div className="mb-4">
           <label className="font-opensans mb-1 font-medium text-sm text-black">
             Product Condition
@@ -1509,7 +1508,9 @@ const AddProduct = ({ vendorId, closeModal }) => {
           </label>
           <div
             className={`relative ${
-              isGeneratingDescription ? "breathing-gradient thinking-border" : ""
+              isGeneratingDescription
+                ? "breathing-gradient thinking-border"
+                : ""
             }`}
           >
             <textarea

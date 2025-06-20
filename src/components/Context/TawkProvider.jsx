@@ -5,165 +5,166 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { getDoc, doc } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { useAuth } from "../../custom-hooks/useAuth";
-import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase.config";
 
 const TawkContext = createContext({ openChat: () => {}, loaded: false });
+const EMBED_SRC = "https://embed.tawk.to/68541decea9e87190a96647e/1iu499p2k";
 
 export const TawkProvider = ({ children }) => {
   const { currentUser } = useAuth();
+  const [hash, setHash] = useState(null);
+  const [role, setRole] = useState("user");
   const [loaded, setLoaded] = useState(false);
-  const [role, setRole] = useState(null);
   const injected = useRef(false);
+  const loggedInOnce = useRef(false);
 
-  const WIDGET_SRC = "https://embed.tawk.to/68541decea9e87190a96647e/1iu499p2k";
-
-  // Inject Tawk.to script once on mount
+  /** 1️⃣ Get the Base64 HMAC from your Cloud Function */
   useEffect(() => {
-    if (injected.current) return;
-    injected.current = true;
+    console.log("🔄 [Tawk] fetch hash effect — currentUser:", currentUser);
+    if (!currentUser) {
+      setHash(null);
+      return;
+    }
+    (async () => {
+      try {
+        console.log("[Tawk] ▶ Calling generateTawkHash");
+        const fn = httpsCallable(getFunctions(), "generateTawkHash");
+        const { data } = await fn({ uid: currentUser.uid });
+        console.log("🔑 [Tawk] received hash →", data.hash);
+        setHash(data.hash);
+      } catch (err) {
+        console.error("⛔ [Tawk] generateTawkHash failed:", err);
+      }
+    })();
+  }, [currentUser]);
 
-    console.log("[Tawk] Injecting script");
+  /** 2️⃣ Look up whether this is a “vendor” or just a “user” */
+  useEffect(() => {
+    if (!currentUser) {
+      setRole("user");
+      return;
+    }
+    (async () => {
+      console.log("[Tawk] ▶ looking up role for", currentUser.uid);
+      try {
+        const vSnap = await getDoc(doc(db, "vendors", currentUser.uid));
+        if (vSnap.exists()) {
+          setRole("vendor");
+        } else {
+          const uSnap = await getDoc(doc(db, "users", currentUser.uid));
+          setRole(uSnap.exists() ? uSnap.data().role || "user" : "user");
+        }
+        console.log("👤 [Tawk] role →", role);
+      } catch (e) {
+        console.error("⛔ [Tawk] role lookup failed:", e);
+      }
+    })();
+  }, [currentUser]);
+
+  /** 3️⃣ Inject widget once we have either (no-user) or (user+hash) */
+  useEffect(() => {
+    const ready = !injected.current && (currentUser ? !!hash : true);
+    console.log(
+      "[Tawk] ▶ inject check — injected?",
+      injected.current,
+      "ready?",
+      ready
+    );
+    if (!ready) return;
+    injected.current = true;
+    console.log("📦 [Tawk] injecting widget script…");
+
+    // Set up the global API stubs
     window.Tawk_API = window.Tawk_API || {};
     window.Tawk_LoadStart = new Date();
 
-    const script = document.createElement("script");
-    script.async = true;
-    script.src = WIDGET_SRC;
-    script.charset = "UTF-8";
-    script.crossOrigin = "anonymous";
-    script.onload = () => {
-      console.log("[Tawk] Script loaded — waiting for SDK");
-      window.Tawk_API.onLoad = () => {
-        console.log("[Tawk] Widget ready — hiding by default");
-        window.Tawk_API.hideWidget(); // Hide initially
-        setLoaded(true);
-        if (currentUser && role) {
-          pushAttrs(currentUser, role, "onLoad");
-        } else {
-          setGuestAttributes();
-        }
-      };
+    // Fire when the actual Tawk embed has loaded
+    window.Tawk_API.onLoad = () => {
+      console.log("✅ [Tawk] SDK onLoad");
+      setLoaded(true);
+
+      if (currentUser && hash && !loggedInOnce.current) {
+        loggedInOnce.current = true;
+        const loginPayload = {
+          id: currentUser.uid, // <- must be `id`, not `userId`
+          hash, // base64 HMAC
+          name: currentUser.displayName || currentUser.email,
+          email: currentUser.email || "",
+        };
+        console.log("📝 [Tawk] login()", loginPayload);
+        window.Tawk_API.login(loginPayload, (err) => {
+          err
+            ? console.error("⛔ [Tawk] login error:", err)
+            : console.log("👍 [Tawk] login OK");
+        });
+      } else if (!currentUser) {
+        console.log("👤 [Tawk] Guest login");
+        window.Tawk_API.login({ name: "Guest" }, () => {});
+      }
     };
-    document.head.appendChild(script);
+
+    // Actually append the script tag
+    const s = document.createElement("script");
+    s.async = true;
+    s.src = EMBED_SRC;
+    s.charset = "UTF-8";
+    s.crossOrigin = "anonymous";
+    s.onload = () => console.log("📥 [Tawk] script tag loaded");
+    s.onerror = () => console.error("⛔ [Tawk] script failed to load");
+    document.head.appendChild(s);
 
     return () => {
-      if (script.parentNode) script.parentNode.removeChild(script);
+      document.head.removeChild(s);
+      console.log("📦 [Tawk] widget script removed");
     };
-  }, []);
+  }, [currentUser, hash]);
 
-  // Fetch role and update attributes when user changes
+  /** 4️⃣ Once logged in, push any extra attributes */
   useEffect(() => {
-    if (!loaded) return;
-
-    const updateUserAttributes = async () => {
-      if (currentUser) {
-        console.log("[Tawk] Fetching user role …");
+    if (!loaded || !currentUser) return;
+    (async () => {
+      console.log("[Tawk] ▶ setting extra attributes");
+      let display = currentUser.displayName || currentUser.email;
+      if (role === "vendor") {
         try {
-          let userRole = "user";
-
-          // Check if the user has a vendor document first
-          const vendorSnap = await getDoc(doc(db, "vendors", currentUser.uid));
-          if (vendorSnap.exists()) {
-            userRole = "vendor";
-          } else {
-            // If not a vendor, check the users collection
-            const userSnap = await getDoc(doc(db, "users", currentUser.uid));
-            if (userSnap.exists()) {
-              userRole = userSnap.data().role || "user";
-            }
+          const vSnap = await getDoc(doc(db, "vendors", currentUser.uid));
+          if (vSnap.exists() && vSnap.data().shopName) {
+            display = vSnap.data().shopName;
           }
-
-          setRole(userRole);
-          await pushAttrs(currentUser, userRole, "auth-change");
-        } catch (e) {
-          console.error("[Tawk] Error fetching role", e);
-          setGuestAttributes(); // Fallback to guest on error
+        } catch {
+          /* ignore */
         }
-      } else {
-        setRole(null);
-        setGuestAttributes();
       }
-    };
 
-    updateUserAttributes();
-  }, [currentUser, loaded]);
+      const attrs = {
+        name: display,
+        phone: currentUser.phoneNumber || "",
+        jobTitle: role,
+      };
+      console.log("📤 [Tawk] setAttributes()", attrs);
+      window.Tawk_API.setAttributes(attrs, (err) =>
+        err
+          ? console.error("⛔ [Tawk] setAttributes error:", err)
+          : console.log("👍 [Tawk] attrs OK")
+      );
+    })();
+  }, [loaded, role, currentUser]);
 
-  // Set attributes for anonymous (guest) users
-  const setGuestAttributes = () => {
-    if (!loaded || !window.Tawk_API?.setAttributes) return;
-    console.log("[Tawk] Setting guest attributes");
-    const guestPayload = {
-      name: "Guest",
-      email: "",
-      phone: "",
-      jobTitle: "",
-      uid: "",
-      role: "",
-    };
-    window.Tawk_API.setAttributes(guestPayload, (err) =>
-      err
-        ? console.error("[Tawk] Guest attrs error", err)
-        : console.log("[Tawk] ✓ Guest attrs set")
-    );
-    if (window.Tawk_API.hideWidget) window.Tawk_API.hideWidget();
-  };
-
-  // Push user attributes to Tawk.to
-  const pushAttrs = async (user, userRole, tag) => {
-    if (!loaded || !window.Tawk_API?.setAttributes) return;
-
-    let friendlyName = user.displayName || user.email;
-    if (userRole === "vendor") {
-      try {
-        const vendorSnap = await getDoc(doc(db, "vendors", user.uid));
-        if (vendorSnap.exists() && vendorSnap.data().shopName) {
-          friendlyName = vendorSnap.data().shopName; // Use shopName for vendors
-        }
-      } catch (e) {
-        console.error("[Tawk] Error fetching shopName", e);
-      }
+  /** 5️⃣ Utility for any part of your app to open the chat */
+  const openChat = () => {
+    if (!loaded) {
+      console.warn("⌛ [Tawk] not ready — retrying…");
+      return setTimeout(openChat, 300);
     }
-
-    const payload = {
-      name: friendlyName,
-      email: user.email || "",
-      phone: user.phoneNumber || "",
-      jobTitle: userRole, // e.g., "vendor" or "user"
-      uid: user.uid,
-      role: userRole, // Explicitly set role
-    };
-
-    console.log(`[Tawk] Sending attrs (${tag})`, payload);
-    await new Promise((resolve) => {
-      window.Tawk_API.setAttributes(payload, (err) => {
-        if (err) {
-          console.error("[Tawk] setAttributes error", err);
-        } else {
-          console.log("[Tawk] ✓ Attrs sent");
-        }
-        resolve();
-      });
-    });
-  };
-
-  // Open chat and ensure latest attributes are set
-  const openChat = async () => {
-    if (!loaded || !window.Tawk_API?.toggle) {
-      console.warn("[Tawk] Widget not ready, retrying …");
-      setTimeout(openChat, 300);
+    if (!window.Tawk_API.maximize) {
+      console.error("⛔ [Tawk] maximize() missing!");
       return;
     }
-
-    if (currentUser && role) {
-      await pushAttrs(currentUser, role, "pre-open");
-    } else {
-      setGuestAttributes();
-    }
-
-    console.log("[Tawk] Toggling chat");
-    window.Tawk_API.toggle();
+    console.log("💬 [Tawk] maximize chat");
+    window.Tawk_API.maximize();
   };
 
   return (

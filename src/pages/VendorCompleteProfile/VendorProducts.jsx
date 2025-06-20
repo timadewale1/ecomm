@@ -37,11 +37,16 @@ import ScrollToTop from "../../components/layout/ScrollToTop";
 import { VendorContext } from "../../components/Context/Vendorcontext";
 import { LuCopy, LuCopyCheck } from "react-icons/lu";
 import SEO from "../../components/Helmet/SEO";
-import { TbRosetteDiscount, TbRosetteDiscountOff } from "react-icons/tb";
+import {
+  TbBoxOff,
+  TbRosetteDiscount,
+  TbRosetteDiscountOff,
+} from "react-icons/tb";
 import SingleDiscountModal from "../vendor/SingleDiscountModal";
 import { start } from "@cloudinary/url-gen/qualifiers/textAlignment";
 import { IoTrashOutline } from "react-icons/io5";
 import { IoMdCheckmarkCircleOutline } from "react-icons/io";
+import { HiWrenchScrewdriver } from "react-icons/hi2";
 import MultiDiscountModal from "../vendor/MultiDiscountModal";
 
 const VendorProducts = () => {
@@ -61,6 +66,7 @@ const VendorProducts = () => {
   const [restockValues, setRestockValues] = useState({});
   const [rLoading, setRLoading] = useState(false);
   const [oLoading, setOLoading] = useState(false);
+  const [mLoading, setMLoading] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
   const [productsLoading, setProductsLoading] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -655,6 +661,53 @@ const VendorProducts = () => {
     }
   };
 
+  const zeroAllStock = async () => {
+    setMLoading(true)
+    try {
+      // Ensure variants and subProducts are defined as arrays
+      const variants = selectedProduct.variants || [];
+      const subProducts = selectedProduct.subProducts || [];
+
+      const productRef = doc(db, "products", selectedProduct.id);
+
+      // Update variants with restock values
+      const updatedVariants = variants.map((variant) => {
+          return {
+            ...variant,
+            stock: 0,
+          };
+      });
+
+      // Update sub-products with restock values
+      const updatedSubProducts = subProducts.map((subProduct) => {
+          return {
+            ...subProduct,
+            stock: 0,
+          };
+      });
+
+      // Update Firestore with the modified stock quantities and total stockQuantity
+      await updateDoc(productRef, {
+        variants: updatedVariants,
+        subProducts: updatedSubProducts,
+        stockQuantity: 0, // Update the stockQuantity field with the new total
+      });
+      toast.success(`Product is now marked as "Sold Out"`);
+      await addActivityNote(
+          "Product Sold Out 🚫",
+          `You've marked ${selectedProduct.name} as "Sold Out". Customers will not be able to buy this product until it is restocked.`,
+          "Product Update"
+        );
+    } catch (error) {
+      console.error("Error marking as Sold Out:", error);
+      toast.error("Error marking as Sold Out: " + error.message);
+    } finally {
+      setMLoading(false);
+      setShowConfirmation(false);
+      setAction("");
+    }
+  }
+
   const addActivityNote = async (title, note, type) => {
     try {
       const activityNotesRef = collection(
@@ -821,6 +874,11 @@ const VendorProducts = () => {
     setShowConfirmation(true);
   };
 
+  const confirmStockReset = () => {
+    setAction("markSoldOut")
+    setShowConfirmation(true)
+  }
+
   const handleBulkDelete = () => {
     setAction("bulkDelete");
     setShowConfirmation(true);
@@ -906,7 +964,7 @@ const VendorProducts = () => {
         description={`Manage your products on My Thrift`}
         url={`https://www.shopmythrift.store/vendor-products`}
       />
-      <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-5 font-opensans ">
+      <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-5 font-opensans">
         <ScrollToTop />
         <div className="flex justify-end">
           <div className="relative flex justify-center items-center">
@@ -1445,7 +1503,7 @@ const VendorProducts = () => {
                   &#x20a6;{formatNumber(selectedProduct.price)}
                 </span>
               </p>
-              <hr className="text-customOrange opacity-40   " />
+              <hr className="text-customOrange opacity-40" />
 
               <p className="text-black font-semibold font-opensans text-sm">
                 Product Category:{" "}
@@ -1510,19 +1568,6 @@ const VendorProducts = () => {
               )}
             </div>
 
-            {selectedProduct && !selectedProduct.discount && (
-              <div className="mt-4">
-                <div className="flex justify-end items-center">
-                  <div
-                    className="flex justify-between space-x-1 items-center text-customOrange mb-2 font-medium font-opensans text-base cursor-pointer"
-                    onClick={() => setIsDiscountModalOpen(true)}
-                  >
-                    <div>Start a discount</div>
-                    <TbRosetteDiscount className="text-2xl" />
-                  </div>
-                </div>
-              </div>
-            )}
             {selectedProduct && selectedProduct.discount && (
               <div className="mt-4">
                 <div className="flex justify-between items-center">
@@ -1629,8 +1674,8 @@ const VendorProducts = () => {
               </div>
             </div>
 
-            {selectedProduct.subProducts && (
-              <p className="text-lg font-opensans text-black font-semibold mb-2">
+            {selectedProduct.subProducts && selectedProduct.subProducts.length > 0 && (
+              <p className="text-lg font-opensans text-black font-semibold my-2">
                 {selectedProduct.subProducts.length > 1
                   ? "Sub-Products"
                   : "Sub-Products"}
@@ -1707,9 +1752,41 @@ const VendorProducts = () => {
             </div>
 
             {selectedProduct && (
-              <div className="my-4 flex flex-col justify-between space-y-3">
+              <div className="text-lg flex items-center space-x-1 text-customOrange mt-4 mb-2 font-medium font-opensans">
+                <div>Actions</div>{" "}
+                <span>
+                  <HiWrenchScrewdriver className="" />
+                </span>
+              </div>
+            )}
+
+            {selectedProduct && (
+              <div className="p-3 my-4 flex flex-col  bg-gray-50  rounded-lg w-full font-opensans justify-between space-y-3">
+                {!selectedProduct.discount && (
+                  <div
+                    className="flex space-x-1 items-center justify-between font-medium text-base cursor-pointer text-customOrange"
+                    onClick={() => setIsDiscountModalOpen(true)}
+                  >
+                    <div>Start a discount</div>
+                    <TbRosetteDiscount className="text-2xl" />
+                  </div>
+                )}
+
+                {!(selectedProduct.stockQuantity < 1) && (<hr className="text-customOrange opacity-40" />)}
+
+                {!(selectedProduct.stockQuantity < 1) && (
+                  <div
+                    className="flex space-x-1 justify-between items-center font-medium text-base cursor-pointer text-customOrange"
+                    onClick={() => confirmStockReset()}
+                  >
+                    <div>Mark As "Sold-Out"</div>
+                    <TbBoxOff className="text-2xl" />
+                  </div>
+                )}
+
+                <hr className="text-customOrange opacity-40" />
                 <div className="flex justify-between">
-                  <p className="text-black font-opensans text-sm font-bold">
+                  <p className="text-black font-opensans text-base font-medium">
                     Unpublish/Publish Product
                   </p>
                   <ToggleButton
@@ -1722,13 +1799,13 @@ const VendorProducts = () => {
               </div>
             )}
 
-            <div className={`mt-10`}>
+            <div className="sticky bottom-0 left-0 w-full py-8 px-2 translate-y-7 bg-gradient-to-t from-white to-transparent z-10">
               {isRestocking ? (
-                <div className="flex">
+                <div className="flex justify-between items-center space-x-4">
                   <motion.button
                     onClick={handleSubmitRestock}
                     whileTap={{ scale: 1.1 }}
-                    className={`flex glow-button justify-center items-center w-full h-12 mt-7 bg-customOrange text-white font-semibold rounded-full ${
+                    className={`flex glow-button justify-center items-center w-full h-12 bg-customOrange text-white font-opensans font-semibold rounded-full ${
                       !hasValidRestockValues() && "opacity-25"
                     }`}
                     disabled={!hasValidRestockValues()}
@@ -1748,7 +1825,7 @@ const VendorProducts = () => {
                   <motion.button
                     whileTap={{ scale: 1.1 }}
                     onClick={toggleRestockMode}
-                    className="glow-button w-full h-12 mt-7 ml-4 font-opensans bg-customSoftGray font-semibold rounded-full text-customRichBrown border border-customRichBrown"
+                    className="glow-button w-full h-12 font-opensans bg-customSoftGray font-semibold rounded-full text-customRichBrown border border-customRichBrown"
                   >
                     Cancel
                   </motion.button>
@@ -1841,6 +1918,16 @@ const VendorProducts = () => {
             icon={<MdOutlineUnpublished className="w-4 h-4" />}
             title="Unpublish Products"
             loading={oLoading}
+          />
+        ) : action === "markSoldOut" ? (
+          <ConfirmationDialog
+            isOpen={showConfirmation}
+            onClose={() => setShowConfirmation(false)}
+            onConfirm={zeroAllStock}
+            message={`Marking as "Sold-Out" will set the stock of all variants and sub-products to zero. Are you sure you want to proceed?`}
+            icon={<TbBoxOff className="w-4 h-4" />}
+            title="Mark as Sold-Out"
+            loading={mLoading}
           />
         ) : action === "removeDiscount" ? (
           <ConfirmationDialog

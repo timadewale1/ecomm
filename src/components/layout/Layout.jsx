@@ -144,7 +144,7 @@ const Layout = () => {
             <div className="text-center text-xl font-opensans p-20">
               We're currently optimizing our website for this screen size. For
               the best experience, we recommend accessing it on your mobile
-              device.😅✨
+              device.✨
             </div>
           </div>
         )}

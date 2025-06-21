@@ -278,6 +278,7 @@ const Login = () => {
           email: user.email,
           profileComplete: false,
           welcomeEmailSent: false,
+          notificationAllowed: false,
           role: "user",
           createdAt: new Date(),
         });

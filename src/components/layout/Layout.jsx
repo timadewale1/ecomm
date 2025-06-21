@@ -111,9 +111,11 @@ const Layout = () => {
   return (
     <NavigationProvider>
       <VendorNavigationProvider>
+
         {showInstallModal && isPWA && (
+
           <PWAInstallModal onClose={() => setShowInstallModal(false)} />
-        )}
+        )} */}
         {isMobile ? (
           <>
             {showBanner && (

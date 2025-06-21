@@ -748,7 +748,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
     }
   };
   const handleImageUpload = (e) => {
-    const loadingToastId = toast.loading("Compressing image...");
+    const loadingToastId = toast.loading("Uploading image...");
     const files = Array.from(e.target.files);
 
     let completed = 0;
@@ -771,7 +771,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           completed += 1;
           if (completed === files.length) {
             toast.dismiss(loadingToastId);
-            toast.success("Images compressed!");
+            toast.success("Image uploaded!");
           }
         },
         error(err) {

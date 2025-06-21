@@ -259,6 +259,7 @@ const Signup = () => {
         role: "user",
         profileComplete: false,
         welcomeEmailSent: false,
+        notificationAllowed: false,
         createdAt: new Date(),
       };
 

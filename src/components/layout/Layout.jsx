@@ -115,7 +115,7 @@ const Layout = () => {
         {showInstallModal && isPWA && (
 
           <PWAInstallModal onClose={() => setShowInstallModal(false)} />
-        )} */}
+        )} 
         {isMobile ? (
           <>
             {showBanner && (

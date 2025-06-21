@@ -11,11 +11,10 @@ import { AccessProvider } from "./components/Context/AccesContext";
 
 import { useFCM } from "./custom-hooks/useFCM";
 function App() {
-  // ←— TRIGGER FCM setup (SW registration, permission, token save, etc.)
-  useFCM();
+  
 
-  const { currentUser } = useAuth();
-
+  const { currentUser, currentUserData } = useAuth();
+  useFCM(currentUser, currentUserData);
   // Initialize Order Listener
   useEffect(() => {
     if (currentUser?.uid) {

@@ -1,66 +1,237 @@
-// src/useFCM.js
+import { useEffect, useState, useCallback } from "react";
+import { messagingReady, functions, db } from "../firebase.config";
+import { getToken, onMessage } from "firebase/messaging";
+import { httpsCallable } from "firebase/functions";
+import { doc, getDoc } from "firebase/firestore";
+import { debounce } from "lodash";
 
-import { useEffect } from 'react';
-import { messagingReady, functions } from '../firebase.config';
-import { getToken, onMessage } from 'firebase/messaging';
-import { httpsCallable } from 'firebase/functions';
+export function useFCM(currentUser, currentUserData) {
+  const [showBanner, setShowBanner] = useState(false);
+  const [enabling, setEnabling] = useState(false);
+  const [hasToken, setHasToken] = useState(false);
+  const [isPWA, setIsPWA] = useState(
+    window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true
+  );
 
-export function useFCM() {
   useEffect(() => {
-    (async () => {
-      // 1️⃣ Wait for messaging support
+    const mediaQuery = window.matchMedia("(display-mode: standalone)");
+    const handleChange = () =>
+      setIsPWA(mediaQuery.matches || window.navigator.standalone === true);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  const checkTokenExists = useCallback(async (uid, token) => {
+    const cacheKey = `fcmToken_${uid}_${token}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached === "true") return true;
+
+    try {
+      const tokenDoc = await getDoc(doc(db, "fcmTokens", uid));
+      if (tokenDoc.exists()) {
+        const tokens = tokenDoc.data().tokens || [];
+        const exists = tokens.includes(token);
+        if (exists) localStorage.setItem(cacheKey, "true");
+        return exists;
+      }
+      return false;
+    } catch (err) {
+      console.error("Error checking token existence:", err);
+      return false;
+    }
+  }, []);
+
+  const saveTokenToBackend = useCallback(
+    debounce(async (messaging, token) => {
+      try {
+        const saveToken = httpsCallable(functions, "saveFcmToken");
+        const result = await saveToken({ token });
+        console.log("saveFcmToken result:", result.data);
+        setHasToken(true);
+        localStorage.setItem(`fcmToken_${currentUser?.uid}_${token}`, "true");
+      } catch (err) {
+        console.error("Error saving FCM token:", err);
+      }
+    }, 1000),
+    [currentUser?.uid]
+  );
+
+  const registerServiceWorker = useCallback(async () => {
+    if (
+      await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js")
+    ) {
+      console.log("FCM Service Worker already registered");
+      return true;
+    }
+    try {
+      const registration = await navigator.serviceWorker.register(
+        "/firebase-messaging-sw.js"
+      );
+      console.log("FCM Service Worker registered at", registration.scope);
+      return true;
+    } catch (swErr) {
+      console.warn("FCM SW registration failed:", swErr);
+      return false;
+    }
+  }, []);
+
+  const handleEnableNotifs = useCallback(async () => {
+    console.log("▶️ handleEnableNotifs started");
+    setEnabling(true);
+
+    try {
+      let perm = Notification.permission;
+      if (perm === "default") {
+        console.log("Requesting notification permission…");
+        perm = await Notification.requestPermission();
+        console.log("Notification.permission after request:", perm);
+      }
+
+      if (perm !== "granted") {
+        console.warn("User denied notifications, aborting token retrieval.");
+        setShowBanner(isPWA);
+        return;
+      }
+
       const messaging = await messagingReady;
       if (!messaging) {
-        console.log('FCM not supported in this environment.');
+        console.warn("FCM not supported here");
+        setShowBanner(isPWA);
         return;
       }
 
-      // 2️⃣ Register the FCM service worker
-      try {
-        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-        console.log('FCM Service Worker registered at', registration.scope);
-      } catch (swErr) {
-        console.warn('FCM SW registration failed:', swErr);
+      if (!(await registerServiceWorker())) {
+        setShowBanner(isPWA);
         return;
       }
 
-      // 3️⃣ Request notification permission
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        console.warn('Notification permission not granted.');
-        return;
-      }
-
-      // 4️⃣ Get the current FCM token
       const vapidKey = import.meta.env.VITE_VAPID_KEY;
-      let currentToken;
-      try {
-        currentToken = await getToken(messaging, { vapidKey });
-      } catch (tokenErr) {
-        console.error('Error retrieving FCM token:', tokenErr);
+      const fcmToken = await getToken(messaging, { vapidKey });
+      if (!fcmToken) {
+        console.error("No FCM token retrieved");
+        setShowBanner(isPWA);
         return;
       }
 
-      if (!currentToken) {
-        console.error('No FCM token retrieved.');
-        return;
-      }
-      console.log('FCM token:', currentToken);
+      await saveTokenToBackend(messaging, fcmToken);
+      setHasToken(true);
+      setShowBanner(false);
+    } catch (err) {
+      console.error("❌ Error in handleEnableNotifs:", err);
+      setShowBanner(isPWA);
+    } finally {
+      console.log("▶️ handleEnableNotifs finished");
+      setEnabling(false);
+    }
+  }, [saveTokenToBackend, registerServiceWorker, isPWA]);
 
-      // 5️⃣ Save the token to your backend via Cloud Function
+  useEffect(() => {
+    if (!currentUser) {
+      setShowBanner(false);
+      setHasToken(false);
+      return;
+    }
+
+    const setupNotifications = async () => {
       try {
-        const saveToken = httpsCallable(functions, 'saveFcmToken');
-        await saveToken({ token: currentToken });
-        console.log('FCM token saved via Cloud Function.');
-      } catch (saveErr) {
-        console.error('Error saving FCM token:', saveErr);
-      }
+        if (Notification.permission !== "granted") {
+          console.log("Notifications not granted, skipping token setup.");
+          setShowBanner(isPWA && !hasToken);
+          return;
+        }
 
-      // 6️⃣ (Optional) Listen for foreground messages
-      onMessage(messaging, payload => {
-        console.log('Foreground FCM message:', payload);
-        // e.g. display a toast or in-app notification
-      });
-    })();
-  }, []);
+        const messaging = await messagingReady;
+        if (!messaging) {
+          console.warn("FCM not supported here");
+          setShowBanner(isPWA && !hasToken);
+          return;
+        }
+
+        if (!(await registerServiceWorker())) {
+          setShowBanner(isPWA && !hasToken);
+          return;
+        }
+
+        const vapidKey = import.meta.env.VITE_VAPID_KEY;
+        const fcmToken = await getToken(messaging, { vapidKey });
+        if (!fcmToken) {
+          console.error("No FCM token retrieved");
+          setShowBanner(isPWA && !hasToken);
+          return;
+        }
+
+        const tokenExists = await checkTokenExists(currentUser.uid, fcmToken);
+        if (tokenExists) {
+          setHasToken(true);
+          setShowBanner(false);
+          return;
+        }
+
+        await saveTokenToBackend(messaging, fcmToken);
+        setHasToken(true);
+        setShowBanner(isPWA && !hasToken);
+
+        const unsubscribe = messaging.onTokenRefresh(async () => {
+          try {
+            const newToken = await getToken(messaging, { vapidKey });
+            if (newToken) {
+              await saveTokenToBackend(messaging, newToken);
+            }
+          } catch (err) {
+            console.error("Error handling token refresh:", err);
+          }
+        });
+
+        onMessage(messaging, (payload) => {
+          if (payload.data?.userId === currentUser?.uid) {
+            console.log("Foreground FCM message:", payload);
+            new Notification(payload.notification.title, {
+              body: payload.notification.body,
+            });
+          }
+        });
+
+        return () => unsubscribe && unsubscribe();
+      } catch (err) {
+        console.error("Error setting up notifications:", err);
+        setShowBanner(isPWA && !hasToken);
+      }
+    };
+
+    setupNotifications();
+  }, [
+    currentUser,
+    checkTokenExists,
+    saveTokenToBackend,
+    registerServiceWorker,
+    isPWA,
+  ]);
+
+  useEffect(() => {
+    if (!currentUser || !currentUserData?.notificationAllowed) return;
+
+    const checkPermissions = async () => {
+      if (Notification.permission !== "granted") {
+        try {
+          const removeToken = httpsCallable(functions, "removeFcmToken");
+          await removeToken();
+          setHasToken(false);
+          Object.keys(localStorage)
+            .filter((key) => key.startsWith(`fcmToken_${currentUser.uid}_`))
+            .forEach((key) => localStorage.removeItem(key));
+          setShowBanner(isPWA);
+        } catch (err) {
+          console.error(
+            "Error removing token after permission revocation:",
+            err
+          );
+        }
+      }
+    };
+
+    checkPermissions();
+  }, [currentUser, currentUserData, isPWA]);
+
+  return { showBanner, handleEnableNotifs, enabling, isPWA };
 }

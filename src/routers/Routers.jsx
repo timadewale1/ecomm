@@ -1,69 +1,106 @@
-import React from "react";
-import { Routes, Route } from "react-router-dom";
-import ProductDetailPage from "../pages/UserSide/ProductDetail.jsx";
-import Login from "../pages/Login.jsx";
-import Signup from "../pages/Signup.jsx";
-import NotificationsPage from "../pages/UserSide/Notifications.jsx";
-import ForgetPassword from "../pages/forgetPassword.jsx";
-import Donate from "../pages/Donate.jsx";
-import VendorSignup from "../pages/VendorSignup.jsx";
-import AuthActionHandler from "../custom-hooks/Authhandler.jsx";
-import VendorOrders from "../pages/Orders/VendorOrders.jsx";
-import VendorLogin from "../pages/VendorLogin.jsx";
-import VendorDashboard from "../pages/VendorCompleteProfile/vendordashboard.jsx";
-import FavoritesPage from "../pages/UserSide/FavoritesProducts.jsx";
-import VendorProducts from "../pages/VendorCompleteProfile/VendorProducts.jsx";
-import VendorProfile from "../pages/VendorCompleteProfile/VendorProfile.jsx";
-import VendorVerifyOTP from "../pages/vendor/VerifyOtp.jsx";
-import MarketStorePage from "../pages/MarketStorePage.jsx";
-import PayPage from "../pages/UserSide/PayPage.jsx";
-import Marketpg from "../pages/Marketpg.jsx";
-import ResetPassword from "../pages/UserSide/ResetPassword.jsx";
-import CompleteProfile from "../pages/VendorCompleteProfile/CompleteVendorProfile.jsx";
-import NewHome from "../pages/Homepage.jsx";
-import EmailVerification from "../pages/UserSide/ConfirmEmail.jsx";
-import LatestCart from "../pages/Cart.jsx";
-import OrdersCentre from "../pages/UserSide/OrdersCentre.jsx";
-import Checkout from "../pages/NewCheckout.jsx";
-import MarketVendors from "../pages/MarketVendors.jsx";
-import Profile from "../pages/Profile.jsx";
-import ConditionProducts from "../components/Conditions/ConditionPage.jsx";
-import Explore from "../pages/Explore.jsx";
-import Marketcardpage from "../pages/marketcardpage.jsx";
-import OnlineVendors from "../pages/OnlineVendors.jsx";
-import ConfirmUserState from "../pages/ConfirmUserState.jsx";
-import ProtectedRoute from "./ProtectedRoute.jsx";
-import StorePage from "../pages/StorePage.jsx";
-import CategoryPage from "../pages/UserSide/CategoryPage.jsx";
-import VendorRatings from "../pages/vendor/VendorRatings.jsx";
-import SearchPage from "../pages/UserSide/Searchpage.jsx";
-import InAppDiscountProducts from "../pages/UserSide/InAppDiscountProducts.jsx";
-import ErrorBoundary from "../components/Errorboundary.jsx";
-import TermsAndConditions from "../pages/Legal/TermsAndConditions.jsx";
-import CallGuide from "../pages/Legal/CallGuide.jsx";
-import DeliveryGuide from "../pages/Legal/DeliveryGuide.jsx";
-import PrivacyPolicy from "../pages/Legal/PrivacyPolicy.jsx";
-import NotFound from "../pages/NotFound.jsx";
-import VendorChat from "../pages/vendor/VendorChat.jsx";
-import VendorChatList from "../pages/vendor/VendorChatList.jsx";
-import StoreReviews from "../pages/vendor/StoreReviews.jsx";
-import RoleBasedAccess from "../custom-hooks/Rbac.jsx"; // Assuming this is the RoleBasedAccess component
-import { Navigate } from "react-router-dom";
-import WalletPage from "../pages/vendor/WalletPage.jsx";
-import WithAnswerModal from "../components/Reviews/WithAnswerModal.jsx";
-import PersonalDiscountsPage from "../components/Discounts/PersonalDiscountsPage.jsx";
-import WithReviewModal from "../components/Reviews/WithReview.jsx";
-import CategoryProducts from "../components/PopularCategories/CategorySection.jsx";
-import SubmitFeedback from "../pages/SubmitFeedback.jsx";
-import WithWalletSetupModal from "../components/Reviews/WithWalletSetupModal.jsx";
-import WithWhatsAppModal from "../components/layout/WithPwaInstallModal.jsx";
-import WithPwaInstallModal from "./../components/layout/WithPwaInstallModal";
+import React, { Suspense, lazy } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import Loading from "../components/Loading/Loading.jsx";
+
+// Lazy load all components
+const ProductDetailPage = lazy(() =>
+  import("../pages/UserSide/ProductDetail.jsx")
+);
+const Login = lazy(() => import("../pages/Login.jsx"));
+const Signup = lazy(() => import("../pages/Signup.jsx"));
+const NotificationsPage = lazy(() =>
+  import("../pages/UserSide/Notifications.jsx")
+);
+const ForgetPassword = lazy(() => import("../pages/forgetPassword.jsx"));
+const Donate = lazy(() => import("../pages/Donate.jsx"));
+const VendorSignup = lazy(() => import("../pages/VendorSignup.jsx"));
+const AuthActionHandler = lazy(() => import("../custom-hooks/Authhandler.jsx"));
+const VendorOrders = lazy(() => import("../pages/Orders/VendorOrders.jsx"));
+const VendorLogin = lazy(() => import("../pages/VendorLogin.jsx"));
+const VendorDashboard = lazy(() =>
+  import("../pages/VendorCompleteProfile/vendordashboard.jsx")
+);
+const FavoritesPage = lazy(() =>
+  import("../pages/UserSide/FavoritesProducts.jsx")
+);
+const VendorProducts = lazy(() =>
+  import("../pages/VendorCompleteProfile/VendorProducts.jsx")
+);
+const VendorProfile = lazy(() =>
+  import("../pages/VendorCompleteProfile/VendorProfile.jsx")
+);
+const VendorVerifyOTP = lazy(() => import("../pages/vendor/VerifyOtp.jsx"));
+const MarketStorePage = lazy(() => import("../pages/MarketStorePage.jsx"));
+const PayPage = lazy(() => import("../pages/UserSide/PayPage.jsx"));
+const Marketpg = lazy(() => import("../pages/Marketpg.jsx"));
+const ResetPassword = lazy(() => import("../pages/UserSide/ResetPassword.jsx"));
+const CompleteProfile = lazy(() =>
+  import("../pages/VendorCompleteProfile/CompleteVendorProfile.jsx")
+);
+const NewHome = lazy(() => import("../pages/Homepage.jsx"));
+const EmailVerification = lazy(() =>
+  import("../pages/UserSide/ConfirmEmail.jsx")
+);
+const LatestCart = lazy(() => import("../pages/Cart.jsx"));
+const OrdersCentre = lazy(() => import("../pages/UserSide/OrdersCentre.jsx"));
+const Checkout = lazy(() => import("../pages/NewCheckout.jsx"));
+const MarketVendors = lazy(() => import("../pages/MarketVendors.jsx"));
+const Profile = lazy(() => import("../pages/Profile.jsx"));
+const ConditionProducts = lazy(() =>
+  import("../components/Conditions/ConditionPage.jsx")
+);
+const Explore = lazy(() => import("../pages/Explore.jsx"));
+const Marketcardpage = lazy(() => import("../pages/marketcardpage.jsx"));
+const OnlineVendors = lazy(() => import("../pages/OnlineVendors.jsx"));
+const ConfirmUserState = lazy(() => import("../pages/ConfirmUserState.jsx"));
+const ProtectedRoute = lazy(() => import("./ProtectedRoute.jsx"));
+const StorePage = lazy(() => import("../pages/StorePage.jsx"));
+const CategoryPage = lazy(() => import("../pages/UserSide/CategoryPage.jsx"));
+const VendorRatings = lazy(() => import("../pages/vendor/VendorRatings.jsx"));
+const SearchPage = lazy(() => import("../pages/UserSide/Searchpage.jsx"));
+const InAppDiscountProducts = lazy(() =>
+  import("../pages/UserSide/InAppDiscountProducts.jsx")
+);
+const ErrorBoundary = lazy(() => import("../components/Errorboundary.jsx"));
+const TermsAndConditions = lazy(() =>
+  import("../pages/Legal/TermsAndConditions.jsx")
+);
+const CallGuide = lazy(() => import("../pages/Legal/CallGuide.jsx"));
+const DeliveryGuide = lazy(() => import("../pages/Legal/DeliveryGuide.jsx"));
+const PrivacyPolicy = lazy(() => import("../pages/Legal/PrivacyPolicy.jsx"));
+const NotFound = lazy(() => import("../pages/NotFound.jsx"));
+const VendorChat = lazy(() => import("../pages/vendor/VendorChat.jsx"));
+const VendorChatList = lazy(() => import("../pages/vendor/VendorChatList.jsx"));
+const StoreReviews = lazy(() => import("../pages/vendor/StoreReviews.jsx"));
+const RoleBasedAccess = lazy(() => import("../custom-hooks/Rbac.jsx"));
+const WalletPage = lazy(() => import("../pages/vendor/WalletPage.jsx"));
+const WithAnswerModal = lazy(() =>
+  import("../components/Reviews/WithAnswerModal.jsx")
+);
+const PersonalDiscountsPage = lazy(() =>
+  import("../components/Discounts/PersonalDiscountsPage.jsx")
+);
+const WithReviewModal = lazy(() =>
+  import("../components/Reviews/WithReview.jsx")
+);
+const CategoryProducts = lazy(() =>
+  import("../components/PopularCategories/CategorySection.jsx")
+);
+const SubmitFeedback = lazy(() => import("../pages/SubmitFeedback.jsx"));
+const WithWalletSetupModal = lazy(() =>
+  import("../components/Reviews/WithWalletSetupModal.jsx")
+);
+const WithPwaInstallModal = lazy(() =>
+  import("../components/layout/WithPwaInstallModal.jsx")
+);
+
 const Routers = () => {
   return (
-    <WithPwaInstallModal>
+    <Suspense fallback={<Loading />}>
+      <WithPwaInstallModal>
       <Routes>
-        {/* Default Route */}
-        <Route path="/" element={<ConfirmUserState />} />
+          {/* Default Route */}
+          <Route path="/" element={<ConfirmUserState />} />
 
         {/* Public Routes */}
         <Route path="/pay/:token" element={<PayPage />} />
@@ -310,11 +347,12 @@ const Routers = () => {
           <Route path="/donate" element={<Donate />} />
         </Route>
 
-        <Route path="/not-found" element={<NotFound />} />
-        {/* Catch-all Route for NotFound */}
-        <Route path="*" element={<Navigate to="/not-found" />} />
-      </Routes>
+          <Route path="/not-found" element={<NotFound />} />
+          {/* Catch-all Route for NotFound */}
+          <Route path="*" element={<Navigate to="/not-found" />} />
+        </Routes>
     </WithPwaInstallModal>
+    </Suspense>
   );
 };
 

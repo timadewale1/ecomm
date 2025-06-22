@@ -1,4 +1,3 @@
-// src/redux/slices/categoryProductsSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { db } from "../../firebase.config";
 import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
@@ -28,6 +27,7 @@ function deduplicateById(arr) {
 /**
  * Thunk to fetch products for a given category.
  * If loadMore is false and data is already cached, it returns the cached data.
+ * Note: Category metadata (e.g., header images, subtitles) is handled by categoryMetadataSlice.
  */
 export const fetchCategoryProducts = createAsyncThunk(
   "categoryProducts/fetchCategoryProducts",

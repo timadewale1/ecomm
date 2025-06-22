@@ -307,15 +307,6 @@
 
     <script>
       document.addEventListener("DOMContentLoaded", () => {
-        window.beforeInstallEvent = null;
-        function handleBeforeInstallPrompt(e) {
-          e.preventDefault();
-          window.beforeInstallEvent = e;
-        }
-        window.addEventListener(
-          "beforeinstallprompt",
-          handleBeforeInstallPrompt
-        );
         const isPWA = window.matchMedia("(display-mode: standalone)").matches;
         const isIOS =
           /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;

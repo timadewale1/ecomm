@@ -34,25 +34,15 @@
 
   /* Modal content styling */
   .pwa-modal-content {
-    background: #222;
+    background: #fffefe;
     padding: 15px; 
     border-radius: 10px;
     width: 90%;
     margin-bottom: 20px;
-    text-align: center;
-  }
-  
-  .pwa-modal-content img {
-    border-radius: 10px;
-    width: 60px;
-    height: 60px;
-    margin: 0 auto;
-    display: block;
   }
   
   .head {
     margin-bottom: 20px;
-    color: white;
     font-size: 1.25rem;
   }
   

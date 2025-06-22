@@ -56,7 +56,8 @@ import WithReviewModal from "../components/Reviews/WithReview.jsx";
 import CategoryProducts from "../components/PopularCategories/CategorySection.jsx";
 import SubmitFeedback from "../pages/SubmitFeedback.jsx";
 import WithWalletSetupModal from "../components/Reviews/WithWalletSetupModal.jsx";
-import WithWhatsAppModal from "../components/ChannelLinkModal/WithWhatsAppModal.jsx";
+import WithWhatsAppModal from "../components/layout/WithPwaInstallModal.jsx";
+import WithPwaInstallModal from "./../components/layout/WithPwaInstallModal";
 const Routers = () => {
   return (
     <Routes>
@@ -107,11 +108,13 @@ const Routers = () => {
         path="/newhome"
         element={
           <RoleBasedAccess allowedRoles={["user"]}>
-            <WithAnswerModal>
-              <WithReviewModal>
-                <NewHome />
-              </WithReviewModal>
-            </WithAnswerModal>
+            <WithPwaInstallModal>
+              <WithAnswerModal>
+                <WithReviewModal>
+                  <NewHome />
+                </WithReviewModal>
+              </WithAnswerModal>
+            </WithPwaInstallModal>
           </RoleBasedAccess>
         }
       />
@@ -259,9 +262,11 @@ const Routers = () => {
         <Route
           path="/vendordashboard"
           element={
-            <WithWalletSetupModal>
-              <VendorDashboard />
-            </WithWalletSetupModal>
+            <WithPwaInstallModal>
+              <WithWalletSetupModal>
+                <VendorDashboard />
+              </WithWalletSetupModal>
+            </WithPwaInstallModal>
           }
         />
         <Route path="/vendor-profile" element={<VendorProfile />} />

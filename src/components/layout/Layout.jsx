@@ -21,7 +21,6 @@ const Layout = () => {
     currentUser,
     currentUserData
   );
-  const [showInstallModal, setShowInstallModal] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 575);
 
   useEffect(() => {
@@ -111,11 +110,10 @@ const Layout = () => {
   return (
     <NavigationProvider>
       <VendorNavigationProvider>
-
-        {showInstallModal && isPWA && (
-
+        {/* Render the PWAInstallModal if needed */}
+        {/* {showInstallModal && (
           <PWAInstallModal onClose={() => setShowInstallModal(false)} />
-        )} 
+        )} */}
         {isMobile ? (
           <>
             {showBanner && (

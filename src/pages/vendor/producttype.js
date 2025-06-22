@@ -776,3 +776,6 @@ const productTypes = [
 ];
 
 export default productTypes;
+
+
+

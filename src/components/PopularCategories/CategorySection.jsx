@@ -246,13 +246,13 @@ const CategoryProducts = () => {
           )}
 
           {/* Fallback: Show message if no products found */}
-          {!productsLoading &&
+          {/* {!productsLoading &&
             categoryData &&
             (categoryData.noMoreProducts || products.length === 0) && (
               <p className="text-center mt-4 text-gray-600">
                 No {productType} found. Check back for updates.
               </p>
-            )}
+            )} */}
         </div>
       </SkeletonTheme>
     </>

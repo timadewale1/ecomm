@@ -31,6 +31,7 @@ import catsectionReducer from "./reducers/catsection";
 import categoryProductsReducer from "./reducers/categoryProductsSlice";
 import topVendorsReducer from "./reducers/topVendorsSlice";
 import vendorStockpileReducer from "./reducers/vendorStockpileSlice";
+import categoryMetadataReducer from "./reducers/categoryMetadataSlice";
 // Redux Persist config (only for stockpile)
 const persistConfig = {
   key: "root",
@@ -56,6 +57,7 @@ const rootReducer = combineReducers({
   market: marketReducer,
   promo: promoReducer,
   chat: chatReducer,
+  categoryMetadata: categoryMetadataReducer,
   vendorStockpile: vendorStockpileReducer,
   personalDiscountsPage: personalDiscountsPageReducer,
   personalDiscounts: personalDiscountsSlice,

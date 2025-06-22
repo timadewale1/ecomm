@@ -60,263 +60,261 @@ import WithWhatsAppModal from "../components/layout/WithPwaInstallModal.jsx";
 import WithPwaInstallModal from "./../components/layout/WithPwaInstallModal";
 const Routers = () => {
   return (
-    <Routes>
-      {/* Default Route */}
-      <Route path="/" element={<ConfirmUserState />} />
+    <WithPwaInstallModal>
+      <Routes>
+        {/* Default Route */}
+        <Route path="/" element={<ConfirmUserState />} />
 
-      {/* Public Routes */}
-      <Route path="/pay/:token" element={<PayPage />} />
-      <Route path="/confirm-state" element={<ConfirmUserState />} />
-      <Route path="product/:id" element={<ProductDetailPage />} />
-      <Route path="signup" element={<Signup />} />
-      <Route
-        path="/inapp-discounts/:discountName"
-        element={<InAppDiscountProducts />}
-      />
-      <Route path="vendor-signup" element={<VendorSignup />} />
-      <Route path="login" element={<Login />} />
-      <Route path="vendorlogin" element={<VendorLogin />} />
-      <Route path="complete-profile" element={<CompleteProfile />} />
-      <Route path="/forgetpassword" element={<ForgetPassword />} />
-      <Route path="reset-password" element={<ResetPassword />} />
-      <Route path="/confirm-email" element={<EmailVerification />} />
-      <Route path="/auth-action" element={<AuthActionHandler />} />
-      <Route path="/vendor-verify-otp" element={<VendorVerifyOTP />} />
-      <Route path="terms-and-conditions" element={<TermsAndConditions />} />
-      <Route path="privacy-policy" element={<PrivacyPolicy />} />
-      <Route path="/send-us-feedback" element={<SubmitFeedback />} />
-      {/* Apply Role-Based Access to Specific Routes */}
-      <Route
-        path="/profile"
-        element={
-          <RoleBasedAccess allowedRoles={["user"]}>
-            <WithReviewModal>
-              <Profile />
-            </WithReviewModal>
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/producttype/:type"
-        element={
-          <RoleBasedAccess allowedRoles={["user"]}>
-            <CategoryProducts />
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/newhome"
-        element={
-          <RoleBasedAccess allowedRoles={["user"]}>
-            <WithPwaInstallModal>
+        {/* Public Routes */}
+        <Route path="/pay/:token" element={<PayPage />} />
+        <Route path="/confirm-state" element={<ConfirmUserState />} />
+        <Route path="product/:id" element={<ProductDetailPage />} />
+        <Route path="signup" element={<Signup />} />
+        <Route
+          path="/inapp-discounts/:discountName"
+          element={<InAppDiscountProducts />}
+        />
+        <Route path="vendor-signup" element={<VendorSignup />} />
+        <Route path="login" element={<Login />} />
+        <Route path="vendorlogin" element={<VendorLogin />} />
+        <Route path="complete-profile" element={<CompleteProfile />} />
+        <Route path="/forgetpassword" element={<ForgetPassword />} />
+        <Route path="reset-password" element={<ResetPassword />} />
+        <Route path="/confirm-email" element={<EmailVerification />} />
+        <Route path="/auth-action" element={<AuthActionHandler />} />
+        <Route path="/vendor-verify-otp" element={<VendorVerifyOTP />} />
+        <Route path="terms-and-conditions" element={<TermsAndConditions />} />
+        <Route path="privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/send-us-feedback" element={<SubmitFeedback />} />
+        {/* Apply Role-Based Access to Specific Routes */}
+        <Route
+          path="/profile"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <WithReviewModal>
+                <Profile />
+              </WithReviewModal>
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/producttype/:type"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <CategoryProducts />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/newhome"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
               <WithAnswerModal>
                 <WithReviewModal>
                   <NewHome />
                 </WithReviewModal>
               </WithAnswerModal>
-            </WithPwaInstallModal>
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/products/condition/:condition"
-        element={
-          <RoleBasedAccess allowedRoles={["user"]}>
-            <WithReviewModal>
-              <ConditionProducts />
-            </WithReviewModal>
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/favorites"
-        element={
-          <RoleBasedAccess allowedRoles={["user"]}>
-            <FavoritesPage />
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/search"
-        element={
-          <RoleBasedAccess allowedRoles={["user"]}>
-            <SearchPage />
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/user-orders"
-        element={
-          <RoleBasedAccess allowedRoles={["user"]}>
-            <OrdersCentre />
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/latest-cart"
-        element={
-          <RoleBasedAccess allowedRoles={["user"]}>
-            <WithReviewModal>
-              <LatestCart />
-            </WithReviewModal>
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/notifications"
-        element={
-          <RoleBasedAccess allowedRoles={["user"]}>
-            <NotificationsPage />
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/marketstorepage/:id"
-        element={
-          <RoleBasedAccess allowedRoles={["user", null]}>
-            <MarketStorePage />
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/discounts-today"
-        element={
-          <RoleBasedAccess allowedRoles={["user", null]}>
-            <PersonalDiscountsPage />
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/store/:id"
-        element={
-          <RoleBasedAccess allowedRoles={["user", null]}>
-            <StorePage />
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/category/:category"
-        element={
-          <RoleBasedAccess allowedRoles={["user", null]}>
-            <CategoryPage />
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/market-vendors"
-        element={
-          <RoleBasedAccess allowedRoles={["user", null]}>
-            <MarketVendors />
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/online-vendors"
-        element={
-          <RoleBasedAccess allowedRoles={["user", null]}>
-            <OnlineVendors />
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/browse-markets"
-        element={
-          <RoleBasedAccess allowedRoles={["user", null]}>
-            <WithReviewModal>
-              <ErrorBoundary>
-                <Marketpg />
-              </ErrorBoundary>
-            </WithReviewModal>
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/market-card/:marketName"
-        element={
-          <RoleBasedAccess allowedRoles={["user", null]}>
-            <Marketcardpage />
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/explore"
-        element={
-          <RoleBasedAccess allowedRoles={["user", null]}>
-            <WithReviewModal>
-              <Explore />
-            </WithReviewModal>
-          </RoleBasedAccess>
-        }
-      />
-      <Route
-        path="/reviews/:id"
-        element={
-          <RoleBasedAccess allowedRoles={["user", null]}>
-            <VendorRatings />
-          </RoleBasedAccess>
-        }
-      />
-
-      {/* Vendor Protected Routes */}
-      <Route element={<ProtectedRoute requiredRole="vendor" />}>
+            </RoleBasedAccess>
+          }
+        />
         <Route
-          path="/vendordashboard"
+          path="/products/condition/:condition"
           element={
-            <WithPwaInstallModal>
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <WithReviewModal>
+                <ConditionProducts />
+              </WithReviewModal>
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/favorites"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <FavoritesPage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/search"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <SearchPage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/user-orders"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <OrdersCentre />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/latest-cart"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <WithReviewModal>
+                <LatestCart />
+              </WithReviewModal>
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <NotificationsPage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/marketstorepage/:id"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <MarketStorePage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/discounts-today"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <PersonalDiscountsPage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/store/:id"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <StorePage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/category/:category"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <CategoryPage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/market-vendors"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <MarketVendors />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/online-vendors"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <OnlineVendors />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/browse-markets"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <WithReviewModal>
+                <ErrorBoundary>
+                  <Marketpg />
+                </ErrorBoundary>
+              </WithReviewModal>
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/market-card/:marketName"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <Marketcardpage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/explore"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <WithReviewModal>
+                <Explore />
+              </WithReviewModal>
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/reviews/:id"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <VendorRatings />
+            </RoleBasedAccess>
+          }
+        />
+
+        {/* Vendor Protected Routes */}
+        <Route element={<ProtectedRoute requiredRole="vendor" />}>
+          <Route
+            path="/vendordashboard"
+            element={
               <WithWalletSetupModal>
                 <VendorDashboard />
               </WithWalletSetupModal>
-            </WithPwaInstallModal>
-          }
-        />
-        <Route path="/vendor-profile" element={<VendorProfile />} />
-        <Route
-          path="/vendor-products"
-          element={
-            <WithWalletSetupModal>
-              <VendorProducts />
-            </WithWalletSetupModal>
-          }
-        />
-        <Route path="/vendor-wallet" element={<WalletPage />} />
-        <Route
-          path="/vendor-orders"
-          element={
-            <WithWalletSetupModal>
-              <VendorOrders />
-            </WithWalletSetupModal>
-          }
-        />
-        <Route
-          path="/store-reviews"
-          element={
-            /*<WithWhatsAppModal>*/ <StoreReviews /> /*</WithWhatsAppModal>*/
-          }
-        />
-        <Route
-          path="/vchats"
-          element={
-            <WithWalletSetupModal>
-              <VendorChatList />
-            </WithWalletSetupModal>
-          }
-        />
-        <Route path="/vchats/:inquiryId" element={<VendorChat />} />
-        <Route path="/call-guidelines" element={<CallGuide />} />
-        <Route path="/delivery-guidelines" element={<DeliveryGuide />} />
-        {/* Add any other vendor-specific protected routes here */}
-      </Route>
+            }
+          />
+          <Route path="/vendor-profile" element={<VendorProfile />} />
+          <Route
+            path="/vendor-products"
+            element={
+              <WithWalletSetupModal>
+                <VendorProducts />
+              </WithWalletSetupModal>
+            }
+          />
+          <Route path="/vendor-wallet" element={<WalletPage />} />
+          <Route
+            path="/vendor-orders"
+            element={
+              <WithWalletSetupModal>
+                <VendorOrders />
+              </WithWalletSetupModal>
+            }
+          />
+          <Route
+            path="/store-reviews"
+            element={
+              /*<WithWhatsAppModal>*/ <StoreReviews /> /*</WithWhatsAppModal>*/
+            }
+          />
+          <Route
+            path="/vchats"
+            element={
+              <WithWalletSetupModal>
+                <VendorChatList />
+              </WithWalletSetupModal>
+            }
+          />
+          <Route path="/vchats/:inquiryId" element={<VendorChat />} />
+          <Route path="/call-guidelines" element={<CallGuide />} />
+          <Route path="/delivery-guidelines" element={<DeliveryGuide />} />
+          {/* Add any other vendor-specific protected routes here */}
+        </Route>
 
-      {/* User Protected Routes */}
-      <Route element={<ProtectedRoute requiredRole="user" />}>
-        <Route path="/newcheckout/:vendorId" element={<Checkout />} />
-        <Route path="/donate" element={<Donate />} />
-      </Route>
+        {/* User Protected Routes */}
+        <Route element={<ProtectedRoute requiredRole="user" />}>
+          <Route path="/newcheckout/:vendorId" element={<Checkout />} />
+          <Route path="/donate" element={<Donate />} />
+        </Route>
 
-      <Route path="/not-found" element={<NotFound />} />
-      {/* Catch-all Route for NotFound */}
-      <Route path="*" element={<Navigate to="/not-found" />} />
-    </Routes>
+        <Route path="/not-found" element={<NotFound />} />
+        {/* Catch-all Route for NotFound */}
+        <Route path="*" element={<Navigate to="/not-found" />} />
+      </Routes>
+    </WithPwaInstallModal>
   );
 };
 

@@ -116,12 +116,12 @@ const Layout = () => {
         )}
         {isMobile ? (
           <>
-            {/* {showBanner && ( */}
+            {showBanner && (
               <NotificationPermissionBanner
                 onEnable={handleEnableNotifs}
                 enabling={enabling}
               />
-            {/* )} */}
+            )}
             <div className="relative">
               <ScrollToTop />
               <Routers />

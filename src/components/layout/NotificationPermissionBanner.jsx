@@ -7,7 +7,7 @@ export default function NotificationPermissionBanner({ onEnable, loading }) {
     <div className="px-2">
       <div
         className="glass-card relative w-full flex flex-col items-center justify-center
-        bg-neutral-500 backdrop-blur-xl border border-white/10
+        bg-neutral-500/20 backdrop-blur-xl border border-white/10
         rounded-2xl mt-2
         py-3 px-2 overflow-hidden"
       >

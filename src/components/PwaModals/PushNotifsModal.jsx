@@ -58,9 +58,9 @@ const IframeModal = ({ show, onClose, url }) => {
                 <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-sm z-20">
                   <RotatingLines
                     strokeColor="#f9531e"
-                    strokeWidth="4"
+                    strokeWidth="3"
                     animationDuration="0.75"
-                    width="48"
+                    width="30"
                     visible={true}
                   />
                 </div>

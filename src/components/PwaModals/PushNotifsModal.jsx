@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import Modal from "react-modal";
 import { motion, AnimatePresence } from "framer-motion";
-import { ThreeDots  } from "react-loader-spinner"; // 👈 spinner
+import { RotatingLines } from "react-loader-spinner"; // 👈 spinner
 
 Modal.setAppElement("#root");
 
@@ -58,7 +58,7 @@ const IframeModal = ({ show, onClose, url }) => {
                 <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-sm z-20">
                   <RotatingLines
                     strokeColor="#f9531e"
-                    strokeWidth="3"
+                    strokeWidth="4"
                     animationDuration="0.75"
                     width="48"
                     visible={true}

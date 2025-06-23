@@ -1,30 +1,55 @@
-// src/components/NotificationPermissionBanner.jsx
 import React from "react";
 import { Oval } from "react-loader-spinner";
+import "./GlassShimmer.css";
 
 export default function NotificationPermissionBanner({ onEnable, loading }) {
   return (
-    <div className="fixed top-0 left-0 w-full bg-gradient-to-b from-white to-customBrown text-customRichBrown flex items-center justify-between px-4 py-4 h-20 z-50 shadow-md">
-      <div className="text-sm font-medium font-opensans">
-        Push notifications are active! Enable them so you never miss any update!🧡
-      </div>
-      <button
-        onClick={onEnable}
-        disabled={loading}
-        className="flex items-center text-xs ml-4 bg-white text-customRichBrown font-satoshi font-semibold px-3 py-1 rounded-full hover:bg-gray-100 transition disabled:opacity-50"
+    <div className="px-2">
+      <div
+        className="glass-card relative w-full flex flex-col items-center justify-center
+        bg-neutral-500 backdrop-blur-xl border border-white/10
+        rounded-2xl mt-2
+        py-3 px-2 overflow-hidden"
       >
-        {loading ? (
-          <Oval
-            height={20}
-            width={20}
-            strokeWidth={5}
-            color="#f9531e"
-            secondaryColor="#fff"
-          />
-        ) : (
-          "Enable"
-        )}
-      </button>
+        <p className="text-sm text-center font-semibold font-opensans text-white z-10">
+          🔔 Stay in the loop — enable push notifications to get real-time
+          updates, offers, and alerts!
+          <br />
+          <span className="text-xs font-normal mt-2 block">
+            Seeing this more than once?{" "}
+            <a
+              href="https://mythrift.tawk.help/article/why-you-might-see-the-push-notification-prompt-more-than-once"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-orange-300 transition"
+            >
+              Here’s why
+            </a>
+            .
+          </span>
+        </p>
+
+        <button
+          onClick={onEnable}
+          disabled={loading}
+          className="mt-4 z-10 flex w-52  items-center gap-2 text-xs justify-center font-opensans 
+          text-white bg-white/10 border border-white/20
+          backdrop-blur-md  py-1.5  rounded-md hover:bg-white/20
+          transition-all duration-200 disabled:opacity-60 shadow"
+        >
+          {loading ? (
+            <Oval
+              height={18}
+              width={18}
+              strokeWidth={4}
+              color="#ffffff"
+              secondaryColor="#f9531e"
+            />
+          ) : (
+            "Tap to enable push notifications"
+          )}
+        </button>
+      </div>
     </div>
   );
 }

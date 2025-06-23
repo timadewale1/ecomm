@@ -17,10 +17,10 @@ import { useFCM } from "../../custom-hooks/useFCM";
 const Layout = () => {
   const location = useLocation();
   const { currentUser, currentUserData } = useAuth();
-  const { showBanner, handleEnableNotifs, enabling, isPWA } = useFCM(
-    currentUser,
-    currentUserData
-  );
+  // const { showBanner, handleEnableNotifs, enabling, isPWA } = useFCM(
+  //   currentUser,
+  //   currentUserData
+  // );
   const [isMobile, setIsMobile] = useState(window.innerWidth < 575);
 
   useEffect(() => {
@@ -116,12 +116,12 @@ const Layout = () => {
         )} */}
         {isMobile ? (
           <>
-            {showBanner && (
+            {/* {showBanner && ( */}
               <NotificationPermissionBanner
-                onEnable={handleEnableNotifs}
-                enabling={enabling}
+                // onEnable={handleEnableNotifs}
+                // enabling={enabling}
               />
-            )}
+            {/* )} */}
             <div className="relative">
               <ScrollToTop />
               <Routers />

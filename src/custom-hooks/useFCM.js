@@ -4,6 +4,7 @@ import { getToken, onMessage } from "firebase/messaging";
 import { httpsCallable } from "firebase/functions";
 import { doc, getDoc } from "firebase/firestore";
 import { debounce } from "lodash";
+import toast from "react-hot-toast";
 
 export function useFCM(currentUser, currentUserData) {
   const [showBanner, setShowBanner] = useState(false);
@@ -117,6 +118,7 @@ export function useFCM(currentUser, currentUserData) {
       await saveTokenToBackend(messaging, fcmToken);
       setHasToken(true);
       setShowBanner(false);
+      toast.success("Notifications enabled! You’re all set ✅");
     } catch (err) {
       console.error("❌ Error in handleEnableNotifs:", err);
       setShowBanner(isPWA);

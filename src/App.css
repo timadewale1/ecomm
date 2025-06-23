@@ -290,29 +290,66 @@ li::marker {
 }
 /*  ───────────────────  shimmer rainbow glass  ─────────────────── */
 @keyframes rainbowGlass {
-  0%   { background-position: 0% 50%; opacity: .4; }
-  50%  { background-position: 100% 50%; opacity: .7; }
-  100% { background-position: 0% 50%; opacity: .4; }
+  0% {
+    background-position: 0% 50%;
+    opacity: 0.4;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 0.7;
+  }
+  100% {
+    background-position: 0% 50%;
+    opacity: 0.4;
+  }
 }
 
 .breathing-gradient::before {
-  content: '';
+  content: "";
   position: absolute;
-  inset: 0;                   /* cover the element fully      */
-  border-radius: inherit;     /* keep rounded corners          */
-  pointer-events: none;       /* let clicks through            */
+  inset: 0; /* cover the element fully      */
+  border-radius: inherit; /* keep rounded corners          */
+  pointer-events: none; /* let clicks through            */
   background: linear-gradient(
-      130deg,
-      #ff9d9d 0%,
-      #f9cb65 20%,
-      #ffe57e 40%,
-      #83e8ff 60%,
-      #bda6ff 80%,
-      #ff9d9d 100%);
+    130deg,
+    #ff9d9d 0%,
+    #f9cb65 20%,
+    #ffe57e 40%,
+    #83e8ff 60%,
+    #bda6ff 80%,
+    #ff9d9d 100%
+  );
   background-size: 400% 400%;
-  mix-blend-mode: overlay;    /* subtle glass-y look           */
+  mix-blend-mode: overlay; /* subtle glass-y look           */
   animation: rainbowGlass 4s ease-in-out infinite;
-  filter: blur(4px);          /* soften a bit                  */
+  filter: blur(4px); /* soften a bit                  */
+}
+.glass-card::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.4) 40%,
+    rgba(255, 255, 255, 0.1) 60%
+  );
+  transform: rotate(25deg);
+  animation: shimmer 6s infinite linear;
+  z-index: 1;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%) rotate(25deg);
+  }
+  100% {
+    transform: translateX(100%) rotate(25deg);
+  }
 }
 
 .shimmer-effect::after {

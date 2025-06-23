@@ -194,7 +194,6 @@ export default function WalletPage() {
       const token = import.meta.env.VITE_RESOLVE_TOKEN;
       const url = `${import.meta.env.VITE_API_BASE_URL}/create-wallet`;
 
-      // Log exactly what PIN and payload we’re sending
       console.log("🔐 createWallet – walletPin:", initialPin);
       const payload = {
         firstName: vendorData.firstName,
@@ -215,7 +214,13 @@ export default function WalletPage() {
         body: JSON.stringify(payload),
       });
 
+      // Log response status and headers
+      console.log("📥 API Response Status:", res.status, res.statusText);
+      console.log("📥 API Response Headers:", [...res.headers]);
+
       const result = await res.json();
+      console.log("📥 API Response Body:", result);
+
       if (!result.status) throw new Error(result.message);
       const d = result.data;
 

@@ -277,6 +277,7 @@ const Login = () => {
           username: user.displayName,
           email: user.email,
           profileComplete: false,
+          walletSetup: false,
           welcomeEmailSent: false,
           notificationAllowed: false,
           role: "user",

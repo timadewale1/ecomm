@@ -51,7 +51,9 @@ const CompleteProfile = () => {
     daysAvailability: [], // Days of the week when the shop is open
     openTime: "", // Opening time for the shop
     closeTime: "", // Closing time for the shop
-
+    pickupAddress: "",
+    pickupLat: null,
+    pickupLng: null,
     // Fields common for ID verification (for both market and virtual vendors)
     idVerification: "", // Type of verification document (NIN, Passport, CAC)
     idImage: null, // File for the ID image
@@ -431,7 +433,7 @@ const CompleteProfile = () => {
           ...bankDetails,
         },
         recipientCode: recipientCode,
-        walletSetup: false,// Store the recipient code in Firestore
+        walletSetup: false, // Store the recipient code in Firestore
       };
 
       console.log("Data being saved to Firestore:", dataToStore);

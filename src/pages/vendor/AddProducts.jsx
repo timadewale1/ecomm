@@ -754,32 +754,42 @@ const AddProduct = ({ vendorId, closeModal }) => {
     let completed = 0;
 
     files.forEach((file) => {
-      new Compressor(file, {
-        quality: 0.6,
-        success(result) {
-          const preview = URL.createObjectURL(result);
-
-          setProductImages((prev) => {
-            // Prevent exceeding max count
-            if (prev.length + 1 > MAX_IMAGES) {
-              toast.error("You can only upload a maximum of 4 images.");
-              return prev;
-            }
-            return [...prev, { file: result, preview }];
-          });
-
-          completed += 1;
-          if (completed === files.length) {
-            toast.dismiss(loadingToastId);
-            toast.success("Image uploaded!");
-          }
-        },
-        error(err) {
-          console.error("Compression error:", err.message);
+      try {
+        if (file.size > MAX_FILE_SIZE) {
           toast.dismiss(loadingToastId);
-          toast.error("Image compression failed.");
-        },
-      });
+          toast.error(`${file.name} exceeds the maximum file size of 3MB`, {
+            duration: 3000,
+          });
+          return;
+        }
+        if (!file.type.startsWith("image/")) {
+          toast.dismiss(loadingToastId);
+          toast.error(`${file.name} is not a valid image file.`, {
+            duration: 3000,
+          });
+          return;
+        }
+
+        const preview = URL.createObjectURL(file);
+
+        setProductImages((prev) => {
+          if (prev.length + 1 > MAX_IMAGES) {
+            toast.error("You can only upload a maximum of 4 images.");
+            return prev;
+          }
+          return [...prev, { file, preview }];
+        });
+
+        completed += 1;
+        if (completed === files.length) {
+          toast.dismiss(loadingToastId);
+          toast.success("Image uploaded!");
+        }
+      } catch (err) {
+        console.error("Upload error:", err.message);
+        toast.dismiss(loadingToastId);
+        toast.error(`Image upload failed for ${file.name}: ${err.message}`);
+      }
     });
   };
 
@@ -916,7 +926,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
 
   return (
     <div className="flex flex-col max-h-full  h-full bg-white">
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide px-4 pb-20 space-y-6">
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide px-2 pb-10 space-y-6">
         {isUploadingImage && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
             <RotatingLines
@@ -1060,7 +1070,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
                   setSelectedSubType(null);
                 }}
                 className={[
-                  "w-1/2 py-2 rounded-full text-sm font-opensans font-semibold",
+                  "w-1/2 py-2 rounded-full text-xs  font-opensans font-semibold",
                   "transition-all duration-200",
                   active ? "bg-white text-customOrange" : "text-gray-800",
                 ].join(" ")}
@@ -1664,10 +1674,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
 
         {/* Debug console log for modal status */}
       </div>
-      <div
-        className="sticky bottom-0 left-0 w-full py-8 px-2 translate-y-7 bg-white 
-                    shadow-[0_-2px_6px_rgba(0,0,0,0.04)] z-10"
-      >
+     
         <button
           type="button"
           onClick={handleAddProduct}
@@ -1697,7 +1704,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
             </>
           )}
         </button>
-      </div>
+      
     </div>
   );
 };

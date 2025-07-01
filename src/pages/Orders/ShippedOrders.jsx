@@ -190,16 +190,25 @@ const ShippedOrders = ({ orders, openModal }) => {
                       0
                     )}{" "}
                     item(s).{" "}
-                    {order.progressStatus === "Delivered"
-                      ? "This order has been delivered to the customer."
-                      : "This order has been shipped to the customer."}
-                    {order.progressStatus === "Shipped" &&
-                      order.kwikJob?.data && (
-                        <span className="text-xs text-customOrange font-bold font-opensans mt-1">
-                          You can mark the order as delivered once you’ve handed
-                          the package to the rider. Thank you!
-                        </span>
-                      )}
+                    {order.isPickup ? (
+                      <>
+                        This is a pickup order. Please ask the customer to
+                        present their unique PIN code when they arrive
+                      </>
+                    ) : order.progressStatus === "Delivered" ? (
+                      "This order has been delivered to the customer."
+                    ) : (
+                      <>
+                        "This order has been shipped to the customer."
+                        {order.progressStatus === "Shipped" &&
+                          order.kwikJob?.data && (
+                            <span className="block text-xs text-customOrange font-bold mt-1">
+                              You can mark the order as delivered once you’ve
+                              handed the package to the rider. Thank you!
+                            </span>
+                          )}
+                      </>
+                    )}
                   </p>
                 </div>
               </div>

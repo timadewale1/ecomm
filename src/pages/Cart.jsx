@@ -29,6 +29,7 @@ import SEO from "../components/Helmet/SEO";
 import { ImSad2 } from "react-icons/im";
 import { FcPaid } from "react-icons/fc";
 import { MdClose } from "react-icons/md";
+import IkImage from "../services/IkImage";
 const debounce = (func, delay) => {
   let timeoutId;
   return (...args) => {
@@ -534,7 +535,7 @@ const Cart = () => {
                       <div className="flex justify-between items-center w-full">
                         <div className="flex items-center flex-shrink-0">
                           <div className="relative">
-                            <img
+                            <IkImage
                               src={firstProduct.selectedImageUrl}
                               alt={firstProduct.name}
                               className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
@@ -718,7 +719,7 @@ const Cart = () => {
                         <div className="flex items-center justify-between mt-2">
                           {/* Product Image */}
                           <div className="relative">
-                            <img
+                            <IkImage
                               src={item.selectedImageUrl}
                               alt={item.name}
                               className="w-16 h-16 object-cover rounded-lg"
@@ -732,7 +733,7 @@ const Cart = () => {
 
                           {/* Product Details */}
                           <div className="flex-grow ml-4">
-                            <h3 className="font-opensans text-sm">
+                            <h3 className="font-opensans text-base">
                               {item.name}
                             </h3>
 
@@ -744,15 +745,15 @@ const Cart = () => {
 
                                 {/* only show size if this product is fashion */}
                                 {item.isFashion && (
-                                  <p className="text-gray-600 mt-2">
+                                  <p className="text-gray-600 text-xs mt-2">
                                     Size:{" "}
-                                    <span className="font-semibold mr-4 text-black">
+                                    <span className="font-semibold mr-4 font-opensans text-sm text-black">
                                       {item.selectedSize}
                                     </span>
                                     {item.selectedColor && (
                                       <>
                                         Color:{" "}
-                                        <span className="font-semibold text-black">
+                                        <span className="font-semibold font-opensans text-black">
                                           {formatColorText(item.selectedColor)}
                                         </span>
                                       </>

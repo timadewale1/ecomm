@@ -1238,7 +1238,7 @@ const ProductDetailPage = () => {
           ) : (
             // Single image fallback
             <>
-              <IkImage
+              <img
                 src={allImages[0]}
                 alt={`${product.name} image`}
                 className="object-cover w-full h-full rounded-b-lg"

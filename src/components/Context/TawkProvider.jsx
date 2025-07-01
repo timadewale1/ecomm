@@ -151,7 +151,7 @@ export const TawkProvider = ({ children }) => {
   // Open chat and ensure latest attributes are set
   const openChat = async () => {
     if (!loaded || !window.Tawk_API?.toggle) {
-      console.warn("[Tawk] Widget not ready, retrying …");
+      // console.warn("[Tawk] Widget not ready, retrying …");
       setTimeout(openChat, 300);
       return;
     }

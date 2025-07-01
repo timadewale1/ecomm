@@ -127,7 +127,16 @@ const VirtualVendor = ({
         return false;
       }
     }
-
+    if (step === 4 && deliveryMode === "Delivery & Pickup") {
+      if (
+        !vendorData.pickupLat ||
+        !vendorData.pickupLng ||
+        !vendorData.pickupAddress
+      ) {
+        toast.error("Please choose a pickup location before continuing.");
+        return false;
+      }
+    }
     // If everything is valid, proceed to the next step
     handleNextStep();
     return true;
@@ -231,7 +240,13 @@ const VirtualVendor = ({
     }
 
     if (step === 4) {
-      return !!deliveryMode; // Ensures deliveryMode is selected
+      return (
+        deliveryMode &&
+        (deliveryMode !== "Delivery & Pickup" ||
+          (vendorData.pickupLat &&
+            vendorData.pickupLng &&
+            vendorData.pickupAddress))
+      );
     }
 
     if (step === 5) {
@@ -993,34 +1008,87 @@ const VirtualVendor = ({
                   </div>
                 </div>
 
-                {/* Pickup Option - Grayed Out, Not Selectable */}
-                <div className="border-0 p-2 mb-4 rounded-lg cursor-not-allowed flex justify-between items-center border-gray-200 opacity-50">
-                  <span className="font-opensans text-gray-400">Pickup</span>
-                  <div className="w-6 h-6 rounded-full border-2 flex justify-center items-center border-gray-200">
-                    {/* No inner circle for non-selectable options */}
-                  </div>
-                </div>
-
-                {/* Delivery & Pickup Option - Grayed Out, Not Selectable */}
-                <div className="border-0 p-2 mb-60 rounded-lg cursor-not-allowed flex justify-between items-center border-gray-200 opacity-50">
-                  <span className="font-opensans text-gray-400">
-                    Delivery & Pickup
+                {/* Delivery & Pickup Option */}
+                <div
+                  onClick={() => handleDeliveryModeChange("Delivery & Pickup")}
+                  className={`p-2  rounded-lg cursor-pointer flex justify-between items-center  ${
+                    deliveryMode === "Delivery & Pickup"
+                  }`}
+                >
+                  <span className="font-opensans text-black">
+                    Delivery &amp; Pickup
                   </span>
-                  <div className="w-6 h-6 rounded-full border-2 flex justify-center items-center border-gray-200">
-                    {/* No inner circle for non-selectable options */}
+
+                  <div
+                    className={`w-6 h-6 rounded-full border-2 flex flex-col justify-center items-center ${
+                      deliveryMode === "Delivery & Pickup"
+                        ? "border-customOrange"
+                        : "border-gray-300"
+                    }`}
+                  >
+                    {deliveryMode === "Delivery & Pickup" && (
+                      <div className="w-3 h-3 rounded-full bg-customOrange" />
+                    )}
                   </div>
                 </div>
-              </div>
+                {deliveryMode === "Delivery & Pickup" && (
+                  <div className="mt-2 px-2">
+                    <p className="font-opensans text-xs text-gray-700 mb-2">
+                      This pickup location is where you'll meet buyers who
+                      choose to collect their order directly from you. It can be
+                      somewhere outside your house like your gate, curb, or a
+                      nearby public place just somewhere you’re comfortable
+                      meeting people.
+                      <br />
+                      <br />
+                      <strong className="text-black">
+                        Note: This is <u>not</u> the same as your main delivery
+                        address.
+                      </strong>{" "}
+                      We’ll still use the address you provided earlier to
+                      arrange delivery with our logistics partners.
+                      <br />
+                      <br />
+                      <span className="text-customOrange animate-pulse font-semibold">
+                        We strongly advise against using your exact home address
+                        as your pickup location to prevent doxxing or privacy
+                        issues.
+                      </span>
+                    </p>
 
+                    <LocationPicker
+                      initialAddress={vendorData.pickupAddress}
+                      onLocationSelect={({ address, lat, lng }) =>
+                        setVendorData({
+                          ...vendorData,
+                          pickupAddress: address,
+                          pickupLat: lat,
+                          pickupLng: lng,
+                        })
+                      }
+                    />
+                  </div>
+                )}
+              </div>
               <motion.button
-                type="button" // Prevent form submission
+                type="button"
                 className={`w-11/12 h-12 fixed bottom-6 left-0 right-0 mx-auto flex justify-center items-center text-white font-opensans rounded-full ${
-                  deliveryMode
+                  deliveryMode &&
+                  (deliveryMode !== "Delivery & Pickup" ||
+                    (vendorData.pickupAddress &&
+                      vendorData.pickupLat &&
+                      vendorData.pickupLng))
                     ? "bg-customOrange"
                     : "bg-customOrange opacity-20"
                 }`}
-                onClick={handleNextStep}
-                disabled={!deliveryMode}
+                onClick={handleValidation}
+                disabled={
+                  !deliveryMode ||
+                  (deliveryMode === "Delivery & Pickup" &&
+                    (!vendorData.pickupAddress ||
+                      !vendorData.pickupLat ||
+                      !vendorData.pickupLng))
+                }
               >
                 Next
               </motion.button>

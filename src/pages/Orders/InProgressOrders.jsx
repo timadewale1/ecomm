@@ -10,7 +10,7 @@ import notifyOrderStatusChange from "../../services/notifyorderstatus";
 import { FaTruck } from "react-icons/fa6";
 import { RotatingLines } from "react-loader-spinner";
 import { MdOutlineClose } from "react-icons/md";
-
+import { IoTime } from "react-icons/io5";
 import { httpsCallable } from "firebase/functions";
 
 import addActivityNote from "../../services/activityNotes";
@@ -20,11 +20,16 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(null);
   const [isRiderModalOpen, setIsRiderModalOpen] = useState(false);
   const [riderName, setRiderName] = useState("");
+  const [isPickupModalOpen, setIsPickupModalOpen] = useState(false);
   const [riderNumber, setRiderNumber] = useState("");
   const [note, setNote] = useState("");
   const [disableRiderFields, setDisableRiderFields] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [isSending, setIsSending] = useState(false);
+  const [pickupNote, setPickupNote] = useState("");
+
+  const [pickupDays, setPickupDays] = useState("");
+  const [pickupTime, setPickupTime] = useState("");
   useEffect(() => {
     if (isRiderModalOpen) {
       document.body.style.overflow = "hidden";
@@ -146,24 +151,79 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
     setRiderNumber("");
     setNote("");
   };
+  // 👇 right after your useState hooks
+  const openPickupModal = (orderId) => {
+    setSelectedOrderId(orderId);
+    setPickupDays("");
+    setPickupTime("");
+    setIsPickupModalOpen(true);
+  };
 
   const handleSend = async () => {
-    /* 0 — simple front‑end validation */
-    if (!riderName || !riderNumber) {
-      toast.error("Please fill in both Rider's Name and Rider's Number.");
-      return;
-    }
+    // 0️⃣ Find the order
     const order = orders.find((o) => o.id === selectedOrderId);
     if (!order) {
       toast.error("Order not found – please refresh the page.");
       return;
     }
+
+    // 1️⃣ Validate per flow
+    if (order.isPickup) {
+      // pickup → need days & time
+      if (!pickupDays || !pickupTime) {
+        toast.error("Please select both Available Day(s) and Time Block.");
+        return;
+      }
+    } else {
+      // delivery → need rider info
+      if (!riderName || !riderNumber) {
+        toast.error("Please fill in both Rider's Name and Rider's Number.");
+        return;
+      }
+    }
+
     setIsSending(true);
+
     try {
-      /* ------------------------------------------------------------
-       * 1 — call Cloud Function to do the heavy lifting
-       *     (deploy shipVendorOrder first — see below)
-       * ---------------------------------------------------------- */
+      if (order.isPickup) {
+        // ─── Pickup branch ─────────────────────────────────────
+        const setPickupWindow = httpsCallable(functions, "scheduleOrderPickup");
+        const { data } = await setPickupWindow({
+          orderId: order.id,
+          pickupDays,
+          pickupTime,
+          pickupNote,
+        });
+
+        if (data.alreadyScheduled) {
+          toast.success("Pickup window was already set 👍");
+        } else {
+          toast.success("Pickup window saved! ✅");
+        }
+
+        // Optionally notify the user
+        await notifyOrderStatusChange(
+          order.userId,
+          order.id,
+          "Pickup Scheduled",
+          order.vendorName,
+          null,
+          null,
+          null,
+          { pickupDays, pickupTime }
+        );
+        await addActivityNote(
+          order.vendorId,
+          "Pickup Confirmed 🚚",
+          `Pickup window set for ${pickupDays} during ${pickupTime} for order ${order.id}.`,
+          "order"
+        );
+        // close modal
+        setIsPickupModalOpen(false);
+        return;
+      }
+
+      // ─── Delivery branch ────────────────────────────────────
       const shipFn = httpsCallable(functions, "shipVendorOrder");
       const { data } = await shipFn({
         orderId: order.id,
@@ -174,29 +234,22 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
 
       if (data.alreadyShipped) {
         toast.success("Order is already marked as shipped ✅");
-        onClose();
+        setIsRiderModalOpen(false);
         return;
       }
 
-      /* ------------------------------------------------------------
-       * 2 — UI‑only helpers still run locally
-       *     (images, notifications, activity log)
-       * ---------------------------------------------------------- */
-      /* 2a. vendor name & cover image */
+      // 2a. vendor name & cover image lookup
       let vendorName = order.vendorName;
       let vendorCoverImage = null;
-
       if (!vendorName && order.vendorId) {
-        const vRef = doc(db, "vendors", order.vendorId);
-        const vSnap = await getDoc(vRef);
+        const vSnap = await getDoc(doc(db, "vendors", order.vendorId));
         if (vSnap.exists()) {
-          const vData = vSnap.data();
-          vendorName = vData.shopName || "Unknown Vendor";
-          vendorCoverImage = vData.coverImageUrl || null;
+          vendorName = vSnap.data().shopName;
+          vendorCoverImage = vSnap.data().coverImageUrl;
         }
       }
 
-      /* 2b. product image for the first cart item */
+      // 2b. first product image lookup
       let productImage = null;
       if (order.cartItems?.length) {
         const first = order.cartItems[0];
@@ -206,12 +259,12 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
           productImage = first.subProductId
             ? pd.subProducts?.find(
                 (sp) => sp.subProductId === first.subProductId
-              )?.images?.[0] || null
-            : pd.imageUrls?.[0] || null;
+              )?.images?.[0] ?? null
+            : pd.imageUrls?.[0] ?? null;
         }
       }
 
-      /* 2c. client‑side helper calls */
+      // 2c. in-app notification + activity note
       await notifyOrderStatusChange(
         order.userId,
         order.id,
@@ -230,15 +283,15 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
         "order"
       );
 
-      /* ------------------------------------------------------------
-       * 3 — UI feedback / reset
-       * ---------------------------------------------------------- */
       toast.success("Order marked as shipped!");
       setIsRiderModalOpen(false);
-      closeRiderModal();
     } catch (err) {
-      console.error("shipVendorOrder failed:", err);
-      toast.error("Failed to move order to shipping. Please try again.");
+      console.error("handleSend failed:", err);
+      toast.error(
+        order.isPickup
+          ? "Failed to set pickup window. Please try again."
+          : "Failed to move order to shipping. Please try again."
+      );
     } finally {
       setIsSending(false);
     }
@@ -246,10 +299,21 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
 
   const openRiderModal = (orderId) => {
     const order = orders.find((o) => o.id === orderId);
+    if (!order) return; // guard
+
     setSelectedOrderId(orderId);
 
+    /* 📦 PICK-UP orders ➟ new modal */
+    if (order.isPickup) {
+      setPickupDays("");
+      setPickupTime("");
+      setIsPickupModalOpen(true);
+      return; // ⬅︎ done
+    }
+
+    /* 🚚 DELIVERY orders ➟ existing rider modal */
     if (order.kwikJob?.data?.contactUs) {
-      // pre-fill from Kwik “contactUs” (or wherever you store it)
+      // pre-fill from Kwik
       setRiderName("Kwik Delivery");
       setRiderNumber(order.kwikJob.data.contactUs.phone_no);
       setDisableRiderFields(true);
@@ -260,7 +324,6 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
     }
     setIsRiderModalOpen(true);
   };
-
   const groupOrdersByDate = (orders) => {
     const today = [];
     const yesterday = [];
@@ -326,20 +389,32 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
                       (acc, item) => acc + item.quantity,
                       0
                     )}{" "}
-                    item(s). Once you’ve completed packaging and shipped this
-                    order, please update the status to "Shipped" to keep the
-                    customer informed.
+                    item(s).{" "}
+                    {order.isPickup ? (
+                      <>
+                        Please provide your preferred pickup window this lets
+                        your customer know exactly when to come by and collect
+                        their items.
+                      </>
+                    ) : (
+                      <>
+                        Once you’ve completed packaging and shipped this order,
+                        please update the status to{" "}
+                        <span className="font-semibold">“Shipped”</span> to keep
+                        the customer informed.
+                      </>
+                    )}
                     {order.kwikJob?.data?.pickups?.[0]
                       ?.result_tracking_link && (
-                      <span className="ml-1 font-bold ">
+                      <span className="ml-1 font-bold">
                         <a
                           href={
                             order.kwikJob.data.pickups[0].result_tracking_link
                           }
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-black  font-opensans"
-                          onClick={(e) => e.stopPropagation()} // so it doesn’t also open the modal
+                          className="text-xs text-black font-opensans"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           This order will be picked up by our rider{" "}
                           <span className="text-xs text-customOrange underline font-opensans">
@@ -372,23 +447,35 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
                       onClick={(e) => e.stopPropagation()}
                     >
                       {/* Header Text */}
-                      <span className="text-xs text-customRichBrown block text-left font-opensans font-semibold text ml-2">
+                      <span className="text-xs text-customRichBrown block text-left font-opensans font-semibold ml-2">
                         Move to
                       </span>
 
                       {/* Divider */}
-                      <hr className="my-2  text-slate-300" />
+                      <hr className="my-2 text-slate-300" />
 
-                      {/* Option */}
-                      <button
-                        onClick={() => {
-                          setIsDropdownOpen(null); // Close the dropdown
-                          openRiderModal(order.id); // Open the modal to enter rider details
-                        }}
-                        className="block w-full text-left text-sm text-black font-opensans px-2 py-1"
-                      >
-                        Shipped
-                      </button>
+                      {/* Conditional Option */}
+                      {order.isPickup ? (
+                        <button
+                          onClick={() => {
+                            setIsDropdownOpen(null);
+                            openPickupModal(order.id); // <-- your new modal opener
+                          }}
+                          className="block w-full text-left text-sm text-black font-opensans px-2 py-1"
+                        >
+                          Set Pickup Window
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setIsDropdownOpen(null);
+                            openRiderModal(order.id); // <-- existing flow
+                          }}
+                          className="block w-full text-left text-sm text-black font-opensans px-2 py-1"
+                        >
+                          Shipped
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -460,6 +547,82 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
             </button>
           </div>
         </Modal>
+        {isPickupModalOpen && (
+          <Modal
+            isOpen
+            onRequestClose={() => setIsPickupModalOpen(false)}
+            className="modal-content-rider h-auto"
+            overlayClassName="modal-overlay backdrop-blur-sm"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <IoTime className="text-customRichBrown text-xl" />
+                <h2 className="font-opensans text-base font-semibold">
+                  Set Pickup Window
+                </h2>
+              </div>
+              <MdOutlineClose
+                className="text-xl relative -top-2"
+                onClick={() => setIsPickupModalOpen(false)}
+              />
+            </div>
+
+            {/* Day choices */}
+            <h1 className="text-xs font-opensans font-medium text-black mb-1">
+              Available Day(s)
+            </h1>
+            <select
+              value={pickupDays}
+              onChange={(e) => setPickupDays(e.target.value)}
+              className="w-full p-2 border text-xs rounded h-10 mb-3 focus:outline-none"
+            >
+              <option value="">Choose…</option>
+              <option value="Mon–Wed">Mon, Tue & Wed</option>
+              <option value="Thu–Fri">Thu & Fri</option>
+              <option value="Weekends">Weekends (Sat & Sun)</option>
+              <option value="EverydayExceptSun">Everyday except Sunday</option>
+            </select>
+
+            {/* Time-of-day choices */}
+            <h1 className="text-xs font-opensans font-medium text-black mb-1">
+              Time Block
+            </h1>
+            <select
+              value={pickupTime}
+              onChange={(e) => setPickupTime(e.target.value)}
+              className="w-full p-2 border text-xs rounded h-10 mb-6 focus:outline-none"
+            >
+              <option value="">Choose…</option>
+              <option value="Morning">8 am – 12 noon</option>
+              <option value="Afternoon">12 pm – 5 pm</option>
+              <option value="Evening">5 pm – 8 pm</option>
+            </select>
+            {/* Optional Pickup Note */}
+            <h1 className="text-xs font-opensans font-medium text-black mb-1">
+              Pickup Note (optional)
+            </h1>
+            <textarea
+              placeholder="e.g. opposite the market under the garage..."
+              value={pickupNote}
+              onChange={(e) => setPickupNote(e.target.value)}
+              className="w-full p-2 border text-base font-opensans rounded h-24 focus:outline-none resize-none"
+            />
+
+            <div className="flex justify-end">
+              <button
+                disabled={!pickupDays || !pickupTime || isSending}
+                onClick={handleSend}
+                className="bg-customOrange text-white font-opensans py-2 px-12 rounded-full flex items-center"
+              >
+                {isSending ? (
+                  <RotatingLines strokeColor="white" width="20" />
+                ) : (
+                  "Send"
+                )}
+              </button>
+            </div>
+          </Modal>
+        )}
       </div>
     );
 

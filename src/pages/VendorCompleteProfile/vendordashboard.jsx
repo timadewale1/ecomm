@@ -37,6 +37,7 @@ import Lottie from "lottie-react";
 import LoadState from "../../Animations/loadinganimation.json";
 import StockpileSetupModal from "../../components/StockPile.jsx";
 import MissingLocationModal from "../../components/Location/MissingLocationModal.jsx";
+import TipChat from "../../components/TipsMaltilda.jsx";
 
 const VendorDashboard = () => {
   const defaultImageUrl =
@@ -189,11 +190,11 @@ const VendorDashboard = () => {
 
     return () => unsubscribe();
   };
-  const handleLocationUpdate = async ({ lat, lng,  Address,  }) => {
+  const handleLocationUpdate = async ({ lat, lng, Address }) => {
     setLocationFixing(true);
     try {
       await updateDoc(doc(db, "vendors", vendorData.vendorId), {
-        Address, 
+        Address,
         location: { lat, lng },
       });
       toast.success("Address updated successfully!");
@@ -565,7 +566,8 @@ const VendorDashboard = () => {
             </div>
           </div>
         </div>
-        <div className="flex flex-col justify-center mt-4">
+        <TipChat />
+        <div className="flex flex-col justify-center translate-y-4">
           <div>
             <p className="text-black text-lg text-start font-semibold mb-3">
               Overview
@@ -643,8 +645,8 @@ const VendorDashboard = () => {
             </div>
           </div>
         </div>
-
-        <div className="flex flex-col justify-center mt-4">
+        
+        <div className="flex flex-col justify-center translate-y-8 ">
           <div className="flex justify-between mb-3">
             <p className="text-black text-lg font-semibold">Recent activity</p>
 

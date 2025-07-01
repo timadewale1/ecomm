@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
-import { GoChevronLeft } from "react-icons/go";
+import { GoChevronLeft, GoChevronRight } from "react-icons/go";
 import { addToCart } from "../../redux/actions/action";
 import { useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../../firebase.config";
+import Modal from "react-modal";
 import {
   collection,
   query,
@@ -28,6 +29,7 @@ import {
 } from "react-icons/md";
 import { FaMoneyBillTransfer } from "react-icons/fa6";
 import moment from "moment";
+import { useTawk } from "../../components/Context/TawkProvider";
 import { TbTruckDelivery } from "react-icons/tb";
 import { enrichWithProductInfo } from "../../services/enrichWithProductInfo";
 import { FaTimes } from "react-icons/fa";
@@ -187,6 +189,11 @@ const OrdersCentre = () => {
   const [showConfirmShippingModal, setShowConfirmShippingModal] =
     useState(false);
   const [orderToRequestShipping, setOrderToRequestShipping] = useState(null);
+  // ↥ stay with the other useState hooks
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [mapOrigin, setMapOrigin] = useState(null);
+  const [mapDestination, setMapDestination] = useState(null);
+  const [userLocation, setUserLocation] = useState(null); // <- logged-in user’s lat/lng
 
   const [sampleProduct, setSampleProduct] = useState(null);
   const ordersFetched = useRef(false);
@@ -249,14 +256,22 @@ const OrdersCentre = () => {
         const vendorMap = {};
         vendorSnapshots.forEach((snap) => {
           if (snap.exists()) {
-            vendorMap[snap.id] = snap.data().shopName;
+            vendorMap[snap.id] = {
+              name: snap.data().shopName,
+              pickupLat: snap.data().pickupLat ?? null,
+              pickupLng: snap.data().pickupLng ?? null,
+              pickupAddress: snap.data().pickupAddress ?? "",
+            };
           }
         });
 
         // 4. Attach vendorName to each order
         const enrichedOrders = fetchedOrders.map((order) => ({
           ...order,
-          vendorName: vendorMap[order.vendorId] || "Unknown Vendor",
+          vendorName: vendorMap[order.vendorId]?.name || "Unknown Vendor",
+          pickupLat: vendorMap[order.vendorId]?.pickupLat || null,
+          pickupLng: vendorMap[order.vendorId]?.pickupLng || null,
+          pickupAddress: vendorMap[order.vendorId]?.pickupAddress || "",
         }));
 
         // 5. Gather unique product IDs
@@ -396,7 +411,7 @@ const OrdersCentre = () => {
         setOrders(finalOrders);
 
         console.log("🧾 Final grouped orders:", finalOrders);
-        setOrders(finalOrders);
+       
       } catch (error) {
         console.error("Error fetching orders and products:", error);
       } finally {
@@ -406,6 +421,25 @@ const OrdersCentre = () => {
 
     fetchOrdersAndProducts();
   }, [userId]);
+  /* ─── Get user’s saved lat/lng once we know who they are ─── */
+  useEffect(() => {
+    if (!userId) return;
+
+    (async () => {
+      try {
+        const uSnap = await getDoc(doc(db, "users", userId));
+        if (uSnap.exists()) {
+          const loc = uSnap.data().location;
+          if (loc?.lat && loc?.lng) {
+            setUserLocation({ lat: loc.lat, lng: loc.lng });
+          }
+        }
+      } catch (e) {
+        console.warn("Could not load user location:", e);
+      }
+    })();
+  }, [userId]);
+
   const handleRequestShipping = async (order) => {
     console.log("Requesting shipping for order:", order);
 
@@ -528,9 +562,8 @@ const OrdersCentre = () => {
       }
     }
   }, [orders, dispatch]);
+  const { openChat } = useTawk();
 
-  // Function to handle closing the popup.
-  // Here you could update the order document in Firestore to mark that it’s no longer new.
   const handleCloseOrderPlacedModal = async () => {
     setShowOrderPlacedModal(false);
     if (orderForPopup) {
@@ -571,14 +604,7 @@ const OrdersCentre = () => {
       }
     }
   }, [orders]);
-  const openChat = () => {
-    if (window.HelpCrunch) {
-      console.log("Opening HelpCrunch chat...");
-      window.HelpCrunch("openChat");
-    } else {
-      console.error("HelpCrunch is not initialized.");
-    }
-  };
+
   const handleStockpileAddMore = (order) => {
     if (!currentUser) {
       // require login
@@ -591,22 +617,6 @@ const OrdersCentre = () => {
   };
   // For stockpile orders, use the rider details from the first order (primary)
   // Otherwise, use the riderInfo from the current order.
-
-  useEffect(() => {
-    // Ensure HelpCrunch is fully initialized
-    const initializeHelpCrunch = () => {
-      if (window.HelpCrunch) {
-        window.HelpCrunch("onReady", () => {
-          console.log("HelpCrunch is ready.");
-          window.HelpCrunch("hideChatWidget"); // Ensure widget is hidden
-        });
-      } else {
-        console.error("HelpCrunch is not loaded.");
-      }
-    };
-
-    initializeHelpCrunch();
-  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -624,7 +634,107 @@ const OrdersCentre = () => {
     // Authentication state is not yet known show a loading indicator
     return <Loading />;
   }
+  const MapModal = ({ isOpen, onClose, origin, destination }) => {
+    /** 1 ▸ wait for Google Maps bundle */
+    const [ready, setReady] = useState(Boolean(window.google?.maps));
+    useEffect(() => {
+      if (ready) return;
+      window.initMap = () => setReady(true); // called by the script tag
+    }, [ready]);
 
+    /** 2 ▸ ask Routes API for a path */
+    const [directions, setDirections] = useState(null);
+    useEffect(() => {
+      if (!ready || !origin || !destination) return;
+
+      new window.google.maps.DirectionsService().route(
+        { origin, destination, travelMode: "DRIVING" },
+        (res, status) =>
+          status === "OK" && res.routes.length
+            ? setDirections(res)
+            : console.warn("Directions failed:", status, res)
+      );
+    }, [ready, origin, destination]);
+
+    /** 3 ▸ once the map is ready, draw the route */
+    const mapRef = useRef(null);
+    const rendererRef = useRef(null);
+
+    const handleMapLoad = (map) => {
+      mapRef.current = map;
+      // create renderer once
+      rendererRef.current = new window.google.maps.DirectionsRenderer({
+        map,
+        preserveViewport: true,
+        suppressMarkers: false,
+      });
+      // if the directions request already finished, push it in:
+      if (directions) rendererRef.current.setDirections(directions);
+    };
+
+    /** if directions arrive later, feed them into the same renderer */
+    useEffect(() => {
+      if (rendererRef.current && directions) {
+        rendererRef.current.setDirections(directions);
+      }
+    }, [directions]);
+
+    /** cleanup when the modal unmounts */
+    useEffect(
+      () => () => {
+        rendererRef.current && rendererRef.current.setMap(null);
+      },
+      []
+    );
+
+    /* ────────────── UI ────────────── */
+    if (!isOpen) return null;
+
+    return (
+      <Modal
+        isOpen
+        onRequestClose={onClose}
+        ariaHideApp={false}
+        className="bg-white w-full h-[75vh] rounded-t-2xl shadow-xl flex flex-col"
+        overlayClassName="fixed inset-0 bg-black/50 flex items-end z-50"
+      >
+        <div className="flex-1">
+          {ready ? (
+            <div
+              id="map"
+              style={{ height: "100%", width: "100%" }}
+              ref={(el) => {
+                if (el && !mapRef.current) {
+                  /* create the map only once */
+                  handleMapLoad(
+                    new window.google.maps.Map(el, {
+                      zoom: 12,
+                      center: origin,
+                    })
+                  );
+                }
+              }}
+            />
+          ) : (
+            <div className="h-full flex items-center justify-center">
+              Loading&nbsp;map…
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={onClose}
+          className="absolute font-opensans bottom-4 left-1/2 -translate-x-1/2
+                     px-6 py-3 text-base font-medium
+                     bg-black/20 backdrop-blur-md border border-white/30
+                     rounded-full shadow-md hover:bg-white/30
+                     transition-colors duration-200"
+        >
+          Close
+        </button>
+      </Modal>
+    );
+  };
   const filterOrdersByStatus = (status) => {
     if (status === "All") return allOrders;
     if (status === "Stockpile")
@@ -995,7 +1105,52 @@ const OrdersCentre = () => {
                           }
                         })()}
 
-                      {/* Vendor name aligned on the right */}
+                      {/* ▸▸ Pick-up-orders only */}
+                      {order.isPickup &&
+                        order.pickupCode &&
+                        order.progressStatus !== "Delivered" && (
+                          <div className="flex flex-col items-end ml-auto">
+                            {/* code blocks */}
+                            <div className="flex space-x-1 mb-1">
+                              {order.pickupCode.split("").map((d, i) => (
+                                <span
+                                  key={i}
+                                  className="inline-block   bg-gray-200 rounded-sm px-1.5 py-0.5
+                     text-base font-opensans font-semibold  tracking-wider"
+                                >
+                                  {d}
+                                </span>
+                              ))}
+                            </div>
+
+                            {/* view-map link */}
+                            <button
+                              onClick={() => {
+                                if (!userLocation) {
+                                  return toast.error(
+                                    "We couldn’t find your saved location."
+                                  );
+                                }
+                                if (!order.pickupLat || !order.pickupLng) {
+                                  return toast.error(
+                                    "Vendor did not set a pick-up point."
+                                  );
+                                }
+
+                                setMapOrigin(userLocation);
+                                setMapDestination({
+                                  lat: order.pickupLat,
+                                  lng: order.pickupLng,
+                                });
+                                setShowMapModal(true);
+                              }}
+                              className="text-[11px] mt-1 text-blue-800 underline flex font-opensans"
+                            >
+                              View&nbsp;map
+                              <GoChevronRight className="text-lg -translate-x-1" />
+                            </button>
+                          </div>
+                        )}
                     </div>
                     <div className="border-t border-gray-300 my-2"></div>
                     <OrderStepper
@@ -1003,6 +1158,7 @@ const OrdersCentre = () => {
                         order.firstOrderStatus || order.progressStatus
                       }
                       isStockpile={order.isStockpile}
+                      isPickup={order.isPickup}
                     />
                     <div className="border-t border-gray-300 my-2"></div>
                     {order.cartItems ? (
@@ -1156,7 +1312,6 @@ const OrdersCentre = () => {
                     {/* Floating Support Button in Top-Right Corner */}
                     <div className=" ">
                       <FcOnlineSupport
-                        id="contact-support-tab"
                         className="text-2xl cursor-pointer"
                         onClick={openChat}
                         title="Support"
@@ -1325,6 +1480,20 @@ const OrdersCentre = () => {
                         label: "Vendor Name:",
                         value: selectedOrder.vendorName,
                       },
+                      ...(selectedOrder.isPickup
+                        ? [
+                            {
+                              label: "Pickup Address:",
+                              value: selectedOrder.pickupAddress || "N/A",
+                            },
+                            {
+                              label: "Pickup Code:",
+                              // you could format this how you like, e.g. mask or spacer
+                              value: selectedOrder.pickupCode || "— — — —",
+                            },
+                          ]
+                        : []),
+
                       // Optionally show additional fields if available:
                       ...(selectedOrder.progressStatus === "Shipped"
                         ? [
@@ -1444,7 +1613,7 @@ const OrdersCentre = () => {
                       })()}
                     </div>
                   )}
-                  <div className="mt-6">
+                  <div className="mt-6 ">
                     <div className="flex items-center mb-2">
                       <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
                         <BsFillFileEarmarkTextFill className="text-customRichBrown" />
@@ -1647,6 +1816,12 @@ const OrdersCentre = () => {
             </div>
           );
         })()}
+      <MapModal
+        isOpen={showMapModal}
+        onClose={() => setShowMapModal(false)}
+        origin={mapOrigin}
+        destination={mapDestination}
+      />
     </div>
   );
 };

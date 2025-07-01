@@ -32,103 +32,103 @@ const SubProduct = ({
   const scrollContainerRef = useRef(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // const handleFileChange = (index, event) => {
-  //   const files = Array.from(event.target.files);
-  //   const updatedSubProducts = [...subProducts];
-
-  //   // Validate each file's size
-  //   const validFiles = [];
-  //   files.forEach((file) => {
-  //     if (file.size > MAX_FILE_SIZE) {
-  //       toast.dismiss();
-  //       toast.error(`${file.name} exceeds the maximum file size of 3MB`, {
-  //         duration: 3000,
-  //       });
-  //     } else {
-  //       validFiles.push(file);
-  //     }
-  //   });
-
-  //   // Check the number of images
-  //   if (validFiles.length + updatedSubProducts[index].images.length > 2) {
-  //     toast.dismiss();
-  //     toast.error("You can upload a maximum of 2 images", { duration: 3000 });
-  //     return;
-  //   }
-
-  //   updatedSubProducts[index].images = [
-  //     ...updatedSubProducts[index].images,
-  //     ...validFiles,
-  //   ];
-
-  //   setSubProducts(updatedSubProducts);
-  // };
-
   const handleFileChange = (index, event) => {
-  const files = Array.from(event.target.files);
-  const updatedSubProducts = [...subProducts];
+    const files = Array.from(event.target.files);
+    const updatedSubProducts = [...subProducts];
 
-  const loadingToastId = toast.loading("Compressing image...");
+    // Validate each file's size
+    const validFiles = [];
+    files.forEach((file) => {
+      if (file.size > MAX_FILE_SIZE) {
+        toast.dismiss();
+        toast.error(`${file.name} exceeds the maximum file size of 3MB`, {
+          duration: 3000,
+        });
+      } else {
+        validFiles.push(file);
+      }
+    });
 
-  let completed = 0;
-  const compressedImages = [];
-
-  files.forEach((file) => {
-    // Check file size first
-    if (file.size > MAX_FILE_SIZE) {
-      toast.dismiss(loadingToastId);
-      toast.error(`${file.name} exceeds the maximum file size of 3MB`, {
-        duration: 3000,
-      });
+    // Check the number of images
+    if (validFiles.length + updatedSubProducts[index].images.length > 2) {
+      toast.dismiss();
+      toast.error("You can upload a maximum of 2 images", { duration: 3000 });
       return;
     }
 
-    // Compress valid file
-    new Compressor(file, {
-      quality: 0.6,
-      success(result) {
-        // Create preview URL
-        const preview = URL.createObjectURL(result);
+    updatedSubProducts[index].images = [
+      ...updatedSubProducts[index].images,
+      ...validFiles,
+    ];
 
-        compressedImages.push({
-          file: result,
-          preview,
-        });
+    setSubProducts(updatedSubProducts);
+  };
 
-        completed++;
+//   const handleFileChange = (index, event) => {
+//   const files = Array.from(event.target.files);
+//   const updatedSubProducts = [...subProducts];
 
-        // When all files are processed
-        if (completed === files.length) {
-          // Check if adding these would exceed the limit
-          const totalImages =
-            updatedSubProducts[index].images.length + compressedImages.length;
-          if (totalImages > 2) {
-            toast.dismiss(loadingToastId);
-            toast.error("You can upload a maximum of 2 images", {
-              duration: 3000,
-            });
-            return;
-          }
+//   const loadingToastId = toast.loading("Compressing image...");
 
-          // Update subProducts with new images
-          updatedSubProducts[index].images = [
-            ...updatedSubProducts[index].images,
-            ...compressedImages,
-          ];
+//   let completed = 0;
+//   const compressedImages = [];
 
-          setSubProducts(updatedSubProducts);
-          toast.dismiss(loadingToastId);
-          toast.success("Images compressed!");
-        }
-      },
-      error(err) {
-        console.error("Compression error:", err.message);
-        toast.dismiss(loadingToastId);
-        toast.error("Image compression failed.");
-      },
-    });
-  });
-};
+//   files.forEach((file) => {
+//     // Check file size first
+//     if (file.size > MAX_FILE_SIZE) {
+//       toast.dismiss(loadingToastId);
+//       toast.error(`${file.name} exceeds the maximum file size of 3MB`, {
+//         duration: 3000,
+//       });
+//       return;
+//     }
+
+//     // Compress valid file
+//     new Compressor(file, {
+//       quality: 0.6,
+//       success(result) {
+//         // Create preview URL
+//         const preview = URL.createObjectURL(result);
+
+//         compressedImages.push({
+//           file: result,
+//           preview,
+//         });
+
+//         completed++;
+
+//         // When all files are processed
+//         if (completed === files.length) {
+//           // Check if adding these would exceed the limit
+//           const totalImages =
+//             updatedSubProducts[index].images.length + compressedImages.length;
+//           if (totalImages > 2) {
+//             toast.dismiss(loadingToastId);
+//             toast.error("You can upload a maximum of 2 images", {
+//               duration: 3000,
+//             });
+//             return;
+//           }
+
+//           // Update subProducts with new images
+//           updatedSubProducts[index].images = [
+//             ...updatedSubProducts[index].images,
+//             ...compressedImages,
+//           ];
+
+//           setSubProducts(updatedSubProducts);
+//           toast.dismiss(loadingToastId);
+//           toast.success("Images compressed!");
+//         }
+//       },
+//       error(err) {
+//         console.error("Compression error:", err.message);
+//         toast.dismiss(loadingToastId);
+//         toast.error("Image compression failed.");
+//       },
+//     });
+//   });
+// };
 
   const handleRemoveImage = (subIndex, imageIndex) => {
     const updatedSubProducts = [...subProducts];

@@ -1,17 +1,18 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { clearCart } from "../redux/actions/action";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase.config";
+
 import { useAuth } from "../custom-hooks/useAuth";
 import { RiShareForwardBoxLine } from "react-icons/ri";
 import { SiAdguard } from "react-icons/si";
 import { enterStockpileMode } from "../redux/reducers/stockpileSlice";
 import { CiWarning } from "react-icons/ci";
 import { GiBookPile } from "react-icons/gi";
-import { FaPen } from "react-icons/fa";
+import { FaPen, FaUserFriends } from "react-icons/fa";
 import serviceimage from "../Images/servicemodal.jpg";
 import PaystackPop from "@paystack/inline-js";
 import { IoIosInformationCircle } from "react-icons/io";
@@ -46,7 +47,12 @@ import LocationPicker from "../components/Location/LocationPicker";
 import SEO from "../components/Helmet/SEO";
 import ReactSelect from "react-select";
 import { BsInfoCircle } from "react-icons/bs";
+import { RiUser3Line } from "react-icons/ri";
+import { LuCreditCard } from "react-icons/lu";
+
 import Link from "../components/Loading/Link";
+import { TfiWallet } from "react-icons/tfi";
+import IframeModal from "../components/PwaModals/PushNotifsModal";
 const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
   const [locationSet, setLocationSet] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
@@ -90,7 +96,7 @@ const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
     <Modal
       isOpen={isOpen}
       onRequestClose={onClose}
-      className="bg-white w-full max-w-full h-[60vh] rounded-t-2xl shadow-lg px-3 py-3 relative overflow-y-scroll"
+      className="bg-white w-full max-w-full h-[60vh] rounded-t-2xl shadow-lg px-3 py-3 relative overflow-y-scroll scrollbar-hide"
       overlayClassName="fixed inset-0 bg-white bg-opacity-20 backdrop-blur flex justify-center items-end z-50"
       ariaHideApp={false}
     >
@@ -98,10 +104,12 @@ const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
         <h2 className="text-xl font-opensans font-semibold">
           Edit Delivery Information
         </h2>
-        <LiaTimesSolid
-          className="text-2xl text-black cursor-pointer"
-          onClick={onClose}
-        />
+        <div className="w-8 h-8 bg-gray-200 rounded-full flex justify-center items-center">
+          <LiaTimesSolid
+            className="text-xl text-black cursor-pointer"
+            onClick={onClose}
+          />
+        </div>
       </div>
 
       <form>
@@ -209,13 +217,17 @@ const ShopSafelyModal = ({ isOpen, onClose }) => {
     <Modal
       isOpen={isOpen}
       onRequestClose={onClose}
-      className="bg-white w-full max-w-full h-[85vh] rounded-t-2xl shadow-lg overflow-y-scroll px-4 py-4 relative"
+      className="bg-white w-full max-w-full h-[85vh] rounded-t-2xl shadow-lg overflow-y-scroll px-4 py-4 relative scrollbar-hide"
       overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
       ariaHideApp={false}
     >
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-xl font-semibold">Shop Safely and Sustainably</h1>
-        <LiaTimesSolid className="text-2xl cursor-pointer" onClick={onClose} />
+        <h1 className="text-xl font-opensans font-semibold">
+          Shop Safely and Sustainably
+        </h1>
+        <div className="h-8 w-8 rounded-full p-2 bg-gray-200">
+          <LiaTimesSolid className=" cursor-pointer" onClick={onClose} />
+        </div>
       </div>
 
       {/* Secure Payment */}
@@ -339,10 +351,18 @@ const Checkout = () => {
   const [deliveryNote, setDeliveryNote] = useState("");
   const [userState, setUserState] = useState(null);
   const [expiresAt, setExpiresAt] = useState(null);
+  const [pickupDistance, setPickupDistance] = useState(null);
+  const [showMapModal, setShowMapModal] = useState(false);
   const [countdown, setCountdown] = useState("");
   const [shareUrl, setShareUrl] = useState(null);
+  const [selectedPayment, setSelectedPayment] = useState(null);
+  const [walletId, setWalletId] = useState("");
+  const [walletBal, setWalletBal] = useState(0);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [walletSetup, setWalletSetup] = useState(false);
+  const [isPickup, setIsPickup] = useState(false);
 
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const [showAlreadyStockpiledModal, setShowAlreadyStockpiledModal] =
     useState(false);
 
@@ -384,9 +404,10 @@ const Checkout = () => {
 
         return cartItem;
       }),
-      userInfo,
+      userInfo: { ...userInfo, isPickup },
       preview: isPreview,
       isRepiling: isRepiling,
+
       deliveryNote: userInfo.deliveryNote,
       isStockpile: checkoutMode === "stockpile" || isRepiling,
       stockpileDuration:
@@ -397,6 +418,9 @@ const Checkout = () => {
 
     if (note) {
       orderData.note = note;
+    }
+    if (selectedPayment === "wallet") {
+      orderData.walletId = walletId;
     }
 
     return orderData;
@@ -460,10 +484,14 @@ const Checkout = () => {
             email: userDoc.data().email || "",
             phoneNumber: userDoc.data().phoneNumber || "",
             address: userDoc.data().address || "",
+
             latitude: userDoc.data().location?.lat || null,
             longitude: userDoc.data().location?.lng || null,
             deliveryNote: "",
           });
+          setWalletId(userDoc.data().walletId || "");
+          setWalletBal(userDoc.data().balance || 0);
+          setWalletSetup(Boolean(userDoc.data().walletSetup));
         } else {
           toast.error("User document does not exist.");
           toast.dismiss();
@@ -574,13 +602,23 @@ const Checkout = () => {
 
     fetchVendorInfo();
   }, [vendorId]);
-
   useEffect(() => {
-    if (vendorsInfo[vendorId]?.deliveryMode) {
-      setSelectedDeliveryMode(vendorsInfo[vendorId].deliveryMode);
+    const mode = vendorsInfo[vendorId]?.deliveryMode;
+    if (!mode) return;
+
+    if (mode === "Delivery") {
+      setSelectedDeliveryMode("Delivery");
+      setIsPickup(false);
+    } else if (mode === "Pickup") {
+      setSelectedDeliveryMode("Pickup");
+      setIsPickup(true);
+    } else {
+      // "Delivery & Pickup" ⇒ user must choose
+      setSelectedDeliveryMode(""); // clear any previous value
+      setIsPickup(false);
     }
   }, [vendorsInfo, vendorId]);
-  // A modal to show when vendor doesn't have stockpile
+
   const NoStockpileModal = ({ isOpen, onClose }) => {
     return (
       <Modal
@@ -611,55 +649,80 @@ const Checkout = () => {
       </Modal>
     );
   };
+  const supportsPickup =
+    vendorsInfo[vendorId]?.deliveryMode === "Delivery & Pickup" ||
+    vendorsInfo[vendorId]?.deliveryMode === "Pickup";
 
   const handleProceedToPayment = async () => {
     if (checkoutMode === "stockpile" && !selectedWeeks) {
       toast.error("Please select how many weeks you want to stockpile.");
       return;
     }
+    if (!selectedPayment) {
+      toast.error("Please select a payment method.");
+      return;
+    }
+    if (
+      checkoutMode === "deliver" &&
+      vendorsInfo[vendorId]?.deliveryMode === "Delivery & Pickup" &&
+      !selectedDeliveryMode
+    ) {
+      toast.error("Please choose Pick-up or Door delivery.");
+      return;
+    }
+    const orderData = prepareOrderData();
+    if (!orderData) return;
 
     try {
-      setIsLoading(true); // Start loader
-      const orderData = prepareOrderData();
-      if (!orderData) {
-        setIsLoading(false); // Stop loader
-        return;
+      setIsLoading(true);
+      const processOrder = httpsCallable(functions, "processOrder");
+      const { data } = await processOrder(orderData);
+      if (selectedPayment === "wallet") {
+        if (data?.success) {
+          await refreshWalletInfo();
+          dispatch(clearCart(vendorId));
+          toast.success("Paid with wallet balance! 🎉");
+          navigate("/user-orders", { replace: true });
+        } else {
+          toast.error(data?.message || "Wallet payment failed.");
+        }
+        return; // stop here – no Paystack
       }
 
-      const processOrder = httpsCallable(functions, "processOrder");
-      const response = await processOrder(orderData);
-
-      console.log("Backend Response:", response.data); // Debug backend response
-
-      const { authorization_url } = response.data;
-
+      /* Paystack flow (default) */
+      const { authorization_url } = data;
       if (!authorization_url) {
         throw new Error("Missing authorization URL from Paystack.");
       }
-
-      console.log(
-        "Redirecting to Paystack authorization URL:",
-        authorization_url
-      );
-
-      // Redirect the user to the Paystack payment page
-      window.location.href = authorization_url;
-
-      // The user will be redirected to the callback_url after completing the payment
-      setIsLoading(false); // Stop loader
+      window.location.href = authorization_url; // ⏩  redirect to Paystack
     } catch (err) {
       console.error("Error in payment process:", err);
 
-     
-      const friendly =
-        err?.message || 
-        err?.details?.message || 
-        err?.data?.message || 
-        "Failed to initialize payment. We are looking into this, try again later."; // fallback
-
-      toast.error(friendly);
+      if (err?.details?.code === "INSUFFICIENT_FUNDS") {
+        toast.error("Your wallet balance is not enough to place this order.");
+      } else {
+        const friendly =
+          err?.message ||
+          err?.details?.message ||
+          err?.data?.message ||
+          "Failed to initialise payment. Please try again later.";
+        toast.error(friendly);
+      }
+    } finally {
       setIsLoading(false);
     }
+  };
+  const handleDeliveryModeSelection = (mode) => {
+    // if they tapped “Pick-up” but vendor only does Delivery:
+    if (
+      mode === "Pickup" &&
+      vendorsInfo[vendorId]?.deliveryMode !== "Delivery & Pickup"
+    ) {
+      toast.error("Sorry, this vendor doesn’t offer pick-up.");
+      return;
+    }
+    setIsPickup(mode === "Pickup");
+    setSelectedDeliveryMode(mode);
   };
   // inside your Checkout component, alongside handleProceedToPayment:
   const handleShareLink = async () => {
@@ -688,6 +751,21 @@ const Checkout = () => {
       toast.error(err.message || "Could not generate share link.");
     } finally {
       setIsLoadingLink(false);
+    }
+  };
+  const mustChooseDelivery =
+    checkoutMode === "deliver" && // we’re not stockpiling
+    !isRepiling && // repiling skips delivery selection
+    vendorsInfo[vendorId]?.deliveryMode === "Delivery & Pickup" &&
+    !selectedDeliveryMode; // user hasn’t decided
+
+  const refreshWalletInfo = async () => {
+    if (!currentUser) return;
+    const snap = await getDoc(doc(db, "users", currentUser.uid));
+    if (snap.exists()) {
+      setWalletSetup(Boolean(snap.data().walletSetup));
+      setWalletId(snap.data().walletId || "");
+      setWalletBal(snap.data().balance || 0);
     }
   };
 
@@ -755,18 +833,81 @@ const Checkout = () => {
     previewedOrder,
     vendorId,
   ]);
+  /**
+   * Distance from user → vendor’s pick-up point
+   */
+  useEffect(() => {
+    /* ---------- sightseeing ---------- */
+    console.log("🚚  supportsPickup:", supportsPickup);
+    console.log("  user lat/lng:", userInfo.latitude, userInfo.longitude);
+    console.log(
+      "  vendor lat/lng:",
+      vendorsInfo[vendorId]?.pickupLat,
+      vendorsInfo[vendorId]?.pickupLng
+    );
+    console.log(
+      "  has DistanceMatrixService:",
+      Boolean(window.google?.maps?.DistanceMatrixService)
+    );
+
+    /* ---------- abort if anything missing ---------- */
+    if (
+      !supportsPickup ||
+      userInfo.latitude == null ||
+      userInfo.longitude == null ||
+      vendorsInfo[vendorId]?.pickupLat == null ||
+      vendorsInfo[vendorId]?.pickupLng == null ||
+      !window.google?.maps?.DistanceMatrixService
+    ) {
+      console.log("⛔  Missing data → skip distance calc");
+      return;
+    }
+
+    /* ---------- call Distance-Matrix ---------- */
+    console.log("✅  Calling DistanceMatrixService…");
+
+    const origin = new window.google.maps.LatLng(
+      Number(userInfo.latitude),
+      Number(userInfo.longitude)
+    );
+    const destination = new window.google.maps.LatLng(
+      Number(vendorsInfo[vendorId].pickupLat),
+      Number(vendorsInfo[vendorId].pickupLng)
+    );
+
+    const svc = new window.google.maps.DistanceMatrixService();
+    svc.getDistanceMatrix(
+      {
+        origins: [origin],
+        destinations: [destination],
+        travelMode: window.google.maps.TravelMode.DRIVING,
+      },
+      (result, status) => {
+        console.log("↩︎ DistanceMatrix status:", status);
+        console.log("↩︎ full payload:", result);
+
+        if (
+          status === "OK" &&
+          result?.rows?.[0]?.elements?.[0]?.status === "OK"
+        ) {
+          setPickupDistance(result.rows[0].elements[0].distance.text);
+        } else {
+          // REQUEST_DENIED, INVALID_REQUEST, OVER_QUERY_LIMIT, …
+          setPickupDistance(null);
+        }
+      }
+    );
+  }, [
+    supportsPickup,
+    userInfo.latitude,
+    userInfo.longitude,
+    vendorsInfo,
+    vendorId,
+  ]);
 
   // 3) Derive whether this is truly Lagos→Lagos:
   const isLagosToLagos =
     vendorsInfo[vendorId]?.state === "Lagos" && userState === "Lagos";
-  const handleDeliveryModeSelection = (mode) => {
-    if (mode === "Pickup" && vendorsInfo[vendorId]?.deliveryMode !== "Pickup") {
-      toast.error("Vendor does not offer pick-up ☹️");
-      return;
-    }
-
-    setSelectedDeliveryMode(mode);
-  };
 
   const groupProductsById = (products) => {
     const groupedProducts = {};
@@ -803,9 +944,6 @@ const Checkout = () => {
 
     return Object.values(groupedProducts);
   };
-  // const handleScroll = (event) => {
-  //   event.stopPropagation();
-  // };
 
   const BookingFeeModal = ({ isOpen, onClose }) => {
     useEffect(() => {
@@ -877,20 +1015,22 @@ const Checkout = () => {
       <Modal
         isOpen={isOpen}
         onRequestClose={onClose}
-        className="bg-white w-full max-w-full h-[30vh] rounded-t-2xl shadow-lg overflow-y-scroll relative flex flex-col"
+        className="bg-white w-full max-w-full h-[30vh] rounded-t-2xl shadow-lg overflow-y-scroll scrollbar-hide relative flex flex-col"
         overlayClassName="fixed inset-0 bg-gray-900  backdrop-blur-sm bg-opacity-50 flex justify-center items-end z-50"
         ariaHideApp={false}
       >
         <div className="relative h-full ">
           {" "}
           <div className="mt-6 flex items-center px-4 font-semibold  justify-between">
-            <h1 className="font-ubuntu text-2xl text-black">
+            <h1 className="font-opensans text-2xl text-black">
               Why do we charge this?
             </h1>
-            <LiaTimesSolid
-              className="text-2xl cursor-pointer modals absolute top-4 right-4"
-              onClick={onClose}
-            />
+            <div className="absolute top-4 right-4 bg-gray-200 w-8 h-8 rounded-full px-1.5 py-1.5">
+              <LiaTimesSolid
+                className="text-xl cursor-pointer modals "
+                onClick={onClose}
+              />
+            </div>
           </div>
           <div className="px-4  flex items-center mb-4">
             <IoSettingsOutline className="text-9xl text-black" />
@@ -981,7 +1121,107 @@ const Checkout = () => {
       </Modal>
     );
   };
+  const MapModal = ({ isOpen, onClose, origin, destination }) => {
+    /** 1 ▸ wait for Google Maps bundle */
+    const [ready, setReady] = useState(Boolean(window.google?.maps));
+    useEffect(() => {
+      if (ready) return;
+      window.initMap = () => setReady(true); // called by the script tag
+    }, [ready]);
 
+    /** 2 ▸ ask Routes API for a path */
+    const [directions, setDirections] = useState(null);
+    useEffect(() => {
+      if (!ready || !origin || !destination) return;
+
+      new window.google.maps.DirectionsService().route(
+        { origin, destination, travelMode: "DRIVING" },
+        (res, status) =>
+          status === "OK" && res.routes.length
+            ? setDirections(res)
+            : console.warn("Directions failed:", status, res)
+      );
+    }, [ready, origin, destination]);
+
+    /** 3 ▸ once the map is ready, draw the route */
+    const mapRef = useRef(null);
+    const rendererRef = useRef(null);
+
+    const handleMapLoad = (map) => {
+      mapRef.current = map;
+      // create renderer once
+      rendererRef.current = new window.google.maps.DirectionsRenderer({
+        map,
+        preserveViewport: true,
+        suppressMarkers: false,
+      });
+      // if the directions request already finished, push it in:
+      if (directions) rendererRef.current.setDirections(directions);
+    };
+
+    /** if directions arrive later, feed them into the same renderer */
+    useEffect(() => {
+      if (rendererRef.current && directions) {
+        rendererRef.current.setDirections(directions);
+      }
+    }, [directions]);
+
+    /** cleanup when the modal unmounts */
+    useEffect(
+      () => () => {
+        rendererRef.current && rendererRef.current.setMap(null);
+      },
+      []
+    );
+
+    /* ────────────── UI ────────────── */
+    if (!isOpen) return null;
+
+    return (
+      <Modal
+        isOpen
+        onRequestClose={onClose}
+        ariaHideApp={false}
+        className="bg-white w-full h-[75vh] rounded-t-2xl shadow-xl flex flex-col"
+        overlayClassName="fixed inset-0 bg-black/50 flex items-end z-50"
+      >
+        <div className="flex-1">
+          {ready ? (
+            <div
+              id="map"
+              style={{ height: "100%", width: "100%" }}
+              ref={(el) => {
+                if (el && !mapRef.current) {
+                  /* create the map only once */
+                  handleMapLoad(
+                    new window.google.maps.Map(el, {
+                      zoom: 12,
+                      center: origin,
+                    })
+                  );
+                }
+              }}
+            />
+          ) : (
+            <div className="h-full flex items-center justify-center">
+              Loading&nbsp;map…
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={onClose}
+          className="absolute font-opensans bottom-4 left-1/2 -translate-x-1/2
+                     px-6 py-3 text-base font-medium
+                     bg-black/20 backdrop-blur-md border border-white/30
+                     rounded-full shadow-md hover:bg-white/30
+                     transition-colors duration-200"
+        >
+          Close
+        </button>
+      </Modal>
+    );
+  };
   const formatColorText = (color) => {
     if (!color) return "";
     return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
@@ -1104,7 +1344,7 @@ const Checkout = () => {
   }
 
   return (
-    <div className="bg-gray-100 pb-12">
+    <div className="bg-gray-100 h-full ">
       <SEO
         title={`Checkout - My Thrift`}
         description={`Checkout your order on My Thrift`}
@@ -1156,7 +1396,7 @@ const Checkout = () => {
       {checkoutMode === "deliver" ? (
         <div className="px-3">
           <div className="mt-4 px-4 w-full py-4 rounded-lg bg-white ">
-            <h1 className="text-black font-semibold font-opensans text-lg ">
+            <h1 className="text-black font-semibold font-opensans text-base ">
               {isRepiling || checkoutMode === "stockpile"
                 ? "Pile Summary"
                 : "Order Summary"}
@@ -1164,8 +1404,10 @@ const Checkout = () => {
 
             <div className="border-t border-gray-300 my-2"></div>
             <div className="flex justify-between">
-              <label className="block mb-2 font-opensans ">Sub-Total</label>
-              <p className="text-lg font-opensans text-black font-semibold">
+              <label className="block mb-2 text-sm font-opensans ">
+                Sub-Total
+              </label>
+              <p className="text-base font-opensans text-black font-semibold">
                 {isFetchingOrderPreview ? (
                   <Skeleton width={80} />
                 ) : (
@@ -1183,7 +1425,7 @@ const Checkout = () => {
                     onClick={() => setShowBookingFeeModal(true)}
                   />
                 </label>
-                <p className="text-lg font-opensans text-black font-semibold">
+                <p className="text-base font-opensans text-black font-semibold">
                   {isFetchingOrderPreview ? (
                     <Skeleton width={80} />
                   ) : (
@@ -1195,10 +1437,10 @@ const Checkout = () => {
 
             {!isRepiling && (
               <div className="flex justify-between">
-                <label className="block mb-2 font-opensans">
+                <label className="block mb-2 text-sm font-opensans">
                   Service Fee
                   <CiCircleInfo
-                    className="inline ml-2 text-customOrange cursor-pointer"
+                    className="inline ml-2 text-customRichBrown cursor-pointer"
                     onClick={() => setShowServiceFeeModal(true)}
                   />
                 </label>
@@ -1206,7 +1448,7 @@ const Checkout = () => {
                   className={`font-opensans font-semibold ${
                     !showServiceFee
                       ? "loading-text text-xs"
-                      : "text-black text-lg"
+                      : "text-black text-base"
                   }`}
                 >
                   {isFetchingOrderPreview ? (
@@ -1223,9 +1465,13 @@ const Checkout = () => {
               {isFetchingOrderPreview ? (
                 <Skeleton width={80} />
               ) : isRepiling ? (
-                <p className="font-opensans text-sm mt-3 text-black font-medium">
-                  Delivery fee will be charged when it’s time to ship.
-                </p>
+                <div className="flex items-center bg-orange-50 py-3 px-2 rounded-lg mt-3">
+                  <div>
+                    <p className="font-opensans text-xs text-orange-700 font-semibold">
+                      Delivery fee will be charged when it’s time to ship.
+                    </p>
+                  </div>
+                </div>
               ) : !isLagosToLagos ? (
                 // --- NOT Lagos→Lagos: show the orange info box ---
                 <div className="flex items-center bg-orange-50 py-3 px-2 rounded-lg mt-3">
@@ -1244,10 +1490,8 @@ const Checkout = () => {
               ) : (
                 // --- Lagos→Lagos: show the actual fee ---
                 <div className="flex justify-between">
-                  <span className="font-opensans font-medium">
-                    Delivery Fee
-                  </span>
-                  <span className="text-lg font-opensans text-black font-semibold">
+                  <span className="font-opensans text-sm">Delivery Fee</span>
+                  <span className="text-base font-opensans text-black font-semibold">
                     ₦
                     {parseFloat(previewedOrder.deliveryCharge).toLocaleString()}
                   </span>
@@ -1257,7 +1501,7 @@ const Checkout = () => {
 
             <div className="border-t mt-3 border-gray-300 my-2"></div>
             <div className="flex justify-between mt-2">
-              <label className="block mb-2 font-opensans text-lg font-semibold">
+              <label className="block mb-2 font-opensans text-base font-semibold">
                 Total
               </label>
               <p className="text-lg font-opensans text-black font-semibold">
@@ -1288,7 +1532,7 @@ const Checkout = () => {
               }`}
             >
               <div className="flex justify-between items-center">
-                <h1 className="text-black font-semibold font-opensans text-lg">
+                <h1 className="text-black font-semibold font-opensans text-base">
                   Delivery Information
                 </h1>
                 <FaPen
@@ -1305,9 +1549,9 @@ const Checkout = () => {
                 />
               </div>
 
-              <div className="border-t border-gray-300 my-2"></div>
+              <div className="border-t  border-gray-300 my-2"></div>
 
-              <div className="flex">
+              <div className="flex text-sm ">
                 <label className="block mb-2 mr-1 font-semibold font-opensans">
                   Name:
                 </label>
@@ -1315,7 +1559,7 @@ const Checkout = () => {
                   {userInfo.displayName}
                 </p>
               </div>
-              <div className="flex">
+              <div className="flex text-sm">
                 <label className="block mb-2 mr-1 font-semibold font-opensans">
                   Phone Number:
                 </label>
@@ -1323,21 +1567,21 @@ const Checkout = () => {
                   {userInfo.phoneNumber}
                 </p>
               </div>
-              <div className="flex">
+              <div className="flex text-sm">
                 <label className="block mb-2 font-semibold mr-1 font-opensans">
                   Email:
                 </label>
                 <p className="font-opensans text-black">{userInfo.email}</p>
               </div>
-              <div className="flex">
+              <div className="flex text-sm">
                 <label className="block mb-2 mr-1 font-semibold font-opensans">
                   Address:
                 </label>
                 <p className="font-opensans text-black ">{userInfo.address}</p>
               </div>
 
-              <div className="flex flex-col space-y-1">
-                <div className="flex items-center">
+              <div className="flex flex-col text-sm space-y-1">
+                <div className="flex font-opensans items-center">
                   <label className="font-semibold mr-1">Note:</label>
                   {userInfo.deliveryNote ? (
                     <p className="font-opensans text-black">
@@ -1357,17 +1601,17 @@ const Checkout = () => {
             {vendorId && cart[vendorId] && (
               <>
                 <div className="flex justify-between">
-                  <h1 className="text-black font-medium font-opensans text-lg">
+                  <h1 className="text-black font-semibold font-opensans text-base">
                     {isRepiling || checkoutMode === "stockpile"
                       ? "Pile"
                       : "Shipment"}
                   </h1>
-                  <h3 className="text-sm">
-                    <span className="text-gray-400 text-sm font-opensans">
+                  <h3 className="text-xs font-opensans">
+                    <span className="text-gray-600 mr-1 font-normal text-xs font-opensans">
                       From:
                     </span>
-                    {vendorsInfo[vendorId]?.shopName?.length > 20
-                      ? `${vendorsInfo[vendorId]?.shopName.slice(0, 20)}...`
+                    {vendorsInfo[vendorId]?.shopName?.length > 26
+                      ? `${vendorsInfo[vendorId]?.shopName.slice(0, 26)}...`
                       : vendorsInfo[vendorId]?.shopName || `Vendor ${vendorId}`}
                   </h3>
                 </div>
@@ -1395,28 +1639,28 @@ const Checkout = () => {
                             <h4 className="text-sm font-opensans">
                               {product.name}
                             </h4>
-                            <p className="font-opensans text-md mt-2 text-black font-bold">
+                            <p className="font-opensans text-md mt-1 text-black font-bold">
                               ₦{product.price.toLocaleString()}
                             </p>
-                            <div className="flex items-center space-x-4 text-sm mt-2 ">
+                            <div className="flex items-center space-x-3 text-sm mt-1 ">
                               {product.isFashion && (
                                 <>
-                                  <p className="text-black font-semibold font-opensans">
-                                    <span className="font-normal text-gray-600">
+                                  <p className="text-black text-sm font-semibold font-opensans">
+                                    <span className="font-normal text-xs text-gray-600">
                                       Size:
                                     </span>{" "}
                                     {product.selectedSize || "N/A"}
                                   </p>
-                                  <p className="text-black font-semibold font-opensans">
-                                    <span className="font-normal text-gray-600">
+                                  <p className="text-black text-sm font-semibold font-opensans">
+                                    <span className="font-normal text-xs text-gray-600">
                                       Color:
                                     </span>{" "}
                                     {formatColorText(product.selectedColor)}
                                   </p>
                                 </>
                               )}
-                              <p className="text-black font-semibold font-opensans">
-                                <span className="font-normal text-gray-600">
+                              <p className="text-black text-sm font-semibold font-opensans">
+                                <span className="font-normal text-xs text-gray-600">
                                   Qty:
                                 </span>{" "}
                                 {product.quantity}
@@ -1435,107 +1679,181 @@ const Checkout = () => {
             <div className="bg-white mt-3 p-3 rounded-lg shadow-md">
               {vendorId && vendorsInfo[vendorId] && (
                 <>
-                  <div className="flex items-center">
-                    <h1 className="text-black font-medium font-opensans text-lg">
-                      Delivery Method
-                    </h1>
-                  </div>
-
-                  <div className="border-t border-gray-300 my-3"></div>
-
-                  <div
-                    className={`p-3 mb-4 cursor-pointer flex items-center ${
-                      vendorsInfo[vendorId]?.deliveryMode === "Pickup"
-                        ? "border-customOrange"
-                        : "border-gray-300"
-                    }`}
-                    onClick={() => handleDeliveryModeSelection("Pickup")}
-                  >
-                    <div
-                      className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
-                        vendorsInfo[vendorId]?.deliveryMode === "Pickup"
-                          ? "border-customOrange"
-                          : "border-gray-300"
+                  <h2 className="text-base font-opensans font-semibold mb-3">
+                    Delivery Method
+                  </h2>
+                  <div className="border-t border-gray-200 mb-2" />
+                  <div className="px-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDeliveryModeSelection("Pickup")}
+                      className={`w-full flex items-center justify-between py-2  ${
+                        selectedDeliveryMode === "Pickup"
                       }`}
                     >
-                      {vendorsInfo[vendorId]?.deliveryMode === "Pickup" && (
-                        <div className="w-3 h-3 rounded-full bg-orange-500" />
+                      <div className="flex flex-col items-start">
+                        <p className="text-base font-opensans font-semibold text-black">
+                          Pick-up
+                          <span className="font-normal text-xs text-customRichBrown ml-1">
+                            {pickupDistance
+                              ? `(≈ ${pickupDistance})`
+                              : "(distance — …)"}
+                          </span>
+                        </p>
+                        <p className="text-xs text-gray-800 font-opensans  ">
+                          usually takes a day or two
+                        </p>
+                      </div>
+                      <span
+                        className={`w-5 h-5 rounded-full border-2 mr-2 flex items-center justify-center ${
+                          selectedDeliveryMode === "Pickup"
+                            ? "border-customOrange"
+                            : "border-gray-300"
+                        }`}
+                      >
+                        {selectedDeliveryMode === "Pickup" && (
+                          <span className="w-3 h-3 rounded-full bg-customOrange" />
+                        )}
+                      </span>
+                    </button>
+
+                    {/* Pick-up location (always visible) */}
+                    <div className="mt-1 rounded bg-gray-100 py-3 px-2">
+                      {supportsPickup &&
+                      vendorsInfo[vendorId]?.pickupLat &&
+                      vendorsInfo[vendorId]?.pickupLng &&
+                      vendorsInfo[vendorId]?.pickupAddress ? (
+                        <>
+                          <button
+                            onClick={() => setShowMapModal(true)}
+                            className="w-full flex items-center justify-between"
+                          >
+                            <span className="font-opensans font-semibold text-xs">
+                              Pick-up location
+                            </span>
+                            <div className="flex items-center text-xs font-opensans text-blue-800">
+                              <span>Open map</span>
+                              <GoChevronRight className="text-lg" />
+                            </div>
+                          </button>
+                          <hr className="border-t border-gray-300 my-2" />
+                          <p className="mt-2 text-xs font-opensans text-black">
+                            {vendorsInfo[vendorId].pickupAddress}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-xs font-opensans text-gray-500">
+                          Vendor doesn’t offer pickup
+                        </p>
                       )}
                     </div>
-                    <span className="font-opensans font-semibold ml-3 text-black text-lg">
-                      Pick-up
-                    </span>
-                  </div>
-                  <p className="ml-12 text-black font-light font-opensans text-xs -translate-y-9">
-                    1-3 working days
-                  </p>
 
-                  <div className="border-t border-gray-300 "></div>
+                    <hr className="border-t border-gray-200 my-2" />
 
-                  <div
-                    className={`p-3 mb-4 cursor-pointer flex items-center ${
-                      vendorsInfo[vendorId]?.deliveryMode === "Delivery"
-                        ? "border-customOrange"
-                        : "border-gray-300"
-                    }`}
-                    onClick={() => handleDeliveryModeSelection("Delivery")}
-                  >
-                    <div
-                      className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
-                        vendorsInfo[vendorId]?.deliveryMode === "Delivery"
-                          ? "border-customOrange"
-                          : "border-gray-300"
+                    {/* Door delivery */}
+                    <button
+                      type="button"
+                      onClick={() => handleDeliveryModeSelection("Delivery")}
+                      className={`w-full flex items-start justify-between py-4 ${
+                        selectedDeliveryMode === "Delivery"
                       }`}
                     >
-                      {vendorsInfo[vendorId]?.deliveryMode === "Delivery" && (
-                        <div className="w-3 h-3 rounded-full bg-orange-500" />
-                      )}
-                    </div>
-                    <span className="font-opensans font-semibold ml-3 text-black text-lg">
-                      Delivery
-                    </span>
+                      <div className="flex flex-col items-start">
+                        <p className="text-base font-opensans font-semibold text-black">
+                          Door delivery
+                          <span className="font-normal text-xs text-customRichBrown ml-1">
+                            (≈ ₦
+                            {previewedOrder.deliveryCharge?.toLocaleString()})
+                          </span>
+                        </p>
+                        <p className="text-xs text-gray-800 font-opensans">
+                          1–3 working days
+                        </p>
+                      </div>
+                      <span
+                        className={`w-5 h-5 rounded-full border-2 mr-2 flex items-center justify-center ${
+                          selectedDeliveryMode === "Delivery"
+                            ? "border-customOrange"
+                            : "border-gray-300"
+                        }`}
+                      >
+                        {selectedDeliveryMode === "Delivery" && (
+                          <span className="w-3 h-3 rounded-full bg-customOrange" />
+                        )}
+                      </span>
+                    </button>
                   </div>
-                  <p className="ml-12 text-black font-light font-opensans text-xs -translate-y-9">
-                    2-7 working days
-                  </p>
-
-                  {/* <div className="px-4 w-full py-2 rounded-lg bg-customCream">
-                    <h1 className="text-black font-semibold font-opensans text-xs">
-                      Estimated Delivery Fee
-                    </h1>
-                    <div className="border-t border-gray-700 my-2"></div>
-                    {deliveryEstimate ? (
-                      <p className="text-sm font-opensans text-black font-semibold">
-                        ₦{deliveryEstimate.toLocaleString()}
-                      </p>
-                    ) : !vendorsInfo[vendorId]?.state ||
-                      !userInfo.address.split(", ").pop() ? (
-                      <p className="text-sm font-opensans text-red-500 font-bold">
-                        No estimate available ☹️
-                      </p>
-                    ) : (
-                      <Skeleton width={80} />
-                    )}
-                    <p className="text-xs font-opensans text-gray-600 mt-2">
-                      <span className="font-semibold">Note:</span> The delivery
-                      fee displayed is an estimate based on your location and
-                      items in the cart. This fee will not be charged at
-                      checkout. The vendor will contact you with the exact
-                      delivery fee details before your order is shipped.
-                    </p>
-                  </div> */}
+                  {/* Pick-up */}
                 </>
               )}
             </div>
           )}
+          {/* ───────────────── Payment Method ───────────────── */}
+          <div className="bg-white mt-3 p-4 rounded-lg shadow-md">
+            <h2 className="text-base font-opensans font-semibold mb-3">
+              Payment Method
+            </h2>
+            <div className="border-t border-gray-200 my-2" />
 
+            {[
+              {
+                id: "paystack",
+                label: "Paystack",
+                icon: (
+                  <img src="/paystacklogo.png" alt="" className="w-6 h-6" />
+                ),
+              },
+              {
+                id: "wallet",
+                label: "Wallet",
+                icon: <TfiWallet className="text-xl" />,
+              },
+              {
+                id: "share",
+                label: "Pay for me",
+                icon: <FaUserFriends className="text-xl" />,
+              },
+            ].map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setSelectedPayment(opt.id)}
+                className="w-full flex items-center justify-between py-4 border-b last:border-0"
+              >
+                <span className="flex items-center space-x-3">
+                  {opt.icon}
+                  <span className="text-sm font-semibold font-opensans">
+                    {opt.label}
+                  </span>
+                  {opt.id === "wallet" && walletSetup && (
+                    <span className="text-[11px] -translate-x-1 font-opensans font-medium text-customRichBrown">
+                      [₦{walletBal.toLocaleString()}]
+                    </span>
+                  )}
+                </span>
+
+                {/* radio */}
+                <span
+                  className={`w-5 h-5 rounded-full mr-2 border-2 flex items-center justify-center ${
+                    selectedPayment === opt.id
+                      ? "border-customOrange"
+                      : "border-gray-300"
+                  }`}
+                >
+                  {selectedPayment === opt.id && (
+                    <span className="w-3 h-3 rounded-full bg-customOrange" />
+                  )}
+                </span>
+              </button>
+            ))}
+          </div>
           <div className="mt-2">
             <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
               <div
                 onClick={() => setShowShopSafelyModal(true)}
                 className="flex justify-between items-center"
               >
-                <h1 className="text-black font-semibold font-opensans text-lg">
+                <h1 className="text-black font-semibold font-opensans text-base">
                   Shop safely and sustainably
                 </h1>
                 <GoChevronRight className="text-black text-2xl cursor-pointer" />
@@ -1546,25 +1864,25 @@ const Checkout = () => {
               <div className="flex mt-3 -mx-2 space-x-0.5">
                 <div className="flex items-center flex-col">
                   <RiSecurePaymentFill className="text-3xl text-green-700" />
-                  <p className="text-xs text-gray-600 text-center">
+                  <p className="text-xs text-gray-600 font-opensans text-center">
                     Secure your payment
                   </p>
                 </div>
                 <div className="flex items-center flex-col">
                   <MdOutlineLock className="text-3xl text-green-700" />
-                  <p className="text-xs text-gray-600 text-center">
+                  <p className="text-xs text-gray-600 font-opensans text-center">
                     Security & Privacy
                   </p>
                 </div>
                 <div className="flex items-center flex-col">
                   <LiaShippingFastSolid className="text-3xl text-green-700" />
-                  <p className="text-xs text-gray-600 text-center">
+                  <p className="text-xs font-opensans text-gray-600 text-center">
                     Secure Shipment Guarantee
                   </p>
                 </div>
                 <div className="flex items-center flex-col">
                   <MdSupportAgent className="text-3xl text-green-700" />
-                  <p className="text-xs text-gray-600 text-center">
+                  <p className="text-xs text-gray-600 font-opensans text-center">
                     Customer Support
                   </p>
                 </div>
@@ -1596,7 +1914,7 @@ const Checkout = () => {
           </div>
 
           <div className="mt-4 px-4 w-full py-4 rounded-lg bg-white ">
-            <h1 className="text-black font-semibold font-opensans text-lg ">
+            <h1 className="text-black font-semibold font-opensans text-base ">
               {isRepiling || checkoutMode === "stockpile"
                 ? "Pile Summary"
                 : "Order Summary"}
@@ -1686,7 +2004,7 @@ const Checkout = () => {
             {vendorId && vendorsInfo[vendorId] && (
               <>
                 <div className="flex items-center">
-                  <h1 className="text-black font-semibold font-opensans text-lg">
+                  <h1 className="text-black font-semibold font-opensans text-base">
                     Stockpile Instructions
                   </h1>
                   {/* <CiCircleInfo
@@ -1776,7 +2094,7 @@ const Checkout = () => {
               <>
                 <div className="flex justify-between">
                   <div className="flex items-center">
-                    <h1 className="text-black font-medium mr-1 font-opensans text-lg">
+                    <h1 className="text-black font-medium mr-1 font-opensans text-base">
                       Pile
                     </h1>
                     <GiBookPile className="text-xl" />
@@ -1857,7 +2175,7 @@ const Checkout = () => {
           <div className="mt-2">
             <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
               <div className="flex justify-between items-center">
-                <h1 className="text-black font-semibold font-opensans text-lg">
+                <h1 className="text-black font-semibold font-opensans text-base">
                   Delivery Information
                 </h1>
                 <FaPen
@@ -1868,7 +2186,7 @@ const Checkout = () => {
 
               <div className="border-t border-gray-300 my-2"></div>
 
-              <div className="flex">
+              <div className="flex text-sm">
                 <label className="block mb-2 mr-1 font-semibold font-opensans">
                   Name:
                 </label>
@@ -1876,7 +2194,7 @@ const Checkout = () => {
                   {userInfo.displayName}
                 </p>
               </div>
-              <div className="flex">
+              <div className="flex text-sm">
                 <label className="block mb-2 mr-1 font-semibold font-opensans">
                   Phone Number:
                 </label>
@@ -1884,13 +2202,13 @@ const Checkout = () => {
                   {userInfo.phoneNumber}
                 </p>
               </div>
-              <div className="flex">
+              <div className="flex text-sm">
                 <label className="block mb-2 font-semibold mr-1 font-opensans">
                   Email:
                 </label>
                 <p className="font-opensans text-black">{userInfo.email}</p>
               </div>
-              <div className="flex">
+              <div className="flex text-sm">
                 <label className="block mb-2 mr-1 font-semibold font-opensans">
                   Address:
                 </label>
@@ -1902,13 +2220,72 @@ const Checkout = () => {
               </p>
             </div>
           </div>
+          {/* ───────────────── Payment Method ───────────────── */}
+          <div className="bg-white mt-3 p-4 rounded-lg shadow-md">
+            <h2 className="text-base font-opensans font-semibold mb-3">
+              Payment Method
+            </h2>
+            <div className="border-t border-gray-200 my-2" />
+
+            {[
+              {
+                id: "paystack",
+                label: "Paystack",
+                icon: (
+                  <img src="/paystacklogo.png" alt="" className="w-6 h-6" />
+                ),
+              },
+              {
+                id: "wallet",
+                label: "Wallet",
+                icon: <TfiWallet className="text-xl" />,
+              },
+              {
+                id: "share",
+                label: "Pay for me",
+                icon: <FaUserFriends className="text-xl" />,
+              },
+            ].map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setSelectedPayment(opt.id)}
+                className="w-full flex items-center justify-between py-4 border-b last:border-0"
+              >
+                <span className="flex items-center space-x-3">
+                  {opt.icon}
+                  <span className="text-sm font-semibold font-opensans">
+                    {opt.label}
+                  </span>
+                  {opt.id === "wallet" && walletSetup && (
+                    <span className="text-[11px] -translate-x-1 font-opensans font-medium text-customOrange">
+                      [₦{walletBal.toLocaleString()}]
+                    </span>
+                  )}
+                </span>
+
+                {/* radio */}
+                <span
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    selectedPayment === opt.id
+                      ? "border-customOrange"
+                      : "border-gray-300"
+                  }`}
+                >
+                  {selectedPayment === opt.id && (
+                    <span className="w-3 h-3 rounded-full bg-customOrange" />
+                  )}
+                </span>
+              </button>
+            ))}
+          </div>
           <div className="mt-2">
             <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
               <div
                 onClick={() => setShowShopSafelyModal(true)}
                 className="flex justify-between items-center"
               >
-                <h1 className="text-black font-semibold font-opensans text-lg">
+                <h1 className="text-black font-semibold font-opensans text-base">
                   Shop safely and sustainably
                 </h1>
                 <GoChevronRight className="text-black text-2xl cursor-pointer" />
@@ -1963,6 +2340,18 @@ const Checkout = () => {
         dispatch={dispatch}
         navigate={navigate}
       />
+      <MapModal
+        isOpen={showMapModal}
+        onClose={() => setShowMapModal(false)}
+        origin={{
+          lat: userInfo.latitude,
+          lng: userInfo.longitude,
+        }}
+        destination={{
+          lat: vendorsInfo[vendorId]?.pickupLat,
+          lng: vendorsInfo[vendorId]?.pickupLng,
+        }}
+      />
 
       <ShopSafelyModal
         isOpen={showShopSafelyModal}
@@ -1984,50 +2373,46 @@ const Checkout = () => {
         isOpen={showBookingFeeModal}
         onClose={() => setShowBookingFeeModal(false)}
       />
+      {/* ─── big primary action button ─── */}
+      <div className=" px-4 mt-6 pb-6 ">
+        <button
+          onClick={() => {
+            if (selectedPayment === "wallet" && !walletSetup) {
+              navigate("/your-wallet");
+              return;
+            }
 
-      <div className="fixed bottom-0 left-0 right-0 p-3  bg-white shadow-lg">
-        <div className="flex gap-3">
-          <button
-            onClick={handleShareLink}
-            className={`w-full h-12 text-customRichBrown text-sm font-semibold font-opensans rounded-full flex items-center justify-center ${
-              isLoadingLink ||
-              isLoading ||
-              (checkoutMode === "stockpile" && !selectedWeeks)
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-transparent border border-customRichBrown "
-            }`}
-            disabled={
-              isLoadingLink ||
-              isLoading ||
-              (checkoutMode === "stockpile" && !selectedWeeks)
-            }
-          >
-            Pay For Me
-          </button>
-          <button
-            onClick={handleProceedToPayment}
-            className={`w-full h-12 px-1 text-white text-sm font-semibold font-opensans rounded-full flex items-center justify-center ${
-              isLoading || (checkoutMode === "stockpile" && !selectedWeeks)
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-customOrange"
-            }`}
-            disabled={
-              isLoading || (checkoutMode === "stockpile" && !selectedWeeks)
-            }
-          >
-            {isLoading ? (
-              <RotatingLines
-                strokeColor="white"
-                strokeWidth="5"
-                animationDuration="0.75"
-                width="24"
-                visible={true}
-              />
-            ) : (
-              "Proceed to Pay"
-            )}
-          </button>
-        </div>
+            if (selectedPayment === "share") return handleShareLink();
+            return handleProceedToPayment();
+          }}
+          disabled={
+            !selectedPayment ||
+            isLoading ||
+            mustChooseDelivery ||
+            isLoadingLink ||
+            (checkoutMode === "stockpile" && !selectedWeeks)
+          }
+          className={`w-full h-12 rounded-full font-opensans font-semibold flex items-center justify-center
+    ${
+      !selectedPayment ||
+      isLoading ||
+      isLoadingLink ||
+      mustChooseDelivery ||
+      (checkoutMode === "stockpile" && !selectedWeeks)
+        ? "bg-gray-400 cursor-not-allowed text-white"
+        : "bg-customOrange text-white"
+    }`}
+        >
+          {isLoading || isLoadingLink ? (
+            <RotatingLines strokeColor="#fff" strokeWidth="5" width="24" />
+          ) : (
+            (() => {
+              if (selectedPayment === "wallet") return "Pay with Wallet";
+              if (selectedPayment === "share") return "Generate link";
+              return "Pay with Paystack";
+            })()
+          )}
+        </button>
       </div>
     </div>
   );

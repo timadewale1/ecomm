@@ -2,7 +2,11 @@ import React, { Suspense, lazy } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Loading from "../components/Loading/Loading.jsx";
 
-// Lazy load all components
+// Non-lazy loaded components (bottom bar routes, Checkout, StorePage)
+import Checkout from "../pages/NewCheckout.jsx";
+import StorePage from "../pages/StorePage.jsx";
+
+// Lazy load all other components
 const ProductDetailPage = lazy(() =>
   import("../pages/UserSide/ProductDetail.jsx")
 );
@@ -26,6 +30,9 @@ const FavoritesPage = lazy(() =>
 const VendorProducts = lazy(() =>
   import("../pages/VendorCompleteProfile/VendorProducts.jsx")
 );
+const UserWalletPage = lazy(() =>
+  import("../pages/UserSide/WalletPageUser.jsx")
+);
 const VendorProfile = lazy(() =>
   import("../pages/VendorCompleteProfile/VendorProfile.jsx")
 );
@@ -43,7 +50,6 @@ const EmailVerification = lazy(() =>
 );
 const LatestCart = lazy(() => import("../pages/Cart.jsx"));
 const OrdersCentre = lazy(() => import("../pages/UserSide/OrdersCentre.jsx"));
-const Checkout = lazy(() => import("../pages/NewCheckout.jsx"));
 const MarketVendors = lazy(() => import("../pages/MarketVendors.jsx"));
 const Profile = lazy(() => import("../pages/Profile.jsx"));
 const ConditionProducts = lazy(() =>
@@ -54,7 +60,6 @@ const Marketcardpage = lazy(() => import("../pages/marketcardpage.jsx"));
 const OnlineVendors = lazy(() => import("../pages/OnlineVendors.jsx"));
 const ConfirmUserState = lazy(() => import("../pages/ConfirmUserState.jsx"));
 const ProtectedRoute = lazy(() => import("./ProtectedRoute.jsx"));
-const StorePage = lazy(() => import("../pages/StorePage.jsx"));
 const CategoryPage = lazy(() => import("../pages/UserSide/CategoryPage.jsx"));
 const VendorRatings = lazy(() => import("../pages/vendor/VendorRatings.jsx"));
 const SearchPage = lazy(() => import("../pages/UserSide/Searchpage.jsx"));
@@ -93,6 +98,9 @@ const WithWalletSetupModal = lazy(() =>
 const WithPwaInstallModal = lazy(() =>
   import("../components/layout/WithPwaInstallModal.jsx")
 );
+const WithPickupPrompt = lazy(() =>
+  import("../components/Reviews/withPickupModal.jsx")
+);
 
 const Routers = () => {
   return (
@@ -130,6 +138,16 @@ const Routers = () => {
             <RoleBasedAccess allowedRoles={["user"]}>
               <WithReviewModal>
                 <Profile />
+              </WithReviewModal>
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/your-wallet"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <WithReviewModal>
+                <UserWalletPage />
               </WithReviewModal>
             </RoleBasedAccess>
           }
@@ -312,7 +330,9 @@ const Routers = () => {
             path="/vendor-products"
             element={
               <WithWalletSetupModal>
-                <VendorProducts />
+                <WithPickupPrompt>
+                  <VendorProducts />
+                </WithPickupPrompt>
               </WithWalletSetupModal>
             }
           />
@@ -321,7 +341,9 @@ const Routers = () => {
             path="/vendor-orders"
             element={
               <WithWalletSetupModal>
-                <VendorOrders />
+                <WithPickupPrompt>
+                  <VendorOrders />
+                </WithPickupPrompt>
               </WithWalletSetupModal>
             }
           />

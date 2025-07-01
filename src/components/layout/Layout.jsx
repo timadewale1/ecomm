@@ -41,6 +41,7 @@ const Layout = () => {
     "/vendor-signup",
     "/complete-profile",
     "/newcheckout/bookingfee",
+    "your-wallet",
     "/newcheckout/fulldelivery",
     "/user-dashboard",
     "/search",

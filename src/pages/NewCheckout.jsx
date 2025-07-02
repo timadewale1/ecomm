@@ -5,7 +5,7 @@ import { toast } from "react-hot-toast";
 import { clearCart } from "../redux/actions/action";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase.config";
-
+import { PiStackPlusFill, PiStackSimpleFill } from "react-icons/pi";
 import { useAuth } from "../custom-hooks/useAuth";
 import { RiShareForwardBoxLine } from "react-icons/ri";
 import { SiAdguard } from "react-icons/si";
@@ -663,6 +663,7 @@ const Checkout = () => {
       return;
     }
     if (
+      !isRepiling &&
       checkoutMode === "deliver" &&
       vendorsInfo[vendorId]?.deliveryMode === "Delivery & Pickup" &&
       !selectedDeliveryMode
@@ -1515,7 +1516,7 @@ const Checkout = () => {
 
             {isRepiling && (
               <div className="flex items-center bg-green-50 p-3 rounded-lg mt-3">
-                <GiBookPile className="text-green-600 text-3xl mr-3" />
+                <PiStackSimpleFill className="text-green-600 text-3xl mr-3" />
                 <div>
                   <p className="font-opensans text-xs text-green-700 font-semibold">
                     You’ve saved ₦{previewedOrder.serviceFee.toLocaleString()}{" "}

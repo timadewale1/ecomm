@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { GoDotFill, GoChevronLeft } from "react-icons/go";
 import { CiSearch } from "react-icons/ci";
-import { db } from "../firebase.config";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchVendorsRanked } from "../redux/reducers/VendorsSlice";
 import { toast } from "react-toastify";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -16,20 +16,17 @@ import { IoLocationOutline } from "react-icons/io5";
 
 const OnlineVendors = () => {
   const navigate = useNavigate();
-
-  // All vendors and all products from Firestore
-  const [vendors, setVendors] = useState([]);
-  const [products, setProducts] = useState([]);
+  const dispatch = useDispatch();
+  const {
+    online: vendors = [],
+    status,
+    isFetched,
+  } = useSelector((state) => state.vendors);
 
   // Search/filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
 
-  // Filtered results (vendors only, for display)
-  const [searchResults, setSearchResults] = useState([]);
-
-  // UI states
-  const [loading, setLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
 
   const categories = [
@@ -49,54 +46,21 @@ const OnlineVendors = () => {
     "Sportswear",
     "Formal",
   ];
-
-  // -----------------------------
-  // 1. Fetch Vendors & Products
-  // -----------------------------
   useEffect(() => {
-    const fetchVendorsAndProducts = async () => {
-      try {
-        // 1) Get all "online" vendors
-        const vendorQuery = query(
-          collection(db, "vendors"),
-          where("marketPlaceType", "==", "virtual"),
-          where("isDeactivated", "==", false),
-          where("isApproved", "==", true)
-        );
-        const vendorSnapshot = await getDocs(vendorQuery);
-        const vendorsList = vendorSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setVendors(vendorsList);
+    if (!isFetched) {
+      dispatch(fetchVendorsRanked());
+    }
+  }, [dispatch, isFetched]);
 
-        // 2) Get all products from those vendors (if you need them)
-        const productsList = [];
-        for (const vendor of vendorsList) {
-          const productsRef = collection(db, `vendors/${vendor.id}/products`);
-          const productsSnapshot = await getDocs(productsRef);
-          productsSnapshot.forEach((productDoc) => {
-            productsList.push({
-              id: productDoc.id,
-              vendorId: vendor.id,
-              ...productDoc.data(),
-            });
-          });
-        }
-        setProducts(productsList);
-
-        // Initially, show all vendors in searchResults
-        setSearchResults(vendorsList);
-      } catch (error) {
-        toast.error("Error fetching vendors and products: " + error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchVendorsAndProducts();
-  }, []);
-
+  const filteredVendors = useMemo(() => {
+    const term = searchTerm.toLowerCase().trim();
+    return vendors.filter((v) => {
+      const matchesSearch = !term || v.shopName.toLowerCase().includes(term);
+      const matchesCategory =
+        !selectedCategory || v.categories.includes(selectedCategory);
+      return matchesSearch && matchesCategory;
+    });
+  }, [vendors, searchTerm, selectedCategory]);
   // ---------------------------------
   // 2. Universal Filter Function
   // ---------------------------------
@@ -124,22 +88,10 @@ const OnlineVendors = () => {
   // 3. Handlers
   // ---------------------------------
   const handleSearchChange = (e) => {
-    const newTerm = e.target.value;
-    setSearchTerm(newTerm);
-
-    // Filter based on newTerm + selectedCategory
-    const filtered = filterVendors(newTerm, selectedCategory);
-    setSearchResults(filtered);
+    setSearchTerm(e.target.value);
   };
-
   const handleCategoryClick = (category) => {
-    // Toggle the category
-    const newCategory = selectedCategory === category ? "" : category;
-    setSelectedCategory(newCategory);
-
-    // Re-filter with current searchTerm + newCategory
-    const filtered = filterVendors(searchTerm, newCategory);
-    setSearchResults(filtered);
+    setSelectedCategory((prev) => (prev === category ? "" : category));
   };
 
   const handleRefresh = () => {
@@ -205,12 +157,12 @@ const OnlineVendors = () => {
 
           {/* Category Pills (only if NOT searching) */}
           {!isSearching && (
-            <div className="flex justify-between mb-3 w-full overflow-x-auto space-x-2 px-2">
+            <div className="flex scrollbar-hide justify-between mb-3 w-full overflow-x-auto space-x-2 px-2">
               {categories.map((category) => (
                 <button
                   key={category}
                   onClick={() => handleCategoryClick(category)}
-                  className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-bold font-opensans text-black border border-gray-200 rounded-full ${
+                  className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-semibold font-opensans text-black border border-gray-200 rounded-full ${
                     selectedCategory === category
                       ? "bg-customOrange text-white"
                       : "bg-transparent"
@@ -227,8 +179,8 @@ const OnlineVendors = () => {
         <div className="vendor-list -mx-2 translate-y-1">
           <hr className="bg-gray-200 pb-0.5 w-full" />
 
-          {/* 4a) Loading Skeletons */}
-          {loading ? (
+          {status === "loading" ? (
+            // 4a) Loading Skeletons
             Array.from({ length: 5 }).map((_, index) => (
               <div key={index} className="vendor-item">
                 <div className="flex justify-between p-3 mb-1 bg-white">
@@ -241,16 +193,18 @@ const OnlineVendors = () => {
                 </div>
               </div>
             ))
-          ) : // 4b) Render Filtered Vendors
-          searchResults.length > 0 ? (
-            searchResults.map((vendor) => {
-              // For rating
+          ) : filteredVendors.length > 0 ? (
+            // 4b) Render Filtered Vendors
+            filteredVendors.map((vendor) => {
               const ratingCount = vendor.ratingCount || 0;
               const averageRating =
                 ratingCount > 0 ? vendor.rating / ratingCount : 0;
 
               return (
-                <div key={vendor.id} className="vendor-item  border-b  border-gray-100">
+                <div
+                  key={vendor.id}
+                  className="vendor-item border-b border-gray-100"
+                >
                   <div
                     className="flex justify-between p-3 mb-1 bg-white"
                     onClick={() => handleStoreView(vendor)}
@@ -261,7 +215,7 @@ const OnlineVendors = () => {
                           ? `${vendor.shopName.substring(0, 18)}...`
                           : vendor.shopName}
                       </h1>
-                      <p className="font-sans text-gray-300 categories-text flex items-center -translate-y-1">
+                      <p className="font-opensans text-xs text-gray-300 flex items-center -translate-y-1">
                         {vendor.categories.slice(0, 3).map((cat, idx) => (
                           <React.Fragment key={idx}>
                             {idx > 0 && (
@@ -271,12 +225,12 @@ const OnlineVendors = () => {
                           </React.Fragment>
                         ))}
                       </p>
-                      <div className="flex -ml-1  items-center  text-gray-700 font-ubuntu font-  text-xs translate-y-4 mb-0">
+                      <div className="flex -ml-1 items-center text-gray-700 text-xs translate-y-4 mb-0">
                         <IoLocationOutline className="mr-1 text-customOrange" />
                         <span>{vendor.state}</span>
                       </div>
                       <div className="flex items-center translate-y-4">
-                        <span className="text-black font-light text-xs mr-2">
+                        <span className="text-black font-light text-[10px] mr-2">
                           {averageRating.toFixed(1)}
                         </span>
                         <ReactStars
@@ -288,36 +242,26 @@ const OnlineVendors = () => {
                           filledIcon={<RoundedStar filled={true} />}
                           edit={false}
                         />
-                        <span className="text-black font-light ratings-text ml-2">
+                        <span className="text-black text-[10px] font-light ml-2">
                           ({ratingCount})
                         </span>
                       </div>
                     </div>
                     <div className="relative w-24 h-24 overflow-hidden">
-                      {/* Main image */}
                       <IkImage
                         className="object-cover w-full h-full rounded-lg"
                         src={vendor.coverImageUrl || defaultImageUrl}
                         alt={vendor.shopName}
                       />
-
-                      {/* Shimmer effect overlay with pause between animations */}
                       <div
                         className="absolute inset-0"
                         style={{
                           background:
                             "linear-gradient(45deg, transparent 20%, rgba(255,255,255,0.3) 50%, transparent 80%)",
                           backgroundSize: "200% 200%",
-                          animation: "shimmer 6s infinite ease-in-out", // Adjusted timing
+                          animation: "shimmer 6s infinite ease-in-out",
                         }}
                       />
-
-                      {/* Commented out ribbon
-  <img
-    src="/Ribbon.svg"
-    alt="Discount Ribbon"
-    className="absolute top-0 left-0 w-8 h-8"
-  /> */}
                     </div>
                   </div>
                 </div>

@@ -33,7 +33,7 @@ export default function IkImage({ src, alt = "", className = "" }) {
 
   const quality = getQuality();
   const base = getImageKitUrl(src);
-  console.log("IkImage base URL:", base);
+ 
 
   // Generate URLs with transformations
   const tiny = base.includes("?")

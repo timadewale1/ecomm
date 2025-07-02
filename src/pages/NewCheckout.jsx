@@ -1440,7 +1440,7 @@ const Checkout = () => {
                 <label className="block mb-2 text-sm font-opensans">
                   Service Fee
                   <CiCircleInfo
-                    className="inline ml-2 text-customRichBrown cursor-pointer"
+                    className="inline ml-2 text-customOrange cursor-pointer"
                     onClick={() => setShowServiceFeeModal(true)}
                   />
                 </label>
@@ -1694,7 +1694,7 @@ const Checkout = () => {
                       <div className="flex flex-col items-start">
                         <p className="text-base font-opensans font-semibold text-black">
                           Pick-up
-                          <span className="font-normal text-xs text-customRichBrown ml-1">
+                          <span className="font-normal text-xs text-customOrange ml-1">
                             {pickupDistance
                               ? `(≈ ${pickupDistance})`
                               : "(distance — …)"}
@@ -1761,7 +1761,7 @@ const Checkout = () => {
                       <div className="flex flex-col items-start">
                         <p className="text-base font-opensans font-semibold text-black">
                           Door delivery
-                          <span className="font-normal text-xs text-customRichBrown ml-1">
+                          <span className="font-normal text-xs text-customOrange ml-1">
                             (≈ ₦
                             {previewedOrder.deliveryCharge?.toLocaleString()})
                           </span>
@@ -1825,11 +1825,22 @@ const Checkout = () => {
                   <span className="text-sm font-semibold font-opensans">
                     {opt.label}
                   </span>
-                  {opt.id === "wallet" && walletSetup && (
-                    <span className="text-[11px] -translate-x-1 font-opensans font-medium text-customRichBrown">
-                      [₦{walletBal.toLocaleString()}]
-                    </span>
-                  )}
+                  {opt.id === "wallet" &&
+                    (walletSetup ? (
+                      <span className="text-[11px] -translate-x-1 font-opensans font-medium text-customOrange">
+                        [₦{walletBal.toLocaleString()}]
+                      </span>
+                    ) : (
+                      <span
+                        className=" -translate-x-1 font-opensans py-0.5 font-medium bg-customOrange  px-1 rounded-md cursor-pointer"
+                        onClick={() => navigate("/your-wallet")}
+                      >
+                        <p className="text-[10px] text-white font-opensans font-medium">
+                          {" "}
+                          Setup Wallet
+                        </p>
+                      </span>
+                    ))}
                 </span>
 
                 {/* radio */}
@@ -1922,8 +1933,10 @@ const Checkout = () => {
 
             <div className="border-t border-gray-300 my-2"></div>
             <div className="flex justify-between">
-              <label className="block mb-2 font-opensans ">Sub-Total</label>
-              <p className="text-lg font-opensans text-black font-semibold">
+              <label className="block mb-2 text-sm font-opensans ">
+                Sub-Total
+              </label>
+              <p className="text-base font-opensans text-black font-semibold">
                 {isFetchingOrderPreview ? (
                   <Skeleton width={80} />
                 ) : (
@@ -1952,7 +1965,7 @@ const Checkout = () => {
             )}
 
             <div className="flex items-center justify-between">
-              <label className=" flex items-center mb-2 font-opensans">
+              <label className=" flex items-center text-sm mb-2 font-opensans">
                 Buyers Protection Fee
                 <AiOutlineSafety
                   className="inline ml-2 text-green-600 cursor-pointer"
@@ -1963,7 +1976,7 @@ const Checkout = () => {
                 className={`font-opensans font-semibold ${
                   !showServiceFee
                     ? "loading-text text-xs"
-                    : "text-black text-lg"
+                    : "text-black text-base"
                 }`}
               >
                 {isFetchingOrderPreview ? (
@@ -1988,7 +2001,7 @@ const Checkout = () => {
 
             <div className="border-t mt-3 border-gray-300 my-2"></div>
             <div className="flex justify-between mt-2">
-              <label className="block mb-2 font-opensans text-lg font-semibold">
+              <label className="block mb-2 font-opensans text-base font-semibold">
                 Total
               </label>
               <p className="text-lg font-opensans text-black font-semibold">
@@ -2100,8 +2113,8 @@ const Checkout = () => {
                     <GiBookPile className="text-xl" />
                   </div>
 
-                  <h3 className="text-sm">
-                    <span className="text-gray-400 text-sm font-opensans">
+                  <h3 className="text-xs font-opensans ">
+                    <span className="text-gray-600 text-xs mr-1 font-opensans">
                       From:
                     </span>
                     {vendorsInfo[vendorId]?.shopName?.length > 8
@@ -2133,30 +2146,28 @@ const Checkout = () => {
                             <h4 className="text-sm font-opensans">
                               {product.name}
                             </h4>
-
-                            <p className="font-opensans text-md mt-2 text-black font-bold">
+                            <p className="font-opensans text-md mt-1 text-black font-bold">
                               ₦{product.price.toLocaleString()}
                             </p>
-
-                            <div className="flex items-center space-x-4 text-sm mt-2 ">
+                            <div className="flex items-center space-x-3 text-sm mt-1 ">
                               {product.isFashion && (
                                 <>
-                                  <p className="text-black font-semibold font-opensans">
-                                    <span className="font-normal text-gray-600">
+                                  <p className="text-black text-sm font-semibold font-opensans">
+                                    <span className="font-normal text-xs text-gray-600">
                                       Size:
                                     </span>{" "}
                                     {product.selectedSize || "N/A"}
                                   </p>
-                                  <p className="text-black font-semibold font-opensans">
-                                    <span className="font-normal text-gray-600">
+                                  <p className="text-black text-sm font-semibold font-opensans">
+                                    <span className="font-normal text-xs text-gray-600">
                                       Color:
                                     </span>{" "}
                                     {formatColorText(product.selectedColor)}
                                   </p>
                                 </>
                               )}
-                              <p className="text-black font-semibold font-opensans">
-                                <span className="font-normal text-gray-600">
+                              <p className="text-black text-sm font-semibold font-opensans">
+                                <span className="font-normal text-xs text-gray-600">
                                   Qty:
                                 </span>{" "}
                                 {product.quantity}
@@ -2214,10 +2225,12 @@ const Checkout = () => {
                 </label>
                 <p className="font-opensans text-black ">{userInfo.address}</p>
               </div>
-              <p className="text-xs font-ubuntu mt-4  text-red-600">
-                This cannot be updated after now. Please ensure to put your
-                correct details
-              </p>
+              <div className="bg-customCream py-1 mt-4 animate-pulse px-2 text-center rounded-md">
+                <p className="text-xs font-ubuntu font-medium text-red-600">
+                  This cannot be updated after now. Please ensure to put your
+                  correct details
+                </p>
+              </div>
             </div>
           </div>
           {/* ───────────────── Payment Method ───────────────── */}
@@ -2257,11 +2270,22 @@ const Checkout = () => {
                   <span className="text-sm font-semibold font-opensans">
                     {opt.label}
                   </span>
-                  {opt.id === "wallet" && walletSetup && (
-                    <span className="text-[11px] -translate-x-1 font-opensans font-medium text-customOrange">
-                      [₦{walletBal.toLocaleString()}]
-                    </span>
-                  )}
+                  {opt.id === "wallet" &&
+                    (walletSetup ? (
+                      <span className="text-[11px] -translate-x-1 font-opensans font-medium text-customOrange">
+                        [₦{walletBal.toLocaleString()}]
+                      </span>
+                    ) : (
+                      <span
+                        className=" -translate-x-1 font-opensans py-0.5 font-medium bg-customOrange  px-1 rounded-md cursor-pointer"
+                        onClick={() => navigate("/your-wallet")}
+                      >
+                        <p className="text-[10px] text-white font-opensans font-medium">
+                          {" "}
+                          Setup Wallet
+                        </p>
+                      </span>
+                    ))}
                 </span>
 
                 {/* radio */}
@@ -2296,25 +2320,25 @@ const Checkout = () => {
               <div className="flex mt-3 -mx-2 space-x-0.5">
                 <div className="flex items-center flex-col">
                   <RiSecurePaymentFill className="text-3xl text-green-700" />
-                  <p className="text-xs text-gray-600 text-center">
+                  <p className="text-xs text-gray-600 font-opensans text-center">
                     Secure your payment
                   </p>
                 </div>
                 <div className="flex items-center flex-col">
                   <MdOutlineLock className="text-3xl text-green-700" />
-                  <p className="text-xs text-gray-600 text-center">
+                  <p className="text-xs text-gray-600 font-opensans text-center">
                     Security & Privacy
                   </p>
                 </div>
                 <div className="flex items-center flex-col">
                   <LiaShippingFastSolid className="text-3xl text-green-700" />
-                  <p className="text-xs text-gray-600 text-center">
+                  <p className="text-xs font-opensans text-gray-600 text-center">
                     Secure Shipment Guarantee
                   </p>
                 </div>
                 <div className="flex items-center flex-col">
                   <MdSupportAgent className="text-3xl text-green-700" />
-                  <p className="text-xs text-gray-600 text-center">
+                  <p className="text-xs text-gray-600 font-opensans text-center">
                     Customer Support
                   </p>
                 </div>

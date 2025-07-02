@@ -194,7 +194,7 @@ const CategoryProducts = () => {
                   <h1 className="text-xl font-opensans mt-10 font-semibold">
                     {category}
                   </h1>
-                  <IkImage
+                  <img
                     src={categoryMetadata?.headerImageUrl || defaultImageUrl}
                     alt={`${category} header`}
                     className="w-60 h-60 object-cover translate-y-5 rounded-xl shadow-xl mb-4"

@@ -121,7 +121,7 @@ const StoreReviews = () => {
             <button
               key={star}
               onClick={() => setSelectedRating(star)} // This correctly updates selectedRating
-              className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-bold font-opensans text-black border border-gray-400 rounded-full ${
+              className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-bold font-opensans text-black border border-gray-200 rounded-full ${
                 selectedRating === star
                   ? "bg-customOrange text-white"
                   : "bg-transparent"

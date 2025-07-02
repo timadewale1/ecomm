@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { updateProfile } from "firebase/auth";
 import { auth, db } from "../../firebase.config";
 import toast from "react-hot-toast";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   doc,
   updateDoc,
@@ -21,7 +22,7 @@ import {
 } from "react-icons/fa";
 import { FaRegCircleUser } from "react-icons/fa6";
 import { PiAtThin } from "react-icons/pi";
-import { MdEmail, MdVerified } from "react-icons/md";
+import { MdClose, MdEmail, MdVerified } from "react-icons/md";
 import { GrSecure } from "react-icons/gr";
 import { RiEditFill } from "react-icons/ri";
 import { RotatingLines } from "react-loader-spinner";
@@ -225,12 +226,14 @@ const ProfileDetails = ({
       toast.error("First and Last name must contain only letters.");
       return false;
     }
-    if (
-      editField === "phoneNumber" &&
-      (!phoneNumber || !/^\d{11,}$/.test(phoneNumber))
-    ) {
-      toast.error("Phone number must be at least 11 digits.");
-      return false;
+    if (editField === "phoneNumber") {
+      if (!/^[1-9]\d{9}$/.test(phoneNumber)) {
+        toast.error(
+          "Phone number must be 10 digits and not start with 0. " +
+            "E.g. 8123456789"
+        );
+        return false;
+      }
     }
 
     return true;
@@ -241,8 +244,6 @@ const ProfileDetails = ({
   };
   const handleSave = async () => {
     if (!validateFields()) return;
-
-    
 
     setIsLoading(true);
 
@@ -283,16 +284,24 @@ const ProfileDetails = ({
         updatedFields.displayName = fullName;
         setDisplayName(fullName);
       } else if (editField === "phoneNumber") {
-        await updateDoc(doc(db, "users", currentUser.uid), { phoneNumber });
-        updatedFields.phoneNumber = phoneNumber;
-        setPhoneNumber(phoneNumber);
+        // at this point we've already validated it doesn't start with 0
+        const formattedNumber = `+234${phoneNumber}`;
+
+        // write to Firestore
+        await updateDoc(doc(db, "users", currentUser.uid), {
+          phoneNumber: formattedNumber,
+        });
+
+        // update local state & redux
+        updatedFields.phoneNumber = formattedNumber;
+        setPhoneNumber(formattedNumber);
       } else if (editField === "address") {
         // Defensive check to ensure coordinates exist
         if (!locationCoords.lat || !locationCoords.lng) {
           toast.error("Please select a valid address from suggestions.");
           return;
         }
-      
+
         await updateDoc(doc(db, "users", currentUser.uid), {
           address, // string value (formatted address)
           location: {
@@ -300,16 +309,15 @@ const ProfileDetails = ({
             lng: locationCoords.lng,
           },
         });
-      
+
         updatedFields.address = address;
         updatedFields.location = {
           lat: locationCoords.lat,
           lng: locationCoords.lng,
         };
-      
+
         setAddress(address);
-      }
-      else if (editField === "birthday") {
+      } else if (editField === "birthday") {
         await updateDoc(doc(db, "users", currentUser.uid), { birthday });
         updatedFields.birthday = birthday;
         setBirthday(birthday);
@@ -342,7 +350,7 @@ const ProfileDetails = ({
               setShowDetails(false);
             }}
           />
-          <h1 className="text-xl font-medium font-ubuntu text-black   ">
+          <h1 className="text-xl font-opensans ml-5 font-semibold  ">
             Profile Details
           </h1>
         </div>
@@ -350,12 +358,12 @@ const ProfileDetails = ({
 
       <div className="w-full ">
         <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full ">
-          <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
+          <h1 className="text-xs w-full font-opensans translate-y-3 translate-x-6 font-medium text-gray-500">
             UserName
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <PiAtThin className="text-black text-xl mr-4" />
-            <p className="text-size font-normal font-poppins text-black w-full">
+            <p className="text-sm font-normal font-poppins text-black w-full">
               {username || "Username"}
             </p>
             <MdVerified
@@ -371,12 +379,12 @@ const ProfileDetails = ({
         </div>
 
         <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2  items-center w-full">
-          <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
+          <h1 className="text-xs w-full font-opensans translate-y-3 translate-x-6 font-medium text-gray-500">
             Account Name
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <FaRegCircleUser className="text-black text-xl mr-4" />
-            <p className="text-size font-normal font-poppins text-black w-full">
+            <p className="text-sm font-normal font-poppins text-black w-full">
               {displayName || "Add Account Name"}
             </p>
             <MdVerified
@@ -392,12 +400,12 @@ const ProfileDetails = ({
         </div>
 
         <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-          <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
+          <h1 className="text-xs w-full font-opensans translate-y-3 translate-x-6 font-medium text-gray-500">
             Email
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <MdEmail className="text-black text-xl mr-4" />
-            <p className="text-size font-normal font-poppins text-black w-full">
+            <p className="text-sm font-normal font-poppins text-black w-full">
               {currentUser.email}
             </p>
             <MdVerified
@@ -409,12 +417,12 @@ const ProfileDetails = ({
         </div>
 
         <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-          <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
+          <h1 className="text-xs w-full font-opensans translate-y-3 translate-x-6 font-medium text-gray-500">
             Phone Number
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <FaPhone className="text-black text-xl mr-4" />
-            <p className="text-size font-poppins font-normal text-black w-full">
+            <p className="text-sm font-poppins font-normal text-black w-full">
               {phoneNumber || "Add Phone Number"}
             </p>
             <MdVerified
@@ -430,12 +438,12 @@ const ProfileDetails = ({
         </div>
 
         <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-          <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
+          <h1 className="text-xs w-full translate-y-3 font-opensans translate-x-6 font-medium text-gray-500">
             Birthday
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <FaCalendarAlt className="text-black text-xl mr-4" />
-            <p className="text-size font-normal font-poppins text-black w-full">
+            <p className="text-sm font-normal font-poppins text-black w-full">
               {birthday || "Add Birthday"}
             </p>
             <RiEditFill
@@ -445,12 +453,12 @@ const ProfileDetails = ({
           </div>
         </div>
         <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-          <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
+          <h1 className="text-xs w-full font-opensans translate-y-3 translate-x-6 font-medium text-gray-500">
             Address
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <CiLocationOn className="text-black text-xl mr-4" />
-            <p className="text-size font-normal font-poppins text-black w-full">
+            <p className="text-sm font-normal font-poppins text-black w-full">
               {address || "Add Delivery Address"}
             </p>
             <MdVerified
@@ -466,104 +474,132 @@ const ProfileDetails = ({
         </div>
       </div>
 
-      {isEditing && (
-        <div className="fixed inset-0 border-none rounded-xl bg-customGrey bg-opacity-85 mb-2 px-14 flex items-center modals justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative">
-            <FaRegTimesCircle
-              className="absolute top-2 right-2 font-bold text-lg rounded-md text-black cursor-pointer"
-              onClick={() => setIsEditing(false)}
+      <AnimatePresence>
+        {isEditing && (
+          <>
+            <motion.div
+              key="backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40"
             />
-            <h2 className="text-lg font-opensans font-medium mb-4">
-              Edit{" "}
-              {editField === "username"
-                ? "Username"
-                : editField === "displayName"
-                ? "Account Name"
-                : editField === "phoneNumber"
-                ? "Phone Number"
-                : editField === "address"
-                ? "Address"
-                : "Birthday"}
-            </h2>
-            {editField === "username" && (
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(formatName(e.target.value))}
-                className="w-full p-2 border border-gray-300 rounded mb-4"
-              />
-            )}
-            {editField === "displayName" && (
-              <>
-                <input
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(formatName(e.target.value))}
-                  placeholder="First Name"
-                  className="w-full p-2 border border-gray-300 rounded mb-4"
-                />
-                <input
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(formatName(e.target.value))}
-                  placeholder="Last Name"
-                  className="w-full p-2 border border-gray-300 rounded"
-                />
-              </>
-            )}
-
-            {editField === "phoneNumber" && (
-              <input
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded"
-              />
-            )}
-            {editField === "birthday" && (
-              <input
-                type="date"
-                value={birthday}
-                onChange={(e) => setBirthday(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded"
-              />
-            )}
-            {editField === "address" && (
-              <>
-                <LocationPicker
-                  onLocationSelect={({ lat, lng, address }) => {
-                    setLocationCoords({ lat, lng });
-                    if (address) setAddress(address);
-                  }}
-                />
-
-                {/* State Dropdown (unchanged) */}
-       
-              </>
-            )}
-
-            <div className="flex justify-end mt-4 relative">
+            <motion.div
+              key="edit-modal"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "tween", duration: 0.3 }}
+              className="fixed bottom-0 z-[6000] left-0 right-0 h-[40vh] bg-white rounded-t-2xl shadow-xl flex flex-col"
+            >
+              {/* Close button */}
               <button
-                className="bg-customOrange flex justify-center text-white text-xs h-9 w-16  font-semibold font-opensans px-4 py-2 rounded"
-                onClick={handleSave}
-                disabled={isLoading}
+                onClick={() => setIsEditing(false)}
+                className="absolute bg-gray-200 rounded-full p-1 top-4 right-4 text-gray-700 text-xl"
               >
-                {isLoading ? (
-                  <RotatingLines
-                    strokeColor="white"
-                    strokeWidth="5"
-                    animationDuration="0.75"
-                    width="24"
-                    visible={true}
-                  />
-                ) : (
-                  "Update"
-                )}
+                <MdClose />
               </button>
-            </div>
-          </div>
-        </div>
-      )}
+
+              {/* Header */}
+              <h2 className="mt-6 text-left ml-6 text-lg font-opensans font-medium">
+                Edit{" "}
+                {editField === "username"
+                  ? "Username"
+                  : editField === "displayName"
+                  ? "Account Name"
+                  : editField === "phoneNumber"
+                  ? "Phone Number"
+                  : editField === "address"
+                  ? "Address"
+                  : "Birthday"}
+              </h2>
+
+              {/* Form area */}
+              <div className="px-6 mt-4 overflow-y-auto flex-1">
+                {editField === "username" && (
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(formatName(e.target.value))}
+                    className="w-full p-2 font-opensans border border-gray-200 bg-customSoftGray rounded"
+                  />
+                )}
+                {editField === "displayName" && (
+                  <>
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(formatName(e.target.value))}
+                      placeholder="First Name"
+                      className="w-full p-2 border font-opensans border-gray-200 bg-customSoftGray rounded"
+                    />
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(formatName(e.target.value))}
+                      placeholder="Last Name"
+                      className="w-full p-2 border font-opensans border-gray-200 bg-customSoftGray rounded"
+                    />
+                  </>
+                )}
+                {editField === "phoneNumber" && (
+                  <>
+                    {/* Disclaimer */}
+                    <p className="text-xs font-opensans text-gray-500 mb-2">
+                      Must be exactly 10 digits, no leading 0. E.g.{" "}
+                      <code>8123456789</code>
+                    </p>
+                    <input
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      className="w-full p-2 font-opensans border border-gray-200 bg-customSoftGray rounded"
+                    />
+                  </>
+                )}
+                {editField === "birthday" && (
+                  <input
+                    type="date"
+                    value={birthday}
+                    onChange={(e) => setBirthday(e.target.value)}
+                    className="w-full p-2 font-opensans border border-gray-200 bg-customSoftGray rounded"
+                  />
+                )}
+                {editField === "address" && (
+                  <LocationPicker
+                    onLocationSelect={({ lat, lng, address }) => {
+                      setLocationCoords({ lat, lng });
+                      if (address) setAddress(address);
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* Save button pinned at bottom-center */}
+              <div className="px-6 pb-6">
+                <button
+                  onClick={handleSave}
+                  disabled={isLoading}
+                  className="w-full h-10 -translate-y-16 bg-customOrange text-white font-opensans font-medium rounded-full flex items-center justify-center"
+                >
+                  {isLoading ? (
+                    <RotatingLines
+                      strokeColor="white"
+                      strokeWidth="5"
+                      animationDuration="0.75"
+                      width="24"
+                      visible={true}
+                    />
+                  ) : (
+                    "Update"
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

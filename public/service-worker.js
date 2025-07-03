@@ -7,6 +7,7 @@ const urlsToCache = [
   '/logo192.png',
   '/logo512.png',
   '/logo.png',
+  '/offline.html',
   '/pwa-assets/step-1.jpg',
   '/pwa-assets/step-2.jpg',
   '/pwa-assets/step-3.jpg',
@@ -65,20 +66,25 @@ self.addEventListener('install', (event) => {
 self.addEventListener('fetch', (event) => {
   const userAgent = event.request.headers.get('User-Agent') || '';
   const isBot = /bot|crawler|spider|crawling/i.test(userAgent);
-
-  if (isBot) {
-    // Do not interfere with bot requests, let them hit the network directly
-    return;
-  }
+  if (isBot) return;
 
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      if (response) {
+    fetch(event.request)
+      .then((response) => {
+        // Optionally cache new requests here
         return response;
-      }
+      })
+      .catch(() => {
+        // Offline fallback logic
+        return caches.match(event.request).then((res) => {
+          if (res) return res;
 
-      return fetch(event.request).catch(() => caches.match('/index.html'));
-    })
+          // Only fallback to offline page for HTML requests
+          if (event.request.headers.get('accept')?.includes('text/html')) {
+            return caches.match('/offline.html');
+          }
+        });
+      })
   );
 });
 

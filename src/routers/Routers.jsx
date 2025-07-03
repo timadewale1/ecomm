@@ -27,6 +27,9 @@ const VendorDashboard = lazy(() =>
 const FavoritesPage = lazy(() =>
   import("../pages/UserSide/FavoritesProducts.jsx")
 );
+const FAQs = lazy(() =>
+  import("../pages/UserSide/FAQs.jsx")
+);
 const VendorProducts = lazy(() =>
   import("../pages/VendorCompleteProfile/VendorProducts.jsx")
 );
@@ -124,6 +127,7 @@ const Routers = () => {
         <Route path="vendorlogin" element={<VendorLogin />} />
         <Route path="complete-profile" element={<CompleteProfile />} />
         <Route path="/forgetpassword" element={<ForgetPassword />} />
+        <Route path="/faqs" element={<FAQs />} />
         <Route path="reset-password" element={<ResetPassword />} />
         <Route path="/confirm-email" element={<EmailVerification />} />
         <Route path="/auth-action" element={<AuthActionHandler />} />

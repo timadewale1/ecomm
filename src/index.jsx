@@ -15,7 +15,7 @@ import { FavoritesProvider } from "./components/Context/FavoritesContext";
 import { VendorProvider } from "./components/Context/Vendorcontext";
 import { NavigationProvider } from "./components/Context/Bottombarcontext";
 import { HelmetProvider } from "react-helmet-async";
-import WalletSocketProvider from "./services/WalletSocketProvider.jsx";
+
 import { AuthProvider } from "./custom-hooks/useAuth";
 import { TawkProvider } from "./components/Context/TawkProvider.jsx";
 createRoot(document.getElementById("root")).render(
@@ -28,24 +28,22 @@ createRoot(document.getElementById("root")).render(
               <NavigationProvider>
                 <VendorProvider>
                   <TawkProvider>
-                    <WalletSocketProvider>
-                      <FavoritesProvider>
-                        <Toaster
-                          position="top-center"
-                          reverseOrder={false}
-                          toastOptions={{
-                            duration: 2000,
-                            style: {
-                              minWidth: "220px", // Make toast wider
-                              fontSize: "12px", // Reduce text size
-                              padding: "10px 20px", // Adjust padding if needed
-                              fontFamily: "Poppins, sans-serif", // Use Poppins font
-                            },
-                          }}
-                        />
-                        <App />
-                      </FavoritesProvider>
-                    </WalletSocketProvider>
+                    <FavoritesProvider>
+                      <Toaster
+                        position="top-center"
+                        reverseOrder={false}
+                        toastOptions={{
+                          duration: 2000,
+                          style: {
+                            minWidth: "220px", // Make toast wider
+                            fontSize: "12px", // Reduce text size
+                            padding: "10px 20px", // Adjust padding if needed
+                            fontFamily: "Poppins, sans-serif", // Use Poppins font
+                          },
+                        }}
+                      />
+                      <App />
+                    </FavoritesProvider>
                   </TawkProvider>
                 </VendorProvider>
               </NavigationProvider>

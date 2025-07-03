@@ -13,6 +13,7 @@ import {
   FaHeadset,
   FaSpinner,
 } from "react-icons/fa";
+import { SiFusionauth } from "react-icons/si";
 import { useNavigate } from "react-router-dom";
 import { HiOutlineClipboardCheck } from "react-icons/hi";
 import { motion, AnimatePresence } from "framer-motion";
@@ -95,7 +96,7 @@ const OrderPlacedModal = ({
       setIsFollowLoading(false);
     }
   };
-
+  const isPickupOrder = Boolean(order?.isPickup ?? order?.userInfo?.isPickup);
   // If showPopup is false, don't render anything
   if (!showPopup) return null;
   const itemsInPile = order.cartItems?.length || 1;
@@ -153,13 +154,29 @@ const OrderPlacedModal = ({
         {
           icon: <HiOutlineClipboardCheck className="text-blue-500 text-xl" />,
           title: "Order Received",
-          text: "Your order has been placed and the vendor has been notified.",
+          text: "Your order has been placed and the vendor has been notified. We will keep you in the loop.",
         },
-        {
-          icon: <FaHourglassHalf className="text-yellow-500 text-xl" />,
-          title: "Fulfilment Timeline",
-          text: "Orders typically take 3–7 days to be fulfilled. We're working to shorten that timeline.",
-        },
+        isPickupOrder
+          ? {
+              /* 🆕 slot shown ONLY for pick-up orders */
+              icon: <SiFusionauth className="text-emerald-600 text-xl" />,
+              title: "Pick-up Code",
+              text: (
+                <>
+                  Your order is secured with a unique pick-up code
+                  <br />
+                  The vendor will soon inform you of the exact day and time your
+                  items will be ready. Please keep the provided pick-up code
+                  safe—you'll need it to collect your order.
+                </>
+              ),
+            }
+          : {
+              /* existing fulfil-ment timeline slot */
+              icon: <FaHourglassHalf className="text-yellow-500 text-xl" />,
+              title: "Fulfilment Timeline",
+              text: "Orders typically take 3–7 days to be fulfilled. We’re working to shorten that timeline.",
+            },
         {
           icon: <FaShieldAlt className="text-green-600 text-xl" />,
           title: "Buyer Protection",
@@ -178,7 +195,7 @@ const OrderPlacedModal = ({
       onRequestClose={onRequestClose}
       shouldCloseOnOverlayClick={true}
       className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full  max-h-[90vh] rounded-t-3xl bg-white shadow-lg p-6 z-50 outline-none"
-      overlayClassName="fixed inset-0 bg-black/30 backdrop-blur-md flex justify-center items-end z-40"
+      overlayClassName="fixed inset-0 bg-black/30 backdrop-blur-xs flex justify-center items-end z-40"
       closeTimeoutMS={300}
     >
       <AnimatePresence>
@@ -190,59 +207,61 @@ const OrderPlacedModal = ({
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
           >
             <div className="flex justify-between items-center mb-2">
-              <h2 className="text-xl font-ubuntu font-bold text-customRichBrown">
+              <h2 className="text-xl font-opensans font-bold text-customRichBrown">
                 {isStockpile ? "Stockpile Confirmation" : "Order Confirmation"}
               </h2>
-              <MdOutlineClose
-                onClick={onRequestClose}
-                className="text-xl cursor-pointer text-gray-600"
-              />
+              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                <MdOutlineClose
+                  onClick={onRequestClose}
+                  className="text-xl cursor-pointer text-gray-600"
+                />
+              </div>
             </div>
             <div className="border-b border-gray-200 mb-4"></div>
-            <div className="space-y-4">
+            <div className="space-y-4 ">
               {steps.map((step, index) => (
                 <div
                   key={index}
-                  className="flex gap-3 bg-gray-50 px-2 py-1 rounded-lg items-start"
+                  className="flex gap-3  bg-gray-50 px-2 py-1 rounded-lg items-start"
                 >
                   <div className="pt-1">{step.icon}</div>
                   <div>
                     <p className="font-semibold font-opensans  text-base text-gray-900">
                       {step.title}
                     </p>
-                    <p className="text-sm font-opensans text-gray-700 mt-1">
+                    <p className="text-xs font-opensans text-gray-700 mt-1">
                       {step.text}
                     </p>
                   </div>
                 </div>
               ))}
-              <div className="mt-4">
-                {isFollowing ? (
-                  <button
-                    onClick={() => {
-                      onRequestClose(); // close the modal
-                      navigate("/newhome"); // then navigate
-                    }}
-                    className="w-full py-3 mb-3 rounded-md font-opensans font-medium bg-customOrange text-white"
-                  >
-                    Continue Shopping
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleFollowClick}
-                    disabled={isFollowLoading}
-                    className="w-full py-3 mb-3 rounded-md font-opensans font-medium bg-customOrange text-white"
-                  >
-                    {isFollowLoading ? (
-                      <div className="flex justify-center items-center">
-                        <FaSpinner className="animate-spin mr-2" />
-                      </div>
-                    ) : (
-                      "Follow Vendor"
-                    )}
-                  </button>
-                )}
-              </div>
+            </div>
+            <div className="mt-8">
+              {isFollowing ? (
+                <button
+                  onClick={() => {
+                    onRequestClose(); // close the modal
+                    navigate("/newhome"); // then navigate
+                  }}
+                  className="w-full py-3 mb-3 rounded-md font-opensans font-medium bg-customOrange text-white"
+                >
+                  Continue Shopping
+                </button>
+              ) : (
+                <button
+                  onClick={handleFollowClick}
+                  disabled={isFollowLoading}
+                  className="w-full py-3 mb-3 rounded-md font-opensans font-medium bg-customOrange text-white"
+                >
+                  {isFollowLoading ? (
+                    <div className="flex justify-center items-center">
+                      <FaSpinner className="animate-spin mr-2" />
+                    </div>
+                  ) : (
+                    "Follow Vendor"
+                  )}
+                </button>
+              )}
             </div>
           </motion.div>
         )}

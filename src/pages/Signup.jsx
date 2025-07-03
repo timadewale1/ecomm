@@ -257,6 +257,7 @@ const Signup = () => {
         email: user.email,
         emailLower,
         role: "user",
+        walletSetup: false,
         profileComplete: false,
         welcomeEmailSent: false,
         notificationAllowed: false,

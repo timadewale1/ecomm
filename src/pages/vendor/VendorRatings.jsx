@@ -385,7 +385,7 @@ const VendorRatings = () => {
               <button
                 key={star}
                 onClick={() => setSelectedRating(star)} // This correctly updates selectedRating
-                className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-bold font-opensans text-black border border-gray-400 rounded-full ${
+                className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-bold font-opensans text-black border border-gray-200 rounded-full ${
                   selectedRating === star
                     ? "bg-customOrange text-white"
                     : "bg-transparent"
@@ -466,7 +466,7 @@ const VendorRatings = () => {
           </div>
         </div>
 
-        <div className="p-2">
+        <div className="p-2 pb-24">
           {reviews.map((review) => (
             <div key={review.id} className="mb-4">
               <div className="flex items-center mb-1">

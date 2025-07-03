@@ -182,7 +182,7 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
   };
 
   // The product’s main image
-  const firebaseImage = product?.coverImageUrl || product?.imageUrls?.[0];
+  const firebaseImage = product?.productCoverImage || product?.coverImageUrl 
   const lowResImg = getImageKitUrl(firebaseImage, "w-60,q-20,bl-6");
   // High‑res (no transform) served from ImageKit too for CDN/cache benefit
   const highResImg = getImageKitUrl(firebaseImage);
@@ -233,7 +233,7 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
               <IkImage
                 src={firebaseImage}
                 alt={product.name}
-                className="h-52 w-full"
+                className="h-52 object-cover rounded-md w-full"
               />
             </>
           )}

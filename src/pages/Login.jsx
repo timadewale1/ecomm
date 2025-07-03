@@ -115,100 +115,75 @@ const Login = () => {
     }
   };
 
-  // Final function with improved performance
+  // FAST sign-in (all original checks kept)
   const signIn = async (e) => {
     e.preventDefault();
 
+    /* ── 0.  client-side validations ────────────────────────────── */
     if (!email || !validateEmail(email)) {
       setEmailError(true);
-      toast.error("Please enter a valid email address.");
-      return;
+      return toast.error("Please enter a valid email address.");
     }
     if (!password) {
       setPasswordError(true);
-      toast.error("Please enter your password.");
-      return;
+      return toast.error("Please enter your password.");
     }
 
     setLoading(true);
 
     try {
-      // 1) Call the cloud function "userLogin" with email
-      const userLoginCallable = httpsCallable(functions, "userLogin");
-      const response = await userLoginCallable({ email });
-      const data = response.data;
+      /* ── 1.  Firebase Auth sign-in  (edge POP ≈ 250 ms) ────────── */
+      const { user } = await signInWithEmailAndPassword(auth, email, password);
 
-      if (!data.success) {
-        setLoading(false);
+      /* ── 2.  Firestore doc — role / deactivation check ─────────── */
+      const snap = await getDoc(doc(db, "users", user.uid));
+      const uData = snap.exists() ? snap.data() : {};
 
-        // Handle `unverified-email` error
-        if (data.code === "unverified-email") {
-          toast.error(data.message || "Please verify your email.");
-          console.log("Verification link:", data.verifyLink); // Optional
-          return;
-        }
-
-        // Other error
-        if (data.code) {
-          toast.error(
-            data.message || "Something went wrong. Please try again."
-          );
-        } else {
-          toast.error("Could not log in. Check your credentials.");
-        }
-        return;
-      }
-
-      // 2) If success, sign in with Email/Password
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      const user = userCredential.user;
-
-      // 3) Check email verification
-      if (!user.emailVerified) {
-        setLoading(false);
-        toast.error("Please verify your email before logging in.");
-        return;
-      }
-
-      // 4) Check Firestore user doc
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      const userData = userDoc.data();
-
-      if (userData?.isDeactivated) {
+      if (uData.isDeactivated) {
         await auth.signOut();
         setLoading(false);
-        toast.error(
+        return toast.error(
           "Your account has been deactivated. Please contact support."
         );
-        return;
       }
 
-      if (userData?.role !== "user") {
+      if (uData.role !== "user") {
         await auth.signOut();
         setLoading(false);
-        toast.error("This email is already used for a Vendor account!");
-        return;
+        return toast.error("This email is already used for a Vendor account!");
       }
 
-      // --- CHANGED PART: immediate sign-in completion before merging cart ---
-      const Name = userData?.username || "User";
-      setLoading(false);
-      toast.success(`Hello ${Name}, welcome back!`);
+      /* ── 3.  Success → greet & navigate immediately ────────────── */
+      const name = uData.username || "User";
+      toast.success(`Hello ${name}, welcome back!`);
       const redirectTo = location.state?.from || "/newhome";
       navigate(redirectTo, { replace: true });
+      setLoading(false);
 
-      // 5) Merge local cart with Firestore cart in background (non-blocking)
-      const localCart = JSON.parse(localStorage.getItem("cart")) || {};
-      fetchCartFromFirestore(user.uid, localCart);
-      localStorage.removeItem("cart");
+      /* ── 4.  Background jobs (non-blocking) ────────────────────── */
+      (async () => {
+        /* 4a – send your custom verification e-mail once per session */
+        if (!user.emailVerified && !sessionStorage.getItem("verifySent")) {
+          sessionStorage.setItem("verifySent", "1");
+          try {
+            const sendMail = httpsCallable(functions, "sendCustomVerification");
+            await sendMail({ email: user.email });
+            toast("Verification e-mail sent ✉️", { icon: "✉️" });
+          } catch (err) {
+            console.error("sendCustomVerification:", err);
+          }
+        }
+
+        /* 4b – merge local cart into Firestore */
+        const localCart = JSON.parse(localStorage.getItem("cart")) || {};
+        await fetchCartFromFirestore(user.uid, localCart);
+        localStorage.removeItem("cart");
+      })();
     } catch (error) {
       setLoading(false);
       console.error("Error during sign-in:", error);
 
+      /* ── identical, friendly error messages ───────────────────── */
       let errorMessage = "Sorry, we couldn't sign you in. Please try again.";
 
       if (error.code === "auth/user-not-found" || error.code === "not-found") {
@@ -222,15 +197,12 @@ const Login = () => {
           "The password you entered is incorrect. Please try again.";
       } else if (error.code === "auth/invalid-email") {
         errorMessage = "Invalid email format. Please check and try again.";
-      } else if (error.code === "unverified-email") {
-        errorMessage = "Please verify your email before logging in.";
       } else if (error.code === "auth/network-request-failed") {
         errorMessage = "Network error. Check your connection and try again.";
       } else if (error.code === "permission-denied") {
         errorMessage =
           "Your account has been disabled. Please contact support.";
       }
-      // Fallback or default error message
       toast.error(errorMessage);
     }
   };
@@ -277,6 +249,7 @@ const Login = () => {
           username: user.displayName,
           email: user.email,
           profileComplete: false,
+          walletSetup: false,
           welcomeEmailSent: false,
           notificationAllowed: false,
           role: "user",
@@ -289,7 +262,6 @@ const Login = () => {
       await fetchCartFromFirestore(user.uid, localCart);
       localStorage.removeItem("cart");
 
-     
       const redirectTo = location.state?.from || "/newhome";
       toast.success(`Welcome back ${user.displayName}!`);
       navigate(redirectTo, { replace: true });

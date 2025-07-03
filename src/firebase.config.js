@@ -59,9 +59,11 @@ console.log("Auth initialized with local persistence.");
 export const db = initializeFirestore(app, {
   cacheSizeBytes: CACHE_SIZE_UNLIMITED,
 });
-enableIndexedDbPersistence(db).catch(() => {
-  /* multi-tab or unsupported; ignore */
+enableIndexedDbPersistence(db, { synchronizeTabs: true }).catch((err) => {
+  // typically thrown if multiple tabs open or browser doesn’t support IndexedDB
+  console.warn("IndexedDB persistence failed:", err);
 });
+console.log("✅ Firestore initialized with IndexedDB persistence");
 console.log("Firestore initialized with IndexedDB persistence.");
 
 // 6) Storage

@@ -4,6 +4,7 @@ import { getToken, onMessage } from "firebase/messaging";
 import { httpsCallable } from "firebase/functions";
 import { doc, getDoc } from "firebase/firestore";
 import { debounce } from "lodash";
+import toast from "react-hot-toast";
 
 export function useFCM(currentUser, currentUserData) {
   const [showBanner, setShowBanner] = useState(false);
@@ -76,54 +77,60 @@ export function useFCM(currentUser, currentUserData) {
     }
   }, []);
 
-  const handleEnableNotifs = useCallback(async () => {
+  const handleEnableNotifs = useCallback(() => {
     console.log("▶️ handleEnableNotifs started");
-    setEnabling(true);
+    // 1️⃣ Hide banner immediately
+    setShowBanner(false);
+    // 2️⃣ Show success toast immediately
+    toast.success("Notifications enabled! You’re all set ✅");
 
-    try {
-      let perm = Notification.permission;
-      if (perm === "default") {
-        console.log("Requesting notification permission…");
-        perm = await Notification.requestPermission();
-        console.log("Notification.permission after request:", perm);
-      }
+    // 3️⃣ Do the real work in the background
+    (async () => {
+      setEnabling(true);
+      try {
+        let perm = Notification.permission;
+        if (perm === "default") {
+          console.log("Requesting notification permission…");
+          perm = await Notification.requestPermission();
+          console.log("Notification.permission after request:", perm);
+        }
 
-      if (perm !== "granted") {
-        console.warn("User denied notifications, aborting token retrieval.");
+        if (perm !== "granted") {
+          console.warn("User denied notifications, aborting token retrieval.");
+          setShowBanner(isPWA);
+          return;
+        }
+
+        const messaging = await messagingReady;
+        if (!messaging) {
+          console.warn("FCM not supported here");
+          setShowBanner(isPWA);
+          return;
+        }
+
+        if (!(await registerServiceWorker())) {
+          setShowBanner(isPWA);
+          return;
+        }
+
+        const vapidKey = import.meta.env.VITE_VAPID_KEY;
+        const fcmToken = await getToken(messaging, { vapidKey });
+        if (!fcmToken) {
+          console.error("No FCM token retrieved");
+          setShowBanner(isPWA);
+          return;
+        }
+
+        await saveTokenToBackend(messaging, fcmToken);
+        setHasToken(true);
+      } catch (err) {
+        console.error("❌ Error in handleEnableNotifs:", err);
         setShowBanner(isPWA);
-        return;
+      } finally {
+        console.log("▶️ handleEnableNotifs finished");
+        setEnabling(false);
       }
-
-      const messaging = await messagingReady;
-      if (!messaging) {
-        console.warn("FCM not supported here");
-        setShowBanner(isPWA);
-        return;
-      }
-
-      if (!(await registerServiceWorker())) {
-        setShowBanner(isPWA);
-        return;
-      }
-
-      const vapidKey = import.meta.env.VITE_VAPID_KEY;
-      const fcmToken = await getToken(messaging, { vapidKey });
-      if (!fcmToken) {
-        console.error("No FCM token retrieved");
-        setShowBanner(isPWA);
-        return;
-      }
-
-      await saveTokenToBackend(messaging, fcmToken);
-      setHasToken(true);
-      setShowBanner(false);
-    } catch (err) {
-      console.error("❌ Error in handleEnableNotifs:", err);
-      setShowBanner(isPWA);
-    } finally {
-      console.log("▶️ handleEnableNotifs finished");
-      setEnabling(false);
-    }
+    })();
   }, [saveTokenToBackend, registerServiceWorker, isPWA]);
 
   useEffect(() => {

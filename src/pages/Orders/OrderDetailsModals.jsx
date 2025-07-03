@@ -13,6 +13,7 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
+import { useTawk } from "../../components/Context/TawkProvider";
 import { db } from "../../firebase.config";
 import { MdOutlineClose, MdOutlineMail, MdOutlineInfo } from "react-icons/md";
 import { BsTelephone, BsBoxSeam } from "react-icons/bs";
@@ -28,6 +29,7 @@ import {
   IoColorPaletteSharp,
   IoLocationOutline,
 } from "react-icons/io5";
+import PinInput from "react-pin-input";
 import notifyOrderStatusChange from "../../services/notifyorderstatus";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../../firebase.config";
@@ -62,12 +64,15 @@ const OrderDetailsModal = ({
 
   // New state for tracking the remaining time (in milliseconds)
   const [timeRemaining, setTimeRemaining] = useState(null);
-
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [deliverLoading, setDeliverLoading] = useState(false);
   const [isConfirmDeliveryModalOpen, setIsConfirmDeliveryModalOpen] =
     useState(false);
   const [isSupportCallModalOpen, setIsSupportCallModalOpen] = useState(false);
   const [confirmDeliveryChecked, setConfirmDeliveryChecked] = useState(false);
-  const [deliverLoading, setDeliverLoading] = useState(false);
+
   const [declineLoading, setDeclineLoading] = useState(false);
   const [isMovingToShipping, setIsMovingToShipping] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -768,7 +773,7 @@ const OrderDetailsModal = ({
       setIsConfirmDeliveryModalOpen(false);
     }
   };
-
+  const { openChat } = useTawk();
   const handleNavigation = () => {
     navigate("/delivery-guidelines");
   };
@@ -1077,52 +1082,53 @@ const OrderDetailsModal = ({
             )}
           </div>
         </div>
-        {(order.progressStatus === "Shipped" ||
-          order.progressStatus === "Delivered") && (
-          <div className="border border-black rounded-lg py-4 px-3 mt-4">
-            <div className="flex items-center space-x-2 mb-3">
-              <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
-                <FaTruck className="text-customRichBrown" />
+        {!order.isPickup &&
+          (order.progressStatus === "Shipped" ||
+            order.progressStatus === "Delivered") && (
+            <div className="border border-black rounded-lg py-4 px-3 mt-4">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
+                  <FaTruck className="text-customRichBrown" />
+                </div>
+                <p className="text-sm font-opensans font-medium text-customRichBrown">
+                  Rider Details
+                </p>
               </div>
-              <p className="text-sm font-opensans font-medium text-customRichBrown">
-                Rider Details
-              </p>
+
+              <div className="space-y-4">
+                {/* Rider Name */}
+                <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
+                  <FaRegUser className="text-gray-500 text-xl" />
+                  <p className="text-gray-500 text-sm font-opensans">
+                    Rider Name:
+                  </p>
+                  <p className="ml-6 font-opensans text-black text-sm flex-grow">
+                    {riderInfo?.riderName || "Not Available"}
+                  </p>
+                </div>
+
+                {/* Rider Phone */}
+                <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
+                  <BsTelephone className="text-gray-500 text-xl" />
+                  <p className="text-gray-500 text-sm font-opensans">
+                    Rider Phone:
+                  </p>
+                  <p className="ml-6 font-opensans text-black text-sm flex-grow">
+                    {riderInfo?.riderNumber || "Not Available"}
+                  </p>
+                </div>
+
+                {/* Rider Note */}
+                <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
+                  <GrNotes className="text-gray-500 text-xl" />
+                  <p className="text-gray-500 text-sm font-opensans">Note:</p>
+                  <p className="ml-6 font-opensans text-black text-sm flex-grow">
+                    {riderInfo?.note || "None"}
+                  </p>
+                </div>
+              </div>
             </div>
-
-            <div className="space-y-4">
-              {/* Rider Name */}
-              <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
-                <FaRegUser className="text-gray-500 text-xl" />
-                <p className="text-gray-500 text-sm font-opensans">
-                  Rider Name:
-                </p>
-                <p className="ml-6 font-opensans text-black text-sm flex-grow">
-                  {riderInfo?.riderName || "Not Available"}
-                </p>
-              </div>
-
-              {/* Rider Phone */}
-              <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
-                <BsTelephone className="text-gray-500 text-xl" />
-                <p className="text-gray-500 text-sm font-opensans">
-                  Rider Phone:
-                </p>
-                <p className="ml-6 font-opensans text-black text-sm flex-grow">
-                  {riderInfo?.riderNumber || "Not Available"}
-                </p>
-              </div>
-
-              {/* Rider Note */}
-              <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
-                <GrNotes className="text-gray-500 text-xl" />
-                <p className="text-gray-500 text-sm font-opensans">Note:</p>
-                <p className="ml-6 font-opensans text-black text-sm flex-grow">
-                  {riderInfo?.note || "None"}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+          )}
         {/* Product Details */}
         <div className="bg-white rounded-lg space-y-6">
           {cartItems.map((item, index) => (
@@ -1267,6 +1273,8 @@ const OrderDetailsModal = ({
                     <p className="ml-4 font-opensans text-black text-sm flex-grow">
                       {loading ? (
                         <Skeleton width={100} />
+                      ) : order.isPickup ? (
+                        "Pick-up"
                       ) : order.isStockpile ? (
                         order.isActive ? (
                           "Delivery when stockpile has ended"
@@ -1453,6 +1461,14 @@ const OrderDetailsModal = ({
             </button>
           </div>
         )}
+        {order.isPickup && (
+          <div className="mb-4 p-3 bg-yellow-50 border-l-4 font-opensans text-xs border-yellow-400 text-yellow-800  rounded">
+            <span className="font-semibold">Pickup PIN Required:</span>
+            This order can only be marked as delivered once the customer
+            provides their unique PIN. Always verify the code before handing
+            over items.
+          </div>
+        )}
 
         <div className="flex justify-between mt-4">
           {order.progressStatus === "Pending" && (
@@ -1506,7 +1522,11 @@ const OrderDetailsModal = ({
                 Contact Us
               </button>
               <button
-                onClick={() => setIsConfirmDeliveryModalOpen(true)} // existing confirm modal
+                onClick={() => {
+                  order.isPickup
+                    ? setIsPinModalOpen(true)
+                    : setIsConfirmDeliveryModalOpen(true);
+                }}
                 className="text-xs font-medium text-white font-opensans py-2.5 px-8 rounded-full bg-customOrange"
                 disabled={deliverLoading}
               >
@@ -1548,6 +1568,87 @@ const OrderDetailsModal = ({
             </div>
           )}
         </div>
+        {order.isPickup && isPinModalOpen && (
+          <Modal
+            isOpen
+            onRequestClose={() => setIsPinModalOpen(false)}
+            // make the modal itself white, rounded and nicely padded
+            className="modal-content-otp bg-white rounded-lg p-6 mt-60 mx-auto w-11/12 max-w-sm"
+            overlayClassName="modal-overlay backdrop-blur-sm"
+          >
+            <div className="mb-4 text-center">
+              <h2 className="font-opensans text-base font-semibold">
+                Enter Pickup PIN
+              </h2>
+              <p className="text-xs font-opensans text-gray-600 mt-1">
+                Ask the customer for the 4-digit code to enable you mark as
+                delivered.
+              </p>
+            </div>
+            <div className="flex justify-center mb-2">
+              <PinInput
+                length={4}
+                focus
+                type="numeric"
+                style={{ padding: "10px" }}
+                inputStyle={{
+                  borderColor: "#ddd",
+                  borderRadius: "4px",
+                  width: "2.5rem",
+                  height: "2.5rem",
+                  margin: "0 4px",
+                  fontSize: "1.5rem",
+                  textAlign: "center",
+                }}
+                onChange={(value) => {
+                  setPin(value);
+                  if (pinError) setPinError("");
+                }}
+              />
+            </div>
+            {pinError && (
+              <p className="text-red-500 font-opensans text-xs text-center mb-2">
+                {pinError}
+              </p>
+            )}
+            {/* center the button */}
+            <div className="flex justify-center mt-4">
+              <button
+                onClick={async () => {
+                  if (pin.length !== 4) {
+                    setPinError("Please enter the 4-digit code.");
+                    return;
+                  }
+                  setDeliverLoading(true);
+                  try {
+                    const fn = httpsCallable(functions, "markOrderDelivered");
+                    const res = await fn({ orderId: order.id, pin });
+                    if (res.data.invalidPin) {
+                      setPinError("Incorrect PIN, please try again.");
+                    } else {
+                      toast.success("Order marked as delivered!");
+                      setIsPinModalOpen(false);
+                      onClose();
+                    }
+                  } catch (e) {
+                    console.error(e);
+                    toast.error("Failed to validate PIN. Try again.");
+                  } finally {
+                    setDeliverLoading(false);
+                  }
+                }}
+                className="bg-customOrange text-white font-opensans py-2 px-8 rounded-full"
+                disabled={deliverLoading}
+              >
+                {deliverLoading ? (
+                  <RotatingLines strokeColor="white" width="20" />
+                ) : (
+                  "Confirm"
+                )}
+              </button>
+            </div>
+          </Modal>
+        )}
 
         {/* Decline Reason Modal */}
         <Modal
@@ -1790,6 +1891,7 @@ const OrderDetailsModal = ({
             </button>
           </div>
         </Modal>
+
         <Modal
           isOpen={isDeclineInfoModalOpen}
           onRequestClose={() => setIsDeclineInfoModalOpen(false)}
@@ -1891,12 +1993,19 @@ const OrderDetailsModal = ({
             <li>- Delivery delayed beyond the expected timeframe.</li>
           </ul>
 
+          <p className="text-xs text-gray-700 font-opensans mb-6">
+            Need help? Start a live chat with our support team.
+          </p>
+
           <div className="flex justify-end">
             <button
-              onClick={handleProceedCallSupport}
+              onClick={() => {
+                openChat();
+                setIsSupportCallModalOpen(false);
+              }}
               className="bg-customOrange text-white font-opensans py-2 px-8 rounded-full"
             >
-              Proceed
+              Chat Now
             </button>
           </div>
         </Modal>

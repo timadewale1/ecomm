@@ -35,6 +35,7 @@ import { FaFileContract } from "react-icons/fa6";
 import SEO from "../components/Helmet/SEO";
 import { useTawk } from "../components/Context/TawkProvider";
 import { exitStockpileMode } from "../redux/reducers/stockpileSlice";
+import { TfiWallet } from "react-icons/tfi";
 const Profile = () => {
   const navigate = useNavigate();
 
@@ -302,7 +303,25 @@ const Profile = () => {
                 </div>
                 <ChevronRight className="text-black" />
               </div>
+              {currentUser && (
+                <div
+                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={() => navigate("/your-wallet")}
+                >
+                  <div className="flex items-center relative">
+                    <TfiWallet className="text-black text-xl mr-4" />
+                    <h2 className="text-size font-normal font-opensans text-black capitalize">
+                      My Wallet
+                      <span className="absolute -top-1 animate-pulse -right-10 text-[8px] font-bold text-white bg-customOrange px-2 py-0.5 rounded-md shadow-sm">
+                        NEW
+                      </span>
+                    </h2>
+                  </div>
+                  <ChevronRight className="text-black mr-1" />
+                </div>
+              )}
             </div>
+
             <div className="w-full h-14 flex">
               <h1 className="text-base font-opensans font-semibold mx-4 translate-y-3 text-black">
                 More

@@ -103,7 +103,7 @@ const FavoritesPage = () => {
             className="text-2xl text-black cursor-pointer"
             onClick={() => navigate(-1)}
           />
-          <h1 className="text-xl font-opensans font-bold">Favorites</h1>
+          <h1 className="text-xl font-opensans ml-5 font-semibold">Favorites</h1>
         </div>
       </div>
       {loading ? (

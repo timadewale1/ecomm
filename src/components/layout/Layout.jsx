@@ -21,6 +21,7 @@ const Layout = () => {
     currentUser,
     currentUserData
   );
+  const [showInstallModal, setShowInstallModal] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 575);
 
   useEffect(() => {
@@ -40,6 +41,7 @@ const Layout = () => {
     "/vendor-signup",
     "/complete-profile",
     "/newcheckout/bookingfee",
+    "your-wallet",
     "/newcheckout/fulldelivery",
     "/user-dashboard",
     "/search",
@@ -110,10 +112,9 @@ const Layout = () => {
   return (
     <NavigationProvider>
       <VendorNavigationProvider>
-        {/* Render the PWAInstallModal if needed */}
-        {/* {showInstallModal && (
+        {showInstallModal && isPWA && (
           <PWAInstallModal onClose={() => setShowInstallModal(false)} />
-        )} */}
+        )}
         {isMobile ? (
           <>
             {showBanner && (

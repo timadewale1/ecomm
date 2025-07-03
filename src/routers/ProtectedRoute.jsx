@@ -110,11 +110,12 @@ const ProtectedRoute = ({ requiredRole }) => {
   const excludePaddingRoutes = [
     "/user-dashboard",
     "/latest-cart",
+   
     "/online-vendors",
     "/market-vendors",
     "/share-profile",
   ];
-  const dynamicRoutes = ["/reviews/"]; // Add dynamic base routes here
+  const dynamicRoutes = ["/reviews/",  "/newcheckout/:id"]; // Add dynamic base routes here
 
   // Check if the current route matches any of the static or dynamic routes
   const shouldExcludePadding =

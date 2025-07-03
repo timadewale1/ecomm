@@ -2111,7 +2111,7 @@ const Checkout = () => {
                     <h1 className="text-black font-medium mr-1 font-opensans text-base">
                       Pile
                     </h1>
-                    <GiBookPile className="text-xl" />
+                    <PiStackSimpleFill className="text-xl" />
                   </div>
 
                   <h3 className="text-xs font-opensans ">
@@ -2226,7 +2226,8 @@ const Checkout = () => {
                 </label>
                 <p className="font-opensans text-black ">{userInfo.address}</p>
               </div>
-              <div className="bg-customCream py-1 mt-4 animate-pulse px-2 text-center rounded-md">
+              <div className="bg-customCream flex items-center py-1 mt-4 animate-pulse px-2 text-left rounded-md">
+                <CiWarning className="text-orange-600 text-4xl mr-3" />
                 <p className="text-xs font-ubuntu font-medium text-red-600">
                   This cannot be updated after now. Please ensure to put your
                   correct details

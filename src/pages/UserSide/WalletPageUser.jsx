@@ -4,6 +4,8 @@ import toast from "react-hot-toast";
 import { BsEye, BsEyeSlash } from "react-icons/bs";
 import { GoChevronLeft } from "react-icons/go";
 import { MdOutlineContentPasteSearch } from "react-icons/md";
+import { GoArrowUpRight, GoArrowDownRight } from "react-icons/go";
+
 import { doc, updateDoc, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { useTawk } from "../../components/Context/TawkProvider";
@@ -420,11 +422,19 @@ export default function UserWalletPage() {
                   key={tx.id}
                   className="flex justify-between border-b border-gray-200 py-3 last:border-0 hover:bg-gray-50"
                 >
+                  {/* icon + label */}
                   <span className="flex items-center space-x-2">
+                    {tx.type === "withdrawal" ? (
+                      <GoArrowUpRight className="text-xl text-gray-600" />
+                    ) : (
+                      < GoArrowDownRight className="text-xl text-gray-600" />
+                    )}
                     <span className="text-sm font-semibold">
-                      {tx.type === "withdrawal" ? "Withdrawal" : "Paid"}
+                      {tx.type === "withdrawal" ? "Paid" : "Deposit"}
                     </span>
                   </span>
+
+                  {/* amount & date */}
                   <div className="text-right">
                     <p
                       className={`font-bold font-opensans text-base ${

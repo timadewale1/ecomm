@@ -539,7 +539,7 @@ const ProfileDetails = ({
                       value={lastName}
                       onChange={(e) => setLastName(formatName(e.target.value))}
                       placeholder="Last Name"
-                      className="w-full p-2 border font-opensans border-gray-200 bg-customSoftGray rounded"
+                      className="w-full p-2 mt-4 border font-opensans border-gray-200 bg-customSoftGray rounded"
                     />
                   </>
                 )}
@@ -581,7 +581,7 @@ const ProfileDetails = ({
                 <button
                   onClick={handleSave}
                   disabled={isLoading}
-                  className="w-full h-10 -translate-y-16 bg-customOrange text-white font-opensans font-medium rounded-full flex items-center justify-center"
+                  className="w-full h-10 -translate-y-8 bg-customOrange text-white font-opensans font-medium rounded-full flex items-center justify-center"
                 >
                   {isLoading ? (
                     <RotatingLines

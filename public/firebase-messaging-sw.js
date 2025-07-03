@@ -21,11 +21,11 @@ firebase.initializeApp({
 // Retrieve an instance of Firebase Messaging
 const messaging = firebase.messaging();
 
-// // Handle background push messages
-// messaging.onBackgroundMessage((payload) => {
-//   const { title, body, icon } = payload.notification || {};
-//   self.registration.showNotification(title, {
-//     body,
-//     icon: icon || "/logo.png",
-//   });
-// });
+// Handle background push messages
+messaging.onBackgroundMessage((payload) => {
+  const { title, body, icon } = payload.notification || {};
+  self.registration.showNotification(title, {
+    body,
+    icon: icon || "/logo.png",
+  });
+});

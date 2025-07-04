@@ -357,6 +357,10 @@ const Checkout = () => {
   const [shareUrl, setShareUrl] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [walletId, setWalletId] = useState("");
+
+  const [deliveryFeeLoading, setDeliveryFeeLoading] = useState(false);
+  const [deliveryLoaded, setDeliveryLoaded] = useState(false);
+
   const [walletBal, setWalletBal] = useState(0);
   const [showShareModal, setShowShareModal] = useState(false);
   const [walletSetup, setWalletSetup] = useState(false);
@@ -539,7 +543,7 @@ const Checkout = () => {
         });
 
         setIsFetchingOrderPreview(false);
-
+        getDeliveryQuoteInBackground(orderData);
         setTimeout(() => {
           setShowServiceFee(true);
         }, 50);
@@ -618,6 +622,28 @@ const Checkout = () => {
       setIsPickup(false);
     }
   }, [vendorsInfo, vendorId]);
+  const getDeliveryQuoteInBackground = async (baseOrder) => {
+    // skip if pickup or stockpile
+    if (isPickup || isRepiling) return;
+
+    setDeliveryFeeLoading(true);
+    try {
+      const processOrder = httpsCallable(functions, "processOrder");
+      /* same payload but preview:false to trigger Kwik */
+      const { data } = await processOrder({ ...baseOrder, preview: false });
+      /* inject fee into UI */
+      setPreviewedOrder((prev) => ({
+        ...prev,
+        deliveryCharge: Number(data.deliveryCharge),
+        total: prev.subtotal + prev.serviceFee + Number(data.deliveryCharge),
+      }));
+      setDeliveryLoaded(true);
+    } catch (err) {
+      console.error("Delivery quote failed:", err.message);
+    } finally {
+      setDeliveryFeeLoading(false);
+    }
+  };
 
   const NoStockpileModal = ({ isOpen, onClose }) => {
     return (
@@ -1492,10 +1518,13 @@ const Checkout = () => {
                 // --- Lagos→Lagos: show the actual fee ---
                 <div className="flex justify-between">
                   <span className="font-opensans text-sm">Delivery Fee</span>
-                  <span className="text-base font-opensans text-black font-semibold">
-                    ₦
-                    {parseFloat(previewedOrder.deliveryCharge).toLocaleString()}
-                  </span>
+                  {!deliveryLoaded ? (
+                    <span className="text-xs italic text-gray-500">
+                      Calculating fee…
+                    </span>
+                  ) : (
+                    `₦${previewedOrder.deliveryCharge.toLocaleString()}`
+                  )}
                 </div>
               )}
             </div>

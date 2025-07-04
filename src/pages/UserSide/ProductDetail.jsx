@@ -58,6 +58,7 @@ import SEO from "../../components/Helmet/SEO";
 import QuestionandA from "../../components/Loading/QuestionandA";
 import { LiaTimesSolid } from "react-icons/lia";
 import { handleUserActionLimit } from "../../services/userWriteHandler";
+import SafeImg from "../../services/safeImg";
 Modal.setAppElement("#root");
 
 const debounce = (func, delay) => {
@@ -1164,11 +1165,10 @@ const ProductDetailPage = () => {
                 {allImages.map((image, index) => (
                   <SwiperSlide key={index}>
                     <div className="relative w-full h-full">
-                      <img
+                      <SafeImg
                         src={image}
                         alt={`${product.name} image ${index + 1}`}
                         className="object-cover w-full h-full"
-                        style={{ borderBottom: "6px solid white" }}
                       />
                       {/* Discount Badge inside each slide */}
                       {index === 0 && product.discount && (
@@ -1238,7 +1238,7 @@ const ProductDetailPage = () => {
           ) : (
             // Single image fallback
             <>
-              <img
+              <IkImage
                 src={allImages[0]}
                 alt={`${product.name} image`}
                 className="object-cover w-full h-full rounded-b-lg"

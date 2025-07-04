@@ -24,7 +24,7 @@ import { useFavorites } from "../../components/Context/FavoritesContext";
 
 // Import the handleUserActionLimit helper
 import { handleUserActionLimit } from "../../services/userWriteHandler";
-import IkImage from "../../services/IkImage"; 
+import IkImage from "../../services/IkImage";
 const ProductCard = ({ product, isLoading, showVendorName = true }) => {
   const navigate = useNavigate();
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -182,7 +182,7 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
   };
 
   // The product’s main image
-  const firebaseImage = product?.productCoverImage || product?.coverImageUrl 
+  const firebaseImage = product?.productCoverImage || product?.coverImageUrl;
   const lowResImg = getImageKitUrl(firebaseImage, "w-60,q-20,bl-6");
   // High‑res (no transform) served from ImageKit too for CDN/cache benefit
   const highResImg = getImageKitUrl(firebaseImage);

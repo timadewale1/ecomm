@@ -32,7 +32,7 @@ const BlogImageGrid = () => {
       });
   }, []);
   const openModal = (slug) => {
-    setModalUrl(`https://blog.shopmythrift.store/blog/${slug}`);
+    setModalUrl(`https://blog.shopmythrift.store/blog/${slug}?embed=1`);
     setShowModal(true);
   };
   return (
@@ -95,7 +95,6 @@ const BlogImageGrid = () => {
         onClose={() => setShowModal(false)}
         url={modalUrl}
       />
-      
     </div>
   );
 };

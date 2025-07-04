@@ -21,41 +21,11 @@ firebase.initializeApp({
 // Retrieve an instance of Firebase Messaging
 const messaging = firebase.messaging();
 
-// Handle background push messages (data-only payload)
+// Handle background push messages
 messaging.onBackgroundMessage((payload) => {
-  const { title, body, icon, vendorId, url } = payload.data;
-
-  // Display the notification and stash click-url in data
+  const { title, body, icon } = payload.notification || {};
   self.registration.showNotification(title, {
     body,
     icon: icon || "/logo.png",
-    tag: `vendor-${vendorId}`,
-    renotify: false,
-    data: { url },
   });
-});
-
-// Handle notification click events
-self.addEventListener("notificationclick", function (evt) {
-  // Close the notification
-  evt.notification.close();
-
-  // Retrieve the click URL from notification data
-  const clickUrl = evt.notification.data?.url || "/";
-
-  // Focus or open the target URL
-  evt.waitUntil(
-    clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then((windowClients) => {
-        for (const client of windowClients) {
-          if (client.url === clickUrl && "focus" in client) {
-            return client.focus();
-          }
-        }
-        if (clients.openWindow) {
-          return clients.openWindow(clickUrl);
-        }
-      })
-  );
 });

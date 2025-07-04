@@ -10,7 +10,10 @@ import { getTripAdvice } from "../services/estimateTrips";
 import { useAuth } from "../custom-hooks/useAuth";
 import { RiShareForwardBoxLine } from "react-icons/ri";
 import { SiAdguard } from "react-icons/si";
-import { enterStockpileMode } from "../redux/reducers/stockpileSlice";
+import {
+  enterStockpileMode,
+  exitStockpileMode,
+} from "../redux/reducers/stockpileSlice";
 import { CiWarning } from "react-icons/ci";
 import { GiBookPile } from "react-icons/gi";
 import { FaPen, FaUserFriends } from "react-icons/fa";
@@ -683,6 +686,7 @@ const Checkout = () => {
         if (data?.success) {
           await refreshWalletInfo();
           dispatch(clearCart(vendorId));
+          dispatch(exitStockpileMode());
           toast.success("Paid with wallet balance! 🎉");
           navigate("/user-orders", { replace: true });
         } else {
@@ -742,6 +746,7 @@ const Checkout = () => {
       const processOrder = httpsCallable(functions, "processOrder");
       const { data } = await processOrder(payload);
       dispatch(clearCart(vendorId));
+      dispatch(exitStockpileMode());
       navigate("/user-orders", {
         state: {
           draftShareUrl: data.shareUrl, // so the centre can pop a toast/modal if you want

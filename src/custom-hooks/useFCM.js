@@ -6,6 +6,40 @@ import { doc, getDoc } from "firebase/firestore";
 import { debounce } from "lodash";
 import toast from "react-hot-toast";
 
+/* ------------------------------------------------------------------ */
+/* ⏰  How long (in hours) before we re-validate the token in Firestore */
+const CACHE_TTL_HOURS = 24;
+/* ------------------------------------------------------------------ */
+
+/** Read a “token cached” flag with ttl */
+function tokenCacheGet(uid, token) {
+  const raw = localStorage.getItem(`fcmToken_${uid}_${token}`);
+  if (!raw) return false;
+
+  try {
+    const { ok, expires } = JSON.parse(raw);
+    if (!ok || Date.now() > expires) {
+      localStorage.removeItem(`fcmToken_${uid}_${token}`); // stale → clear
+      return false;
+    }
+    return true;
+  } catch {
+    localStorage.removeItem(`fcmToken_${uid}_${token}`);
+    return false;
+  }
+}
+
+/** Persist the cache flag with a rolling ttl */
+function tokenCacheSet(uid, token) {
+  localStorage.setItem(
+    `fcmToken_${uid}_${token}`,
+    JSON.stringify({
+      ok: true,
+      expires: Date.now() + CACHE_TTL_HOURS * 60 * 60 * 1000,
+    })
+  );
+}
+
 export function useFCM(currentUser, currentUserData) {
   const [showBanner, setShowBanner] = useState(false);
   const [enabling, setEnabling] = useState(false);
@@ -15,25 +49,24 @@ export function useFCM(currentUser, currentUserData) {
       window.navigator.standalone === true
   );
 
+  /* ───────────────────────── PWA detection listener ───────────────────── */
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(display-mode: standalone)");
-    const handleChange = () =>
-      setIsPWA(mediaQuery.matches || window.navigator.standalone === true);
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
+    const mq = window.matchMedia("(display-mode: standalone)");
+    const onChange = () =>
+      setIsPWA(mq.matches || window.navigator.standalone === true);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, []);
 
+  /* ─────────────────────── Check token in Firestore (ttl) ──────────────── */
   const checkTokenExists = useCallback(async (uid, token) => {
-    const cacheKey = `fcmToken_${uid}_${token}`;
-    const cached = localStorage.getItem(cacheKey);
-    if (cached === "true") return true;
+    if (tokenCacheGet(uid, token)) return true; // ✅ fresh cache hit
 
     try {
-      const tokenDoc = await getDoc(doc(db, "fcmTokens", uid));
-      if (tokenDoc.exists()) {
-        const tokens = tokenDoc.data().tokens || [];
-        const exists = tokens.includes(token);
-        if (exists) localStorage.setItem(cacheKey, "true");
+      const snap = await getDoc(doc(db, "fcmTokens", uid));
+      if (snap.exists()) {
+        const exists = (snap.data().tokens || []).includes(token);
+        if (exists) tokenCacheSet(uid, token); // cache for next 24 h
         return exists;
       }
       return false;
@@ -43,14 +76,13 @@ export function useFCM(currentUser, currentUserData) {
     }
   }, []);
 
+  /* ─────────────────────── saveFcmToken callable + cache ───────────────── */
   const saveTokenToBackend = useCallback(
-    debounce(async (messaging, token) => {
+    debounce(async (_msg, token) => {
       try {
-        const saveToken = httpsCallable(functions, "saveFcmToken");
-        const result = await saveToken({ token });
-        console.log("saveFcmToken result:", result.data);
+        await httpsCallable(functions, "saveFcmToken")({ token });
         setHasToken(true);
-        localStorage.setItem(`fcmToken_${currentUser?.uid}_${token}`, "true");
+        tokenCacheSet(currentUser?.uid, token);
       } catch (err) {
         console.error("Error saving FCM token:", err);
       }
@@ -58,6 +90,7 @@ export function useFCM(currentUser, currentUserData) {
     [currentUser?.uid]
   );
 
+  /* ───────────────────────────── SW registration ───────────────────────── */
   const registerServiceWorker = useCallback(async () => {
     if (
       await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js")
@@ -66,73 +99,56 @@ export function useFCM(currentUser, currentUserData) {
       return true;
     }
     try {
-      const registration = await navigator.serviceWorker.register(
+      const reg = await navigator.serviceWorker.register(
         "/firebase-messaging-sw.js"
       );
-      console.log("FCM Service Worker registered at", registration.scope);
+      console.log("FCM Service Worker registered at", reg.scope);
       return true;
-    } catch (swErr) {
-      console.warn("FCM SW registration failed:", swErr);
+    } catch (err) {
+      console.warn("FCM SW registration failed:", err);
       return false;
     }
   }, []);
 
+  /* ───────────────────── enable-notifications button ───────────────────── */
   const handleEnableNotifs = useCallback(() => {
-    console.log("▶️ handleEnableNotifs started");
-    // 1️⃣ Hide banner immediately
     setShowBanner(false);
-    // 2️⃣ Show success toast immediately
     toast.success("Notifications enabled! You’re all set ✅");
 
-    // 3️⃣ Do the real work in the background
     (async () => {
       setEnabling(true);
       try {
         let perm = Notification.permission;
-        if (perm === "default") {
-          console.log("Requesting notification permission…");
-          perm = await Notification.requestPermission();
-          console.log("Notification.permission after request:", perm);
-        }
-
+        if (perm === "default") perm = await Notification.requestPermission();
         if (perm !== "granted") {
-          console.warn("User denied notifications, aborting token retrieval.");
           setShowBanner(isPWA);
           return;
         }
 
         const messaging = await messagingReady;
-        if (!messaging) {
-          console.warn("FCM not supported here");
-          setShowBanner(isPWA);
-          return;
-        }
-
-        if (!(await registerServiceWorker())) {
+        if (!messaging || !(await registerServiceWorker())) {
           setShowBanner(isPWA);
           return;
         }
 
         const vapidKey = import.meta.env.VITE_VAPID_KEY;
-        const fcmToken = await getToken(messaging, { vapidKey });
-        if (!fcmToken) {
-          console.error("No FCM token retrieved");
+        const token = await getToken(messaging, { vapidKey });
+        if (!token) {
           setShowBanner(isPWA);
           return;
         }
 
-        await saveTokenToBackend(messaging, fcmToken);
-        setHasToken(true);
+        await saveTokenToBackend(messaging, token);
       } catch (err) {
-        console.error("❌ Error in handleEnableNotifs:", err);
+        console.error("handleEnableNotifs error:", err);
         setShowBanner(isPWA);
       } finally {
-        console.log("▶️ handleEnableNotifs finished");
         setEnabling(false);
       }
     })();
-  }, [saveTokenToBackend, registerServiceWorker, isPWA]);
+  }, [isPWA, registerServiceWorker, saveTokenToBackend]);
 
+  /* ─────────────────────── Initial setup for a user ────────────────────── */
   useEffect(() => {
     if (!currentUser) {
       setShowBanner(false);
@@ -140,105 +156,90 @@ export function useFCM(currentUser, currentUserData) {
       return;
     }
 
-    const setupNotifications = async () => {
+    const bootstrap = async () => {
       try {
         if (Notification.permission !== "granted") {
-          console.log("Notifications not granted, skipping token setup.");
           setShowBanner(isPWA && !hasToken);
           return;
         }
 
         const messaging = await messagingReady;
-        if (!messaging) {
-          console.warn("FCM not supported here");
-          setShowBanner(isPWA && !hasToken);
-          return;
-        }
-
-        if (!(await registerServiceWorker())) {
+        if (!messaging || !(await registerServiceWorker())) {
           setShowBanner(isPWA && !hasToken);
           return;
         }
 
         const vapidKey = import.meta.env.VITE_VAPID_KEY;
-        const fcmToken = await getToken(messaging, { vapidKey });
-        if (!fcmToken) {
-          console.error("No FCM token retrieved");
+        const token = await getToken(messaging, { vapidKey });
+        if (!token) {
           setShowBanner(isPWA && !hasToken);
           return;
         }
 
-        const tokenExists = await checkTokenExists(currentUser.uid, fcmToken);
-        if (tokenExists) {
+        if (await checkTokenExists(currentUser.uid, token)) {
           setHasToken(true);
           setShowBanner(false);
-          return;
+        } else {
+          await saveTokenToBackend(messaging, token);
+          setHasToken(true);
+          setShowBanner(isPWA && !hasToken);
         }
 
-        await saveTokenToBackend(messaging, fcmToken);
-        setHasToken(true);
-        setShowBanner(isPWA && !hasToken);
-
-        const unsubscribe = messaging.onTokenRefresh(async () => {
+        /* listen for token refresh */
+        const unsub = messaging.onTokenRefresh(async () => {
           try {
-            const newToken = await getToken(messaging, { vapidKey });
-            if (newToken) {
-              await saveTokenToBackend(messaging, newToken);
-            }
-          } catch (err) {
-            console.error("Error handling token refresh:", err);
+            const newTok = await getToken(messaging, { vapidKey });
+            if (newTok) await saveTokenToBackend(messaging, newTok);
+          } catch (e) {
+            console.error("Token refresh error:", e);
           }
         });
 
+        /* foreground push */
         onMessage(messaging, (payload) => {
-          if (payload.data?.userId === currentUser?.uid) {
-            console.log("Foreground FCM message:", payload);
+          if (payload.data?.userId === currentUser.uid) {
             new Notification(payload.notification.title, {
               body: payload.notification.body,
             });
           }
         });
 
-        return () => unsubscribe && unsubscribe();
+        return () => unsub();
       } catch (err) {
-        console.error("Error setting up notifications:", err);
+        console.error("Notifications setup error:", err);
         setShowBanner(isPWA && !hasToken);
       }
     };
 
-    setupNotifications();
+    bootstrap();
   }, [
     currentUser,
+    hasToken,
+    isPWA,
     checkTokenExists,
     saveTokenToBackend,
     registerServiceWorker,
-    isPWA,
   ]);
 
+  /* ─────────────────── Permission revoked → clean tokens ───────────────── */
   useEffect(() => {
     if (!currentUser || !currentUserData?.notificationAllowed) return;
+    if (Notification.permission === "granted") return;
 
-    const checkPermissions = async () => {
-      if (Notification.permission !== "granted") {
-        try {
-          const removeToken = httpsCallable(functions, "removeFcmToken");
-          await removeToken();
-          setHasToken(false);
-          Object.keys(localStorage)
-            .filter((key) => key.startsWith(`fcmToken_${currentUser.uid}_`))
-            .forEach((key) => localStorage.removeItem(key));
-          setShowBanner(isPWA);
-        } catch (err) {
-          console.error(
-            "Error removing token after permission revocation:",
-            err
-          );
-        }
+    (async () => {
+      try {
+        await httpsCallable(functions, "removeFcmToken")();
+        setHasToken(false);
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith(`fcmToken_${currentUser.uid}_`))
+          .forEach((k) => localStorage.removeItem(k));
+        setShowBanner(isPWA);
+      } catch (err) {
+        console.error("removeFcmToken error:", err);
       }
-    };
-
-    checkPermissions();
+    })();
   }, [currentUser, currentUserData, isPWA]);
 
+  /* ──────────────────────────────────────────────────────────────────────── */
   return { showBanner, handleEnableNotifs, enabling, isPWA };
 }

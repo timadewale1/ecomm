@@ -558,6 +558,8 @@ const OrdersCentre = () => {
         // Clear the cart for that vendor immediately
         if (newOrder.vendorId) {
           dispatch(clearCart(newOrder.vendorId));
+          dispatch(exitStockpileMode());
+
         }
       }
     }

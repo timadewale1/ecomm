@@ -80,13 +80,12 @@ const IframeModal = ({ show, onClose, url }) => {
 
       {/* Glassy close pill */}
       {show && (
-        <button
+       <button
           onClick={onClose}
-          aria-label="Close modal"
           className="absolute font-opensans bottom-4 left-1/2 -translate-x-1/2
-                     px-6 py-1.5 text-sm font-medium
-                     bg-white/20 backdrop-blur-md border border-white/30
-                     rounded-full shadow hover:bg-white/30
+                     px-6 py-3 text-base font-medium
+                     bg-black/20 backdrop-blur-md border border-white/30
+                     rounded-full shadow-md hover:bg-white/30
                      transition-colors duration-200"
         >
           Close

@@ -6,6 +6,7 @@ import { clearCart } from "../redux/actions/action";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase.config";
 import { PiStackPlusFill, PiStackSimpleFill } from "react-icons/pi";
+import { getTripAdvice } from "../services/estimateTrips";
 import { useAuth } from "../custom-hooks/useAuth";
 import { RiShareForwardBoxLine } from "react-icons/ri";
 import { SiAdguard } from "react-icons/si";
@@ -361,7 +362,7 @@ const Checkout = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [walletSetup, setWalletSetup] = useState(false);
   const [isPickup, setIsPickup] = useState(false);
-
+  const [tripAdvice, setTripAdvice] = useState(null);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showAlreadyStockpiledModal, setShowAlreadyStockpiledModal] =
     useState(false);
@@ -838,16 +839,16 @@ const Checkout = () => {
    * Distance from user → vendor’s pick-up point
    */
   useEffect(() => {
-    /* ---------- sightseeing ---------- */
-    console.log("🚚  supportsPickup:", supportsPickup);
-    console.log("  user lat/lng:", userInfo.latitude, userInfo.longitude);
+    /* ---------- diagnostics ---------- */
+    console.log("🚚 supportsPickup:", supportsPickup);
+    console.log("   user lat/lng:", userInfo.latitude, userInfo.longitude);
     console.log(
-      "  vendor lat/lng:",
+      "   vendor lat/lng:",
       vendorsInfo[vendorId]?.pickupLat,
       vendorsInfo[vendorId]?.pickupLng
     );
     console.log(
-      "  has DistanceMatrixService:",
+      "   DistanceMatrix ready:",
       Boolean(window.google?.maps?.DistanceMatrixService)
     );
 
@@ -861,6 +862,7 @@ const Checkout = () => {
       !window.google?.maps?.DistanceMatrixService
     ) {
       console.log("⛔  Missing data → skip distance calc");
+      setTripAdvice(null);
       return;
     }
 
@@ -876,8 +878,7 @@ const Checkout = () => {
       Number(vendorsInfo[vendorId].pickupLng)
     );
 
-    const svc = new window.google.maps.DistanceMatrixService();
-    svc.getDistanceMatrix(
+    new window.google.maps.DistanceMatrixService().getDistanceMatrix(
       {
         origins: [origin],
         destinations: [destination],
@@ -891,10 +892,16 @@ const Checkout = () => {
           status === "OK" &&
           result?.rows?.[0]?.elements?.[0]?.status === "OK"
         ) {
-          setPickupDistance(result.rows[0].elements[0].distance.text);
+          const elem = result.rows[0].elements[0];
+          setPickupDistance(elem.distance.text);
+
+          // NEW → friendly advice
+          setTripAdvice(
+            getTripAdvice(elem.distance.value, elem.duration.value)
+          );
         } else {
-          // REQUEST_DENIED, INVALID_REQUEST, OVER_QUERY_LIMIT, …
           setPickupDistance(null);
+          setTripAdvice(null);
         }
       }
     );
@@ -1701,8 +1708,10 @@ const Checkout = () => {
                               : "(distance — …)"}
                           </span>
                         </p>
-                        <p className="text-xs text-gray-800 font-opensans  ">
-                          usually takes a day or two
+                        <p className="text-xs text-gray-800 font-opensans">
+                          {tripAdvice
+                            ? `${tripAdvice.headline} • ${tripAdvice.sub}`
+                            : "Calculating …"}
                         </p>
                       </div>
                       <span

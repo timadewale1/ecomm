@@ -69,7 +69,8 @@ export const fetchVendorProductsBatch = createAsyncThunk(
       const startIdx = loadMore ? entry.nextIdx || 0 : 0;
       const endIdx = startIdx + PAGE_SIZE;
 
-      const ids = vendor.productIds?.slice(startIdx, endIdx) ?? []; // may be empty
+      const orderedIds = [...(vendor.productIds ?? [])].reverse();
+      const ids = orderedIds.slice(startIdx, endIdx);
       if (ids.length === 0)
         return { vendorId, products: [], nextIdx: startIdx, noMore: true };
 
@@ -91,7 +92,7 @@ export const fetchVendorProductsBatch = createAsyncThunk(
         vendorId,
         products,
         nextIdx: endIdx,
-        noMore: endIdx >= (vendor.productIds?.length || 0),
+        noMore: endIdx >= orderedIds.length,
       };
     } catch (err) {
       return rejectWithValue(err.message);

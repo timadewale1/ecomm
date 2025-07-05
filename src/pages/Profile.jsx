@@ -104,6 +104,10 @@ const Profile = () => {
       });
     }
   };
+  const pulseProfileHighlight = () => {
+    setShowHighlight(true);
+    setTimeout(() => setShowHighlight(false), 600); // 10 s pulse
+  };
 
   const handleLogout = async () => {
     try {
@@ -305,7 +309,16 @@ const Profile = () => {
               {currentUser && (
                 <div
                   className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => navigate("/your-wallet")}
+                  onClick={() => {
+                    if (!userData?.profileComplete) {
+                      toast.error(
+                        "Please complete your personal information first."
+                      );
+                      pulseProfileHighlight(); // make the Personal-info tile glow
+                      return;
+                    }
+                    navigate("/your-wallet");
+                  }}
                 >
                   <div className="flex items-center relative">
                     <TfiWallet className="text-black text-xl mr-4" />

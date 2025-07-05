@@ -1502,13 +1502,27 @@ const Checkout = () => {
                 </div>
               ) : (
                 // --- Lagos→Lagos: show the actual fee ---
-                <div className="flex justify-between">
-                  <span className="font-opensans text-sm">Delivery Fee</span>
-                  <span className="text-base font-opensans text-black font-semibold">
-                    ₦
-                    {parseFloat(previewedOrder.deliveryCharge).toLocaleString()}
-                  </span>
-                </div>
+                <>
+                  <div className="flex justify-between">
+                    <span className="font-opensans text-sm">Estimated Delivery Fee</span>
+                    <span className="text-base font-opensans text-black font-semibold">
+                      ₦
+                      {parseFloat(
+                        previewedOrder.deliveryCharge
+                      ).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center bg-orange-50 py-3 px-2 rounded-lg mt-3">
+                    <CiWarning className="text-orange-600 text-7xl mr-3" />
+                    <div>
+                      <p className="font-opensans text-xs text-orange-700 font-semibold">
+                        The delivery cost above is just an estimate – you won’t
+                        be charged now. The vendor will confirm the final fee
+                        with you when it’s time to ship.
+                      </p>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
 

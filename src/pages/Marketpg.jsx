@@ -31,7 +31,7 @@ const Marketpg = () => {
       dispatch(fetchVendorsRanked());
     }
   }, [dispatch, isFetched]);
- const vendors = selectedTab === "local" ? local : online;
+  const vendors = selectedTab === "local" ? local : online;
   const filteredVendors = React.useMemo(() => {
     if (!searchTerm) return vendors;
     const q = searchTerm.toLowerCase();
@@ -61,7 +61,7 @@ const Marketpg = () => {
   const handleClearSearch = () => {
     setSearchTerm("");
   };
- 
+
   const handleStoreView = (vendor) => {
     if (selectedTab === "local") {
       navigate(`/marketstorepage/${vendor.id}`);
@@ -194,11 +194,32 @@ const Marketpg = () => {
                   onClick={() => handleStoreView(vendor)}
                 >
                   <div>
-                    <h1 className="font-poppins text-black text-xl mb-1 font-medium">
-                      {vendor.shopName.length > 18
-                        ? `${vendor.shopName.substring(0, 18)}...`
-                        : vendor.shopName}
+                    <h1 className="font-poppins text-black text-xl mb-1 font-medium flex items-center space-x-2">
+                      <span>
+                        {vendor.shopName.length > 18
+                          ? `${vendor.shopName.substring(0, 18)}...`
+                          : vendor.shopName}
+                      </span>
+                      {vendor.flashSale && (
+                        <span
+                          className="
+        inline-block    
+        bg-customOrange  
+        animate-pulse
+        text-white 
+        text-[8px] 
+        font-semibold 
+        rounded-md
+        py-1            
+        px-1              
+        leading-none      
+      "
+                        >
+                          Flash sales
+                        </span>
+                      )}
                     </h1>
+
                     <p className="font-sans text-gray-300 text-xs flex items-center -translate-y-1">
                       {(vendor.categories?.slice(0, 3) || []).map(
                         (category, index) => (

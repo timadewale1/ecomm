@@ -56,6 +56,7 @@ import {
   fetchStockpileData,
 } from "../redux/reducers/stockpileSlice";
 import { RotatingLines } from "react-loader-spinner";
+import { IoIosFlash } from "react-icons/io";
 Modal.setAppElement("#root"); // For accessibility
 
 const ReviewBanner = () => {
@@ -99,6 +100,45 @@ const ReviewBanner = () => {
     </div>
   );
 };
+const FlipCountdown = ({ endTime }) => {
+  // normalize to a JS Date
+  const target =
+    typeof endTime.toDate === "function" ? endTime.toDate() : new Date(endTime);
+
+  // compute difference
+  const calc = () => {
+    const diff = Math.max(0, target.getTime() - Date.now());
+    const sec = Math.floor((diff / 1000) % 60);
+    const min = Math.floor((diff / 1000 / 60) % 60);
+    const hr = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    const day = Math.floor(diff / (1000 * 60 * 60 * 24));
+    return { day, hr, min, sec };
+  };
+
+  const [timeLeft, setTimeLeft] = useState(calc());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTimeLeft(calc()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const unitClass = "flex flex-col items-center mx-1";
+  const digitClass =
+    "bg-white text-customOrange px-2 py-1 rounded shadow flip-card";
+
+  return (
+    <div className="flex font-ubuntu text-sm items-center">
+      {["day", "hr", "min", "sec"].map((u) => (
+        <div key={u} className={unitClass}>
+          <div className={digitClass}>
+            {String(timeLeft[u]).padStart(2, "0")}
+          </div>
+          <span className="text-xs mt-0.5 uppercase">{u}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
 const StorePage = () => {
   const { id } = useParams();
   // const [vendor, setVendor] = useState(null);
@@ -114,7 +154,8 @@ const StorePage = () => {
   const [selectedType, setSelectedType] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [loadingAll, setLoadingAll] = useState(false);
-
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const [showCountdownInHeader, setShowCountdownInHeader] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [viewOptions, setViewOptions] = useState(false);
   // Add this line along with your other useState declarations
@@ -130,7 +171,7 @@ const StorePage = () => {
   // Convenience variables for the current vendor page
   const entry = entities[id] || {};
   const { vendor, products = [], loadingMore, noMore, scrollY } = entry;
-
+  const hasFlashSale = products.some((p) => p.flashSales);
   const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -254,6 +295,18 @@ const StorePage = () => {
 
     checkIfFollowing();
   }, [currentUser, vendor]);
+  useEffect(() => {
+    const handleScrollChange = () => {
+      const currentScrollPosition = window.scrollY;
+      setScrollPosition(currentScrollPosition);
+
+      const threshold = 100; // pixels
+      setShowCountdownInHeader(currentScrollPosition > threshold);
+    };
+
+    window.addEventListener("scroll", handleScrollChange, { passive: true });
+    return () => window.removeEventListener("scroll", handleScrollChange);
+  }, []);
 
   const restored = useRef(false);
   useLayoutEffect(() => {
@@ -587,7 +640,7 @@ const StorePage = () => {
       />
       <div className="p-3 mb-24">
         <ReviewBanner />
-        <div className="sticky top-0 bg-white h-24 z-10 flex items-center   border-gray-300 w-full">
+        <div className="sticky top-0 bg-white h-24 z-10 flex items-center border-gray-300 w-full">
           {isSearching ? (
             <div className="flex items-center w-full relative px-2">
               <FaAngleLeft
@@ -601,7 +654,7 @@ const StorePage = () => {
                 type="text"
                 value={searchTerm}
                 onChange={handleSearchChange}
-               placeholder={"Search " + (vendor?.shopName || "") + "..."}
+                placeholder={"Search " + (vendor?.shopName || "") + "..."}
                 className="flex-1 border rounded-full font-opensans text-black text-base border-gray-300 px-3 py-2 font-medium shadow-xl focus:outline-none"
               />
               {searchTerm && (
@@ -615,7 +668,7 @@ const StorePage = () => {
             <>
               <div className="w-full ">
                 {/* LEFT: logo */}
-                <div className="flex items-center justify-between"> 
+                <div className="flex items-center justify-between">
                   <img
                     src="/newlogo.png"
                     alt="Logo"
@@ -648,24 +701,245 @@ const StorePage = () => {
               </div>
             </>
           ) : (
-            <div className="flex items-center justify-between w-full ">
-              <GoChevronLeft
-                onClick={() => navigate(-1)}
-                className="cursor-pointer text-3xl"
-              />
-              <h1 className="flex-grow text-center font-opensans text-lg font-semibold">
-                {vendor.shopName}
-              </h1>
-              <CiSearch
-                className="text-black text-3xl cursor-pointer"
-                onClick={openSearch}
-              />
+            <div className="flex flex-col w-full">
+              {/* Main header row */}
+              <div className="flex items-center justify-between w-full">
+                <GoChevronLeft
+                  onClick={() => navigate(-1)}
+                  className="cursor-pointer text-3xl"
+                />
+                <div className="flex-grow flex flex-col items-center justify-center">
+                  <div className="flex items-center space-x-1 font-opensans text-lg font-semibold">
+                    <span>{vendor.shopName}</span>
+                    {hasFlashSale && (
+                      <IoIosFlash className="text-customOrange text-xl" />
+                    )}
+                  </div>
+
+                  {/* Countdown in header - slides in when scrolling */}
+                  {hasFlashSale && showCountdownInHeader && (
+                    <div
+                      className={`
+                transition-all duration-500 ease-out transform
+                ${
+                  showCountdownInHeader
+                    ? "opacity-100 translate-y-0 scale-100"
+                    : "opacity-0 -translate-y-4 scale-95"
+                }
+                mt-1
+              `}
+                      style={{
+                        transitionDelay: showCountdownInHeader
+                          ? "300ms"
+                          : "0ms",
+                      }}
+                    >
+                      <div className="scale-75 origin-center">
+                        <FlipCountdown endTime={vendor.flashSaleEndsAt} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <CiSearch
+                  className="text-black text-3xl cursor-pointer"
+                  onClick={openSearch}
+                />
+              </div>
             </div>
           )}
         </div>
         <div className="border-t border-300 mt-1"></div>
         {!searchingUI(isSearching, searchTerm) && (
           <>
+            {hasFlashSale && (
+              <div
+                className="
+      w-full mt-4 mb-4
+      flex flex-col items-center
+      rounded-2xl
+      px-6 py-4
+      bg-black/10
+      backdrop-blur-xl
+      border border-white/20
+      shadow-[0_8px_32px_rgba(0,0,0,0.12)]
+      relative
+      overflow-hidden
+      before:absolute before:inset-0
+      before:bg-gradient-to-br before:from-white/20 before:to-transparent
+      before:rounded-2xl before:pointer-events-none
+      hover:bg-white/15
+      transition-all duration-300 ease-out
+      hover:shadow-[0_12px_40px_rgba(0,0,0,0.15)]
+      hover:scale-[1.02]
+    "
+              >
+                {/* Sparkle Effects */}
+                <div className="absolute inset-0 pointer-events-none">
+                  {/* Sparkle 1 */}
+                  <div
+                    className="absolute top-4 left-8 w-2 h-2 bg-customOrange rounded-full animate-ping"
+                    style={{ animationDelay: "0s", animationDuration: "2s" }}
+                  ></div>
+                  <div
+                    className="absolute top-4 left-8 w-1 h-1 bg-white rounded-full animate-ping"
+                    style={{ animationDelay: "0.5s", animationDuration: "2s" }}
+                  ></div>
+
+                  {/* Sparkle 2 */}
+                  <div
+                    className="absolute top-8 right-12 w-1.5 h-1.5 bg-yellow-400 rounded-full animate-ping"
+                    style={{ animationDelay: "1s", animationDuration: "2.5s" }}
+                  ></div>
+                  <div
+                    className="absolute top-8 right-12 w-1 h-1 bg-white rounded-full animate-ping"
+                    style={{
+                      animationDelay: "1.5s",
+                      animationDuration: "2.5s",
+                    }}
+                  ></div>
+
+                  {/* Sparkle 3 */}
+                  <div
+                    className="absolute bottom-6 left-12 w-1 h-1 bg-customOrange rounded-full animate-ping"
+                    style={{ animationDelay: "2s", animationDuration: "3s" }}
+                  ></div>
+                  <div
+                    className="absolute bottom-6 left-12 w-0.5 h-0.5 bg-white rounded-full animate-ping"
+                    style={{ animationDelay: "2.5s", animationDuration: "3s" }}
+                  ></div>
+
+                  {/* Sparkle 4 */}
+                  <div
+                    className="absolute bottom-8 right-6 w-2 h-2 bg-yellow-300 rounded-full animate-ping"
+                    style={{
+                      animationDelay: "0.5s",
+                      animationDuration: "2.8s",
+                    }}
+                  ></div>
+                  <div
+                    className="absolute bottom-8 right-6 w-1 h-1 bg-white rounded-full animate-ping"
+                    style={{ animationDelay: "1s", animationDuration: "2.8s" }}
+                  ></div>
+
+                  {/* Sparkle 5 */}
+                  <div
+                    className="absolute top-12 left-1/2 w-1.5 h-1.5 bg-customOrange rounded-full animate-ping"
+                    style={{
+                      animationDelay: "1.5s",
+                      animationDuration: "2.2s",
+                    }}
+                  ></div>
+                  <div
+                    className="absolute top-12 left-1/2 w-0.5 h-0.5 bg-white rounded-full animate-ping"
+                    style={{ animationDelay: "2s", animationDuration: "2.2s" }}
+                  ></div>
+
+                  {/* Sparkle 6 */}
+                  <div
+                    className="absolute bottom-12 right-1/4 w-1 h-1 bg-yellow-400 rounded-full animate-ping"
+                    style={{
+                      animationDelay: "0.8s",
+                      animationDuration: "2.6s",
+                    }}
+                  ></div>
+                  <div
+                    className="absolute bottom-12 right-1/4 w-0.5 h-0.5 bg-white rounded-full animate-ping"
+                    style={{
+                      animationDelay: "1.3s",
+                      animationDuration: "2.6s",
+                    }}
+                  ></div>
+
+                  {/* Star-shaped sparkles using CSS */}
+                  <div
+                    className="absolute top-6 right-8 text-customOrange text-xs animate-pulse"
+                    style={{
+                      animationDelay: "0.5s",
+                      animationDuration: "1.5s",
+                    }}
+                  >
+                    ✨
+                  </div>
+                  <div
+                    className="absolute bottom-4 left-6 text-yellow-400 text-xs animate-pulse"
+                    style={{
+                      animationDelay: "1.2s",
+                      animationDuration: "1.8s",
+                    }}
+                  >
+                    ✨
+                  </div>
+                  <div
+                    className="absolute top-10 left-1/3 text-white text-xs animate-pulse"
+                    style={{
+                      animationDelay: "2.1s",
+                      animationDuration: "1.4s",
+                    }}
+                  >
+                    ✨
+                  </div>
+                  <div
+                    className="absolute bottom-10 right-1/3 text-customOrange text-xs animate-pulse"
+                    style={{
+                      animationDelay: "0.3s",
+                      animationDuration: "1.9s",
+                    }}
+                  >
+                    ✨
+                  </div>
+                </div>
+
+                {/* Subtle animated gradient overlay */}
+                <div
+                  className="
+        absolute inset-0 
+        bg-gradient-to-r from-transparent via-white/5 to-transparent
+        animate-pulse
+        rounded-2xl
+      "
+                />
+
+                {/* Enhanced shimmer effect */}
+                <div
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-customOrange/5 to-transparent 
+                    animate-[shimmer_3s_ease-in-out_infinite] rounded-2xl"
+                ></div>
+
+                <h2
+                  className="
+        font-opensans uppercase text-sm font-semibold mb-2 
+        text-customOrange
+        relative z-10
+        drop-shadow-sm
+        animate-pulse
+      "
+                  style={{ animationDuration: "2s" }}
+                >
+                  {vendor.shopName} is running a sale 🎁
+                </h2>
+
+                <div className="relative z-10">
+                  <FlipCountdown endTime={vendor.flashSaleEndsAt} />
+                </div>
+              </div>
+            )}
+
+            <style jsx>{`
+              @keyframes shimmer {
+                0% {
+                  transform: translateX(-100%);
+                  opacity: 0;
+                }
+                50% {
+                  opacity: 1;
+                }
+                100% {
+                  transform: translateX(100%);
+                  opacity: 0;
+                }
+              }
+            `}</style>
+
             <div className="flex justify-center mt-6">
               <div className="relative w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
                 {vendorLoading ? (

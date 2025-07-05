@@ -25,6 +25,7 @@ import { useFavorites } from "../../components/Context/FavoritesContext";
 // Import the handleUserActionLimit helper
 import { handleUserActionLimit } from "../../services/userWriteHandler";
 import IkImage from "../../services/IkImage";
+import { IoIosFlash } from "react-icons/io";
 const ProductCard = ({ product, isLoading, showVendorName = true }) => {
   const navigate = useNavigate();
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -262,21 +263,18 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
 
         {/* Product Info */}
         <div className="mt-2">
-          <div className="flex font-opensans font-light items-center">
+          <div className="flex font-opensans font-light items-center justify-between">
             {isLoading ? (
               <Skeleton width={100} />
             ) : (
-              <div className="flex items-center space-x-1">
-                {renderCondition(product.condition)}
-                {product.condition === "Defect:" &&
-                  product.defectDescription && (
-                    <span className="text-xs text-red-500">
-                      {product.defectDescription?.length > 17
-                        ? product.defectDescription.slice(0, 17) + "..."
-                        : product.defectDescription}
-                    </span>
-                  )}
-              </div>
+              <>
+                <div className="flex items-center space-x-1">
+                  {renderCondition(product.condition)}
+                </div>
+                {product.flashSales && (
+                  <IoIosFlash className="text-customOrange animate-bounce mr-1  text-xl" />
+                )}
+              </>
             )}
           </div>
 

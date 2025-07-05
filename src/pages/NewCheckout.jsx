@@ -1790,10 +1790,7 @@ const Checkout = () => {
                       <div className="flex flex-col items-start">
                         <p className="text-base font-opensans font-semibold text-black">
                           Door delivery
-                          <span className="font-normal text-xs text-customOrange ml-1">
-                            (≈ ₦
-                            {previewedOrder.deliveryCharge?.toLocaleString()})
-                          </span>
+                         
                         </p>
                         <p className="text-xs text-gray-800 font-opensans">
                           1–3 working days

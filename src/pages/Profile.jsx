@@ -5,8 +5,9 @@ import { toast } from "react-hot-toast";
 import { ChevronRight, User, ChevronLeft } from "lucide-react";
 import { AiOutlineUserSwitch } from "react-icons/ai";
 import { useNavigate, useLocation } from "react-router-dom";
-import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, updateDoc, setDoc } from "firebase/firestore";
 import { useAuth } from "../custom-hooks/useAuth";
+
 import { FaHeart } from "react-icons/fa";
 import { RotatingLines } from "react-loader-spinner";
 import { FcOnlineSupport } from "react-icons/fc";
@@ -54,6 +55,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [profileComplete, setProfileComplete] = useState();
 
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
@@ -85,6 +87,20 @@ const Profile = () => {
     };
     fetchUserData();
   }, [currentUser, location.search]);
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+    const unsub = onSnapshot(
+      doc(db, "users", currentUser.uid),
+      (snap) => {
+        const complete = snap.data()?.profileComplete ?? false;
+        setProfileComplete(complete);
+        // keep Redux in sync if you like
+        dispatch(updateUserData({ profileComplete: complete }));
+      },
+      (err) => console.error("profileComplete listener failed:", err)
+    );
+    return () => unsub();
+  }, [currentUser?.uid, dispatch]);
 
   const handleAvatarChange = (newAvatar) => {
     dispatch(updateUserData({ photoURL: newAvatar }));
@@ -170,7 +186,14 @@ const Profile = () => {
       console.log("Logout sequence complete");
     }
   };
-
+  const handleWalletClick = () => {
+    if (!profileComplete) {
+      toast.error("Please complete your personal information first.");
+      pulseProfileHighlight();
+      return;
+    }
+    navigate("/your-wallet");
+  };
   const { openChat } = useTawk();
   return (
     <>
@@ -310,16 +333,7 @@ const Profile = () => {
               {currentUser && (
                 <div
                   className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => {
-                    if (!userData?.profileComplete) {
-                      toast.error(
-                        "Please complete your personal information first."
-                      );
-                      pulseProfileHighlight(); // make the Personal-info tile glow
-                      return;
-                    }
-                    navigate("/your-wallet");
-                  }}
+                  onClick= {handleWalletClick}
                 >
                   <div className="flex items-center relative">
                     <TfiWallet className="text-black text-xl mr-4" />

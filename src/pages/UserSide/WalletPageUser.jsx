@@ -27,6 +27,10 @@ export default function UserWalletPage() {
   const [balance, setBalance] = useState(0);
   const [accountNumber, setAccountNumber] = useState("");
   const [bankName, setBankName] = useState("");
+  const [walletSetup, setWalletSetup] = useState(
+    currentUserData?.walletSetup ?? false
+  );
+
   const [history, setHistory] = useState(() => {
     try {
       const cached = localStorage.getItem("userWalletHistory");
@@ -217,21 +221,27 @@ export default function UserWalletPage() {
       if (cached) setHistory(JSON.parse(cached));
     } catch {}
 
-    // Live balance listener
+    // **Combined real-time listener for balance, account details & walletSetup**
     const unsub = onSnapshot(
       doc(db, "users", currentUserData.uid),
       (snap) => {
-        if (snap.exists()) {
-          const d = snap.data();
-          setBalance(d.balance ?? 0);
-          setAccountNumber(d.accountNumber ?? "");
-          setBankName(d.preferredBank ?? "");
-          fetchHistory(currentUserData.uid);
-          setIsLoading(false);
-        } else {
+        if (!snap.exists()) {
           setError("User document not found");
           setIsLoading(false);
+          return;
         }
+
+        const d = snap.data();
+        setBalance(d.balance ?? 0);
+        setAccountNumber(d.accountNumber ?? "");
+        setBankName(d.preferredBank ?? "");
+        setWalletSetup(d.walletSetup ?? false); // ← NEW
+
+        // only flip off loading the first time we get data
+        setIsLoading(false);
+
+        // keep history fresh
+        fetchHistory(currentUserData.uid);
       },
       (err) => {
         console.error("Firestore error:", err);
@@ -239,9 +249,6 @@ export default function UserWalletPage() {
         setIsLoading(false);
       }
     );
-
-    // One-off history fetch
-    fetchHistory(currentUserData.uid);
 
     return () => unsub();
   }, [
@@ -267,7 +274,7 @@ export default function UserWalletPage() {
   }
 
   // Show create wallet button if wallet is not set up
-  if (currentUserData.walletSetup === false) {
+  if (!walletSetup) {
     return (
       <>
         <SEO
@@ -427,7 +434,7 @@ export default function UserWalletPage() {
                     {tx.type === "withdrawal" ? (
                       <GoArrowUpRight className="text-xl text-gray-600" />
                     ) : (
-                      < GoArrowDownRight className="text-xl text-gray-600" />
+                      <GoArrowDownRight className="text-xl text-gray-600" />
                     )}
                     <span className="text-sm font-semibold">
                       {tx.type === "withdrawal" ? "Paid" : "Deposit"}

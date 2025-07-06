@@ -24,14 +24,14 @@ const FAQs = ({ setShowFAQs }) => {
   return (
     <div className="flex p-2 flex-col items-center">
       <ScrollToTop />
-      <div className="flex items-center w-full mb-4">
+      <div className="flex mt-3 items-center w-full mb-4">
         <GoChevronLeft
           className="text-2xl text-black cursor-pointer"
           onClick={() => navigate("/profile")}
         />
         <h2 className="text-xl text-black font-opensans ml-2">FAQs</h2>
       </div>
-      <div className="w-full mt-4 font-opensans">
+      <div className="w-full mt-12 font-opensans">
         {[
           "What is your shipping policy?",
           "My order arrived damaged. How do we fix this?",
@@ -39,7 +39,7 @@ const FAQs = ({ setShowFAQs }) => {
           "How do I cancel/change an order?",
           "Pickup codes explained",
           "My order is taking so long. What next?",
-          "I wasn’t refunded my initial total payment. Why?",
+         
           "I want to become a vendor.",
           "What is stockpiling?",
           "What is the buyer protection fee?",
@@ -79,16 +79,18 @@ const FAQs = ({ setShowFAQs }) => {
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "tween", duration: 0.3 }}
-                className="fixed bottom-0 z-[6000] left-0 right-0 h-[40vh] bg-white rounded-t-2xl shadow-xl flex flex-col"
+                className="fixed bottom-0 z-[6000] left-0 right-0 h-[50vh] bg-white rounded-t-2xl shadow-xl flex flex-col"
               >
                 <div className="relative h-full">
-                  <div className="mt-6 flex items-center px-4 font-semibold justify-between">
-                    <h1 className=" text-2xl text-black">{faqModalContent}</h1>
+                  <div className="mt-6 flex items-center px-4 mr-16 font-semibold justify-between">
+                    <h1 className=" text-lg font-opensans text-black">{faqModalContent}</h1>
                     <LiaTimesSolid
                       className="text-2xl cursor-pointer absolute top-4 right-4"
                       onClick={closeModal}
                     />
+
                   </div>
+                  <hr className="border-gray-100 mt-4" />
                   <div className="px-4 mt-8">
                     {faqModalContent === "What is your shipping policy?" && (
                       <p className="text-base font-opensans font-light text-black">
@@ -143,17 +145,7 @@ const FAQs = ({ setShowFAQs }) => {
                         we'll help track it down.
                       </p>
                     )}
-                    {faqModalContent ===
-                      "I wasn’t refunded my initial total payment. Why?" && (
-                      <p className="text-base font-opensans font-light text-black">
-                        Refunds are usually processed the same day a vendor
-                        declines an order, If you haven't received your refund,
-                        please contact support with your transaction details.
-                        Refunds typically reflect the total amount minus the
-                        service fee and any transaction charges, credited back
-                        to your in-app wallet.
-                      </p>
-                    )}
+                    
                     {faqModalContent === "I want to become a vendor." && (
                       <p className="text-base font-opensans font-light text-black">
                         To become a vendor, sign up on our platform, submit your

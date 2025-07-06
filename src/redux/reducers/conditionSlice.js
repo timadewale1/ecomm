@@ -10,6 +10,15 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 
+// helper to split into ≤30-sized chunks
+function chunkArray(arr, size) {
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
 export const fetchConditionProducts = createAsyncThunk(
   "condition/fetchConditionProducts",
   async (
@@ -39,45 +48,61 @@ export const fetchConditionProducts = createAsyncThunk(
       const conditionToQuery =
         condition.toLowerCase() === "defect" ? "Defect:" : condition;
 
-      // 2️⃣ Build a constraints array so we never pass `false` into query()
-      const constraints = [
-        where("vendorId", "in", approvedVendors),
+      // 2) Build the shared filters
+      const common = [
         where("isDeleted", "==", false),
         where("published", "==", true),
         where("condition", "==", conditionToQuery),
         orderBy("createdAt", "desc"),
-        limit(batchSize),
       ];
-
-      // 3️⃣ Insert productType filter if provided
       if (productType) {
-        // insert before ordering/limiting
-        constraints.splice(4, 0, where("productType", "==", productType));
+        common.splice(2, 0, where("productType", "==", productType));
       }
 
-      // 4️⃣ Spread them into your Firestore query
-      let productsQuery = query(collection(db, "products"), ...constraints);
+      // 3) Chunk the vendor list into ≤30 and fire parallel queries
+      const vendorChunks = chunkArray(approvedVendors, 30);
+      const snaps = await Promise.all(
+        vendorChunks.map((chunkIds) => {
+          let q = query(
+            collection(db, "products"),
+            where("vendorId", "in", chunkIds),
+            ...common,
+            limit(batchSize)
+          );
+          if (lastVisible) {
+            q = query(q, startAfter(lastVisible));
+          }
+          return getDocs(q);
+        })
+      );
 
-      // 5️⃣ Add pagination cursor if needed
-      if (lastVisible) {
-        productsQuery = query(productsQuery, startAfter(lastVisible));
-      }
+      // 4) Merge all snapshots, dedupe, sort, and take the top batch
+      const allDocs = snaps.flatMap((snap) => snap.docs);
+      const uniqueMap = new Map();
+      allDocs.forEach((docSnap) => {
+        if (!uniqueMap.has(docSnap.id)) {
+          uniqueMap.set(docSnap.id, docSnap);
+        }
+      });
+      const uniqueSnaps = Array.from(uniqueMap.values());
+      uniqueSnaps.sort(
+        (a, b) => b.data().createdAt.seconds - a.data().createdAt.seconds
+      );
 
-      // 3) Fetch products
-      const productsSnapshot = await getDocs(productsQuery);
-      const products = productsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
+      // 5) Slice out exactly `batchSize` items
+      const pageDocs = uniqueSnaps.slice(0, batchSize);
+      const products = pageDocs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
       }));
+      const newLastVisible = pageDocs.length
+        ? pageDocs[pageDocs.length - 1]
+        : null;
 
-      // 4) Return data
       return {
         condition,
         products,
-        lastVisible:
-          productsSnapshot.docs.length > 0
-            ? productsSnapshot.docs[productsSnapshot.docs.length - 1]
-            : null,
+        lastVisible: newLastVisible,
       };
     } catch (error) {
       console.error("fetchConditionProducts error:", error);
@@ -86,16 +111,12 @@ export const fetchConditionProducts = createAsyncThunk(
   }
 );
 
-// Slice: conditionSlice
 const conditionSlice = createSlice({
   name: "condition",
   initialState: {
-    // Cache data per condition.
-    // Each key will hold an object: { conditionProducts, conditionLastVisible, conditionStatus, conditionError }
     productsByCondition: {},
   },
   reducers: {
-    // Reset products for a particular condition if needed
     resetConditionProducts(state, action) {
       const { condition } = action.payload;
       state.productsByCondition[condition] = {
@@ -123,8 +144,6 @@ const conditionSlice = createSlice({
         }
       })
       .addCase(fetchConditionProducts.fulfilled, (state, action) => {
-        console.log("🔥 fetchConditionProducts.fulfilled:", action.payload);
-
         const { condition, products, lastVisible } = action.payload;
 
         if (!state.productsByCondition[condition]) {
@@ -135,7 +154,7 @@ const conditionSlice = createSlice({
             conditionError: null,
           };
         }
-        // Deduplicate products by id
+
         const existingIds = new Set(
           state.productsByCondition[condition].conditionProducts.map(
             (p) => p.id

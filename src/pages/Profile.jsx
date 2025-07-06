@@ -50,7 +50,6 @@ const Profile = () => {
   const cart = useSelector((state) => state.cart);
   const [isIncomplete, setIsIncomplete] = useState(false);
   const [showMetrics, setShowMetrics] = useState(false);
-  const [showFAQs, setShowFAQs] = useState(false);
   const [showDonations, setShowDonations] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -203,7 +202,7 @@ const Profile = () => {
         url={`https://www.shopmythrift.store/profile`}
       />
       <div className="py-6  pb-24">
-        {!showDetails && !showMetrics && !showFAQs ? (
+        {!showDetails && !showMetrics ? (
           <div className="flex flex-col items-center">
             <h1 className="font-opensans text-xl font-semibold ">
               {" "}
@@ -357,7 +356,7 @@ const Profile = () => {
             <div className="flex flex-col items-center w-full px-2">
               <div
                 className="flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl bg-customGrey mb-3"
-                onClick={() => setShowFAQs(!showFAQs)}
+                onClick={() => navigate('/faqs')}
               >
                 <div className="flex items-center ">
                   <MdHelpOutline className="text-black text-xl mr-4" />
@@ -561,7 +560,6 @@ const Profile = () => {
             )}
 
             {/* {showMetrics && <UserDashboard />} */}
-            {showFAQs && <FAQs setShowFAQs={setShowFAQs} />}
             {/* {showDonations && (
             <div className="flex flex-col items-center">
               <ChevronLeft

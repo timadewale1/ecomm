@@ -173,7 +173,7 @@ const ProfileDetails = ({
                 setShowDetails(false);
               }}
             />
-            <h1 className="text-xl font-medium font-ubuntu text-black   ">
+            <h1 className="text-xl font-medium font-opensans text-black   ">
               Profile Details
             </h1>
           </div>
@@ -363,7 +363,7 @@ const ProfileDetails = ({
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <PiAtThin className="text-black text-xl mr-4" />
-            <p className="text-sm font-normal font-poppins text-black w-full">
+            <p className="text-sm font-normal font-opensans text-black w-full">
               {username || "Username"}
             </p>
             <MdVerified
@@ -384,7 +384,7 @@ const ProfileDetails = ({
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <FaRegCircleUser className="text-black text-xl mr-4" />
-            <p className="text-sm font-normal font-poppins text-black w-full">
+            <p className="text-sm font-normal font-opensans text-black w-full">
               {displayName || "Add Account Name"}
             </p>
             <MdVerified
@@ -405,7 +405,7 @@ const ProfileDetails = ({
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <MdEmail className="text-black text-xl mr-4" />
-            <p className="text-sm font-normal font-poppins text-black w-full">
+            <p className="text-sm font-normal font-opensans text-black w-full">
               {currentUser.email}
             </p>
             <MdVerified
@@ -422,7 +422,7 @@ const ProfileDetails = ({
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <FaPhone className="text-black text-xl mr-4" />
-            <p className="text-sm font-poppins font-normal text-black w-full">
+            <p className="text-sm font-opensans font-normal text-black w-full">
               {phoneNumber || "Add Phone Number"}
             </p>
             <MdVerified
@@ -443,7 +443,7 @@ const ProfileDetails = ({
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <FaCalendarAlt className="text-black text-xl mr-4" />
-            <p className="text-sm font-normal font-poppins text-black w-full">
+            <p className="text-sm font-normal font-opensans text-black w-full">
               {birthday || "Add Birthday"}
             </p>
             <RiEditFill
@@ -458,7 +458,7 @@ const ProfileDetails = ({
           </h1>
           <div className="flex items-center justify-between w-full px-4 py-3">
             <CiLocationOn className="text-black text-xl mr-4" />
-            <p className="text-sm font-normal font-poppins text-black w-full">
+            <p className="text-sm font-normal font-opensans text-black w-full">
               {address || "Add Delivery Address"}
             </p>
             <MdVerified

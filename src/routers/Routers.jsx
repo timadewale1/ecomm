@@ -27,6 +27,9 @@ const VendorDashboard = lazy(() =>
 const FavoritesPage = lazy(() =>
   import("../pages/UserSide/FavoritesProducts.jsx")
 );
+const FAQs = lazy(() =>
+  import("../pages/UserSide/FAQs.jsx")
+);
 const VendorProducts = lazy(() =>
   import("../pages/VendorCompleteProfile/VendorProducts.jsx")
 );
@@ -105,9 +108,10 @@ const WithPickupPrompt = lazy(() =>
 const Routers = () => {
   return (
     <Suspense fallback={<Loading />}>
+      <WithPwaInstallModal>
       <Routes>
-        {/* Default Route */}
-        <Route path="/" element={<ConfirmUserState />} />
+          {/* Default Route */}
+          <Route path="/" element={<ConfirmUserState />} />
 
         {/* Public Routes */}
         <Route path="/pay/:token" element={<PayPage />} />
@@ -123,6 +127,7 @@ const Routers = () => {
         <Route path="vendorlogin" element={<VendorLogin />} />
         <Route path="complete-profile" element={<CompleteProfile />} />
         <Route path="/forgetpassword" element={<ForgetPassword />} />
+        <Route path="/faqs" element={<FAQs />} />
         <Route path="reset-password" element={<ResetPassword />} />
         <Route path="/confirm-email" element={<EmailVerification />} />
         <Route path="/auth-action" element={<AuthActionHandler />} />
@@ -130,7 +135,6 @@ const Routers = () => {
         <Route path="terms-and-conditions" element={<TermsAndConditions />} />
         <Route path="privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/send-us-feedback" element={<SubmitFeedback />} />
-
         {/* Apply Role-Based Access to Specific Routes */}
         <Route
           path="/profile"
@@ -164,13 +168,11 @@ const Routers = () => {
           path="/newhome"
           element={
             <RoleBasedAccess allowedRoles={["user"]}>
-              <WithPwaInstallModal>
-                <WithAnswerModal>
-                  <WithReviewModal>
-                    <NewHome />
-                  </WithReviewModal>
-                </WithAnswerModal>
-              </WithPwaInstallModal>
+              <WithAnswerModal>
+                <WithReviewModal>
+                  <NewHome />
+                </WithReviewModal>
+              </WithAnswerModal>
             </RoleBasedAccess>
           }
         />
@@ -318,11 +320,9 @@ const Routers = () => {
           <Route
             path="/vendordashboard"
             element={
-              <WithPwaInstallModal>
-                <WithWalletSetupModal>
-                  <VendorDashboard />
-                </WithWalletSetupModal>
-              </WithPwaInstallModal>
+              <WithWalletSetupModal>
+                <VendorDashboard />
+              </WithWalletSetupModal>
             }
           />
           <Route path="/vendor-profile" element={<VendorProfile />} />
@@ -364,6 +364,7 @@ const Routers = () => {
           <Route path="/vchats/:inquiryId" element={<VendorChat />} />
           <Route path="/call-guidelines" element={<CallGuide />} />
           <Route path="/delivery-guidelines" element={<DeliveryGuide />} />
+          {/* Add any other vendor-specific protected routes here */}
         </Route>
 
         {/* User Protected Routes */}
@@ -372,10 +373,11 @@ const Routers = () => {
           <Route path="/donate" element={<Donate />} />
         </Route>
 
-        <Route path="/not-found" element={<NotFound />} />
-        {/* Catch-all Route for NotFound */}
-        <Route path="*" element={<Navigate to="/not-found" />} />
-      </Routes>
+          <Route path="/not-found" element={<NotFound />} />
+          {/* Catch-all Route for NotFound */}
+          <Route path="*" element={<Navigate to="/not-found" />} />
+        </Routes>
+    </WithPwaInstallModal>
     </Suspense>
   );
 };

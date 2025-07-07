@@ -470,7 +470,7 @@ const Profile = () => {
             </div>
 
             <div className="flex flex-col items-center px-2 w-full">
-              {currentUser && (
+             
                 <div
                   id="contact-support-tab"
                   className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
@@ -484,7 +484,7 @@ const Profile = () => {
                   </div>
                   <ChevronRight className="text-black" />
                 </div>
-              )}
+           
             </div>
 
             <div className="flex flex-col items-center px-2 w-full">

@@ -106,293 +106,295 @@ const WithPickupPrompt = lazy(() =>
 const Routers = () => {
   return (
     <Suspense fallback={<Loading />}>
-      <WithPwaInstallModal>
-        <Routes>
-          {/* Default Route */}
-          <Route path="/" element={<ConfirmUserState />} />
+      <Routes>
+        {/* Default Route */}
+        <Route path="/" element={<ConfirmUserState />} />
 
-          {/* Public Routes */}
-          <Route path="/pay/:token" element={<PayPage />} />
-          <Route path="/confirm-state" element={<ConfirmUserState />} />
-          <Route path="product/:id" element={<ProductDetailPage />} />
-          <Route path="signup" element={<Signup />} />
-          <Route
-            path="/inapp-discounts/:discountName"
-            element={<InAppDiscountProducts />}
-          />
-          <Route path="vendor-signup" element={<VendorSignup />} />
-          <Route path="login" element={<Login />} />
-          <Route path="vendorlogin" element={<VendorLogin />} />
-          <Route path="complete-profile" element={<CompleteProfile />} />
-          <Route path="/forgetpassword" element={<ForgetPassword />} />
-          <Route path="/faqs" element={<FAQs />} />
-          <Route path="reset-password" element={<ResetPassword />} />
-          <Route path="/confirm-email" element={<EmailVerification />} />
-          <Route path="/auth-action" element={<AuthActionHandler />} />
-          <Route path="/vendor-verify-otp" element={<VendorVerifyOTP />} />
-          <Route path="terms-and-conditions" element={<TermsAndConditions />} />
-          <Route path="privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/send-us-feedback" element={<SubmitFeedback />} />
-          {/* Apply Role-Based Access to Specific Routes */}
-          <Route
-            path="/profile"
-            element={
-              <RoleBasedAccess allowedRoles={["user"]}>
+        {/* Public Routes */}
+        <Route path="/pay/:token" element={<PayPage />} />
+        <Route path="/confirm-state" element={<ConfirmUserState />} />
+        <Route path="product/:id" element={<ProductDetailPage />} />
+        <Route path="signup" element={<Signup />} />
+        <Route
+          path="/inapp-discounts/:discountName"
+          element={<InAppDiscountProducts />}
+        />
+        <Route path="vendor-signup" element={<VendorSignup />} />
+        <Route path="login" element={<Login />} />
+        <Route path="vendorlogin" element={<VendorLogin />} />
+        <Route path="complete-profile" element={<CompleteProfile />} />
+        <Route path="/forgetpassword" element={<ForgetPassword />} />
+        <Route path="/faqs" element={<FAQs />} />
+        <Route path="reset-password" element={<ResetPassword />} />
+        <Route path="/confirm-email" element={<EmailVerification />} />
+        <Route path="/auth-action" element={<AuthActionHandler />} />
+        <Route path="/vendor-verify-otp" element={<VendorVerifyOTP />} />
+        <Route path="terms-and-conditions" element={<TermsAndConditions />} />
+        <Route path="privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/send-us-feedback" element={<SubmitFeedback />} />
+        {/* Apply Role-Based Access to Specific Routes */}
+        <Route
+          path="/profile"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <WithReviewModal>
+                <StockpileNudge />
+                <Profile />
+              </WithReviewModal>
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/your-wallet"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <WithReviewModal>
+                <StockpileNudge />
+                <UserWalletPage />
+              </WithReviewModal>
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/producttype/:type"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <StockpileNudge />
+              <CategoryProducts />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/newhome"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <WithAnswerModal>
                 <WithReviewModal>
+                  <WithPwaInstallModal />
                   <StockpileNudge />
-                  <Profile />
+                  <NewHome />
                 </WithReviewModal>
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/your-wallet"
-            element={
-              <RoleBasedAccess allowedRoles={["user"]}>
-                <WithReviewModal>
+              </WithAnswerModal>
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/products/condition/:condition"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <WithReviewModal>
+                <StockpileNudge />
+                <ConditionProducts />
+              </WithReviewModal>
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/favorites"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <StockpileNudge />
+              <FavoritesPage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/search"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <SearchPage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/user-orders"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <StockpileNudge />
+              <OrdersCentre />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/latest-cart"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <WithReviewModal>
+                <StockpileNudge />
+                <LatestCart />
+              </WithReviewModal>
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <StockpileNudge />
+              <NotificationsPage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/marketstorepage/:id"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <MarketStorePage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/discounts-today"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <StockpileNudge />
+              <PersonalDiscountsPage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/store/:id"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <StorePage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/category/:category"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <StockpileNudge />
+              <CategoryPage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/market-vendors"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <StockpileNudge />
+              <MarketVendors />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/online-vendors"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <StockpileNudge />
+              <WithPwaInstallModal />
+              <OnlineVendors />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/browse-markets"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <WithReviewModal>
+                <ErrorBoundary>
                   <StockpileNudge />
-                  <UserWalletPage />
-                </WithReviewModal>
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/producttype/:type"
-            element={
-              <RoleBasedAccess allowedRoles={["user"]}>
+                  <Marketpg />
+                </ErrorBoundary>
+              </WithReviewModal>
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/market-card/:marketName"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <Marketcardpage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/explore"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <WithReviewModal>
+                <WithPwaInstallModal />
                 <StockpileNudge />
-                <CategoryProducts />
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/newhome"
-            element={
-              <RoleBasedAccess allowedRoles={["user"]}>
-                <WithAnswerModal>
-                  <WithReviewModal>
-                    <StockpileNudge />
-                    <NewHome />
-                  </WithReviewModal>
-                </WithAnswerModal>
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/products/condition/:condition"
-            element={
-              <RoleBasedAccess allowedRoles={["user"]}>
-                <WithReviewModal>
-                  <StockpileNudge />
-                  <ConditionProducts />
-                </WithReviewModal>
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/favorites"
-            element={
-              <RoleBasedAccess allowedRoles={["user"]}>
-                <StockpileNudge />
-                <FavoritesPage />
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/search"
-            element={
-              <RoleBasedAccess allowedRoles={["user"]}>
-                <SearchPage />
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/user-orders"
-            element={
-              <RoleBasedAccess allowedRoles={["user"]}>
-                <StockpileNudge />
-                <OrdersCentre />
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/latest-cart"
-            element={
-              <RoleBasedAccess allowedRoles={["user"]}>
-                <WithReviewModal>
-                  <StockpileNudge />
-                  <LatestCart />
-                </WithReviewModal>
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/notifications"
-            element={
-              <RoleBasedAccess allowedRoles={["user"]}>
-                <StockpileNudge />
-                <NotificationsPage />
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/marketstorepage/:id"
-            element={
-              <RoleBasedAccess allowedRoles={["user", null]}>
-                <MarketStorePage />
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/discounts-today"
-            element={
-              <RoleBasedAccess allowedRoles={["user", null]}>
-                <StockpileNudge />
-                <PersonalDiscountsPage />
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/store/:id"
-            element={
-              <RoleBasedAccess allowedRoles={["user", null]}>
+                <Explore />
+              </WithReviewModal>
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/reviews/:id"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <StockpileNudge />
+              <VendorRatings />
+            </RoleBasedAccess>
+          }
+        />
 
-                <StorePage />
-              </RoleBasedAccess>
+        {/* Vendor Protected Routes */}
+        <Route element={<ProtectedRoute requiredRole="vendor" />}>
+          <Route
+            path="/vendordashboard"
+            element={
+              <WithWalletSetupModal>
+                <WithPwaInstallModal />
+                <VendorDashboard />
+              </WithWalletSetupModal>
+            }
+          />
+          <Route path="/vendor-profile" element={<VendorProfile />} />
+          <Route
+            path="/vendor-products"
+            element={
+              <WithWalletSetupModal>
+                <WithPickupPrompt>
+                  <WithPwaInstallModal />
+                  <VendorProducts />
+                </WithPickupPrompt>
+              </WithWalletSetupModal>
+            }
+          />
+          <Route path="/vendor-wallet" element={<WalletPage />} />
+          <Route
+            path="/vendor-orders"
+            element={
+              <WithWalletSetupModal>
+                <WithPickupPrompt>
+                  <VendorOrders />
+                </WithPickupPrompt>
+              </WithWalletSetupModal>
             }
           />
           <Route
-            path="/category/:category"
+            path="/store-reviews"
             element={
-              <RoleBasedAccess allowedRoles={["user", null]}>
-                <StockpileNudge />
-                <CategoryPage />
-              </RoleBasedAccess>
+              /*<WithWhatsAppModal>*/ <StoreReviews /> /*</WithWhatsAppModal>*/
             }
           />
           <Route
-            path="/market-vendors"
+            path="/vchats"
             element={
-              <RoleBasedAccess allowedRoles={["user", null]}>
-                <StockpileNudge />
-                <MarketVendors />
-              </RoleBasedAccess>
+              <WithWalletSetupModal>
+                <VendorChatList />
+              </WithWalletSetupModal>
             }
           />
-          <Route
-            path="/online-vendors"
-            element={
-              <RoleBasedAccess allowedRoles={["user", null]}>
-                <StockpileNudge />
-                <OnlineVendors />
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/browse-markets"
-            element={
-              <RoleBasedAccess allowedRoles={["user", null]}>
-                <WithReviewModal>
-                  <ErrorBoundary>
-                    <StockpileNudge />
-                    <Marketpg />
-                  </ErrorBoundary>
-                </WithReviewModal>
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/market-card/:marketName"
-            element={
-              <RoleBasedAccess allowedRoles={["user", null]}>
-                <Marketcardpage />
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/explore"
-            element={
-              <RoleBasedAccess allowedRoles={["user", null]}>
-                <WithReviewModal>
-                  <StockpileNudge />
-                  <Explore />
-                </WithReviewModal>
-              </RoleBasedAccess>
-            }
-          />
-          <Route
-            path="/reviews/:id"
-            element={
-              <RoleBasedAccess allowedRoles={["user", null]}>
-                <StockpileNudge />
-                <VendorRatings />
-              </RoleBasedAccess>
-            }
-          />
+          <Route path="/vchats/:inquiryId" element={<VendorChat />} />
+          <Route path="/call-guidelines" element={<CallGuide />} />
+          <Route path="/delivery-guidelines" element={<DeliveryGuide />} />
+          {/* Add any other vendor-specific protected routes here */}
+        </Route>
 
-          {/* Vendor Protected Routes */}
-          <Route element={<ProtectedRoute requiredRole="vendor" />}>
-            <Route
-              path="/vendordashboard"
-              element={
-                <WithWalletSetupModal>
-                  <VendorDashboard />
-                </WithWalletSetupModal>
-              }
-            />
-            <Route path="/vendor-profile" element={<VendorProfile />} />
-            <Route
-              path="/vendor-products"
-              element={
-                <WithWalletSetupModal>
-                  <WithPickupPrompt>
-                    <VendorProducts />
-                  </WithPickupPrompt>
-                </WithWalletSetupModal>
-              }
-            />
-            <Route path="/vendor-wallet" element={<WalletPage />} />
-            <Route
-              path="/vendor-orders"
-              element={
-                <WithWalletSetupModal>
-                  <WithPickupPrompt>
-                    <VendorOrders />
-                  </WithPickupPrompt>
-                </WithWalletSetupModal>
-              }
-            />
-            <Route
-              path="/store-reviews"
-              element={
-                /*<WithWhatsAppModal>*/ <StoreReviews /> /*</WithWhatsAppModal>*/
-              }
-            />
-            <Route
-              path="/vchats"
-              element={
-                <WithWalletSetupModal>
-                  <VendorChatList />
-                </WithWalletSetupModal>
-              }
-            />
-            <Route path="/vchats/:inquiryId" element={<VendorChat />} />
-            <Route path="/call-guidelines" element={<CallGuide />} />
-            <Route path="/delivery-guidelines" element={<DeliveryGuide />} />
-            {/* Add any other vendor-specific protected routes here */}
-          </Route>
+        {/* User Protected Routes */}
+        <Route element={<ProtectedRoute requiredRole="user" />}>
+          <Route path="/newcheckout/:vendorId" element={<Checkout />} />
+          <Route path="/donate" element={<Donate />} />
+        </Route>
 
-          {/* User Protected Routes */}
-          <Route element={<ProtectedRoute requiredRole="user" />}>
-            <Route path="/newcheckout/:vendorId" element={<Checkout />} />
-            <Route path="/donate" element={<Donate />} />
-          </Route>
-
-          <Route path="/not-found" element={<NotFound />} />
-          {/* Catch-all Route for NotFound */}
-          <Route path="*" element={<Navigate to="/not-found" />} />
-        </Routes>
-      </WithPwaInstallModal>
+        <Route path="/not-found" element={<NotFound />} />
+        {/* Catch-all Route for NotFound */}
+        <Route path="*" element={<Navigate to="/not-found" />} />
+      </Routes>
     </Suspense>
   );
 };

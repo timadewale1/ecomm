@@ -152,7 +152,7 @@ const PickupInfoModal = ({
             onRequestClose={onClose}
             ariaHideApp={false}
             overlayClassName="fixed inset-0 bg-black/50 flex items-end z-50"
-            className="bg-white w-full max-w-md h-[55vh] rounded-t-3xl shadow-xl p-4 flex flex-col"
+            className="bg-white w-full max-w-md h-[60vh] rounded-t-3xl shadow-xl p-4 flex flex-col"
           >
             <motion.div
               initial={{ y: 60, opacity: 0 }}
@@ -220,7 +220,7 @@ const PickupInfoModal = ({
               </div>
 
               {/* ─── footer ─────────────────────────────────────────────── */}
-              <div className="mt-6 flex flex-col gap-3">
+              <div className="mt-6 flex mb-4 flex-col gap-3">
                 {currentUserCoords && (
                   <button
                     onClick={() => {

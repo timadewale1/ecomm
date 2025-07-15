@@ -2,7 +2,12 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setVendorProfile, setLoading } from "../../redux/vendorProfileSlice";
 import { FaShop } from "react-icons/fa6";
-import { MdDescription, MdEmail, MdVerified } from "react-icons/md";
+import {
+  MdDescription,
+  MdEmail,
+  MdOutlineDryCleaning,
+  MdVerified,
+} from "react-icons/md";
 import { User } from "lucide-react";
 
 import { useAuth } from "../../custom-hooks/useAuth";
@@ -75,7 +80,9 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
     categories = [],
     Address = "",
     location = { lat: null, lng: null },
-
+    sourcingMarket = "",
+    restockFrequency = "",
+    wearReadinessRating = 0,
     complexNumber = "",
     description = "",
     marketPlaceType = "",
@@ -88,7 +95,13 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
   const { accountName, accountNumber, bankName } = bankDetails;
   const categoriesList = categories.map((category) => category).join(", ");
   const daysAvailabilityList = daysAvailability.map((day) => day).join(", ");
-
+  const sourcingOptions = [
+    "Yaba Main Market",
+    "Tejuosho Bulk",
+    "UK/US Thrift Bale",
+    "Personal Closet",
+  ];
+  const restockOptions = ["Daily", "Weekly", "Bi‑Weekly", "Monthly"];
   const handleEdit = async (field, value, coords) => {
     if (!currentUser) {
       toast.error("User not authenticated");
@@ -115,6 +128,15 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
           Address: value,
           location: { lat: coords.lat, lng: coords.lng },
         };
+      } else if (field === "wearReadinessRating") {
+        const num = Number(value);
+        if (Number.isNaN(num) || num < 1 || num > 10) {
+          toast.error("Rating must be between 1 and 10");
+          setProcessing(false);
+          return;
+        }
+        updateObj = { wearReadinessRating: num };
+        newProfile = { ...userData, wearReadinessRating: num };
       } else {
         // every other field
         updateObj = { [field]: value };
@@ -127,7 +149,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
       // update Redux once
       dispatch(setVendorProfile(newProfile));
 
-      toast.success(`${field} updated successfully!`, {
+      toast.success(`profile updated successfully!`, {
         className: "custom-toast",
       });
     } catch (error) {
@@ -139,6 +161,10 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
       setProcessing(false);
     }
   };
+
+  const sourcingMarketDisplay = Array.isArray(sourcingMarket)
+    ? sourcingMarket.join(", ")
+    : sourcingMarket;
 
   return (
     <div className="flex flex-col px-3   pb-12 font-opensans">
@@ -159,15 +185,15 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
         </div>
 
         {/* Profile Information */}
-        <div className="w-full ">
+        <div className="w-full space-y-4 ">
           {/* Display Name */}
           <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full ">
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Display Name
             </h1>
-            <div className="flex items-center justify-between w-full px-4 py-3">
+            <div className="flex items-center mt-1 justify-between w-full px-4 py-3">
               <User className="text-black text-xl mr-4" />
-              <p className="text-size font-normal font-poppins text-black w-full">
+              <p className="text-sm font-normal font-poppins text-black w-full">
                 {firstName + " " + lastName}
               </p>
               <MdVerified
@@ -183,9 +209,9 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Store Name
             </h1>
-            <div className="flex items-center justify-between w-full px-4 py-3">
+            <div className="flex items-center mt-1 justify-between w-full px-4 py-3">
               <FaShop className="text-black text-xl mr-4" />
-              <p className="text-size font-normal font-poppins text-black w-full">
+              <p className="text-sm font-normal font-poppins text-black w-full">
                 {shopName}
               </p>
               <MdVerified
@@ -201,9 +227,9 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Store Description
             </h1>
-            <div className="flex items-center justify-between w-full px-4 py-3">
+            <div className="flex items-center mt-1 justify-between w-full px-4 py-3">
               <MdDescription className="text-black text-xl mr-4" />
-              <p className="text-size font-normal font-poppins text-black w-full">
+              <p className="text-sm font-normal font-poppins text-black w-full">
                 {description}
               </p>
               <RiEditFill
@@ -218,9 +244,9 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             <h1 className="text-xs text-gray-500 pl-6 pt-2">Address</h1>
             <div className="flex items-center justify-between px-4 py-3">
               <CiLocationOn className="text-xl mr-4" />
-              <p className="flex-1">{Address || "Not set"}</p>
+              <p className="flex-1 text-sm">{Address || "Not set"}</p>
               <RiEditFill
-                className="text-2xl cursor-pointer"
+                className="text-xl cursor-pointer"
                 onClick={() =>
                   setEditingField({ field: "Address", value: Address })
                 }
@@ -256,9 +282,9 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Email
             </h1>
-            <div className="flex items-center justify-between w-full px-4 py-3">
+            <div className="flex mt-1 items-center justify-between w-full px-4 py-3">
               <MdEmail className="text-black text-xl mr-4" />
-              <p className="text-size font-normal font-poppins text-black w-full">
+              <p className="text-sm font-normal font-poppins text-black w-full">
                 {email}
               </p>
               <MdVerified
@@ -274,12 +300,12 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Bank Details
             </h1>
-            <div className="flex items-center justify-between w-full px-4 py-3">
+            <div className="flex items-center mt-1 justify-between w-full px-4 py-3">
               <BsBank2 className="text-black text-xl mr-4" />
-              <div className="text-size font-normal font-poppins text-black w-full">
-                <p>{bankName}</p>
-                <p>{accountName}</p>
-                <p>{accountNumber}</p>
+              <div className=" font-normal space-y-1 font-poppins text-black w-full">
+                <p className="text-sm">{bankName}</p>
+                <p className="text-sm">{accountName}</p>
+                <p className="text-sm">{accountNumber}</p>
               </div>
             </div>
           </div>
@@ -289,9 +315,9 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Categories
             </h1>
-            <div className="flex items-center justify-between w-full px-4 py-3">
+            <div className="flex items-center mt-1 justify-between w-full px-4 py-3">
               <BiSolidCategoryAlt className="text-black text-xl mr-4" />
-              <p className="text-size font-normal font-poppins text-black w-full">
+              <p className="text-sm font-normal font-poppins text-black w-full">
                 {categoriesList}
               </p>
             </div>
@@ -310,7 +336,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
                     {openTime}
                   </p>
                   <RiEditFill
-                    className="text-black cursor-pointer ml-2 text-2xl"
+                    className="text-black cursor-pointer ml-2 text-xl"
                     onClick={() =>
                       setEditingField({ field: "openTime", value: openTime })
                     }
@@ -358,15 +384,78 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               </div>
             </>
           )}
+          {/* Sourcing market */}
+          <div className="flex flex-col bg-customGrey rounded mb-2 w-full">
+            <h1 className="text-xs text-gray-500 pl-6 pt-2">Sourcing Market</h1>
+            <div className="flex items-center justify-between px-4 py-3">
+              <FaShop className="text-xl mr-4" />
+              <p className="flex-1 font-poppins text-sm">
+                 {sourcingMarketDisplay || "Not set"}
+              </p>
+              <RiEditFill
+                className="text-xl cursor-pointer"
+                onClick={() =>
+                  setEditingField({
+                    field: "sourcingMarket",
+                    value: sourcingMarket,
+                  })
+                }
+              />
+            </div>
+          </div>
+
+          {/* Restock frequency */}
+          <div className="flex flex-col bg-customGrey rounded mb-2 w-full">
+            <h1 className="text-xs text-gray-500 pl-6 pt-2">
+              Restock Frequency
+            </h1>
+            <div className="flex items-center justify-between px-4 py-3">
+              <CiClock1 className="text-xl mr-4" />
+              <p className="flex-1 font-poppins text-sm">
+                {restockFrequency || "Not set"}
+              </p>
+              <RiEditFill
+                className="text-xl cursor-pointer"
+                onClick={() =>
+                  setEditingField({
+                    field: "restockFrequency",
+                    value: restockFrequency,
+                  })
+                }
+              />
+            </div>
+          </div>
+
+          {/* Wear‑readiness rating */}
+          <div className="flex flex-col bg-customGrey rounded mb-2 w-full">
+            <h1 className="text-xs text-gray-500 pl-6 pt-2">
+              Wear‑Readiness Rating&nbsp;( /10 )
+            </h1>
+            <div className="flex items-center justify-between px-4 py-3">
+              <MdOutlineDryCleaning className="text-xl mr-4" />
+              <p className="flex-1 font-poppins text-sm">
+                {wearReadinessRating ? `${wearReadinessRating}/10` : "Not set"}
+              </p>
+              <RiEditFill
+                className="text-xl cursor-pointer"
+                onClick={() =>
+                  setEditingField({
+                    field: "wearReadinessRating",
+                    value: wearReadinessRating,
+                  })
+                }
+              />
+            </div>
+          </div>
 
           {/* Delivery Mode */}
           <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
             <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
               Delivery Mode
             </h1>
-            <div className="flex items-center justify-between w-full px-4 py-3">
+            <div className="flex items-center mt-1 justify-between w-full px-4 py-3">
               <FaShippingFast className="text-black text-xl mr-4" />
-              <p className="text-size font-normal font-poppins text-black w-full">
+              <p className="text-sm font-normal font-poppins text-black w-full">
                 {deliveryMode}
               </p>
             </div>

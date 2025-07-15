@@ -36,8 +36,8 @@ const BlogImageGrid = () => {
     setShowModal(true);
   };
   return (
-    <div className="px-2 mb-4 mt-2">
-      <p className="text-xl font-medium mb-3 text-black font-ubuntu">
+    <div className="px-2 mb-4 mt-6">
+      <p className="text-xl font-semibold mb-3 text-black font-opensans">
         Read our Blogs
       </p>
 

@@ -398,13 +398,13 @@ const Homepage = () => {
       <PersonalDiscountCarousel />
       <div className="p-2 mt-4 pb-24">
         <div className="flex items-center mb-4">
-          <h1 className="text-left font-medium text-xl font-ubuntu mr-1">
+          <h1 className="text-left font-semibold text-xl font-opensans mr-1">
             Featured Products
           </h1>
           <PiStarFill className="text-xl text-yellow-300" />
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-4 ">
           {status === "loading" && products.length === 0 ? (
             Array.from({ length: 6 }).map((_, index) => (
               <Skeleton key={index} height={200} width="100%" />

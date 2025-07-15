@@ -47,7 +47,7 @@ const DiscountCarousel = () => {
         className="relative flex items-center justify-between px-2 py-4 w-full mb-4 bg-cover bg-center"
         style={{ backgroundImage: `url('/Val.svg')` }}
       >
-        <h2 className="relative z-10 font-ubuntu text-white text-lg font-medium">
+        <h2 className="relative z-10 font-opensans text-white text-lg font-semibold">
           {headerDiscountName}
         </h2>
         <div className="relative z-10 pr-4">

@@ -26,7 +26,14 @@ import { useFavorites } from "../../components/Context/FavoritesContext";
 import { handleUserActionLimit } from "../../services/userWriteHandler";
 import IkImage from "../../services/IkImage";
 import { IoIosFlash } from "react-icons/io";
-const ProductCard = ({ product, isLoading, showVendorName = true }) => {
+import Sales from "../Loading/Sales";
+const ProductCard = ({
+  product,
+  isLoading,
+  showVendorName = true,
+  showName = true,
+  showCondition = true,
+}) => {
   const navigate = useNavigate();
   const [imgLoaded, setImgLoaded] = useState(false);
   // Auth state
@@ -263,41 +270,56 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
 
         {/* Product Info */}
         <div className="mt-2">
-          <div className="flex font-opensans font-light items-center justify-between">
-            {isLoading ? (
-              <Skeleton width={100} />
-            ) : (
-              <>
-                <div className="flex items-center space-x-1">
-                  {renderCondition(product.condition)}
-                </div>
-                {product.flashSales && (
-                  <IoIosFlash className="text-customOrange animate-bounce mr-1  text-xl" />
+          {showCondition && (
+            <div className="flex font-opensans font-light items-center justify-between">
+              {isLoading ? (
+                <Skeleton width={100} />
+              ) : (
+                <>
+                  <div className="flex items-center space-x-1">
+                    {renderCondition(product.condition)}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {showName && (
+            <h3 className="text-sm font-opensans font-medium mt-1">
+              {isLoading ? <Skeleton width={100} /> : product.name}
+            </h3>
+          )}
+          <div className="mt-1">
+            {/* Price + flash sale on one line */}
+            <div className="mt-1 relative">
+              {/* Price on one line */}
+              <p className="text-black text-lg font-opensans font-bold">
+                {isLoading ? (
+                  <Skeleton width={50} />
+                ) : (
+                  `₦${formatPrice(product.price)}`
                 )}
-              </>
-            )}
+              </p>
+
+              {/* Flash badge, absolutely positioned */}
+              {product.flashSales && (
+                <div className="absolute -top-2 right-2 w-9 h-9">
+                  <Sales />
+                </div>
+              )}
+
+              {/* Crossed‑out beneath */}
+              {product.discount?.initialPrice &&
+                product.discount.discountType !== "personal-freebies" && (
+                  <p className="text-sm font-opensans text-gray-500 line-through mt-1">
+                    ₦{formatPrice(product.discount.initialPrice)}
+                  </p>
+                )}
+            </div>
+
+           
           </div>
 
-          <h3 className="text-sm font-opensans font-medium mt-1">
-            {isLoading ? <Skeleton width={100} /> : product.name}
-          </h3>
-          <div className="flex flex-col mt-1">
-            <p className="text-black text-lg font-opensans font-bold">
-              {isLoading ? (
-                <Skeleton width={50} />
-              ) : (
-                `₦${formatPrice(product.price)}`
-              )}
-            </p>
-            {/* Crossed-out original price (if discount exists and initialPrice is available) */}
-            {product.discount &&
-              product.discount.initialPrice &&
-              product.discount.discountType !== "personal-freebies" && (
-                <p className="text-sm font-opensans text-gray-500 line-through">
-                  ₦{formatPrice(product.discount.initialPrice)}
-                </p>
-              )}
-          </div>
           {showVendorName && product.vendorName && (
             <p
               className="text-xs font-opensans font-light text-gray-600 underline cursor-pointer"

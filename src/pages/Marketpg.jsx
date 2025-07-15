@@ -11,6 +11,8 @@ import { MdCancel } from "react-icons/md";
 import SEO from "../components/Helmet/SEO";
 import { IoLocationOutline } from "react-icons/io5";
 import IkImage from "../services/IkImage";
+import VendorMetaTicker from "../components/VendorsData/VendorTicker";
+
 const Marketpg = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -20,39 +22,71 @@ const Marketpg = () => {
     (state) => state.vendors
   );
 
-  const [selectedTab, setSelectedTab] = useState("online"); // Toggle between 'local' and 'online'
   const [searchTerm, setSearchTerm] = useState("");
-
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [hasStockpile, setHasStockpile] = useState(false); // Stockpile filter
+  const [hasPickup, setHasPickup] = useState(false); // Pickup filter
+  const [hasDelivery, setHasDelivery] = useState(false); // Delivery filter
+
+  const categories = [
+    "Thrifts",
+    "Mens",
+    "Womens",
+    "Underwears",
+    "Y2K",
+    "Jewelry",
+    "Kids",
+    "Trads",
+    "Dresses",
+    "Gowns",
+    "Shoes",
+    "Accessories",
+    "Bags",
+    "Sportswear",
+    "Formal",
+  ];
 
   useEffect(() => {
-    // Fetch vendors only if not already fetched
     if (!isFetched) {
       dispatch(fetchVendorsRanked());
     }
   }, [dispatch, isFetched]);
-  const vendors = selectedTab === "local" ? local : online;
-  const filteredVendors = React.useMemo(() => {
-    if (!searchTerm) return vendors;
-    const q = searchTerm.toLowerCase();
-    return vendors.filter((v) => v.shopName.toLowerCase().includes(q));
-  }, [vendors, searchTerm]);
-  // useEffect(() => {
-  //   // Filter vendors based on the selected tab and search term
-  //   const vendors = selectedTab === "local" ? local : online;
-  //   const filtered = searchTerm
-  //     ? vendors.filter((vendor) =>
-  //         vendor.shopName.toLowerCase().includes(searchTerm.toLowerCase())
-  //       )
-  //     : vendors;
 
-  //   setFilteredVendors(filtered);
-  // }, [local, online, selectedTab, searchTerm]);
+  const vendors = online; // Only showing online vendors
 
-  const handleTabChange = (tab) => {
-    setSelectedTab(tab);
-    setFilteredVendors(tab === "local" ? local : online);
-  };
+  const filteredVendors = useMemo(() => {
+    const term = searchTerm.toLowerCase().trim();
+    return vendors.filter((v) => {
+      const matchesSearch = !term || v.shopName.toLowerCase().includes(term);
+      const matchesCategory =
+        !selectedCategory || v.categories.includes(selectedCategory);
+      const matchesStockpile =
+        !hasStockpile || (v.stockpile && v.stockpile.enabled);
+      const matchesPickup =
+        !hasPickup ||
+        (v.deliveryMode && v.deliveryMode.toLowerCase().includes("pickup")) ||
+        !v.deliveryMode; // Assume pickup if deliveryMode is absent or includes "pickup"
+      const matchesDelivery =
+        !hasDelivery ||
+        (v.deliveryMode && v.deliveryMode.toLowerCase().includes("delivery"));
+
+      return (
+        matchesSearch &&
+        matchesCategory &&
+        matchesStockpile &&
+        matchesPickup &&
+        matchesDelivery
+      );
+    });
+  }, [
+    vendors,
+    searchTerm,
+    selectedCategory,
+    hasStockpile,
+    hasPickup,
+    hasDelivery,
+  ]);
 
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value.toLowerCase());
@@ -63,13 +97,9 @@ const Marketpg = () => {
   };
 
   const handleStoreView = (vendor) => {
-    if (selectedTab === "local") {
-      navigate(`/marketstorepage/${vendor.id}`);
-    } else {
-      navigate(`/store/${vendor.id}`);
-    }
+    navigate(`/store/${vendor.id}`);
   };
-  // helper (define once near the top of the component file)
+
   const avgRating = (vendor) => {
     const { rating = 0, ratingCount = 0 } = vendor;
     return ratingCount > 0 ? rating / ratingCount : 0;
@@ -85,18 +115,14 @@ const Marketpg = () => {
         description={`Browse through our list of vendors on My Thrift`}
         url={`https://www.shopmythrift.store/browse-markets`}
       />
-      <div className="mb-1 ">
+      <div className="mb-1">
         <div className="sticky py-3 px-2 w-full top-0 bg-white z-10">
           <div className="flex flex-col mb-3 pb-2 px-2.5">
             {!isSearching && (
               <div className="flex justify-between mb-4">
                 <h1 className="text-xl font-opensans font-semibold">Stores</h1>
                 <CiSearch
-                  className={`${
-                    selectedTab === "local"
-                      ? "hidden"
-                      : "text-3xl cursor-pointer"
-                  }`}
+                  className="text-3xl cursor-pointer"
                   onClick={() => setIsSearching(true)}
                 />
               </div>
@@ -108,6 +134,7 @@ const Marketpg = () => {
                   onClick={() => {
                     setIsSearching(false);
                     handleClearSearch();
+                    setSelectedCategory("");
                   }}
                 />
                 <input
@@ -125,28 +152,62 @@ const Marketpg = () => {
                 )}
               </div>
             )}
-            <div className="flex justify-between mb-1 w-full px-2 overflow-x-auto space-x-2 scrollbar-hide">
-              <button
-                onClick={() => handleTabChange("online")}
-                className={`flex-1 h-12 text-center text-sm font-medium font-opensans rounded-full ${
-                  selectedTab === "online"
-                    ? "bg-customOrange text-white"
-                    : "bg-transparent border-gray-200 font-medium border-2 text-black"
-                }`}
-              >
-                Online Vendors
-              </button>
-              <button
-                onClick={() => handleTabChange("local")}
-                className={`flex-1 h-12 text-center text-sm font-opensans font-medium rounded-full ${
-                  selectedTab === "local"
-                    ? "bg-customOrange text-white"
-                    : "bg-transparent border-gray-200 font-medium border-2 text-black"
-                }`}
-              >
-                Market Vendors
-              </button>
-            </div>
+            {!isSearching && (
+              <div className="flex scrollbar-hide mb-1 w-full px-2 overflow-x-auto space-x-2">
+                {/* Delivery Filter - Placed First as Requested */}
+                <button
+                  onClick={() => setHasDelivery(!hasDelivery)}
+                  className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-semibold font-opensans text-black border border-gray-200 rounded-full ${
+                    hasDelivery
+                      ? "bg-customOrange text-white"
+                      : "bg-transparent"
+                  }`}
+                >
+                  Delivery
+                </button>
+
+                {/* Stockpile Filter */}
+                <button
+                  onClick={() => setHasStockpile(!hasStockpile)}
+                  className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-semibold font-opensans text-black border border-gray-200 rounded-full ${
+                    hasStockpile
+                      ? "bg-customOrange text-white"
+                      : "bg-transparent"
+                  }`}
+                >
+                  Stockpile
+                </button>
+
+                {/* Pickup Filter */}
+                <button
+                  onClick={() => setHasPickup(!hasPickup)}
+                  className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-semibold font-opensans text-black border border-gray-200 rounded-full ${
+                    hasPickup ? "bg-customOrange text-white" : "bg-transparent"
+                  }`}
+                >
+                  Pickup
+                </button>
+
+                {/* Category Buttons */}
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() =>
+                      setSelectedCategory(
+                        category === selectedCategory ? "" : category
+                      )
+                    }
+                    className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-semibold font-opensans text-black border border-gray-200 rounded-full ${
+                      selectedCategory === category
+                        ? "bg-customOrange text-white"
+                        : "bg-transparent"
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="border-t border-gray-300 mt-6"></div>
         </div>
@@ -172,22 +233,11 @@ const Marketpg = () => {
                 </div>
               </div>
             ))
-          ) : selectedTab === "local" ? (
-            <div className="text-center my-10 px-6">
-              <h2 className="text-3xl font-opensans mb-2 font-medium bg-gradient-to-r from-green-400 via-yellow-400 to-orange-400 bg-clip-text text-transparent">
-                Coming Soon: Market Place Vendors!
-              </h2>
-              <p className="text-gray-600 text-sm font-opensans">
-                We're just getting started! Vendors from your local markets will
-                be here soon, starting with Yaba. Stay tuned for something
-                amazing! 🧡
-              </p>
-            </div>
           ) : filteredVendors.length > 0 ? (
             filteredVendors.map((vendor) => (
               <div
                 key={vendor.id}
-                className="vendor-item border-b  border-gray-100 "
+                className="vendor-item border-b border-gray-100 "
               >
                 <div
                   className="flex justify-between p-3 mb-1 bg-white "
@@ -203,23 +253,22 @@ const Marketpg = () => {
                       {vendor.flashSale && (
                         <span
                           className="
-        inline-block    
-        bg-customOrange  
-        animate-pulse
-        text-white 
-        text-[8px] 
-        font-semibold 
-        rounded-md
-        py-1            
-        px-1              
-        leading-none      
-      "
+                          inline-block    
+                          bg-customOrange  
+                          animate-pulse
+                          text-white 
+                          text-[8px] 
+                          font-semibold 
+                          rounded-md
+                          py-1            
+                          px-1              
+                          leading-none      
+                        "
                         >
                           Flash sales
                         </span>
                       )}
                     </h1>
-
                     <p className="font-sans text-gray-300 text-xs flex items-center -translate-y-1">
                       {(vendor.categories?.slice(0, 3) || []).map(
                         (category, index) => (
@@ -232,9 +281,10 @@ const Marketpg = () => {
                         )
                       )}
                     </p>
-                    <div className="flex -ml-1  items-center  text-gray-700 font-ubuntu font-  text-xs translate-y-4 mb-0">
+                    <div className="flex -ml-1 items-center text-gray-700 font-ubuntu font- text-xs translate-y-4 mb-0">
                       <IoLocationOutline className="mr-1 text-customOrange" />
                       <span>{vendor.state}</span>
+                      <VendorMetaTicker vendor={vendor} />
                     </div>
                     <div className="flex items-center translate-y-4">
                       <span className="text-black font-light text-xs mr-2">
@@ -255,30 +305,20 @@ const Marketpg = () => {
                     </div>
                   </div>
                   <div className="relative w-24 h-24 overflow-hidden">
-                    {/* Main image */}
                     <IkImage
                       className="object-cover w-full h-full rounded-lg"
                       src={vendor.coverImageUrl || defaultImageUrl}
                       alt={vendor.shopName}
                     />
-
-                    {/* Shimmer effect overlay with pause between animations */}
                     <div
                       className="absolute inset-0"
                       style={{
                         background:
                           "linear-gradient(45deg, transparent 20%, rgba(255,255,255,0.3) 50%, transparent 80%)",
                         backgroundSize: "200% 200%",
-                        animation: "shimmer 6s infinite ease-in-out", // Adjusted timing
+                        animation: "shimmer 6s infinite ease-in-out",
                       }}
                     />
-
-                    {/* Commented out ribbon
-  <img
-    src="/Ribbon.svg"
-    alt="Discount Ribbon"
-    className="absolute top-0 left-0 w-8 h-8"
-  /> */}
                   </div>
                 </div>
               </div>

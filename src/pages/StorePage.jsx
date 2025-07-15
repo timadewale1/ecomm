@@ -5,6 +5,7 @@ import React, {
   useLayoutEffect,
   useCallback,
 } from "react";
+import { motion, AnimatePresence, useInView } from "framer-motion";
 import { handleUserActionLimit } from "../services/userWriteHandler";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../firebase.config";
@@ -32,8 +33,26 @@ import { onAuthStateChanged } from "firebase/auth";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { GoChevronLeft, GoDotFill } from "react-icons/go";
-import { FiSearch } from "react-icons/fi";
-import { FaAngleLeft, FaPlus, FaCheck } from "react-icons/fa";
+import { FiChevronDown, FiChevronUp, FiSearch } from "react-icons/fi";
+import {
+  FaAngleLeft,
+  FaPlus,
+  FaCheck,
+  FaRegHeart,
+  FaSeedling,
+  FaRocket,
+  FaSyncAlt,
+  FaChartLine,
+  FaMapMarkerAlt,
+  FaTshirt,
+  FaCalendarWeek,
+  FaTruck,
+  FaCheckCircle,
+  FaBolt,
+  FaCrown,
+  FaUndoAlt,
+  FaShieldAlt,
+} from "react-icons/fa";
 import Productnotfund from "../Animations/productnotfound.json";
 import toast from "react-hot-toast";
 import ProductCard from "../components/Products/ProductCard";
@@ -43,13 +62,22 @@ import { FaSpinner, FaStar } from "react-icons/fa6";
 import { CiLogin, CiSearch } from "react-icons/ci";
 import Modal from "react-modal";
 import moment from "moment";
-import { MdCancel, MdClose, MdIosShare } from "react-icons/md";
+import {
+  MdCancel,
+  MdClose,
+  MdDeliveryDining,
+  MdIosShare,
+  MdOutlineDryCleaning,
+  MdOutlineShowChart,
+  MdSyncLock,
+  MdVerified,
+} from "react-icons/md";
 import { LuListFilter } from "react-icons/lu";
 import Lottie from "lottie-react";
-import { LiaTimesSolid } from "react-icons/lia";
+import { LiaSeedlingSolid, LiaTimesSolid } from "react-icons/lia";
 import { AiOutlineHome } from "react-icons/ai";
 import SEO from "../components/Helmet/SEO";
-import { BsFillBasketFill } from "react-icons/bs";
+import { BsBasket, BsFillBasketFill, BsShop } from "react-icons/bs";
 import {
   enterStockpileMode,
   exitStockpileMode,
@@ -57,49 +85,21 @@ import {
 } from "../redux/reducers/stockpileSlice";
 import { RotatingLines } from "react-loader-spinner";
 import { IoIosFlash } from "react-icons/io";
+import { GiShop, GiStarsStack } from "react-icons/gi";
+import { BiCategory, BiSolidCategory } from "react-icons/bi";
+import {
+  IoCheckmarkDoneCircleOutline,
+  IoRocketOutline,
+  IoSyncOutline,
+} from "react-icons/io5";
+import { TfiBolt } from "react-icons/tfi";
+import { PiCrown } from "react-icons/pi";
+import { GrShare } from "react-icons/gr";
+import { RiHeart3Fill, RiHeart3Line, RiSearchLine } from "react-icons/ri";
+import PickupInfoModal from "../components/Location/PickupModal";
+import StockpileInfoModal from "../components/StockpileModal";
 Modal.setAppElement("#root"); // For accessibility
 
-const ReviewBanner = () => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const bannerShown = localStorage.getItem("reviewBannerShown");
-    if (!bannerShown) {
-      setIsVisible(true);
-      localStorage.setItem("reviewBannerShown", "true");
-
-      const timer = setTimeout(() => {
-        setIsVisible(false);
-      }, 10000);
-
-      return () => clearTimeout(timer);
-    }
-  }, []);
-
-  const handleClose = () => {
-    setIsVisible(false);
-  };
-
-  return (
-    <div
-      className={`absolute z-50 w-64 bg-customBrown text-white px-2 py-2 rounded-lg shadow-lg flex flex-col items-start space-y-1 transform -translate-x-1/2 translate-y-40 left-1/2 transition-opacity duration-500 ${
-        isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-      }`}
-      style={{ maxWidth: "99%" }}
-    >
-      <span className="font-semibold font-opensans text-sm">
-        Click here to rate vendor!
-      </span>
-      <span className="text-xs font-opensans">
-        Shopped from here? Share your experience with other shoppers!🧡
-      </span>
-      <button onClick={handleClose} className="absolute top-1 right-4">
-        <MdClose className="text-white text-lg" />
-      </button>
-      <div className="absolute bottom-[-7px] left-1/2 transform -translate-x-1/2 w-4 h-4 bg-customBrown rotate-45"></div>{" "}
-    </div>
-  );
-};
 const FlipCountdown = ({ endTime }) => {
   // normalize to a JS Date
   const target =
@@ -139,6 +139,279 @@ const FlipCountdown = ({ endTime }) => {
     </div>
   );
 };
+function VendorDetails({ vendor }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true });
+  const [isOpen, setIsOpen] = useState(false);
+  const [autoDone, setAutoDone] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [timeoutId, setTimeoutId] = useState(null);
+
+  // Auto-open when it first comes into view, only if not interacted
+  useEffect(() => {
+    if (!inView || autoDone || hasInteracted) return;
+
+    setIsOpen(true);
+    setAutoDone(true);
+    const id = setTimeout(() => {
+      setIsOpen(false);
+    }, 4000);
+    setTimeoutId(id);
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [inView, autoDone, hasInteracted, timeoutId]);
+
+  // Cleanup timeout on unmount or state change
+  useEffect(() => {
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [timeoutId]);
+
+  const toggle = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      setTimeoutId(null);
+    }
+    setIsOpen((o) => !o);
+    setHasInteracted(true); // Mark as user-interacted
+  };
+  const sourcingMarket = Array.isArray(vendor.sourcingMarket)
+    ? vendor.sourcingMarket.join(", ")
+    : vendor.sourcingMarket || "Not specified";
+  const categories =
+    Array.isArray(vendor.categories) && vendor.categories.length
+      ? vendor.categories.join(", ")
+      : "Not specified";
+  const stockEnabled = vendor.stockpile?.enabled;
+  const stockpileWeeks = stockEnabled
+    ? `${vendor.stockpile.durationInWeeks} week(s)`
+    : "Not available";
+  const restock = vendor.restockFrequency || "Not specified";
+  const delivery = vendor.deliveryMode || "Not specified";
+  const wear =
+    vendor.wearReadinessRating != null
+      ? `${vendor.wearReadinessRating}/10`
+      : "Not specified";
+
+  const items = [
+    { icon: <BsShop />, label: "Sourcing Market", value: sourcingMarket },
+    { icon: <BiCategory />, label: "Categories", value: categories },
+    {
+      icon: <BsBasket />,
+      label: "Stockpiling Week(s)",
+      value: stockpileWeeks,
+    },
+    { icon: <IoSyncOutline />, label: "Restock Frequency", value: restock },
+    {
+      icon: <MdDeliveryDining />,
+      label: "Delivery Methods",
+      value: delivery,
+    },
+    {
+      icon: <MdOutlineDryCleaning />,
+      label: "Wear-Readiness Rating",
+      value: wear,
+    },
+  ];
+
+  return (
+    <div ref={ref}>
+      <button
+        onClick={toggle}
+        className="w-full flex items-center justify-between "
+      >
+        <h2 className="text-base font-opensans font-semibold">
+          More about this Vendor
+        </h2>
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ type: "spring", stiffness: 250, damping: 20 }}
+        >
+          {isOpen ? <FiChevronUp size={20} /> : <FiChevronDown size={20} />}
+        </motion.div>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.ul
+            key="content"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="px-2 pt-0 pb-6 space-y-4"
+          >
+            {items.map(({ icon, label, value }, idx) => (
+              <motion.li
+                key={label}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.05, duration: 0.3 }}
+                className="flex items-start mt-2"
+              >
+                <motion.div
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: idx * 0.05 + 0.1, duration: 0.3 }}
+                  className="text-2xl text-black mr-4 mt-1"
+                >
+                  {React.cloneElement(icon, { size: 24 })}
+                </motion.div>
+                <div>
+                  <motion.p
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 + 0.15, duration: 0.3 }}
+                    className="font-opensans font-semibold text-sm"
+                  >
+                    {label}
+                  </motion.p>
+                  <motion.p
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 + 0.2, duration: 0.3 }}
+                    className="text-xs text-gray-800 font-opensans"
+                  >
+                    {value}
+                  </motion.p>
+                </div>
+              </motion.li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+function AdditionalDetails({ vendor, badgeMessages }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true });
+  const [isOpen, setIsOpen] = useState(false);
+  const [autoDone, setAutoDone] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [timeoutId, setTimeoutId] = useState(null);
+
+  // Auto-open when it first comes into view, only if not interacted
+  useEffect(() => {
+    if (!inView || autoDone || hasInteracted) return;
+
+    setIsOpen(true);
+    setAutoDone(true);
+    const id = setTimeout(() => {
+      setIsOpen(false);
+    }, 4000);
+    setTimeoutId(id);
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [inView, autoDone, hasInteracted, timeoutId]);
+
+  // Cleanup timeout on unmount or state change
+  useEffect(() => {
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [timeoutId]);
+
+  const toggle = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      setTimeoutId(null);
+    }
+    setIsOpen((o) => !o);
+    setHasInteracted(true); // Mark as user-interacted
+  };
+
+  return (
+    <div ref={ref}>
+      <button
+        onClick={toggle}
+        className="w-full flex items-center justify-between mt-5"
+      >
+        <h2 className="text-base font-opensans font-semibold">
+          Additional Details
+        </h2>
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ type: "spring", stiffness: 250, damping: 20 }}
+        >
+          {isOpen ? <FiChevronUp size={20} /> : <FiChevronDown size={20} />}
+        </motion.div>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            key="additional"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="space-y-4 px-2 mt-6"
+          >
+            {/* Rating Card */}
+            <div className="flex items-center rounded-xl">
+              <GiStarsStack className="text-3xl mr-4 text-yellow-400" />
+              <div>
+                <h3 className="font-opensans font-semibold text-sm mb-1">
+                  {vendor.badge || "Newbie"}
+                </h3>
+                <p className="text-xs text-gray-600 font-opensans">
+                  {badgeMessages[vendor.badge] || badgeMessages.Newbie}
+                </p>
+              </div>
+            </div>
+
+            {/* Return Policy Card */}
+            <div className="flex items-center rounded-xl">
+              <FaUndoAlt className="text-5xl mr-4 text-red-500" />
+              <div>
+                <h3 className="font-opensans font-semibold text-sm mb-1">
+                  Return Policy
+                </h3>
+                <p className="text-xs text-gray-600 font-opensans">
+                  My Thrift has a platform-wide return policy that overrides
+                  vendor rules in cases like{" "}
+                  <a
+                    href="/returns#damaged"
+                    className="underline text-customOrange"
+                  >
+                    damaged items
+                  </a>
+                  . This vendor’s own policy is{" "}
+                  <a
+                    href={vendor.returnPolicyLink}
+                    className="underline text-customOrange"
+                  >
+                    here
+                  </a>
+                  .
+                </p>
+              </div>
+            </div>
+
+            {/* Verification Card */}
+            <div className="flex items-center rounded-xl">
+              <MdVerified className="text-5xl mr-4 text-green-800" />
+              <div>
+                <h3 className="font-opensans font-semibold text-sm mb-1">
+                  Verified Vendor
+                </h3>
+                <p className="text-xs text-gray-600 font-opensans">
+                  All vendors on My Thrift are verified and undergo a strict
+                  vetting process—shop with confidence, you won’t get scammed.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 const StorePage = () => {
   const { id } = useParams();
   // const [vendor, setVendor] = useState(null);
@@ -178,7 +451,8 @@ const StorePage = () => {
   const isShared = searchParams.has("shared");
   const [isStockpileMode, setIsStockpileMode] = useState(false);
   const [showPileModal, setShowPileModal] = useState(false);
-
+  const [showHeader, setShowHeader] = useState(true);
+  const prevScrollPos = useRef(0);
   const {
     isActive,
     vendorId: stockpileVendorId,
@@ -188,12 +462,61 @@ const StorePage = () => {
   } = useSelector((state) => state.stockpile);
   const isStockpileForThisVendor = isActive && stockpileVendorId === id;
   const lastScrollY = useRef(0);
+  const [showStockpileIntro, setShowStockpileIntro] = useState(false);
+  const [showSharedHeader, setShowSharedHeader] = useState(true);
+  const [showPickupIntro, setShowPickupIntro] = useState(false);
+  const [userCoords, setUserCoords] = useState(null);
+
+  useEffect(() => {
+    if (!vendor) return;
+
+    /* ---------- feature availability ---------- */
+    const hasStockpile = vendor.stockpile?.enabled;
+    const hasPickup =
+      vendor.deliveryMode === "Pickup" ||
+      vendor.deliveryMode === "Delivery & Pickup";
+
+    /* ---------- session flags ---------- */
+    const introDoneKey = `introDone_${vendor.id}`;
+    const stockpileSeenKey = `introStockpile_${vendor.id}`;
+    const pickupSeenKey = `introPickup_${vendor.id}`;
+
+    if (sessionStorage.getItem(introDoneKey)) return; // already handled for this store
+
+    /* --- ① PICK‑UP gets first dibs ---------------------------------- */
+    if (hasPickup && !sessionStorage.getItem(pickupSeenKey)) {
+      // quietly request user location; don’t block if declined
+      navigator.geolocation?.getCurrentPosition(
+        (pos) =>
+          setUserCoords({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          }),
+        () => setUserCoords(null),
+        { timeout: 8000 }
+      );
+      setShowPickupIntro(true);
+      return; // ← don’t fall through
+    }
+
+    /* --- ② otherwise fall back to STOCKPILE ------------------------- */
+    if (hasStockpile && !sessionStorage.getItem(stockpileSeenKey)) {
+      setShowStockpileIntro(true);
+      // no return needed; this is the last branch
+    }
+  }, [vendor]);
+
+  const sharedPrevScrollY = useRef(0);
 
   useEffect(() => {
     const onScroll = () => {
-      lastScrollY.current = window.scrollY;
+      const currentY = window.scrollY;
+      // if you’ve scrolled down, hide; if up, show
+      setShowSharedHeader(currentY < sharedPrevScrollY.current);
+      sharedPrevScrollY.current = currentY;
     };
-    window.addEventListener("scroll", onScroll);
+
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
   useEffect(() => {
@@ -224,7 +547,7 @@ const StorePage = () => {
     }
   }, [id, dispatch, vendor]);
   useEffect(() => {
-    if (vendor && (!entry.categories || entry.categories.length === 0)) {
+    if (vendor && entry.categories === undefined) {
       console.log("[page] dispatch fetchVendorCategories()");
       dispatch(fetchVendorCategories(id));
     }
@@ -300,7 +623,7 @@ const StorePage = () => {
       const currentScrollPosition = window.scrollY;
       setScrollPosition(currentScrollPosition);
 
-      const threshold = 100; // pixels
+      const threshold = 100000; // pixels
       setShowCountdownInHeader(currentScrollPosition > threshold);
     };
 
@@ -309,6 +632,30 @@ const StorePage = () => {
   }, []);
 
   const restored = useRef(false);
+  let hasUserScrolledSinceRestore = false; // survives re-mounts
+  useEffect(() => {
+    const onScroll = () => {
+      if (!hasUserScrolledSinceRestore) {
+        hasUserScrolledSinceRestore = true; // first real user scroll
+      }
+      lastScrollY.current = window.scrollY;
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (hasUserScrolledSinceRestore) {
+        dispatch(
+          saveStoreScroll({ vendorId: id, scrollY: lastScrollY.current })
+        );
+        localStorage.setItem(`storeScroll_${id}`, String(lastScrollY.current));
+      }
+    };
+  }, [dispatch, id]);
+
   useLayoutEffect(() => {
     console.log(
       `🔍 trying to restore scroll to ${scrollY} (restored? ${restored.current})`
@@ -333,6 +680,87 @@ const StorePage = () => {
       dispatch(fetchStockpileData({ userId: currentUser.uid, vendorId: id }));
     }
   };
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentPos = window.scrollY;
+      if (currentPos > prevScrollPos.current) {
+        setShowHeader(false);
+      } else {
+        setShowHeader(true);
+      }
+      prevScrollPos.current = currentPos;
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const badgeConfig = {
+    Newbie: {
+      icon: <LiaSeedlingSolid />,
+      gradient: "from-gray-300 to-gray-500",
+    },
+    "Rising Seller": {
+      icon: <IoRocketOutline />,
+      gradient: "from-orange-300 to-orange-700",
+    },
+    "Consistent Seller": {
+      icon: <MdSyncLock />,
+      gradient: "from-blue-300 to-blue-700",
+    },
+    "Steady Mover": {
+      icon: <MdOutlineShowChart />,
+      gradient: "from-indigo-300 to-indigo-700",
+    },
+    "Reliable Vendor": {
+      icon: <IoCheckmarkDoneCircleOutline />,
+      gradient: "from-teal-300 to-teal-700",
+    },
+    "Power Seller": {
+      icon: <TfiBolt />,
+      gradient: "from-yellow-300 to-yellow-700",
+    },
+    "OG Seller": {
+      icon: <PiCrown />,
+      gradient: "from-purple-300 to-purple-700",
+    },
+  };
+  const closeStockpileIntro = () => {
+    sessionStorage.setItem(`introStockpile_${vendor.id}`, "seen");
+    sessionStorage.setItem(`introDone_${vendor.id}`, "yes");
+    setShowStockpileIntro(false);
+  };
+
+  const closePickupIntro = () => {
+    sessionStorage.setItem(`introPickup_${vendor.id}`, "seen");
+    sessionStorage.setItem(`introDone_${vendor.id}`, "yes");
+    setShowPickupIntro(false);
+  };
+  function VendorBadge({ badgeName }) {
+    const { icon, gradient } = badgeConfig[badgeName] || badgeConfig.Newbie;
+    return (
+      <div
+        className={`
+        vendor-badge
+        bg-gradient-to-r ${gradient}
+        text-white
+        px-6 py-2
+        rounded-full
+        flex items-center
+        shadow-lg
+      `}
+      >
+        {React.cloneElement(icon, { className: "mr-2", size: 24 })}
+
+        <div className="text-xs font-bodoni font-semibold leading-tight text-center">
+          {badgeName.split(" ").map((word, i) => (
+            <span key={i} className="block">
+              {word}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const handleClosePileModal = () => {
     setShowPileModal(false);
@@ -349,7 +777,11 @@ const StorePage = () => {
       (Array.isArray(p.tags) && p.tags.some((t) => normal(t).includes(qn)))
     );
   };
-
+  const stars = Array(5)
+    .fill(0)
+    .map((_, i) => (
+      <FaStar key={i} className="text-yellow-400 mr-0.5" size={12} />
+    ));
   // 👉 helper: true = we’re currently doing a “global” search
   const searchingUI = (isSearching, searchTerm) =>
     isSearching && normal(searchTerm) !== "";
@@ -359,32 +791,31 @@ const StorePage = () => {
     ? moment(stockpileExpiry).format("ddd, MMM Do YYYY")
     : null;
 
+  // ---- optimistic follow / unfollow ---------------------------
   const handleFollowClick = async () => {
     if (!currentUser) {
       setIsLoginModalOpen(true);
       return;
     }
 
+    if (!vendor?.id) {
+      toast.error("Vendor ID missing");
+      return;
+    }
+
+    // Optimistically flip the heart
+    const prevState = isFollowing;
+    setIsFollowing(!prevState);
+
     try {
-      console.log("Starting follow/unfollow operation...");
-      setIsFollowLoading(true);
-
-      if (!vendor?.id) {
-        throw new Error("Vendor ID is undefined");
-      }
-
-      console.log(`User ID: ${currentUser.uid}, Vendor ID: ${vendor.id}`);
-
       const followRef = doc(db, "follows", `${currentUser.uid}_${vendor.id}`);
       const vendorRef = doc(db, "vendors", vendor.id);
 
-      console.log("Checking follow limits (minute and hour)...");
-
-      // Pass the options as a single object to match the function signature
+      // OPTIONAL: rate-limit check (keep if you still need it)
       await handleUserActionLimit(
         currentUser.uid,
         "follow",
-        {}, // userData
+        {},
         {
           collectionName: "usage_metadata",
           writeLimit: 50,
@@ -393,51 +824,28 @@ const StorePage = () => {
         }
       );
 
-      console.log(
-        `Follow limits check passed. Proceeding to ${
-          isFollowing ? "unfollow" : "follow"
-        }...`
-      );
-
-      if (!isFollowing) {
-        // User is following for the first time
+      if (!prevState) {
+        // follow
         await setDoc(followRef, {
           userId: currentUser.uid,
           vendorId: vendor.id,
           createdAt: serverTimestamp(),
         });
-
-        // Increment followers count only on first-time follow
         await updateDoc(vendorRef, { followersCount: increment(1) });
-
-        console.log("Follow action completed successfully.");
-        toast.success("You will be notified of new products and promos.");
+        // toast.success("You’ll get updates from this vendor.");
       } else {
-        // Unfollow: Remove follow document but do NOT decrement count
+        // unfollow
         await deleteDoc(followRef);
-
-        console.log("Unfollow action completed successfully.");
-        toast.success("Unfollowed");
+        // toast.success("Unfollowed.");
       }
-
-      setIsFollowing(!isFollowing);
-    } catch (error) {
-      console.error("Error during follow/unfollow operation:", error.message);
-      toast.error(`${error.message}`);
-    } finally {
-      console.log("Follow/unfollow operation completed.");
-      setIsFollowLoading(false);
+    } catch (err) {
+      console.error("Follow/unfollow failed:", err.message);
+      // revert UI
+      setIsFollowing(prevState);
+      toast.error(err.message || "Something went wrong.");
     }
   };
-  useEffect(() => {
-    return () => {
-      console.log(
-        `🛑 saving scrollY=${lastScrollY.current} for vendor ${id} (un-mount)`
-      );
-      dispatch(saveStoreScroll({ vendorId: id, scrollY: lastScrollY.current }));
-      localStorage.setItem(`storeScroll_${id}`, String(lastScrollY.current));
-    };
-  }, [dispatch, id]);
+
   useEffect(() => {
     if (isLoginModalOpen) {
       document.body.style.overflow = "hidden";
@@ -470,7 +878,84 @@ const StorePage = () => {
     navigate(`/reviews/${id}`);
   };
   if (vendorLoading || (!vendor && !error)) {
-    return <Loading />;
+    return (
+      <div className="p-3 mb-24 animate-pulse">
+        {/* Header skeleton */}
+        <div className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between p-4">
+          <Skeleton circle width={40} height={40} />
+          <div className="flex space-x-2">
+            <Skeleton circle width={40} height={40} />
+            <Skeleton circle width={40} height={40} />
+            <Skeleton circle width={40} height={40} />
+          </div>
+        </div>
+        <div className="pt-20">
+          {/* Cover image skeleton */}
+          <Skeleton height={320} />
+
+          {/* Curved white section */}
+          <div className="relative bg-white -mt-8 rounded-t-3xl pt-8 pb-6 px-6">
+            {/* Flash sale banner */}
+            <Skeleton className="mb-6 h-20 rounded-2xl" />
+
+            {/* Store name */}
+            <div className="flex justify-center mb-2">
+              <Skeleton width={200} height={32} />
+            </div>
+
+            {/* Description */}
+            <Skeleton count={2} />
+
+            {/* Rating / badge / reviews row */}
+            <div className="flex items-center justify-center space-x-6 mt-6">
+              <Skeleton circle width={40} height={40} />
+              <Skeleton width={120} height={40} />
+              <Skeleton circle width={40} height={40} />
+            </div>
+
+            <hr className="mt-6 border-gray-100" />
+
+            {/* More about this Vendor */}
+            <Skeleton width={150} height={24} className="mt-6 mb-4" />
+            <div className="space-y-4">
+              <Skeleton height={60} />
+              <Skeleton height={60} />
+              <Skeleton height={60} />
+            </div>
+
+            <hr className="mt-6 border-gray-100" />
+
+            {/* Additional Details */}
+            <Skeleton width={180} height={24} className="mt-6 mb-4" />
+            <div className="space-y-4">
+              <Skeleton height={60} />
+              <Skeleton height={60} />
+              <Skeleton height={60} />
+            </div>
+
+            <hr className="mt-6 border-gray-100" />
+          </div>
+
+          {/* Products section */}
+          <div className="mt-7">
+            <div className="flex items-center justify-between mb-3">
+              <Skeleton width={120} height={24} />
+              <Skeleton width={100} height={24} />
+            </div>
+            <div className="flex mb-4 space-x-2 overflow-x-auto">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} width={80} height={40} />
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} height={200} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const handleTypeSelect = async (type) => {
@@ -550,6 +1035,22 @@ const StorePage = () => {
       toast.success("Store link copied to clipboard!");
     }
   };
+  const badgeMessages = {
+    Newbie: "Just getting started on My Thrift excited to grow and serve you!",
+    "Rising Seller":
+      "Building momentum, check out their growing collection of unique finds!",
+    "Consistent Seller":
+      "Dependable and steady—regularly adding fresh products for you.",
+    "Steady Mover":
+      "On a roll! consistently delivering great products to happy customers.",
+    "Reliable Vendor":
+      "Trusted by many high ratings and dependable service every time.",
+    "Power Seller":
+      "High-volume seller—packed with variety and lightning-fast service.",
+    "OG Seller":
+      "Top-tier vendor—exceptional range, quality, and a proven track record.",
+  };
+
   const uniqueFilteredProducts = filteredProducts.filter(
     (prod, idx, arr) => arr.findIndex((p) => p.id === prod.id) === idx
   );
@@ -638,42 +1139,61 @@ const StorePage = () => {
         image={`${vendor.coverImageUrl}`}
         url={`https://www.shopmythrift.store/store/${id}`}
       />
+      <PickupInfoModal
+        isOpen={showPickupIntro}
+        vendor={vendor}
+        onClose={closePickupIntro}
+        currentUserCoords={userCoords}
+      />
+      <StockpileInfoModal
+        isOpen={showStockpileIntro}
+        vendor={vendor}
+        onClose={closeStockpileIntro}
+      />
+
       <div className="p-3 mb-24">
-        <ReviewBanner />
-        <div className="sticky top-0 bg-white h-24 z-10 flex items-center border-gray-300 w-full">
+        <div className="">
+          {/* Header - Different styles based on state */}
           {isSearching ? (
-            <div className="flex items-center w-full relative px-2">
-              <FaAngleLeft
-                onClick={() => {
-                  setIsSearching(false); // 🆕 really close the search UI
-                  handleClearSearch();
-                }}
-                className="cursor-pointer text-2xl mr-2"
-              />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={handleSearchChange}
-                placeholder={"Search " + (vendor?.shopName || "") + "..."}
-                className="flex-1 border rounded-full font-opensans text-black text-base border-gray-300 px-3 py-2 font-medium shadow-xl focus:outline-none"
-              />
-              {searchTerm && (
-                <MdCancel
-                  className="text-xl text-gray-500 cursor-pointer absolute right-4"
-                  onClick={handleClearSearch}
+            <div className="sticky top-0 bg-white h-24 z-20 flex items-center border-gray-300 w-full">
+              <div className="flex items-center w-full relative px-2">
+                <FaAngleLeft
+                  onClick={() => {
+                    setIsSearching(false);
+                    handleClearSearch();
+                  }}
+                  className="cursor-pointer text-2xl mr-2"
                 />
-              )}
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  placeholder={"Search " + (vendor?.shopName || "") + "..."}
+                  className="flex-1 border rounded-full font-opensans text-black text-base border-gray-300 px-3 py-2 font-medium shadow-xl focus:outline-none"
+                />
+                {searchTerm && (
+                  <MdCancel
+                    className="text-xl text-gray-500 cursor-pointer absolute right-4"
+                    onClick={handleClearSearch}
+                  />
+                )}
+              </div>
             </div>
           ) : isShared ? (
-            <>
-              <div className="w-full ">
-                {/* LEFT: logo */}
+            <div
+              className={`
+      fixed inset-x-0 bg-white h-24 top-0 z-20 border-gray-300
+      transform transition-transform duration-200
+      ${showSharedHeader ? "translate-y-0" : "-translate-y-full"}
+    `}
+            >
+              <div className="w-full py-4">
                 <div className="flex items-center justify-between">
                   <img
                     src="/newlogo.png"
                     alt="Logo"
                     onClick={() => navigate("/newhome")}
-                    className="h-8 w-16 object-contain"
+                    className="h-8 w-16 object-contain cursor-pointer"
                   />
                   <div className="flex items-center mr-2 relative">
                     <CiSearch
@@ -682,9 +1202,7 @@ const StorePage = () => {
                     />
                   </div>
                 </div>
-
-                {/* RIGHT: login & sign up */}
-                <div className="flex mt-4 justify-between  gap-4 w-full items-center ">
+                <div className="flex mt-4 justify-between -translate-y-2 px-4 gap-4 w-full items-center">
                   <button
                     onClick={() => navigate("/login")}
                     className="px-4 py-1 text-sm w-full font-opensans text-customRichBrown border border-customRichBrown rounded-full"
@@ -699,341 +1217,239 @@ const StorePage = () => {
                   </button>
                 </div>
               </div>
-            </>
+            </div>
           ) : (
-            <div className="flex flex-col w-full">
-              {/* Main header row */}
-              <div className="flex items-center justify-between w-full">
-                <GoChevronLeft
-                  onClick={() => navigate(-1)}
-                  className="cursor-pointer text-3xl"
-                />
-                <div className="flex-grow flex flex-col items-center justify-center">
-                  <div className="flex items-center space-x-1 font-opensans text-lg font-semibold">
-                    <span>{vendor.shopName}</span>
-                    {hasFlashSale && (
-                      <IoIosFlash className="text-customOrange text-xl" />
-                    )}
-                  </div>
+            // Glassmorphism header over image
+            <div
+              className={`
+          fixed  top-0 left-0 right-0 z-10
+          flex items-center justify-between p-4
+          transition-opacity duration-300
+          ${showHeader ? "opacity-100" : "opacity-30"}
+        `}
+            >
+              {/* Back button */}
+              <button
+                onClick={() => navigate(-1)}
+                className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg hover:bg-white/30 transition-all duration-200"
+              >
+                <GoChevronLeft className="text-white text-xl" />
+              </button>
 
-                  {/* Countdown in header - slides in when scrolling */}
-                  {hasFlashSale && showCountdownInHeader && (
-                    <div
-                      className={`
-                transition-all duration-500 ease-out transform
-                ${
-                  showCountdownInHeader
-                    ? "opacity-100 translate-y-0 scale-100"
-                    : "opacity-0 -translate-y-4 scale-95"
-                }
-                mt-1
-              `}
-                      style={{
-                        transitionDelay: showCountdownInHeader
-                          ? "300ms"
-                          : "0ms",
-                      }}
-                    >
-                      <div className="scale-75 origin-center">
-                        <FlipCountdown endTime={vendor.flashSaleEndsAt} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <CiSearch
-                  className="text-black text-3xl cursor-pointer"
+              {/* Right side icons */}
+              <div className="flex items-center space-x-2">
+                <button
                   onClick={openSearch}
-                />
+                  className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg hover:bg-white/30 transition-all duration-200"
+                >
+                  <RiSearchLine className="text-white text-xl" />
+                </button>
+                <button
+                  onClick={handleShare}
+                  className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg hover:bg-white/30 transition-all duration-200"
+                >
+                  <GrShare className="text-white text-lg" />
+                </button>
+                <button
+                  onClick={handleFollowClick}
+                  disabled={isFollowLoading}
+                  className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg hover:bg-white/30 transition-all duration-200"
+                >
+                  <motion.div
+                    key={isFollowing ? "filled" : "outline"}
+                    initial={{ scale: 0.8 }}
+                    animate={{ scale: 1.1 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                  >
+                    {isFollowing ? (
+                      <RiHeart3Fill className="text-red-500 text-lg" />
+                    ) : (
+                      <RiHeart3Line className="text-white text-lg" />
+                    )}
+                  </motion.div>
+                </button>
               </div>
             </div>
           )}
-        </div>
-        <div className="border-t border-300 mt-1"></div>
-        {!searchingUI(isSearching, searchTerm) && (
-          <>
-            {hasFlashSale && (
-              <div
-                className="
-      w-full mt-4 mb-4
-      flex flex-col items-center
-      rounded-2xl
-      px-6 py-4
-      bg-black/10
-      backdrop-blur-xl
-      border border-white/20
-      shadow-[0_8px_32px_rgba(0,0,0,0.12)]
-      relative
-      overflow-hidden
-      before:absolute before:inset-0
-      before:bg-gradient-to-br before:from-white/20 before:to-transparent
-      before:rounded-2xl before:pointer-events-none
-      hover:bg-white/15
-      transition-all duration-300 ease-out
-      hover:shadow-[0_12px_40px_rgba(0,0,0,0.15)]
-      hover:scale-[1.02]
-    "
-              >
-                {/* Sparkle Effects */}
-                <div className="absolute inset-0 pointer-events-none">
-                  {/* Sparkle 1 */}
-                  <div
-                    className="absolute top-4 left-8 w-2 h-2 bg-customOrange rounded-full animate-ping"
-                    style={{ animationDelay: "0s", animationDuration: "2s" }}
-                  ></div>
-                  <div
-                    className="absolute top-4 left-8 w-1 h-1 bg-white rounded-full animate-ping"
-                    style={{ animationDelay: "0.5s", animationDuration: "2s" }}
-                  ></div>
 
-                  {/* Sparkle 2 */}
-                  <div
-                    className="absolute top-8 right-12 w-1.5 h-1.5 bg-yellow-400 rounded-full animate-ping"
-                    style={{ animationDelay: "1s", animationDuration: "2.5s" }}
-                  ></div>
-                  <div
-                    className="absolute top-8 right-12 w-1 h-1 bg-white rounded-full animate-ping"
-                    style={{
-                      animationDelay: "1.5s",
-                      animationDuration: "2.5s",
-                    }}
-                  ></div>
-
-                  {/* Sparkle 3 */}
-                  <div
-                    className="absolute bottom-6 left-12 w-1 h-1 bg-customOrange rounded-full animate-ping"
-                    style={{ animationDelay: "2s", animationDuration: "3s" }}
-                  ></div>
-                  <div
-                    className="absolute bottom-6 left-12 w-0.5 h-0.5 bg-white rounded-full animate-ping"
-                    style={{ animationDelay: "2.5s", animationDuration: "3s" }}
-                  ></div>
-
-                  {/* Sparkle 4 */}
-                  <div
-                    className="absolute bottom-8 right-6 w-2 h-2 bg-yellow-300 rounded-full animate-ping"
-                    style={{
-                      animationDelay: "0.5s",
-                      animationDuration: "2.8s",
-                    }}
-                  ></div>
-                  <div
-                    className="absolute bottom-8 right-6 w-1 h-1 bg-white rounded-full animate-ping"
-                    style={{ animationDelay: "1s", animationDuration: "2.8s" }}
-                  ></div>
-
-                  {/* Sparkle 5 */}
-                  <div
-                    className="absolute top-12 left-1/2 w-1.5 h-1.5 bg-customOrange rounded-full animate-ping"
-                    style={{
-                      animationDelay: "1.5s",
-                      animationDuration: "2.2s",
-                    }}
-                  ></div>
-                  <div
-                    className="absolute top-12 left-1/2 w-0.5 h-0.5 bg-white rounded-full animate-ping"
-                    style={{ animationDelay: "2s", animationDuration: "2.2s" }}
-                  ></div>
-
-                  {/* Sparkle 6 */}
-                  <div
-                    className="absolute bottom-12 right-1/4 w-1 h-1 bg-yellow-400 rounded-full animate-ping"
-                    style={{
-                      animationDelay: "0.8s",
-                      animationDuration: "2.6s",
-                    }}
-                  ></div>
-                  <div
-                    className="absolute bottom-12 right-1/4 w-0.5 h-0.5 bg-white rounded-full animate-ping"
-                    style={{
-                      animationDelay: "1.3s",
-                      animationDuration: "2.6s",
-                    }}
-                  ></div>
-
-                  {/* Star-shaped sparkles using CSS */}
-                  <div
-                    className="absolute top-6 right-8 text-customOrange text-xs animate-pulse"
-                    style={{
-                      animationDelay: "0.5s",
-                      animationDuration: "1.5s",
-                    }}
-                  >
-                    ✨
-                  </div>
-                  <div
-                    className="absolute bottom-4 left-6 text-yellow-400 text-xs animate-pulse"
-                    style={{
-                      animationDelay: "1.2s",
-                      animationDuration: "1.8s",
-                    }}
-                  >
-                    ✨
-                  </div>
-                  <div
-                    className="absolute top-10 left-1/3 text-white text-xs animate-pulse"
-                    style={{
-                      animationDelay: "2.1s",
-                      animationDuration: "1.4s",
-                    }}
-                  >
-                    ✨
-                  </div>
-                  <div
-                    className="absolute bottom-10 right-1/3 text-customOrange text-xs animate-pulse"
-                    style={{
-                      animationDelay: "0.3s",
-                      animationDuration: "1.9s",
-                    }}
-                  >
-                    ✨
-                  </div>
-                </div>
-
-                {/* Subtle animated gradient overlay */}
-                <div
-                  className="
-        absolute inset-0 
-        bg-gradient-to-r from-transparent via-white/5 to-transparent
-        animate-pulse
-        rounded-2xl
-      "
-                />
-
-                {/* Enhanced shimmer effect */}
-                <div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-customOrange/5 to-transparent 
-                    animate-[shimmer_3s_ease-in-out_infinite] rounded-2xl"
-                ></div>
-
-                <h2
-                  className="
-        font-opensans uppercase text-sm font-semibold mb-2 
-        text-customOrange
-        relative z-10
-        drop-shadow-sm
-        animate-pulse
-      "
-                  style={{ animationDuration: "2s" }}
-                >
-                  {vendor.shopName} is running a sale 🎁
-                </h2>
-
-                <div className="relative z-10">
-                  <FlipCountdown endTime={vendor.flashSaleEndsAt} />
-                </div>
-              </div>
-            )}
-
-            <style jsx>{`
-              @keyframes shimmer {
-                0% {
-                  transform: translateX(-100%);
-                  opacity: 0;
-                }
-                50% {
-                  opacity: 1;
-                }
-                100% {
-                  transform: translateX(100%);
-                  opacity: 0;
-                }
-              }
-            `}</style>
-
-            <div className="flex justify-center mt-6">
-              <div className="relative w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
+          {!isSearching && !searchingUI(isSearching, searchTerm) && (
+            <>
+              {/* Store Cover Image */}
+              <div className="relative w-full h-80 overflow-hidden">
                 {vendorLoading ? (
-                  <Skeleton circle={true} height={128} width={128} />
+                  <Skeleton height={320} />
                 ) : vendor.coverImageUrl ? (
                   <img
-                    className="w-32 h-32 rounded-full bg-slate-700 object-cover"
+                    className="w-full h-full object-cover"
                     src={vendor.coverImageUrl}
                     alt={vendor.shopName}
                   />
                 ) : (
-                  <span className="text-center font-bold">
-                    {vendor.shopName}
-                  </span>
-                )}
-                <button
-                  onClick={handleShare}
-                  className="absolute bottom-1 right-1 bg-white rounded-full p-1 shadow-md hover:bg-gray-100"
-                >
-                  <MdIosShare className="text-xl text-gray-900" />
-                </button>
-              </div>
-            </div>
-
-            <div
-              className="flex justify-center mt-2"
-              style={{ cursor: "pointer" }}
-              onClick={handleRatingClick}
-            >
-              {vendorLoading ? (
-                <Skeleton width={100} height={24} />
-              ) : (
-                <>
-                  <FaStar className="text-yellow-400" size={16} />
-                  <span className="flex text-xs font-opensans items-center ml-2">
-                    {averageRating.toFixed(1)}
-                    <GoDotFill className="mx-1 text-gray-300 font-opensans dot-size" />
-                    {vendor.ratingCount || 0} ratings
-                  </span>
-                </>
-              )}
-            </div>
-
-            <div className="w-fit text-center bg-customGreen p-2 flex items-center justify-center rounded-full mt-3 mx-auto">
-              <div className="mt-2 flex flex-wrap items-center -translate-y-1 justify-center text-textGreen text-xs space-x-1">
-                {vendorLoading ? (
-                  <Skeleton width={80} height={24} count={4} inline={true} />
-                ) : (
-                  vendor.categories.map((category, index) => (
-                    <React.Fragment key={index}>
-                      {index > 0 && (
-                        <GoDotFill className="mx-1 dot-size text-dotGreen" />
-                      )}
-                      <span>{category}</span>
-                    </React.Fragment>
-                  ))
+                  <div className="w-full h-full bg-gray-300 flex items-center justify-center">
+                    <span className="text-center  font-opensans font-bold text-gray-600">
+                      {vendor.shopName}
+                    </span>
+                  </div>
                 )}
               </div>
-            </div>
-            <div className="flex items-center justify-center mt-3">
-              {vendorLoading ? (
-                <Skeleton width={128} height={40} />
-              ) : (
-                <button
-                  className={`w-full h-12 rounded-full border font-medium flex items-center font-opensans justify-center transition-colors duration-200 ${
-                    isFollowing
-                      ? "bg-customOrange text-white"
-                      : "bg-customOrange text-white"
-                  }`}
-                  onClick={handleFollowClick}
-                  disabled={isFollowLoading}
-                >
-                  {isFollowLoading ? (
-                    <FaSpinner className="animate-spin mr-2" />
-                  ) : isFollowing ? (
-                    <>
-                      <FaCheck className="mr-2" />
-                      Following
-                    </>
-                  ) : (
-                    <>
-                      <FaPlus className="mr-2" />
-                      Follow
-                    </>
+
+              {/* Curved White Section */}
+              <div
+                className="relative bg-white -mt-8 rounded-t-3xl pt-8 pb-6"
+                style={{ boxShadow: "0 -4px 20px -10px rgba(0,0,0,0.08)" }}
+              >
+                {" "}
+                {/* Flash Sale Banner */}
+                {hasFlashSale && (
+                  <div className="px-6">
+                    <div className="w-full mb-6 flex flex-col items-center rounded-2xl px-6 py-4 bg-black/10 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.12)] relative overflow-hidden">
+                      {/* Sparkle Effects */}
+                      <div className="absolute inset-0 pointer-events-none">
+                        <div
+                          className="absolute top-4 left-8 w-2 h-2 bg-customOrange rounded-full animate-ping"
+                          style={{
+                            animationDelay: "0s",
+                            animationDuration: "2s",
+                          }}
+                        ></div>
+                        <div
+                          className="absolute top-4 left-8 w-1 h-1 bg-white rounded-full animate-ping"
+                          style={{
+                            animationDelay: "0.5s",
+                            animationDuration: "2s",
+                          }}
+                        ></div>
+                        <div
+                          className="absolute top-8 right-12 w-1.5 h-1.5 bg-yellow-400 rounded-full animate-ping"
+                          style={{
+                            animationDelay: "1s",
+                            animationDuration: "2.5s",
+                          }}
+                        ></div>
+                        <div
+                          className="absolute top-6 right-8 text-customOrange text-xs animate-pulse"
+                          style={{
+                            animationDelay: "0.5s",
+                            animationDuration: "1.5s",
+                          }}
+                        >
+                          ✨
+                        </div>
+                        <div
+                          className="absolute bottom-4 left-6 text-yellow-400 text-xs animate-pulse"
+                          style={{
+                            animationDelay: "1.2s",
+                            animationDuration: "1.8s",
+                          }}
+                        >
+                          ✨
+                        </div>
+                      </div>
+
+                      <h2
+                        className="font-opensans uppercase text-sm font-semibold mb-2 text-customOrange relative z-10 drop-shadow-sm animate-pulse"
+                        style={{ animationDuration: "2s" }}
+                      >
+                        {vendor.shopName} is running a sale 🎁
+                      </h2>
+
+                      <div className="relative z-10">
+                        <FlipCountdown endTime={vendor.flashSaleEndsAt} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* Store Name */}
+                <div className="flex items-center justify-center mb-2">
+                  <h1 className="text-2xl font-semibold  text-center font-opensans">
+                    {vendorLoading ? <Skeleton width={200} /> : vendor.shopName}
+                  </h1>
+                  {hasFlashSale && (
+                    <IoIosFlash className="text-customOrange text-2xl ml-2" />
                   )}
-                </button>
+                </div>
+                {/* Ratings */}
+                {/* Description */}
+                <p className="text-gray-700 text-xs px-8 font-opensans text-center mb-6 leading-relaxed">
+                  {vendorLoading ? <Skeleton count={2} /> : vendor.description}
+                </p>
+                {/* Top Rated Badge */}
+                <div className="flex items-center justify-center">
+                  {/* ─── Rating on the left ─── */}
+                  <div
+                    onClick={handleRatingClick}
+                    className="flex flex-col items-center cursor-pointer"
+                  >
+                    {/* rating number */}
+                    <span className="text-base font-ubuntu font-medium">
+                      {averageRating.toFixed(1)}
+                    </span>
+                    <div className="flex">{stars}</div>
+                  </div>
+
+                  {/* vertical divider */}
+                  <div className="h-6 border-l border-gray-300 mx-6" />
+
+                  {/* ─── Center badge ─── */}
+                  <VendorBadge badgeName={vendor.badge} />
+
+                  {/* vertical divider */}
+                  <div className="h-6 border-l border-gray-300 mx-6" />
+
+                  {/* ─── Reviews count on the right ─── */}
+                  <div
+                    onClick={handleRatingClick}
+                    className="flex flex-col items-center cursor-pointer"
+                  >
+                    {/* review count */}
+                    <span className="text-base font-ubuntu font-medium">
+                      {vendor.ratingCount || 0}
+                    </span>
+                    {/* “Reviews” label under the number */}
+                    <span className="text-xs font-opensans font-medium text-gray-600 mt-1">
+                      Reviews
+                    </span>
+                  </div>
+                </div>
+                <hr className="mt-6 border-gray-100" />
+                {/* Additional Info Cards */}
+              </div>
+
+              {vendor && <VendorDetails vendor={vendor} />}
+              <hr className="mt-6 border-gray-100" />
+
+              {vendor && (
+                <AdditionalDetails
+                  vendor={vendor}
+                  badgeMessages={badgeMessages}
+                />
               )}
-            </div>
-            <p className=" text-gray-700 mt-3 text-sm font-opensans text-center">
-              {vendorLoading ? <Skeleton count={2} /> : vendor.description}
-            </p>
-          </>
-        )}
-        <div className="p-2 mt-7">
+              <hr className="mt-6 border-gray-100" />
+            </>
+          )}
+
+          {/* Search UI */}
+          {searchingUI(isSearching, searchTerm) && (
+            <div className="p-4">{/* Search results content goes here */}</div>
+          )}
+
+          <style jsx>{`
+            @keyframes shimmer {
+              0% {
+                transform: translateX(-100%);
+                opacity: 0;
+              }
+              50% {
+                opacity: 1;
+              }
+              100% {
+                transform: translateX(100%);
+                opacity: 0;
+              }
+            }
+          `}</style>
+        </div>
+        <div className=" mt-7">
           <div className="flex items-center mb-3 justify-between">
             <h1 className="font-opensans text-lg  font-semibold">Products</h1>
             <div className="relative">
@@ -1119,9 +1535,9 @@ const StorePage = () => {
                 <div className="flex justify-center my-4">
                   <RotatingLines
                     strokeColor="#f9531e"
-                    strokeWidth="5"
+                    strokeWidth="4"
                     animationDuration="0.75"
-                    width="20"
+                    width="16"
                     visible
                   />
                 </div>

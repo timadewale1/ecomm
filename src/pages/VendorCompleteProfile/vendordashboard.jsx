@@ -116,60 +116,44 @@ const VendorDashboard = () => {
     });
   };
 
-  // Fetch vendor revenue with caching
-  const fetchVendorRevenue = async (vendorId) => {
-    const cacheKey = `vendorRevenue_${vendorId}`;
-    const cacheTimeKey = `vendorRevenue_time_${vendorId}`;
-    const cachedRevenue = localStorage.getItem(cacheKey);
-    const lastFetchTime = localStorage.getItem(cacheTimeKey);
+  useEffect(() => {
+    if (vendorData?.vendorId == null) return;
+    fetchVendorRevenue(vendorData.vendorId);
+  }, [vendorData?.vendorId, totalFulfilledOrders]);
 
-    // Check if data exists in cache and is less than 30 minutes old
-    const thirtyMinutes = 30 * 60 * 1000;
-    if (
-      cachedRevenue &&
-      lastFetchTime &&
-      Date.now() - lastFetchTime < thirtyMinutes
-    ) {
-      console.log("Using cached revenue data.");
-      setTotalRevenue(parseFloat(cachedRevenue));
-      return;
+  // 3) The revenue fetcher with localStorage cache
+  async function fetchVendorRevenue(vendorId) {
+    const cacheKey = `vendorRevenue_${vendorId}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached != null) {
+      // show stale data immediately
+      setTotalRevenue(Number(cached));
     }
 
     try {
-      console.log("Fetching vendor revenue for vendorId:", vendorId);
-
-      const token = import.meta.env.VITE_RESOLVE_TOKEN; // Fetch token from environment variables
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-      const response = await fetch(
-        `${API_BASE_URL}/vendorRevenue/${vendorId}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-        }
-      );
+      const token = import.meta.env.VITE_RESOLVE_TOKEN;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Failed to fetch vendor revenue:", errorData);
-        throw new Error("Failed to fetch vendor revenue");
+      const res = await fetch(`${API_BASE_URL}/vendor-revenue/${vendorId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      if (!res.ok) {
+        console.error("Revenue API failed:", res.status);
+        return;
       }
+      const { data } = await res.json();
+      const revenue = data.vendorRevenue;
 
-      const data = await response.json();
-      console.log("Vendor revenue data fetched:", data);
-
-      // Cache the revenue and current timestamp
-      localStorage.setItem(cacheKey, data.revenue);
-      localStorage.setItem(cacheTimeKey, Date.now());
-
-      setTotalRevenue(data.revenue);
-    } catch (error) {
-      console.error("Error fetching vendor revenue:", error);
-      // toast.error("Failed to fetch revenue. Please try again later.");
+      // cache & state
+      localStorage.setItem(cacheKey, revenue.toString());
+      setTotalRevenue(revenue);
+    } catch (err) {
+      console.error("Error fetching vendor revenue:", err);
     }
-  };
+  }
 
   const filteredActivities = activities.filter((activity) => {
     if (filterOptions === "All") return true;
@@ -645,7 +629,7 @@ const VendorDashboard = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="flex flex-col justify-center translate-y-8 ">
           <div className="flex justify-between mb-3">
             <p className="text-black text-lg font-semibold">Recent activity</p>

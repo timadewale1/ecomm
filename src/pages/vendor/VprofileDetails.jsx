@@ -77,6 +77,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
     shopName = "",
     email = "",
     bankDetails = {},
+    returnPolicy = { type: "NONE", notes: "" },
     categories = [],
     Address = "",
     location = { lat: null, lng: null },
@@ -137,6 +138,9 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
         }
         updateObj = { wearReadinessRating: num };
         newProfile = { ...userData, wearReadinessRating: num };
+      } else if (field === "returnPolicy") {
+        updateObj = { returnPolicy: value };
+        newProfile = { ...userData, returnPolicy: value };
       } else {
         // every other field
         updateObj = { [field]: value };
@@ -161,7 +165,19 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
       setProcessing(false);
     }
   };
+  const policyText = {
+    NO_RETURNS: { heading: "All sales final – no returns" },
+    NO_RETURNS_AFTER_24HRS: { heading: "No returns after 24 hrs" },
+    NO_RETURNS_IF_CORRECT_ITEM: { heading: "No returns if item matches order" },
+    NO_RETURNS_SIZE_COLOR: {
+      heading: "No returns for buyer size/colour errors",
+    },
+    RETURNS_EXCHANGE_ONLY: { heading: "Returns – exchange only" },
 
+    RETURNS_REFUND_IF_DEFECT: { heading: "Return & refund if defective" },
+    RETURNS_REFUND_FLEX: { heading: "Returns & refund – flexible" },
+    NONE: { heading: "Not set" }, // fallback
+  };
   const sourcingMarketDisplay = Array.isArray(sourcingMarket)
     ? sourcingMarket.join(", ")
     : sourcingMarket;
@@ -384,13 +400,35 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
               </div>
             </>
           )}
+          {/* Return / Refund Policy */}
+          <div className="flex flex-col bg-customGrey rounded mb-2 w-full">
+            <h1 className="text-xs text-gray-500 pl-6 pt-2">
+              Return / Refund Policy
+            </h1>
+            <div className="flex items-center justify-between px-4 py-3">
+              <MdOutlineDryCleaning className="text-xl mr-4" />
+              <p className="flex-1 text-sm font-poppins">
+                {policyText[returnPolicy?.type ?? "NONE"].heading}
+              </p>
+              <RiEditFill
+                className="text-xl cursor-pointer"
+                onClick={() =>
+                  setEditingField({
+                    field: "returnPolicy",
+                    value: userData.returnPolicy ?? { type: "NONE", notes: "" },
+                  })
+                }
+              />
+            </div>
+          </div>
+
           {/* Sourcing market */}
           <div className="flex flex-col bg-customGrey rounded mb-2 w-full">
             <h1 className="text-xs text-gray-500 pl-6 pt-2">Sourcing Market</h1>
             <div className="flex items-center justify-between px-4 py-3">
               <FaShop className="text-xl mr-4" />
               <p className="flex-1 font-poppins text-sm">
-                 {sourcingMarketDisplay || "Not set"}
+                {sourcingMarketDisplay || "Not set"}
               </p>
               <RiEditFill
                 className="text-xl cursor-pointer"

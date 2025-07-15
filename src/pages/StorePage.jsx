@@ -98,6 +98,8 @@ import { GrShare } from "react-icons/gr";
 import { RiHeart3Fill, RiHeart3Line, RiSearchLine } from "react-icons/ri";
 import PickupInfoModal from "../components/Location/PickupModal";
 import StockpileInfoModal from "../components/StockpileModal";
+import IframeModal from "../components/PwaModals/PushNotifsModal";
+import VendorPolicyModal from "./Legal/VendorPolicyModal";
 Modal.setAppElement("#root"); // For accessibility
 
 const FlipCountdown = ({ endTime }) => {
@@ -286,7 +288,13 @@ function VendorDetails({ vendor }) {
     </div>
   );
 }
-function AdditionalDetails({ vendor, badgeMessages }) {
+function AdditionalDetails({
+  vendor,
+  onPlatformPolicyClick,
+  onVendorPolicyClick,
+  badgeMessages,
+  onLinkClick,
+}) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true });
   const [isOpen, setIsOpen] = useState(false);
@@ -375,20 +383,27 @@ function AdditionalDetails({ vendor, badgeMessages }) {
                 <p className="text-xs text-gray-600 font-opensans">
                   My Thrift has a platform-wide return policy that overrides
                   vendor rules in cases like{" "}
-                  <a
-                    href="/returns#damaged"
-                    className="underline text-customOrange"
+                  <span
+                    onClick={() => onLinkClick("6")}
+                    className="underline text-customOrange cursor-pointer"
                   >
                     damaged items
-                  </a>
-                  . This vendor’s own policy is{" "}
-                  <a
-                    href={vendor.returnPolicyLink}
-                    className="underline text-customOrange"
-                  >
-                    here
-                  </a>
-                  .
+                  </span>
+                  .{" "}
+                  {vendor.returnPolicy ? (
+                    <>
+                      View this vendor’s own policy{" "}
+                      <span
+                        onClick={onVendorPolicyClick}
+                        className="underline text-customOrange cursor-pointer"
+                      >
+                        here
+                      </span>
+                      .
+                    </>
+                  ) : (
+                    "This vendor hasn’t published a policy yet."
+                  )}
                 </p>
               </div>
             </div>
@@ -460,12 +475,15 @@ const StorePage = () => {
     stockpileExpiry,
     loading: stockpileLoading,
   } = useSelector((state) => state.stockpile);
+  const [showVendorPolicy, setShowVendorPolicy] = useState(false);
   const isStockpileForThisVendor = isActive && stockpileVendorId === id;
   const lastScrollY = useRef(0);
   const [showStockpileIntro, setShowStockpileIntro] = useState(false);
   const [showSharedHeader, setShowSharedHeader] = useState(true);
   const [showPickupIntro, setShowPickupIntro] = useState(false);
   const [userCoords, setUserCoords] = useState(null);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [termsUrl, setTermsUrl] = useState("");
 
   useEffect(() => {
     if (!vendor) return;
@@ -1150,7 +1168,16 @@ const StorePage = () => {
         vendor={vendor}
         onClose={closeStockpileIntro}
       />
-
+      <IframeModal
+        show={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        url={termsUrl}
+      />
+      <VendorPolicyModal
+        show={showVendorPolicy}
+        onClose={() => setShowVendorPolicy(false)}
+        policy={vendor.returnPolicy ?? { type: "NONE", notes: "" }}
+      />
       <div className="p-3 mb-24">
         <div className="">
           {/* Header - Different styles based on state */}
@@ -1422,6 +1449,13 @@ const StorePage = () => {
                 <AdditionalDetails
                   vendor={vendor}
                   badgeMessages={badgeMessages}
+                  onVendorPolicyClick={() => setShowVendorPolicy(true)}
+                  onLinkClick={(fragment) => {
+                    setTermsUrl(
+                      `https://www.shopmythrift.store/terms-and-conditions#${fragment}`
+                    );
+                    setShowTermsModal(true);
+                  }}
                 />
               )}
               <hr className="mt-6 border-gray-100" />

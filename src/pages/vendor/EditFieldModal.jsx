@@ -28,7 +28,7 @@ const SOURCING_OPTIONS = [
   "My closet",
   "SHEIN",
   "Alibaba",
-  
+
   "Katangua Market",
   "Aswani Market",
   "Oshodi Market",
@@ -95,6 +95,7 @@ const EditFieldModal = ({
     complexNumber: "Complex Number",
     Address: "Address",
     sourcingMarket: "Sourcing Market",
+    returnPolicy: "Return / Refund Policy",
     restockFrequency: "Restock Frequency",
     wearReadinessRating: "Wear‑Readiness Rating",
     description: "Description",
@@ -208,6 +209,75 @@ const EditFieldModal = ({
           </div>
         </>
       );
+    if (field === "returnPolicy") {
+      const POLICY_CHOICES = [
+        { value: "NO_RETURNS", label: "All sales final – no returns" },
+        {
+          value: "NO_RETURNS_AFTER_24HRS",
+          label: "No returns after 24 hrs of delivery",
+        },
+        {
+          value: "NO_RETURNS_IF_CORRECT_ITEM",
+          label: "No returns if item matches order",
+        },
+        {
+          value: "NO_RETURNS_SIZE_COLOR",
+          label: "No returns for buyer size / colour mistakes",
+        },
+        {
+          value: "RETURNS_EXCHANGE_ONLY",
+          label: "Returns accepted – exchange only",
+        },
+     
+        {
+          value: "RETURNS_REFUND_IF_DEFECT",
+          label: "Return & refund if defective / mis‑described",
+        },
+        {
+          value: "RETURNS_REFUND_FLEX",
+          label: "Returns & refund – flexible policy",
+        },
+      ];
+
+      return (
+        <>
+          <select
+            value={value?.type || "NO_RETURNS"}
+            onChange={(e) => setValue({ ...value, type: e.target.value })}
+            className="w-full px-3 py-2 border rounded-lg focus:ring-customOrange mb-3"
+          >
+            {POLICY_CHOICES.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          <textarea
+            rows={3}
+            placeholder="Optional extra notes (max 200 chars)"
+            maxLength={200}
+            value={value?.notes || ""}
+            onChange={(e) => setValue({ ...value, notes: e.target.value })}
+            className="w-full px-3 py-2 border rounded-lg resize-none"
+          />
+
+          {/* disclaimer */}
+          <p className="mt-4 text-[11px] text-customRichBrown leading-snug">
+            <strong>Heads‑up for vendors:</strong> My Thrift’s platform‑wide
+            policy <em>always</em> overrides individual store rules in the
+            following situations:
+            <br />• item arrives badly damaged or unusable, <br />• item is
+            materially different from photos / description, <br />• obvious
+            vendor mis‑representation (e.g.&nbsp;“Nike” photo sent as “Neki”).
+            <br />
+            In such cases the buyer may be eligible for a full refund even if
+            your store policy says otherwise.
+          </p>
+        </>
+      );
+    }
+
     if (field === "restockFrequency") {
       return (
         <select

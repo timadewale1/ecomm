@@ -153,7 +153,7 @@ const Marketpg = () => {
               </div>
             )}
             {!isSearching && (
-              <div className="flex scrollbar-hide mb-1 w-full px-2 overflow-x-auto space-x-2">
+              <div className="flex scrollbar-hide mb-1 w-full overflow-x-auto space-x-2">
                 {/* Delivery Filter - Placed First as Requested */}
                 <button
                   onClick={() => setHasDelivery(!hasDelivery)}
@@ -240,7 +240,7 @@ const Marketpg = () => {
                 className="vendor-item border-b border-gray-100 "
               >
                 <div
-                  className="flex justify-between p-3 mb-1 bg-white "
+                  className="flex justify-between p-3 mb-3 bg-white "
                   onClick={() => handleStoreView(vendor)}
                 >
                   <div>

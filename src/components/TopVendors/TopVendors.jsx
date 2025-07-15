@@ -1,3 +1,4 @@
+// src/components/TopVendors.jsx
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchTopVendors } from "../../redux/reducers/topVendorsSlice";
@@ -19,21 +20,13 @@ import toast from "react-hot-toast";
 import { useAuth } from "../../custom-hooks/useAuth";
 import Skeleton from "react-loading-skeleton";
 import Modal from "react-modal";
-import {
-  FaStar,
-  FaHeart,
-  FaRegHeart,
-  FaPlus,
-  FaCheck,
-  FaStarHalfAlt,
-  FaRegStar,
-} from "react-icons/fa";
-import { CiLogin } from "react-icons/ci";
-import { LiaTimesSolid } from "react-icons/lia";
-import { motion, AnimatePresence } from "framer-motion";
-import "react-loading-skeleton/dist/skeleton.css";
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
 import { GoDotFill } from "react-icons/go";
+import { FaStar } from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
+import RotatingCategoryPill from "./CategoryPills";
+import { CiLogin } from "react-icons/ci";
+import { LiaTimesSolid } from "react-icons/lia";
 
 Modal.setAppElement("#root");
 
@@ -42,9 +35,11 @@ export default function TopVendors() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
 
- const { list: vendors, status } = useSelector((s) => s.topVendors);
-
+  const { list: vendors, status } = useSelector((s) => s.topVendors);
   const [followed, setFollowed] = useState({});
+  const [showLogin, setShowLogin] = useState(false);
+
+  // Load follow state
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
@@ -54,16 +49,18 @@ export default function TopVendors() {
         const map = {};
         snap.forEach((d) => (map[d.data().vendorId] = true));
         setFollowed(map);
-      } else setFollowed({});
+      } else {
+        setFollowed({});
+      }
     });
     return () => unsub();
   }, []);
 
-   useEffect(() => {
+  // Fetch vendors
+  useEffect(() => {
     if (status === "idle") dispatch(fetchTopVendors());
   }, [status, dispatch]);
 
-  const [showLogin, setShowLogin] = useState(false);
   const toggleFollow = async (e, vendorId) => {
     e.stopPropagation();
     if (!currentUser) {
@@ -80,7 +77,6 @@ export default function TopVendors() {
         {},
         { collectionName: "usage_metadata", writeLimit: 50, minuteLimit: 8 }
       );
-
       const ref = doc(db, "follows", `${currentUser.uid}_${vendorId}`);
       if (willFollow) {
         await setDoc(ref, {
@@ -97,7 +93,7 @@ export default function TopVendors() {
     }
   };
 
- if (status === "loading") {
+  if (status === "loading") {
     return (
       <div className="my-1 mb-2 mt-6 px-4">
         <h2 className="text-xl font-medium mb-3 font-ubuntu mt-4">
@@ -119,122 +115,97 @@ export default function TopVendors() {
   }
   if (!vendors.length) return null;
 
- const avg = (v) =>
+  const avg = (v) =>
     v.ratingCount ? (v.rating / v.ratingCount).toFixed(1) : "0.0";
 
   return (
-    <div className="my-1 mb-2 bg-gray-50 py-2  px-4">
+    <div className="my-1 mb-2 bg-gray-50 py-2 px-4">
       <h2 className="text-xl font-semibold mb-3 font-opensans mt-4">
         Handpicked just for you 🧡
       </h2>
 
       <div className="flex space-x-8 overflow-x-scroll scrollbar-hide pb-4">
-        {vendors.map((v) => {
-          const cats = v.categories?.length ? v.categories : ["Thrift"];
-          /* rotate category text */
-          const [ci, setCi] = useState(0);
-          useEffect(() => {
-            if (cats.length <= 1) return;
-            const id = setInterval(
-              () => setCi((i) => (i + 1) % cats.length),
-              2000
-            );
-            return () => clearInterval(id);
-          }, [cats]);
+        {vendors.map((v) => (
+          <div
+            key={v.id}
+            className="min-w-[250px] max-w-[250px] cursor-pointer"
+            onClick={() => navigate(`/store/${v.id}`)}
+          >
+            <div className="relative">
+              <IkImage
+                src={
+                  v.coverImageUrl ||
+                  "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg"
+                }
+                alt={v.shopName}
+                className="w-full h-36 object-cover rounded-md"
+              />
 
-          return (
-            <div
-              key={v.id}
-              className="min-w-[250px] max-w-[250px] cursor-pointer"
-              onClick={() => navigate(`/store/${v.id}`)}
-            >
-              {/* ── image + overlays ─────────────────────────────── */}
-              <div className="relative">
-                <IkImage
-                  src={
-                    v.coverImageUrl ||
-                    "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg"
-                  }
-                  alt={v.shopName}
-                  className="w-full h-36 object-cover rounded-md"
+              {/* rotating category pill */}
+              <div className="absolute top-2 left-2">
+                <RotatingCategoryPill
+                  categories={v.categories?.length ? v.categories : ["Thrift"]}
                 />
+              </div>
 
-                {/* category pill (top‑left) */}
-                <div className="absolute top-2 left-2">
-                  <AnimatePresence mode="wait">
+              {/* follow heart */}
+              <button
+                onClick={(e) => toggleFollow(e, v.id)}
+                className="absolute top-2 right-2 bg-white bg-opacity-75 rounded-full p-1"
+              >
+                <AnimatePresence mode="wait">
+                  {followed[v.id] ? (
                     <motion.div
-                      key={ci}
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 4 }}
-                      transition={{ duration: 0.25 }}
-                      className="px-3 py-0.5 text-[11px] rounded-full bg-white bg-opacity-20 backdrop-blur-md border border-white border-opacity-30 font-opensans font-medium text-black shadow-sm"
+                      key="filled"
+                      initial={{ scale: 0, rotate: -30, opacity: 0 }}
+                      animate={{
+                        scale: [1, 1.3, 1],
+                        rotate: 0,
+                        opacity: 1,
+                      }}
+                      exit={{ scale: 0, rotate: 30, opacity: 0 }}
+                      transition={{
+                        duration: 0.4,
+                        times: [0, 0.4, 1],
+                        ease: "easeInOut",
+                      }}
                     >
-                      {cats[ci]}
+                      <RiHeart3Fill className="text-customOrange text-lg" />
                     </motion.div>
-                  </AnimatePresence>
-                </div>
-
-                {/* heart follow (top‑right) */}
-                <button
-                  onClick={(e) => toggleFollow(e, v.id)}
-                  className="absolute top-2 right-2 bg-white bg-opacity-75 rounded-full p-1"
-                >
-                  <AnimatePresence mode="wait">
-                    {followed[v.id] ? (
-                      <motion.div
-                        key="filled"
-                        initial={{ scale: 0, rotate: -30, opacity: 0 }}
-                        animate={{
-                          scale: [1, 1.3, 1],
-                          rotate: 0,
-                          opacity: 1,
-                        }}
-                        exit={{ scale: 0, rotate: 30, opacity: 0 }}
-                        transition={{
-                          duration: 0.4,
-                          times: [0, 0.4, 1],
-                          ease: "easeInOut",
-                        }}
-                      >
-                        <RiHeart3Fill className="text-customOrange text-lg" />
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="outline"
-                        initial={{ scale: 0, rotate: 30, opacity: 0 }}
-                        animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                        exit={{ scale: 0, rotate: -30, opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <RiHeart3Line className="text-black text-lg" />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </button>
-              </div>
-              <div className="flex mt-2 items-center justify-start">
-                <h3 className=" text-sm font-opensans font-semibold">
-                  {v.shopName?.length > 15
-                    ? `${v.shopName.slice(0, 15)}…`
-                    : v.shopName}
-                </h3>
-                <GoDotFill className="mx-1 dot-size text-gray-300" />
-                <div className="flex items-center  space-x-1">
-                  <FaStar className="text-yellow-400 text-xs" />
-                  <span className="text-xs font-opensans text-black">
-                    {avg(v)}
-                  </span>
-                </div>
-              </div>
-
-              {/* ── shop name & rating ───────────────────────────── */}
+                  ) : (
+                    <motion.div
+                      key="outline"
+                      initial={{ scale: 0, rotate: 30, opacity: 0 }}
+                      animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                      exit={{ scale: 0, rotate: -30, opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <RiHeart3Line className="text-black text-lg" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </button>
             </div>
-          );
-        })}
+
+            <div className="flex mt-2 items-center justify-start">
+              <h3 className="text-sm font-opensans font-semibold">
+                {v.shopName.length > 15
+                  ? `${v.shopName.slice(0, 15)}…`
+                  : v.shopName}
+              </h3>
+              <GoDotFill className="mx-1 dot-size text-gray-300" />
+              <div className="flex items-center space-x-1">
+                <FaStar className="text-yellow-400 text-xs" />
+                <span className="text-xs font-opensans text-black">
+                  {avg(v)}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* ── login modal ────────────────────────────────────────── */}
+      {/* login modal */}
       <Modal
         isOpen={showLogin}
         onRequestClose={() => setShowLogin(false)}
@@ -259,12 +230,10 @@ export default function TopVendors() {
               className="text-black text-xl mb-6 cursor-pointer"
             />
           </div>
-
           <p className="mb-6 text-xs font-opensans text-gray-800">
             You need to be logged in to follow vendors and get updates. Please
             log in or create a new account to continue.
           </p>
-
           <div className="flex space-x-16">
             <button
               onClick={() => {

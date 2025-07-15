@@ -37,10 +37,13 @@ const PersonalDiscountCarousel = () => {
       {/* Header */}
       <div className="flex items-center justify-between px-2 py-2 w-full bg-white">
         <div className="flex items-center">
-          <h2 className="font-ubuntu text-black text-xl font-medium mr-1">
+          <h2 className="font-opensans text-black text-lg font-semibold mr-1">
             {headerName}
           </h2>
-          <RiDiscountPercentFill className="text-xl text-green-700" />
+          <div className="relative ">
+            <div className="absolute -inset-1 animate-ping bg-gradient-to-r from-green-600 to-emerald-600 rounded-full opacity-20 blur-sm"></div>
+            <RiDiscountPercentFill className="relative text-2xl text-green-600 drop-shadow-sm" />
+          </div>{" "}
         </div>
         <div className="pr-4">
           <span
@@ -59,7 +62,12 @@ const PersonalDiscountCarousel = () => {
         ) : (
           discounts.map((discount) => (
             <div key={discount.id} className="flex-shrink-0 w-[160px]">
-              <ProductCard product={discount} isLoading={false} />
+              <ProductCard
+                product={discount}
+                isLoading={false}
+                showName={false}
+                showCondition={false}
+              />
             </div>
           ))
         )}

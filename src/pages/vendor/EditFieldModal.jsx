@@ -1,24 +1,73 @@
 import React, { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import Lottie from "lottie-react";
+import { MdClose } from "react-icons/md";
 import LoadState from "../../Animations/loadinganimation.json";
 import LocationPicker from "../../components/Location/LocationPicker";
 
+/* ------------------------------------------------------------------ */
+/*  Constants                                                          */
+/* ------------------------------------------------------------------ */
 const DAYS_OF_WEEK = [
-  { label: "Monday", value: "Monday" },
-  { label: "Tuesday", value: "Tuesday" },
-  { label: "Wednesday", value: "Wednesday" },
-  { label: "Thursday", value: "Thursday" },
-  { label: "Friday", value: "Friday" },
-  { label: "Saturday", value: "Saturday" },
-  { label: "Sunday", value: "Sunday" },
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
 ];
-
 const PREDEFINED_OPTIONS = [
-  { label: "All Days", value: "All Days" },
-  { label: "Only Weekdays", value: "Only Weekdays" },
-  { label: "Only Weekends", value: "Only Weekends" },
+  { label: "All Days", value: "ALL" },
+  { label: "Only Weekdays", value: "WK" },
+  { label: "Only Weekends", value: "WE" },
+];
+const SOURCING_OPTIONS = [
+  "Yaba Market",
+  "Tejuosho Market",
+  "My closet",
+  "SHEIN",
+  "Alibaba",
+  
+  "Katangua Market",
+  "Aswani Market",
+  "Oshodi Market",
+  "Balogun Market",
+  "Bali Market",
+  "Mushin Market",
+  "Ajah Market",
+  "Badagry Market",
+  "Dugbe Market",
+  "Ahia Ohuru (New Market)",
+  "Ariaria International Market",
+  "Onitsha Main Market",
+  "Ogbete Main Market",
+  "Oil Mill Market",
+  "Mile One Market",
+  "Mile Three Market",
+  "Mile Two Market",
+  "Choba Market",
+  "Itam Market",
+  "Akpan Andem Market",
+  "Wuse Market",
+  "Karimo Market",
+  "Mararaba Market",
+  "Sabon Gari Market",
+  "Kantin Kwari Market",
+  "Kasuwar Barci Market",
+  "Tudun Wada Market",
+  "Monday Market",
 ];
 
+const RESTOCK_OPTIONS = ["Daily", "Weekly", "Bi‑Weekly", "Monthly"];
+const TIME_OPTS = Array.from({ length: 24 }, (_, h) => [
+  `${h.toString().padStart(2, "0")}:00`,
+  `${h.toString().padStart(2, "0")}:30`,
+]).flat();
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                          */
+/* ------------------------------------------------------------------ */
 const EditFieldModal = ({
   show,
   handleClose,
@@ -27,220 +76,315 @@ const EditFieldModal = ({
   processing,
   onSave,
 }) => {
-  // Local state for the edited value
+  /* ------------ local state ------------ */
   const [value, setValue] = useState(currentValue);
-  // For Address, capture lat/lng
-  const [locationCoords, setLocationCoords] = useState({
-    lat: null,
-    lng: null,
-  });
+  const [coords, setCoords] = useState({ lat: null, lng: null });
 
-  // Whenever the modal opens (show=true) or the field changes, reset local state
+  /* ------------ reset when open -------- */
   useEffect(() => {
     setValue(currentValue);
-    if (field === "Address") {
-      // clear coords when re-opening Address
-      setLocationCoords({ lat: null, lng: null });
-    }
+    if (field === "Address") setCoords({ lat: null, lng: null });
   }, [currentValue, field]);
+  const ratingLocked = field === "wearReadinessRating" && currentValue;
 
-  // Save handler: validation per field, then call onSave
-  const handleSave = () => {
-    if (field === "daysAvailability") {
-      if (!Array.isArray(value) || value.length === 0) {
-        alert("Please select at least one day.");
-        return;
-      }
-    }
-    if (field === "Address") {
-      // require lat & lng
-      if (!locationCoords.lat || !locationCoords.lng) {
-        alert("Please pick a location on the map.");
-        return;
-      }
-      // Address needs the string + coords
-      onSave(field, value, locationCoords);
+  /* ------------ helpers ---------------- */
+  const titleMap = {
+    openTime: "Opening Time",
+    closeTime: "Closing Time",
+    daysAvailability: "Days of Availability",
+    complexNumber: "Complex Number",
+    Address: "Address",
+    sourcingMarket: "Sourcing Market",
+    restockFrequency: "Restock Frequency",
+    wearReadinessRating: "Wear‑Readiness Rating",
+    description: "Description",
+  };
+  const title = titleMap[field] ?? "Edit";
+
+  const predefinedHandler = (code) => {
+    if (code === "ALL") setValue([...DAYS_OF_WEEK]);
+    else if (code === "WK") setValue(DAYS_OF_WEEK.slice(0, 5));
+    else setValue(DAYS_OF_WEEK.slice(5));
+  };
+
+  const toggleDay = (day) =>
+    setValue((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    );
+  const orangeChip = (active) =>
+    `inline-block rounded-full px-3 py-1 text-xs font-medium 
+   border ${
+     active
+       ? "bg-customOrange text-white border-customOrange"
+       : "border-gray-300"
+   }`;
+  const RESTOCK_OPTIONS = [
+    "Daily",
+    "Every 3 days",
+    "Every 4 days",
+    "Weekly",
+    "Every 2 weeks",
+  ];
+  /* ------------ validation + save ------ */
+  const save = () => {
+    if (field === "daysAvailability" && (!value || value.length === 0))
+      return alert("Pick at least one day.");
+    if (field === "Address" && (!coords.lat || !coords.lng))
+      return alert("Choose a location on the map.");
+    if (field === "wearReadinessRating") {
+      const num = Number(value);
+      if (Number.isNaN(num) || num < 1 || num > 10)
+        return alert("Rating must be 1 – 10");
+      onSave(field, num);
+    } else if (field === "Address") {
+      onSave(field, value, coords);
     } else {
       onSave(field, value);
     }
     handleClose();
   };
+  const helperText = {
+    sourcingMarket:
+      "Shoppers love to know where you thrift from, makes them feel involved in the process.",
+    restockFrequency:
+      "Let your customers know when to check in- encourage them to also follow your store.",
+    wearReadinessRating:
+      "This field is how wear ready your clothes are, if Ade buys your item can he use it immediately without washing? this field input is allowed only once you cant edit and it is subject to reduction if feedback from customers say otherwise.",
+  }[field];
 
-  // Build the list of time options every :00 and :30
-  const timeOptions = Array.from({ length: 24 }, (_, hour) => {
-    const h = hour < 10 ? `0${hour}` : hour;
-    return [`${h}:00`, `${h}:30`];
-  }).flat();
-
-  // Predefined day-sets
-  const handlePredefinedSelection = (opt) => {
-    if (opt === "All Days") {
-      setValue(DAYS_OF_WEEK.map((d) => d.value));
-    } else if (opt === "Only Weekdays") {
-      setValue(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
-    } else {
-      setValue(["Saturday", "Sunday"]);
-    }
-  };
-
-  // Toggle a single day in daysAvailability
-  const handleDayToggle = (day) =>
-    setValue((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    );
-
-  // Depending on the field, render the appropriate input
-  const renderInputField = () => {
-    // Time dropdowns
-    if (field === "openTime" || field === "closeTime") {
+  /* ------------ field‑specific UI ------ */
+  const inputUI = () => {
+    if (field === "openTime" || field === "closeTime")
       return (
         <select
           value={value}
           onChange={(e) => setValue(e.target.value)}
           className="w-full px-3 py-2 border rounded-lg focus:ring-customOrange"
         >
-          {timeOptions.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
+          {TIME_OPTS.map((t) => (
+            <option key={t}>{t}</option>
+          ))}
+        </select>
+      );
+
+    if (field === "daysAvailability")
+      return (
+        <>
+          <div className="mb-4 space-x-2">
+            {PREDEFINED_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                onClick={() => predefinedHandler(o.value)}
+                className={`text-xs px-2 py-1 rounded-lg ${
+                  (o.value === "ALL" && value?.length === 7) ||
+                  (o.value === "WK" &&
+                    JSON.stringify(value) ===
+                      JSON.stringify(DAYS_OF_WEEK.slice(0, 5))) ||
+                  (o.value === "WE" &&
+                    JSON.stringify(value) ===
+                      JSON.stringify(DAYS_OF_WEEK.slice(5)))
+                    ? "bg-customOrange text-white"
+                    : "bg-gray-200"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {DAYS_OF_WEEK.map((d) => (
+              <button
+                key={d}
+                onClick={() => toggleDay(d)}
+                className={`text-xs px-3 py-2 rounded-lg ${
+                  value?.includes(d)
+                    ? "bg-customOrange text-white"
+                    : "bg-gray-200"
+                }`}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+        </>
+      );
+    if (field === "restockFrequency") {
+      return (
+        <select
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-full px-3 py-2 border rounded-lg focus:ring-customOrange"
+        >
+          <option value="">How often do you restock?</option>
+          {RESTOCK_OPTIONS.map((opt) => (
+            <option key={opt}>{opt}</option>
           ))}
         </select>
       );
     }
-
-    // Days of week multi-select
-    if (field === "daysAvailability") {
-      return (
-        <>
-          <div className="mb-4">
-            <h6 className="font-medium mb-2">Predefined Options</h6>
-            {PREDEFINED_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                className={`px-2 py-2 rounded-lg text-xs mr-1 ${
-                  (opt.value === "All Days" &&
-                    Array.isArray(value) &&
-                    value.length === 7) ||
-                  (opt.value === "Only Weekdays" &&
-                    JSON.stringify(value) ===
-                      JSON.stringify([
-                        "Monday",
-                        "Tuesday",
-                        "Wednesday",
-                        "Thursday",
-                        "Friday",
-                      ])) ||
-                  (opt.value === "Only Weekends" &&
-                    JSON.stringify(value) ===
-                      JSON.stringify(["Saturday", "Sunday"]))
-                    ? "bg-customOrange text-white"
-                    : "bg-gray-200 text-black"
-                }`}
-                onClick={() => handlePredefinedSelection(opt.value)}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          <div>
-            <h6 className="font-medium mb-2">Select Days</h6>
-            <div className="grid grid-cols-3 gap-2">
-              {DAYS_OF_WEEK.map((day) => (
-                <button
-                  key={day.value}
-                  type="button"
-                  className={`px-3 py-2 rounded-lg text-xs ${
-                    Array.isArray(value) && value.includes(day.value)
-                      ? "bg-customOrange text-white"
-                      : "bg-gray-200 text-black"
-                  }`}
-                  onClick={() => handleDayToggle(day.value)}
-                >
-                  {day.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      );
-    }
-
-    // Address uses your LocationPicker
-    if (field === "Address") {
+    if (field === "Address")
       return (
         <LocationPicker
           initialAddress={value}
           onLocationSelect={({ address, lat, lng }) => {
             setValue(address);
-            setLocationCoords({ lat, lng });
+            setCoords({ lat, lng });
           }}
         />
       );
+    if (field === "sourcingMarket") {
+      const max = 4;
+
+      return (
+        <>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] text-gray-500">
+              Pick up to <strong>{max}</strong> markets you usually thrift from.
+            </p>
+
+            {/* CLEAR button */}
+            {Array.isArray(value) && value.length > 0 && (
+              <button
+                onClick={() => setValue([])}
+                className="text-[11px] text-customOrange font-semibold hover:underline"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {SOURCING_OPTIONS.map((opt) => {
+              const active = Array.isArray(value) && value.includes(opt);
+              const disabled =
+                !active && Array.isArray(value) && value.length >= max;
+
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => {
+                    if (active) {
+                      setValue((prev) => prev.filter((o) => o !== opt));
+                    } else if (!disabled) {
+                      setValue((prev = []) => [...prev, opt]);
+                    }
+                  }}
+                  className={`inline-block rounded-full px-3 py-1 text-xs font-medium border
+                ${
+                  active
+                    ? "bg-customOrange text-white border-customOrange"
+                    : disabled
+                    ? "bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed"
+                    : "border-gray-300"
+                }`}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      );
     }
 
-    // Fallback: free-form textarea
+    if (field === "wearReadinessRating")
+      return ratingLocked ? (
+        <p className="text-sm text-gray-700">{currentValue} / 10 (locked)</p>
+      ) : (
+        <input
+          type="number"
+          min="1"
+          max="10"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-full px-3 py-2 border rounded-lg focus:ring-customOrange"
+        />
+      );
+
+    /* description / fallback */
     return (
       <textarea
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className="w-full px-3 py-2 border rounded-lg focus:ring-customOrange"
+        rows={5}
+        className="w-full px-3 py-2 resize-none focus:outline-none border rounded-lg scrollbar-hide"
+        style={{ scrollbarWidth: "none" }}
       />
     );
   };
 
-  // Compute a friendly title to display
-  const title =
-    field === "openTime"
-      ? "Opening Time"
-      : field === "closeTime"
-      ? "Closing Time"
-      : field === "daysAvailability"
-      ? "Days of Availability"
-      : field === "complexNumber"
-      ? "Complex Number"
-      : field === "Address"
-      ? "Address"
-      : "Description";
-
-  if (!show) return null;
+  /* ------------ animation shell -------- */
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg w-11/12 max-w-md p-6">
-        <h3 className="text-lg font-bold mb-4">{`Edit ${title}`}</h3>
-        <label className="block mb-2 font-medium">{title}</label>
-        {renderInputField()}
-        <div className="flex justify-end gap-4 mt-6">
-          <button
+    <AnimatePresence>
+      {show && (
+        <>
+          {/* dimmed backdrop */}
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.5 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black z-40"
             onClick={handleClose}
-            className="px-4 py-2 bg-gray-200 rounded-lg"
+          />
+
+          {/* sliding sheet */}
+          <motion.div
+            key="sheet"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "tween", duration: 0.3 }}
+            className="fixed bottom-0 left-0 right-0 z-[5000] bg-white rounded-t-2xl p-6 pb-8 shadow-2xl"
           >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={
-              processing ||
-              (field === "Address" &&
-                (!locationCoords.lat || !locationCoords.lng))
-            }
-            className={`px-4 py-2 rounded-lg text-white flex items-center justify-center ${
-              processing ||
-              (field === "Address" &&
-                (!locationCoords.lat || !locationCoords.lng))
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-customOrange"
-            }`}
-          >
-            {processing ? (
-              <Lottie className="w-6 h-6" animationData={LoadState} loop />
-            ) : (
-              "Save"
+            {/* close icon */}
+            <button
+              onClick={handleClose}
+              className="absolute top-4 right-4 bg-gray-200 p-1 rounded-full text-xl text-gray-600"
+            >
+              <MdClose />
+            </button>
+
+            <h3 className="text-lg font-semibold mb-4">{`Edit ${title}`}</h3>
+            {inputUI()}
+            {helperText && (
+              <>
+                <hr className="border-gray-100 my-2 " />
+                <p className="text-[11px] font-opensans text-customRichBrown mb-4">
+                  {helperText}
+                </p>
+              </>
             )}
-          </button>
-        </div>
-      </div>
-    </div>
+
+            <div className="flex justify-end gap-4 mt-6">
+              <button
+                onClick={save}
+                disabled={
+                  processing ||
+                  ratingLocked ||
+                  (field === "Address" && (!coords.lat || !coords.lng))
+                }
+                className={`px-4 py-2 rounded-lg text-white flex items-center justify-center ${
+                  processing ||
+                  (field === "Address" && (!coords.lat || !coords.lng))
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-customOrange"
+                }`}
+              >
+                {processing ? (
+                  <Lottie className="w-6 h-6" animationData={LoadState} loop />
+                ) : (
+                  "Save"
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 };
 

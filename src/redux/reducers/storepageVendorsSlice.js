@@ -13,7 +13,7 @@ import {
   query,
 } from "firebase/firestore";
 
-const PAGE_SIZE = 20; // ⬅ how many products per “page”
+const PAGE_SIZE = 51; // ⬅ how many products per “page”
 export const fetchVendorCategories = createAsyncThunk(
   "storepageVendors/fetchVendorCategories",
   async (vendorId, { rejectWithValue }) => {
@@ -163,6 +163,7 @@ const storepageVendorsSlice = createSlice({
           vendor,
           products: existing?.products ?? [],
           nextIdx: existing?.nextIdx ?? 0,
+          categories: existing?.categories,
           noMore: existing?.noMore ?? false,
           loadingMore: existing?.loadingMore ?? false,
           scrollY: existing?.scrollY,

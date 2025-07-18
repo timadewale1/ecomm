@@ -337,16 +337,7 @@ const Login = () => {
               <Link to={-1}>
                 <IoCloseOutline className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>
-              <LoginAnimation />
-              <div className="flex transform text-customOrange -translate-y-10 mb-2 justify-center">
-                <Typewriter
-                  options={{
-                    strings: ["The Real Marketplace"],
-                    autoStart: true,
-                    loop: true,
-                  }}
-                />
-              </div>
+           
               <div className="-translate-y-4 px-1 flex flex-col justify-center">
                 <div>
                   <h1 className="text-3xl font-bold font-lato text-black mb-1">

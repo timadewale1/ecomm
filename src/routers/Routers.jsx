@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Loading from "../components/Loading/Loading.jsx";
-
+import StockpileNudge from "../components/StockpileNudge.jsx";
 // Non-lazy loaded components (bottom bar routes, Checkout, StorePage)
 import Checkout from "../pages/NewCheckout.jsx";
 import StorePage from "../pages/StorePage.jsx";
@@ -27,9 +27,7 @@ const VendorDashboard = lazy(() =>
 const FavoritesPage = lazy(() =>
   import("../pages/UserSide/FavoritesProducts.jsx")
 );
-const FAQs = lazy(() =>
-  import("../pages/UserSide/FAQs.jsx")
-);
+const FAQs = lazy(() => import("../pages/UserSide/FAQs.jsx"));
 const VendorProducts = lazy(() =>
   import("../pages/VendorCompleteProfile/VendorProducts.jsx")
 );
@@ -108,10 +106,9 @@ const WithPickupPrompt = lazy(() =>
 const Routers = () => {
   return (
     <Suspense fallback={<Loading />}>
-      <WithPwaInstallModal>
       <Routes>
-          {/* Default Route */}
-          <Route path="/" element={<ConfirmUserState />} />
+        {/* Default Route */}
+        <Route path="/" element={<ConfirmUserState />} />
 
         {/* Public Routes */}
         <Route path="/pay/:token" element={<PayPage />} />
@@ -141,6 +138,7 @@ const Routers = () => {
           element={
             <RoleBasedAccess allowedRoles={["user"]}>
               <WithReviewModal>
+                <StockpileNudge />
                 <Profile />
               </WithReviewModal>
             </RoleBasedAccess>
@@ -151,6 +149,7 @@ const Routers = () => {
           element={
             <RoleBasedAccess allowedRoles={["user"]}>
               <WithReviewModal>
+                <StockpileNudge />
                 <UserWalletPage />
               </WithReviewModal>
             </RoleBasedAccess>
@@ -160,6 +159,7 @@ const Routers = () => {
           path="/producttype/:type"
           element={
             <RoleBasedAccess allowedRoles={["user"]}>
+              <StockpileNudge />
               <CategoryProducts />
             </RoleBasedAccess>
           }
@@ -170,6 +170,8 @@ const Routers = () => {
             <RoleBasedAccess allowedRoles={["user"]}>
               <WithAnswerModal>
                 <WithReviewModal>
+                  <WithPwaInstallModal />
+                  <StockpileNudge />
                   <NewHome />
                 </WithReviewModal>
               </WithAnswerModal>
@@ -181,6 +183,7 @@ const Routers = () => {
           element={
             <RoleBasedAccess allowedRoles={["user"]}>
               <WithReviewModal>
+                <StockpileNudge />
                 <ConditionProducts />
               </WithReviewModal>
             </RoleBasedAccess>
@@ -190,6 +193,7 @@ const Routers = () => {
           path="/favorites"
           element={
             <RoleBasedAccess allowedRoles={["user"]}>
+              <StockpileNudge />
               <FavoritesPage />
             </RoleBasedAccess>
           }
@@ -206,6 +210,7 @@ const Routers = () => {
           path="/user-orders"
           element={
             <RoleBasedAccess allowedRoles={["user"]}>
+              <StockpileNudge />
               <OrdersCentre />
             </RoleBasedAccess>
           }
@@ -215,6 +220,7 @@ const Routers = () => {
           element={
             <RoleBasedAccess allowedRoles={["user"]}>
               <WithReviewModal>
+                <StockpileNudge />
                 <LatestCart />
               </WithReviewModal>
             </RoleBasedAccess>
@@ -224,6 +230,7 @@ const Routers = () => {
           path="/notifications"
           element={
             <RoleBasedAccess allowedRoles={["user"]}>
+              <StockpileNudge />
               <NotificationsPage />
             </RoleBasedAccess>
           }
@@ -240,6 +247,7 @@ const Routers = () => {
           path="/discounts-today"
           element={
             <RoleBasedAccess allowedRoles={["user", null]}>
+              <StockpileNudge />
               <PersonalDiscountsPage />
             </RoleBasedAccess>
           }
@@ -256,6 +264,7 @@ const Routers = () => {
           path="/category/:category"
           element={
             <RoleBasedAccess allowedRoles={["user", null]}>
+              <StockpileNudge />
               <CategoryPage />
             </RoleBasedAccess>
           }
@@ -264,6 +273,7 @@ const Routers = () => {
           path="/market-vendors"
           element={
             <RoleBasedAccess allowedRoles={["user", null]}>
+              <StockpileNudge />
               <MarketVendors />
             </RoleBasedAccess>
           }
@@ -272,6 +282,8 @@ const Routers = () => {
           path="/online-vendors"
           element={
             <RoleBasedAccess allowedRoles={["user", null]}>
+              <StockpileNudge />
+              <WithPwaInstallModal />
               <OnlineVendors />
             </RoleBasedAccess>
           }
@@ -282,6 +294,7 @@ const Routers = () => {
             <RoleBasedAccess allowedRoles={["user", null]}>
               <WithReviewModal>
                 <ErrorBoundary>
+                  <StockpileNudge />
                   <Marketpg />
                 </ErrorBoundary>
               </WithReviewModal>
@@ -301,6 +314,8 @@ const Routers = () => {
           element={
             <RoleBasedAccess allowedRoles={["user", null]}>
               <WithReviewModal>
+                <WithPwaInstallModal />
+                <StockpileNudge />
                 <Explore />
               </WithReviewModal>
             </RoleBasedAccess>
@@ -310,6 +325,7 @@ const Routers = () => {
           path="/reviews/:id"
           element={
             <RoleBasedAccess allowedRoles={["user", null]}>
+              <StockpileNudge />
               <VendorRatings />
             </RoleBasedAccess>
           }
@@ -321,6 +337,7 @@ const Routers = () => {
             path="/vendordashboard"
             element={
               <WithWalletSetupModal>
+                <WithPwaInstallModal />
                 <VendorDashboard />
               </WithWalletSetupModal>
             }
@@ -331,6 +348,7 @@ const Routers = () => {
             element={
               <WithWalletSetupModal>
                 <WithPickupPrompt>
+                  <WithPwaInstallModal />
                   <VendorProducts />
                 </WithPickupPrompt>
               </WithWalletSetupModal>
@@ -373,11 +391,10 @@ const Routers = () => {
           <Route path="/donate" element={<Donate />} />
         </Route>
 
-          <Route path="/not-found" element={<NotFound />} />
-          {/* Catch-all Route for NotFound */}
-          <Route path="*" element={<Navigate to="/not-found" />} />
-        </Routes>
-    </WithPwaInstallModal>
+        <Route path="/not-found" element={<NotFound />} />
+        {/* Catch-all Route for NotFound */}
+        <Route path="*" element={<Navigate to="/not-found" />} />
+      </Routes>
     </Suspense>
   );
 };

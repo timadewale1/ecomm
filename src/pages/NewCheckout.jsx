@@ -5,11 +5,15 @@ import { toast } from "react-hot-toast";
 import { clearCart } from "../redux/actions/action";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase.config";
-
+import { PiStackPlusFill, PiStackSimpleFill } from "react-icons/pi";
+import { getTripAdvice } from "../services/estimateTrips";
 import { useAuth } from "../custom-hooks/useAuth";
 import { RiShareForwardBoxLine } from "react-icons/ri";
 import { SiAdguard } from "react-icons/si";
-import { enterStockpileMode } from "../redux/reducers/stockpileSlice";
+import {
+  enterStockpileMode,
+  exitStockpileMode,
+} from "../redux/reducers/stockpileSlice";
 import { CiWarning } from "react-icons/ci";
 import { GiBookPile } from "react-icons/gi";
 import { FaPen, FaUserFriends } from "react-icons/fa";
@@ -361,7 +365,7 @@ const Checkout = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [walletSetup, setWalletSetup] = useState(false);
   const [isPickup, setIsPickup] = useState(false);
-
+  const [tripAdvice, setTripAdvice] = useState(null);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showAlreadyStockpiledModal, setShowAlreadyStockpiledModal] =
     useState(false);
@@ -663,6 +667,7 @@ const Checkout = () => {
       return;
     }
     if (
+      !isRepiling &&
       checkoutMode === "deliver" &&
       vendorsInfo[vendorId]?.deliveryMode === "Delivery & Pickup" &&
       !selectedDeliveryMode
@@ -681,6 +686,7 @@ const Checkout = () => {
         if (data?.success) {
           await refreshWalletInfo();
           dispatch(clearCart(vendorId));
+          dispatch(exitStockpileMode());
           toast.success("Paid with wallet balance! 🎉");
           navigate("/user-orders", { replace: true });
         } else {
@@ -740,6 +746,7 @@ const Checkout = () => {
       const processOrder = httpsCallable(functions, "processOrder");
       const { data } = await processOrder(payload);
       dispatch(clearCart(vendorId));
+      dispatch(exitStockpileMode());
       navigate("/user-orders", {
         state: {
           draftShareUrl: data.shareUrl, // so the centre can pop a toast/modal if you want
@@ -837,16 +844,16 @@ const Checkout = () => {
    * Distance from user → vendor’s pick-up point
    */
   useEffect(() => {
-    /* ---------- sightseeing ---------- */
-    console.log("🚚  supportsPickup:", supportsPickup);
-    console.log("  user lat/lng:", userInfo.latitude, userInfo.longitude);
+    /* ---------- diagnostics ---------- */
+    console.log("🚚 supportsPickup:", supportsPickup);
+    console.log("   user lat/lng:", userInfo.latitude, userInfo.longitude);
     console.log(
-      "  vendor lat/lng:",
+      "   vendor lat/lng:",
       vendorsInfo[vendorId]?.pickupLat,
       vendorsInfo[vendorId]?.pickupLng
     );
     console.log(
-      "  has DistanceMatrixService:",
+      "   DistanceMatrix ready:",
       Boolean(window.google?.maps?.DistanceMatrixService)
     );
 
@@ -860,6 +867,7 @@ const Checkout = () => {
       !window.google?.maps?.DistanceMatrixService
     ) {
       console.log("⛔  Missing data → skip distance calc");
+      setTripAdvice(null);
       return;
     }
 
@@ -875,8 +883,7 @@ const Checkout = () => {
       Number(vendorsInfo[vendorId].pickupLng)
     );
 
-    const svc = new window.google.maps.DistanceMatrixService();
-    svc.getDistanceMatrix(
+    new window.google.maps.DistanceMatrixService().getDistanceMatrix(
       {
         origins: [origin],
         destinations: [destination],
@@ -890,10 +897,16 @@ const Checkout = () => {
           status === "OK" &&
           result?.rows?.[0]?.elements?.[0]?.status === "OK"
         ) {
-          setPickupDistance(result.rows[0].elements[0].distance.text);
+          const elem = result.rows[0].elements[0];
+          setPickupDistance(elem.distance.text);
+
+          // NEW → friendly advice
+          setTripAdvice(
+            getTripAdvice(elem.distance.value, elem.duration.value)
+          );
         } else {
-          // REQUEST_DENIED, INVALID_REQUEST, OVER_QUERY_LIMIT, …
           setPickupDistance(null);
+          setTripAdvice(null);
         }
       }
     );
@@ -1489,13 +1502,27 @@ const Checkout = () => {
                 </div>
               ) : (
                 // --- Lagos→Lagos: show the actual fee ---
-                <div className="flex justify-between">
-                  <span className="font-opensans text-sm">Delivery Fee</span>
-                  <span className="text-base font-opensans text-black font-semibold">
-                    ₦
-                    {parseFloat(previewedOrder.deliveryCharge).toLocaleString()}
-                  </span>
-                </div>
+                <>
+                  <div className="flex justify-between">
+                    <span className="font-opensans text-sm">Estimated Delivery Fee</span>
+                    <span className="text-base font-opensans text-black font-semibold">
+                      ₦
+                      {parseFloat(
+                        previewedOrder.deliveryCharge
+                      ).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center bg-orange-50 py-3 px-2 rounded-lg mt-3">
+                    <CiWarning className="text-orange-600 text-7xl mr-3" />
+                    <div>
+                      <p className="font-opensans text-xs text-orange-700 font-semibold">
+                        The delivery cost above is just an estimate – you won’t
+                        be charged now. The vendor will confirm the final fee
+                        with you when it’s time to ship.
+                      </p>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
 
@@ -1515,7 +1542,7 @@ const Checkout = () => {
 
             {isRepiling && (
               <div className="flex items-center bg-green-50 p-3 rounded-lg mt-3">
-                <GiBookPile className="text-green-600 text-3xl mr-3" />
+                <PiStackSimpleFill className="text-green-600 text-3xl mr-3" />
                 <div>
                   <p className="font-opensans text-xs text-green-700 font-semibold">
                     You’ve saved ₦{previewedOrder.serviceFee.toLocaleString()}{" "}
@@ -1700,8 +1727,10 @@ const Checkout = () => {
                               : "(distance — …)"}
                           </span>
                         </p>
-                        <p className="text-xs text-gray-800 font-opensans  ">
-                          usually takes a day or two
+                        <p className="text-xs text-gray-800 font-opensans">
+                          {tripAdvice
+                            ? `${tripAdvice.headline} • ${tripAdvice.sub}`
+                            : "Calculating …"}
                         </p>
                       </div>
                       <span
@@ -1761,10 +1790,7 @@ const Checkout = () => {
                       <div className="flex flex-col items-start">
                         <p className="text-base font-opensans font-semibold text-black">
                           Door delivery
-                          <span className="font-normal text-xs text-customOrange ml-1">
-                            (≈ ₦
-                            {previewedOrder.deliveryCharge?.toLocaleString()})
-                          </span>
+                         
                         </p>
                         <p className="text-xs text-gray-800 font-opensans">
                           1–3 working days
@@ -2110,7 +2136,7 @@ const Checkout = () => {
                     <h1 className="text-black font-medium mr-1 font-opensans text-base">
                       Pile
                     </h1>
-                    <GiBookPile className="text-xl" />
+                    <PiStackSimpleFill className="text-xl" />
                   </div>
 
                   <h3 className="text-xs font-opensans ">
@@ -2225,7 +2251,8 @@ const Checkout = () => {
                 </label>
                 <p className="font-opensans text-black ">{userInfo.address}</p>
               </div>
-              <div className="bg-customCream py-1 mt-4 animate-pulse px-2 text-center rounded-md">
+              <div className="bg-customCream flex items-center py-1 mt-4 animate-pulse px-2 text-left rounded-md">
+                <CiWarning className="text-orange-600 text-4xl mr-3" />
                 <p className="text-xs font-ubuntu font-medium text-red-600">
                   This cannot be updated after now. Please ensure to put your
                   correct details

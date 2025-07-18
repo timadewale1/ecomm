@@ -255,7 +255,7 @@ const Signup = () => {
         uid: user.uid,
         username: user.displayName || "",
         email: user.email,
-        emailLower,
+
         role: "user",
         walletSetup: false,
         profileComplete: false,

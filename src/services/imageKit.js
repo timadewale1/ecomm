@@ -1,10 +1,9 @@
 export const getImageKitUrl = (firebaseUrl, transform = "") => {
-  console.log("Input Firebase URL:", firebaseUrl);
+  
   const base =
     "https://firebasestorage.googleapis.com/v0/b/ecommerce-ba520.appspot.com/o/";
   if (!firebaseUrl || typeof firebaseUrl !== "string") {
-    console.warn("Invalid Firebase URL, using as-is:", firebaseUrl);
-    return firebaseUrl;
+     return firebaseUrl;
   }
 
   let path = firebaseUrl;
@@ -26,6 +25,5 @@ export const getImageKitUrl = (firebaseUrl, transform = "") => {
     }
   }
 
-  console.log("Generated ImageKit URL:", path); // Debug the output
-  return path;
+ return path;
 };

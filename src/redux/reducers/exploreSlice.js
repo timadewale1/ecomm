@@ -11,7 +11,16 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 
-// Fetch one page of products (batchSize) for productType, after lastDoc
+// helper to split an array into chunks of given size
+function chunkArray(arr, size) {
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
+// Fetch one page of products (batchSize) for productType, after lastVisible
 export const fetchExploreProducts = createAsyncThunk(
   "explore/fetchExploreProducts",
   async (
@@ -32,26 +41,48 @@ export const fetchExploreProducts = createAsyncThunk(
         return { productType, products: [], lastVisible: null };
       }
 
-      // 2) build product query with pagination
-      let constraints = [
-        where("published", "==", true),
-        where("isDeleted", "==", false),
-        where("productType", "==", productType),
-        where("vendorId", "in", approved),
-        orderBy("createdAt", "desc"),
-        limit(batchSize),
-      ];
-      if (lastVisible) constraints.push(startAfter(lastVisible));
+      // 2) chunk vendor IDs into ≤30 groups
+      const vendorChunks = chunkArray(approved, 30);
 
-      const prodSnap = await getDocs(
-        query(collection(db, "products"), ...constraints)
+      // 3) fire one query per chunk in parallel
+      const snaps = await Promise.all(
+        vendorChunks.map((chunkIds) => {
+          let q = query(
+            collection(db, "products"),
+            where("published", "==", true),
+            where("isDeleted", "==", false),
+            where("productType", "==", productType),
+            where("vendorId", "in", chunkIds),
+            orderBy("createdAt", "desc"),
+            limit(batchSize)
+          );
+          if (lastVisible) {
+            q = query(q, startAfter(lastVisible));
+          }
+          return getDocs(q);
+        })
       );
-      const products = prodSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const newLast = prodSnap.docs.length
-        ? prodSnap.docs[prodSnap.docs.length - 1]
+
+      // 4) merge, dedupe, sort, and slice
+      const allDocs = snaps.flatMap((snap) => snap.docs);
+      const uniqueMap = new Map();
+      allDocs.forEach((docSnap) => {
+        if (!uniqueMap.has(docSnap.id)) {
+          uniqueMap.set(docSnap.id, docSnap);
+        }
+      });
+      const uniqueSnaps = Array.from(uniqueMap.values());
+      uniqueSnaps.sort(
+        (a, b) => b.data().createdAt.seconds - a.data().createdAt.seconds
+      );
+
+      const pageDocs = uniqueSnaps.slice(0, batchSize);
+      const products = pageDocs.map((d) => ({ id: d.id, ...d.data() }));
+      const newLastVisible = pageDocs.length
+        ? pageDocs[pageDocs.length - 1]
         : null;
 
-      return { productType, products, lastVisible: newLast };
+      return { productType, products, lastVisible: newLastVisible };
     } catch (err) {
       return rejectWithValue(err.message);
     }
@@ -84,6 +115,7 @@ const exploreSlice = createSlice({
           };
         } else {
           state.byType[productType].status = "loading";
+          state.byType[productType].error = null;
         }
       })
       .addCase(fetchExploreProducts.fulfilled, (state, action) => {

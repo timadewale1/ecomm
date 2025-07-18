@@ -39,6 +39,7 @@ import { LuCopy, LuCopyCheck } from "react-icons/lu";
 import SEO from "../../components/Helmet/SEO";
 import {
   TbBoxOff,
+  TbEdit,
   TbRosetteDiscount,
   TbRosetteDiscountOff,
 } from "react-icons/tb";
@@ -662,7 +663,7 @@ const VendorProducts = () => {
   };
 
   const zeroAllStock = async () => {
-    setMLoading(true)
+    setMLoading(true);
     try {
       // Ensure variants and subProducts are defined as arrays
       const variants = selectedProduct.variants || [];
@@ -672,18 +673,18 @@ const VendorProducts = () => {
 
       // Update variants with restock values
       const updatedVariants = variants.map((variant) => {
-          return {
-            ...variant,
-            stock: 0,
-          };
+        return {
+          ...variant,
+          stock: 0,
+        };
       });
 
       // Update sub-products with restock values
       const updatedSubProducts = subProducts.map((subProduct) => {
-          return {
-            ...subProduct,
-            stock: 0,
-          };
+        return {
+          ...subProduct,
+          stock: 0,
+        };
       });
 
       // Update Firestore with the modified stock quantities and total stockQuantity
@@ -694,10 +695,10 @@ const VendorProducts = () => {
       });
       toast.success(`Product is now marked as "Sold Out"`);
       await addActivityNote(
-          "Product Sold Out 🚫",
-          `You've marked ${selectedProduct.name} as "Sold Out". Customers will not be able to buy this product until it is restocked.`,
-          "Product Update"
-        );
+        "Product Sold Out 🚫",
+        `You've marked ${selectedProduct.name} as "Sold Out". Customers will not be able to buy this product until it is restocked.`,
+        "Product Update"
+      );
     } catch (error) {
       console.error("Error marking as Sold Out:", error);
       toast.error("Error marking as Sold Out: " + error.message);
@@ -706,7 +707,7 @@ const VendorProducts = () => {
       setShowConfirmation(false);
       setAction("");
     }
-  }
+  };
 
   const addActivityNote = async (title, note, type) => {
     try {
@@ -875,9 +876,9 @@ const VendorProducts = () => {
   };
 
   const confirmStockReset = () => {
-    setAction("markSoldOut")
-    setShowConfirmation(true)
-  }
+    setAction("markSoldOut");
+    setShowConfirmation(true);
+  };
 
   const handleBulkDelete = () => {
     setAction("bulkDelete");
@@ -1674,13 +1675,14 @@ const VendorProducts = () => {
               </div>
             </div>
 
-            {selectedProduct.subProducts && selectedProduct.subProducts.length > 0 && (
-              <p className="text-lg font-opensans text-black font-semibold my-2">
-                {selectedProduct.subProducts.length > 1
-                  ? "Sub-Products"
-                  : "Sub-Products"}
-              </p>
-            )}
+            {selectedProduct.subProducts &&
+              selectedProduct.subProducts.length > 0 && (
+                <p className="text-lg font-opensans text-black font-semibold my-2">
+                  {selectedProduct.subProducts.length > 1
+                    ? "Sub-Products"
+                    : "Sub-Products"}
+                </p>
+              )}
 
             <div className="w-full">
               {selectedProduct.subProducts &&
@@ -1750,12 +1752,12 @@ const VendorProducts = () => {
                   </div>
                 ))}
             </div>
-
+            <hr className="border-gray-100  mt-4" />
             {selectedProduct && (
               <div className="text-lg flex items-center space-x-1 text-customOrange mt-4 mb-2 font-medium font-opensans">
                 <div>Actions</div>{" "}
                 <span>
-                  <HiWrenchScrewdriver className="" />
+                  <TbEdit className="" />
                 </span>
               </div>
             )}
@@ -1764,23 +1766,25 @@ const VendorProducts = () => {
               <div className="p-3 my-4 flex flex-col  bg-gray-50  rounded-lg w-full font-opensans justify-between space-y-3">
                 {!selectedProduct.discount && (
                   <div
-                    className="flex space-x-1 items-center justify-between font-medium text-base cursor-pointer text-customOrange"
+                    className="flex space-x-1 items-center justify-between font-medium text-base cursor-pointer text-black"
                     onClick={() => setIsDiscountModalOpen(true)}
                   >
                     <div>Start a discount</div>
-                    <TbRosetteDiscount className="text-2xl" />
+                    <TbRosetteDiscount className="text-2xl text-customOrange" />
                   </div>
                 )}
 
-                {!(selectedProduct.stockQuantity < 1) && (<hr className="text-customOrange opacity-40" />)}
+                {!(selectedProduct.stockQuantity < 1) && (
+                  <hr className="text-customOrange opacity-40" />
+                )}
 
                 {!(selectedProduct.stockQuantity < 1) && (
                   <div
-                    className="flex space-x-1 justify-between items-center font-medium text-base cursor-pointer text-customOrange"
+                    className="flex space-x-1 justify-between items-center font-medium text-base cursor-pointer text-black"
                     onClick={() => confirmStockReset()}
                   >
                     <div>Mark As "Sold-Out"</div>
-                    <TbBoxOff className="text-2xl" />
+                    <TbBoxOff className="text-2xl text-customOrange" />
                   </div>
                 )}
 

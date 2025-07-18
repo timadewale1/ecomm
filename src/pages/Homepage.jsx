@@ -159,8 +159,9 @@ const Homepage = () => {
     if (promoImages.length === 0) {
       // Fetch promo images only if they are not already in Redux
       const images = [
-        "https://res.cloudinary.com/dtaqusjav/video/upload/v1744666391/introducing_2_izw3tu.mp4",
-        "https://res.cloudinary.com/dtaqusjav/image/upload/v1744671718/NEW_STORE_1080_x_420_px_t3rmma.png",
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1751554023/Book_your_travels_with_posh_retreats_2_mkj6jg.png",
+        "https://res.cloudinary.com/dtaqusjav/video/upload/v1751554144/Untitled_1000_x_490_px_1_nhy93v.mp4",
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1751557578/Untitled_1000_x_490_px_5_i8ssvn.png",
       ];
       dispatch(setPromoLoading(true));
       setTimeout(() => {
@@ -327,6 +328,15 @@ const Homepage = () => {
                 : promoImages.map((url, index) => (
                     <SwiperSlide
                       key={index}
+                      onClick={() => {
+                        if (index === 0) {
+                          // external link for first slide
+                          window.open("https://poshretreats.co.uk", "_blank");
+                        } else if (index === 2) {
+                          // internal navigation for all others
+                          navigate("/store/HiyUGWBqxEXWLcwPgOvxH5gq2uF2");
+                        }
+                      }}
                       className="transition-transform duration-500 ease-in-out rounded-lg transform hover:scale-105"
                     >
                       <div className=" w-auto h-44 shadow-md rounded-lg overflow-hidden">
@@ -388,13 +398,13 @@ const Homepage = () => {
       <PersonalDiscountCarousel />
       <div className="p-2 mt-4 pb-24">
         <div className="flex items-center mb-4">
-          <h1 className="text-left font-medium text-xl font-ubuntu mr-1">
+          <h1 className="text-left font-semibold text-xl font-opensans mr-1">
             Featured Products
           </h1>
           <PiStarFill className="text-xl text-yellow-300" />
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-4 ">
           {status === "loading" && products.length === 0 ? (
             Array.from({ length: 6 }).map((_, index) => (
               <Skeleton key={index} height={200} width="100%" />

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useInView } from "react-intersection-observer";
 import { getImageKitUrl } from "./imageKit";
+import { CiImageOff } from "react-icons/ci";
 
 const PLACEHOLDER =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
@@ -33,7 +34,6 @@ export default function IkImage({ src, alt = "", className = "" }) {
 
   const quality = getQuality();
   const base = getImageKitUrl(src);
- 
 
   // Generate URLs with transformations
   const tiny = base.includes("?")
@@ -89,7 +89,7 @@ export default function IkImage({ src, alt = "", className = "" }) {
           }}
         />
       )}
-      {inView && (
+      {inView && !error && (
         <img
           src={
             base.includes("?")
@@ -98,34 +98,32 @@ export default function IkImage({ src, alt = "", className = "" }) {
           }
           srcSet={srcSet}
           sizes={sizes}
-          alt={alt}
+          alt="" /* prevent alt text from appearing */
+          aria-label={alt} /* keep it accessible */
           loading="lazy"
           onLoad={() => {
-            console.log("Image loaded successfully:", base);
             setLoaded(true);
-            setError(null); // Clear error on successful load
-            setShowPlaceholder(false); // Ensure placeholder hides
+            setShowPlaceholder(false);
           }}
           onError={(e) => {
-            console.error(
-              "Image load error:",
-              e,
-              "URL:",
-              base.includes("?")
-                ? `${base}&tr=w-800,q-${quality},f-auto`
-                : `${base}?tr=w-800,q-${quality},f-auto`
-            );
-            setError("Failed to load image");
+            /* 1) hide this <img> so browser icon disappears */
+            e.currentTarget.style.display = "none";
+            /* 2) set error flag – component re-renders without <img> */
+            setError(true);
           }}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300
           ${loaded ? "opacity-100" : "opacity-0"}`}
         />
       )}
-      {error && !loaded && (
-        <div className="absolute inset-0 flex items-center justify-center text-red-500">
-          {error}
+
+      {/* ---------- ERROR FALLBACK ---------- */}
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          {/* Use whatever icon / styling you prefer */}
+          <CiImageOff className="text-5xl text-gray-400" />
         </div>
       )}
+     
     </div>
   );
 }

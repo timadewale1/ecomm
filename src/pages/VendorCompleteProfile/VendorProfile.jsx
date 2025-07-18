@@ -236,48 +236,49 @@ const VendorProfile = () => {
   // }, [currentUser]);
 
   const handleLogout = async () => {
-  try {
-    setIsLoggingOut(true);                       // show spinner
-    console.log("🚪  Starting logout …");
+    try {
+      setIsLoggingOut(true); // show spinner
+      console.log("🚪  Starting logout …");
 
-    /* 1️⃣  End the current Tawk visitor session (if widget loaded) */
-    if (window.Tawk_API?.logout) {
-      console.log("[Tawk] logging out visitor");
-      await new Promise((res) => {
-        window.Tawk_API.logout(() => {
-          console.log("[Tawk] visitor logged-out ✔");
+      /* 1️⃣  End the current Tawk visitor session (if widget loaded) */
+      if (window.Tawk_API?.logout) {
+        console.log("[Tawk] logging out visitor");
+        await new Promise((res) => {
+          window.Tawk_API.logout(() => {
+            console.log("[Tawk] visitor logged-out ✔");
 
-          // scrub visible fields so the next user starts clean
-          window.Tawk_API.setAttributes(
-            { name: "Guest", email: "", phone: "", jobTitle: "", uid: "" },
-            () => res()
-          );
+            // scrub visible fields so the next user starts clean
+            window.Tawk_API.setAttributes(
+              { name: "Guest", email: "", phone: "", jobTitle: "", uid: "" },
+              () => res()
+            );
+          });
         });
-      });
-    } else {
-      console.warn("[Tawk] logout() not available – widget may still be loading");
+      } else {
+        console.warn(
+          "[Tawk] logout() not available – widget may still be loading"
+        );
+      }
+
+      /* 2️⃣  Firebase sign-out */
+      await signOut(auth);
+      console.log("✓ Firebase signed-out");
+
+      /* 3️⃣  Local / Redux cleanup */
+      localStorage.removeItem("mythrift_role");
+      dispatch(clearOrders());
+      console.log("✓ Redux + localStorage cleared");
+
+      /* 4️⃣  Finish up */
+      toast.success("Successfully logged out", { className: "custom-toast" });
+      navigate("/vendorlogin");
+    } catch (err) {
+      console.error("Logout error:", err);
+      toast.error("Error logging out", { className: "custom-toast" });
+    } finally {
+      setIsLoggingOut(false); // hide spinner
     }
-
-    /* 2️⃣  Firebase sign-out */
-    await signOut(auth);
-    console.log("✓ Firebase signed-out");
-
-    /* 3️⃣  Local / Redux cleanup */
-    localStorage.removeItem("mythrift_role");
-    dispatch(clearOrders());
-    console.log("✓ Redux + localStorage cleared");
-
-    /* 4️⃣  Finish up */
-    toast.success("Successfully logged out", { className: "custom-toast" });
-    navigate("/vendorlogin");
-  } catch (err) {
-    console.error("Logout error:", err);
-    toast.error("Error logging out", { className: "custom-toast" });
-  } finally {
-    setIsLoggingOut(false);                      // hide spinner
-  }
-};
-
+  };
 
   const profileLink = `https://shopmythrift.store/${
     userData && (marketPlaceType === "virtual" ? "store" : "marketstorepage")
@@ -314,7 +315,9 @@ const VendorProfile = () => {
             <div className="p-2 flex items-center w-full">
               <div className="w-24">
                 <div
-                  className="relative cursor-pointer w-28 h-28 bg-cover bg-center bg-customSoftGray flex rounded-full"
+                  className={`relative cursor-pointer w-24 h-24 bg-cover bg-center bg-customSoftGray flex rounded-full 
+    border-4 border-transparent bg-clip-padding 
+    ring-1 ring-offset-2 ring-gray-200`} // Add ring effect here
                   onClick={openProfileModal}
                   style={{
                     backgroundImage: loading
@@ -322,18 +325,18 @@ const VendorProfile = () => {
                       : marketPlaceType === "virtual"
                       ? `url(${coverImageUrl})`
                       : `url(${defaultImageUrl})`,
-                    backgroundSize: "cover", // Ensures the image covers the div
-                    backgroundPosition: "center", // Centers the image
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
                     backgroundRepeat: "no-repeat",
-                    width: "112px",
-                    height: "112px", // Prevents repeating
+                    width: "107px",
+                    height: "107px",
                   }}
                 >
                   {loading && (
                     <Skeleton
-                      height={100} // Adjusted height to match the cover div height
+                      height={100}
                       width="100%"
-                      className="absolute top-0 left-0 w-full h-full"
+                      className="absolute top-0 left-0 w-full h-full rounded-full"
                     />
                   )}
                 </div>
@@ -600,21 +603,19 @@ const VendorProfile = () => {
                   {/* Beta version text */}
                 </div>
                 <div className="flex flex-col items-center  w-full">
-                 
-                    <div
-                      id="contact-support-tab"
-                      className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                      onClick={openChat}
-                    >
-                      <div className="flex items-center">
-                        <FcOnlineSupport className="text-black text-xl mr-4" />
-                        <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
-                          Contact Support
-                        </h2>
-                      </div>
-                      <ChevronRight className="text-black" />
+                  <div
+                    id="contact-support-tab"
+                    className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                    onClick={openChat}
+                  >
+                    <div className="flex items-center">
+                      <FcOnlineSupport className="text-black text-xl mr-4" />
+                      <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
+                        Contact Support
+                      </h2>
                     </div>
-                 
+                    <ChevronRight className="text-black" />
+                  </div>
                 </div>
 
                 <div

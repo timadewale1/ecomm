@@ -163,15 +163,28 @@ const Login = () => {
       /* ── 4.  Background jobs (non-blocking) ────────────────────── */
       (async () => {
         /* 4a – send your custom verification e-mail once per session */
-        if (!user.emailVerified && !sessionStorage.getItem("verifySent")) {
-          sessionStorage.setItem("verifySent", "1");
+        // ⛔︎ Block unverified accounts right after sign-in
+        if (!user.emailVerified) {
           try {
-            const sendMail = httpsCallable(functions, "sendCustomVerification");
-            await sendMail({ email: user.email });
-            toast("Verification e-mail sent ✉️", { icon: "✉️" });
+            const sendMail = httpsCallable(
+              functions,
+              "sendUserVerificationEmail"
+            );
+            await sendMail({
+              email: user.email,
+              username: user.displayName || "Friend",
+            });
           } catch (err) {
-            console.error("sendCustomVerification:", err);
+            console.error("sendUserVerificationEmail:", err);
           }
+
+          await auth.signOut(); // end the session
+          navigate("/login", { replace: true }); // ⬅️  back to login screen
+          toast.error(
+            "Please verify your e-mail address first. We just sent you a new link."
+          );
+          setLoading(false);
+          return; // bail out
         }
 
         /* 4b – merge local cart into Firestore */

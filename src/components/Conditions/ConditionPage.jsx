@@ -121,7 +121,7 @@ function ConditionProducts() {
 
   // Infinite scroll: listen to window scroll events for pagination and header visibility
   useEffect(() => {
-    const handleScroll = async () => {
+    const handleScroll = () => {
       const currentScrollPosition = window.scrollY;
       if (currentScrollPosition > lastScrollPosition) {
         setShowHeader(false);
@@ -268,7 +268,7 @@ function ConditionProducts() {
         <div className="w-full h-48 bg-gray-200">{getHeaderContent()}</div>
 
         <div
-          className={`fixed top-0 left-0 w-full bg-white z-10 px-2 py-6 shadow-md transition-transform duration-300 ${
+          className={`fixed top-0 left-0 w-full bg-gradient-to-b from-white via-white to-transparent z-10 px-2 pt-6 transition-transform duration-300 ${
             showHeader ? "translate-y-0" : "-translate-y-full"
           }`}
         >
@@ -324,21 +324,20 @@ function ConditionProducts() {
               </div>
             )}
           </div>
-          <div className="flex mt-5 w-full overflow-x-auto space-x-2 scrollbar-hide px-1">
+          <div className="flex px-2 mb-4 w-full py-3 overflow-x-auto space-x-2 scrollbar-hide">
             {productTypes.map((type) => (
-              <button
-                key={type}
-                onClick={() => handleTypeSelect(type)}
-                className={`flex-shrink-0 h-10 px-4 py-2 text-xs font-semibold font-opensans border rounded-full
-        ${
-          selectedType === type
-            ? "bg-customOrange text-white border-customOrange"
-            : "bg-transparent text-black border-gray-200"
-        }`}
-              >
-                {type}
-              </button>
-            ))}
+                <button
+                  key={type}
+                  onClick={() => handleTypeSelect(type)}
+                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/10 ${
+                    selectedType === type
+                      ? "bg-gradient-to-br from-customOrange/30 to-customOrange text-white shadow-lg shadow-black/30 -translate-y-1"
+                      : "bg-gradient-to-br from-transparent to-black/20 shadow-md border"
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
           </div>
         </div>
 

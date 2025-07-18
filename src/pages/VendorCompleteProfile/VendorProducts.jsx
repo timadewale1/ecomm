@@ -1803,7 +1803,7 @@ const VendorProducts = () => {
               </div>
             )}
 
-            <div className="sticky bottom-0 left-0 w-full py-8 px-2 translate-y-7 bg-gradient-to-t from-white to-transparent z-10">
+            <div className="sticky bottom-0 left-0 w-full py-8 px-2 translate-y-7 bg-gradient-to-t from-white via-white to-transparent z-10">
               {isRestocking ? (
                 <div className="flex justify-between items-center space-x-4">
                   <motion.button

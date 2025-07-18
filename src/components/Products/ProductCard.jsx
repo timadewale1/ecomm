@@ -248,13 +248,13 @@ const ProductCard = ({
 
           {/* Favorite Icon */}
           <div
-            className="absolute bottom-2 right-2 cursor-pointer bg-white p-1 rounded-full shadow-lg"
+            className="absolute bottom-2 right-2 cursor-pointer w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md border flex items-center justify-center shadow-md hover:bg-white/30 transition-all duration-200"
             onClick={handleFavoriteToggle}
           >
             {favorite ? (
               <RiHeart3Fill className="text-red-500 text-2xl" />
             ) : (
-              <RiHeart3Line className="text-gray-800 text-2xl" />
+              <RiHeart3Line className="text-gray-700 text-2xl" />
             )}
           </div>
 

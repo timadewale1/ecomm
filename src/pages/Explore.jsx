@@ -73,6 +73,8 @@ const Explore = () => {
   const [filteredSubTypes, setFilteredSubTypes] = useState([]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [sortOrder, setSortOrder] = useState(null);
+  const [showHeader, setShowHeader] = useState(true)
+    const lastScrollPosition = useRef(0);
 
   const restoredRef = useRef(false);
   const cld = new Cloudinary({
@@ -208,12 +210,12 @@ const Explore = () => {
   const toggleFilterDropdown = () => {
     setShowFilterDropdown(!showFilterDropdown);
   };
-
+  
   const sortProducts = (order) => {
     setSortOrder(order);
     setShowFilterDropdown(false);
   };
-
+  
   const handleBackClick = () => {
     if (selectedSubType) {
       setSelectedSubType(null);
@@ -227,7 +229,7 @@ const Explore = () => {
       setShowFilterDropdown(false);
     }
   };
-
+  
   const handleCategoryClick = (category) => {
     navigate(`/category/${category}`);
   };
@@ -257,6 +259,21 @@ const Explore = () => {
     "Corporate",
     "Perfumes",
   ];
+  useEffect(() => {
+      const handleScroll = () => {
+        const currentScrollPosition = window.scrollY;
+        if (currentScrollPosition > lastScrollPosition.current) {
+          setShowHeader(false);
+        } else {
+          setShowHeader(true);
+        }
+      lastScrollPosition.current = currentScrollPosition;
+  
+      };
+  
+      window.addEventListener("scroll", handleScroll, { passive: true });
+      return () => window.removeEventListener("scroll", handleScroll);
+    }, [])
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -305,6 +322,7 @@ const Explore = () => {
     return <Loading />;
   }
 
+
   return (
     <>
       <SEO
@@ -314,7 +332,9 @@ const Explore = () => {
       />
       <div className="pb-28">
         {/* Top Bar */}
-        <div className="sticky pt-4 px-2 w-full top-0 bg-white z-10">
+        <div className={`fixed top-0 left-0 w-full bg-gradient-to-b from-white via-white to-transparent z-10 px-2 pt-6 transition-transform duration-300 ${
+            showHeader ? "translate-y-0" : "-translate-y-full"
+          }`}>
           <div className="flex items-center justify-between pb-2">
             <div className="flex items-center">
               {(selectedProductType || selectedSubType) && (
@@ -340,7 +360,7 @@ const Explore = () => {
 
           {selectedProductType && (
             <>
-              <div className="flex justify-between mb-3 w-full overflow-x-auto space-x-2 scrollbar-hide">
+              <div className="flex px-2 mb-4 w-full pt-2 pb-6 overflow-x-auto space-x-2 scrollbar-hide">
                 {[
                   "All",
                   ...priceRanges.map((r) => r.label),
@@ -376,11 +396,11 @@ const Explore = () => {
                           handleSubTypeClick(subTypeName);
                         }
                       }}
-                      className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-semibold font-opensans mt-4 text-black border border-gray-100 rounded-full ${
-                        isActive
-                          ? "bg-customOrange text-white"
-                          : "bg-transparent"
-                      }`}
+                      className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/10 ${
+                    isActive
+                      ? "bg-gradient-to-br from-customOrange/30 to-customOrange text-white shadow-lg shadow-black/30 -translate-y-1"
+                      : "bg-gradient-to-br from-transparent to-black/20 shadow-md border"
+                  }`}
                     >
                       {subTypeName}
                     </button>
@@ -390,7 +410,6 @@ const Explore = () => {
             </>
           )}
 
-          <div className="border-t border-gray-300 mt-2"></div>
         </div>
 
         {/* Main Content */}
@@ -398,7 +417,7 @@ const Explore = () => {
           {/* If we have selected a SubType, show products grid */}
           {selectedProductType ? (
             <>
-              <div className="grid grid-cols-2 gap-2 p-4">
+              <div className="grid grid-cols-2 gap-2 p-4 mt-32">
                 {filteredProducts.length > 0 ? (
                   filteredProducts.map((product) => (
                     <ProductCard
@@ -485,13 +504,13 @@ const Explore = () => {
                   ) : (
                     <>
                       {!selectedProductType && (
-                        <div className="bg-white    w-full  border-gray-200">
-                          <div className="flex items-center gap-2 mb-2">
+                        <div className="bg-white w-full border-gray-200">
+                          <div className="flex items-center gap-2 mb-5 mt-16">
                             <MdTrendingUp
                               className="text-customOrange"
                               size={18}
                             />
-                            <h3 className="text-sm font-semibold font-opensans mb-3 text-gray-900">
+                            <h3 className="text-sm font-semibold font-opensans text-gray-900">
                               Trending Searches
                             </h3>
                           </div>

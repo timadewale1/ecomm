@@ -131,6 +131,24 @@ const ProductDetailPage = () => {
   const db = getFirestore();
 
   const cart = useSelector((state) => state.cart || {});
+
+  const [showHeader, setShowHeader] = useState(true);
+  const prevScrollPos = useRef(0);
+
+  useEffect(() => {
+      const handleScroll = () => {
+        const currentPos = window.scrollY;
+        if (currentPos > prevScrollPos.current) {
+          setShowHeader(false);
+        } else {
+          setShowHeader(true);
+        }
+        prevScrollPos.current = currentPos;
+      };
+      window.addEventListener("scroll", handleScroll, { passive: true });
+      return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
+
   useEffect(() => {
     const fetchProductDetails = async () => {
       try {
@@ -1072,81 +1090,101 @@ const ProductDetailPage = () => {
         url={`https://www.shopmythrift.store/product/${product.id}`}
       />
       <div className="relative pb-20">
-        <div className="fixed top-0 left-0 w-full h-20 px-2 py-12 bg-white z-20 shadow-md">
-          <div className="flex items-center justify-between h-full">
-            {isShared ? (
-              <>
-                <div className="w-full ">
-                  {/* LEFT: logo */}
-                  <img
-                    src="/newlogo.png"
-                    alt="Logo"
-                    onClick={() => navigate("/newhome")}
-                    className="h-8 w-16 object-contain"
-                  />
+        <div>
+          {isShared ? (
+            <>
+                <div
+                  className={`px-2 fixed top-0 left-0 w-full h-20 py-10 bg-white z-20 shadow-md`}
+                >
+                  <div className="flex items-center justify-between h-full">
+                    <div className="w-full ">
+                      {/* LEFT: logo */}
+                      <div className="flex items-center justify-center"><img
+                        src="/newlogo.png"
+                        alt="Logo"
+                        onClick={() => navigate("/newhome")}
+                        className="h-8 w-16 object-contain"
+                      /></div>
+                      
 
-                  {/* RIGHT: login & sign up */}
-                  <div className="flex mt-4 justify-between  gap-4 w-full items-center ">
-                    <button
-                      onClick={() => navigate("/login")}
-                      className="px-4 py-1 text-sm w-full font-opensans text-customRichBrown border border-customRichBrown rounded-full"
-                    >
-                      Login
-                    </button>
-                    <button
-                      onClick={() => navigate("/signup")}
-                      className="px-4 py-1 w-full text-sm font-opensans text-white bg-customOrange rounded-full"
-                    >
-                      Sign Up
-                    </button>
+                      {/* RIGHT: login & sign up */}
+                      <div className="flex mt-4 justify-between  gap-4 w-full items-center ">
+                        <button
+                          onClick={() => navigate("/login")}
+                          className="px-4 py-1 text-sm w-full font-opensans text-customRichBrown border border-customRichBrown rounded-full"
+                        >
+                          Login
+                        </button>
+                        <button
+                          onClick={() => navigate("/signup")}
+                          className="px-4 py-1 w-full text-sm font-opensans text-white bg-customOrange rounded-full"
+                        >
+                          Sign Up
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </>
-            ) : (
-              <>
-                {/* your existing “back + title” on the left */}
-                <div className="flex items-center space-x-2">
-                  <GoChevronLeft
-                    onClick={() => navigate(-1)}
-                    className="text-3xl cursor-pointer"
-                  />
-                  <span className="text-lg font-opensans font-semibold">
-                    Details
-                  </span>
-                </div>
+            </>
+          ) : (
+            <>
+            <div
+                  className={`px-2 fixed top-0 left-0 w-full h-20 py-10 z-20 bg-gradient-to-b from-white via-white to-transparent`}
+                >
+                  <div className="flex items-center justify-between h-full">
+              {/* your existing “back + title” on the left */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => navigate(-1)}
+                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/30 transition-opacity duration-300 border border-white/40
+          ${showHeader ? "opacity-100" : "opacity-30"}`}
+                >
+                  <GoChevronLeft className="text-white text-xl" />
+                </button>
 
-                {/* your existing copy/cart on the right */}
-                <div className="flex items-center space-x-2 relative">
+                <span className={`text-lg font-opensans font-semibold ${showHeader ? "" : "opacity-0"}`}>
+                  Details
+                </span>
+              </div>
+
+              {/* your existing copy/cart on the right */}
+              <div className="flex items-center space-x-2 relative">
+                <button
+                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/30 transition-opacity duration-300 border border-white/40
+          ${showHeader ? "opacity-100" : "opacity-30"}`}
+                  onClick={copyProductLink}
+                >
                   {isLinkCopied ? (
-                    <LuCopyCheck className="text-2xl cursor-pointer" />
+                    <LuCopyCheck className="text-white text-xl" />
                   ) : (
-                    <LuCopy
-                      onClick={copyProductLink}
-                      className="text-2xl cursor-pointer"
-                    />
+                    <LuCopy className="text-white text-xl" />
                   )}
-                  <PiShoppingCartBold
-                    onClick={() =>
-                      navigate("/latest-cart", {
-                        state: { fromProductDetail: true },
-                      })
-                    }
-                    className="text-2xl cursor-pointer"
-                  />
+                </button>
+
+                <button
+                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/30 transition-opacity duration-300 border border-white/40
+          ${showHeader ? "opacity-100" : "opacity-30"}`}
+                  onClick={() =>
+                    navigate("/latest-cart", {
+                      state: { fromProductDetail: true },
+                    })
+                  }
+                >
+                  <PiShoppingCartBold className="text-white text-xl" />
                   {cartItemCount > 0 && (
                     <div className="-top-1 absolute right-0">
                       <Badge count={cartItemCount} />
                     </div>
                   )}
-                </div>
-              </>
-            )}
-          </div>
+                </button>
+              </div></div></div>
+            </>
+          )}
         </div>
 
         <div
           ref={swiperRef}
-          className="flex justify-center h-[540px] relative mt-20"
+          className={`flex rounded-t-md justify-center h-[540px] relative mt-20`}
         >
           {allImages.length > 1 ? (
             <>
@@ -1172,7 +1210,7 @@ const ProductDetailPage = () => {
                       />
                       {/* Discount Badge inside each slide */}
                       {index === 0 && product.discount && (
-                        <div className="absolute top-10 right-2 z-20">
+                        <div className="absolute top-2 right-2 z-20">
                           {product.discount.discountType.startsWith(
                             "personal-freebies"
                           ) ? (

@@ -7,6 +7,7 @@ const urlsToCache = [
   '/logo192.png',
   '/logo512.png',
   '/logo.png',
+  '/logoInvert.png',
   '/offline.html',
   '/pwa-assets/step-1.jpg',
   '/pwa-assets/step-2.jpg',

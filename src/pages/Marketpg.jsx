@@ -116,7 +116,7 @@ const Marketpg = () => {
         url={`https://www.shopmythrift.store/browse-markets`}
       />
       <div className="mb-1">
-        <div className="sticky pt-3 px-2 w-full top-0 bg-gradient-to-b from-white via-white to-transparent z-10">
+        <div className="sticky pt-3 px-2 w-full top-0 bg-gradient-to-b from-white via-white/95 to-transparent z-10">
           <div className="flex flex-col mb-2 px-2.5">
             {!isSearching && (
               <div className="flex justify-between mb-4">
@@ -200,10 +200,10 @@ const Marketpg = () => {
                       )
                     }
                     className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/10 ${
-                    selectedCategory === category
-                      ? "bg-gradient-to-br from-customOrange/30 to-customOrange text-white shadow-lg shadow-black/30 -translate-y-1"
-                      : "bg-gradient-to-br from-transparent to-black/20 shadow-md border"
-                  }`}
+                      selectedCategory === category
+                        ? "bg-gradient-to-br from-customOrange/30 to-customOrange text-white shadow-lg shadow-black/30 -translate-y-1"
+                        : "bg-gradient-to-br from-transparent to-black/20 shadow-md border"
+                    }`}
                   >
                     {category}
                   </button>
@@ -312,12 +312,10 @@ const Marketpg = () => {
                       alt={vendor.shopName}
                     />
                     <div
-                      className="absolute inset-0"
+                      className="absolute inset-0 bg-gradient-to-l from-transparent via-white/50 to-transparent"
                       style={{
-                        background:
-                          "linear-gradient(45deg, transparent 20%, rgba(255,255,255,0.3) 50%, transparent 80%)",
                         backgroundSize: "200% 200%",
-                        animation: "shimmer 6s infinite ease-in-out",
+                        animation: "shimmer 4s infinite ease-in-out reverse",
                       }}
                     />
                   </div>

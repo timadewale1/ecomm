@@ -121,7 +121,7 @@ function ConditionProducts() {
 
   // Infinite scroll: listen to window scroll events for pagination and header visibility
   useEffect(() => {
-    const handleScroll = () => {
+    const handleScroll = async () => {
       const currentScrollPosition = window.scrollY;
       if (currentScrollPosition > lastScrollPosition) {
         setShowHeader(false);
@@ -268,7 +268,7 @@ function ConditionProducts() {
         <div className="w-full h-48 bg-gray-200">{getHeaderContent()}</div>
 
         <div
-          className={`fixed top-0 left-0 w-full bg-gradient-to-b from-white via-white to-transparent z-10 px-2 pt-6 transition-transform duration-300 ${
+          className={`fixed top-0 left-0 w-full bg-gradient-to-b from-white via-white/95 to-transparent z-10 px-2 pt-6 transition-transform duration-300 ${
             showHeader ? "translate-y-0" : "-translate-y-full"
           }`}
         >

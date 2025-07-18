@@ -1537,21 +1537,7 @@ const StorePage = () => {
             <div className="p-4">{/* Search results content goes here */}</div>
           )}
 
-          <style jsx>{`
-            @keyframes shimmer {
-              0% {
-                transform: translateX(-100%);
-                opacity: 0;
-              }
-              50% {
-                opacity: 1;
-              }
-              100% {
-                transform: translateX(100%);
-                opacity: 0;
-              }
-            }
-          `}</style>
+          
         </div>
         <div className={`${isSearching ? "mt-16" : "mt-7"}`}>
           <div className="flex items-center mb-3 justify-between">

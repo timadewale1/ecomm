@@ -332,7 +332,7 @@ const Explore = () => {
       />
       <div className="pb-28">
         {/* Top Bar */}
-        <div className={`fixed top-0 left-0 w-full bg-gradient-to-b from-white via-white to-transparent z-10 px-2 pt-6 transition-transform duration-300 ${
+        <div className={`fixed top-0 left-0 w-full bg-gradient-to-b from-white via-white/95 to-transparent z-10 px-2 pt-6 transition-transform duration-300 ${
             showHeader ? "translate-y-0" : "-translate-y-full"
           }`}>
           <div className="flex items-center justify-between pb-2">

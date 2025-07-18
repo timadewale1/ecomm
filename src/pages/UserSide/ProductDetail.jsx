@@ -1129,7 +1129,7 @@ const ProductDetailPage = () => {
           ) : (
             <>
             <div
-                  className={`px-2 fixed top-0 left-0 w-full h-20 py-10 z-20 bg-gradient-to-b from-white via-white to-transparent`}
+                  className={`px-2 fixed top-0 left-0 w-full h-20 py-10 z-20 bg-gradient-to-b from-white via-white/95 to-transparent`}
                 >
                   <div className="flex items-center justify-between h-full">
               {/* your existing “back + title” on the left */}

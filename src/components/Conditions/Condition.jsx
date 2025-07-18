@@ -13,13 +13,13 @@ const Condition = () => {
   };
 
   return (
-    <div className="flex flex-wrap justify-center gap-2 sm:gap-4 py-3 px-2">
+    <div className="relative flex flex-wrap justify-center gap-2 sm:gap-4 py-3 px-2">
       {/* Brand New Container */}
       <div
         className="flex flex-col items-center cursor-pointer w-[calc(25%-8px)]"
         onClick={() => handleNavigate("brand-new")}
       >
-        <div className="flex-none bg-lightOrange text-white border border rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
+        <div className="flex-none bg-gradient-to-tl from-customOrange/50 to-lighOrange border border-lighOrange text-white rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
           <div className="w-4/5 h-4/5 flex items-center justify-center">
             <BrandNewIcon />
           </div>
@@ -27,14 +27,21 @@ const Condition = () => {
         <p className="text-center text-xs font-medium text-black font-opensans mt-1 sm:mt-2 truncate w-full">
           Brand New
         </p>
+        <div
+          className="absolute inset-0 bg-gradient-to-l from-transparent via-white/70 to-transparent"
+          style={{
+            backgroundSize: "200% 200%",
+            animation: "shimmer 4s infinite ease-in-out reverse",
+          }}
+        />
       </div>
 
       {/* Thrifted Container */}
       <div
-        className="flex flex-col items-center cursor-pointer w-[calc(25%-8px)]"
+        className="relative flex flex-col items-center cursor-pointer w-[calc(25%-8px)]"
         onClick={() => handleNavigate("thrift")}
       >
-        <div className="flex-none bg-lightGreen text-white border border rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
+        <div className="flex-none bg-gradient-to-tl from-green-600/50 to-lightGreen border border-lightGreen text-white rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
           <div className="w-4/5 h-4/5 flex items-center justify-center">
             <ThriftIcon />
           </div>
@@ -42,14 +49,21 @@ const Condition = () => {
         <p className="text-center text-xs font-medium text-black font-opensans mt-1 sm:mt-2 truncate w-full">
           Thrifted
         </p>
+        <div
+          className="absolute inset-0 bg-gradient-to-l from-transparent via-white/70 to-transparent"
+          style={{
+            backgroundSize: "200% 200%",
+            animation: "shimmer 4s infinite ease-in-out reverse",
+          }}
+        />
       </div>
 
       {/* Defect Container */}
       <div
-        className="flex flex-col items-center cursor-pointer w-[calc(25%-8px)]"
+        className="relative flex flex-col items-center cursor-pointer w-[calc(25%-8px)]"
         onClick={() => handleNavigate("defect")}
       >
-        <div className="flex-none bg-lightPurple text-white border  rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
+        <div className="flex-none bg-gradient-to-tl from-purple-600/50 to-lightPurple border border-lightPurple text-white rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
           <div className="w-4/5 h-4/5 flex items-center justify-center">
             <DefectsIcon />
           </div>
@@ -57,11 +71,18 @@ const Condition = () => {
         <p className="text-center text-xs font-medium text-black font-opensans mt-1 sm:mt-2 truncate w-full">
           Defect
         </p>
+        <div
+          className="absolute inset-0 bg-gradient-to-l from-transparent via-white/50 to-transparent"
+          style={{
+            backgroundSize: "200% 200%",
+            animation: "shimmer 4s infinite ease-in-out reverse",
+          }}
+        />
       </div>
 
       {/* What's New Container */}
-      <div className="flex flex-col items-center cursor-pointer w-[calc(25%-8px)]">
-        <div className="flex-none bg-lightPurple text-white border  rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
+      <div className="relative flex flex-col items-center cursor-pointer w-[calc(25%-8px)]">
+        <div className="flex-none bg-gradient-to-tl from-blue-600/50 to-blue-600/10 text-white rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center delay-[1500ms]">
           <div className="w-4/5 h-4/5 flex items-center justify-center">
             <WhatsNew />
           </div>
@@ -69,6 +90,13 @@ const Condition = () => {
         <p className="text-center text-xs font-medium text-black font-opensans mt-1 sm:mt-2 truncate w-full">
           What's New
         </p>
+        <div
+          className="absolute inset-0 bg-gradient-to-l from-transparent via-white/50 to-transparent"
+          style={{
+            backgroundSize: "200% 200%",
+            animation: "shimmer 4s infinite ease-in-out reverse",}
+          }
+        />
       </div>
     </div>
   );

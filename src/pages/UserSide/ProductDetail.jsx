@@ -34,7 +34,7 @@ import { useLocation } from "react-router-dom";
 import { Swiper, SwiperSlide } from "swiper/react";
 import Select from "react-select";
 import "swiper/css";
-import { RotatingLines } from "react-loader-spinner";
+import { Oval, RotatingLines } from "react-loader-spinner";
 
 import { AnimatePresence, motion } from "framer-motion";
 // import SwiperCore, { Pagination,  } from "swiper";
@@ -59,6 +59,7 @@ import QuestionandA from "../../components/Loading/QuestionandA";
 import { LiaTimesSolid } from "react-icons/lia";
 import { handleUserActionLimit } from "../../services/userWriteHandler";
 import SafeImg from "../../services/safeImg";
+import { BsBadgeHdFill } from "react-icons/bs";
 Modal.setAppElement("#root");
 
 const debounce = (func, delay) => {
@@ -72,9 +73,112 @@ const debounce = (func, delay) => {
     }, delay);
   };
 };
+export const useDoubleTap = (cb, delay = 300) => {
+  const last = useRef(0);
+  return () => {
+    const now = Date.now();
+    if (now - last.current < delay) cb();
+    last.current = now;
+  };
+};
 
+export const useHdLoader =
+  (hdImages, loadedHd, setLoadedHd, loadingHd, setLoadingHd) => (idx) => {
+    if (!hdImages[idx] || loadedHd.has(idx) || loadingHd.has(idx)) return;
+
+    setLoadingHd((p) => new Set(p).add(idx));
+
+    const img = new Image();
+    img.src = hdImages[idx];
+    img.onload = () => {
+      setLoadedHd((p) => new Set(p).add(idx));
+      setLoadingHd((p) => {
+        const n = new Set(p);
+        n.delete(idx);
+        return n;
+      });
+    };
+    img.onerror = () =>
+      setLoadingHd((p) => {
+        const n = new Set(p);
+        n.delete(idx);
+        return n;
+      });
+  };
+/* utility that swallows the tap and runs your callback on a double‑tap */
+const makeDoubleTap = (cb, delay = 300) => {
+  let last = 0;
+  return (e) => {
+    e.stopPropagation(); // <-- Swiper never sees the tap
+    e.preventDefault(); // (optional) don’t generate a click event
+    const now = Date.now();
+    if (now - last < delay) cb();
+    last = now;
+  };
+};
+
+const HD_HINT_KEY = "hdHintMeta";
+
+const useHdHint = (productId) => {
+  const [show, setShow] = useState(false);
+
+  /* ── decide WHEN the hint should appear ─────────────────────── */
+  useEffect(() => {
+    const now = Date.now();
+    const meta = JSON.parse(localStorage.getItem(HD_HINT_KEY) || "{}");
+    const { shownIds = [], totalShown = 0, lastShown = 0 } = meta;
+
+    const msSince = now - lastShown;
+    const canShow =
+      totalShown < 2 || // first 2 products
+      (totalShown === 2 && msSince > 3 * 864e5) || // +3 days
+      (totalShown === 3 && msSince > 7 * 864e5); // +1 week
+
+    if (canShow && !shownIds.includes(productId)) {
+      setShow(true);
+      localStorage.setItem(
+        HD_HINT_KEY,
+        JSON.stringify({
+          shownIds: [...shownIds, productId],
+          totalShown: totalShown + 1,
+          lastShown: now,
+        })
+      );
+    }
+  }, [productId]);
+
+  /* ── auto‑hide after 4 s ─────────────────────────────────────── */
+  useEffect(() => {
+    if (!show) return;
+    const timer = setTimeout(() => setShow(false), 4000);
+    return () => clearTimeout(timer); // cleanup if component unmounts
+  }, [show]);
+
+  return show;
+};
+
+/* 🌀  Animated overlay */
+const HdHintOverlay = () => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.7 }}
+    animate={{ opacity: 1, scale: 1 }}
+    exit={{ opacity: 0 }}
+    transition={{ type: "spring", stiffness: 260, damping: 20 }}
+    className="absolute inset-0 flex items-center justify-center pointer-events-none"
+  >
+    <motion.div
+      animate={{ scale: [1, 1.2, 1] }}
+      transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }}
+      className="px-3 py-1.5 bg-black bg-opacity-60 rounded-full backdrop-blur text-xs font-opensans text-white tracking-wide"
+    >
+      Double‑tap for HD version
+    </motion.div>
+  </motion.div>
+);
 const ProductDetailPage = () => {
   const { id } = useParams();
+  const showHdHint = useHdHint(id);
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -125,7 +229,16 @@ const ProductDetailPage = () => {
   // Inside your ProductDetailPage component
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
-
+  const [hdImages, setHdImages] = useState([]);
+  const [loadedHd, setLoadedHd] = useState(new Set());
+  const [loadingHd, setLoadingHd] = useState(new Set());
+  const loadHd = useHdLoader(
+    hdImages,
+    loadedHd,
+    setLoadedHd,
+    loadingHd,
+    setLoadingHd
+  );
   const handleOpenModal = () => setShowModal(true);
   const handleCloseModal = () => setShowModal(false);
   const db = getFirestore();
@@ -200,21 +313,14 @@ const ProductDetailPage = () => {
   }, [product]);
   useEffect(() => {
     if (product) {
-      setMainImage(product.coverImageUrl); // Always store the main product's cover image
-      setSelectedImage(product.coverImageUrl); // Initially display main product image
-
-      // Set images to include main image plus other images if available
-      setAllImages(
-        product.imageUrls?.length > 1
-          ? [
-              product.coverImageUrl,
-              ...product.imageUrls.filter(
-                (url) => url !== product.coverImageUrl
-              ),
-            ]
-          : [product.coverImageUrl]
+      // Use imageUrls directly to align with hdImageUrls
+      setAllImages(product.imageUrls || []);
+      setHdImages(
+        Array.isArray(product.hdImageUrls) ? product.hdImageUrls : []
       );
-      setSubProducts(product.subProducts || []); // Store sub-products if available
+      setMainImage(product.coverImageUrl);
+      setSelectedImage(product.coverImageUrl);
+      setSubProducts(product.subProducts || []);
     }
   }, [product]);
   // put this near the top, right after you pull `product` from redux
@@ -270,6 +376,64 @@ const ProductDetailPage = () => {
       // }
     }
   }, [product]);
+  // // ── detect a *second* tap or click within 300 ms ──
+  // const useDoubleTap = (callback, delay = 300) => {
+  //   const last = useRef(0);
+  //   return () => {
+  //     const now = Date.now();
+  //     if (now - last.current < delay) callback();
+  //     last.current = now;
+  //   };
+  // };
+
+  // ── load HD for a slide index if not already loaded ──
+  // const useHdLoader =
+  //   (hdImages, loadedHd, setLoadedHd, loadingHd, setLoadingHd) => (idx) => {
+  //     if (!hdImages[idx] || loadedHd.has(idx) || loadingHd.has(idx)) return;
+
+  //     setLoadingHd((p) => new Set(p).add(idx));
+
+  //     const img = new Image();
+  //     img.src = hdImages[idx];
+  //     img.onload = () => {
+  //       setLoadedHd((p) => new Set(p).add(idx));
+  //       setLoadingHd((p) => {
+  //         const n = new Set(p);
+  //         n.delete(idx);
+  //         return n;
+  //       });
+  //     };
+  //     img.onerror = () =>
+  //       setLoadingHd((p) => {
+  //         const n = new Set(p);
+  //         n.delete(idx);
+  //         return n;
+  //       });
+  //   };
+
+  // // fetch & cache HD for a given slide index
+  // const fetchHd = (idx) => {
+  //   if (!hdImages[idx] || loadedHd.has(idx) || loadingHd.has(idx)) return;
+
+  //   setLoadingHd((p) => new Set(p).add(idx)); // show spinner
+
+  //   const img = new Image();
+  //   img.src = hdImages[idx];
+  //   img.onload = () => {
+  //     setLoadedHd((p) => new Set(p).add(idx)); // swap to HD
+  //     setLoadingHd((p) => {
+  //       const n = new Set(p);
+  //       n.delete(idx);
+  //       return n;
+  //     });
+  //   };
+  //   img.onerror = () =>
+  //     setLoadingHd((p) => {
+  //       const n = new Set(p);
+  //       n.delete(idx);
+  //       return n;
+  //     });
+  // };
 
   const handleSubProductClick = (subProduct) => {
     swiperRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -837,6 +1001,7 @@ const ProductDetailPage = () => {
       (variant) => variant.color === selectedColor && variant.size === size
     );
   };
+
   // Helper function to parse the color string and return appropriate style
   const getColorStyle = (colorString) => {
     // Convert to lowercase and split by ',' or 'and'
@@ -1158,18 +1323,49 @@ const ProductDetailPage = () => {
                   disableOnInteraction: false,
                 }}
                 className="product-images-swiper"
+                preventClicks={true}
+                preventClicksPropagation={true}
                 onSlideChange={(swiper) =>
                   setCurrentImageIndex(swiper.activeIndex)
                 }
               >
                 {allImages.map((image, index) => (
                   <SwiperSlide key={index}>
-                    <div className="relative w-full h-full">
+                    <div
+                      className="relative w-full h-full"
+                      onDoubleClick={() => loadHd(index)}
+                      onTouchEnd={makeDoubleTap(() => loadHd(index))}
+                    >
                       <SafeImg
-                        src={image}
+                        src={
+                          loadedHd.has(index) && hdImages[index]
+                            ? hdImages[index]
+                            : image
+                        }
                         alt={`${product.name} image ${index + 1}`}
                         className="object-cover w-full h-full"
                       />
+                      {loadingHd.has(index) && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
+                          <Oval
+                            height={50}
+                            width={50}
+                            color="#f9531e"
+                            secondaryColor="rgba(0,0,0,0.2)"
+                            strokeWidth={4}
+                            ariaLabel="loading"
+                          />
+                        </div>
+                      )}
+                      {loadedHd.has(index) && hdImages[index] && (
+                        <div className="absolute top-6 left-2 z-10">
+                          <BsBadgeHdFill
+                            className="text-white bg-black bg-opacity-40 p-1 rounded-full text-xl"
+                            title="HD image"
+                          />
+                        </div>
+                      )}
+                      {showHdHint && index === 0 && <HdHintOverlay />}
                       {/* Discount Badge inside each slide */}
                       {index === 0 && product.discount && (
                         <div className="absolute top-10 right-2 z-20">
@@ -1238,11 +1434,40 @@ const ProductDetailPage = () => {
           ) : (
             // Single image fallback
             <>
-              <IkImage
-                src={allImages[0]}
-                alt={`${product.name} image`}
-                className="object-cover w-full h-full rounded-b-lg"
-              />
+              <div
+                className="relative w-full h-full"
+                onDoubleClick={() => loadHd(0)}
+                onTouchEnd={makeDoubleTap(() => loadHd(0))}
+              >
+                <IkImage
+                  src={
+                    loadedHd.has(0) && hdImages[0] ? hdImages[0] : allImages[0]
+                  }
+                  alt={`${product.name} image`}
+                  className="object-cover w-full h-full rounded-b-lg"
+                />
+                {loadingHd.has(0) && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
+                    <Oval
+                      height={50}
+                      width={50}
+                      color="#f9531e"
+                      secondaryColor="rgba(0,0,0,0.2)"
+                      strokeWidth={4}
+                      ariaLabel="loading"
+                    />
+                  </div>
+                )}
+                {loadedHd.has(0) && hdImages[0] && (
+                  <div className="absolute top-6 left-2 z-10">
+                    <BsBadgeHdFill
+                      className="text-white bg-black bg-opacity-40 p-1 rounded-full text-xl"
+                      title="HD image"
+                    />
+                  </div>
+                )}
+                {showHdHint && <HdHintOverlay />}
+              </div>
               {product.discount && (
                 <div className="absolute top-10 right-2 ">
                   {product.discount.discountType.startsWith(

@@ -1323,8 +1323,7 @@ const ProductDetailPage = () => {
                   disableOnInteraction: false,
                 }}
                 className="product-images-swiper"
-                preventClicks={true}
-                preventClicksPropagation={true}
+               
                 onSlideChange={(swiper) =>
                   setCurrentImageIndex(swiper.activeIndex)
                 }

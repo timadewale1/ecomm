@@ -106,13 +106,19 @@ export const useHdLoader =
       });
   };
 /* utility that swallows the tap and runs your callback on a double‑tap */
+// utils / same file – overwrite the old helper
 const makeDoubleTap = (cb, delay = 300) => {
   let last = 0;
   return (e) => {
-    e.stopPropagation(); // <-- Swiper never sees the tap
-    e.preventDefault(); // (optional) don’t generate a click event
     const now = Date.now();
-    if (now - last < delay) cb();
+
+    // is this the 2nd tap inside `delay` ms?
+    if (now - last < delay) {
+      e.stopPropagation(); // block Swiper only for the true double‑tap
+      e.preventDefault(); // optional: stops the synthetic click
+      cb(); // load the HD image
+    }
+
     last = now;
   };
 };
@@ -1323,7 +1329,6 @@ const ProductDetailPage = () => {
                   disableOnInteraction: false,
                 }}
                 className="product-images-swiper"
-               
                 onSlideChange={(swiper) =>
                   setCurrentImageIndex(swiper.activeIndex)
                 }

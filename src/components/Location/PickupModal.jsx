@@ -15,6 +15,7 @@ const PickupInfoModal = ({
   isOpen,
   onClose,
 }) => {
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -50,7 +51,9 @@ const PickupInfoModal = ({
                 </span>
               </p>
 
+
              
+
               <ul className="mt-4 text-xs font-opensans space-y-1">
                 <li className="flex items-start">
                   <GoChevronRight className="text-customOrange mt-0.5 mr-1" />

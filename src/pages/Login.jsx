@@ -30,7 +30,7 @@ import { useDispatch } from "react-redux";
 import { setCart } from "../redux/actions/action";
 import { RotatingLines } from "react-loader-spinner";
 import { GoChevronLeft } from "react-icons/go";
-
+import { usePostHog } from "posthog-js/react";
 // We need signInWithEmailAndPassword from Firebase Auth
 import { signInWithEmailAndPassword } from "firebase/auth";
 
@@ -49,10 +49,28 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
-
+  const posthog = usePostHog();
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
+  };
+  const identifyUser = (ph, userRecord, extra = {}) => {
+    if (!ph) return; // provider not ready
+
+    /* alias only the first time on this browser */
+    const aliasKey = `ph_alias_${userRecord.uid}`;
+    if (!localStorage.getItem(aliasKey)) {
+      ph.alias(userRecord.uid);
+      localStorage.setItem(aliasKey, "1");
+    }
+
+    ph.identify(userRecord.uid, {
+      email: userRecord.email,
+      name: userRecord.displayName ?? extra.username ?? "Unknown",
+      phone: userRecord.phoneNumber ?? null,
+      created_at: userRecord.metadata.creationTime,
+      ...extra, // role, plan, etc.
+    });
   };
 
   const syncCartWithFirestore = async (userId) => {
@@ -132,6 +150,7 @@ const Login = () => {
     setLoading(true);
 
     try {
+      posthog?.capture("login_attempted", { method: "email" });
       /* ── 1.  Firebase Auth sign-in  (edge POP ≈ 250 ms) ────────── */
       const { user } = await signInWithEmailAndPassword(auth, email, password);
 
@@ -159,7 +178,8 @@ const Login = () => {
       const redirectTo = location.state?.from || "/newhome";
       navigate(redirectTo, { replace: true });
       setLoading(false);
-
+      identifyUser(posthog, user, { role: uData.role ?? "user" });
+      posthog?.capture("login_succeeded", { method: "email" });
       /* ── 4.  Background jobs (non-blocking) ────────────────────── */
       (async () => {
         /* 4a – send your custom verification e-mail once per session */
@@ -195,7 +215,10 @@ const Login = () => {
     } catch (error) {
       setLoading(false);
       console.error("Error during sign-in:", error);
-
+      posthog?.capture("login_failed", {
+        method: "email",
+        code: error.code,
+      });
       /* ── identical, friendly error messages ───────────────────── */
       let errorMessage = "Sorry, we couldn't sign you in. Please try again.";
 
@@ -225,6 +248,7 @@ const Login = () => {
     const provider = new GoogleAuthProvider();
     try {
       setLoading(true);
+      posthog?.capture("login_attempted", { method: "google" });
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
@@ -269,17 +293,24 @@ const Login = () => {
           createdAt: new Date(),
         });
         console.log("New user document created in Firestore");
+        posthog?.capture("signup_completed", { method: "google" });
       }
 
       const localCart = JSON.parse(localStorage.getItem("cart")) || {};
       await fetchCartFromFirestore(user.uid, localCart);
       localStorage.removeItem("cart");
-
+      identifyUser(posthog, user, { role: "user" });
+      posthog?.capture("login_succeeded", { method: "google" });
       const redirectTo = location.state?.from || "/newhome";
       toast.success(`Welcome back ${user.displayName}!`);
+
       navigate(redirectTo, { replace: true });
     } catch (error) {
       setLoading(false);
+      posthog?.capture("login_failed", {
+        method: "google",
+        code: error.code,
+      });
       console.error("Google Sign-In Error:", error);
       let errorMessage = "Google Sign-In failed. Please try again.";
       if (error.code === "auth/account-exists-with-different-credential") {
@@ -337,7 +368,16 @@ const Login = () => {
               <Link to={-1}>
                 <IoCloseOutline className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>
-           
+              <LoginAnimation />
+              <div className="flex transform text-customOrange -translate-y-10 mb-2 justify-center">
+                <Typewriter
+                  options={{
+                    strings: ["The Real Marketplace"],
+                    autoStart: true,
+                    loop: true,
+                  }}
+                />
+              </div>
               <div className="-translate-y-4 px-1 flex flex-col justify-center">
                 <div>
                   <h1 className="text-3xl font-bold font-lato text-black mb-1">

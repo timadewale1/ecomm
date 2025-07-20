@@ -11,17 +11,10 @@ import Pickup from "../Loading/Pickup";
 ---------------------------------------------------------------- */
 const PickupInfoModal = ({
   vendor, // full vendor doc (must include pickupAddress)
-  currentUserCoords, // { lat, lng } — may be null if user denied location
+
   isOpen,
   onClose,
 }) => {
-  // Detect whether location permissions are available (still used for copy)
-  const [hasLocation, setHasLocation] = useState(Boolean(currentUserCoords));
-
-  useEffect(() => {
-    setHasLocation(Boolean(currentUserCoords));
-  }, [currentUserCoords]);
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -57,13 +50,7 @@ const PickupInfoModal = ({
                 </span>
               </p>
 
-              {/* optional note if user’s location is unavailable */}
-              {!hasLocation && (
-                <p className="text-xs font-opensans text-gray-500 mb-2">
-                  Enable location on checkout to get accurate directions.
-                </p>
-              )}
-
+             
               <ul className="mt-4 text-xs font-opensans space-y-1">
                 <li className="flex items-start">
                   <GoChevronRight className="text-customOrange mt-0.5 mr-1" />

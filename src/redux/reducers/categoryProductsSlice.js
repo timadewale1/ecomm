@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { db } from "../../firebase.config";
 import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 
-const BATCH_SIZE_INCREMENT = 10;
+const BATCH_SIZE_INCREMENT = 50;
 
 /**
  * Helper to chunk an array into smaller arrays of `size` length.

@@ -44,7 +44,7 @@ function ConditionProducts() {
   const [noMoreProducts, setNoMoreProducts] = useState(false);
   const [showHeader, setShowHeader] = useState(true);
   const [lastScrollPosition, setLastScrollPosition] = useState(0);
-  const BATCH_SIZE = 10;
+  const BATCH_SIZE = 50;
 
   // Optional: local search and sort states
   const [selectedType, setSelectedType] = useState("All");

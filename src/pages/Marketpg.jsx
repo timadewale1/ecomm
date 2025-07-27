@@ -157,11 +157,11 @@ const Marketpg = () => {
                 {/* Delivery Filter - Placed First as Requested */}
                 <button
                   onClick={() => setHasDelivery(!hasDelivery)}
-                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/10 ${
-                    hasDelivery
-                      ? "bg-gradient-to-br from-customOrange/30 to-customOrange text-white shadow-lg shadow-black/30 -translate-y-1"
-                      : "bg-gradient-to-br from-transparent to-black/20 shadow-md border"
-                  }`}
+                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
+                      hasDelivery
+                        ? "bg-customOrange text-white"
+                        : "bg-white"
+                    }`}
                 >
                   Delivery
                 </button>
@@ -169,11 +169,11 @@ const Marketpg = () => {
                 {/* Stockpile Filter */}
                 <button
                   onClick={() => setHasStockpile(!hasStockpile)}
-                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/10 ${
-                    hasStockpile
-                      ? "bg-gradient-to-br from-customOrange/30 to-customOrange text-white shadow-lg shadow-black/30 -translate-y-1"
-                      : "bg-gradient-to-br from-transparent to-black/20 shadow-md border"
-                  }`}
+                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
+                      hasStockpile
+                        ? "bg-customOrange text-white"
+                        : "bg-white"
+                    }`}
                 >
                   Stockpile
                 </button>
@@ -181,11 +181,11 @@ const Marketpg = () => {
                 {/* Pickup Filter */}
                 <button
                   onClick={() => setHasPickup(!hasPickup)}
-                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/10 ${
-                    hasPickup
-                      ? "bg-gradient-to-br from-customOrange/30 to-customOrange text-white shadow-lg shadow-black/30 -translate-y-1"
-                      : "bg-gradient-to-br from-transparent to-black/20 shadow-md border"
-                  }`}
+                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
+                      hasPickup
+                        ? "bg-customOrange text-white"
+                        : "bg-white"
+                    }`}
                 >
                   Pickup
                 </button>
@@ -199,10 +199,10 @@ const Marketpg = () => {
                         category === selectedCategory ? "" : category
                       )
                     }
-                    className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/10 ${
+                    className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
                       selectedCategory === category
-                        ? "bg-gradient-to-br from-customOrange/30 to-customOrange text-white shadow-lg shadow-black/30 -translate-y-1"
-                        : "bg-gradient-to-br from-transparent to-black/20 shadow-md border"
+                        ? "bg-customOrange text-white"
+                        : "bg-white"
                     }`}
                   >
                     {category}

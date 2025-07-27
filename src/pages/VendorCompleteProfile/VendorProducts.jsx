@@ -23,7 +23,7 @@ import {
 import { MdOutlineStarBorderPurple500 } from "react-icons/md";
 import Modal from "../../components/layout/Modal";
 import ConfirmationDialog from "../../components/layout/ConfirmationDialog";
-import { FaRegCircle, FaRegCheckCircle } from "react-icons/fa";
+import { FaRegCircle, FaRegCheckCircle, FaCogs } from "react-icons/fa";
 import { GrRadialSelected } from "react-icons/gr";
 import { RotatingLines } from "react-loader-spinner";
 import AddProduct from "../vendor/AddProducts";
@@ -49,6 +49,7 @@ import { IoTrashOutline } from "react-icons/io5";
 import { IoMdCheckmarkCircleOutline } from "react-icons/io";
 import { HiWrenchScrewdriver } from "react-icons/hi2";
 import MultiDiscountModal from "../vendor/MultiDiscountModal";
+import EditProductModal from "../vendor/EditProductModal";
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
@@ -75,6 +76,7 @@ const VendorProducts = () => {
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
   const [isMultiDiscountModalOpen, setIsMultiDiscountModalOpen] =
     useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const { vendorData } = useContext(VendorContext);
 
@@ -387,6 +389,7 @@ const VendorProducts = () => {
   const confirmBulkDeleteProduct = async () => {
     setOLoading(true);
     const vendorDocRef = doc(db, "vendors", vendorId);
+    const length = pickedProducts.length;
     try {
       for (const productId of pickedProducts) {
         const productRef = doc(db, "products", productId);
@@ -409,8 +412,14 @@ const VendorProducts = () => {
       setAction("");
 
       await addActivityNote(
-        "Deleted Products 🗑",
-        `You removed products from your store! These products no longer exist in your store and customers that have them in their carts will be notified.`,
+        `Deleted ${length > 1 ? "Products" : "a Product"}🗑`,
+        `You removed ${length} product${
+          length > 1 ? "s" : ""
+        } from your store! ${
+          length > 1 ? "These products" : "This product"
+        } no longer exist in your store and customers that have ${
+          length > 1 ? "them" : "it"
+        } in their carts will be notified.`,
         "Product Update"
       );
     } catch (error) {
@@ -493,6 +502,7 @@ const VendorProducts = () => {
   const closeModals = () => {
     setIsViewProductModalOpen(false);
     setIsAddProductModalOpen(false);
+    setIsEditModalOpen(false);
     setSelectedProduct(null);
 
     if (isRestocking) {
@@ -1458,7 +1468,7 @@ const VendorProducts = () => {
           onClose={closeModals}
           onDel={handleDeleteProduct}
         >
-          <div className="pb-24 pt-10">
+          <div>
             {selectedProduct.coverImageUrl && (
               <img
                 src={selectedProduct.coverImageUrl}
@@ -1486,13 +1496,13 @@ const VendorProducts = () => {
               </p>
               {selectedProduct.published && (
                 <button
-                  className="text-white opacity-50 cursor-not-allowed"
+                  className="text-white cursor-not-allowed"
                   onClick={copyToClipboard}
                 >
                   {!copied ? (
                     <LuCopy className="text-2xl text-customOrange" />
                   ) : (
-                    <LuCopyCheck className="text-2xl text-[#28a745]" />
+                    <LuCopyCheck className="text-2xl text-customOrange" />
                   )}
                 </button>
               )}
@@ -1757,7 +1767,7 @@ const VendorProducts = () => {
               <div className="text-lg flex items-center space-x-1 text-customOrange mt-4 mb-2 font-medium font-opensans">
                 <div>Actions</div>{" "}
                 <span>
-                  <TbEdit className="" />
+                  <FaCogs className="text-2xl" />
                 </span>
               </div>
             )}
@@ -1785,6 +1795,39 @@ const VendorProducts = () => {
                   >
                     <div>Mark As "Sold-Out"</div>
                     <TbBoxOff className="text-2xl text-customOrange" />
+                  </div>
+                )}
+
+                {!(selectedProduct.stockQuantity < 1) && (
+                  <hr className="text-customOrange opacity-40" />
+                )}
+
+                {(
+                  <div
+                    className={`flex relative space-x-1 justify-between items-center font-medium text-base cursor-pointer text-black ${
+                      selectedProduct.editCount > 0 ? "text-gray-400" : ""
+                    }`}
+                    onClick={() => {
+                      // If editCount is undefined or null, treat it as zero
+                      const edits = selectedProduct.editCount ?? 0;
+
+                      if (edits === 0) {
+                        // only toggle if no edits yet
+                        setIsEditModalOpen(!isEditModalOpen);
+                      } else {
+                        setAction("editUnavailable")
+                        setShowConfirmation(true)
+                      }
+                    }}
+                  >
+                    <div>Edit Product</div>
+                    <TbEdit
+                      className={`text-2xl ${
+                        selectedProduct.editCount > 0
+                          ? "text-gray-400"
+                          : "text-customOrange"
+                      }`}
+                    />
                   </div>
                 )}
 
@@ -1838,7 +1881,7 @@ const VendorProducts = () => {
                 <motion.button
                   whileTap={{ scale: 1.1 }}
                   onClick={toggleRestockMode}
-                  className="glow-button w-full h-12  mt-7 bg-customOrange text-white font-opensans font-semibold rounded-full"
+                  className="glow-button w-full h-12 bg-customOrange text-white font-opensans font-semibold rounded-full"
                 >
                   Restock Item
                 </motion.button>
@@ -1871,12 +1914,21 @@ const VendorProducts = () => {
         </Modal>
       )}
 
+      {isEditModalOpen && (
+        <EditProductModal
+          selectedProduct={selectedProduct}
+          vendorId={vendorId}
+          onClose={() => setIsEditModalOpen(false)}
+        />
+      )}
+
       {showDisableConfirmation && (
         <ConfirmationDialog
           isOpen={showDisableConfirmation}
-          onClose={() => setShowDisableConfirmation(false)}
+          onClose={closeModals}
           onConfirm={disableDiscount}
           message="Are you sure you want to disable this discount?"
+          icon={<TbRosetteDiscountOff className="w-4 h-4" />}
           title="Disable Product Discount"
           loading={disableLoading}
         />
@@ -1900,7 +1952,7 @@ const VendorProducts = () => {
             onConfirm={confirmBulkDeleteProduct}
             message="Are you sure you want to delete these products?"
             icon={<IoTrashOutline className="w-4 h-4" />}
-            title="Delete Products"
+            title="Delete Product(s)"
             loading={oLoading}
           />
         ) : action === "publish" ? (
@@ -1922,6 +1974,13 @@ const VendorProducts = () => {
             icon={<MdOutlineUnpublished className="w-4 h-4" />}
             title="Unpublish Products"
             loading={oLoading}
+          />
+        ) : action === "editUnavailable" ? (
+          <ConfirmationDialog
+            isOpen={showConfirmation}
+            onClose={() => setShowConfirmation(false)}
+            message={`Cannot edit a product more than once at base level...`}
+            loading={mLoading}
           />
         ) : action === "markSoldOut" ? (
           <ConfirmationDialog

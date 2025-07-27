@@ -396,11 +396,11 @@ const Explore = () => {
                           handleSubTypeClick(subTypeName);
                         }
                       }}
-                      className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/10 ${
-                    isActive
-                      ? "bg-gradient-to-br from-customOrange/30 to-customOrange text-white shadow-lg shadow-black/30 -translate-y-1"
-                      : "bg-gradient-to-br from-transparent to-black/20 shadow-md border"
-                  }`}
+                     className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
+                      isActive
+                        ? "bg-customOrange text-white"
+                        : "bg-white"
+                    }`}
                     >
                       {subTypeName}
                     </button>

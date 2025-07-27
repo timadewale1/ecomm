@@ -19,7 +19,7 @@ const Condition = () => {
         className="flex flex-col items-center cursor-pointer w-[calc(25%-8px)]"
         onClick={() => handleNavigate("brand-new")}
       >
-        <div className="flex-none bg-gradient-to-tl from-customOrange/50 to-lighOrange border border-lighOrange text-white rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
+        <div className="flex-none bg-gradient-to-tl from-customOrange/60 to-lighOrange border border-lighOrange text-white rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
           <div className="w-4/5 h-4/5 flex items-center justify-center">
             <BrandNewIcon />
           </div>
@@ -28,10 +28,11 @@ const Condition = () => {
           Brand New
         </p>
         <div
-          className="absolute inset-0 bg-gradient-to-l from-transparent via-white/70 to-transparent"
+          className="absolute inset-0 bg-gradient-to-l from-transparent via-white/50 to-transparent delay"
           style={{
             backgroundSize: "200% 200%",
             animation: "shimmer 4s infinite ease-in-out reverse",
+            animationDelay: '1s',
           }}
         />
       </div>
@@ -50,10 +51,11 @@ const Condition = () => {
           Thrifted
         </p>
         <div
-          className="absolute inset-0 bg-gradient-to-l from-transparent via-white/70 to-transparent"
+          className="absolute inset-0 bg-gradient-to-l from-transparent via-white/50 to-transparent"
           style={{
             backgroundSize: "200% 200%",
             animation: "shimmer 4s infinite ease-in-out reverse",
+            animationDelay: '1.5s',
           }}
         />
       </div>
@@ -76,6 +78,7 @@ const Condition = () => {
           style={{
             backgroundSize: "200% 200%",
             animation: "shimmer 4s infinite ease-in-out reverse",
+            animationDelay: '2s',
           }}
         />
       </div>
@@ -94,7 +97,8 @@ const Condition = () => {
           className="absolute inset-0 bg-gradient-to-l from-transparent via-white/50 to-transparent"
           style={{
             backgroundSize: "200% 200%",
-            animation: "shimmer 4s infinite ease-in-out reverse",}
+            animation: "shimmer 4s infinite ease-in-out reverse",
+            animationDelay: '2.5s',}
           }
         />
       </div>

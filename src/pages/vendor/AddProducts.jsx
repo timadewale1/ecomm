@@ -618,6 +618,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           }),
         published: true,
         isDeleted: false,
+        editCount: 0,
       };
 
       if (discountDetails) {
@@ -693,22 +694,17 @@ const AddProduct = ({ vendorId, closeModal }) => {
       // Log activity when a discount is applied
       if (discountDetails) {
         await logActivity(
-          "Running a Discount 🎉",
-          `You've applied a ${
-            discountDetails.discountType.startsWith("inApp")
-              ? "store-wide"
-              : "personal"
-          } discount on ${productName}. Check your store for more details!`,
-          "Discount Update"
-        );
-      } else {
-        // Log activity when a product is added without a discount
-        await logActivity(
           "Added New Product 📦",
           `You've added ${productName} to your store! You can now view and feature it in your store products section.`,
           "Product Update"
         );
       }
+      // Log activity when a product is added without a discount
+      await logActivity(
+        "Added New Product 📦",
+        `You've added ${productName} to your store! You can now view and feature it in your store products section.`,
+        "Product Update"
+      );
 
       await notifyFollowers(vendorId, {
         name: productName,
@@ -1674,11 +1670,11 @@ const AddProduct = ({ vendorId, closeModal }) => {
 
         {/* Debug console log for modal status */}
       </div>
-     
-        <button
-          type="button"
-          onClick={handleAddProduct}
-          className={`w-full h-12 font-opensans text-lg rounded-full
+
+      <button
+        type="button"
+        onClick={handleAddProduct}
+        className={`w-full h-12 font-opensans text-lg rounded-full
           flex items-center justify-center focus:outline-none focus:ring
           ${
             isLoading || parseFloat(productPrice) < 300
@@ -1687,24 +1683,23 @@ const AddProduct = ({ vendorId, closeModal }) => {
               ? "bg-green-600 text-white hover:bg-green-700 focus:ring-green-500"
               : "bg-customOrange text-white hover:bg-customOrange focus:ring-customOrange"
           }`}
-          disabled={isLoading || parseFloat(productPrice) < 300}
-        >
-          {isLoading ? (
-            <RotatingLines
-              strokeColor="white"
-              strokeWidth="5"
-              animationDuration="0.75"
-              width="24"
-              visible
-            />
-          ) : (
-            <>
-              Publish Product
-              {discountDetails && <FiGift className="ml-2 text-lg" />}
-            </>
-          )}
-        </button>
-      
+        disabled={isLoading || parseFloat(productPrice) < 300}
+      >
+        {isLoading ? (
+          <RotatingLines
+            strokeColor="white"
+            strokeWidth="5"
+            animationDuration="0.75"
+            width="24"
+            visible
+          />
+        ) : (
+          <>
+            Publish Product
+            {discountDetails && <FiGift className="ml-2 text-lg" />}
+          </>
+        )}
+      </button>
     </div>
   );
 };

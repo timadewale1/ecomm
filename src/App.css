@@ -114,9 +114,14 @@ html {
 .modal1 {
   z-index: 2500;
 }
+.modal2 {
+  z-index: 3000;
+}
 .modals {
   z-index: 2400;
 }
+
+
 
 .truncate {
   white-space: nowrap;

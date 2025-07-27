@@ -49,6 +49,11 @@ const SingleDiscountModal = ({ isOpen, onRequestClose, product }) => {
   const openDiscountInfoModal = () => setIsDiscountInfoModalOpen(true);
   const closeDiscountInfoModal = () => setIsDiscountInfoModalOpen(false);
 
+  const [visible, setVisible] = useState(false);
+    useEffect(() => {
+      setTimeout(() => setVisible(true), 10);
+    }, []);
+
   // --- 1. Fetch active in‑app discounts from Firestore ---
   useEffect(() => {
     const fetchDiscounts = async () => {
@@ -348,10 +353,10 @@ const SingleDiscountModal = ({ isOpen, onRequestClose, product }) => {
       <Modal
         isOpen={isOpen}
         onRequestClose={onRequestClose}
-        className="discount-modal"
-        overlayClassName="modal-overlay"
+        className={`discount-modal`}
+        overlayClassName={`fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center modal1 transition-all duration-100 ${visible ? 'backdrop-blur-sm' : ''}`}
       >
-        <div className="flex items-center justify-between border-b border-gray-200 px-2 py-2">
+        <div className={`flex items-center justify-between border-b border-gray-200 px-2 py-2 `}>
           <span className="flex items-center">
             <h2 className="font-opensans text-lg text-customRichBrown font-semibold">
               {selectedDiscount && selectedDiscount.id !== "personal"

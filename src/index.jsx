@@ -18,38 +18,54 @@ import { HelmetProvider } from "react-helmet-async";
 
 import { AuthProvider } from "./custom-hooks/useAuth";
 import { TawkProvider } from "./components/Context/TawkProvider.jsx";
+
+import { PostHogProvider } from "posthog-js/react";
+
+const posthogOptions = {
+  api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
+  autocapture: true,
+  capture_pageview: false,
+  session_recording: { sampling_rate: 1 },
+};
+
 createRoot(document.getElementById("root")).render(
   <HelmetProvider>
     <StrictMode>
       <BrowserRouter>
-        <Provider store={store}>
-          <PersistGate loading={null} persistor={persistor}>
-            <AuthProvider>
-              <NavigationProvider>
-                <VendorProvider>
-                  <TawkProvider>
-                    <FavoritesProvider>
-                      <Toaster
-                        position="top-center"
-                        reverseOrder={false}
-                        toastOptions={{
-                          duration: 2000,
-                          style: {
-                            minWidth: "220px", // Make toast wider
-                            fontSize: "12px", // Reduce text size
-                            padding: "10px 20px", // Adjust padding if needed
-                            fontFamily: "Poppins, sans-serif", // Use Poppins font
-                          },
-                        }}
-                      />
-                      <App />
-                    </FavoritesProvider>
-                  </TawkProvider>
-                </VendorProvider>
-              </NavigationProvider>
-            </AuthProvider>
-          </PersistGate>
-        </Provider>
+        <PostHogProvider
+          apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_KEY}
+          options={posthogOptions}
+        >
+          {" "}
+          <Provider store={store}>
+            <PersistGate loading={null} persistor={persistor}>
+              <AuthProvider>
+                <NavigationProvider>
+                  <VendorProvider>
+                    <TawkProvider>
+                      <FavoritesProvider>
+                        <Toaster
+                          position="top-center"
+                          reverseOrder={false}
+                          toastOptions={{
+                            duration: 2000,
+                            style: {
+                              minWidth: "220px", // Make toast wider
+                              fontSize: "12px", // Reduce text size
+                              padding: "10px 20px", // Adjust padding if needed
+                              fontFamily: "Poppins, sans-serif", // Use Poppins font
+                            },
+                          }}
+                        />
+                        <App />
+                      </FavoritesProvider>
+                    </TawkProvider>
+                  </VendorProvider>
+                </NavigationProvider>
+              </AuthProvider>
+            </PersistGate>
+          </Provider>
+        </PostHogProvider>
       </BrowserRouter>
     </StrictMode>
   </HelmetProvider>

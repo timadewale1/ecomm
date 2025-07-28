@@ -7,7 +7,7 @@ import { AiOutlineUserSwitch } from "react-icons/ai";
 import { useNavigate, useLocation } from "react-router-dom";
 import { doc, getDoc, onSnapshot, updateDoc, setDoc } from "firebase/firestore";
 import { useAuth } from "../custom-hooks/useAuth";
-
+import posthog from 'posthog-js';
 import { FaHeart } from "react-icons/fa";
 import { RotatingLines } from "react-loader-spinner";
 import { FcOnlineSupport } from "react-icons/fc";
@@ -166,7 +166,7 @@ const Profile = () => {
       console.log("Signing out from Firebase …");
       await signOut(auth);
       console.log("✓ Firebase signed-out");
-
+      posthog.reset();
       /* 4️⃣  Local + Redux cleanup */
       localStorage.removeItem("cart");
       localStorage.removeItem("mythrift_role");
@@ -332,7 +332,7 @@ const Profile = () => {
               {currentUser && (
                 <div
                   className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick= {handleWalletClick}
+                  onClick={handleWalletClick}
                 >
                   <div className="flex items-center relative">
                     <TfiWallet className="text-black text-xl mr-4" />
@@ -356,7 +356,7 @@ const Profile = () => {
             <div className="flex flex-col items-center w-full px-2">
               <div
                 className="flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl bg-customGrey mb-3"
-                onClick={() => navigate('/faqs')}
+                onClick={() => navigate("/faqs")}
               >
                 <div className="flex items-center ">
                   <MdHelpOutline className="text-black text-xl mr-4" />
@@ -470,21 +470,19 @@ const Profile = () => {
             </div>
 
             <div className="flex flex-col items-center px-2 w-full">
-             
-                <div
-                  id="contact-support-tab"
-                  className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={openChat}
-                >
-                  <div className="flex items-center">
-                    <FcOnlineSupport className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
-                      Contact Support
-                    </h2>
-                  </div>
-                  <ChevronRight className="text-black" />
+              <div
+                id="contact-support-tab"
+                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                onClick={openChat}
+              >
+                <div className="flex items-center">
+                  <FcOnlineSupport className="text-black text-xl mr-4" />
+                  <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
+                    Contact Support
+                  </h2>
                 </div>
-           
+                <ChevronRight className="text-black" />
+              </div>
             </div>
 
             <div className="flex flex-col items-center px-2 w-full">

@@ -1468,7 +1468,7 @@ const VendorProducts = () => {
           onClose={closeModals}
           onDel={handleDeleteProduct}
         >
-          <div className="pt-10">
+          <div>
             {selectedProduct.coverImageUrl && (
               <img
                 src={selectedProduct.coverImageUrl}

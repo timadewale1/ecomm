@@ -42,7 +42,7 @@ const ConfirmationDialog = ({
                 ? "text-red-600"
                 : "text-customOrange"
             } text-sm flex justify-between py-2 focus:outline-none cursor-pointer`}
-            onClick={onConfirm}
+            onClick={!loading ? onConfirm : null}
           >
             {title}
 

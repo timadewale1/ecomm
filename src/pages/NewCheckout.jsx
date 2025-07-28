@@ -1485,42 +1485,17 @@ const Checkout = () => {
                     </p>
                   </div>
                 </div>
-              ) : !isLagosToLagos ? (
-                // --- NOT Lagos→Lagos: show the orange info box ---
-                <div className="flex items-center bg-orange-50 py-3 px-2 rounded-lg mt-3">
-                  <CiWarning className="text-orange-600 text-7xl mr-3" />
-                  <div>
-                    <p className="font-opensans text-xs text-orange-700 font-semibold">
-                      Delivery is only charged for Lagos-to-Lagos orders. You
-                      won’t be billed now — the vendor will confirm the final
-                      fee when it’s time to ship.
-                    </p>
-                    {/* <p className="text-sm font-opensans text-black font-bold mt-1">
-                      Estimate Cost: ₦{deliveryEstimate.toLocaleString()}
-                    </p> */}
-                  </div>
-                </div>
               ) : (
                 // --- Lagos→Lagos: show the actual fee ---
                 <>
                   <div className="flex justify-between">
-                    <span className="font-opensans text-sm">Estimated Delivery Fee</span>
+                    <span className="font-opensans text-sm">Delivery Fee</span>
                     <span className="text-base font-opensans text-black font-semibold">
                       ₦
                       {parseFloat(
                         previewedOrder.deliveryCharge
                       ).toLocaleString()}
                     </span>
-                  </div>
-                  <div className="flex items-center bg-orange-50 py-3 px-2 rounded-lg mt-3">
-                    <CiWarning className="text-orange-600 text-7xl mr-3" />
-                    <div>
-                      <p className="font-opensans text-xs text-orange-700 font-semibold">
-                        The delivery cost above is just an estimate – you won’t
-                        be charged now. The vendor will confirm the final fee
-                        with you when it’s time to ship.
-                      </p>
-                    </div>
                   </div>
                 </>
               )}
@@ -1790,7 +1765,6 @@ const Checkout = () => {
                       <div className="flex flex-col items-start">
                         <p className="text-base font-opensans font-semibold text-black">
                           Door delivery
-                         
                         </p>
                         <p className="text-xs text-gray-800 font-opensans">
                           1–3 working days

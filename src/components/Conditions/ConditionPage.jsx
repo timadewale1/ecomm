@@ -263,14 +263,12 @@ function ConditionProducts() {
         description={`Shop ${condition} items on My Thrift`}
         url={`https://www.shopmythrift.store/condition/${slug}`}
       />
-      <div className="px-2 py-28">
+      <div className="px-2 py-24">
         {/* Header Section */}
         <div className="w-full h-48 bg-gray-200">{getHeaderContent()}</div>
 
         <div
-          className={`fixed top-0 left-0 w-full bg-white z-10 px-2 py-6 shadow-md transition-transform duration-300 ${
-            showHeader ? "translate-y-0" : "-translate-y-full"
-          }`}
+          className={`fixed top-0 left-0 w-full bg-white z-10 px-2 pt-6 transition-transform duration-300 shadow-sm`}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -324,21 +322,20 @@ function ConditionProducts() {
               </div>
             )}
           </div>
-          <div className="flex mt-5 w-full overflow-x-auto space-x-2 scrollbar-hide px-1">
+          <div className="flex px-2 mb-2 w-full py-2 overflow-x-auto space-x-2 scrollbar-hide">
             {productTypes.map((type) => (
-              <button
-                key={type}
-                onClick={() => handleTypeSelect(type)}
-                className={`flex-shrink-0 h-10 px-4 py-2 text-xs font-semibold font-opensans border rounded-full
-        ${
-          selectedType === type
-            ? "bg-customOrange text-white border-customOrange"
-            : "bg-transparent text-black border-gray-200"
-        }`}
-              >
-                {type}
-              </button>
-            ))}
+                <button
+                  key={type}
+                  onClick={() => handleTypeSelect(type)}
+                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
+                      selectedType === type
+                        ? "bg-customOrange text-white"
+                        : "bg-white"
+                    }`}
+                >
+                  {type}
+                </button>
+              ))}
           </div>
         </div>
 

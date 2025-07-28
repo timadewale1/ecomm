@@ -96,8 +96,8 @@ html {
 }
 
 @keyframes shimmer {
-  0%   { left: -100%; }
-  100% { left: 200%; }
+  0%   { left: 100%; }
+  100% { left: -200%; }
 }
 
 /* 2) Make all text inputs at least 16px so Safari won’t auto-zoom on focus */
@@ -114,9 +114,14 @@ html {
 .modal1 {
   z-index: 2500;
 }
+.modal2 {
+  z-index: 3000;
+}
 .modals {
   z-index: 2400;
 }
+
+
 
 .truncate {
   white-space: nowrap;

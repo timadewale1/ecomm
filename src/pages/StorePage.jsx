@@ -444,6 +444,7 @@ const StorePage = () => {
   const [loadingAll, setLoadingAll] = useState(false);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [showCountdownInHeader, setShowCountdownInHeader] = useState(false);
+  const [isBannerVisible, setIsBannerVisible] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [viewOptions, setViewOptions] = useState(false);
   // Add this line along with your other useState declarations
@@ -1072,6 +1073,55 @@ const StorePage = () => {
   const uniqueFilteredProducts = filteredProducts.filter(
     (prod, idx, arr) => arr.findIndex((p) => p.id === prod.id) === idx
   );
+
+  const FollowHeadsUp = () => {
+    const bannerShown = localStorage.getItem("headsUpBannerShown");
+    useEffect(() => {
+      if (!bannerShown) {
+        setIsBannerVisible(true);
+
+        const timer = setTimeout(() => {
+          setIsBannerVisible(false);
+          localStorage.setItem("headsUpBannerShown", "true");
+        }, 10000);
+
+        return () => clearTimeout(timer);
+      }
+    }, [bannerShown]);
+
+    const handleClose = () => {
+      setIsBannerVisible(false);
+      localStorage.setItem("headsUpBannerShown", "true");
+    };
+
+    return (
+      <>
+        <div
+          className={`z-40 transform -translate-x-3  -translate-y-2 w-4 h-4 backdrop-blur-2xl  bg-gradient-to-tr from-transparent to-black/20 -rotate-45 transition-opacity duration-500 ${
+            isBannerVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        ></div>{" "}
+        <div
+          className={`z-50 w-72 bg-gradient-to-br -translate-y-[18px] from-black/5 to-black/30 backdrop-blur-lg shadow-md text-white px-2 py-2 rounded-lg flex flex-col items-start space-y-1 transform left-1/2 transition-opacity duration-500 ${
+            isBannerVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+          style={{ maxWidth: "99%" }}
+        >
+          <span className="font-semibold font-opensans text-md">
+            Click here to follow this vendor!
+          </span>
+          <span className="text-sm font-opensans">
+            Like this vendor? Follow to get notified whenever they post new
+            products and run sales✨
+          </span>
+          <button onClick={handleClose} className="absolute top-1 right-2">
+            <MdClose className="text-white text-lg" />
+          </button>
+        </div>
+      </>
+    );
+  };
+
   return (
     <>
       {isActive && stockpileVendorId === id && (
@@ -1182,7 +1232,10 @@ const StorePage = () => {
         <div className="">
           {/* Header - Different styles based on state */}
           {isSearching ? (
-            <div className="sticky top-0 bg-white h-24 z-20 flex items-center border-gray-300 w-full">
+            <div
+              className="fixed top-0 left-0 right-0 z-10
+          flex items-center justify-between p-4 bg-gradient-to-b from-white to-transparent"
+            >
               <div className="flex items-center w-full relative px-2">
                 <FaAngleLeft
                   onClick={() => {
@@ -1246,56 +1299,73 @@ const StorePage = () => {
               </div>
             </div>
           ) : (
-            // Glassmorphism header over image
-            <div
-              className={`
-          fixed  top-0 left-0 right-0 z-10
-          flex items-center justify-between p-4
-          transition-opacity duration-300
-          ${showHeader ? "opacity-100" : "opacity-30"}
+            <>
+              {/* Glassmorphism header over image */}
+              <div
+                className={`
+          fixed top-0 left-0 right-0 z-10
+          flex items-center justify-between p-4 bg-gradient-to-b from-white/40 to-transparent
         `}
-            >
-              {/* Back button */}
-              <button
-                onClick={() => navigate(-1)}
-                className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg hover:bg-white/30 transition-all duration-200"
               >
-                <GoChevronLeft className="text-white text-xl" />
-              </button>
+                {/* Back button */}
+                <button
+                  onClick={() => navigate(-1)}
+                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/30 transition-opacity duration-300 border border-white/40
+          ${showHeader ? "opacity-100" : "opacity-30"}`}
+                >
+                  <GoChevronLeft className="text-white text-xl" />
+                </button>
 
-              {/* Right side icons */}
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={openSearch}
-                  className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg hover:bg-white/30 transition-all duration-200"
-                >
-                  <RiSearchLine className="text-white text-xl" />
-                </button>
-                <button
-                  onClick={handleShare}
-                  className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg hover:bg-white/30 transition-all duration-200"
-                >
-                  <GrShare className="text-white text-lg" />
-                </button>
-                <button
-                  onClick={handleFollowClick}
-                  disabled={isFollowLoading}
-                  className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg hover:bg-white/30 transition-all duration-200"
-                >
-                  <motion.div
-                    key={isFollowing ? "filled" : "outline"}
-                    initial={{ scale: 0.8 }}
-                    animate={{ scale: 1.1 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                {/* Right side icons */}
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={openSearch}
+                    className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/30 transition-opacity duration-300 border border-white/40
+          ${showHeader ? "opacity-100" : "opacity-30"}`}
                   >
-                    {isFollowing ? (
-                      <RiHeart3Fill className="text-red-500 text-lg" />
-                    ) : (
-                      <RiHeart3Line className="text-white text-lg" />
-                    )}
-                  </motion.div>
-                </button>
+                    <RiSearchLine className="text-white text-xl" />
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/30 transition-opacity duration-300 border border-white/40
+          ${showHeader ? "opacity-100" : "opacity-30"}`}
+                  >
+                    <GrShare className="text-white text-lg" />
+                  </button>
+                  <button
+                    onClick={handleFollowClick}
+                    disabled={isFollowLoading}
+                    className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-md hover:bg-white/30 transition-opacity duration-300 border border-white/40
+          ${showHeader ? "opacity-100" : "opacity-30"}`}
+                  >
+                    <motion.div
+                      key={isFollowing ? "filled" : "outline"}
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1.1 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 15,
+                      }}
+                    >
+                      {isFollowing ? (
+                        <RiHeart3Fill className="text-red-500 text-lg" />
+                      ) : (
+                        <RiHeart3Line className="text-white text-lg" />
+                      )}
+                    </motion.div>
+                  </button>
+                </div>
               </div>
+            </>
+          )}
+
+          {/* Follow heads up banner */}
+          {!isShared && isBannerVisible && (
+            <div
+              className={`fixed w-full top-14 left-0 right-0 z-10 flex flex-col items-end justify-end p-4 pointer-events-auto`}
+            >
+              <FollowHeadsUp />
             </div>
           )}
 
@@ -1467,57 +1537,51 @@ const StorePage = () => {
             <div className="p-4">{/* Search results content goes here */}</div>
           )}
 
-          <style jsx>{`
-            @keyframes shimmer {
-              0% {
-                transform: translateX(-100%);
-                opacity: 0;
-              }
-              50% {
-                opacity: 1;
-              }
-              100% {
-                transform: translateX(100%);
-                opacity: 0;
-              }
-            }
-          `}</style>
+          
         </div>
-        <div className=" mt-7">
+        <div className={`${isSearching ? "mt-16" : "mt-7"}`}>
           <div className="flex items-center mb-3 justify-between">
             <h1 className="font-opensans text-lg  font-semibold">Products</h1>
             <div className="relative">
-              {viewOptions && (
-                <div className="z-50 absolute bg-white w-44 h-20 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-24 top-2 p-3 flex flex-col justify-between">
-                  <span
-                    className={`text-xs font-opensans ml-2 cursor-pointer ${
-                      sortOption === "priceAsc"
-                        ? "text-customOrange"
-                        : "text-black"
-                    }`}
-                    onClick={() => {
-                      setSortOption("priceAsc");
-                      setViewOptions(!viewOptions);
-                    }}
+              <AnimatePresence>
+                {viewOptions && (
+                  <motion.div
+                    initial={{ x: 60, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: 60, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    className="z-50 absolute bg-white w-44 h-20 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-24 top-2 p-3 flex flex-col justify-between"
                   >
-                    Low to High
-                  </span>
-                  <hr className="text-slate-300" />
-                  <span
-                    className={`text-xs font-opensans ml-2 cursor-pointer ${
-                      sortOption === "priceDesc"
-                        ? "text-customOrange"
-                        : "text-black"
-                    }`}
-                    onClick={() => {
-                      setSortOption("priceDesc");
-                      setViewOptions(!viewOptions);
-                    }}
-                  >
-                    High to Low
-                  </span>
-                </div>
-              )}
+                    <span
+                      className={`text-xs font-opensans ml-2 cursor-pointer ${
+                        sortOption === "priceAsc"
+                          ? "text-customOrange"
+                          : "text-black"
+                      }`}
+                      onClick={() => {
+                        setSortOption("priceAsc");
+                        setViewOptions(!viewOptions);
+                      }}
+                    >
+                      Low to High
+                    </span>
+                    <hr className="text-slate-300" />
+                    <span
+                      className={`text-xs font-opensans ml-2 cursor-pointer ${
+                        sortOption === "priceDesc"
+                          ? "text-customOrange"
+                          : "text-black"
+                      }`}
+                      onClick={() => {
+                        setSortOption("priceDesc");
+                        setViewOptions(!viewOptions);
+                      }}
+                    >
+                      High to Low
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <span className="flex text-xs font-opensans items-center">
                 Sort by Price:{" "}
                 <LuListFilter
@@ -1528,16 +1592,16 @@ const StorePage = () => {
             </div>
           </div>
           {!searchingUI(isSearching, searchTerm) && (
-            <div className="flex  mb-4 w-full overflow-x-auto space-x-2 scrollbar-hide">
+            <div className="flex px-2 mb-4 w-full pt-2 pb-6 overflow-x-auto space-x-2 scrollbar-hide">
               {productTypes.map((type) => (
                 <button
                   key={type}
                   onClick={() => handleTypeSelect(type)}
-                  className={`flex-shrink-0 h-12 px-4 py-2 text-xs font-semibold font-opensans text-black border border-gray-200 rounded-full ${
-                    selectedType === type
-                      ? "bg-customOrange text-white"
-                      : "bg-transparent"
-                  }`}
+                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
+                      selectedType === type
+                        ? "bg-customOrange text-white"
+                        : "bg-white"
+                    }`}
                 >
                   {type}
                 </button>

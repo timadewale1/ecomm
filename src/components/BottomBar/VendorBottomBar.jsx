@@ -12,6 +12,7 @@ import { db } from "../../firebase.config";
 import { useAuth } from "../../custom-hooks/useAuth";
 import { useVendorNavigation } from "../Context/VendorBottomBarCtxt";
 import "../../styles/bottombar.css";
+import Badge from "../Badge/Badge";
 
 const VendorBottomBar = ({ isSearchFocused }) => {
   const { activeNav, setActiveNav } = useVendorNavigation();
@@ -123,12 +124,12 @@ const VendorBottomBar = ({ isSearchFocused }) => {
 
             {/* Badge for pending orders */}
             {item.label === "Orders" && pendingOrdersCount > 0 && (
-              <div className="badge">{pendingOrdersCount}</div>
+              <Badge count={pendingOrdersCount} />
             )}
 
             {/* Badge for unread chats */}
             {item.label === "Chats" && unreadChatsCount > 0 && (
-              <div className="badge">{unreadChatsCount}</div>
+              <Badge count={unreadChatsCount} />
             )}
           </div>
         ))}

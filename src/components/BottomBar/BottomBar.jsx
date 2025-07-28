@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { FaUser, FaRegUser } from "react-icons/fa";
 import { GoHome, GoHomeFill } from "react-icons/go";
 import { PiCompassFill, PiCompass } from "react-icons/pi";
 import {
   HiOutlineBuildingStorefront,
   HiBuildingStorefront,
+  HiOutlineUser,
+  HiUser,
 } from "react-icons/hi2";
 import { PiShoppingCartFill, PiShoppingCart } from "react-icons/pi";
 import { useSelector } from "react-redux";
@@ -58,8 +59,8 @@ const BottomBar = React.memo(({ isSearchFocused }) => {
         route: "/browse-markets",
       },
       {
-        icon: FaRegUser,
-        activeIcon: FaUser,
+        icon: HiOutlineUser,
+        activeIcon: HiUser,
         label: "Profile",
         route: "/profile",
       },
@@ -103,7 +104,7 @@ const BottomBar = React.memo(({ isSearchFocused }) => {
                 </>
               ) : (
                 <>
-                  <item.icon className="w-8 text-white opacity-50 h-6" />
+                  <item.icon className="w-8 text-white opacity-50 h-[26px]" />
                   {item.label === "Cart" && cartItemCount > 0 && (
                     <Badge count={cartItemCount} />
                   )}

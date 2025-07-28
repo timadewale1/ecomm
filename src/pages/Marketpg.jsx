@@ -116,8 +116,8 @@ const Marketpg = () => {
         url={`https://www.shopmythrift.store/browse-markets`}
       />
       <div className="mb-1">
-        <div className="sticky py-3 px-2 w-full top-0 bg-white z-10">
-          <div className="flex flex-col mb-3 pb-2 px-2.5">
+        <div className="sticky pt-3 px-2 w-full top-0 bg-white z-10">
+          <div className="flex flex-col mb-2 px-2.5">
             {!isSearching && (
               <div className="flex justify-between mb-4">
                 <h1 className="text-xl font-opensans font-semibold">Stores</h1>
@@ -128,7 +128,7 @@ const Marketpg = () => {
               </div>
             )}
             {isSearching && (
-              <div className="flex items-center w-full mb-4 relative">
+              <div className="flex items-center w-full relative">
                 <GoChevronLeft
                   className="text-3xl cursor-pointer mr-2"
                   onClick={() => {
@@ -153,15 +153,15 @@ const Marketpg = () => {
               </div>
             )}
             {!isSearching && (
-              <div className="flex scrollbar-hide mb-1 w-full overflow-x-auto space-x-2">
+              <div className="flex px-2 w-full py-3 overflow-x-auto space-x-2 scrollbar-hide">
                 {/* Delivery Filter - Placed First as Requested */}
                 <button
                   onClick={() => setHasDelivery(!hasDelivery)}
-                  className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-semibold font-opensans text-black border border-gray-200 rounded-full ${
-                    hasDelivery
-                      ? "bg-customOrange text-white"
-                      : "bg-transparent"
-                  }`}
+                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
+                      hasDelivery
+                        ? "bg-customOrange text-white"
+                        : "bg-white"
+                    }`}
                 >
                   Delivery
                 </button>
@@ -169,11 +169,11 @@ const Marketpg = () => {
                 {/* Stockpile Filter */}
                 <button
                   onClick={() => setHasStockpile(!hasStockpile)}
-                  className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-semibold font-opensans text-black border border-gray-200 rounded-full ${
-                    hasStockpile
-                      ? "bg-customOrange text-white"
-                      : "bg-transparent"
-                  }`}
+                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
+                      hasStockpile
+                        ? "bg-customOrange text-white"
+                        : "bg-white"
+                    }`}
                 >
                   Stockpile
                 </button>
@@ -181,9 +181,11 @@ const Marketpg = () => {
                 {/* Pickup Filter */}
                 <button
                   onClick={() => setHasPickup(!hasPickup)}
-                  className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-semibold font-opensans text-black border border-gray-200 rounded-full ${
-                    hasPickup ? "bg-customOrange text-white" : "bg-transparent"
-                  }`}
+                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
+                      hasPickup
+                        ? "bg-customOrange text-white"
+                        : "bg-white"
+                    }`}
                 >
                   Pickup
                 </button>
@@ -197,10 +199,10 @@ const Marketpg = () => {
                         category === selectedCategory ? "" : category
                       )
                     }
-                    className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-semibold font-opensans text-black border border-gray-200 rounded-full ${
+                    className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
                       selectedCategory === category
                         ? "bg-customOrange text-white"
-                        : "bg-transparent"
+                        : "bg-white"
                     }`}
                   >
                     {category}
@@ -208,10 +210,11 @@ const Marketpg = () => {
                 ))}
               </div>
             )}
+            <hr className="bg-customGrey mb-1"/>
           </div>
-          <div className="border-t border-gray-300 mt-6"></div>
+          
         </div>
-        <div className="vendor-list px-2 pb-24 translate-y-1">
+        <div className="vendor-list px-2 pb-24">
           {status === "loading" ? (
             Array.from({ length: 5 }).map((_, index) => (
               <div key={index} className="vendor-item">
@@ -311,12 +314,10 @@ const Marketpg = () => {
                       alt={vendor.shopName}
                     />
                     <div
-                      className="absolute inset-0"
+                      className="absolute inset-0 bg-gradient-to-l from-transparent via-white/50 to-transparent"
                       style={{
-                        background:
-                          "linear-gradient(45deg, transparent 20%, rgba(255,255,255,0.3) 50%, transparent 80%)",
                         backgroundSize: "200% 200%",
-                        animation: "shimmer 6s infinite ease-in-out",
+                        animation: "shimmer 4s infinite ease-in-out reverse",
                       }}
                     />
                   </div>

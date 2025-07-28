@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { GoChevronLeft } from "react-icons/go";
 import { IoTrashOutline } from "react-icons/io5";
@@ -6,12 +6,17 @@ import { IoTrashOutline } from "react-icons/io5";
 const VendorProductModal = ({ isOpen, onClose, children, onDel }) => {
   const modalRef = useRef(null);
 
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    setTimeout(() => setVisible(true), 10);
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       gsap.fromTo(
         modalRef.current,
         { opacity: 0, y: 810 },
-        { opacity: 1, y: 0, duration: 1, ease: "power2.out" }
+        { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }
       );
     }
   }, [isOpen]);
@@ -19,10 +24,10 @@ const VendorProductModal = ({ isOpen, onClose, children, onDel }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex rounded-t-lg flex-col items-center justify-center w-full bg-gray-300 bg-opacity-70 modal">
+    <div className={`fixed inset-0 bg-black bg-opacity-40 flex items-end justify-center modal1 transition-all duration-300 ${visible ? 'backdrop-blur-sm' : ''}`}>
       <div
         ref={modalRef}
-        className="bg-white rounded-t-lg mx-1 px-2 py-4 flex flex-col items-center w-full md:w-3/4 lg:w-1/2 max-h-screen overflow-y-auto"
+        className="bg-white rounded-t-lg px-2 py-4 flex flex-col items-center w-full md:w-3/4 lg:w-1/2 max-h-screen overflow-y-auto scrollbar-hide"
       >
         <div className="flex items-center justify-between w-full mb-2">
           <GoChevronLeft

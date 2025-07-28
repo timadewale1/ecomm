@@ -65,6 +65,7 @@ import { handleUserActionLimit } from "../../services/userWriteHandler";
 import SafeImg from "../../services/safeImg";
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
 import { useFavorites } from "../../components/Context/FavoritesContext";
+import { BsBadgeHdFill } from "react-icons/bs";
 Modal.setAppElement("#root");
 
 const debounce = (func, delay) => {

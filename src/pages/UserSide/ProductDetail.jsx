@@ -63,10 +63,8 @@ import QuestionandA from "../../components/Loading/QuestionandA";
 import { LiaTimesSolid } from "react-icons/lia";
 import { handleUserActionLimit } from "../../services/userWriteHandler";
 import SafeImg from "../../services/safeImg";
-
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
 import { useFavorites } from "../../components/Context/FavoritesContext";
-
 Modal.setAppElement("#root");
 
 const debounce = (func, delay) => {
@@ -113,19 +111,13 @@ export const useHdLoader =
       });
   };
 /* utility that swallows the tap and runs your callback on a double‑tap */
-// utils / same file – overwrite the old helper
 const makeDoubleTap = (cb, delay = 300) => {
   let last = 0;
   return (e) => {
+    e.stopPropagation(); // <-- Swiper never sees the tap
+    e.preventDefault(); // (optional) don’t generate a click event
     const now = Date.now();
-
-    // is this the 2nd tap inside `delay` ms?
-    if (now - last < delay) {
-      e.stopPropagation(); // block Swiper only for the true double‑tap
-      e.preventDefault(); // optional: stops the synthetic click
-      cb(); // load the HD image
-    }
-
+    if (now - last < delay) cb();
     last = now;
   };
 };
@@ -491,10 +483,8 @@ const ProductDetailPage = () => {
     // 2) Immediately toggle local state (optimistic update)
     if (favorite) {
       removeFavorite(product.id);
-      toast.info(`Removed ${product.name} from favorites!`);
     } else {
       addFavorite(product);
-      toast.success(`Added ${product.name} to favorites!`);
     }
 
     // 3) If user not logged in => we do local only, done
@@ -1393,11 +1383,11 @@ const ProductDetailPage = () => {
           ) : (
             <>
               <div
-                className={`px-2 fixed top-0 left-0 w-full h-20 py-10 z-20 bg-white shadow-sm`}
+                className={` fixed top-0 left-0 w-full h-20 py-10 z-20 bg-white shadow-sm`}
               >
                 <div className="flex items-center justify-between h-full">
                   {/* your existing “back + title” on the left */}
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center">
                     <button
                       onClick={() => navigate(-1)}
                       className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
@@ -1411,7 +1401,7 @@ const ProductDetailPage = () => {
                   </div>
 
                   {/* your existing copy/cart on the right */}
-                  <div className="flex items-center space-x-2 relative">
+                  <div className="flex items-center mr-2 space-x-0 relative">
                     <button
                       className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
                       onClick={copyProductLink}
@@ -1425,14 +1415,27 @@ const ProductDetailPage = () => {
 
                     {/* Favorite Icon */}
                     <button
-                      className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
+                      className="w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center"
                       onClick={handleFavoriteToggle}
                     >
-                      {favorite ? (
-                        <RiHeart3Fill className="text-red-500 text-2xl" />
-                      ) : (
-                        <RiHeart3Line className="text-gray-700 text-2xl" />
-                      )}
+                      <motion.div
+                        // whenever `favorite` is true we run this keyframe pop
+                        animate={
+                          favorite ? { scale: [1, 1.3, 1] } : { scale: 1 }
+                        }
+                        transition={{
+                          duration: 0.4,
+                          ease: "easeOut",
+                          // you can swap this for a spring:
+                          // type: "spring", stiffness: 300, damping: 20
+                        }}
+                      >
+                        {favorite ? (
+                          <RiHeart3Fill className="text-red-500 text-2xl" />
+                        ) : (
+                          <RiHeart3Line className="text-black text-2xl" />
+                        )}
+                      </motion.div>
                     </button>
 
                     <button
@@ -1445,7 +1448,7 @@ const ProductDetailPage = () => {
                     >
                       <PiShoppingCartBold className="text-xl" />
                       {cartItemCount > 0 && (
-                        <div className="-top-1 absolute right-0">
+                        <div className="top-1 absolute right-1">
                           <Badge count={cartItemCount} />
                         </div>
                       )}
@@ -1471,6 +1474,8 @@ const ProductDetailPage = () => {
                   disableOnInteraction: false,
                 }}
                 className="product-images-swiper"
+                preventClicks={true}
+                preventClicksPropagation={true}
                 onSlideChange={(swiper) =>
                   setCurrentImageIndex(swiper.activeIndex)
                 }

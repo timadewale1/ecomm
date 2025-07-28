@@ -332,9 +332,7 @@ const Explore = () => {
       />
       <div className="pb-28">
         {/* Top Bar */}
-        <div className={`fixed top-0 left-0 w-full bg-gradient-to-b from-white via-white/95 to-transparent z-10 px-2 pt-6 transition-transform duration-300 ${
-            showHeader ? "translate-y-0" : "-translate-y-full"
-          }`}>
+        <div className={`sticky top-0 left-0 w-full bg-white z-10 px-2 pt-6 pb-1`}>
           <div className="flex items-center justify-between pb-2">
             <div className="flex items-center">
               {(selectedProductType || selectedSubType) && (
@@ -360,7 +358,7 @@ const Explore = () => {
 
           {selectedProductType && (
             <>
-              <div className="flex px-2 mb-4 w-full pt-2 pb-6 overflow-x-auto space-x-2 scrollbar-hide">
+              <div className="flex px-2 w-full py-2 overflow-x-auto space-x-2 scrollbar-hide">
                 {[
                   "All",
                   ...priceRanges.map((r) => r.label),
@@ -409,6 +407,9 @@ const Explore = () => {
               </div>
             </>
           )}
+              <hr className="bg-customGrey" />
+
+          
 
         </div>
 
@@ -417,7 +418,7 @@ const Explore = () => {
           {/* If we have selected a SubType, show products grid */}
           {selectedProductType ? (
             <>
-              <div className="grid grid-cols-2 gap-2 p-4 mt-32">
+              <div className="grid grid-cols-2 gap-2 p-4">
                 {filteredProducts.length > 0 ? (
                   filteredProducts.map((product) => (
                     <ProductCard

@@ -46,6 +46,10 @@ import {
   collection,
   serverTimestamp,
   addDoc,
+  updateDoc,
+  deleteDoc,
+  setDoc,
+  increment,
 } from "firebase/firestore";
 import { findVariant } from "../../services/getVariant";
 import RelatedProducts from "./SimilarProducts";
@@ -59,6 +63,8 @@ import QuestionandA from "../../components/Loading/QuestionandA";
 import { LiaTimesSolid } from "react-icons/lia";
 import { handleUserActionLimit } from "../../services/userWriteHandler";
 import SafeImg from "../../services/safeImg";
+import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
+import { useFavorites } from "../../components/Context/FavoritesContext";
 Modal.setAppElement("#root");
 
 const debounce = (func, delay) => {
@@ -134,20 +140,23 @@ const ProductDetailPage = () => {
 
   const [showHeader, setShowHeader] = useState(true);
   const prevScrollPos = useRef(0);
+  // Local Favorites Context
+  const { addFavorite, removeFavorite, isFavorite } = useFavorites();
+  const favorite = isFavorite(product?.id);
 
   useEffect(() => {
-      const handleScroll = () => {
-        const currentPos = window.scrollY;
-        if (currentPos > prevScrollPos.current) {
-          setShowHeader(false);
-        } else {
-          setShowHeader(true);
-        }
-        prevScrollPos.current = currentPos;
-      };
-      window.addEventListener("scroll", handleScroll, { passive: true });
-      return () => window.removeEventListener("scroll", handleScroll);
-    }, []);
+    const handleScroll = () => {
+      const currentPos = window.scrollY;
+      if (currentPos > prevScrollPos.current) {
+        setShowHeader(false);
+      } else {
+        setShowHeader(true);
+      }
+      prevScrollPos.current = currentPos;
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     const fetchProductDetails = async () => {
@@ -299,6 +308,88 @@ const ProductDetailPage = () => {
     setAllImages(subProduct.images || []);
     setAvailableColors([subProduct.color]);
     setAvailableSizes([subProduct.size]);
+  };
+
+  // Optimistic UI: Toggle heart immediately, then do Firestore + rate-limit checks in background
+  const handleFavoriteToggle = async (e) => {
+    e.stopPropagation();
+
+    // 1) Save old state so we can revert if something fails
+    const wasFavorite = favorite;
+
+    // 2) Immediately toggle local state (optimistic update)
+    if (favorite) {
+      removeFavorite(product.id);
+      toast.info(`Removed ${product.name} from favorites!`);
+    } else {
+      addFavorite(product);
+      toast.success(`Added ${product.name} to favorites!`);
+    }
+
+    // 3) If user not logged in => we do local only, done
+    if (!currentUser) {
+      return;
+    }
+
+    // 4) If user is logged in => enforce rate limit, then Firestore
+    try {
+      // Rate limit check
+      await handleUserActionLimit(
+        currentUser.uid,
+        "favorite",
+        {},
+        {
+          collectionName: "usage_metadata",
+          writeLimit: 50, // universal writes/hour
+          minuteLimit: 10, // 10 favorites/min
+          hourLimit: 80, // 80 favorites/hour
+          dayLimit: 120, // 120 favorites/day
+        }
+      );
+
+      // Firestore doc references
+      const favDocRef = doc(
+        db,
+        "users",
+        currentUser.uid,
+        "favorites",
+        product.id
+      );
+      const vendorDocRef = doc(db, "vendors", product.vendorId);
+
+      if (wasFavorite) {
+        // Previously was a favorite => means user wants to remove it
+        await deleteDoc(favDocRef);
+        // Do nothing to the vendor's likesCount so it never decrements
+      } else {
+        // Previously not favorite => means user wants to add it
+        await setDoc(favDocRef, {
+          productId: product.id,
+          vendorId: product.vendorId, // Store vendor ID here
+          name: product.name,
+          price: product.price,
+          createdAt: new Date(),
+        });
+        // Increment vendor's likesCount
+        await updateDoc(vendorDocRef, { likesCount: increment(1) });
+      }
+    } catch (err) {
+      console.error("Error updating favorites:", err);
+
+      // 5) Revert the local favorite state if there's an error
+      if (wasFavorite) {
+        // If it was a favorite, we re-add it because we optimistically removed it
+        addFavorite(product);
+      } else {
+        // If it was not a favorite, we remove it because we optimistically added it
+        removeFavorite(product.id);
+      }
+
+      // Show user the error
+      toast.error(
+        err.message || "Failed to update favorites. Please try again."
+      );
+    }
   };
 
   const handleDotClick = (index) => {
@@ -1093,91 +1184,103 @@ const ProductDetailPage = () => {
         <div>
           {isShared ? (
             <>
-                <div
-                  className={`px-2 fixed top-0 left-0 w-full h-20 py-10 bg-white z-20 shadow-md`}
-                >
-                  <div className="flex items-center justify-between h-full">
-                    <div className="w-full ">
-                      {/* LEFT: logo */}
-                      <div className="flex items-center justify-center"><img
+              <div
+                className={`px-2 fixed top-0 left-0 w-full h-20 py-10 bg-white z-20 shadow-md`}
+              >
+                <div className="flex items-center justify-between h-full">
+                  <div className="w-full ">
+                    {/* LEFT: logo */}
+                    <div className="flex items-center justify-center">
+                      <img
                         src="/newlogo.png"
                         alt="Logo"
                         onClick={() => navigate("/newhome")}
                         className="h-8 w-16 object-contain"
-                      /></div>
-                      
+                      />
+                    </div>
 
-                      {/* RIGHT: login & sign up */}
-                      <div className="flex mt-4 justify-between  gap-4 w-full items-center ">
-                        <button
-                          onClick={() => navigate("/login")}
-                          className="px-4 py-1 text-sm w-full font-opensans text-customRichBrown border border-customRichBrown rounded-full"
-                        >
-                          Login
-                        </button>
-                        <button
-                          onClick={() => navigate("/signup")}
-                          className="px-4 py-1 w-full text-sm font-opensans text-white bg-customOrange rounded-full"
-                        >
-                          Sign Up
-                        </button>
-                      </div>
+                    {/* RIGHT: login & sign up */}
+                    <div className="flex mt-4 justify-between  gap-4 w-full items-center ">
+                      <button
+                        onClick={() => navigate("/login")}
+                        className="px-4 py-1 text-sm w-full font-opensans text-customRichBrown border border-customRichBrown rounded-full"
+                      >
+                        Login
+                      </button>
+                      <button
+                        onClick={() => navigate("/signup")}
+                        className="px-4 py-1 w-full text-sm font-opensans text-white bg-customOrange rounded-full"
+                      >
+                        Sign Up
+                      </button>
                     </div>
                   </div>
                 </div>
+              </div>
             </>
           ) : (
             <>
-            <div
-                  className={`px-2 fixed top-0 left-0 w-full h-20 py-10 z-20 bg-gradient-to-b from-white via-white/95 to-transparent`}
-                >
-                  <div className="flex items-center justify-between h-full">
-              {/* your existing “back + title” on the left */}
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => navigate(-1)}
-                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/30 transition-opacity duration-300 border border-white/40
-          ${showHeader ? "opacity-100" : "opacity-30"}`}
-                >
-                  <GoChevronLeft className="text-white text-xl" />
-                </button>
+              <div
+                className={`px-2 fixed top-0 left-0 w-full h-20 py-10 z-20 bg-white shadow-sm`}
+              >
+                <div className="flex items-center justify-between h-full">
+                  {/* your existing “back + title” on the left */}
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => navigate(-1)}
+                      className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
+                    >
+                      <GoChevronLeft className="text-xl" />
+                    </button>
 
-                <span className={`text-lg font-opensans font-semibold ${showHeader ? "" : "opacity-0"}`}>
-                  Details
-                </span>
+                    <span className={`text-lg font-opensans font-semibold`}>
+                      Details
+                    </span>
+                  </div>
+
+                  {/* your existing copy/cart on the right */}
+                  <div className="flex items-center space-x-2 relative">
+                    <button
+                      className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
+                      onClick={copyProductLink}
+                    >
+                      {isLinkCopied ? (
+                        <LuCopyCheck className="text-xl" />
+                      ) : (
+                        <LuCopy className="text-xl" />
+                      )}
+                    </button>
+
+                    {/* Favorite Icon */}
+                    <button
+                      className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
+                      onClick={handleFavoriteToggle}
+                    >
+                      {favorite ? (
+                        <RiHeart3Fill className="text-red-500 text-2xl" />
+                      ) : (
+                        <RiHeart3Line className="text-gray-700 text-2xl" />
+                      )}
+                    </button>
+
+                    <button
+                      className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
+                      onClick={() =>
+                        navigate("/latest-cart", {
+                          state: { fromProductDetail: true },
+                        })
+                      }
+                    >
+                      <PiShoppingCartBold className="text-xl" />
+                      {cartItemCount > 0 && (
+                        <div className="-top-1 absolute right-0">
+                          <Badge count={cartItemCount} />
+                        </div>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
-
-              {/* your existing copy/cart on the right */}
-              <div className="flex items-center space-x-2 relative">
-                <button
-                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/30 transition-opacity duration-300 border border-white/40
-          ${showHeader ? "opacity-100" : "opacity-30"}`}
-                  onClick={copyProductLink}
-                >
-                  {isLinkCopied ? (
-                    <LuCopyCheck className="text-white text-xl" />
-                  ) : (
-                    <LuCopy className="text-white text-xl" />
-                  )}
-                </button>
-
-                <button
-                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/30 transition-opacity duration-300 border border-white/40
-          ${showHeader ? "opacity-100" : "opacity-30"}`}
-                  onClick={() =>
-                    navigate("/latest-cart", {
-                      state: { fromProductDetail: true },
-                    })
-                  }
-                >
-                  <PiShoppingCartBold className="text-white text-xl" />
-                  {cartItemCount > 0 && (
-                    <div className="-top-1 absolute right-0">
-                      <Badge count={cartItemCount} />
-                    </div>
-                  )}
-                </button>
-              </div></div></div>
             </>
           )}
         </div>

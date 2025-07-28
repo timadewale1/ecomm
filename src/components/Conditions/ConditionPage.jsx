@@ -263,14 +263,12 @@ function ConditionProducts() {
         description={`Shop ${condition} items on My Thrift`}
         url={`https://www.shopmythrift.store/condition/${slug}`}
       />
-      <div className="px-2 py-28">
+      <div className="px-2 py-24">
         {/* Header Section */}
         <div className="w-full h-48 bg-gray-200">{getHeaderContent()}</div>
 
         <div
-          className={`fixed top-0 left-0 w-full bg-gradient-to-b from-white via-white/95 to-transparent z-10 px-2 pt-6 transition-transform duration-300 ${
-            showHeader ? "translate-y-0" : "-translate-y-full"
-          }`}
+          className={`fixed top-0 left-0 w-full bg-white z-10 px-2 pt-6 transition-transform duration-300 shadow-sm`}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -324,7 +322,7 @@ function ConditionProducts() {
               </div>
             )}
           </div>
-          <div className="flex px-2 mb-4 w-full py-3 overflow-x-auto space-x-2 scrollbar-hide">
+          <div className="flex px-2 mb-2 w-full py-2 overflow-x-auto space-x-2 scrollbar-hide">
             {productTypes.map((type) => (
                 <button
                   key={type}

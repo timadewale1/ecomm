@@ -116,7 +116,7 @@ const Marketpg = () => {
         url={`https://www.shopmythrift.store/browse-markets`}
       />
       <div className="mb-1">
-        <div className="sticky pt-3 px-2 w-full top-0 bg-gradient-to-b from-white via-white/95 to-transparent z-10">
+        <div className="sticky pt-3 px-2 w-full top-0 bg-white z-10">
           <div className="flex flex-col mb-2 px-2.5">
             {!isSearching && (
               <div className="flex justify-between mb-4">
@@ -153,7 +153,7 @@ const Marketpg = () => {
               </div>
             )}
             {!isSearching && (
-              <div className="flex px-2 w-full py-4 overflow-x-auto space-x-2 scrollbar-hide">
+              <div className="flex px-2 w-full py-3 overflow-x-auto space-x-2 scrollbar-hide">
                 {/* Delivery Filter - Placed First as Requested */}
                 <button
                   onClick={() => setHasDelivery(!hasDelivery)}
@@ -210,7 +210,9 @@ const Marketpg = () => {
                 ))}
               </div>
             )}
+            <hr className="bg-customGrey mb-1"/>
           </div>
+          
         </div>
         <div className="vendor-list px-2 pb-24">
           {status === "loading" ? (

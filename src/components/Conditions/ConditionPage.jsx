@@ -15,6 +15,7 @@ import SEO from "../Helmet/SEO";
 import { fetchConditionCategories } from "../../redux/reducers/conditionCategoriesSlice";
 import { BsFilterRight } from "react-icons/bs";
 import { IoFilter } from "react-icons/io5";
+import { LuListFilter } from "react-icons/lu";
 function ConditionProducts() {
   const { condition: slug } = useParams();
   const dispatch = useDispatch();
@@ -280,7 +281,7 @@ function ConditionProducts() {
                 {condition.charAt(0).toUpperCase() + condition.slice(1)} Items
               </h2>
             </div>
-            <IoFilter
+            <LuListFilter
               onClick={() => setShowFilterDropdown((v) => !v)}
               className="text-xl text-gray-600 cursor-pointer"
               title="Sort by price"
@@ -322,7 +323,7 @@ function ConditionProducts() {
               </div>
             )}
           </div>
-          <div className="flex px-2 mb-2 w-full py-2 overflow-x-auto space-x-2 scrollbar-hide">
+          <div className="flex px-2 mb-2 w-full py-4 overflow-x-auto space-x-2 scrollbar-hide">
             {productTypes.map((type) => (
                 <button
                   key={type}

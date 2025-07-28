@@ -433,7 +433,8 @@ const CompleteProfile = () => {
           ...bankDetails,
         },
         recipientCode: recipientCode,
-        walletSetup: false, // Store the recipient code in Firestore
+        walletSetup: false,
+        badge: "Newbie", 
       };
 
       console.log("Data being saved to Firestore:", dataToStore);

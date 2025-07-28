@@ -146,7 +146,7 @@ const OnlineVendors = () => {
                 />
                 <input
                   type="text"
-                  className="flex-1 border border-gray-300 rounded-full px-3 py-2 text-black focus:outline-none"
+                  className="flex-1 border text-base font-opensans  border-gray-300 rounded-full px-3 py-2 text-black focus:outline-none"
                   value={searchTerm}
                   onChange={handleSearchChange}
                   placeholder="Search vendors..."

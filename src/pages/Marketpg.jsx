@@ -128,9 +128,9 @@ const Marketpg = () => {
               </div>
             )}
             {isSearching && (
-              <div className="flex items-center w-full relative">
+              <div className="flex items-center mb-6 w-full relative">
                 <GoChevronLeft
-                  className="text-3xl cursor-pointer mr-2"
+                  className="text-3xl cursor-pointer "
                   onClick={() => {
                     setIsSearching(false);
                     handleClearSearch();
@@ -153,7 +153,7 @@ const Marketpg = () => {
               </div>
             )}
             {!isSearching && (
-              <div className="flex px-2 w-full py-3 overflow-x-auto space-x-2 scrollbar-hide">
+              <div className="flex  w-full py-3 overflow-x-auto space-x-2 scrollbar-hide">
                 {/* Delivery Filter - Placed First as Requested */}
                 <button
                   onClick={() => setHasDelivery(!hasDelivery)}

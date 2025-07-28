@@ -450,9 +450,9 @@ const Explore = () => {
                   <div className="flex justify-center my-4">
                     <RotatingLines
                       strokeColor="#f9531e"
-                      strokeWidth="5"
+                      strokeWidth="3"
                       animationDuration="0.75"
-                      width="32"
+                      width="24"
                       visible={true}
                     />
                   </div>

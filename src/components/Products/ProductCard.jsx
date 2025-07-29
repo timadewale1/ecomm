@@ -248,7 +248,7 @@ const ProductCard = ({
 
           {/* Favorite Icon */}
           <div
-            className="absolute bottom-2 right-2 cursor-pointer w-10 h-10 rounded-full bg-white border flex items-center justify-center shadow-md hover:bg-white/30 transition-all duration-200"
+            className="absolute bottom-2 right-2 cursor-pointer w-10 h-10 rounded-full bg-white border flex items-center justify-center shadow-md"
             onClick={handleFavoriteToggle}
           >
             {favorite ? (

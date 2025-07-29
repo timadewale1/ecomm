@@ -29,7 +29,7 @@ import {
   IoColorPaletteSharp,
   IoLocationOutline,
 } from "react-icons/io5";
-import { PinInput } from "react-pin-input";
+import  PinInput  from "react-pin-input";
 import notifyOrderStatusChange from "../../services/notifyorderstatus";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../../firebase.config";

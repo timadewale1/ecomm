@@ -45,12 +45,19 @@ const SubmitFeedback = () => {
   };
 
   const handleFeedbackSubmit = async () => {
-    if (!feedbackType || !feedbackText || !email) {
+    if (
+      !feedbackType ||
+      !feedbackText ||
+      (!isAuthenticated && !email.trim())
+    ) {
       toast.error("Please fill in all required fields.");
       return;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (
+      !isAuthenticated &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+    ) {
       toast.error("Please provide a valid email address.");
       return;
     }
@@ -67,7 +74,7 @@ const SubmitFeedback = () => {
       }
 
       const feedbackDoc = {
-        userId: user?.uid || null,
+        userId: user?.uid || "guest",
         email,
         feedbackType,
         feedbackText,

@@ -382,7 +382,7 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
         "product_edit",
         {},
         {
-          dayLimit: 1,
+          dayLimit: 5,
         }
       );
     } catch (limitError) {

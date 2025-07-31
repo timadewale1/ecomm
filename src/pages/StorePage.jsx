@@ -1310,7 +1310,7 @@ const StorePage = () => {
                 {/* Back button */}
                 <button
                   onClick={() => navigate(-1)}
-                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/30 transition-opacity duration-300 border border-white/40
+                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg transition-opacity duration-300 border border-white/40
           ${showHeader ? "opacity-100" : "opacity-30"}`}
                 >
                   <GoChevronLeft className="text-white text-xl" />
@@ -1320,14 +1320,14 @@ const StorePage = () => {
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={openSearch}
-                    className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/30 transition-opacity duration-300 border border-white/40
+                    className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg transition-opacity duration-300 border border-white/40
           ${showHeader ? "opacity-100" : "opacity-30"}`}
                   >
                     <RiSearchLine className="text-white text-xl" />
                   </button>
                   <button
                     onClick={handleShare}
-                    className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/30 transition-opacity duration-300 border border-white/40
+                    className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg transition-opacity duration-300 border border-white/40
           ${showHeader ? "opacity-100" : "opacity-30"}`}
                   >
                     <GrShare className="text-white text-lg" />
@@ -1335,7 +1335,7 @@ const StorePage = () => {
                   <button
                     onClick={handleFollowClick}
                     disabled={isFollowLoading}
-                    className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-md hover:bg-white/30 transition-opacity duration-300 border border-white/40
+                    className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-md  transition-opacity duration-300 border border-white/40
           ${showHeader ? "opacity-100" : "opacity-30"}`}
                   >
                     <motion.div
@@ -1597,7 +1597,7 @@ const StorePage = () => {
                 <button
                   key={type}
                   onClick={() => handleTypeSelect(type)}
-                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
+                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 border ${
                       selectedType === type
                         ? "bg-customOrange text-white"
                         : "bg-white"

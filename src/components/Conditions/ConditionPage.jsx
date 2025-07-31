@@ -328,7 +328,7 @@ function ConditionProducts() {
                 <button
                   key={type}
                   onClick={() => handleTypeSelect(type)}
-                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
+                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 border ${
                       selectedType === type
                         ? "bg-customOrange text-white"
                         : "bg-white"

@@ -298,7 +298,7 @@ const Signup = () => {
         <Row>
           <>
             <div className="flex items-center mb-4">
-              <div className="flex flex-col items-center flex-grow transform text-customOrange -translate-y-2">
+              <div className="flex flex-col items-center flex-grow transform text-customOrange -translate-y-2 font-opensans">
                 <SignUpAnimation />
                 <Typewriter
                   options={{
@@ -309,7 +309,7 @@ const Signup = () => {
                 />
               </div>
             </div>
-            <div className="">
+            <div className="font-opensans">
               <div className="px-4">
                 <h1 className="text-3xl font-extrabold font-lato text-black mb-1">
                   Create an account
@@ -455,7 +455,7 @@ const Signup = () => {
                 )}
 
                 {/* Confirm password input */}
-                <FormGroup className="relative mt-4">
+                <FormGroup className="relative">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
                     <MdOutlineLock className="text-gray-500 text-xl" />
                   </div>
@@ -479,7 +479,7 @@ const Signup = () => {
                   </div>
                 </FormGroup>
                 <div className="text-gray-600 font-opensans text-xs mt-2 -mx-1 leading-relaxed">
-                  By signing up, you agree to our
+                  By signing up you agree to our {" "}
                   <span
                     onClick={() =>
                       window.open(
@@ -583,7 +583,7 @@ const Signup = () => {
           },
         }}
       >
-        <div className="flex flex-col items-center py-2">
+        <div className="flex flex-col items-center py-2 font-opensans">
           <div className="flex items-center justify-between w-full mb-6">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">

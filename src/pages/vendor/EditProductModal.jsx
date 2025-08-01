@@ -44,6 +44,8 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
       ? selectedProduct.price.toFixed(2)
       : selectedProduct?.price?.toString() || ""
   );
+  // Warning under price input
+  const [priceWarn, setPriceWarn] = useState(false);
   const [stockQuantity, setStockQuantity] = useState(
     selectedProduct?.stockQuantity?.toString() || ""
   );
@@ -278,8 +280,10 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
     const numeric = (value || "").replace(/\D/g, "");
     return ((Number(numeric) || 0) / 100).toFixed(2);
   };
-  const handlePriceChange = (e) =>
+  const handlePriceChange = (e) => {
     setProductPrice(formatToCurrency(e.target.value));
+    parseFloat(formatToCurrency(e.target.value)) < 300 ? setPriceWarn(true) : setPriceWarn(false);
+  };
 
   const storage = getStorage();
 
@@ -365,8 +369,10 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
 
   // ---------- SAVE ----------
   const handleEdit = async () => {
+    setIsLoading(true);
     if (!selectedProduct) {
       toast.error("No product selected.");
+      setIsLoading(false);
       return;
     }
 
@@ -376,13 +382,15 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
         "product_edit",
         {},
         {
-          dayLimit: 1,
+          dayLimit: 5,
         }
       );
     } catch (limitError) {
       // If limit is reached, throw an error
       toast.error(limitError.message);
       setConfirmSave(false);
+      setIsLoading(false);
+      setIsLoading(false);
       return;
     }
 
@@ -397,34 +405,46 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
     ) {
       toast.error("Please fill in all required fields.");
       setConfirmSave(false);
+      setIsLoading(false);
       return;
     }
     if (productCondition === "Defect:" && !productDefectDescription) {
       toast.error("Please enter a defect description.");
       setConfirmSave(false);
+      setIsLoading(false);
+      return;
+    }
+    if (productPrice < 300) {
+      toast.error("Product price must not be less than 300");
+      setConfirmSave(false);
+      setIsLoading(false);
       return;
     }
     if (itemClass === "everyday") {
       if (!stockQuantity || Number(stockQuantity) < 1) {
         toast.error("Please enter a stock quantity of at least 1.");
         setConfirmSave(false);
+        setIsLoading(false);
         return;
       }
     } else {
       if (!productVariants.length) {
         toast.error("Please add at least one variant.");
         setConfirmSave(false);
+        setIsLoading(false);
         return;
       }
       for (const [i, v] of productVariants.entries()) {
         if (!v.color) {
           toast.error(`Please enter a color for variant ${i + 1}.`);
           setConfirmSave(false);
+          setIsLoading(false);
           return;
         }
         if (!v.sizes.length) {
           toast.error(`Please add at least one size for variant ${i + 1}.`);
           setConfirmSave(false);
+          setIsLoading(false);
           return;
         }
         for (const [j, s] of v.sizes.entries()) {
@@ -433,6 +453,7 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
               `Enter size & stock for variant ${i + 1}, size ${j + 1}.`
             );
             setConfirmSave(false);
+            setIsLoading(false);
             return;
           }
           if (s.stock < 1) {
@@ -442,6 +463,7 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
               }.`
             );
             setConfirmSave(false);
+            setIsLoading(false);
             return;
           }
         }
@@ -451,11 +473,11 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
           "Please add at least one sub-product or turn off variations."
         );
         setConfirmSave(false);
+        setIsLoading(false);
         return;
       }
     }
 
-    setIsLoading(true);
     try {
       // Upload new images & keep existing URLs (first image becomes cover)
       const imageUrls = [];
@@ -551,6 +573,7 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
       console.error(err);
       toast.error("Error updating product: " + err.message);
       setConfirmSave(false);
+      setIsLoading(false);
     } finally {
       setIsLoading(false);
     }
@@ -565,7 +588,7 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
 
   return (
     <div
-      className={`fixed inset-0 bg-black bg-opacity-40 flex justify-center modal1 transition-all duration-300 ${
+      className={`fixed font-opensans inset-0 bg-black bg-opacity-40 flex justify-center modal1 transition-all duration-300 ${
         visible ? "backdrop-blur-sm" : ""
       }`}
     >
@@ -850,6 +873,16 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
             onChange={handlePriceChange}
             className="w-full h-12 p-3 border-2 rounded-lg font-opensans focus:outline-none focus:border-customOrange"
           />
+          <AnimatePresence>
+            {priceWarn ? (
+              <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }} className="text-red-600 text-sm">
+                Price must not be less than 300
+              </motion.div>
+            ) : ""}
+          </AnimatePresence>
         </div>
 
         {/* CONDITION */}

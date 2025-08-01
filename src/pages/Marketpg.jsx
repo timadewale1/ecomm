@@ -157,7 +157,7 @@ const Marketpg = () => {
                 {/* Delivery Filter - Placed First as Requested */}
                 <button
                   onClick={() => setHasDelivery(!hasDelivery)}
-                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
+                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100  border ${
                       hasDelivery
                         ? "bg-customOrange text-white"
                         : "bg-white"
@@ -169,7 +169,7 @@ const Marketpg = () => {
                 {/* Stockpile Filter */}
                 <button
                   onClick={() => setHasStockpile(!hasStockpile)}
-                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
+                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100  border ${
                       hasStockpile
                         ? "bg-customOrange text-white"
                         : "bg-white"
@@ -181,7 +181,7 @@ const Marketpg = () => {
                 {/* Pickup Filter */}
                 <button
                   onClick={() => setHasPickup(!hasPickup)}
-                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
+                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100  border ${
                       hasPickup
                         ? "bg-customOrange text-white"
                         : "bg-white"
@@ -199,7 +199,7 @@ const Marketpg = () => {
                         category === selectedCategory ? "" : category
                       )
                     }
-                    className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
+                    className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100  border ${
                       selectedCategory === category
                         ? "bg-customOrange text-white"
                         : "bg-white"

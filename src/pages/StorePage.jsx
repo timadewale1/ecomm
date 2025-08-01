@@ -100,6 +100,7 @@ import PickupInfoModal from "../components/Location/PickupModal";
 import StockpileInfoModal from "../components/StockpileModal";
 import IframeModal from "../components/PwaModals/PushNotifsModal";
 import VendorPolicyModal from "./Legal/VendorPolicyModal";
+import StoreBasket from "../components/QuickMode/StoreBasket";
 Modal.setAppElement("#root"); // For accessibility
 
 const FlipCountdown = ({ endTime }) => {
@@ -465,6 +466,8 @@ const StorePage = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isShared = searchParams.has("shared");
+  const quickMode = isShared && !currentUser;
+
   const [isStockpileMode, setIsStockpileMode] = useState(false);
   const [showPileModal, setShowPileModal] = useState(false);
   const [showHeader, setShowHeader] = useState(true);
@@ -810,7 +813,6 @@ const StorePage = () => {
     ? moment(stockpileExpiry).format("ddd, MMM Do YYYY")
     : null;
 
-  // ---- optimistic follow / unfollow ---------------------------
   const handleFollowClick = async () => {
     if (!currentUser) {
       setIsLoginModalOpen(true);
@@ -1213,6 +1215,11 @@ const StorePage = () => {
         onClose={closePickupIntro}
         currentUserCoords={userCoords}
       />
+      <StoreBasket
+        vendorId={id}
+        quickMode={quickMode}
+        onQuickFlow={() => setShowDrawer(true)} 
+      />
       <StockpileInfoModal
         isOpen={showStockpileIntro}
         vendor={vendor}
@@ -1536,8 +1543,6 @@ const StorePage = () => {
           {searchingUI(isSearching, searchTerm) && (
             <div className="p-4">{/* Search results content goes here */}</div>
           )}
-
-          
         </div>
         <div className={`${isSearching ? "mt-16" : "mt-7"}`}>
           <div className="flex items-center mb-3 justify-between">
@@ -1598,10 +1603,10 @@ const StorePage = () => {
                   key={type}
                   onClick={() => handleTypeSelect(type)}
                   className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 hover:bg-customOrange/50 border ${
-                      selectedType === type
-                        ? "bg-customOrange text-white"
-                        : "bg-white"
-                    }`}
+                    selectedType === type
+                      ? "bg-customOrange text-white"
+                      : "bg-white"
+                  }`}
                 >
                   {type}
                 </button>

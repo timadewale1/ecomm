@@ -566,7 +566,7 @@ const Cart = () => {
                         <div className="relative w-full mt-4 flex justify-between items-center">
                           {/* Badge */}
                           {showNoteBadge && vendorId === firstVendorId && (
-                            <div className="fixed w-full top-[100px] left-0 right-0 z-10 flex flex-col items-end justify-end p-4 pointer-events-auto">
+                            <div className="absolute w-full -top-[100px] -right-5 z-[3] flex flex-col items-end justify-end p-4 pointer-events-auto">
                                     <div
                                       className={`absolute bottom-2 z-40 transform right-5 w-4 h-4 backdrop-blur-2xl  bg-gradient-to-bl from-transparent to-black/50 -rotate-45 transition-opacity duration-500 ${
                                         isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -578,7 +578,7 @@ const Cart = () => {
                                       }`}
                                       style={{ maxWidth: "99%" }}
                                     >
-                                      <span className="font-semibold font-opensans text-sm">
+                                      <span className="font-semibold font-opensans text-sm mr-2">
                                        Click “View Selection” to leave a note for the
                                 vendor
                                       </span>

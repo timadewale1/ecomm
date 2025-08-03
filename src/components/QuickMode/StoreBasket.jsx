@@ -6,6 +6,7 @@ import PhoneInput from "react-phone-input-2";
 import { setCart } from "../../redux/actions/action";
 import "react-phone-input-2/lib/style.css";
 import LocationPicker from "../Location/LocationPicker";
+
 import IframeModal from "../PwaModals/PushNotifsModal";
 import { LiaTimesSolid } from "react-icons/lia";
 import { GoChevronRight } from "react-icons/go";
@@ -78,6 +79,43 @@ export default function StoreBasket({
 
   const [savingDelivery, setSavingDelivery] = useState(false);
   const isValidNg10 = (s) => /^[1-9]\d{9}$/.test(s);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const prefill = async () => {
+      if (!showDeliveryStep || !auth.currentUser) return;
+
+      try {
+        const snap = await getDoc(doc(db, "users", auth.currentUser.uid));
+        if (!snap.exists()) return;
+        const d = snap.data() || {};
+
+        // Phone: store as local 10 digits (strip +234 / leading 0)
+        if (d.phoneNumber) {
+          const digits = String(d.phoneNumber).replace(/\D/g, "");
+          // Handle formats: +234XXXXXXXXXX, 234XXXXXXXXXX, 0XXXXXXXXXX, XXXXXXXXXX
+          let local10 = digits;
+          if (local10.startsWith("234")) local10 = local10.slice(3);
+          if (local10.startsWith("0")) local10 = local10.slice(1);
+          local10 = local10.slice(-10);
+          if (local10.length === 10) setPhoneRaw(local10);
+        }
+
+        if (d.address && !cancelled) setAddress(d.address);
+        if (d.location?.lat && d.location?.lng && !cancelled) {
+          setCoords({ lat: d.location.lat, lng: d.location.lng });
+        }
+      } catch (e) {
+        console.warn("Prefill delivery info failed:", e);
+      }
+    };
+
+    prefill();
+    return () => {
+      cancelled = true;
+    };
+  }, [showDeliveryStep]);
 
   // Replace your current genUsername with this:
   const genUsername = (base) => {
@@ -1114,11 +1152,18 @@ export default function StoreBasket({
             </label>
             <div className="mb-3">
               <LocationPicker
+                initialAddress={address || ""}
+                initialCoords={
+                  coords?.lat && coords?.lng
+                    ? { lat: coords.lat, lng: coords.lng }
+                    : null
+                }
                 onLocationSelect={({ lat, lng, address }) => {
                   setCoords({ lat, lng });
                   setAddress(address || "");
                 }}
               />
+
               {address && (
                 <p className="text-[11px] mt-2 text-gray-700 font-opensans">
                   Selected: <span className="font-semibold">{address}</span>

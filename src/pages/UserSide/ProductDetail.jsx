@@ -119,12 +119,9 @@ export const useHdLoader =
         return n;
       });
   };
-/* utility that swallows the tap and runs your callback on a double‑tap */
 const makeDoubleTap = (cb, delay = 300) => {
   let last = 0;
   return (e) => {
-    e.stopPropagation(); // <-- Swiper never sees the tap
-    e.preventDefault(); // (optional) don’t generate a click event
     const now = Date.now();
     if (now - last < delay) cb();
     last = now;

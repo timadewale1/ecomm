@@ -98,6 +98,12 @@ const Marketpg = () => {
 
   const handleStoreView = (vendor) => {
     dispatch(deactivateQuickMode());
+    try {
+    
+      Object.keys(sessionStorage)
+        .filter((k) => k.startsWith("quickMode_"))
+        .forEach((k) => sessionStorage.removeItem(k));
+    } catch {}
     navigate(`/store/${vendor.id}`);
   };
 

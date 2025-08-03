@@ -365,7 +365,7 @@ export default function StorePage({ vendorId }) {
                 />
               )}
             </div>
-          ) : isShared ? (
+          ) : isGuestShared  ? (
             <>
               <div className="flex items-center">
                 <AiOutlineHome

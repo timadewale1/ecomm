@@ -33,6 +33,7 @@ const ProductCard = ({
   showVendorName = true,
   showName = true,
   showCondition = true,
+  quickForThisVendor = false,
 }) => {
   const navigate = useNavigate();
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -78,9 +79,17 @@ const ProductCard = ({
   const handleVendorClick = (e) => {
     e.stopPropagation();
     if (vendorMarketplaceType === "virtual") {
-      navigate(`/store/${product.vendorId}`);
+      navigate(
+        quickForThisVendor
+          ? `/store/${product.vendorId}?shared=true`
+          : `/store/${product.vendorId}`
+      );
     } else if (vendorMarketplaceType === "marketplace") {
-      navigate(`/marketstorepage/${product.vendorId}`);
+      navigate(
+        quickForThisVendor
+          ? `/marketstorepage/${product.vendorId}?shared=true`
+          : `/marketstorepage/${product.vendorId}`
+      );
     } else {
       console.error("Unknown marketplace type or vendor not found");
     }
@@ -316,8 +325,6 @@ const ProductCard = ({
                   </p>
                 )}
             </div>
-
-           
           </div>
 
           {showVendorName && product.vendorName && (

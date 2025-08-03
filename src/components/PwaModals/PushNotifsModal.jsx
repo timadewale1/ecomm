@@ -48,7 +48,7 @@ const IframeModal = ({ show, onClose, url }) => {
     <Modal
       isOpen={show}
       onRequestClose={onClose}
-      overlayClassName="fixed inset-0 z-[3000] bg-black/50 backdrop-blur-sm"
+      overlayClassName="fixed inset-0 z-[9900] bg-black/50 backdrop-blur-sm"
       closeTimeoutMS={300}
       style={{
         content: {

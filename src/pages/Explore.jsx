@@ -506,7 +506,7 @@ const Explore = () => {
                     <>
                       {!selectedProductType && (
                         <div className="bg-white w-full border-gray-200">
-                          <div className="flex items-center gap-2 mb-5 mt-16">
+                          <div className="flex items-center gap-2 mb-5 mt-1">
                             <MdTrendingUp
                               className="text-customOrange"
                               size={18}

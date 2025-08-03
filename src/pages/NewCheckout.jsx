@@ -166,18 +166,6 @@ const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
               <LocationPicker onLocationSelect={handleLocationSelect} />
             )}
           </div>
-          <div>
-            <label className="font-opensans">Delivery Note</label>
-            <textarea
-              rows={3}
-              className="border bg-gray-100 py-2.5 mt-2 rounded-lg w-full px-2 font-opensans text-gray-600"
-              value={userInfo.deliveryNote || ""}
-              onChange={(e) =>
-                setUserInfo({ ...userInfo, deliveryNote: e.target.value })
-              }
-              placeholder="Any special instructions? E.g. Leave at front desk…"
-            />
-          </div>
         </div>
 
         <div className="border-t mt-4 border-gray-300 my-2"></div>
@@ -779,148 +767,6 @@ const Checkout = () => {
   useEffect(() => {
     console.log("selectedWeeks state updated to:", selectedWeeks);
   }, [selectedWeeks]);
-  const getStateFromLatLng = async (lat, lng) => {
-    return new Promise((resolve, reject) => {
-      const geocoder = new window.google.maps.Geocoder();
-      const latlng = { lat, lng };
-
-      geocoder.geocode({ location: latlng }, (results, status) => {
-        if (status === "OK" && results[0]) {
-          const addressComponents = results[0].address_components;
-          const stateComponent = addressComponents.find((component) =>
-            component.types.includes("administrative_area_level_1")
-          );
-          if (stateComponent) {
-            resolve(stateComponent.long_name);
-          } else {
-            reject("State not found");
-          }
-        } else {
-          reject("Reverse geocode failed");
-        }
-      });
-    });
-  };
-
-  useEffect(() => {
-    const calculateFee = async () => {
-      if (!vendorsInfo[vendorId] || !userInfo.latitude || !userInfo.longitude)
-        return;
-
-      const vendorState = vendorsInfo[vendorId].state;
-      const subtotal = previewedOrder.subtotal || 0;
-      const isWeekend = [0, 6].includes(new Date().getDay());
-
-      try {
-        // reverse‑geocode the user into a state
-        const resolvedState = await getStateFromLatLng(
-          userInfo.latitude,
-          userInfo.longitude
-        );
-        setUserState(resolvedState);
-
-        // now compute your estimate as before
-        const estimatedFee = calculateDeliveryFee(
-          vendorState,
-          resolvedState,
-          subtotal,
-          isWeekend
-        );
-        setDeliveryEstimate(estimatedFee);
-      } catch (error) {
-        console.error("Error calculating delivery fee:", error);
-      }
-    };
-
-    calculateFee();
-  }, [
-    vendorsInfo,
-    userInfo.latitude,
-    userInfo.longitude,
-    previewedOrder,
-    vendorId,
-  ]);
-  /**
-   * Distance from user → vendor’s pick-up point
-   */
-  useEffect(() => {
-    /* ---------- diagnostics ---------- */
-    console.log("🚚 supportsPickup:", supportsPickup);
-    console.log("   user lat/lng:", userInfo.latitude, userInfo.longitude);
-    console.log(
-      "   vendor lat/lng:",
-      vendorsInfo[vendorId]?.pickupLat,
-      vendorsInfo[vendorId]?.pickupLng
-    );
-    console.log(
-      "   DistanceMatrix ready:",
-      Boolean(window.google?.maps?.DistanceMatrixService)
-    );
-
-    /* ---------- abort if anything missing ---------- */
-    if (
-      !supportsPickup ||
-      userInfo.latitude == null ||
-      userInfo.longitude == null ||
-      vendorsInfo[vendorId]?.pickupLat == null ||
-      vendorsInfo[vendorId]?.pickupLng == null ||
-      !window.google?.maps?.DistanceMatrixService
-    ) {
-      console.log("⛔  Missing data → skip distance calc");
-      setTripAdvice(null);
-      return;
-    }
-
-    /* ---------- call Distance-Matrix ---------- */
-    console.log("✅  Calling DistanceMatrixService…");
-
-    const origin = new window.google.maps.LatLng(
-      Number(userInfo.latitude),
-      Number(userInfo.longitude)
-    );
-    const destination = new window.google.maps.LatLng(
-      Number(vendorsInfo[vendorId].pickupLat),
-      Number(vendorsInfo[vendorId].pickupLng)
-    );
-
-    new window.google.maps.DistanceMatrixService().getDistanceMatrix(
-      {
-        origins: [origin],
-        destinations: [destination],
-        travelMode: window.google.maps.TravelMode.DRIVING,
-      },
-      (result, status) => {
-        console.log("↩︎ DistanceMatrix status:", status);
-        console.log("↩︎ full payload:", result);
-
-        if (
-          status === "OK" &&
-          result?.rows?.[0]?.elements?.[0]?.status === "OK"
-        ) {
-          const elem = result.rows[0].elements[0];
-          setPickupDistance(elem.distance.text);
-
-          // NEW → friendly advice
-          setTripAdvice(
-            getTripAdvice(elem.distance.value, elem.duration.value)
-          );
-        } else {
-          setPickupDistance(null);
-          setTripAdvice(null);
-        }
-      }
-    );
-  }, [
-    supportsPickup,
-    userInfo.latitude,
-    userInfo.longitude,
-    vendorsInfo,
-    vendorId,
-  ]);
-
-  // 3) Derive whether this is truly Lagos→Lagos:
-  const isLagosToLagos =
-    vendorsInfo[vendorId]?.state === "Lagos" && userState === "Lagos";
 
   const groupProductsById = (products) => {
     const groupedProducts = {};
@@ -1007,6 +853,11 @@ const Checkout = () => {
           </div>
         </div>
       </Modal>
+    );
+  };
+  const handleShowMapToast = () => {
+    toast(
+      " ⚠️ We will allow you to calculate an estimate for pickup and distance after the order has been placed."
     );
   };
 
@@ -1134,107 +985,107 @@ const Checkout = () => {
       </Modal>
     );
   };
-  const MapModal = ({ isOpen, onClose, origin, destination }) => {
-    /** 1 ▸ wait for Google Maps bundle */
-    const [ready, setReady] = useState(Boolean(window.google?.maps));
-    useEffect(() => {
-      if (ready) return;
-      window.initMap = () => setReady(true); // called by the script tag
-    }, [ready]);
+  // const MapModal = ({ isOpen, onClose, origin, destination }) => {
+  //   /** 1 ▸ wait for Google Maps bundle */
+  //   const [ready, setReady] = useState(Boolean(window.google?.maps));
+  //   useEffect(() => {
+  //     if (ready) return;
+  //     window.initMap = () => setReady(true); // called by the script tag
+  //   }, [ready]);
 
-    /** 2 ▸ ask Routes API for a path */
-    const [directions, setDirections] = useState(null);
-    useEffect(() => {
-      if (!ready || !origin || !destination) return;
+  //   /** 2 ▸ ask Routes API for a path */
+  //   const [directions, setDirections] = useState(null);
+  //   useEffect(() => {
+  //     if (!ready || !origin || !destination) return;
 
-      new window.google.maps.DirectionsService().route(
-        { origin, destination, travelMode: "DRIVING" },
-        (res, status) =>
-          status === "OK" && res.routes.length
-            ? setDirections(res)
-            : console.warn("Directions failed:", status, res)
-      );
-    }, [ready, origin, destination]);
+  //     new window.google.maps.DirectionsService().route(
+  //       { origin, destination, travelMode: "DRIVING" },
+  //       (res, status) =>
+  //         status === "OK" && res.routes.length
+  //           ? setDirections(res)
+  //           : console.warn("Directions failed:", status, res)
+  //     );
+  //   }, [ready, origin, destination]);
 
-    /** 3 ▸ once the map is ready, draw the route */
-    const mapRef = useRef(null);
-    const rendererRef = useRef(null);
+  //   /** 3 ▸ once the map is ready, draw the route */
+  //   const mapRef = useRef(null);
+  //   const rendererRef = useRef(null);
 
-    const handleMapLoad = (map) => {
-      mapRef.current = map;
-      // create renderer once
-      rendererRef.current = new window.google.maps.DirectionsRenderer({
-        map,
-        preserveViewport: true,
-        suppressMarkers: false,
-      });
-      // if the directions request already finished, push it in:
-      if (directions) rendererRef.current.setDirections(directions);
-    };
+  //   const handleMapLoad = (map) => {
+  //     mapRef.current = map;
+  //     // create renderer once
+  //     rendererRef.current = new window.google.maps.DirectionsRenderer({
+  //       map,
+  //       preserveViewport: true,
+  //       suppressMarkers: false,
+  //     });
+  //     // if the directions request already finished, push it in:
+  //     if (directions) rendererRef.current.setDirections(directions);
+  //   };
 
-    /** if directions arrive later, feed them into the same renderer */
-    useEffect(() => {
-      if (rendererRef.current && directions) {
-        rendererRef.current.setDirections(directions);
-      }
-    }, [directions]);
+  //   /** if directions arrive later, feed them into the same renderer */
+  //   useEffect(() => {
+  //     if (rendererRef.current && directions) {
+  //       rendererRef.current.setDirections(directions);
+  //     }
+  //   }, [directions]);
 
-    /** cleanup when the modal unmounts */
-    useEffect(
-      () => () => {
-        rendererRef.current && rendererRef.current.setMap(null);
-      },
-      []
-    );
+  //   /** cleanup when the modal unmounts */
+  //   useEffect(
+  //     () => () => {
+  //       rendererRef.current && rendererRef.current.setMap(null);
+  //     },
+  //     []
+  //   );
 
-    /* ────────────── UI ────────────── */
-    if (!isOpen) return null;
+  //   /* ────────────── UI ────────────── */
+  //   if (!isOpen) return null;
 
-    return (
-      <Modal
-        isOpen
-        onRequestClose={onClose}
-        ariaHideApp={false}
-        className="bg-white w-full h-[75vh] rounded-t-2xl shadow-xl flex flex-col"
-        overlayClassName="fixed inset-0 bg-black/50 flex items-end z-50"
-      >
-        <div className="flex-1">
-          {ready ? (
-            <div
-              id="map"
-              style={{ height: "100%", width: "100%" }}
-              ref={(el) => {
-                if (el && !mapRef.current) {
-                  /* create the map only once */
-                  handleMapLoad(
-                    new window.google.maps.Map(el, {
-                      zoom: 12,
-                      center: origin,
-                    })
-                  );
-                }
-              }}
-            />
-          ) : (
-            <div className="h-full flex items-center justify-center">
-              Loading&nbsp;map…
-            </div>
-          )}
-        </div>
+  //   return (
+  //     <Modal
+  //       isOpen
+  //       onRequestClose={onClose}
+  //       ariaHideApp={false}
+  //       className="bg-white w-full h-[75vh] rounded-t-2xl shadow-xl flex flex-col"
+  //       overlayClassName="fixed inset-0 bg-black/50 flex items-end z-50"
+  //     >
+  //       <div className="flex-1">
+  //         {ready ? (
+  //           <div
+  //             id="map"
+  //             style={{ height: "100%", width: "100%" }}
+  //             ref={(el) => {
+  //               if (el && !mapRef.current) {
+  //                 /* create the map only once */
+  //                 handleMapLoad(
+  //                   new window.google.maps.Map(el, {
+  //                     zoom: 12,
+  //                     center: origin,
+  //                   })
+  //                 );
+  //               }
+  //             }}
+  //           />
+  //         ) : (
+  //           <div className="h-full flex items-center justify-center">
+  //             Loading&nbsp;map…
+  //           </div>
+  //         )}
+  //       </div>
 
-        <button
-          onClick={onClose}
-          className="absolute font-opensans bottom-4 left-1/2 -translate-x-1/2
-                     px-6 py-3 text-base font-medium
-                     bg-black/20 backdrop-blur-md border border-white/30
-                     rounded-full shadow-md hover:bg-white/30
-                     transition-colors duration-200"
-        >
-          Close
-        </button>
-      </Modal>
-    );
-  };
+  //       <button
+  //         onClick={onClose}
+  //         className="absolute font-opensans bottom-4 left-1/2 -translate-x-1/2
+  //                    px-6 py-3 text-base font-medium
+  //                    bg-black/20 backdrop-blur-md border border-white/30
+  //                    rounded-full shadow-md hover:bg-white/30
+  //                    transition-colors duration-200"
+  //       >
+  //         Close
+  //       </button>
+  //     </Modal>
+  //   );
+  // };
   const formatColorText = (color) => {
     if (!color) return "";
     return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
@@ -1537,6 +1388,7 @@ const Checkout = () => {
                 <h1 className="text-black font-semibold font-opensans text-base">
                   Delivery Information
                 </h1>
+                
                 <FaPen
                   className={`${
                     isRepiling
@@ -1582,20 +1434,7 @@ const Checkout = () => {
                 <p className="font-opensans text-black ">{userInfo.address}</p>
               </div>
 
-              <div className="flex flex-col text-sm space-y-1">
-                <div className="flex font-opensans items-center">
-                  <label className="font-semibold mr-1">Note:</label>
-                  {userInfo.deliveryNote ? (
-                    <p className="font-opensans text-black">
-                      {userInfo.deliveryNote}
-                    </p>
-                  ) : (
-                    <p className="italic font-opensans text-sm text-gray-400">
-                      Write instructions for the rider here…
-                    </p>
-                  )}
-                </div>
-              </div>
+              
             </div>
           </div>
 
@@ -1696,17 +1535,17 @@ const Checkout = () => {
                       <div className="flex flex-col items-start">
                         <p className="text-base font-opensans font-semibold text-black">
                           Pick-up
-                          <span className="font-normal text-xs text-customOrange ml-1">
+                          {/* <span className="font-normal text-xs text-customOrange ml-1">
                             {pickupDistance
                               ? `(≈ ${pickupDistance})`
                               : "(distance — …)"}
-                          </span>
+                          </span> */}
                         </p>
-                        <p className="text-xs text-gray-800 font-opensans">
+                        {/* <p className="text-xs text-gray-800 font-opensans">
                           {tripAdvice
                             ? `${tripAdvice.headline} • ${tripAdvice.sub}`
                             : "Calculating …"}
-                        </p>
+                        </p> */}
                       </div>
                       <span
                         className={`w-5 h-5 rounded-full border-2 mr-2 flex items-center justify-center ${
@@ -1729,7 +1568,7 @@ const Checkout = () => {
                       vendorsInfo[vendorId]?.pickupAddress ? (
                         <>
                           <button
-                            onClick={() => setShowMapModal(true)}
+                            onClick={handleShowMapToast}
                             className="w-full flex items-center justify-between"
                           >
                             <span className="font-opensans font-semibold text-xs">
@@ -2365,7 +2204,7 @@ const Checkout = () => {
         dispatch={dispatch}
         navigate={navigate}
       />
-      <MapModal
+      {/* <MapModal
         isOpen={showMapModal}
         onClose={() => setShowMapModal(false)}
         origin={{
@@ -2376,7 +2215,7 @@ const Checkout = () => {
           lat: vendorsInfo[vendorId]?.pickupLat,
           lng: vendorsInfo[vendorId]?.pickupLng,
         }}
-      />
+      /> */}
 
       <ShopSafelyModal
         isOpen={showShopSafelyModal}
@@ -2398,7 +2237,7 @@ const Checkout = () => {
         isOpen={showBookingFeeModal}
         onClose={() => setShowBookingFeeModal(false)}
       />
-      {/* ─── big primary action button ─── */}
+    
       <div className=" px-4 mt-6 pb-6 ">
         <button
           onClick={() => {

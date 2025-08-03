@@ -1249,7 +1249,7 @@ const OrdersCentre = () => {
                           }
                         })()}
 
-                      {/* ▸▸ Pick-up-orders only */}
+              
                       {order.isPickup &&
                         order.pickupCode &&
                         order.progressStatus !== "Delivered" && (
@@ -1259,40 +1259,58 @@ const OrdersCentre = () => {
                               {order.pickupCode.split("").map((d, i) => (
                                 <span
                                   key={i}
-                                  className="inline-block   bg-gray-200 rounded-sm px-1.5 py-0.5
-                     text-base font-opensans font-semibold  tracking-wider"
+                                  className="inline-block bg-gray-200 rounded-sm px-1.5 py-0.5 text-base font-opensans font-semibold tracking-wider"
                                 >
                                   {d}
                                 </span>
                               ))}
                             </div>
 
-                            {/* view-map link */}
-                            <button
-                              onClick={() => {
-                                if (!userLocation) {
-                                  return toast.error(
-                                    "We couldn’t find your saved location."
-                                  );
-                                }
-                                if (!order.pickupLat || !order.pickupLng) {
-                                  return toast.error(
-                                    "Vendor did not set a pick-up point."
-                                  );
-                                }
-
-                                setMapOrigin(userLocation);
-                                setMapDestination({
-                                  lat: order.pickupLat,
-                                  lng: order.pickupLng,
-                                });
-                                setShowMapModal(true);
-                              }}
-                              className="text-[11px] mt-1 text-blue-800 underline flex font-opensans"
-                            >
-                              View&nbsp;map
-                              <GoChevronRight className="text-lg -translate-x-1" />
-                            </button>
+                          
+                            {(() => {
+                              const inProgress = order.isStockpile
+                                ? order.firstOrderStatus === "In Progress"
+                                : order.progressStatus === "In Progress";
+                              return (
+                                <button
+                                  disabled={!inProgress}
+                                  onClick={() => {
+                                    if (!inProgress) {
+                                      return toast.error(
+                                        "You can only view the pickup route once the vendor has accepted your order."
+                                      );
+                                    }
+                                    if (!userLocation) {
+                                      return toast.error(
+                                        "We couldn’t find your saved location."
+                                      );
+                                    }
+                                    if (!order.pickupLat || !order.pickupLng) {
+                                      return toast.error(
+                                        "Vendor did not set a pick-up point."
+                                      );
+                                    }
+                                    setMapOrigin(userLocation);
+                                    setMapDestination({
+                                      lat: order.pickupLat,
+                                      lng: order.pickupLng,
+                                    });
+                                    setShowMapModal(true);
+                                  }}
+                                  className={`
+            text-[11px] mt-1 flex font-opensans underline
+            ${
+              inProgress
+                ? "text-blue-800 hover:text-blue-600"
+                : "text-gray-400 cursor-not-allowed"
+            }
+          `}
+                                >
+                                  View&nbsp;map
+                                  <GoChevronRight className="text-lg -translate-x-1" />
+                                </button>
+                              );
+                            })()}
                           </div>
                         )}
                     </div>

@@ -11,8 +11,6 @@ import { AccessProvider } from "./components/Context/AccesContext";
 
 import { useFCM } from "./custom-hooks/useFCM";
 function App() {
-  
-
   const { currentUser, currentUserData } = useAuth();
   useFCM(currentUser, currentUserData);
   // Initialize Order Listener
@@ -34,23 +32,20 @@ function App() {
     console.log("Viewport height updated:", `${vh}px`);
   };
 
-  // Safe service-worker registration (won’t crash IG/Snap/Telegram on iOS)
+  // App.jsx
   useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
+    const ua = navigator.userAgent || "";
+    const isInApp = /(FBAN|FBAV|FB_IAB|Instagram|Twitter)(?!.*Safari)/i.test(
+      ua
+    );
+    if (!("serviceWorker" in navigator) || isInApp) return;
 
     const onLoad = () => {
-      try {
-        navigator.serviceWorker
-          .register("/service-worker.js")
-          .then((reg) => console.log("Service Worker registered:", reg))
-          .catch((err) => {
-            console.warn("SW registration skipped:", err.message);
-          });
-      } catch (err) {
-        console.warn("SW register threw:", err.message);
-      }
+      navigator.serviceWorker
+        .register("/service-worker.js")
+        .then((r) => console.log("SW registered", r))
+        .catch((err) => console.warn("SW registration skipped:", err?.message));
     };
-
     window.addEventListener("load", onLoad);
     return () => window.removeEventListener("load", onLoad);
   }, []);

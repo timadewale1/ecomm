@@ -12,7 +12,7 @@ import SEO from "../components/Helmet/SEO";
 import { IoLocationOutline } from "react-icons/io5";
 import IkImage from "../services/IkImage";
 import VendorMetaTicker from "../components/VendorsData/VendorTicker";
-
+import { deactivateQuickMode } from "../redux/reducers/quickModeSlice";
 const Marketpg = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -97,6 +97,7 @@ const Marketpg = () => {
   };
 
   const handleStoreView = (vendor) => {
+    dispatch(deactivateQuickMode());
     navigate(`/store/${vendor.id}`);
   };
 
@@ -158,10 +159,8 @@ const Marketpg = () => {
                 <button
                   onClick={() => setHasDelivery(!hasDelivery)}
                   className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100  border ${
-                      hasDelivery
-                        ? "bg-customOrange text-white"
-                        : "bg-white"
-                    }`}
+                    hasDelivery ? "bg-customOrange text-white" : "bg-white"
+                  }`}
                 >
                   Delivery
                 </button>
@@ -170,10 +169,8 @@ const Marketpg = () => {
                 <button
                   onClick={() => setHasStockpile(!hasStockpile)}
                   className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100  border ${
-                      hasStockpile
-                        ? "bg-customOrange text-white"
-                        : "bg-white"
-                    }`}
+                    hasStockpile ? "bg-customOrange text-white" : "bg-white"
+                  }`}
                 >
                   Stockpile
                 </button>
@@ -182,10 +179,8 @@ const Marketpg = () => {
                 <button
                   onClick={() => setHasPickup(!hasPickup)}
                   className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100  border ${
-                      hasPickup
-                        ? "bg-customOrange text-white"
-                        : "bg-white"
-                    }`}
+                    hasPickup ? "bg-customOrange text-white" : "bg-white"
+                  }`}
                 >
                   Pickup
                 </button>
@@ -210,9 +205,8 @@ const Marketpg = () => {
                 ))}
               </div>
             )}
-            <hr className="bg-customGrey mb-1"/>
+            <hr className="bg-customGrey mb-1" />
           </div>
-          
         </div>
         <div className="vendor-list px-2 pb-24">
           {status === "loading" ? (

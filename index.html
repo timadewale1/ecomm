@@ -332,36 +332,6 @@
       src="https://static.sppopups.com/assets/loader.js"
       data-chats-widget-id="e3193fb3-f356-4967-a371-86f84e6e95ef"
     ></script>
-    <script>
-      window.helpcrunchSettings = {
-        organization: "mythrift",
-        appId: "97d979c8-ad04-42dc-9237-82d58f75031b",
-        showWidget: false,
-      };
-      (function (w, d) {
-        var hS = w.helpcrunchSettings;
-        if (!hS || !hS.organization) return;
-        var widgetSrc = "https://embed.helpcrunch.com/sdk.js";
-        w.HelpCrunch = function () {
-          w.HelpCrunch.q.push(arguments);
-        };
-        w.HelpCrunch.q = [];
-        function r() {
-          if (d.querySelector('script[src="' + widgetSrc + '"]')) return;
-          var s = d.createElement("script");
-          s.async = 1;
-          s.type = "text/javascript";
-          s.src = widgetSrc;
-          d.body.appendChild(s);
-        }
-        if (d.readyState === "complete" || hS.loadImmediately) r();
-        else if (w.attachEvent) w.attachEvent("onload", r);
-        else w.addEventListener("load", r, false);
-      })(window, document);
-      window.HelpCrunch &&
-        window.HelpCrunch("onReady", function () {
-          window.HelpCrunch("hideChatWidget");
-        });
-    </script>
+  
   </body>
 </html>

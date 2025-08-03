@@ -576,8 +576,13 @@ const OrdersCentre = () => {
         if (newOrder.vendorId) {
           dispatch(clearCart(newOrder.vendorId));
           dispatch(exitStockpileMode());
-          dispatch(deactivateQuickMode());
         }
+        dispatch(deactivateQuickMode());
+        try {
+          Object.keys(sessionStorage)
+            .filter((k) => k.startsWith("quickMode_"))
+            .forEach((k) => sessionStorage.removeItem(k));
+        } catch {}
       }
     }
   }, [orders, dispatch]);

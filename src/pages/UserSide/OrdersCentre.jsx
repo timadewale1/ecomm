@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { GoChevronLeft, GoChevronRight } from "react-icons/go";
 import { addToCart } from "../../redux/actions/action";
 import { useNavigate, useLocation } from "react-router-dom";
+import { deactivateQuickMode } from "../../redux/reducers/quickModeSlice";
 import { db, auth } from "../../firebase.config";
 import Modal from "react-modal";
 import {
@@ -11,6 +12,7 @@ import {
   getDocs,
   onSnapshot,
   doc,
+  setDoc,
   getDoc,
   updateDoc,
   Timestamp,
@@ -57,8 +59,16 @@ import {
 
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../../firebase.config";
+import {
+  EmailAuthProvider,
+  linkWithCredential,
+  fetchSignInMethodsForEmail,
+} from "firebase/auth";
+
 import { clearCart } from "../../redux/actions/action";
 import { RiShareForwardBoxLine } from "react-icons/ri";
+import LinkAccountModal from "../../components/QuickMode/LinkAccountModal";
+import AccountLinkBanner from "../../components/QuickMode/AccountLinkBanner";
 const ConfirmShippingModal = ({ isOpen, onClose, onConfirm }) => {
   if (!isOpen) return null;
 
@@ -194,7 +204,8 @@ const OrdersCentre = () => {
   const [mapOrigin, setMapOrigin] = useState(null);
   const [mapDestination, setMapDestination] = useState(null);
   const [userLocation, setUserLocation] = useState(null); // <- logged-in user’s lat/lng
-
+  const [showLinkBanner, setShowLinkBanner] = useState(false);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [sampleProduct, setSampleProduct] = useState(null);
   const ordersFetched = useRef(false);
   const [showOrderPlacedModal, setShowOrderPlacedModal] = useState(false);
@@ -221,6 +232,13 @@ const OrdersCentre = () => {
     // clean out the history state, so refresh doesn’t open it again
     navigate(location.pathname, { replace: true, state: {} });
   }, [location]);
+  // Show banner if current user is anonymous
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((u) => {
+      setShowLinkBanner(!!u && u.isAnonymous === true);
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     if (!userId || ordersFetched.current) return;
@@ -411,7 +429,6 @@ const OrdersCentre = () => {
         setOrders(finalOrders);
 
         console.log("🧾 Final grouped orders:", finalOrders);
-       
       } catch (error) {
         console.error("Error fetching orders and products:", error);
       } finally {
@@ -559,7 +576,7 @@ const OrdersCentre = () => {
         if (newOrder.vendorId) {
           dispatch(clearCart(newOrder.vendorId));
           dispatch(exitStockpileMode());
-
+          dispatch(deactivateQuickMode());
         }
       }
     }
@@ -636,6 +653,114 @@ const OrdersCentre = () => {
     // Authentication state is not yet known show a loading indicator
     return <Loading />;
   }
+  const openLinkDialog = () => setShowLinkDialog(true);
+
+  const linkAnonymousAccount = async ({ email, password }) => {
+    const u = auth.currentUser;
+    if (!u || !u.isAnonymous) {
+      toast.error("You're not signed in as a guest.");
+      return;
+    }
+
+    const inputEmail = email.trim().toLowerCase();
+
+    try {
+      // 0) Load anon user's Firestore doc
+      const userRef = doc(db, "users", u.uid);
+      const snap = await getDoc(userRef);
+      const savedEmail =
+        (snap.exists() ? snap.data()?.email : "")
+          ?.toString()
+          .trim()
+          .toLowerCase() || "";
+
+      // 1) Enforce email match if one was saved earlier
+      if (savedEmail && savedEmail !== inputEmail) {
+        const mask = (e) => {
+          const [name, domain] = e.split("@");
+          if (!domain) return e;
+          const safeName =
+            name.length <= 2 ? name[0] + "*" : name[0] + "***" + name.slice(-1);
+          return `${safeName}@${domain}`;
+        };
+        toast.error(
+          `Please use the same email you used earlier: ${mask(savedEmail)}`
+        );
+        return;
+      }
+
+      // 2) HARD BLOCK: vendor emails
+      const vendorsQ = query(
+        collection(db, "vendors"),
+        where("email", "==", inputEmail)
+      );
+      const vendorsSnap = await getDocs(vendorsQ);
+      if (!vendorsSnap.empty) {
+        toast.error("This email is already used for a Vendor account!");
+        return;
+      }
+      // Also check users collection for vendor role
+      const usersQ = query(
+        collection(db, "users"),
+        where("email", "==", inputEmail)
+      );
+      const usersSnap = await getDocs(usersQ);
+      if (!usersSnap.empty && usersSnap.docs[0].data()?.role === "vendor") {
+        toast.error("This email is already used for a Vendor account!");
+        return;
+      }
+
+      // 3) If email already registered (any provider), don't link; ask to sign in
+      const methods = await fetchSignInMethodsForEmail(auth, inputEmail);
+      if (methods.length > 0) {
+        toast.error(
+          "This email is already registered. Please sign in and we’ll merge your data."
+        );
+        return;
+      }
+
+      // 4) Link anonymous → email/password
+      const cred = EmailAuthProvider.credential(inputEmail, password);
+      const res = await linkWithCredential(u, cred);
+
+      // 5) Upsert Firestore (non-destructive)
+      const patch = {
+        uid: res.user.uid,
+        email: inputEmail,
+        accountLinked: true,
+        updatedAt: new Date(),
+      };
+      await setDoc(
+        userRef,
+        snap.exists()
+          ? patch
+          : { createdAt: new Date(), role: "user", ...patch },
+        { merge: true }
+      );
+
+      // 6) Verification email
+      try {
+        await sendEmailVerification(res.user);
+      } catch (e) {
+        console.error("sendEmailVerification failed:", e);
+      }
+
+      toast.success("Account linked! We’ve sent a verification email.");
+      setShowLinkDialog(false);
+      setShowLinkBanner(false);
+    } catch (err) {
+      console.error("linkWithCredential failed:", err);
+      if (err.code === "auth/email-already-in-use") {
+        toast.error(
+          "This email is already in use. Please sign in and link from settings."
+        );
+      } else if (err.code === "auth/invalid-credential") {
+        toast.error("Invalid email or password.");
+      } else {
+        toast.error("Could not link account. Please try again.");
+      }
+    }
+  };
   const MapModal = ({ isOpen, onClose, origin, destination }) => {
     /** 1 ▸ wait for Google Maps bundle */
     const [ready, setReady] = useState(Boolean(window.google?.maps));
@@ -813,6 +938,18 @@ const OrdersCentre = () => {
         url={`https://www.shopmythrift.store/user-orders`}
       />
       <ScrollToTop />
+      <LinkAccountModal
+        open={showLinkDialog}
+        onClose={() => setShowLinkDialog(false)}
+        onSubmit={linkAnonymousAccount}
+      />
+      {showLinkBanner && (
+        <AccountLinkBanner
+          onLink={openLinkDialog}
+          onClose={() => setShowLinkBanner(false)}
+        />
+      )}
+
       <LinkShareModal
         isOpen={showShareModal}
         shareUrl={shareUrl}

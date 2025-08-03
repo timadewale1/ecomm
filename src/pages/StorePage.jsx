@@ -100,6 +100,11 @@ import PickupInfoModal from "../components/Location/PickupModal";
 import StockpileInfoModal from "../components/StockpileModal";
 import IframeModal from "../components/PwaModals/PushNotifsModal";
 import VendorPolicyModal from "./Legal/VendorPolicyModal";
+import StoreBasket from "../components/QuickMode/StoreBasket";
+import {
+  activateQuickMode,
+  deactivateQuickMode,
+} from "../redux/reducers/quickModeSlice";
 Modal.setAppElement("#root"); // For accessibility
 
 const FlipCountdown = ({ endTime }) => {
@@ -465,6 +470,9 @@ const StorePage = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isShared = searchParams.has("shared");
+  const quick = useSelector((s) => s.quickMode); // { isActive, vendorId }
+  const quickForThisVendor = quick.isActive && quick.vendorId === id;
+
   const [isStockpileMode, setIsStockpileMode] = useState(false);
   const [showPileModal, setShowPileModal] = useState(false);
   const [showHeader, setShowHeader] = useState(true);
@@ -610,7 +618,17 @@ const StorePage = () => {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, [vendor, loadingMore, noMore, id, dispatch]);
-
+  useEffect(() => {
+    if (isShared) {
+      sessionStorage.setItem(`quickMode_${id}`, "1");
+    }
+  }, [isShared, id]);
+  useEffect(() => {
+    const forced = sessionStorage.getItem(`quickMode_${id}`) === "1";
+    if (forced) {
+      dispatch(activateQuickMode(id));
+    }
+  }, [dispatch, id]);
   useEffect(() => {
     setIsFollowing(false);
 
@@ -810,7 +828,6 @@ const StorePage = () => {
     ? moment(stockpileExpiry).format("ddd, MMM Do YYYY")
     : null;
 
-  // ---- optimistic follow / unfollow ---------------------------
   const handleFollowClick = async () => {
     if (!currentUser) {
       setIsLoginModalOpen(true);
@@ -1213,6 +1230,15 @@ const StorePage = () => {
         onClose={closePickupIntro}
         currentUserCoords={userCoords}
       />
+
+      {quickForThisVendor && (
+        <StoreBasket
+          vendorId={id}
+          quickMode
+          onQuickFlow={() => setShowDrawer(true)}
+        />
+      )}
+
       <StockpileInfoModal
         isOpen={showStockpileIntro}
         vendor={vendor}
@@ -1259,43 +1285,37 @@ const StorePage = () => {
                 )}
               </div>
             </div>
-          ) : isShared ? (
+          ) : quickForThisVendor ? (
             <div
               className={`
-      fixed inset-x-0 bg-white h-24 top-0 z-20 border-gray-300
-      transform transition-transform duration-200
-      ${showSharedHeader ? "translate-y-0" : "-translate-y-full"}
-    `}
+          fixed top-0 left-0 right-0 z-10
+          flex items-center justify-between p-4 bg-gradient-to-b from-white/40 to-transparent
+        `}
             >
-              <div className="w-full py-4">
-                <div className="flex items-center justify-between">
-                  <img
-                    src="/newlogo.png"
-                    alt="Logo"
-                    onClick={() => navigate("/newhome")}
-                    className="h-8 w-16 object-contain cursor-pointer"
-                  />
-                  <div className="flex items-center mr-2 relative">
-                    <CiSearch
-                      className="text-black text-3xl cursor-pointer"
-                      onClick={openSearch}
-                    />
-                  </div>
-                </div>
-                <div className="flex mt-4 justify-between -translate-y-2 px-4 gap-4 w-full items-center">
-                  <button
-                    onClick={() => navigate("/login")}
-                    className="px-4 py-1 text-sm w-full font-opensans text-customRichBrown border border-customRichBrown rounded-full"
-                  >
-                    Login
-                  </button>
-                  <button
-                    onClick={() => navigate("/signup")}
-                    className="px-4 py-1 w-full text-sm font-opensans text-white bg-customOrange rounded-full"
-                  >
-                    Sign Up
-                  </button>
-                </div>
+              <img
+                src="/newlogo.png"
+                alt="Logo"
+                onClick={() => navigate("/newhome")}
+                className={`h-8 w-auto object-contain  ${
+                  showHeader ? "opacity-100" : "opacity-20"
+                }cursor-pointer drop-shadow-sm`}
+              />
+              {/* Right side icons */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={openSearch}
+                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg transition-opacity duration-300 border border-white/40
+          ${showHeader ? "opacity-100" : "opacity-30"}`}
+                >
+                  <RiSearchLine className="text-white text-xl" />
+                </button>
+                <button
+                  onClick={handleShare}
+                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg transition-opacity duration-300 border border-white/40
+          ${showHeader ? "opacity-100" : "opacity-30"}`}
+                >
+                  <GrShare className="text-white text-lg" />
+                </button>
               </div>
             </div>
           ) : (
@@ -1536,8 +1556,6 @@ const StorePage = () => {
           {searchingUI(isSearching, searchTerm) && (
             <div className="p-4">{/* Search results content goes here */}</div>
           )}
-
-          
         </div>
         <div className={`${isSearching ? "mt-16" : "mt-7"}`}>
           <div className="flex items-center mb-3 justify-between">
@@ -1598,10 +1616,10 @@ const StorePage = () => {
                   key={type}
                   onClick={() => handleTypeSelect(type)}
                   className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 border ${
-                      selectedType === type
-                        ? "bg-customOrange text-white"
-                        : "bg-white"
-                    }`}
+                    selectedType === type
+                      ? "bg-customOrange text-white"
+                      : "bg-white"
+                  }`}
                 >
                   {type}
                 </button>

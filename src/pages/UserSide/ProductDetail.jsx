@@ -35,6 +35,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import Select from "react-select";
 import "swiper/css";
 import { Oval, RotatingLines } from "react-loader-spinner";
+import StoreBasket from "../../components/QuickMode/StoreBasket";
 
 import { AnimatePresence, motion } from "framer-motion";
 // import SwiperCore, { Pagination,  } from "swiper";
@@ -51,6 +52,11 @@ import {
   setDoc,
   increment,
 } from "firebase/firestore";
+import {
+  selectQuickMode,
+  activateQuickMode,
+  deactivateQuickMode,
+} from "../../redux/reducers/quickModeSlice";
 import { findVariant } from "../../services/getVariant";
 import RelatedProducts from "./SimilarProducts";
 import Productnotofund from "../../components/Loading/Productnotofund";
@@ -66,6 +72,8 @@ import SafeImg from "../../services/safeImg";
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
 import { useFavorites } from "../../components/Context/FavoritesContext";
 import { BsBadgeHdFill } from "react-icons/bs";
+import { HiOutlineShoppingBag } from "react-icons/hi";
+import { FcShop } from "react-icons/fc";
 Modal.setAppElement("#root");
 
 const debounce = (func, delay) => {
@@ -202,6 +210,7 @@ const ProductDetailPage = () => {
   const searchParams = new URLSearchParams(location.search);
   const isShared = searchParams.has("shared");
 
+  const productVendorId = product?.vendorId;
   const [subProducts, setSubProducts] = useState([]);
   const [selectedSubProduct, setSelectedSubProduct] = useState(null);
 
@@ -249,13 +258,15 @@ const ProductDetailPage = () => {
   const handleCloseModal = () => setShowModal(false);
   const db = getFirestore();
 
+  const isGuestShared = isShared && !currentUser;
   const cart = useSelector((state) => state.cart || {});
-
   const [showHeader, setShowHeader] = useState(true);
   const prevScrollPos = useRef(0);
   // Local Favorites Context
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const favorite = isFavorite(product?.id);
+  const { isActive: quickMode = false, vendorId: basketVendorId = null } =
+    useSelector((state) => selectQuickMode(state) ?? {});
 
   useEffect(() => {
     const handleScroll = () => {
@@ -296,10 +307,15 @@ const ProductDetailPage = () => {
 
     fetchProductDetails();
   }, [id, dispatch, navigate, db]);
-
+  useEffect(() => {
+    if (isGuestShared && productVendorId) {
+      dispatch(activateQuickMode(productVendorId));
+      // } else {
+      //   dispatch(deactivateQuickMode());
+    }
+  }, [isGuestShared, productVendorId, dispatch]);
   useEffect(() => {
     if (product && product.variants) {
-      // Extract unique colors and sizes from product variants
       const uniqueColors = Array.from(
         new Set(product.variants.map((v) => v.color))
       );
@@ -1345,7 +1361,7 @@ const ProductDetailPage = () => {
       />
       <div className="relative pb-20">
         <div>
-          {isShared ? (
+          {isGuestShared ? (
             <>
               <div
                 className={`px-2 fixed top-0 left-0 w-full h-20 py-10 bg-white z-20 shadow-md`}
@@ -1353,29 +1369,80 @@ const ProductDetailPage = () => {
                 <div className="flex items-center justify-between h-full">
                   <div className="w-full ">
                     {/* LEFT: logo */}
-                    <div className="flex items-center justify-center">
+
+                    <div className="flex items-center justify-between">
                       <img
                         src="/newlogo.png"
                         alt="Logo"
                         onClick={() => navigate("/newhome")}
                         className="h-8 w-16 object-contain"
                       />
-                    </div>
 
-                    {/* RIGHT: login & sign up */}
-                    <div className="flex mt-4 justify-between  gap-4 w-full items-center ">
-                      <button
-                        onClick={() => navigate("/login")}
-                        className="px-4 py-1 text-sm w-full font-opensans text-customRichBrown border border-customRichBrown rounded-full"
-                      >
-                        Login
-                      </button>
-                      <button
-                        onClick={() => navigate("/signup")}
-                        className="px-4 py-1 w-full text-sm font-opensans text-white bg-customOrange rounded-full"
-                      >
-                        Sign Up
-                      </button>
+                      <div className="flex items-center mr-2 space-x-0 relative">
+                        <button
+                          className={`w-10 h-10 translate-x-1 rounded-full backdrop-blur-md flex items-center justify-center`}
+                          onClick={copyProductLink}
+                        >
+                          {isLinkCopied ? (
+                            <LuCopyCheck className="text-xl" />
+                          ) : (
+                            <LuCopy className="text-xl" />
+                          )}
+                        </button>
+
+                        {/* Favorite Icon */}
+                        <button
+                          className="w-10 h-10 rounded-full -translate-x-1 backdrop-blur-md flex items-center justify-center"
+                          onClick={handleFavoriteToggle}
+                        >
+                          <motion.div
+                            // whenever `favorite` is true we run this keyframe pop
+                            animate={
+                              favorite ? { scale: [1, 1.3, 1] } : { scale: 1 }
+                            }
+                            transition={{
+                              duration: 0.4,
+                              ease: "easeOut",
+                              // you can swap this for a spring:
+                              // type: "spring", stiffness: 300, damping: 20
+                            }}
+                          >
+                            {favorite ? (
+                              <RiHeart3Fill className="text-red-500 text-2xl" />
+                            ) : (
+                              <RiHeart3Line className="text-black text-2xl" />
+                            )}
+                          </motion.div>
+                        </button>
+                        {!quickMode && (
+                          <button
+                            className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
+                            onClick={() =>
+                              navigate("/latest-cart", {
+                                state: { fromProductDetail: true },
+                              })
+                            }
+                          >
+                            <PiShoppingCartBold className="text-xl" />
+                            {cartItemCount > 0 && (
+                              <div className="top-1 absolute right-1">
+                                <Badge count={cartItemCount} />
+                              </div>
+                            )}
+                          </button>
+                        )}
+                        {productVendorId && (
+                          <button
+                            onClick={() =>
+                              navigate(`/store/${productVendorId}?shared=true`)
+                            }
+                            className="bg-transparent border border-customRichBrown text-customRichBrown px-2 py-1.5 rounded-full font-opensans text-xs flex items-center gap-2"
+                          >
+                            <FcShop className="text-sm" />
+                            View Store
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1438,22 +1505,23 @@ const ProductDetailPage = () => {
                         )}
                       </motion.div>
                     </button>
-
-                    <button
-                      className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
-                      onClick={() =>
-                        navigate("/latest-cart", {
-                          state: { fromProductDetail: true },
-                        })
-                      }
-                    >
-                      <PiShoppingCartBold className="text-xl" />
-                      {cartItemCount > 0 && (
-                        <div className="top-1 absolute right-1">
-                          <Badge count={cartItemCount} />
-                        </div>
-                      )}
-                    </button>
+                    {!quickMode && (
+                      <button
+                        className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
+                        onClick={() =>
+                          navigate("/latest-cart", {
+                            state: { fromProductDetail: true },
+                          })
+                        }
+                      >
+                        <PiShoppingCartBold className="text-xl" />
+                        {cartItemCount > 0 && (
+                          <div className="top-1 absolute right-1">
+                            <Badge count={cartItemCount} />
+                          </div>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1712,7 +1780,7 @@ const ProductDetailPage = () => {
           {vendorLoading ? (
             <LoadProducts className="mr-20" />
           ) : vendor ? (
-            <div className="flex items-center mt-1">
+            <div className="flex align- items-center mt-1">
               <p className="text-sm text-red-600 mr-2">{vendor.shopName}</p>
               {vendor.ratingCount > 0 && (
                 <div className="flex items-center">
@@ -1868,7 +1936,13 @@ const ProductDetailPage = () => {
             {/* Arrow icon */}
             <GoChevronRight className="ml-auto text-2xl" />
           </div>
-
+          {quickMode && product?.vendorId === basketVendorId && (
+            <StoreBasket
+              vendorId={basketVendorId}
+              quickMode
+              onQuickFlow={() => setShowFastDrawer(true)}
+            />
+          )}
           <Modal
             isOpen={isModalOpen}
             onRequestClose={() => setIsModalOpen(false)}

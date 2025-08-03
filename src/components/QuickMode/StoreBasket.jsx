@@ -642,8 +642,8 @@ export default function StoreBasket({
   };
 
   const handleSaveDeliveryInfo = async () => {
-    // validate
-    const raw = phoneRaw.replace(/\D/g, ""); // digits only
+    // 1) Validate phone (local NG 10 digits, no leading 0)
+    const raw = phoneRaw.replace(/\D/g, "");
     if (!isValidNg10(raw)) {
       toast.error(
         "Phone must be exactly 10 digits and not start with 0 (e.g. 8123456789)."
@@ -651,10 +651,11 @@ export default function StoreBasket({
       return;
     }
 
-    // HARDCODED LOCATION
-    const hardAddr = "Lekki Phase 1, Lagos, Nigeria";
-    const hardLat = 6.4433;
-    const hardLng = 3.4683;
+    // 2) Validate address/coords from LocationPicker
+    if (!address || !coords?.lat || !coords?.lng) {
+      toast.error("Please select your delivery address on the map.");
+      return;
+    }
 
     if (!auth.currentUser) {
       toast.error("You are not signed in.");
@@ -663,20 +664,25 @@ export default function StoreBasket({
 
     try {
       setSavingDelivery(true);
+
+      // Format phone to E.164 for Nigeria
       const phoneE164 = `+234${raw}`;
+
+      // Optional: trim the address to avoid stray spaces
+      const cleanAddress = address.trim();
 
       await updateDoc(doc(db, "users", auth.currentUser.uid), {
         phoneNumber: phoneE164,
-        address: hardAddr,
-        location: { lat: hardLat, lng: hardLng },
+        address: cleanAddress, // <- actual address from picker
+        location: { lat: coords.lat, lng: coords.lng }, // <- actual coords
         profileComplete: true,
+        updatedAt: new Date(),
       });
 
-      // close auth modal(s)
+      // Close UI and continue to checkout
       setAuthOpen(false);
       setShowDeliveryStep(false);
 
-      // go to checkout with optional vendor note
       const q = note ? `?note=${encodeURIComponent(note)}` : "";
       navigate(`/newcheckout/${vendorId}${q}`);
     } catch (e) {

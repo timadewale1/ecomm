@@ -19,15 +19,23 @@ import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "./custom-hooks/useAuth";
 import { TawkProvider } from "./components/Context/TawkProvider.jsx";
 
+import { PostHogProvider } from "posthog-js/react";
+
+const posthogOptions = {
+  api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
+  autocapture: true,
+  capture_pageview: false,
+  session_recording: { sampling_rate: 1 },
+};
 
 createRoot(document.getElementById("root")).render(
   <HelmetProvider>
     <StrictMode>
       <BrowserRouter>
-        {/* <PostHogProvider
+        <PostHogProvider
           apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_KEY}
           options={posthogOptions}
-        > */}
+        >
           {" "}
           <Provider store={store}>
             <PersistGate loading={null} persistor={persistor}>
@@ -57,7 +65,7 @@ createRoot(document.getElementById("root")).render(
               </AuthProvider>
             </PersistGate>
           </Provider>
-        {/* </PostHogProvider> */}
+        </PostHogProvider>
       </BrowserRouter>
     </StrictMode>
   </HelmetProvider>

@@ -105,6 +105,7 @@ import {
   activateQuickMode,
   deactivateQuickMode,
 } from "../redux/reducers/quickModeSlice";
+import QuickAuthModal from "../components/PwaModals/AuthModal";
 Modal.setAppElement("#root"); // For accessibility
 
 const FlipCountdown = ({ endTime }) => {
@@ -146,7 +147,7 @@ const FlipCountdown = ({ endTime }) => {
     </div>
   );
 };
-function VendorDetails({ vendor }) {
+function VendorDetails({ vendor, vendorId }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true });
   const [isOpen, setIsOpen] = useState(false);
@@ -154,27 +155,23 @@ function VendorDetails({ vendor }) {
   const [hasInteracted, setHasInteracted] = useState(false);
   const [timeoutId, setTimeoutId] = useState(null);
 
-  // Auto-open when it first comes into view, only if not interacted
   useEffect(() => {
     if (!inView || autoDone || hasInteracted) return;
+    const seenKey = `vd_seen_${vendorId}`;
+    if (sessionStorage.getItem(seenKey)) return;
 
     setIsOpen(true);
     setAutoDone(true);
-    const id = setTimeout(() => {
-      setIsOpen(false);
-    }, 4000);
+    sessionStorage.setItem(seenKey, "1");
+
+    const id = setTimeout(() => setIsOpen(false), 4000);
     setTimeoutId(id);
 
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [inView, autoDone, hasInteracted, timeoutId]);
+    return () => clearTimeout(id);
+  }, [inView, autoDone, hasInteracted, vendorId]);
 
-  // Cleanup timeout on unmount or state change
   useEffect(() => {
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
+    return () => timeoutId && clearTimeout(timeoutId);
   }, [timeoutId]);
 
   const toggle = () => {
@@ -295,6 +292,7 @@ function VendorDetails({ vendor }) {
 }
 function AdditionalDetails({
   vendor,
+  vendorId,
   onPlatformPolicyClick,
   onVendorPolicyClick,
   badgeMessages,
@@ -307,27 +305,23 @@ function AdditionalDetails({
   const [hasInteracted, setHasInteracted] = useState(false);
   const [timeoutId, setTimeoutId] = useState(null);
 
-  // Auto-open when it first comes into view, only if not interacted
   useEffect(() => {
     if (!inView || autoDone || hasInteracted) return;
+    const seenKey = `ad_seen_${vendorId}`;
+    if (sessionStorage.getItem(seenKey)) return;
 
     setIsOpen(true);
     setAutoDone(true);
-    const id = setTimeout(() => {
-      setIsOpen(false);
-    }, 4000);
+    sessionStorage.setItem(seenKey, "1");
+
+    const id = setTimeout(() => setIsOpen(false), 4000);
     setTimeoutId(id);
 
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [inView, autoDone, hasInteracted, timeoutId]);
+    return () => clearTimeout(id);
+  }, [inView, autoDone, hasInteracted, vendorId]);
 
-  // Cleanup timeout on unmount or state change
   useEffect(() => {
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
+    return () => timeoutId && clearTimeout(timeoutId);
   }, [timeoutId]);
 
   const toggle = () => {
@@ -432,17 +426,66 @@ function AdditionalDetails({
     </div>
   );
 }
+// Put near other utils at top of StorePage.jsx
+const isNetworkishError = (err) => {
+  if (!err) return false;
+  const code = err.code || err.name || "";
+  const msg = (err.message || "").toLowerCase();
+
+  // Firebase/Firestore common network codes
+  if (
+    code === "unavailable" ||
+    code === "network-request-failed" ||
+    code === "deadline-exceeded"
+  ) {
+    return true;
+  }
+  // Generic signals from various layers
+  if (
+    msg.includes("offline") ||
+    msg.includes("network") ||
+    msg.includes("failed to fetch")
+  ) {
+    return true;
+  }
+  return false;
+};
+
+function NetworkIssueNotice({ onRetry }) {
+  return (
+    <div className="flex flex-col px-6 justify-center items-center h-3/6 text-center">
+      <img
+        src="/network-issue.png"
+        alt="Network issue"
+        className="w-28 h-28 opacity-80 mb-3"
+        onError={(e) => {
+          e.currentTarget.style.display = "none";
+        }}
+      />
+      <h1 className="text-xl font-bold font-opensans text-gray-800">
+        Can’t reach My Thrift right now
+      </h1>
+      <p className="text-sm mt-2 text-gray-600 font-opensans">
+        It looks like you’re offline or the connection is unstable. Please check
+        your internet and try again.
+      </p>
+      <button
+        className="mt-5 py-2 px-5 rounded-full font-medium font-opensans bg-customOrange text-white"
+        onClick={onRetry}
+      >
+        Retry
+      </button>
+    </div>
+  );
+}
+
 const StorePage = () => {
   const { id } = useParams();
-  // const [vendor, setVendor] = useState(null);
-  // const [products, setProducts] = useState([]);
+
   const [favorites, setFavorites] = useState({});
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  // const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
   const { currentUser } = useAuth();
-  // const [currentUser, setCurrentUser] = useState(null);
   const dispatch = useDispatch();
   const [selectedType, setSelectedType] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
@@ -452,10 +495,8 @@ const StorePage = () => {
   const [isBannerVisible, setIsBannerVisible] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [viewOptions, setViewOptions] = useState(false);
-  // Add this line along with your other useState declarations
-  const [sortOption, setSortOption] = useState(null); // 'priceAsc' or 'priceDesc'
-  // Instead of local "vendor" and "products" state, we read from Redux
-  // Get the slice
+  const [authOpen, setAuthOpen] = useState(false);
+  const [sortOption, setSortOption] = useState(null);
   const {
     entities,
     loading: vendorLoading,
@@ -493,7 +534,20 @@ const StorePage = () => {
   const [userCoords, setUserCoords] = useState(null);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [termsUrl, setTermsUrl] = useState("");
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
 
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
   useEffect(() => {
     if (!vendor) return;
 
@@ -509,8 +563,6 @@ const StorePage = () => {
     const pickupSeenKey = `introPickup_${vendor.id}`;
 
     if (sessionStorage.getItem(introDoneKey)) return; // already handled for this store
-
-    /* --- ① PICK‑UP gets first dibs ---------------------------------- */
     if (hasPickup && !sessionStorage.getItem(pickupSeenKey)) {
       // quietly request user location; don’t block if declined
       navigator.geolocation?.getCurrentPosition(
@@ -523,13 +575,11 @@ const StorePage = () => {
         { timeout: 8000 }
       );
       setShowPickupIntro(true);
-      return; // ← don’t fall through
+      return;
     }
 
-    /* --- ② otherwise fall back to STOCKPILE ------------------------- */
     if (hasStockpile && !sessionStorage.getItem(stockpileSeenKey)) {
       setShowStockpileIntro(true);
-      // no return needed; this is the last branch
     }
   }, [vendor]);
 
@@ -538,7 +588,7 @@ const StorePage = () => {
   useEffect(() => {
     const onScroll = () => {
       const currentY = window.scrollY;
-      // if you’ve scrolled down, hide; if up, show
+
       setShowSharedHeader(currentY < sharedPrevScrollY.current);
       sharedPrevScrollY.current = currentY;
     };
@@ -550,11 +600,11 @@ const StorePage = () => {
     const params = new URLSearchParams(location.search);
     const stockpileParam = params.get("stockpile");
     if (stockpileParam === "1" && currentUser) {
-      dispatch(enterStockpileMode({ vendorId: id })); // ✅ good!
-      setIsStockpileMode(true); // 🔴 HERE —> this is **key**
+      dispatch(enterStockpileMode({ vendorId: id }));
+      setIsStockpileMode(true);
     }
   }, [location.search, currentUser, dispatch, id]);
-  // ✅ hydrate scrollY once the vendor slice entry exists
+
   useEffect(() => {
     if (!vendor) return;
     const saved = localStorage.getItem(`storeScroll_${id}`);
@@ -660,7 +710,7 @@ const StorePage = () => {
       const currentScrollPosition = window.scrollY;
       setScrollPosition(currentScrollPosition);
 
-      const threshold = 100000; // pixels
+      const threshold = 100000;
       setShowCountdownInHeader(currentScrollPosition > threshold);
     };
 
@@ -712,11 +762,16 @@ const StorePage = () => {
   }, [products.length, loadingMore, scrollY]);
   const handleOpenPileModal = () => {
     setShowPileModal(true);
-    // dispatch the thunk
+
     if (currentUser) {
       dispatch(fetchStockpileData({ userId: currentUser.uid, vendorId: id }));
     }
   };
+  const retryLoadVendor = useCallback(() => {
+    dispatch(fetchStoreVendor(id));
+    dispatch(fetchVendorProductsBatch({ vendorId: id, loadMore: false }));
+  }, [dispatch, id]);
+
   useEffect(() => {
     const handleScroll = () => {
       const currentPos = window.scrollY;
@@ -761,6 +816,15 @@ const StorePage = () => {
       gradient: "from-purple-300 to-purple-700",
     },
   };
+
+  const openDisclaimer = (path) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const abs = `${window.location.origin}${path}`;
+    setTermsUrl(abs);
+    setShowTermsModal(true);
+  };
+
   const closeStockpileIntro = () => {
     sessionStorage.setItem(`introStockpile_${vendor.id}`, "seen");
     sessionStorage.setItem(`introDone_${vendor.id}`, "yes");
@@ -802,10 +866,9 @@ const StorePage = () => {
   const handleClosePileModal = () => {
     setShowPileModal(false);
   };
-  // 👉 helper: normalises strings once
+
   const normal = (s = "") => s.toString().toLowerCase().trim();
 
-  // 👉 helper: does the product match the query?
   const matches = (p, q) => {
     const qn = normal(q);
     return (
@@ -819,18 +882,17 @@ const StorePage = () => {
     .map((_, i) => (
       <FaStar key={i} className="text-yellow-400 mr-0.5" size={12} />
     ));
-  // 👉 helper: true = we’re currently doing a “global” search
+
   const searchingUI = (isSearching, searchTerm) =>
     isSearching && normal(searchTerm) !== "";
 
-  // Format the expiry date with moment
   const expiryString = stockpileExpiry
     ? moment(stockpileExpiry).format("ddd, MMM Do YYYY")
     : null;
 
   const handleFollowClick = async () => {
     if (!currentUser) {
-      setIsLoginModalOpen(true);
+      setAuthOpen(true);
       return;
     }
 
@@ -881,18 +943,6 @@ const StorePage = () => {
       toast.error(err.message || "Something went wrong.");
     }
   };
-
-  useEffect(() => {
-    if (isLoginModalOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isLoginModalOpen]);
 
   const handleFavoriteToggle = (productId) => {
     setFavorites((prevFavorites) => {
@@ -1018,38 +1068,47 @@ const StorePage = () => {
   // }
 
   if (!vendor) {
-    return (
-      <div className="flex flex-col px-6 justify-center items-center h-3/6">
-        <Lottie
-          className="w-full h-full"
-          animationData={Productnotfund}
-          loop={true}
-          autoplay={true}
-        />
-        <h1 className="text-xl text-center font-bold font-opensans text-red-500">
-          Vendor is not found. You entered a wrong link or the vendor is not
-          available.
-        </h1>
-        <button
-          className={` mt-20  py-2 rounded-full  font-medium flex items-center font-opensans px-5 justify-center transition-colors duration-200 bg-customOrange text-white`}
-          onClick={() => {
-            if (currentUser) {
-              navigate("/browse-markets");
-            } else {
-              navigate("/confirm-state");
-            }
-          }} // Disable button when loading
-        >
-          {" "}
-          Go Home
-        </button>
-      </div>
-    );
+    const networkProblem = !isOnline || isNetworkishError(error);
+
+    if (networkProblem) {
+      return <NetworkIssueNotice onRetry={retryLoadVendor} />;
+    }
+
+    if (
+      error &&
+      (error.code === "not-found" ||
+        /not[-\s]?found/i.test(error.message || ""))
+    ) {
+      return (
+        <div className="flex flex-col px-6 justify-center items-center h-3/6">
+          <Lottie
+            className="w-full h-full"
+            animationData={Productnotfund}
+            loop
+            autoplay
+          />
+          <h1 className="text-xl text-center font-bold font-opensans text-red-500">
+            Vendor is not found. You entered a wrong link or the vendor is not
+            available.
+          </h1>
+          <button
+            className="mt-20 py-2 rounded-full font-medium flex items-center font-opensans px-5 justify-center transition-colors duration-200 bg-customOrange text-white"
+            onClick={() => {
+              if (currentUser) navigate("/browse-markets");
+              else navigate("/confirm-state");
+            }}
+          >
+            Go Home
+          </button>
+        </div>
+      );
+    }
+    return <NetworkIssueNotice onRetry={retryLoadVendor} />;
   }
+
   const handleClearSearch = () => {
     setSearchTerm("");
   };
-  // Calculate the average rating
   const averageRating =
     vendor.ratingCount > 0 ? vendor.rating / vendor.ratingCount : 0;
   const productTypes = ["All", ...(entry.categories || [])];
@@ -1532,12 +1591,13 @@ const StorePage = () => {
                 {/* Additional Info Cards */}
               </div>
 
-              {vendor && <VendorDetails vendor={vendor} />}
+              {vendor && <VendorDetails vendor={vendor} vendorId={vendor.id} />}
               <hr className="mt-6 border-gray-100" />
 
               {vendor && (
                 <AdditionalDetails
                   vendor={vendor}
+                  vendorId={vendor.id}
                   badgeMessages={badgeMessages}
                   onVendorPolicyClick={() => setShowVendorPolicy(true)}
                   onLinkClick={(fragment) => {
@@ -1681,63 +1741,16 @@ const StorePage = () => {
           )}
         </div>
 
-        {isLoginModalOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                setIsLoginModalOpen(false);
-              }
-            }}
-          >
-            <div
-              className="bg-white w-9/12 max-w-md rounded-lg px-3 py-4 flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex space-x-4">
-                  <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
-                    <CiLogin className="text-customRichBrown" />
-                  </div>
-                  <h2 className="text-lg font-opensans font-semibold">
-                    Please Log In
-                  </h2>
-                </div>
-                <LiaTimesSolid
-                  onClick={() => setIsLoginModalOpen(false)}
-                  className="text-black text-xl mb-6 cursor-pointer"
-                />
-              </div>
-              <p className="mb-6 text-xs font-opensans text-gray-800 ">
-                You need to be logged in to follow this vendor to recieve
-                notifications. Please log in to your account, or create a new
-                account if you don’t have one, to continue.
-              </p>
-              <div className="flex space-x-16">
-                <button
-                  onClick={() => {
-                    navigate("/signup", { state: { from: location.pathname } });
-                    setIsLoginModalOpen(false);
-                  }}
-                  className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border rounded-full"
-                >
-                  Sign Up
-                </button>
+        <QuickAuthModal
+          open={authOpen}
+          onClose={() => setAuthOpen(false)}
+          onComplete={() => {
+            setAuthOpen(false);
 
-                <button
-                  onClick={() => {
-                    navigate("/login", { state: { from: location.pathname } });
-                    setIsLoginModalOpen(false);
-                  }}
-                  className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
-                >
-                  Login
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+            setTimeout(() => handleFollowClick(), 0);
+          }}
+          openDisclaimer={openDisclaimer}
+        />
       </div>
     </>
   );

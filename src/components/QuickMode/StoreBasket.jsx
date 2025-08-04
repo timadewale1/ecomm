@@ -1019,7 +1019,11 @@ export default function StoreBasket({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => !confirmLoading && setShowConfirmModal(false)}
+              onClick={() => {
+                if (confirmProvider === "twitter" && !isEmail(confirmEmail))
+                  return;
+                if (!confirmLoading) setShowConfirmModal(false);
+              }}
             />
 
             {/* Centered Modal Container */}
@@ -1072,7 +1076,10 @@ export default function StoreBasket({
 
                 <button
                   onClick={handleConfirmDetails}
-                  disabled={confirmLoading}
+                  disabled={
+                    confirmLoading ||
+                    (confirmProvider === "twitter" && !isEmail(confirmEmail))
+                  }
                   className="mt-5 w-full h-11 rounded-full bg-customOrange text-white font-opensans
                        font-semibold disabled:opacity-60 flex items-center justify-center"
                 >
@@ -1212,6 +1219,16 @@ export default function StoreBasket({
         onClose={() => setShowDisclaimerModal(false)}
         url={disclaimerUrl}
       />
+      {loading && (
+        <div className="fixed inset-0 z-[9999] bg-white/40 backdrop-blur-sm flex items-center justify-center">
+          <RotatingLines
+            strokeColor="#f9531e"
+            strokeWidth="5"
+            width="24"
+            visible
+          />
+        </div>
+      )}
     </>
   );
 }

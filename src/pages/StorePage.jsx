@@ -93,7 +93,7 @@ import {
   IoSyncOutline,
 } from "react-icons/io5";
 import { TfiBolt } from "react-icons/tfi";
-import { PiCrown } from "react-icons/pi";
+import { PiCrown, PiShoppingCartBold } from "react-icons/pi";
 import { GrShare } from "react-icons/gr";
 import { RiHeart3Fill, RiHeart3Line, RiSearchLine } from "react-icons/ri";
 import PickupInfoModal from "../components/Location/PickupModal";
@@ -106,6 +106,7 @@ import {
   deactivateQuickMode,
 } from "../redux/reducers/quickModeSlice";
 import QuickAuthModal from "../components/PwaModals/AuthModal";
+import Badge from "../components/Badge/Badge";
 Modal.setAppElement("#root"); // For accessibility
 
 const FlipCountdown = ({ endTime }) => {
@@ -513,7 +514,12 @@ const StorePage = () => {
   const isShared = searchParams.has("shared");
   const quick = useSelector((s) => s.quickMode); // { isActive, vendorId }
   const quickForThisVendor = quick.isActive && quick.vendorId === id;
-
+  const basketRef = useRef(null);
+  const vendorCartProducts = useSelector((s) => s.cart?.[id]?.products || {});
+  const checkoutCount = Object.values(vendorCartProducts).reduce(
+    (sum, p) => sum + (p.quantity || 0),
+    0
+  );
   const [isStockpileMode, setIsStockpileMode] = useState(false);
   const [showPileModal, setShowPileModal] = useState(false);
   const [showHeader, setShowHeader] = useState(true);
@@ -1294,6 +1300,7 @@ const StorePage = () => {
         <StoreBasket
           vendorId={id}
           quickMode
+          ref={basketRef}
           onQuickFlow={() => setShowDrawer(true)}
         />
       )}
@@ -1375,6 +1382,19 @@ const StorePage = () => {
                 >
                   <GrShare className="text-white text-lg" />
                 </button>
+                {checkoutCount > 0 && (
+                  <button
+                    onClick={() => basketRef.current?.openCheckoutAuth()}
+                    className={`px-2 h-10  rounded-full bg-gradient-to-br from-yellow-300/20 to-yellow-500/30
+    backdrop-blur-md border font-opensans border-yellow-400/50 text-yellow-900 font-semibold text-sm
+    shadow-md transition-opacity duration-300 ${
+      showHeader ? "opacity-100" : "opacity-30"
+    }`}
+                    aria-label="Checkout"
+                  >
+                    Checkout Now
+                  </button>
+                )}
               </div>
             </div>
           ) : (
@@ -1746,8 +1766,12 @@ const StorePage = () => {
           onClose={() => setAuthOpen(false)}
           onComplete={() => {
             setAuthOpen(false);
-
-            setTimeout(() => handleFollowClick(), 0);
+            const unsub = onAuthStateChanged(auth, (u) => {
+              if (u) {
+                unsub();
+                handleFollowClick(); // normal path (auth is now truthy)
+              }
+            });
           }}
           openDisclaimer={openDisclaimer}
         />

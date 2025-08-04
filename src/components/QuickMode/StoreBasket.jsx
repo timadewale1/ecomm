@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { removeFromCart } from "../../redux/actions/action";
 import { BsBasket } from "react-icons/bs";
@@ -40,12 +46,10 @@ import { FcGoogle } from "react-icons/fc";
 import { SiReacthookform } from "react-icons/si";
 import { RotatingLines } from "react-loader-spinner";
 import { AnimatePresence, motion } from "framer-motion";
-export default function StoreBasket({
-  vendorId,
-  quickMode = false,
-  onQuickFlow,
-}) {
-  /* pull ONLY this vendor’s cart products */
+const StoreBasket = forwardRef(function StoreBasket(
+  { vendorId, quickMode = false, onQuickFlow },
+  ref
+) {
   const products = useSelector((s) => s.cart?.[vendorId]?.products || {});
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -450,7 +454,32 @@ export default function StoreBasket({
       navigate(`/newcheckout/${vendorId}`);
     }
   };
+  useImperativeHandle(ref, () => ({
+    openCheckoutAuth() {
+      // guard: nothing to checkout? show the drawer instead
+      if (!itemCount) {
+        setOpen(true);
+        return;
+      }
 
+      if (quickMode) {
+        if (!auth.currentUser) {
+          // jump straight to the sign-in sheet
+          setAuthOpen(true);
+        } else {
+          // already signed in → jump straight to delivery step
+          sessionStorage.setItem(`quickFlow_${vendorId}`, "delivery");
+          setShowDeliveryStep(true);
+        }
+      } else {
+        navigate(`/newcheckout/${vendorId}`);
+      }
+    },
+    // (optional) let parents read the count for a badge
+    getItemCount() {
+      return itemCount;
+    },
+  }));
   /* nothing in cart? don’t render anything */
   if (!itemCount) return null;
 
@@ -1231,4 +1260,5 @@ export default function StoreBasket({
       )}
     </>
   );
-}
+});
+export default StoreBasket;

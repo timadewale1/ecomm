@@ -572,11 +572,18 @@ const ProductDetailPage = () => {
     const swiperInstance = document.querySelector(".swiper").swiper;
     swiperInstance.slideTo(index);
   };
-  // const truncatedText =
-  //   product.defectDescription?.length > 10
-  //     ? product.defectDescription.slice(0, 10) + "... tap to view"
-  //     : product.defectDescription;
-
+  const basketRef = useRef(null);
+  const vendorCartProducts = useSelector(
+    (s) => s.cart?.[productVendorId]?.products || {}
+  );
+  const checkoutCount = useMemo(
+    () =>
+      Object.values(vendorCartProducts).reduce(
+        (sum, p) => sum + (p.quantity || 0),
+        0
+      ),
+    [vendorCartProducts]
+  );
   useEffect(() => {
     if (product && product.variants) {
       const uniqueSizes = Array.from(
@@ -1411,6 +1418,7 @@ const ProductDetailPage = () => {
                             )}
                           </motion.div>
                         </button>
+
                         {!quickMode && (
                           <button
                             className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
@@ -1502,6 +1510,16 @@ const ProductDetailPage = () => {
                         )}
                       </motion.div>
                     </button>
+                    {quickMode && productVendorId && (
+                      <button
+                        className="relative px-4 py-2 rounded-full border border-gray-300 backdrop-blur-md flex items-center justify-center"
+                        onClick={() => basketRef.current?.openCheckoutAuth()}
+                        aria-label="Checkout"
+                      >
+                        <span className="text-sm font-opensans text-xs font-medium">Checkout</span>
+                       
+                      </button>
+                    )}
                     {!quickMode && (
                       <button
                         className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
@@ -1937,6 +1955,7 @@ const ProductDetailPage = () => {
             <StoreBasket
               vendorId={basketVendorId}
               quickMode
+              ref={basketRef}
               onQuickFlow={() => setShowFastDrawer(true)}
             />
           )}

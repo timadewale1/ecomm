@@ -1513,11 +1513,21 @@ const ProductDetailPage = () => {
                     {quickMode && productVendorId && (
                       <button
                         className="relative px-4 py-2 rounded-full border border-gray-300 backdrop-blur-md flex items-center justify-center"
-                        onClick={() => basketRef.current?.openCheckoutAuth()}
+                        onClick={() => {
+                          if (productVendorId === basketVendorId) {
+                            basketRef.current?.openCheckoutAuth();
+                          } else {
+                            navigate("/latest-cart");
+                          }
+                        }}
                         aria-label="Checkout"
                       >
-                        <span className="text-sm font-opensans text-xs font-medium">Checkout</span>
-                       
+                        <span className="text-sm font-medium">Checkout</span>
+                        {checkoutCount > 0 && (
+                          <div className="absolute -top-1 -right-1">
+                            <Badge count={checkoutCount} />
+                          </div>
+                        )}
                       </button>
                     )}
                     {!quickMode && (

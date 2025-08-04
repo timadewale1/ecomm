@@ -1522,12 +1522,8 @@ const ProductDetailPage = () => {
                         }}
                         aria-label="Checkout"
                       >
-                        <span className="text-sm font-medium">Checkout</span>
-                        {checkoutCount > 0 && (
-                          <div className="absolute -top-1 -right-1">
-                            <Badge count={checkoutCount} />
-                          </div>
-                        )}
+                        <span className="text-sm font-opensans  font-medium">Checkout</span>
+                        
                       </button>
                     )}
                     {!quickMode && (

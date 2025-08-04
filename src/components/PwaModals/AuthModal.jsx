@@ -48,6 +48,37 @@ function splitDisplayName(displayName = "") {
   if (parts.length === 1) return { first: parts[0], last: "" };
   return { first: parts[0], last: parts.slice(1).join(" ") };
 }
+// utils
+const normalizeNg10 = (value) => {
+  // returns local 10-digit NG number without leading 0
+  const digits = String(value || "").replace(/\D/g, "");
+  let local = digits;
+  if (local.startsWith("234")) local = local.slice(3);
+  if (local.startsWith("0")) local = local.slice(1);
+  return local.slice(-10);
+};
+
+const prefillFromUserDoc = async (
+  uid,
+  { setPhoneRaw, setAddress, setCoords }
+) => {
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    if (!snap.exists()) return;
+    const d = snap.data() || {};
+
+    if (d.phoneNumber) {
+      const ng10 = normalizeNg10(d.phoneNumber);
+      if (ng10.length === 10) setPhoneRaw(ng10);
+    }
+    if (d.address) setAddress(d.address);
+    if (d.location?.lat && d.location?.lng) {
+      setCoords({ lat: d.location.lat, lng: d.location.lng });
+    }
+  } catch (e) {
+    console.warn("Prefill user doc failed:", e);
+  }
+};
 
 /**
  * Props:
@@ -291,6 +322,16 @@ export default function QuickAuthModal({
       // Initialize/patch user doc (non-destructive)
       const userRef = doc(db, "users", user.uid);
       const snap = await getDoc(userRef);
+      if (snap.exists() && snap.data().profileComplete) {
+        if (typeof mergeCart === "function") {
+          await mergeCart(user.uid);
+        }
+        onClose?.();
+
+        onComplete(user);
+
+        return;
+      }
       if (!snap.exists()) {
         await setDoc(userRef, {
           uid: user.uid,
@@ -323,6 +364,11 @@ export default function QuickAuthModal({
       setEmailLocked(true); // lock email for Google
       setConfirmProvider("google");
       setPendingUser(user);
+      await prefillFromUserDoc(user.uid, {
+        setPhoneRaw,
+        setAddress,
+        setCoords,
+      });
       setShowConfirm(true);
     } catch (error) {
       if (error?.code === "auth/account-exists-with-different-credential") {
@@ -388,6 +434,21 @@ export default function QuickAuthModal({
       setEmailLocked(false);
       setConfirmProvider("twitter");
       setPendingUser(user);
+      const userSnap = await getDoc(doc(db, "users", user.uid));
+      if (userSnap.exists() && userSnap.data().profileComplete) {
+        if (typeof mergeCart === "function") {
+          await mergeCart(user.uid);
+        }
+        onClose?.();
+        onComplete(user);
+
+        return;
+      }
+      await prefillFromUserDoc(user.uid, {
+        setPhoneRaw,
+        setAddress,
+        setCoords,
+      });
       setShowConfirm(true);
     } catch (error) {
       if (error?.code === "auth/account-exists-with-different-credential") {
@@ -559,7 +620,7 @@ export default function QuickAuthModal({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => {
-                if (confirmProvider === "twitter" && !isEmail(email)) return; // block dismiss
+                if (confirmProvider === "twitter" && !isEmail(email)) return;
                 if (!saving) setShowConfirm(false);
               }}
             />
@@ -637,7 +698,7 @@ export default function QuickAuthModal({
                   {/* optional address */}
                   <div>
                     <label className="text-xs font-opensans text-gray-700 mb-1 block">
-                      Address (optional)
+                      Address
                     </label>
                     <LocationPicker
                       initialAddress={address || ""}
@@ -664,14 +725,14 @@ export default function QuickAuthModal({
                   <button
                     onClick={handleConfirmSkip}
                     disabled={saving}
-                    className="h-11 rounded-full border font-opensans"
+                    className="h-11 rounded-full text-sm text-customRichBrown border  font-opensans"
                   >
                     Skip
                   </button>
                   <button
                     onClick={handleConfirmSave}
                     disabled={saving}
-                    className="h-11 rounded-full bg-customOrange text-white font-opensans
+                    className="h-11  rounded-full text-sm bg-customOrange text-white font-opensans
                       font-semibold disabled:opacity-60 flex items-center justify-center"
                   >
                     {saving ? (

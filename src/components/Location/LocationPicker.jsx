@@ -3,7 +3,11 @@ import { CiSearch } from "react-icons/ci";
 import { CiLocationOn } from "react-icons/ci";
 import { FaLocationArrow } from "react-icons/fa";
 
-export default function LocationPicker({ onLocationSelect }) {
+export default function LocationPicker({
+  onLocationSelect,
+  initialAddress = "",
+  initialCoords = null,
+}) {
   const [inputValue, setInputValue] = useState("");
   const [predictions, setPredictions] = useState([]);
   const [loadingLocation, setLoadingLocation] = useState(false);
@@ -17,6 +21,28 @@ export default function LocationPicker({ onLocationSelect }) {
       geoCoderRef.current = new window.google.maps.Geocoder();
     }
   }, []);
+  useEffect(() => {
+    // 1) if address provided, show it
+    if (initialAddress) {
+      setInputValue(initialAddress);
+    }
+    // 2) if only coords provided, reverse-geocode them
+    if (
+      !initialAddress &&
+      initialCoords?.lat &&
+      initialCoords?.lng &&
+      geoCoderRef.current
+    ) {
+      geoCoderRef.current.geocode(
+        { location: { lat: initialCoords.lat, lng: initialCoords.lng } },
+        (results, status) => {
+          if (status === "OK" && results?.[0]) {
+            setInputValue(results[0].formatted_address);
+          }
+        }
+      );
+    }
+  }, [initialAddress, initialCoords]);
 
   useEffect(() => {
     const svc = autoSvcRef.current;

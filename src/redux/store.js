@@ -24,6 +24,8 @@ import vendorReducer from "./reducers/VendorsSlice";
 import personalDiscountsPageReducer from "./reducers/personalDiscountsPageSlice";
 import { promoReducer } from "./reducers/promoreducer";
 import exploreReducer from "./reducers/exploreSlice";
+import quickModeReducer from "./reducers/quickModeSlice";
+
 import exploreUiReducer from "./reducers/exploreUiSlice";
 import chatReducer from "./reducers/chatSlice";
 import vendorChatReducer from "./reducers/vendorChatSlice";
@@ -36,7 +38,7 @@ import categoryMetadataReducer from "./reducers/categoryMetadataSlice";
 const persistConfig = {
   key: "root",
   storage,
-  whitelist: ["stockpile"],
+  whitelist: ["stockpile", "quickMode"],
 };
 
 // Combined Reducers
@@ -56,6 +58,7 @@ const rootReducer = combineReducers({
   discountProducts: discountProductsReducer,
   market: marketReducer,
   promo: promoReducer,
+  quickMode: quickModeReducer,
   chat: chatReducer,
   categoryMetadata: categoryMetadataReducer,
   vendorStockpile: vendorStockpileReducer,

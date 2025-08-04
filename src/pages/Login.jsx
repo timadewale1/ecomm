@@ -6,7 +6,12 @@ import { IoCloseOutline } from "react-icons/io5";
 import {
   GoogleAuthProvider,
   signInWithPopup,
-  // removed signInWithEmailAndPassword import here, we'll re-add below
+  EmailAuthProvider,
+  getAdditionalUserInfo,
+  fetchSignInMethodsForEmail,
+  TwitterAuthProvider,
+  linkWithCredential,
+  sendEmailVerification,
 } from "firebase/auth";
 import { auth, db, functions } from "../firebase.config";
 import {
@@ -24,19 +29,19 @@ import { MdOutlineCancel, MdOutlineEmail, MdOutlineLock } from "react-icons/md";
 import toast from "react-hot-toast";
 import LoginAnimation from "../components/LoginAssets/LoginAnimation";
 import Typewriter from "typewriter-effect";
-import { FaAngleLeft } from "react-icons/fa6";
+import { FaAngleLeft, FaXTwitter } from "react-icons/fa6";
 import { FcGoogle } from "react-icons/fc";
 import { useDispatch } from "react-redux";
 import { setCart } from "../redux/actions/action";
 import { RotatingLines } from "react-loader-spinner";
 import { GoChevronLeft } from "react-icons/go";
 import { usePostHog } from "posthog-js/react";
-// We need signInWithEmailAndPassword from Firebase Auth
 import { signInWithEmailAndPassword } from "firebase/auth";
 
 // We need httpsCallable from Firebase Functions
 import { httpsCallable } from "firebase/functions";
 import SEO from "../components/Helmet/SEO";
+import LinkAccountModal from "../components/QuickMode/LinkAccountModal";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -45,6 +50,7 @@ const Login = () => {
   const [emailError, setEmailError] = useState(false);
   const [passwordError, setPasswordError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -132,7 +138,115 @@ const Login = () => {
       console.error("Error fetching or merging cart from Firestore: ", error);
     }
   };
+  const linkAnonymousAccount = async ({ email, password }) => {
+    const u = auth.currentUser;
+    if (!u || !u.isAnonymous) {
+      toast.error("You're not signed in as a guest.");
+      return;
+    }
 
+    const inputEmail = email.trim().toLowerCase();
+
+    try {
+      // 0) Load anon user's Firestore doc to enforce same email if you saved one
+      const userRef = doc(db, "users", u.uid);
+      const snap = await getDoc(userRef);
+      const savedEmail =
+        (snap.exists() ? snap.data()?.email : "")
+          ?.toString()
+          .trim()
+          .toLowerCase() || "";
+
+      if (savedEmail && savedEmail !== inputEmail) {
+        const mask = (e) => {
+          const [name, domain] = e.split("@");
+          if (!domain) return e;
+          const safeName =
+            name.length <= 2 ? name[0] + "*" : name[0] + "***" + name.slice(-1);
+          return `${safeName}@${domain}`;
+        };
+        toast.error(
+          `Please use the same email you used earlier: ${mask(savedEmail)}`
+        );
+        return;
+      }
+
+      // 1) HARD BLOCK: Vendor emails
+      const vendorsQ = query(
+        collection(db, "vendors"),
+        where("email", "==", inputEmail)
+      );
+      const vendorsSnap = await getDocs(vendorsQ);
+      if (!vendorsSnap.empty) {
+        toast.error("This email is already used for a Vendor account!");
+        return;
+      }
+      const usersQ = query(
+        collection(db, "users"),
+        where("email", "==", inputEmail)
+      );
+      const usersSnap = await getDocs(usersQ);
+      if (!usersSnap.empty && usersSnap.docs[0].data()?.role === "vendor") {
+        toast.error("This email is already used for a Vendor account!");
+        return;
+      }
+
+      // 2) If email already registered in Auth, don’t link here
+      const methods = await fetchSignInMethodsForEmail(auth, inputEmail);
+      if (methods.length > 0) {
+        toast.error(
+          "This email is already registered. Please sign in and we’ll merge your data."
+        );
+        return;
+      }
+
+      // 3) Link anonymous → email/password
+      const cred = EmailAuthProvider.credential(inputEmail, password);
+      const res = await linkWithCredential(u, cred);
+
+      // 4) Upsert Firestore (non-destructive)
+      const patch = {
+        uid: res.user.uid,
+        email: inputEmail,
+        accountLinked: true,
+        updatedAt: new Date(),
+      };
+      await setDoc(
+        userRef,
+        snap.exists()
+          ? patch
+          : { createdAt: new Date(), role: "user", ...patch },
+        { merge: true }
+      );
+
+      try {
+        const sendMail = httpsCallable(functions, "sendUserVerificationEmail");
+        await sendMail({
+          email: inputEmail,
+          username: res.user.displayName || "Friend",
+        });
+      } catch (e) {
+        console.error("sendUserVerificationEmail failed:", e);
+      }
+
+      toast.success(
+        "Account linked! We’ve sent a verification email. Please log in again."
+      );
+      setShowLinkDialog(false);
+      await auth.signOut();
+    } catch (err) {
+      console.error("linkWithCredential failed:", err);
+      if (err.code === "auth/email-already-in-use") {
+        toast.error(
+          "This email is already in use. Please sign in and link from settings."
+        );
+      } else if (err.code === "auth/invalid-credential") {
+        toast.error("Invalid email or password.");
+      } else {
+        toast.error("Could not link account. Please try again.");
+      }
+    }
+  };
   // FAST sign-in (all original checks kept)
   const signIn = async (e) => {
     e.preventDefault();
@@ -219,6 +333,52 @@ const Login = () => {
         method: "email",
         code: error.code,
       });
+      const code = error?.code;
+      const cur = auth.currentUser;
+      if (
+        (code === "auth/user-not-found" ||
+          code === "auth/invalid-credential") &&
+        cur?.isAnonymous
+      ) {
+        try {
+          const inputEmail = email.trim().toLowerCase();
+
+          // optional: enforce same saved guest email
+          const userRef = doc(db, "users", cur.uid);
+          const snap = await getDoc(userRef);
+          const savedEmail =
+            (snap.exists() ? snap.data()?.email : "")
+              ?.toString()
+              .trim()
+              .toLowerCase() || "";
+
+          if (!savedEmail || savedEmail === inputEmail) {
+            // vendor block -> if vendor, do not open modal
+            const vendorsQ = query(
+              collection(db, "vendors"),
+              where("email", "==", inputEmail)
+            );
+            const vendorsSnap = await getDocs(vendorsQ);
+            if (vendorsSnap.empty) {
+              // only open if email is NOT already registered in Auth
+              const methods = await fetchSignInMethodsForEmail(
+                auth,
+                inputEmail
+              );
+              if (methods.length === 0) {
+                setLoading(false);
+                setShowLinkDialog(true);
+
+                return; // stop generic error toast
+              }
+            }
+          }
+          // if mismatch or vendor/registered, fall through to normal error
+        } catch (lookupErr) {
+          console.warn("Anonymous lookup failed:", lookupErr);
+          // fall through to generic toast
+        }
+      }
       /* ── identical, friendly error messages ───────────────────── */
       let errorMessage = "Sorry, we couldn't sign you in. Please try again.";
 
@@ -243,48 +403,68 @@ const Login = () => {
     }
   };
 
-  // Google Sign-In remains purely client-side
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
     try {
       setLoading(true);
       posthog?.capture("login_attempted", { method: "google" });
+
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+      const info = getAdditionalUserInfo(result);
+      const isNewUser = !!info?.isNewUser;
+      const cleanEmail = (user.email || "").toLowerCase().trim();
 
-      // Check if email in 'vendors'
+      // ─────────────────────────────────────────
+      // Vendor email hard block (defense in depth)
+      // ─────────────────────────────────────────
+      // Check if email exists in 'vendors'
       const vendorsRef = collection(db, "vendors");
-      const vendorQuery = query(vendorsRef, where("email", "==", user.email));
+      const vendorQuery = query(vendorsRef, where("email", "==", cleanEmail));
       const vendorSnapshot = await getDocs(vendorQuery);
-      if (!vendorSnapshot.empty) {
-        await auth.signOut();
+
+      // Check if any 'users' doc with role=vendor
+      const usersRef = collection(db, "users");
+      const userQuery = query(usersRef, where("email", "==", cleanEmail));
+      const userSnapshot = await getDocs(userQuery);
+      const isVendorRole =
+        !userSnapshot.empty && userSnapshot.docs[0].data()?.role === "vendor";
+
+      if (!vendorSnapshot.empty || isVendorRole) {
+        // If Firebase just created a new auth user for this sign-in, remove it
+        if (isNewUser) {
+          try {
+            await user.delete(); // allowed right after sign-in
+          } catch (delErr) {
+            console.warn(
+              "Failed to delete just-created vendor auth user:",
+              delErr
+            );
+          }
+        }
+        // Always end the session
+        try {
+          await auth.signOut();
+        } catch (soErr) {
+          console.warn("signOut failed:", soErr);
+        }
+
         setLoading(false);
         toast.error("This email is already used for a Vendor account!");
+        posthog?.capture("login_blocked_vendor_email", { method: "google" });
         return;
       }
 
-      // Check if user doc has role=vendor
-      const usersRef = collection(db, "users");
-      const userQuery = query(usersRef, where("email", "==", user.email));
-      const userSnapshot = await getDocs(userQuery);
-      if (!userSnapshot.empty) {
-        const userData = userSnapshot.docs[0].data();
-        if (userData.role === "vendor") {
-          await auth.signOut();
-          setLoading(false);
-          toast.error("This email is already used for a Vendor account!");
-          return;
-        }
-      }
-
+      // ─────────────────────────────────────────
       // Create user doc if doesn't exist
+      // ─────────────────────────────────────────
       const userRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userRef);
       if (!userDoc.exists()) {
         await setDoc(userRef, {
           uid: user.uid,
           username: user.displayName,
-          email: user.email,
+          email: cleanEmail,
           profileComplete: false,
           walletSetup: false,
           welcomeEmailSent: false,
@@ -328,6 +508,172 @@ const Login = () => {
     setEmail(e.target.value);
     if (e.target.value) setEmailError(false);
   };
+  const handleTwitterSignIn = async () => {
+    const provider = new TwitterAuthProvider();
+    try {
+      setLoading(true);
+      posthog?.capture("login_attempted", { method: "twitter" });
+
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      const info = getAdditionalUserInfo(result);
+      const isNewUser = !!info?.isNewUser;
+
+      const cleanEmail = (user.email || "").toLowerCase().trim();
+
+      // If Twitter doesn't give us an email, we can't proceed safely (no vendor block, no dedupe)
+      if (!cleanEmail) {
+        try {
+          if (isNewUser) await user.delete();
+        } catch {}
+        try {
+          await auth.signOut();
+        } catch {}
+        setLoading(false);
+        toast.error(
+          "We couldn’t retrieve your email from Twitter. Please continue with Google or Email."
+        );
+        posthog?.capture("login_failed_missing_email", { method: "twitter" });
+        return;
+      }
+
+      // ─────────────────────────────────────────
+      // Vendor email hard block (defense in depth)
+      // ─────────────────────────────────────────
+      const vendorsRef = collection(db, "vendors");
+      const vendorQuery = query(vendorsRef, where("email", "==", cleanEmail));
+      const vendorSnapshot = await getDocs(vendorQuery);
+
+      const usersRef = collection(db, "users");
+      const userQuery = query(usersRef, where("email", "==", cleanEmail));
+      const userSnapshot = await getDocs(userQuery);
+      const isVendorRole =
+        !userSnapshot.empty && userSnapshot.docs[0].data()?.role === "vendor";
+
+      if (!vendorSnapshot.empty || isVendorRole) {
+        try {
+          if (isNewUser) await user.delete();
+        } catch {}
+        try {
+          await auth.signOut();
+        } catch {}
+        setLoading(false);
+        toast.error("This email is already used for a Vendor account!");
+        posthog?.capture("login_blocked_vendor_email", { method: "twitter" });
+        return;
+      }
+
+      // ─────────────────────────────────────────
+      // If the email already exists with another method, nudge the user
+      // ─────────────────────────────────────────
+      const methods = await fetchSignInMethodsForEmail(auth, cleanEmail);
+      const hasTwitter = methods.includes("twitter.com");
+      const hasGoogle = methods.includes("google.com");
+      const hasPassword = methods.includes("password");
+
+      if (!hasTwitter && (hasGoogle || hasPassword || methods.length > 0)) {
+        try {
+          // End any session created by the popup before we exit
+          await auth.signOut();
+        } catch {}
+        setLoading(false);
+
+        // Tailored message
+        if (hasGoogle && !hasPassword) {
+          toast.error(
+            "This email is already registered with Google. Please sign in with Google."
+          );
+        } else if (hasPassword && !hasGoogle) {
+          toast.error(
+            "This email is already registered with a password. Please sign in with Email."
+          );
+        } else {
+          toast.error(
+            "This email is already registered with a different method. Please use your original sign-in method."
+          );
+        }
+        posthog?.capture("login_conflict_existing_method", {
+          method: "twitter",
+          methods,
+        });
+        return;
+      }
+
+      // ─────────────────────────────────────────
+      // Create/patch user doc
+      // ─────────────────────────────────────────
+      const userRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userRef);
+      if (!userDoc.exists()) {
+        await setDoc(userRef, {
+          uid: user.uid,
+          username: user.displayName,
+          email: cleanEmail,
+          profileComplete: false,
+          walletSetup: false,
+          welcomeEmailSent: false,
+          notificationAllowed: false,
+          role: "user",
+          createdAt: new Date(),
+        });
+        posthog?.capture("signup_completed", { method: "twitter" });
+      }
+
+      // Merge cart, analytics, navigate
+      const localCart = JSON.parse(localStorage.getItem("cart")) || {};
+      await fetchCartFromFirestore(user.uid, localCart);
+      localStorage.removeItem("cart");
+
+      identifyUser(posthog, user, { role: "user" });
+      posthog?.capture("login_succeeded", { method: "twitter" });
+
+      const redirectTo = location.state?.from || "/newhome";
+      toast.success(`Welcome back ${user.displayName || "there"}!`);
+      navigate(redirectTo, { replace: true });
+    } catch (error) {
+      setLoading(false);
+      posthog?.capture("login_failed", {
+        method: "twitter",
+        code: error?.code,
+      });
+      console.error("Twitter Sign-In Error:", error);
+
+      // Nice wording for common cases
+      let errorMessage = "Twitter sign-in failed. Please try again.";
+
+      if (error?.code === "auth/account-exists-with-different-credential") {
+        // When Firebase throws this, customData.email is usually present
+        const em = error?.customData?.email;
+        if (em) {
+          try {
+            const methods = await fetchSignInMethodsForEmail(auth, em);
+            if (methods.includes("google.com")) {
+              errorMessage =
+                "This email is already registered with Google. Please sign in with Google.";
+            } else if (methods.includes("password")) {
+              errorMessage =
+                "This email is already registered with a password. Please sign in with Email.";
+            } else {
+              errorMessage =
+                "This email is already registered with a different method. Please use your original sign-in method.";
+            }
+          } catch {
+            errorMessage =
+              "This email is already registered. Please use your original sign-in method.";
+          }
+        } else {
+          errorMessage =
+            "This email is already registered. Please use your original sign-in method.";
+        }
+      } else if (error?.code === "auth/popup-closed-by-user") {
+        errorMessage = "Popup closed before completing sign-in.";
+      }
+
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePasswordChange = (e) => {
     setPassword(e.target.value);
@@ -361,6 +707,12 @@ const Login = () => {
         description="Login in and get to shopping on My Thrift"
         url={`https://www.shopmythrift.store/login`}
       />
+      <LinkAccountModal
+        open={showLinkDialog}
+        onClose={() => setShowLinkDialog(false)}
+        onSubmit={linkAnonymousAccount}
+      />
+
       <section>
         <Container>
           <Row>
@@ -468,6 +820,14 @@ const Login = () => {
                     <FcGoogle className="mr-2 text-2xl" />
                     Sign in with Google
                   </motion.button>
+                  {/* <motion.button
+                    type="button"
+                    className="w-full h-12 mt-2 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center"
+                    onClick={handleTwitterSignIn}
+                  >
+                    <FaXTwitter className="mr-2 text-xl" />
+                    Sign in with Twitter
+                  </motion.button> */}
                 </Form>
 
                 <div className="text-center font-light font-lato mt-2 flex justify-center">

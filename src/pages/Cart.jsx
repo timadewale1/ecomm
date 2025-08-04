@@ -12,6 +12,8 @@ import {
   exitStockpileMode,
   fetchStockpileData,
 } from "../redux/reducers/stockpileSlice";
+import IframeModal from "../components/PwaModals/PushNotifsModal";
+
 import toast from "react-hot-toast";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.config";
@@ -23,6 +25,8 @@ import { GoChevronLeft, GoChevronUp, GoChevronRight } from "react-icons/go";
 import Loading from "../components/Loading/Loading";
 import { HiOutlineBuildingStorefront } from "react-icons/hi2";
 import { BiMessageDetail } from "react-icons/bi";
+import { fetchAndMergeCart } from "../services/cartMerge";
+import QuickAuthModal from "../components/PwaModals/AuthModal";
 import { BsPlus } from "react-icons/bs";
 import { Bars } from "react-loader-spinner";
 import SEO from "../components/Helmet/SEO";
@@ -57,9 +61,12 @@ const Cart = () => {
   const [checkoutLoading, setCheckoutLoading] = useState({});
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [showExitStockpileModal, setShowExitStockpileModal] = useState(false);
-  const [pendingCheckoutVendor, setPendingCheckoutVendor] = useState(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [pendingVendorForCheckout, setPendingVendorForCheckout] =
+    useState(null);
   const { pileItems } = useSelector((state) => state.stockpile);
-
+  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+  const [disclaimerUrl, setDisclaimerUrl] = useState("");
   const { isActive, vendorId: stockpileVendorId } = useSelector(
     (state) => state.stockpile
   );
@@ -88,7 +95,7 @@ const Cart = () => {
   };
 
   useEffect(() => {
-    if (isModalOpen || isNoteModalOpen || isLoginModalOpen) {
+    if (isModalOpen || isNoteModalOpen || authOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -97,12 +104,21 @@ const Cart = () => {
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isModalOpen, isNoteModalOpen, isLoginModalOpen]);
+  }, [isModalOpen, isNoteModalOpen, authOpen]);
   const formatPrice = (price) => {
     if (typeof price !== "number" || isNaN(price)) return "0.00";
     return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
-
+  const mergeCartFor = async (uid) => {
+    try {
+      await fetchAndMergeCart(db, uid, dispatch, {
+        localCart: JSON.parse(localStorage.getItem("cart") || "{}"),
+        clearLocal: true,
+      });
+    } catch (e) {
+      console.warn("mergeCart failed:", e);
+    }
+  };
   useEffect(() => {
     if (isActive && selectedVendorId === stockpileVendorId && currentUser) {
       dispatch(
@@ -258,7 +274,13 @@ const Cart = () => {
       });
     }
   };
-
+  const openDisclaimer = (path) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const abs = `${window.location.origin}${path}`;
+    setDisclaimerUrl(abs);
+    setShowDisclaimerModal(true);
+  };
   const handleCheckout = async (vendorId) => {
     setCheckoutLoading((prev) => ({ ...prev, [vendorId]: true }));
     const vendorCart = cart[vendorId];
@@ -271,7 +293,8 @@ const Cart = () => {
 
     // Check if user is logged in
     if (!currentUser) {
-      setIsLoginModalOpen(true);
+      setPendingVendorForCheckout(vendorId);
+      setAuthOpen(true);
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
@@ -408,6 +431,15 @@ const Cart = () => {
 
     navigate(`/newcheckout/${vendorId}?note=${note}`);
     setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+  };
+  const handleAuthComplete = async (user) => {
+    setAuthOpen(false);
+    const v = pendingVendorForCheckout;
+    setPendingVendorForCheckout(null);
+
+    if (v) {
+      await handleCheckout(v);
+    }
   };
 
   const calculateVendorTotal = (vendorId) => {
@@ -567,28 +599,33 @@ const Cart = () => {
                           {/* Badge */}
                           {showNoteBadge && vendorId === firstVendorId && (
                             <div className="fixed w-full top-[100px] left-0 right-0 z-10 flex flex-col items-end justify-end p-4 pointer-events-auto">
-                                    <div
-                                      className={`absolute bottom-2 z-40 transform right-5 w-4 h-4 backdrop-blur-2xl  bg-gradient-to-bl from-transparent to-black/50 -rotate-45 transition-opacity duration-500 ${
-                                        isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-                                      }`}
-                                    ></div>{" "}
-                                    <div
-                                      className={`z-50 w-72 bg-gradient-to-br translate-x-[5px] from-black/5 to-black/30 backdrop-blur-lg shadow-lg text-white px-2 py-2 rounded-lg flex flex-col items-start space-y-1 transition-opacity duration-500 ${
-                                        isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-                                      }`}
-                                      style={{ maxWidth: "99%" }}
-                                    >
-                                      <span className="font-semibold font-opensans text-sm">
-                                       Click “View Selection” to leave a note for the
-                                vendor
-                                      </span>
-                                      <button onClick={handleClose} className="absolute top-1 right-2">
-                                        <MdClose className="text-white text-lg" />
-                                      </button>
-                                      
-                                    </div>
-                                    
-                                  </div>
+                              <div
+                                className={`absolute bottom-2 z-40 transform right-5 w-4 h-4 backdrop-blur-2xl  bg-gradient-to-bl from-transparent to-black/50 -rotate-45 transition-opacity duration-500 ${
+                                  isVisible
+                                    ? "opacity-100"
+                                    : "opacity-0 pointer-events-none"
+                                }`}
+                              ></div>{" "}
+                              <div
+                                className={`z-50 w-72 bg-gradient-to-br translate-x-[5px] from-black/5 to-black/30 backdrop-blur-lg shadow-lg text-white px-2 py-2 rounded-lg flex flex-col items-start space-y-1 transition-opacity duration-500 ${
+                                  isVisible
+                                    ? "opacity-100"
+                                    : "opacity-0 pointer-events-none"
+                                }`}
+                                style={{ maxWidth: "99%" }}
+                              >
+                                <span className="font-semibold font-opensans text-sm">
+                                  Click “View Selection” to leave a note for the
+                                  vendor
+                                </span>
+                                <button
+                                  onClick={handleClose}
+                                  className="absolute top-1 right-2"
+                                >
+                                  <MdClose className="text-white text-lg" />
+                                </button>
+                              </div>
+                            </div>
                           )}
 
                           {/* View Selection on far right */}
@@ -906,59 +943,20 @@ const Cart = () => {
             </div>
           </div>
         )}
-        {isLoginModalOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center"
-            onClick={handleLoginOverlayClick}
-          >
-            <div
-              className="bg-white w-9/12 max-w-md rounded-lg px-3 py-4 flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex space-x-4">
-                  <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
-                    <CiLogin className="text-customRichBrown" />
-                  </div>
-                  <h2 className="text-lg font-opensans font-semibold">
-                    Please Log In
-                  </h2>
-                </div>
-                <LiaTimesSolid
-                  onClick={() => setIsLoginModalOpen(false)}
-                  className="text-black text-xl mb-6 cursor-pointer"
-                />
-              </div>
-              <p className="mb-6 text-xs font-opensans text-gray-800 ">
-                You need to be logged in to proceed to checkout. Please log in
-                to your account, or create a new account if you don’t have one,
-                to continue.
-              </p>
-              <div className="flex space-x-16">
-                <button
-                  onClick={() => {
-                    navigate("/signup", { state: { from: location.pathname } });
-                    setIsLoginModalOpen(false);
-                  }}
-                  className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border rounded-full"
-                >
-                  Sign Up
-                </button>
+        <QuickAuthModal
+          open={authOpen}
+          onClose={() => setAuthOpen(false)}
+          onComplete={handleAuthComplete}
+          mergeCart={mergeCartFor}
+          openDisclaimer={openDisclaimer}
+          vendorId={pendingVendorForCheckout}
+        />
+        <IframeModal
+          show={showDisclaimerModal}
+          onClose={() => setShowDisclaimerModal(false)}
+          url={disclaimerUrl}
+        />
 
-                <button
-                  onClick={() => {
-                    navigate("/login", { state: { from: location.pathname } });
-                    setIsLoginModalOpen(false);
-                  }}
-                  className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
-                >
-                  Login
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         {showExitStockpileModal && (
           <div
             className="fixed inset-0 px-4 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -999,7 +997,6 @@ const Cart = () => {
                     dispatch(clearCart(stockpileVendorId));
                     // Exit stockpiling mode.
                     dispatch(exitStockpileMode());
-                    // Optionally, if you want to reset the pending vendor, you can do that here:
                     setPendingCheckoutVendor(null);
                   }}
                   className="px-4 py-2 bg-customOrange text-white text-sm rounded-full font-opensans"

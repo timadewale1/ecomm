@@ -668,6 +668,26 @@ const StorePage = () => {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, [vendor, loadingMore, noMore, id, dispatch]);
+
+  const bannerShown = localStorage.getItem("headsUpBannerShown");
+  useEffect(() => {
+    if (!bannerShown) {
+      setIsBannerVisible(true);
+
+      const timer = setTimeout(() => {
+        setIsBannerVisible(false);
+        localStorage.setItem("headsUpBannerShown", "true");
+      }, 20000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [bannerShown]);
+
+  const handleClose = () => {
+    setIsBannerVisible(false);
+    localStorage.setItem("headsUpBannerShown", "true");
+  };
+
   useEffect(() => {
     if (isShared) {
       sessionStorage.setItem(`quickMode_${id}`, "1");
@@ -679,6 +699,7 @@ const StorePage = () => {
       dispatch(activateQuickMode(id));
     }
   }, [dispatch, id]);
+
   useEffect(() => {
     setIsFollowing(false);
 
@@ -1150,54 +1171,6 @@ const StorePage = () => {
     (prod, idx, arr) => arr.findIndex((p) => p.id === prod.id) === idx
   );
 
-  const FollowHeadsUp = () => {
-    const bannerShown = localStorage.getItem("headsUpBannerShown");
-    useEffect(() => {
-      if (!bannerShown) {
-        setIsBannerVisible(true);
-
-        const timer = setTimeout(() => {
-          setIsBannerVisible(false);
-          localStorage.setItem("headsUpBannerShown", "true");
-        }, 10000);
-
-        return () => clearTimeout(timer);
-      }
-    }, [bannerShown]);
-
-    const handleClose = () => {
-      setIsBannerVisible(false);
-      localStorage.setItem("headsUpBannerShown", "true");
-    };
-
-    return (
-      <>
-        <div
-          className={`z-40 transform -translate-x-3  -translate-y-2 w-4 h-4 backdrop-blur-2xl  bg-gradient-to-tr from-transparent to-black/20 -rotate-45 transition-opacity duration-500 ${
-            isBannerVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-          }`}
-        ></div>{" "}
-        <div
-          className={`z-50 w-72 bg-gradient-to-br -translate-y-[18px] from-black/5 to-black/30 backdrop-blur-lg shadow-md text-white px-2 py-2 rounded-lg flex flex-col items-start space-y-1 transform left-1/2 transition-opacity duration-500 ${
-            isBannerVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-          }`}
-          style={{ maxWidth: "99%" }}
-        >
-          <span className="font-semibold font-opensans text-md">
-            Click here to follow this vendor!
-          </span>
-          <span className="text-sm font-opensans">
-            Like this vendor? Follow to get notified whenever they post new
-            products and run sales✨
-          </span>
-          <button onClick={handleClose} className="absolute top-1 right-2">
-            <MdClose className="text-white text-lg" />
-          </button>
-        </div>
-      </>
-    );
-  };
-
   return (
     <>
       {isActive && stockpileVendorId === id && (
@@ -1442,9 +1415,37 @@ const StorePage = () => {
           {/* Follow heads up banner */}
           {!isShared && isBannerVisible && (
             <div
-              className={`fixed w-full top-14 left-0 right-0 z-10 flex flex-col items-end justify-end p-4 pointer-events-auto`}
+              className={`absolute w-full top-14 left-0 right-0 z-10 flex flex-col items-end justify-end p-4 pointer-events-auto`}
             >
-              <FollowHeadsUp />
+              <div
+                className={`z-40 transform -translate-x-3  -translate-y-2 w-4 h-4 backdrop-blur-2xl  bg-gradient-to-tr from-transparent to-black/20 -rotate-45 transition-opacity duration-500 ${
+                  isBannerVisible
+                    ? "opacity-100"
+                    : "opacity-0 pointer-events-none"
+                }`}
+              ></div>{" "}
+              <div
+                className={`z-50 w-72 bg-gradient-to-br -translate-y-[18px] from-black/5 to-black/30 backdrop-blur-lg shadow-md text-white px-2 py-2 rounded-lg flex flex-col items-start space-y-1 transform left-1/2 transition-opacity duration-500 ${
+                  isBannerVisible
+                    ? "opacity-100"
+                    : "opacity-0 pointer-events-none"
+                }`}
+                style={{ maxWidth: "99%" }}
+              >
+                <span className="font-semibold font-opensans text-md">
+                  Click here to follow this vendor!
+                </span>
+                <span className="text-sm font-opensans">
+                  Like this vendor? Follow to get notified whenever they post
+                  new products and run sales✨
+                </span>
+                <button
+                  onClick={handleClose}
+                  className="absolute top-1 right-2"
+                >
+                  <MdClose className="text-white text-lg" />
+                </button>
+              </div>
             </div>
           )}
 

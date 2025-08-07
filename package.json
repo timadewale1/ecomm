@@ -50,6 +50,7 @@
     "react-bootstrap": "^2.10.4",
     "react-chartjs-2": "^5.2.0",
     "react-circular-progressbar": "^2.1.0",
+    "react-countdown-circle-timer": "^3.2.1",
     "react-dom": "^18.2.0",
     "react-flip-toolkit": "^7.2.4",
     "react-helmet-async": "^2.0.5",

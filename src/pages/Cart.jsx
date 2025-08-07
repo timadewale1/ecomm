@@ -28,7 +28,7 @@ import { BiMessageDetail } from "react-icons/bi";
 import { fetchAndMergeCart } from "../services/cartMerge";
 import QuickAuthModal from "../components/PwaModals/AuthModal";
 import { BsPlus } from "react-icons/bs";
-import { Bars } from "react-loader-spinner";
+import { Bars, RotatingLines } from "react-loader-spinner";
 import SEO from "../components/Helmet/SEO";
 import { ImSad2 } from "react-icons/im";
 import { FcPaid } from "react-icons/fc";
@@ -596,38 +596,7 @@ const Cart = () => {
                           </div>
                         </div>
                         <div className="relative w-full mt-4 flex justify-between items-center">
-                          {/* Badge */}
-                          {showNoteBadge && vendorId === firstVendorId && (
-                            <div className="fixed w-full top-[100px] left-0 right-0 z-10 flex flex-col items-end justify-end p-4 pointer-events-auto">
-                              <div
-                                className={`absolute bottom-2 z-40 transform right-5 w-4 h-4 backdrop-blur-2xl  bg-gradient-to-bl from-transparent to-black/50 -rotate-45 transition-opacity duration-500 ${
-                                  isVisible
-                                    ? "opacity-100"
-                                    : "opacity-0 pointer-events-none"
-                                }`}
-                              ></div>{" "}
-                              <div
-                                className={`z-50 w-72 bg-gradient-to-br translate-x-[5px] from-black/5 to-black/30 backdrop-blur-lg shadow-lg text-white px-2 py-2 rounded-lg flex flex-col items-start space-y-1 transition-opacity duration-500 ${
-                                  isVisible
-                                    ? "opacity-100"
-                                    : "opacity-0 pointer-events-none"
-                                }`}
-                                style={{ maxWidth: "99%" }}
-                              >
-                                <span className="font-semibold font-opensans text-sm">
-                                  Click “View Selection” to leave a note for the
-                                  vendor
-                                </span>
-                                <button
-                                  onClick={handleClose}
-                                  className="absolute top-1 right-2"
-                                >
-                                  <MdClose className="text-white text-lg" />
-                                </button>
-                              </div>
-                            </div>
-                          )}
-
+                      
                           {/* View Selection on far right */}
                           <div
                             className="ml-auto flex items-center cursor-pointer"
@@ -683,11 +652,12 @@ const Cart = () => {
                           }`}
                         >
                           {checkoutLoading[vendorId] ? (
-                            <Bars
-                              color="#fff"
-                              height={24}
-                              width={24}
-                              className="inline-block"
+                            <RotatingLines
+                              strokeColor="#fff"
+                              strokeWidth="5"
+                              animationDuration="0.75"
+                              width="24"
+                              visible={true}
                             />
                           ) : (
                             "Checkout"
@@ -874,11 +844,12 @@ const Cart = () => {
                       }`}
                     >
                       {checkoutLoading[selectedVendorId] ? (
-                        <Bars
-                          color="#fff"
-                          height={24}
-                          width={24}
-                          className="inline-block"
+                        <RotatingLines
+                          strokeColor="#fff"
+                          strokeWidth="5"
+                          animationDuration="0.75"
+                          width="24"
+                          visible={true}
                         />
                       ) : (
                         "Checkout"

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { useAuth } from "../../custom-hooks/useAuth";
 import { Check } from "lucide-react";
+import { generateCartHash } from "../../services/cartHash";
 import { FaGift } from "react-icons/fa";
 import Gift from "../Loading/Gift";
 import { useSelector } from "react-redux";
@@ -53,7 +54,7 @@ const TriviaGame = ({ onReward }) => {
     }
     setShowCountdown(false);
     setIsGameActive(true);
-    setTimer(700);
+    setTimer(70);
   }, [countdown, showCountdown]);
 
   const startGame = async () => {
@@ -63,15 +64,33 @@ const TriviaGame = ({ onReward }) => {
     }
 
     try {
-      // 1. Compute current cart total for this vendor
+      // 1. Build cartItems array
+      const vendorCart = cart[vendorId]?.products || {};
+      const cartItems = Object.values(vendorCart).map((p) => {
+        const item = { productId: p.id, quantity: p.quantity };
+        if (p.subProductId) {
+          item.subProductId = p.subProductId;
+        } else if (p.selectedColor && p.selectedSize) {
+          item.variantAttributes = {
+            color: p.selectedColor,
+            size: p.selectedSize,
+          };
+        }
+        return item;
+      });
+
+      // 2. Compute current cart total for this vendor
       const orderValue = calculateCartTotalForVendor(cart, vendorId);
       setNonceOrderValue(orderValue);
 
-      // 2. Fetch a new question from Cloud Function
-      const { data } = await playTrivia({ vendorId, orderValue });
+      // 3. Generate the cart hash
+      const cartHash = generateCartHash(cartItems);
+
+      // 4. Fetch a new question from Cloud Function
+      const { data } = await playTrivia({ vendorId, orderValue, cartHash });
       const { questionId, question: text, options } = data;
 
-      // 3. Save question and kick off countdown
+      // 5. Save question and kick off countdown
       setQuestion({ id: questionId, text, options });
       setSelectedAnswer(null);
       setIsCorrect(null);
@@ -87,25 +106,42 @@ const TriviaGame = ({ onReward }) => {
     setIsGameActive(false);
 
     try {
-      // 1. Recompute in case cart changed
+      // 1. Rebuild cartItems in case cart changed
+      const vendorCart = cart[vendorId]?.products || {};
+      const cartItems = Object.values(vendorCart).map((p) => {
+        const item = { productId: p.id, quantity: p.quantity };
+        if (p.subProductId) {
+          item.subProductId = p.subProductId;
+        } else if (p.selectedColor && p.selectedSize) {
+          item.variantAttributes = {
+            color: p.selectedColor,
+            size: p.selectedSize,
+          };
+        }
+        return item;
+      });
+
+      // 2. Recompute cart total
       const orderValue = calculateCartTotalForVendor(cart, vendorId);
 
-      // 2. Submit answer and receive reward info
+      // 3. Regenerate the cart hash
+      const cartHash = generateCartHash(cartItems);
+
+      // 4. Submit answer and receive reward info
       const { data } = await playTrivia({
         vendorId,
         questionId: question.id,
         answer: ans,
         orderValue,
+        cartHash,
       });
 
       if (data.success) {
         setIsCorrect(true);
         setReward(data.reward);
-       
         onReward?.();
       } else {
         setIsCorrect(false);
-        
       }
     } catch (err) {
       toast.error(err.message || "Error submitting your answer");

@@ -56,6 +56,7 @@ import { LuCreditCard } from "react-icons/lu";
 
 import Link from "../components/Loading/Link";
 import { TfiWallet } from "react-icons/tfi";
+import { generateCartHash } from "../services/cartHash";
 import IframeModal from "../components/PwaModals/PushNotifsModal";
 import TriviaGame from "../components/Games/TriviaGame";
 import { calculateCartTotalForVendor } from "../services/carthelper";
@@ -384,31 +385,37 @@ const Checkout = () => {
       return null;
     }
 
-    const orderData = {
-      cartItems: Object.values(vendorCart).map((product) => {
-        const cartItem = {
-          productId: product.id,
-          quantity: product.quantity,
+    // Build the items array
+    const cartItems = Object.values(vendorCart).map((product) => {
+      const cartItem = {
+        productId: product.id,
+        quantity: product.quantity,
+      };
+
+      if (product.subProductId) {
+        // Use subProductId for sub-products
+        cartItem.subProductId = product.subProductId;
+      } else if (product.selectedColor && product.selectedSize) {
+        // Use color and size attributes for variants
+        cartItem.variantAttributes = {
+          color: product.selectedColor,
+          size: product.selectedSize,
         };
+      }
 
-        if (product.subProductId) {
-          // Use subProductId for sub-products
-          cartItem.subProductId = product.subProductId;
-        } else if (product.selectedColor && product.selectedSize) {
-          // Use color and size attributes for variants
-          cartItem.variantAttributes = {
-            color: product.selectedColor,
-            size: product.selectedSize,
-          };
-        } else {
-        }
+      return cartItem;
+    });
 
-        return cartItem;
-      }),
+    // Hash those items
+    const cartHash = generateCartHash(cartItems);
+
+    // Compose full order payload
+    const orderData = {
+      cartItems,
+      cartHash,
       userInfo: { ...userInfo, isPickup },
       preview: isPreview,
-      isRepiling: isRepiling,
-
+      isRepiling,
       deliveryNote: userInfo.deliveryNote,
       isStockpile: checkoutMode === "stockpile" || isRepiling,
       stockpileDuration:
@@ -474,7 +481,6 @@ const Checkout = () => {
     );
   };
 
-  // Fetch the previewed fees and totals from the server
   useEffect(() => {
     const fetchUserInfo = async () => {
       if (currentUser) {
@@ -506,12 +512,12 @@ const Checkout = () => {
   const fetchPreview = async () => {
     if (!currentUser) return;
 
-    // Kick off field-specific loaders
+    // Kick off loaders
     setIsLoadingServiceFee(true);
     setIsLoadingDeliveryFee(true);
     setIsLoadingTotal(true);
 
-    // If we don’t have a full delivery address yet, clear loaders and stop
+    // Ensure user info is complete
     if (
       !userInfo.displayName ||
       !userInfo.email ||
@@ -529,33 +535,60 @@ const Checkout = () => {
       const { data } = await processOrder(prepareOrderData(true));
 
       setPreviewedOrder((prev) => {
+        // build new sticky flags
+        const newFreeService =
+          prev.freeServiceFee || Boolean(data.freeServiceFee);
+        const newFreeShipping = prev.freeShipping || Boolean(data.freeShipping);
+
         if (isPickup) {
-          // Only update deliveryCharge and total when in pickup mode
+          // Only update deliveryCharge & total in pickup mode
           return {
             ...prev,
-            deliveryCharge: Number(data.deliveryCharge) || prev.deliveryCharge,
-            total: Number(data.total) || prev.total,
+            deliveryCharge: newFreeShipping
+              ? prev.deliveryCharge
+              : data.deliveryCharge != null
+              ? Number(data.deliveryCharge)
+              : prev.deliveryCharge,
+            total: data.total != null ? Number(data.total) : prev.total,
+            freeShipping: newFreeShipping,
           };
         } else {
-          // Update all fields for delivery or stockpile mode
+          // Full update for delivery/stockpile
           return {
             ...prev,
-            subtotal: Number(data.subtotal) || prev.subtotal,
-            bookingFee: Number(data.bookingFee) || prev.bookingFee,
-            serviceFee: Number(data.serviceFee) || prev.serviceFee,
-            deliveryCharge: Number(data.deliveryCharge) || prev.deliveryCharge,
-            total: Number(data.total) || prev.total,
-            // Preserve discount/free flags logic
+            subtotal:
+              data.subtotal != null ? Number(data.subtotal) : prev.subtotal,
+            bookingFee:
+              data.bookingFee != null
+                ? Number(data.bookingFee)
+                : prev.bookingFee,
+            serviceFee: newFreeService
+              ? prev.serviceFee
+              : data.serviceFee != null
+              ? Number(data.serviceFee)
+              : prev.serviceFee,
+            deliveryCharge: newFreeShipping
+              ? prev.deliveryCharge
+              : data.deliveryCharge != null
+              ? Number(data.deliveryCharge)
+              : prev.deliveryCharge,
+            total: data.total != null ? Number(data.total) : prev.total,
+
+            // once discount > 0 it sticks
             discount:
-              prev.discount > 0 ? prev.discount : Number(data.discount) || 0,
-            freeShipping: prev.freeShipping ? true : Boolean(data.freeShipping),
-            freeServiceFee: prev.freeServiceFee
-              ? true
-              : Boolean(data.freeServiceFee),
+              prev.discount > 0
+                ? prev.discount
+                : data.discount != null
+                ? Number(data.discount)
+                : 0,
+
+            freeServiceFee: newFreeService,
+            freeShipping: newFreeShipping,
           };
         }
       });
     } catch (err) {
+      console.error("Preview error:", err);
     } finally {
       setIsLoadingServiceFee(false);
       setIsLoadingDeliveryFee(false);
@@ -573,7 +606,6 @@ const Checkout = () => {
     currentUser,
     checkoutMode,
     isPickup,
-
     userInfo.address,
     userInfo.latitude,
     userInfo.longitude,
@@ -1830,7 +1862,10 @@ const Checkout = () => {
               </label>
               <p className="text-lg font-opensans text-black font-semibold">
                 {isLoadingTotal ? (
-              <p className="font-opensans text-xs text-black animate-pulse"> Just a moment...</p>
+                  <p className="font-opensans text-xs text-black animate-pulse">
+                    {" "}
+                    Just a moment...
+                  </p>
                 ) : (
                   `₦${previewedOrder.total.toLocaleString()}`
                 )}

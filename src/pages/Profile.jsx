@@ -526,7 +526,7 @@ const Profile = () => {
                   >
                     <div className="flex items-center justify-between w-full px-4 py-3">
                       <LuLogIn className="text-green-600 text-xl mr-4" />
-                      <p className="text-black text-sm font-opensans font-normal w-full">
+                      <p className="text-black text-base font-opensans font-normal w-full">
                         Login
                       </p>
                     </div>

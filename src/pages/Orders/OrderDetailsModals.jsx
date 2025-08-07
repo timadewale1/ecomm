@@ -21,7 +21,7 @@ import { GrNotes } from "react-icons/gr";
 import { LiaCoinsSolid } from "react-icons/lia";
 import { ImSad2 } from "react-icons/im";
 import { HiReceiptTax } from "react-icons/hi";
-import { FaSmileBeam } from "react-icons/fa";
+import { FaGift, FaSmileBeam } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { MdCancel } from "react-icons/md";
 import {
@@ -29,7 +29,7 @@ import {
   IoColorPaletteSharp,
   IoLocationOutline,
 } from "react-icons/io5";
-import  PinInput  from "react-pin-input";
+import PinInput from "react-pin-input";
 import notifyOrderStatusChange from "../../services/notifyorderstatus";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../../firebase.config";
@@ -1082,6 +1082,7 @@ const OrderDetailsModal = ({
             )}
           </div>
         </div>
+
         {!order.isPickup &&
           (order.progressStatus === "Shipped" ||
             order.progressStatus === "Delivered") && (
@@ -1346,7 +1347,20 @@ const OrderDetailsModal = ({
                 Balance
               </h2>
             </div>
-
+            {(() => {
+              const m = userInfo.rewardType?.match(/^DISCOUNT_(\d{1,2})$/);
+              const pct = m ? Number(m[1]) : null;
+              // only show for 5–50%
+              return pct && pct >= 5 && pct <= 50 ? (
+                <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
+                  <FaGift className="text-green-500 text-3xl" />
+                  <p className="ml-6 font-opensans text-black text-xs flex-grow">
+                    There's an active {pct}% order discount! Dont worry We’ll credit your
+                    wallet the full payment for these item(s).
+                  </p>
+                </div>
+              ) : null;
+            })()}
             <div className="space-y-2 mt-3">
               {/* Total Amount */}
               <div className="flex items-center justify-between border-b border-gray-100 pb-2">
@@ -1374,6 +1388,7 @@ const OrderDetailsModal = ({
                   </p>
                 </div>
               )}
+
               {/* Amount to Receive on Delivery */}
               {vendorAmounts && (
                 <div className="flex items-center justify-between border-b border-gray-100 pb-2">
@@ -1418,6 +1433,7 @@ const OrderDetailsModal = ({
                 </div>
               </div>
             )}
+
             {/* If we should hide, just show single doc's own .subtotal */}
             {shouldHideStockpileDates && (
               <div className="space-y-2 mt-3">

@@ -17,6 +17,7 @@ import { GoChevronLeft, GoDotFill } from "react-icons/go";
 import { FiPlus } from "react-icons/fi";
 import { FaStar } from "react-icons/fa";
 import { ProgressBar } from "react-bootstrap";
+import { mergeCarts } from "../../services/cartMerge";
 import toast from "react-hot-toast";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -28,6 +29,7 @@ import { RotatingLines } from "react-loader-spinner";
 import { IoMdContact } from "react-icons/io";
 import { handleUserActionLimit } from "../../services/userWriteHandler";
 import SEO from "../../components/Helmet/SEO";
+import QuickAuthModal from "../../components/PwaModals/AuthModal";
 const VendorRatings = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -38,6 +40,7 @@ const VendorRatings = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [newReview, setNewReview] = useState("");
+  const [showQuickAuth, setShowQuickAuth] = useState(false);
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [selectedRating, setSelectedRating] = useState("All");
@@ -130,7 +133,13 @@ const VendorRatings = () => {
 
     checkIfUserCanReview();
   }, [currentUser, id]);
-
+  const openDisclaimer = (path) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const abs = `${window.location.origin}${path}`;
+    setDisclaimerUrl(abs);
+    setShowDisclaimerModal(true);
+  };
   const fetchReviews = async () => {
     try {
       const reviewsRef = collection(db, "vendors", id, "reviews");
@@ -369,7 +378,7 @@ const VendorRatings = () => {
                 className="text-3xl cursor-pointer"
                 onClick={() => {
                   if (!currentUser) {
-                    setIsLoginModalOpen(true);
+                    setShowQuickAuth(true);
                   } else {
                     setShowModal(true);
                   }
@@ -633,59 +642,16 @@ const VendorRatings = () => {
             </div>
           </div>
         )}
-        {isLoginModalOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
-            onClick={handleLoginOverlayClick}
-          >
-            <div
-              className="bg-white w-9/12 max-w-md rounded-lg px-3 py-4 flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex space-x-4">
-                  <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
-                    <CiLogin className="text-customRichBrown" />
-                  </div>
-                  <h2 className="text-lg font-opensans font-semibold">
-                    Please Log In
-                  </h2>
-                </div>
-                <LiaTimesSolid
-                  onClick={() => setIsLoginModalOpen(false)}
-                  className="text-black text-xl mb-6 cursor-pointer"
-                />
-              </div>
-              <p className="mb-6 text-xs font-opensans text-gray-800 ">
-                You need to be logged in to add a review. Please log in to your
-                account, or create a new account if you don’t have one, to
-                continue.
-              </p>
-              <div className="flex space-x-16">
-                <button
-                  onClick={() => {
-                    navigate("/signup", { state: { from: location.pathname } });
-                    setIsLoginModalOpen(false);
-                  }}
-                  className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border rounded-full"
-                >
-                  Sign Up
-                </button>
-
-                <button
-                  onClick={() => {
-                    navigate("/login", { state: { from: location.pathname } });
-                    setIsLoginModalOpen(false);
-                  }}
-                  className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
-                >
-                  Login
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <QuickAuthModal
+          open={showQuickAuth}
+          onClose={() => setShowQuickAuth(false)}
+          onComplete={(user) => {
+            setShowQuickAuth(false);
+            setShowModal(true);
+          }}
+          mergeCart={mergeCarts}
+          openDisclaimer={openDisclaimer}
+        />
       </div>
     </>
   );

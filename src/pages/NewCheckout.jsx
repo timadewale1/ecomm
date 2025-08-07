@@ -1294,7 +1294,9 @@ const Checkout = () => {
                     </div>
                   ) : showServiceFee ? (
                     previewedOrder.freeServiceFee ? (
-                      <p>₦{previewedOrder.serviceFee.toLocaleString()}</p>
+                      <s className="text-black text-base font-opensans font-semibold">
+                        ₦{previewedOrder.serviceFee.toLocaleString()}
+                      </s>
                     ) : (
                       `₦${previewedOrder.serviceFee.toLocaleString()}`
                     )

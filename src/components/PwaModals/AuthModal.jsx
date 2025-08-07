@@ -269,8 +269,9 @@ export default function QuickAuthModal({
       setAddress("");
       setCoords({ lat: null, lng: null });
 
-      // Continue parent flow
-      if (typeof onComplete === "function") onComplete(pendingUser);
+      Promise.resolve().then(() => {
+        if (typeof onComplete === "function") onComplete(pendingUser);
+      });
     } catch (err) {
       console.error(err);
       toast.error("Could not save details. Please try again.");

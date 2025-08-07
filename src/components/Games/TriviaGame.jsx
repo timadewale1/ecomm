@@ -54,7 +54,7 @@ const TriviaGame = ({ onReward }) => {
     }
     setShowCountdown(false);
     setIsGameActive(true);
-    setTimer(70);
+    setTimer(7);
   }, [countdown, showCountdown]);
 
   const startGame = async () => {

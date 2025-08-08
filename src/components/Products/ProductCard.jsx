@@ -2,9 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Skeleton from "react-loading-skeleton";
+import { motion } from "framer-motion";
 import "react-loading-skeleton/dist/skeleton.css";
 import { getImageKitUrl } from "../../services/imageKit";
-// Firestore
+
 import { db } from "../../firebase.config";
 import {
   doc,
@@ -15,14 +16,12 @@ import {
   increment,
 } from "firebase/firestore";
 
-// Icons
+
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
 
-// Custom Hooks / Context
 import { useAuth } from "../../custom-hooks/useAuth";
 import { useFavorites } from "../../components/Context/FavoritesContext";
 
-// Import the handleUserActionLimit helper
 import { handleUserActionLimit } from "../../services/userWriteHandler";
 import IkImage from "../../services/IkImage";
 import { IoIosFlash } from "react-icons/io";
@@ -33,6 +32,7 @@ const ProductCard = ({
   showVendorName = true,
   showName = true,
   showCondition = true,
+  quickForThisVendor = false,
 }) => {
   const navigate = useNavigate();
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -78,9 +78,17 @@ const ProductCard = ({
   const handleVendorClick = (e) => {
     e.stopPropagation();
     if (vendorMarketplaceType === "virtual") {
-      navigate(`/store/${product.vendorId}`);
+      navigate(
+        quickForThisVendor
+          ? `/store/${product.vendorId}?shared=true`
+          : `/store/${product.vendorId}`
+      );
     } else if (vendorMarketplaceType === "marketplace") {
-      navigate(`/marketstorepage/${product.vendorId}`);
+      navigate(
+        quickForThisVendor
+          ? `/marketstorepage/${product.vendorId}?shared=true`
+          : `/marketstorepage/${product.vendorId}`
+      );
     } else {
       console.error("Unknown marketplace type or vendor not found");
     }
@@ -247,16 +255,72 @@ const ProductCard = ({
           )}
 
           {/* Favorite Icon */}
-          <div
-            className="absolute bottom-2 right-2 cursor-pointer w-10 h-10 rounded-full bg-white border flex items-center justify-center shadow-md"
+          <motion.div
+            className="absolute bottom-2 right-2 cursor-pointer w-9 h-9 rounded-full bg-white border flex items-center justify-center shadow-md"
             onClick={handleFavoriteToggle}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            animate={favorite ? "liked" : "unliked"}
+            variants={{
+              liked: {
+                scale: [1, 1.3, 1],
+                rotate: [0, -5, 5, 0],
+                transition: {
+                  duration: 0.6,
+                  ease: "easeInOut",
+                },
+              },
+              unliked: {
+                scale: 1,
+                rotate: 0,
+                transition: {
+                  duration: 0.2,
+                  ease: "easeOut",
+                },
+              },
+            }}
           >
-            {favorite ? (
-              <RiHeart3Fill className="text-red-500 text-2xl" />
-            ) : (
-              <RiHeart3Line className="text-gray-700 text-2xl" />
-            )}
-          </div>
+            <motion.div
+              animate={favorite ? "filled" : "empty"}
+              variants={{
+                filled: {
+                  scale: [0.8, 1.2, 1],
+                  transition: {
+                    duration: 0.4,
+                    ease: "backOut",
+                  },
+                },
+                empty: {
+                  scale: 1,
+                  transition: {
+                    duration: 0.2,
+                  },
+                },
+              }}
+            >
+              {favorite ? (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 500,
+                    damping: 15,
+                  }}
+                >
+                  <RiHeart3Fill className="text-red-500 text-2xl" />
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <RiHeart3Line className="text-gray-700 text-2xl" />
+                </motion.div>
+              )}
+            </motion.div>
+          </motion.div>
 
           {/* Out of Stock Overlay */}
           {product.stockQuantity === 0 && (
@@ -316,8 +380,6 @@ const ProductCard = ({
                   </p>
                 )}
             </div>
-
-           
           </div>
 
           {showVendorName && product.vendorName && (

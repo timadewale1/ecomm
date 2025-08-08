@@ -12,6 +12,8 @@ import {
   exitStockpileMode,
   fetchStockpileData,
 } from "../redux/reducers/stockpileSlice";
+import IframeModal from "../components/PwaModals/PushNotifsModal";
+
 import toast from "react-hot-toast";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.config";
@@ -23,8 +25,10 @@ import { GoChevronLeft, GoChevronUp, GoChevronRight } from "react-icons/go";
 import Loading from "../components/Loading/Loading";
 import { HiOutlineBuildingStorefront } from "react-icons/hi2";
 import { BiMessageDetail } from "react-icons/bi";
+import { fetchAndMergeCart } from "../services/cartMerge";
+import QuickAuthModal from "../components/PwaModals/AuthModal";
 import { BsPlus } from "react-icons/bs";
-import { Bars } from "react-loader-spinner";
+import { Bars, RotatingLines } from "react-loader-spinner";
 import SEO from "../components/Helmet/SEO";
 import { ImSad2 } from "react-icons/im";
 import { FcPaid } from "react-icons/fc";
@@ -57,9 +61,12 @@ const Cart = () => {
   const [checkoutLoading, setCheckoutLoading] = useState({});
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [showExitStockpileModal, setShowExitStockpileModal] = useState(false);
-  const [pendingCheckoutVendor, setPendingCheckoutVendor] = useState(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [pendingVendorForCheckout, setPendingVendorForCheckout] =
+    useState(null);
   const { pileItems } = useSelector((state) => state.stockpile);
-
+  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+  const [disclaimerUrl, setDisclaimerUrl] = useState("");
   const { isActive, vendorId: stockpileVendorId } = useSelector(
     (state) => state.stockpile
   );
@@ -88,7 +95,7 @@ const Cart = () => {
   };
 
   useEffect(() => {
-    if (isModalOpen || isNoteModalOpen || isLoginModalOpen) {
+    if (isModalOpen || isNoteModalOpen || authOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -97,12 +104,21 @@ const Cart = () => {
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isModalOpen, isNoteModalOpen, isLoginModalOpen]);
+  }, [isModalOpen, isNoteModalOpen, authOpen]);
   const formatPrice = (price) => {
     if (typeof price !== "number" || isNaN(price)) return "0.00";
     return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
-
+  const mergeCartFor = async (uid) => {
+    try {
+      await fetchAndMergeCart(db, uid, dispatch, {
+        localCart: JSON.parse(localStorage.getItem("cart") || "{}"),
+        clearLocal: true,
+      });
+    } catch (e) {
+      console.warn("mergeCart failed:", e);
+    }
+  };
   useEffect(() => {
     if (isActive && selectedVendorId === stockpileVendorId && currentUser) {
       dispatch(
@@ -258,30 +274,39 @@ const Cart = () => {
       });
     }
   };
-
-  const handleCheckout = async (vendorId) => {
+  const openDisclaimer = (path) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const abs = `${window.location.origin}${path}`;
+    setDisclaimerUrl(abs);
+    setShowDisclaimerModal(true);
+  };
+  const handleCheckout = async (vendorId, authUser = currentUser) => {
     setCheckoutLoading((prev) => ({ ...prev, [vendorId]: true }));
-    const vendorCart = cart[vendorId];
 
+    const vendorCart = cart[vendorId];
     if (!vendorCart || Object.keys(vendorCart.products).length === 0) {
       toast.error("No products to checkout for this vendor.");
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
 
-    // Check if user is logged in
-    if (!currentUser) {
-      setIsLoginModalOpen(true);
+    /* ───── 1 – Auth guard ───── */
+    if (!authUser) {
+      setPendingVendorForCheckout(vendorId);
+      setAuthOpen(true);
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
 
-    // Check if user's email is verified
-    if (!currentUser.emailVerified) {
+    /* ───── 2 – Email verified? ───── */
+    if (!authUser.emailVerified) {
       toast.error("Please verify your email before proceeding to checkout.");
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
+
+    /* ───── 3 – Stockpile exit guard ───── */
     if (isActive && vendorId !== stockpileVendorId) {
       setPendingCheckoutVendor(vendorId);
       setShowExitStockpileModal(true);
@@ -289,12 +314,13 @@ const Cart = () => {
       return;
     }
 
-    // Check if user's profile is complete
-    let profileComplete = currentUser.profileComplete;
-    let location = currentUser.location;
+    /* ───── 4 – Profile completeness check ───── */
+    let profileComplete = authUser.profileComplete;
+    let location = authUser.location;
+
     if (profileComplete === undefined || location === undefined) {
       try {
-        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        const userDoc = await getDoc(doc(db, "users", authUser.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
           profileComplete = userData.profileComplete;
@@ -325,7 +351,7 @@ const Cart = () => {
       return;
     }
 
-    // Check if vendor is deactivated
+    /* ───── 5 – Vendor active? ───── */
     try {
       const vendorDocRef = doc(db, "vendors", vendorId);
       const vendorDocSnap = await getDoc(vendorDocRef);
@@ -335,9 +361,7 @@ const Cart = () => {
         setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
         return;
       }
-
-      const vendorData = vendorDocSnap.data();
-      if (vendorData.isDeactivated) {
+      if (vendorDocSnap.data().isDeactivated) {
         toast.error("This vendor is currently not active.");
         setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
         return;
@@ -349,65 +373,64 @@ const Cart = () => {
       return;
     }
 
-    // Check for out-of-stock items
+    /* ───── 6 – Out-of-stock scan ───── */
     const outOfStockItems = [];
-
     for (const productKey in vendorCart.products) {
       const product = vendorCart.products[productKey];
       const productRef = doc(db, "products", product.id);
       const productDoc = await getDoc(productRef);
 
-      if (productDoc.exists()) {
-        const productData = productDoc.data();
-
-        if (product.subProductId) {
-          const subProduct = productData.subProducts?.find(
-            (sp) => sp.subProductId === product.subProductId
-          );
-          if (!subProduct || subProduct.stock < product.quantity) {
-            outOfStockItems.push(`${product.name}`);
-          }
-        } else if (product.selectedColor && product.selectedSize) {
-          const variant = productData.variants?.find(
-            (v) =>
-              v.color === product.selectedColor &&
-              v.size === product.selectedSize
-          );
-          if (!variant || variant.stock < product.quantity) {
-            outOfStockItems.push(
-              `${product.name} (${product.selectedColor}, ${product.selectedSize})`
-            );
-          }
-        } else if (typeof productData.stockQuantity === "number") {
-          // Everyday/non-fashion item
-          if (productData.stockQuantity < product.quantity) {
-            outOfStockItems.push(product.name);
-          }
-        } else if (typeof productData.stock === "number") {
-          // (legacy field kept for backward compatibility)
-          if (productData.stock < product.quantity) {
-            outOfStockItems.push(product.name);
-          }
-        }
-      } else {
+      if (!productDoc.exists()) {
         console.warn(`Product with ID ${product.id} not found.`);
+        continue;
+      }
+      const productData = productDoc.data();
+
+      if (product.subProductId) {
+        const sp = productData.subProducts?.find(
+          (p) => p.subProductId === product.subProductId
+        );
+        if (!sp || sp.stock < product.quantity)
+          outOfStockItems.push(product.name);
+      } else if (product.selectedColor && product.selectedSize) {
+        const variant = productData.variants?.find(
+          (v) =>
+            v.color === product.selectedColor && v.size === product.selectedSize
+        );
+        if (!variant || variant.stock < product.quantity)
+          outOfStockItems.push(
+            `${product.name} (${product.selectedColor}, ${product.selectedSize})`
+          );
+      } else if (
+        (typeof productData.stockQuantity === "number" &&
+          productData.stockQuantity < product.quantity) ||
+        (typeof productData.stock === "number" &&
+          productData.stock < product.quantity)
+      ) {
+        outOfStockItems.push(product.name);
       }
     }
 
-    if (outOfStockItems.length > 0) {
-      toast.error(
-        `The following items are out of stock: ${outOfStockItems.join(", ")}`
-      );
+    if (outOfStockItems.length) {
+      toast.error(`Out of stock: ${outOfStockItems.join(", ")}`);
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
 
+    /* ───── 7 – Navigate to checkout ───── */
     const note = vendorNotes[vendorId]
       ? encodeURIComponent(vendorNotes[vendorId])
       : "";
-
     navigate(`/newcheckout/${vendorId}?note=${note}`);
     setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+  };
+
+  const handleAuthComplete = async (user) => {
+    setAuthOpen(false); // close modal immediately
+    const v = pendingVendorForCheckout;
+    setPendingVendorForCheckout(null);
+
+    if (v) await handleCheckout(v, user);
   };
 
   const calculateVendorTotal = (vendorId) => {
@@ -646,11 +669,12 @@ const Cart = () => {
                           }`}
                         >
                           {checkoutLoading[vendorId] ? (
-                            <Bars
-                              color="#fff"
-                              height={24}
-                              width={24}
-                              className="inline-block"
+                            <RotatingLines
+                              strokeColor="#fff"
+                              strokeWidth="5"
+                              animationDuration="0.75"
+                              width="24"
+                              visible={true}
                             />
                           ) : (
                             "Checkout"
@@ -837,11 +861,12 @@ const Cart = () => {
                       }`}
                     >
                       {checkoutLoading[selectedVendorId] ? (
-                        <Bars
-                          color="#fff"
-                          height={24}
-                          width={24}
-                          className="inline-block"
+                        <RotatingLines
+                          strokeColor="#fff"
+                          strokeWidth="5"
+                          animationDuration="0.75"
+                          width="24"
+                          visible={true}
                         />
                       ) : (
                         "Checkout"
@@ -906,59 +931,20 @@ const Cart = () => {
             </div>
           </div>
         )}
-        {isLoginModalOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center"
-            onClick={handleLoginOverlayClick}
-          >
-            <div
-              className="bg-white w-9/12 max-w-md rounded-lg px-3 py-4 flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex space-x-4">
-                  <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
-                    <CiLogin className="text-customRichBrown" />
-                  </div>
-                  <h2 className="text-lg font-opensans font-semibold">
-                    Please Log In
-                  </h2>
-                </div>
-                <LiaTimesSolid
-                  onClick={() => setIsLoginModalOpen(false)}
-                  className="text-black text-xl mb-6 cursor-pointer"
-                />
-              </div>
-              <p className="mb-6 text-xs font-opensans text-gray-800 ">
-                You need to be logged in to proceed to checkout. Please log in
-                to your account, or create a new account if you don’t have one,
-                to continue.
-              </p>
-              <div className="flex space-x-16">
-                <button
-                  onClick={() => {
-                    navigate("/signup", { state: { from: location.pathname } });
-                    setIsLoginModalOpen(false);
-                  }}
-                  className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border rounded-full"
-                >
-                  Sign Up
-                </button>
+        <QuickAuthModal
+          open={authOpen}
+          onClose={() => setAuthOpen(false)}
+          onComplete={handleAuthComplete}
+          mergeCart={mergeCartFor}
+          openDisclaimer={openDisclaimer}
+          vendorId={pendingVendorForCheckout}
+        />
+        <IframeModal
+          show={showDisclaimerModal}
+          onClose={() => setShowDisclaimerModal(false)}
+          url={disclaimerUrl}
+        />
 
-                <button
-                  onClick={() => {
-                    navigate("/login", { state: { from: location.pathname } });
-                    setIsLoginModalOpen(false);
-                  }}
-                  className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
-                >
-                  Login
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         {showExitStockpileModal && (
           <div
             className="fixed inset-0 px-4 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -999,7 +985,6 @@ const Cart = () => {
                     dispatch(clearCart(stockpileVendorId));
                     // Exit stockpiling mode.
                     dispatch(exitStockpileMode());
-                    // Optionally, if you want to reset the pending vendor, you can do that here:
                     setPendingCheckoutVendor(null);
                   }}
                   className="px-4 py-2 bg-customOrange text-white text-sm rounded-full font-opensans"

@@ -8,19 +8,28 @@ import {
   limit,
   doc,
   getDoc,
+  orderBy,
 } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { db } from "../../firebase.config";
 import ProductCard from "../../components/Products/ProductCard";
 import LoadProducts from "../../components/Loading/LoadProducts";
 
+const TARGET_COUNT = 24; // aim for 10–12 items
+const SIMILAR_CAP = 6; // take up to 6 “closest” before random fill
+const POOL_LIMIT = 50; // size of the fetch pool to shuffle from
+
 const RelatedProducts = ({ product }) => {
-  const [ownType, setOwnType] = useState([]); // same vendor & same productType
-  const [othersType, setOthersType] = useState([]); // other vendors & same productType
-  const [othersCat, setOthersCat] = useState([]); // other vendors & same category
-  const [ownCat, setOwnCat] = useState([]); // same vendor & same category (diff type)
+  const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  // Quick mode state
+  const { isActive: quickActive = false, vendorId: quickVendorId = null } =
+    useSelector((s) => s.quickMode ?? {});
+  const quickForThisVendor =
+    quickActive && quickVendorId && product?.vendorId === quickVendorId;
 
   // only show products whose vendor is approved & active
   const isVendorActive = async (vendorId) => {
@@ -36,6 +45,59 @@ const RelatedProducts = ({ product }) => {
       setLoading(true);
 
       const productsRef = collection(db, "products");
+
+      // QUICK MODE: only this vendor
+      if (quickForThisVendor) {
+        const out = [];
+
+        // 1) similar = same vendor + same productType
+        const qSimilar = query(
+          productsRef,
+          where("vendorId", "==", product.vendorId),
+          where("productType", "==", product.productType),
+          where("published", "==", true),
+          where("isDeleted", "==", false),
+          limit(POOL_LIMIT)
+        );
+        const snapSimilar = await getDocs(qSimilar);
+        for (const d of snapSimilar.docs) {
+          if (d.id === product.id) continue;
+          out.push({ id: d.id, ...d.data() });
+          if (out.length >= SIMILAR_CAP) break;
+        }
+
+        // 2) fill = same vendor (any type), random
+        //    fetch a larger pool, then shuffle and take the remaining slots
+        const qPool = query(
+          productsRef,
+          where("vendorId", "==", product.vendorId),
+          where("published", "==", true),
+          where("isDeleted", "==", false),
+          orderBy("createdAt", "desc"),
+          limit(POOL_LIMIT)
+        );
+        const snapPool = await getDocs(qPool);
+
+        const already = new Set([product.id, ...out.map((p) => p.id)]);
+        const pool = [];
+        for (const d of snapPool.docs) {
+          if (already.has(d.id)) continue;
+          pool.push({ id: d.id, ...d.data() });
+        }
+
+        // Shuffle client-side
+        pool.sort(() => 0.5 - Math.random());
+
+        // Fill up to TARGET_COUNT
+        const needed = Math.max(0, TARGET_COUNT - out.length);
+        out.push(...pool.slice(0, needed));
+
+        setSuggestions(out);
+        setLoading(false);
+        return;
+      }
+
+      // NORMAL MODE (your existing 4-bucket approach)
       const rOwnType = [];
       const rOthersType = [];
       const rOthersCat = [];
@@ -76,7 +138,7 @@ const RelatedProducts = ({ product }) => {
         }
       }
 
-      // 3) other vendors & same category
+      // 3) other vendors & same category (and same vendor diff type)
       const q3 = query(
         productsRef,
         where("category", "==", product.category),
@@ -91,7 +153,7 @@ const RelatedProducts = ({ product }) => {
         const isOwn = vId === product.vendorId;
         if (!(await isVendorActive(vId))) continue;
 
-        // skip those already in type‐based lists
+        // skip those already in type-based lists
         if (
           rOwnType.some((p) => p.id === d.id) ||
           rOthersType.some((p) => p.id === d.id)
@@ -109,21 +171,16 @@ const RelatedProducts = ({ product }) => {
         }
       }
 
-      setOwnType(rOwnType);
-      setOthersType(rOthersType);
-      setOthersCat(rOthersCat);
-      setOwnCat(rOwnCat);
+      setSuggestions([...rOwnType, ...rOthersType, ...rOthersCat, ...rOwnCat]);
       setLoading(false);
     };
 
     fetchRelated();
-  }, [product]);
+  }, [product, quickForThisVendor]);
 
   if (loading) return <LoadProducts />;
 
-  const allSuggestions = [...ownType, ...othersType, ...othersCat, ...ownCat];
-
-  if (allSuggestions.length === 0) return null;
+  if (!suggestions.length) return null;
 
   return (
     <div className="related-products p-3">
@@ -131,30 +188,31 @@ const RelatedProducts = ({ product }) => {
         <h2 className="text-lg font-semibold font-opensans">
           You might also like
         </h2>
-        <button
-          onClick={() =>
-            navigate(`/producttype/${product.productType}`, {
-              state: { products: allSuggestions },
-            })
-          }
-          className="text-xs font-normal text-customOrange"
-        >
-          Show all
-        </button>
+
+        {/* In quick mode we keep users within the store, so hide "Show all".
+            Otherwise keep your existing navigation by productType. */}
+        {!quickForThisVendor && (
+          <button
+            onClick={() =>
+              navigate(`/producttype/${product.productType}`, {
+                state: { products: suggestions },
+              })
+            }
+            className="text-xs font-normal text-customOrange"
+          >
+            Show all
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {ownType.map((p) => (
-          <ProductCard key={p.id} product={p} vendorId={p.vendorId} />
-        ))}
-        {othersType.map((p) => (
-          <ProductCard key={p.id} product={p} vendorId={p.vendorId} />
-        ))}
-        {othersCat.map((p) => (
-          <ProductCard key={p.id} product={p} vendorId={p.vendorId} />
-        ))}
-        {ownCat.map((p) => (
-          <ProductCard key={p.id} product={p} vendorId={p.vendorId} />
+        {suggestions.map((p) => (
+          <ProductCard
+            key={p.id}
+            product={p}
+            vendorId={p.vendorId}
+            quickForThisVendor={quickForThisVendor}
+          />
         ))}
       </div>
     </div>

@@ -18,7 +18,7 @@ import { db } from "../../firebase.config";
 import toast from "react-hot-toast";
 import Modal from "../../components/layout/Modal";
 import AddProduct from "../vendor/AddProducts";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 // import Loading from "../../components/Loading/Loading";
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -65,7 +65,8 @@ const VendorDashboard = () => {
   // const [lastDoc, setLastDoc] = useState(null);
   // const [hasMore, setHasMore] = useState(true); // If there are more activities to load
   const navigate = useNavigate();
-
+  const location = useLocation();
+  const redirectedRef = useRef(false);
   const dispatch = useDispatch();
   const {
     activities,
@@ -108,6 +109,38 @@ const VendorDashboard = () => {
       setShowMissingLocationModal(true);
     }
   }, [vendorData]);
+  useEffect(() => {
+    const blocked = localStorage.getItem("BLOCKED_VENDOR_EMAIL") === "1";
+    if (!blocked) return;
+    localStorage.removeItem("BLOCKED_VENDOR_EMAIL");
+    navigate("/login", { replace: true, state: { from: location.pathname } });
+  }, [navigate, location.pathname]);
+  // If we can't read a vendorId once loading finishes, go back to where the user came from.
+  useEffect(() => {
+    if (loading || redirectedRef.current) return;
+    const hasVendorId = !!vendorData?.vendorId;
+    if (hasVendorId) return;
+
+    // Prefer explicit `from` state set by your routers/guards
+    const fromState = location.state?.from;
+
+    // Same-origin document.referrer fallback (works if a hard nav happened)
+    let fromReferrer = null;
+    try {
+      if (
+        document.referrer &&
+        document.referrer.startsWith(window.location.origin)
+      ) {
+        fromReferrer =
+          new URL(document.referrer).pathname +
+          new URL(document.referrer).search;
+      }
+    } catch {}
+
+    const fallback = fromState || fromReferrer || "/";
+    redirectedRef.current = true;
+    navigate(fallback, { replace: true });
+  }, [loading, vendorData, location.state, navigate]);
 
   const formatRevenue = (revenue) => {
     return revenue.toLocaleString("en-US", {
@@ -222,12 +255,9 @@ const VendorDashboard = () => {
     return () => unsubscribe();
   };
 
-  const textToCopy =
-    vendorData.vendorId &&
-    `https://mx.shopmythrift.store/${
-      vendorData &&
-      (vendorData.marketPlaceType === "virtual" ? "store" : "marketstorepage")
-    }/${vendorData.vendorId}?shared=true`;
+  const textToCopy = vendorData?.slug
+    ? `https://mx.shopmythrift.store/${vendorData.slug}`
+    : "";
 
   const [copied, setCopied] = useState(false);
   const copyToClipboard = async () => {
@@ -359,7 +389,7 @@ const VendorDashboard = () => {
       if (observer.current) observer.current.disconnect();
 
       observer.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && hasMore) {
+        if (entries[0].isIntersecting && hasMore && vendorData?.vendorId) {
           dispatch(
             fetchRecentActivities({
               vendorId: vendorData.vendorId,
@@ -372,7 +402,7 @@ const VendorDashboard = () => {
 
       if (node) observer.current.observe(node);
     },
-    [activitiesLoading, hasMore, vendorData, lastDoc, dispatch]
+    [activitiesLoading, hasMore, vendorData?.vendorId, lastDoc, dispatch]
   );
 
   const openModal = () => setModalOpen(true);
@@ -537,7 +567,7 @@ const VendorDashboard = () => {
                   {textToCopy}
                 </p>
                 <button
-                  className="text-white opacity-50 cursor-not-allowed"
+                  className="text-white opacity-50 cursor-pointer"
                   onClick={copyToClipboard}
                 >
                   {!copied ? (

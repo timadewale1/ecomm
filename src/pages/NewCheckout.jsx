@@ -56,7 +56,10 @@ import { LuCreditCard } from "react-icons/lu";
 
 import Link from "../components/Loading/Link";
 import { TfiWallet } from "react-icons/tfi";
+import { generateCartHash } from "../services/cartHash";
 import IframeModal from "../components/PwaModals/PushNotifsModal";
+import TriviaGame from "../components/Games/TriviaGame";
+import { calculateCartTotalForVendor } from "../services/carthelper";
 const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
   const [locationSet, setLocationSet] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
@@ -165,18 +168,6 @@ const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
             ) : (
               <LocationPicker onLocationSelect={handleLocationSelect} />
             )}
-          </div>
-          <div>
-            <label className="font-opensans">Delivery Note</label>
-            <textarea
-              rows={3}
-              className="border bg-gray-100 py-2.5 mt-2 rounded-lg w-full px-2 font-opensans text-gray-600"
-              value={userInfo.deliveryNote || ""}
-              onChange={(e) =>
-                setUserInfo({ ...userInfo, deliveryNote: e.target.value })
-              }
-              placeholder="Any special instructions? E.g. Leave at front desk…"
-            />
           </div>
         </div>
 
@@ -343,6 +334,9 @@ const Checkout = () => {
     serviceFee: "Calculating fees...",
     deliveryCharge: null,
     total: null,
+    discount: 0,
+    freeShipping: false,
+    freeServiceFee: false,
   });
   const [showBookingFeeModal, setShowBookingFeeModal] = useState(false);
   const [showServiceFeeModal, setShowServiceFeeModal] = useState(false);
@@ -362,9 +356,13 @@ const Checkout = () => {
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [walletId, setWalletId] = useState("");
   const [walletBal, setWalletBal] = useState(0);
+  const [isLoadingServiceFee, setIsLoadingServiceFee] = useState(false);
+  const [isLoadingDeliveryFee, setIsLoadingDeliveryFee] = useState(false);
+  const [isLoadingTotal, setIsLoadingTotal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [walletSetup, setWalletSetup] = useState(false);
   const [isPickup, setIsPickup] = useState(false);
+  const [isLoadingDiscount, setIsLoadingDiscount] = useState(false);
   const [tripAdvice, setTripAdvice] = useState(null);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showAlreadyStockpiledModal, setShowAlreadyStockpiledModal] =
@@ -387,31 +385,37 @@ const Checkout = () => {
       return null;
     }
 
-    const orderData = {
-      cartItems: Object.values(vendorCart).map((product) => {
-        const cartItem = {
-          productId: product.id,
-          quantity: product.quantity,
+    // Build the items array
+    const cartItems = Object.values(vendorCart).map((product) => {
+      const cartItem = {
+        productId: product.id,
+        quantity: product.quantity,
+      };
+
+      if (product.subProductId) {
+        // Use subProductId for sub-products
+        cartItem.subProductId = product.subProductId;
+      } else if (product.selectedColor && product.selectedSize) {
+        // Use color and size attributes for variants
+        cartItem.variantAttributes = {
+          color: product.selectedColor,
+          size: product.selectedSize,
         };
+      }
 
-        if (product.subProductId) {
-          // Use subProductId for sub-products
-          cartItem.subProductId = product.subProductId;
-        } else if (product.selectedColor && product.selectedSize) {
-          // Use color and size attributes for variants
-          cartItem.variantAttributes = {
-            color: product.selectedColor,
-            size: product.selectedSize,
-          };
-        } else {
-        }
+      return cartItem;
+    });
 
-        return cartItem;
-      }),
+    // Hash those items
+    const cartHash = generateCartHash(cartItems);
+
+    // Compose full order payload
+    const orderData = {
+      cartItems,
+      cartHash,
       userInfo: { ...userInfo, isPickup },
       preview: isPreview,
-      isRepiling: isRepiling,
-
+      isRepiling,
       deliveryNote: userInfo.deliveryNote,
       isStockpile: checkoutMode === "stockpile" || isRepiling,
       stockpileDuration:
@@ -477,7 +481,6 @@ const Checkout = () => {
     );
   };
 
-  // Fetch the previewed fees and totals from the server
   useEffect(() => {
     const fetchUserInfo = async () => {
       if (currentUser) {
@@ -506,59 +509,103 @@ const Checkout = () => {
     fetchUserInfo();
   }, [currentUser]);
 
+  const fetchPreview = async () => {
+    if (!currentUser) return;
+
+    // Kick off loaders
+    setIsLoadingServiceFee(true);
+    setIsLoadingDeliveryFee(true);
+    setIsLoadingTotal(true);
+
+    // Ensure user info is complete
+    if (
+      !userInfo.displayName ||
+      !userInfo.email ||
+      !userInfo.phoneNumber ||
+      !userInfo.address
+    ) {
+      setIsLoadingServiceFee(false);
+      setIsLoadingDeliveryFee(false);
+      setIsLoadingTotal(false);
+      return;
+    }
+
+    try {
+      const processOrder = httpsCallable(functions, "processOrder");
+      const { data } = await processOrder(prepareOrderData(true));
+
+      setPreviewedOrder((prev) => {
+        // build new sticky flags
+        const newFreeService =
+          prev.freeServiceFee || Boolean(data.freeServiceFee);
+        const newFreeShipping = prev.freeShipping || Boolean(data.freeShipping);
+
+        if (isPickup) {
+          // Only update deliveryCharge & total in pickup mode
+          return {
+            ...prev,
+            deliveryCharge: newFreeShipping
+              ? prev.deliveryCharge
+              : data.deliveryCharge != null
+              ? Number(data.deliveryCharge)
+              : prev.deliveryCharge,
+            total: data.total != null ? Number(data.total) : prev.total,
+            freeShipping: newFreeShipping,
+          };
+        } else {
+          // Full update for delivery/stockpile
+          return {
+            ...prev,
+            subtotal:
+              data.subtotal != null ? Number(data.subtotal) : prev.subtotal,
+            bookingFee:
+              data.bookingFee != null
+                ? Number(data.bookingFee)
+                : prev.bookingFee,
+            serviceFee: newFreeService
+              ? prev.serviceFee
+              : data.serviceFee != null
+              ? Number(data.serviceFee)
+              : prev.serviceFee,
+            deliveryCharge: newFreeShipping
+              ? prev.deliveryCharge
+              : data.deliveryCharge != null
+              ? Number(data.deliveryCharge)
+              : prev.deliveryCharge,
+            total: data.total != null ? Number(data.total) : prev.total,
+
+            // once discount > 0 it sticks
+            discount:
+              prev.discount > 0
+                ? prev.discount
+                : data.discount != null
+                ? Number(data.discount)
+                : 0,
+
+            freeServiceFee: newFreeService,
+            freeShipping: newFreeShipping,
+          };
+        }
+      });
+    } catch (err) {
+      console.error("Preview error:", err);
+    } finally {
+      setIsLoadingServiceFee(false);
+      setIsLoadingDeliveryFee(false);
+      setIsLoadingTotal(false);
+      setShowServiceFee(true);
+    }
+  };
+
+  // 3) Call it in an effect whenever inputs change
   useEffect(() => {
-    const fetchOrderPreview = async () => {
-      if (!currentUser) {
-        // toast.error("User not authenticated yet");
-        toast.dismiss();
-        return;
-      }
-
-      if (
-        !userInfo.displayName ||
-        !userInfo.email ||
-        !userInfo.phoneNumber ||
-        !userInfo.address
-      ) {
-        return;
-      }
-
-      const orderData = prepareOrderData(true); // Set preview mode to true
-      if (!orderData) return;
-
-      try {
-        // Call the Cloud Function in preview mode
-        const processOrder = httpsCallable(functions, "processOrder");
-        const response = await processOrder(orderData);
-
-        // Set previewed values in the state
-        const { subtotal, bookingFee, serviceFee, deliveryCharge, total } =
-          response.data;
-        setPreviewedOrder({
-          subtotal,
-          bookingFee,
-          deliveryCharge,
-          serviceFee,
-          total,
-        });
-
-        setIsFetchingOrderPreview(false);
-
-        setTimeout(() => {
-          setShowServiceFee(true);
-        }, 50);
-      } catch (error) {
-        toast.error("Failed to load order preview. Please try again.");
-      }
-    };
-
-    fetchOrderPreview();
+    fetchPreview();
   }, [
     vendorId,
     cart,
     currentUser,
-    userInfo,
     checkoutMode,
+    isPickup,
     userInfo.address,
     userInfo.latitude,
     userInfo.longitude,
@@ -779,148 +826,6 @@ const Checkout = () => {
   useEffect(() => {
     console.log("selectedWeeks state updated to:", selectedWeeks);
   }, [selectedWeeks]);
-  const getStateFromLatLng = async (lat, lng) => {
-    return new Promise((resolve, reject) => {
-      const geocoder = new window.google.maps.Geocoder();
-      const latlng = { lat, lng };
-
-      geocoder.geocode({ location: latlng }, (results, status) => {
-        if (status === "OK" && results[0]) {
-          const addressComponents = results[0].address_components;
-          const stateComponent = addressComponents.find((component) =>
-            component.types.includes("administrative_area_level_1")
-          );
-          if (stateComponent) {
-            resolve(stateComponent.long_name);
-          } else {
-            reject("State not found");
-          }
-        } else {
-          reject("Reverse geocode failed");
-        }
-      });
-    });
-  };
-
-  useEffect(() => {
-    const calculateFee = async () => {
-      if (!vendorsInfo[vendorId] || !userInfo.latitude || !userInfo.longitude)
-        return;
-
-      const vendorState = vendorsInfo[vendorId].state;
-      const subtotal = previewedOrder.subtotal || 0;
-      const isWeekend = [0, 6].includes(new Date().getDay());
-
-      try {
-        // reverse‑geocode the user into a state
-        const resolvedState = await getStateFromLatLng(
-          userInfo.latitude,
-          userInfo.longitude
-        );
-        setUserState(resolvedState);
-
-        // now compute your estimate as before
-        const estimatedFee = calculateDeliveryFee(
-          vendorState,
-          resolvedState,
-          subtotal,
-          isWeekend
-        );
-        setDeliveryEstimate(estimatedFee);
-      } catch (error) {
-        console.error("Error calculating delivery fee:", error);
-      }
-    };
-
-    calculateFee();
-  }, [
-    vendorsInfo,
-    userInfo.latitude,
-    userInfo.longitude,
-    previewedOrder,
-    vendorId,
-  ]);
-  /**
-   * Distance from user → vendor’s pick-up point
-   */
-  useEffect(() => {
-    /* ---------- diagnostics ---------- */
-    console.log("🚚 supportsPickup:", supportsPickup);
-    console.log("   user lat/lng:", userInfo.latitude, userInfo.longitude);
-    console.log(
-      "   vendor lat/lng:",
-      vendorsInfo[vendorId]?.pickupLat,
-      vendorsInfo[vendorId]?.pickupLng
-    );
-    console.log(
-      "   DistanceMatrix ready:",
-      Boolean(window.google?.maps?.DistanceMatrixService)
-    );
-
-    /* ---------- abort if anything missing ---------- */
-    if (
-      !supportsPickup ||
-      userInfo.latitude == null ||
-      userInfo.longitude == null ||
-      vendorsInfo[vendorId]?.pickupLat == null ||
-      vendorsInfo[vendorId]?.pickupLng == null ||
-      !window.google?.maps?.DistanceMatrixService
-    ) {
-      console.log("⛔  Missing data → skip distance calc");
-      setTripAdvice(null);
-      return;
-    }
-
-    /* ---------- call Distance-Matrix ---------- */
-    console.log("✅  Calling DistanceMatrixService…");
-
-    const origin = new window.google.maps.LatLng(
-      Number(userInfo.latitude),
-      Number(userInfo.longitude)
-    );
-    const destination = new window.google.maps.LatLng(
-      Number(vendorsInfo[vendorId].pickupLat),
-      Number(vendorsInfo[vendorId].pickupLng)
-    );
-
-    new window.google.maps.DistanceMatrixService().getDistanceMatrix(
-      {
-        origins: [origin],
-        destinations: [destination],
-        travelMode: window.google.maps.TravelMode.DRIVING,
-      },
-      (result, status) => {
-        console.log("↩︎ DistanceMatrix status:", status);
-        console.log("↩︎ full payload:", result);
-
-        if (
-          status === "OK" &&
-          result?.rows?.[0]?.elements?.[0]?.status === "OK"
-        ) {
-          const elem = result.rows[0].elements[0];
-          setPickupDistance(elem.distance.text);
-
-          // NEW → friendly advice
-          setTripAdvice(
-            getTripAdvice(elem.distance.value, elem.duration.value)
-          );
-        } else {
-          setPickupDistance(null);
-          setTripAdvice(null);
-        }
-      }
-    );
-  }, [
-    supportsPickup,
-    userInfo.latitude,
-    userInfo.longitude,
-    vendorsInfo,
-    vendorId,
-  ]);
-
-  // 3) Derive whether this is truly Lagos→Lagos:
-  const isLagosToLagos =
-    vendorsInfo[vendorId]?.state === "Lagos" && userState === "Lagos";
 
   const groupProductsById = (products) => {
     const groupedProducts = {};
@@ -1007,6 +912,11 @@ const Checkout = () => {
           </div>
         </div>
       </Modal>
+    );
+  };
+  const handleShowMapToast = () => {
+    toast(
+      " ⚠️ We will allow you to calculate an estimate for pickup and distance after the order has been placed."
     );
   };
 
@@ -1134,113 +1044,17 @@ const Checkout = () => {
       </Modal>
     );
   };
-  const MapModal = ({ isOpen, onClose, origin, destination }) => {
-    /** 1 ▸ wait for Google Maps bundle */
-    const [ready, setReady] = useState(Boolean(window.google?.maps));
-    useEffect(() => {
-      if (ready) return;
-      window.initMap = () => setReady(true); // called by the script tag
-    }, [ready]);
-
-    /** 2 ▸ ask Routes API for a path */
-    const [directions, setDirections] = useState(null);
-    useEffect(() => {
-      if (!ready || !origin || !destination) return;
-
-      new window.google.maps.DirectionsService().route(
-        { origin, destination, travelMode: "DRIVING" },
-        (res, status) =>
-          status === "OK" && res.routes.length
-            ? setDirections(res)
-            : console.warn("Directions failed:", status, res)
-      );
-    }, [ready, origin, destination]);
-
-    /** 3 ▸ once the map is ready, draw the route */
-    const mapRef = useRef(null);
-    const rendererRef = useRef(null);
-
-    const handleMapLoad = (map) => {
-      mapRef.current = map;
-      // create renderer once
-      rendererRef.current = new window.google.maps.DirectionsRenderer({
-        map,
-        preserveViewport: true,
-        suppressMarkers: false,
-      });
-      // if the directions request already finished, push it in:
-      if (directions) rendererRef.current.setDirections(directions);
-    };
-
-    /** if directions arrive later, feed them into the same renderer */
-    useEffect(() => {
-      if (rendererRef.current && directions) {
-        rendererRef.current.setDirections(directions);
-      }
-    }, [directions]);
-
-    /** cleanup when the modal unmounts */
-    useEffect(
-      () => () => {
-        rendererRef.current && rendererRef.current.setMap(null);
-      },
-      []
-    );
-
-    /* ────────────── UI ────────────── */
-    if (!isOpen) return null;
-
-    return (
-      <Modal
-        isOpen
-        onRequestClose={onClose}
-        ariaHideApp={false}
-        className="bg-white w-full h-[75vh] rounded-t-2xl shadow-xl flex flex-col"
-        overlayClassName="fixed inset-0 bg-black/50 flex items-end z-50"
-      >
-        <div className="flex-1">
-          {ready ? (
-            <div
-              id="map"
-              style={{ height: "100%", width: "100%" }}
-              ref={(el) => {
-                if (el && !mapRef.current) {
-                  /* create the map only once */
-                  handleMapLoad(
-                    new window.google.maps.Map(el, {
-                      zoom: 12,
-                      center: origin,
-                    })
-                  );
-                }
-              }}
-            />
-          ) : (
-            <div className="h-full flex items-center justify-center">
-              Loading&nbsp;map…
-            </div>
-          )}
-        </div>
-
-        <button
-          onClick={onClose}
-          className="absolute font-opensans bottom-4 left-1/2 -translate-x-1/2
-                     px-6 py-3 text-base font-medium
-                     bg-black/20 backdrop-blur-md border border-white/30
-                     rounded-full shadow-md hover:bg-white/30
-                     transition-colors duration-200"
-        >
-          Close
-        </button>
-      </Modal>
-    );
+  const fetchPreviewWithDiscount = async () => {
+    setIsLoadingDiscount(true);
+    await fetchPreview();
+    setIsLoadingDiscount(false);
   };
   const formatColorText = (color) => {
     if (!color) return "";
     return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
   };
 
-  if (loading || isFetchingOrderPreview) {
+  if (loading) {
     // Show skeleton placeholders instead of the Loading component
     return (
       <div className="bg-gray-100 pb-12">
@@ -1421,11 +1235,15 @@ const Checkout = () => {
                 Sub-Total
               </label>
               <p className="text-base font-opensans text-black font-semibold">
-                {isFetchingOrderPreview ? (
-                  <Skeleton width={80} />
-                ) : (
-                  `₦${previewedOrder.subtotal.toLocaleString()}`
-                )}
+                {isLoadingTotal
+                  ? `₦${(
+                      previewedOrder.subtotal ??
+                      calculateCartTotalForVendor(cart, vendorId)
+                    ).toLocaleString()}`
+                  : `₦${(
+                      previewedOrder.subtotal ??
+                      calculateCartTotalForVendor(cart, vendorId)
+                    ).toLocaleString()}`}
               </p>
             </div>
 
@@ -1464,40 +1282,67 @@ const Checkout = () => {
                       : "text-black text-base"
                   }`}
                 >
-                  {isFetchingOrderPreview ? (
-                    <Skeleton width={80} />
+                  {isLoadingServiceFee ? (
+                    <div className="flex justify-center items-center h-5">
+                      <RotatingLines
+                        strokeColor="#f97316"
+                        strokeWidth="3"
+                        animationDuration="0.75"
+                        width="20"
+                        visible={true}
+                      />
+                    </div>
                   ) : showServiceFee ? (
-                    `₦${previewedOrder.serviceFee.toLocaleString()}`
+                    previewedOrder.freeServiceFee ? (
+                      <s className="text-black text-base font-opensans font-semibold">
+                        ₦{previewedOrder.serviceFee.toLocaleString()}
+                      </s>
+                    ) : (
+                      `₦${previewedOrder.serviceFee.toLocaleString()}`
+                    )
                   ) : (
-                    "Calculating fees..."
+                    <RotatingLines
+                      strokeColor="#f97316"
+                      strokeWidth="3"
+                      animationDuration="0.75"
+                      width="20"
+                      visible={true}
+                    />
                   )}
                 </p>
               </div>
             )}
-            <div>
-              {isFetchingOrderPreview ? (
-                <Skeleton width={80} />
+            <div className="flex justify-between">
+              <span className="font-opensans text-sm">Delivery Fee</span>
+
+              {isLoadingDeliveryFee ? (
+                <RotatingLines
+                  strokeColor="#f97316"
+                  strokeWidth="3"
+                  animationDuration="0.75"
+                  width="20"
+                  visible={true}
+                />
               ) : isRepiling ? (
-                <div className="flex items-center bg-orange-50 py-3 px-2 rounded-lg mt-3">
-                  <div>
-                    <p className="font-opensans text-xs text-orange-700 font-semibold">
-                      Delivery fee will be charged when it’s time to ship.
-                    </p>
-                  </div>
-                </div>
+                <span className="text-xs font-opensans text-orange-700 font-semibold">
+                  Will be charged when it’s time to ship
+                </span>
+              ) : previewedOrder.deliveryCharge == null ? (
+                <RotatingLines
+                  strokeColor="#f97316"
+                  strokeWidth="3"
+                  animationDuration="0.75"
+                  width="20"
+                  visible={true}
+                />
+              ) : previewedOrder.freeShipping ? (
+                <s className="text-base font-opensans text-black font-semibold">
+                  ₦{Number(previewedOrder.deliveryCharge).toLocaleString()}
+                </s>
               ) : (
-                // --- Lagos→Lagos: show the actual fee ---
-                <>
-                  <div className="flex justify-between">
-                    <span className="font-opensans text-sm">Delivery Fee</span>
-                    <span className="text-base font-opensans text-black font-semibold">
-                      ₦
-                      {parseFloat(
-                        previewedOrder.deliveryCharge
-                      ).toLocaleString()}
-                    </span>
-                  </div>
-                </>
+                <span className="text-base font-opensans text-black font-semibold">
+                  ₦{Number(previewedOrder.deliveryCharge).toLocaleString()}
+                </span>
               )}
             </div>
 
@@ -1507,10 +1352,17 @@ const Checkout = () => {
                 Total
               </label>
               <p className="text-lg font-opensans text-black font-semibold">
-                {isFetchingOrderPreview ? (
-                  <Skeleton width={80} />
+                {isLoadingTotal ? (
+                  <p className="font-opensans text-xs text-black animate-pulse">
+                    {" "}
+                    Estimating total...
+                  </p>
+                ) : previewedOrder.total == null ? (
+                  <p className="font-opensans text-xs text-black animate-pulse">
+                    Just a moment...
+                  </p>
                 ) : (
-                  `₦${previewedOrder.total.toLocaleString()}`
+                  `₦${Number(previewedOrder.total).toLocaleString()}`
                 )}
               </p>
             </div>
@@ -1527,6 +1379,8 @@ const Checkout = () => {
               </div>
             )}
           </div>
+          <TriviaGame onReward={fetchPreviewWithDiscount} />
+
           <div className="mt-2">
             <div
               className={`mt-3 px-3 w-full py-4 rounded-lg ${
@@ -1537,6 +1391,7 @@ const Checkout = () => {
                 <h1 className="text-black font-semibold font-opensans text-base">
                   Delivery Information
                 </h1>
+
                 <FaPen
                   className={`${
                     isRepiling
@@ -1581,21 +1436,6 @@ const Checkout = () => {
                 </label>
                 <p className="font-opensans text-black ">{userInfo.address}</p>
               </div>
-
-              <div className="flex flex-col text-sm space-y-1">
-                <div className="flex font-opensans items-center">
-                  <label className="font-semibold mr-1">Note:</label>
-                  {userInfo.deliveryNote ? (
-                    <p className="font-opensans text-black">
-                      {userInfo.deliveryNote}
-                    </p>
-                  ) : (
-                    <p className="italic font-opensans text-sm text-gray-400">
-                      Write instructions for the rider here…
-                    </p>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
 
@@ -1614,7 +1454,7 @@ const Checkout = () => {
                     </span>
                     {vendorsInfo[vendorId]?.shopName?.length > 26
                       ? `${vendorsInfo[vendorId]?.shopName.slice(0, 26)}...`
-                      : vendorsInfo[vendorId]?.shopName || `Vendor ${vendorId}`}
+                      : vendorsInfo[vendorId]?.shopName || `Vendor`}
                   </h3>
                 </div>
 
@@ -1696,17 +1536,17 @@ const Checkout = () => {
                       <div className="flex flex-col items-start">
                         <p className="text-base font-opensans font-semibold text-black">
                           Pick-up
-                          <span className="font-normal text-xs text-customOrange ml-1">
+                          {/* <span className="font-normal text-xs text-customOrange ml-1">
                             {pickupDistance
                               ? `(≈ ${pickupDistance})`
                               : "(distance — …)"}
-                          </span>
+                          </span> */}
                         </p>
-                        <p className="text-xs text-gray-800 font-opensans">
+                        {/* <p className="text-xs text-gray-800 font-opensans">
                           {tripAdvice
                             ? `${tripAdvice.headline} • ${tripAdvice.sub}`
                             : "Calculating …"}
-                        </p>
+                        </p> */}
                       </div>
                       <span
                         className={`w-5 h-5 rounded-full border-2 mr-2 flex items-center justify-center ${
@@ -1729,7 +1569,7 @@ const Checkout = () => {
                       vendorsInfo[vendorId]?.pickupAddress ? (
                         <>
                           <button
-                            onClick={() => setShowMapModal(true)}
+                            onClick={handleShowMapToast}
                             className="w-full flex items-center justify-between"
                           >
                             <span className="font-opensans font-semibold text-xs">
@@ -1937,11 +1777,11 @@ const Checkout = () => {
                 Sub-Total
               </label>
               <p className="text-base font-opensans text-black font-semibold">
-                {isFetchingOrderPreview ? (
-                  <Skeleton width={80} />
-                ) : (
-                  `₦${previewedOrder.subtotal.toLocaleString()}`
-                )}
+                ₦
+                {(
+                  previewedOrder.subtotal ??
+                  calculateCartTotalForVendor(cart, vendorId)
+                ).toLocaleString()}
               </p>
             </div>
 
@@ -1955,8 +1795,14 @@ const Checkout = () => {
                   />
                 </label>
                 <p className="text-lg font-opensans text-black font-semibold">
-                  {isFetchingOrderPreview ? (
-                    <Skeleton width={80} />
+                  {isLoadingTotal ? (
+                    <RotatingLines
+                      strokeColor="#f97316"
+                      strokeWidth="3"
+                      animationDuration="0.75"
+                      width="20"
+                      visible={true}
+                    />
                   ) : (
                     `₦${previewedOrder.bookingFee.toLocaleString()}`
                   )}
@@ -1979,12 +1825,24 @@ const Checkout = () => {
                     : "text-black text-base"
                 }`}
               >
-                {isFetchingOrderPreview ? (
-                  <Skeleton width={80} />
+                {isLoadingTotal ? (
+                  <RotatingLines
+                    strokeColor="#f97316"
+                    strokeWidth="3"
+                    animationDuration="0.75"
+                    width="20"
+                    visible={true}
+                  />
                 ) : showServiceFee ? (
                   `₦${previewedOrder.serviceFee.toLocaleString()}`
                 ) : (
-                  "Calculating fees..."
+                  <RotatingLines
+                    strokeColor="#f97316"
+                    strokeWidth="3"
+                    animationDuration="0.75"
+                    width="20"
+                    visible={true}
+                  />
                 )}
               </p>
             </div>
@@ -2005,8 +1863,11 @@ const Checkout = () => {
                 Total
               </label>
               <p className="text-lg font-opensans text-black font-semibold">
-                {isFetchingOrderPreview ? (
-                  <Skeleton width={80} />
+                {isLoadingTotal ? (
+                  <p className="font-opensans text-xs text-black animate-pulse">
+                    {" "}
+                    Just a moment...
+                  </p>
                 ) : (
                   `₦${previewedOrder.total.toLocaleString()}`
                 )}
@@ -2365,7 +2226,7 @@ const Checkout = () => {
         dispatch={dispatch}
         navigate={navigate}
       />
-      <MapModal
+      {/* <MapModal
         isOpen={showMapModal}
         onClose={() => setShowMapModal(false)}
         origin={{
@@ -2376,7 +2237,7 @@ const Checkout = () => {
           lat: vendorsInfo[vendorId]?.pickupLat,
           lng: vendorsInfo[vendorId]?.pickupLng,
         }}
-      />
+      /> */}
 
       <ShopSafelyModal
         isOpen={showShopSafelyModal}
@@ -2398,7 +2259,7 @@ const Checkout = () => {
         isOpen={showBookingFeeModal}
         onClose={() => setShowBookingFeeModal(false)}
       />
-      {/* ─── big primary action button ─── */}
+
       <div className=" px-4 mt-6 pb-6 ">
         <button
           onClick={() => {

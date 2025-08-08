@@ -8,7 +8,12 @@ import toast from "react-hot-toast";
 const ProtectedRoute = ({ requiredRole }) => {
   const { currentUser, currentUserData, loading } = useAuth();
   const location = useLocation();
-
+  const blocked = localStorage.getItem("BLOCKED_VENDOR_EMAIL") === "1";
+  if (blocked) {
+    localStorage.removeItem("BLOCKED_VENDOR_EMAIL");
+    const to = requiredRole === "vendor" ? "/vendorlogin" : "/login";
+    return <Navigate to={to} replace state={{ from: location }} />;
+  }
   // Show skeleton placeholders while loading or while user data hasn't been fully fetched yet
   if (loading || (currentUser && !currentUserData)) {
     return (
@@ -110,12 +115,12 @@ const ProtectedRoute = ({ requiredRole }) => {
   const excludePaddingRoutes = [
     "/user-dashboard",
     "/latest-cart",
-   
+
     "/online-vendors",
     "/market-vendors",
     "/share-profile",
   ];
-  const dynamicRoutes = ["/reviews/",  "/newcheckout/:id"]; // Add dynamic base routes here
+  const dynamicRoutes = ["/reviews/", "/newcheckout/:id"]; // Add dynamic base routes here
 
   // Check if the current route matches any of the static or dynamic routes
   const shouldExcludePadding =

@@ -7,7 +7,7 @@ import { AiOutlineUserSwitch } from "react-icons/ai";
 import { useNavigate, useLocation } from "react-router-dom";
 import { doc, getDoc, onSnapshot, updateDoc, setDoc } from "firebase/firestore";
 import { useAuth } from "../custom-hooks/useAuth";
-import posthog from 'posthog-js';
+import posthog from "posthog-js";
 import { FaHeart } from "react-icons/fa";
 import { RotatingLines } from "react-loader-spinner";
 import { FcOnlineSupport } from "react-icons/fc";
@@ -22,7 +22,7 @@ import {
 import { CiMoneyBill } from "react-icons/ci";
 import { LuLogIn } from "react-icons/lu";
 import { AiOutlineDashboard, AiOutlineExperiment } from "react-icons/ai";
-
+import { mergeCarts } from "../services/cartMerge";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { BsBoxSeam, BsShieldFillCheck } from "react-icons/bs";
@@ -37,6 +37,7 @@ import SEO from "../components/Helmet/SEO";
 import { useTawk } from "../components/Context/TawkProvider";
 import { exitStockpileMode } from "../redux/reducers/stockpileSlice";
 import { TfiWallet } from "react-icons/tfi";
+import QuickAuthModal from "../components/PwaModals/AuthModal";
 const Profile = () => {
   const navigate = useNavigate();
 
@@ -46,6 +47,7 @@ const Profile = () => {
   const userData = useSelector((state) => state.user.userData);
   const [showHighlight, setShowHighlight] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [showQuickAuth, setShowQuickAuth] = useState(false);
 
   const cart = useSelector((state) => state.cart);
   const [isIncomplete, setIsIncomplete] = useState(false);
@@ -184,6 +186,13 @@ const Profile = () => {
       setIsLoggingOut(false);
       console.log("Logout sequence complete");
     }
+  };
+  const openDisclaimer = (path) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const abs = `${window.location.origin}${path}`;
+    setDisclaimerUrl(abs);
+    setShowDisclaimerModal(true);
   };
   const handleWalletClick = () => {
     if (!profileComplete) {
@@ -510,18 +519,33 @@ const Profile = () => {
                 </div>
               )}
               {!currentUser && (
-                <div
-                  className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
-                  onClick={() => navigate("/login")}
-                >
-                  <div className="flex items-center justify-between w-full px-4 py-3">
-                    <LuLogIn className="text-green-600 text-xl mr-4" />
-                    <p className="text-size text-black text-sm  font-opensans w-full font-normal">
-                      Login
-                    </p>
+                <>
+                  <div
+                    className="flex flex-col items-center w-full cursor-pointer rounded-xl bg-customGrey mb-3 px-2"
+                    onClick={() => setShowQuickAuth(true)}
+                  >
+                    <div className="flex items-center justify-between w-full px-4 py-3">
+                      <LuLogIn className="text-green-600 text-xl mr-4" />
+                      <p className="text-black text-base font-opensans font-normal w-full">
+                        Login
+                      </p>
+                    </div>
                   </div>
-                </div>
+
+                  <QuickAuthModal
+                    open={showQuickAuth}
+                    onClose={() => setShowQuickAuth(false)}
+                    onComplete={(user) => {
+                      setShowQuickAuth(false);
+                      // optional: refetch user/cart here
+                    }}
+                    mergeCart={mergeCarts}
+                    openDisclaimer={openDisclaimer}
+                    
+                  />
+                </>
               )}
+
               {!currentUser && (
                 <div
                   className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"

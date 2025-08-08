@@ -3,22 +3,31 @@ import StoreCelebration from "./StoreCelebration";
 
 const WithStoreCelebrationModal = ({ children }) => {
   const [showModal, setShowModal] = useState(true);
+  sessionStorage.setItem("celebration", "true");
 
   useEffect(() => {
-    const hasBeenShown = localStorage.getItem('celebrated')
+    const hasBeenShown = localStorage.getItem("celebrated");
 
-    if (hasBeenShown === 'true') {
-        setShowModal(false)
+    if (hasBeenShown === "true") {
+      setShowModal(false);
+
+      sessionStorage.removeItem("celebration");
     }
-  }, [])
-  
+  }, []);
+
   console.log("Store Celebration rendered");
 
   return (
     <>
       {children}
-      {showModal && (<StoreCelebration onClose={
-        () => setShowModal(false)} />)}
+      {showModal && (
+        <StoreCelebration
+          onClose={() => {
+            setShowModal(false);
+            sessionStorage.removeItem("celebration");
+          }}
+        />
+      )}
     </>
   );
 };

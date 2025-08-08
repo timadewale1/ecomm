@@ -5,12 +5,18 @@ import { useNavigate } from "react-router-dom";
 
 const CommunityInviteModal = ({ onClose }) => {
   const [isVisible, setIsVisible] = useState(false); // Modal initially hidden
-//   const navigate = useNavigate();
+  //   const navigate = useNavigate();
+
+  const celebrationInProgress =
+    sessionStorage.getItem("celebration") === "true";
 
   const isCelebrated = localStorage.getItem("celebrated");
   const isOnWhatsapp = localStorage.getItem("whatsappJoined");
   const isOnTwitter = localStorage.getItem("twitterJoined");
 
+  if (!isCelebrated) {
+    localStorage.setItem("celebrated", "true");
+  }
   /* 
   Show modal if (
     wallet modal has been shown,
@@ -24,17 +30,18 @@ const CommunityInviteModal = ({ onClose }) => {
     const now = Date.now();
     const timeElapsed = now - Number(lastShowTime);
     const shouldShowModal =
-        ( isCelebrated === true) &&
+      isCelebrated === "true" &&
+      !celebrationInProgress &&
       (!lastShowTime || timeElapsed > oneDay) &&
       (!isOnWhatsapp || !isOnTwitter);
 
-    if (shouldShowModal) { 
+    if (shouldShowModal) {
       setTimeout(() => {
         setIsVisible(true);
         console.log("✅ Showing community invite modal");
       }, 1000);
     }
-  }, [isCelebrated, isOnTwitter, isOnWhatsapp]);
+  }, [isCelebrated, isOnTwitter, isOnWhatsapp, celebrationInProgress]);
 
   const whatsappClicked = () => {
     // navigate()
@@ -78,32 +85,32 @@ const CommunityInviteModal = ({ onClose }) => {
                 isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
               }`}
             >
-              <div className="bg-white rounded-2xl p-2 w-[90%] max-w-md mx-auto shadow-2xl">
+              <div className="bg-white rounded-2xl p-3 w-[90%] max-w-md mx-auto shadow-2xl">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xl">Join Our Community!</div>
                   <FaX className="text-md text-black" onClick={handleClose} />
                 </div>
                 <div className="m-1 text-sm mb-6">
                   Our vendor community exists to bring you helpful tips and
-                  updates on My Thrift for vendors. <br /> We also help you
-                  raise engagement on your content to attract more customers.{" "}
-                  <br /> Join our communities today
+                  updates on My Thrift for vendors. We also help you raise
+                  engagement on your content to attract more customers. <br />{" "}
+                  Join our communities today!
                 </div>
                 <div className="w-full">
-                    <button
-                      className="items-center w-full rounded-full border border-customOrange p-2 mb-2 text-sm"
-                      onClick={whatsappClicked}
-                    >
-                      Join us on Whatsapp{" "}
-                      <FaWhatsapp className="inline-flex w-5 h-5" />
-                    </button>
-                    <button
-                      className="items-center w-full rounded-full border border-customOrange p-2 mb-2 text-sm"
-                      onClick={twitterClicked}
-                    >
-                      Join us on Twitter{" "}
-                      <FaXTwitter className="inline-flex w-5 h-5" />
-                    </button>
+                  <button
+                    className="items-center w-full rounded-full border border-customOrange p-2 mb-2 text-sm"
+                    onClick={whatsappClicked}
+                  >
+                    Join us on Whatsapp{" "}
+                    <FaWhatsapp className="inline-flex w-5 h-5" />
+                  </button>
+                  <button
+                    className="items-center w-full rounded-full border border-customOrange p-2 mb-2 text-sm"
+                    onClick={twitterClicked}
+                  >
+                    Join us on Twitter{" "}
+                    <FaXTwitter className="inline-flex w-5 h-5" />
+                  </button>
                 </div>
               </div>
             </motion.div>

@@ -3,7 +3,7 @@ import CommunityInviteModal from "./CommunityInviteModal";
 
 const WithCommunityModal = ({ children }) => {
   const [showModal, setShowModal] = useState(true);
-  console.log("WithPwaInstallModal rendered");
+  console.log("Community Modal rendered");
 
   return (
     <>

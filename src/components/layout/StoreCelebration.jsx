@@ -13,6 +13,7 @@ const StoreCelebration = ({ onClose }) => {
     if (completed === "true" && vendorData.isApproved) {
       setShowCelebration(true);
       localStorage.removeItem("walletSetUp");
+      localStorage.setItem("celebrated", "true");
     }
   }, [completed]);
 

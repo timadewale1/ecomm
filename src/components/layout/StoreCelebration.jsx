@@ -5,7 +5,6 @@ import { VendorContext } from "../Context/Vendorcontext";
 
 const StoreCelebration = ({ onClose }) => {
   const [showCelebration, setShowCelebration] = useState(false);
-  sessionStorage.setItem("walletSetUp", "true");
   
     const { vendorData } = useContext(VendorContext);
 
@@ -13,7 +12,7 @@ const StoreCelebration = ({ onClose }) => {
   useEffect(() => {
     if (completed === "true" && vendorData.isApproved) {
       setShowCelebration(true);
-      sessionStorage.removeItem("walletSetUp");
+      localStorage.removeItem("walletSetUp");
     }
   }, [completed]);
 

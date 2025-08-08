@@ -1,6 +1,7 @@
+// middleware.js  (root level)
 import { NextResponse } from "next/server";
 
-export const config = { matcher: "/" }; // run only for root path
+export const config = { matcher: "/" }; // root requests only
 
 export function middleware(req) {
   const host = (req.headers.get("host") || "").replace(/:\d+$/, "");
@@ -13,7 +14,7 @@ export function middleware(req) {
 
   const slug = host.replace(`.${apex}`, "");
 
-  // rewrite root → /store/<slug>
+  // ── rewrite, no redirect ──
   const url = req.nextUrl.clone();
   url.pathname = `/store/${slug}`;
   return NextResponse.rewrite(url);

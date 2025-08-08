@@ -1,4 +1,3 @@
-// ─── imports ──────────────────────────────────────────────────────────────────
 import Head from "next/head";
 import dynamic from "next/dynamic";
 import { initAdmin } from "lib/firebaseAdmin.js";
@@ -11,7 +10,6 @@ const StorePage = dynamic(() => import("../../app/store/StorePage"), {
   ssr: false,
 });
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
 function toJSON(value) {
   if (value == null) return value;
   if (value instanceof Timestamp) return value.toDate().toISOString();
@@ -24,33 +22,22 @@ function toJSON(value) {
   return value;
 }
 
-async function getVendorByIdOrSlug(db, idOrSlug) {
-  // 1. try doc ID
-  const byId = await db.collection("vendors").doc(idOrSlug).get();
-  if (byId.exists) return { id: byId.id, ...byId.data() };
+export async function getServerSideProps({ req, params }) {
+  const slug = (params.id || "").toLowerCase(); // params.id is the slug from the subdomain
+  const db = initAdmin();
 
-  // 2. fall back to slug field
+  // Query Firestore for the vendor by slug
   const q = await db
     .collection("vendors")
-    .where("slug", "==", (idOrSlug || "").toLowerCase())
+    .where("slug", "==", slug)
     .limit(1)
     .get();
-  if (!q.empty) {
-    const doc = q.docs[0];
-    return { id: doc.id, ...doc.data() };
+  if (q.empty) {
+    console.error("Vendor not found for slug:", slug);
+    return { notFound: true };
   }
-  return null;
-}
-
-// ─── page data ────────────────────────────────────────────────────────────────
-export async function getServerSideProps({ req, params }) {
-  // ▸ params.id is always the vendor slug or ID (middleware / redirect handles host)
-  const candidate = (params.id || "").toLowerCase();
-
-  const db = initAdmin();
-  const vendorRaw = await getVendorByIdOrSlug(db, candidate);
-  if (!vendorRaw) return { notFound: true };
-  const vendor = toJSON(vendorRaw);
+  const snap = q.docs[0];
+  const vendor = toJSON({ id: snap.id, ...snap.data() });
 
   const ua = req.headers["user-agent"] || "";
   const isBot =
@@ -59,7 +46,7 @@ export async function getServerSideProps({ req, params }) {
     );
   const isSnapchatApp = /Snapchat(?!ExternalHit)/i.test(ua);
 
-  // Humans & Snapchat app → SPA
+  // Humans (and Snapchat app) redirect to canonical URL with document ID
   if (!isBot || isSnapchatApp) {
     return {
       redirect: {
@@ -69,16 +56,16 @@ export async function getServerSideProps({ req, params }) {
     };
   }
 
-  // Link-preview bots → SSR with OG tags
+  // Crawlers get SSR with OG tags
   return { props: { vendor } };
 }
 
-// ─── React component ──────────────────────────────────────────────────────────
 export default function StoreSSR({ vendor }) {
   const title = vendor.shopName;
   const description =
     vendor.description || "Check out this vendor on My Thrift!";
-  const url = `https://shopmythrift.store/store/${vendor.id}`;
+  // Use the subdomain URL for OG tags since crawlers visit vendorname.shopmythrift.store
+  const url = `https://${vendor.slug}.shopmythrift.store/`;
   const image = getOgImageUrl(vendor.coverImageUrl);
 
   return (
@@ -87,20 +74,28 @@ export default function StoreSSR({ vendor }) {
         <title>{title}</title>
 
         {/* Open Graph */}
-        <meta property="og:type" content="website" />
-        <meta property="og:title" content={title} />
-        <meta property="og:description" content={description} />
-        <meta property="og:url" content={url} />
-        <meta property="og:image" content={image} />
-        <meta property="og:image:secure_url" content={image} />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
+        <meta property="og:type" content="website" key="og:type" />
+        <meta property="og:title" content={title} key="og:title" />
+        <meta
+          property="og:description"
+          content={description}
+          key="og:description"
+        />
+        <meta property="og:url" content={url} key="og:url" />
+        <meta property="og:image" content={image} key="og:image" />
+        <meta
+          property="og:image:secure_url"
+          content={image}
+          key="og:image:secure"
+        />
+        <meta property="og:image:width" content="1200" key="og:image:width" />
+        <meta property="og:image:height" content="630" key="og:image:height" />
 
         {/* Twitter */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={title} />
-        <meta name="twitter:description" content={description} />
-        <meta name="twitter:image" content={image} />
+        <meta name="twitter:card" content="summary_large_image" key="tw:card" />
+        <meta name="twitter:title" content={title} key="tw:title" />
+        <meta name="twitter:description" content={description} key="tw:desc" />
+        <meta name="twitter:image" content={image} key="tw:image" />
       </Head>
 
       <FavoritesProvider>

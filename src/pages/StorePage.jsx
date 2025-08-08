@@ -1295,7 +1295,7 @@ const StorePage = () => {
         onClose={closePickupIntro}
         currentUserCoords={userCoords}
       />
-
+ 
       {quickForThisVendor && (
         <StoreBasket
           vendorId={id}

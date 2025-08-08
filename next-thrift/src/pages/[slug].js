@@ -1,15 +1,13 @@
 // pages/[slug].js
 import Head from "next/head";
 
-/* ───────── helpers ───────── */
+/* ───────── Helpers ───────── */
 
 const isBotUA = (ua = "") =>
   /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp|SnapchatExternalHit)/i.test(
     ua
   );
 
-/**  Recursive JSON-safe serializer that only needs Timestamp
- *    when we’re on the server. */
 const toJSON = (v, Timestamp) => {
   if (v == null) return v;
   if (Timestamp && v instanceof Timestamp) return v.toDate().toISOString();
@@ -21,17 +19,22 @@ const toJSON = (v, Timestamp) => {
   return v;
 };
 
-/* ─────────  SSR  ───────── */
+/* ───────── SSR ───────── */
 
 export async function getServerSideProps({ req, params }) {
   const slug = String(params?.slug || "").toLowerCase();
-  if (!slug) return { notFound: true };
+  console.log("Requested slug:", slug); // Debug: Log the slug
 
-  /*  Node-only deps — imported **inside** the server function  */
+  if (!slug) {
+    console.log("No slug provided");
+    return { notFound: true };
+  }
+
+  /* Node-only imports */
   const { initAdmin } = await import("lib/firebaseAdmin");
   const { Timestamp } = await import("firebase-admin/firestore");
 
-  /* 1️⃣  Firestore lookup by slug */
+  /* Firestore lookup */
   const db = initAdmin();
   const snapQ = await db
     .collection("vendors")
@@ -39,33 +42,42 @@ export async function getServerSideProps({ req, params }) {
     .limit(1)
     .get();
 
-  if (snapQ.empty) return { notFound: true };
+  if (snapQ.empty) {
+    console.log("No vendor found for slug:", slug); // Debug: Log if no match
+    return { notFound: true };
+  }
 
   const vendor = toJSON(
     { id: snapQ.docs[0].id, ...snapQ.docs[0].data() },
     Timestamp
   );
+  console.log("Vendor data:", vendor); // Debug: Log the vendor
 
-  /* 2️⃣  Decide: redirect vs render OG */
+  /* Redirect for humans, OG for crawlers */
   const ua = req.headers["user-agent"] || "";
   const crawler = isBotUA(ua);
-  const snapchatApp = /Snapchat(?!ExternalHit)/i.test(ua);
+  console.log("User agent:", ua, "Is crawler:", crawler); // Debug: Log UA decision
 
-  if (!crawler || snapchatApp) {
+  if (!crawler) {
+    console.log(
+      "Redirecting to:",
+      `https://shopmythrift.store/store/${vendor.id}?shared=true`
+    );
     return {
       redirect: {
-        destination: `https://shopmythrift.store/store/${vendor.id}`,
-        permanent: false, // switch to true (301/308) later
+        destination: `https://shopmythrift.store/store/${vendor.id}?shared=true`,
+        permanent: true,
       },
     };
   }
 
-  /* 3️⃣  Crawlers → give OG props */
+  /* Serve OG props for crawlers */
+  console.log("Serving OG tags for crawler");
   return { props: { vendor } };
 }
 
-/* ─────────  Page Component  ─────────
-   Humans never see this (they’re redirected); crawlers get OG tags. */
+/* ───────── Page Component ───────── */
+
 export default function VendorOG({ vendor }) {
   if (!vendor) return null;
 
@@ -78,8 +90,6 @@ export default function VendorOG({ vendor }) {
     <>
       <Head>
         <title>{vendor.shopName}</title>
-
-        {/* ——— Open Graph ——— */}
         <meta property="og:type" content="website" />
         <meta property="og:title" content={vendor.shopName} />
         <meta
@@ -90,8 +100,6 @@ export default function VendorOG({ vendor }) {
         <meta property="og:image" content={ogImage} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-
-        {/* ——— Twitter ——— */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={vendor.shopName} />
         <meta
@@ -99,12 +107,8 @@ export default function VendorOG({ vendor }) {
           content={vendor.description ?? "Check out this vendor on My Thrift!"}
         />
         <meta name="twitter:image" content={ogImage} />
-
-        {/* canonical for SEO */}
         <link rel="canonical" href={ogUrl} />
       </Head>
-
-      {/* Tiny body so bots get valid HTML; never shown to humans */}
       <main style={{ padding: "2rem", textAlign: "center" }}>
         <h1>{vendor.shopName}</h1>
         <p>{vendor.description || "Redirecting…"}</p>

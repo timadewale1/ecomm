@@ -255,11 +255,10 @@ const VendorDashboard = () => {
     return () => unsubscribe();
   };
 
-  const textToCopy = vendorData?.vendorId
-    ? `https://mx.shopmythrift.store/${
-        vendorData?.marketPlaceType === "virtual" ? "store" : "marketstorepage"
-      }/${vendorData.vendorId}?shared=true`
+  const textToCopy = vendorData?.slug
+    ? `https://mx.shopmythrift.store/${vendorData.slug}`
     : "";
+
   const [copied, setCopied] = useState(false);
   const copyToClipboard = async () => {
     if (!copied) {
@@ -390,7 +389,7 @@ const VendorDashboard = () => {
       if (observer.current) observer.current.disconnect();
 
       observer.current = new IntersectionObserver((entries) => {
-       if (entries[0].isIntersecting && hasMore && vendorData?.vendorId) {
+        if (entries[0].isIntersecting && hasMore && vendorData?.vendorId) {
           dispatch(
             fetchRecentActivities({
               vendorId: vendorData.vendorId,
@@ -403,7 +402,7 @@ const VendorDashboard = () => {
 
       if (node) observer.current.observe(node);
     },
-     [activitiesLoading, hasMore, vendorData?.vendorId, lastDoc, dispatch]
+    [activitiesLoading, hasMore, vendorData?.vendorId, lastDoc, dispatch]
   );
 
   const openModal = () => setModalOpen(true);
@@ -568,7 +567,7 @@ const VendorDashboard = () => {
                   {textToCopy}
                 </p>
                 <button
-                  className="text-white opacity-50 cursor-not-allowed"
+                  className="text-white opacity-50 cursor-pointer"
                   onClick={copyToClipboard}
                 >
                   {!copied ? (

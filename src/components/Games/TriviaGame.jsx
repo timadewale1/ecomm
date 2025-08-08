@@ -9,6 +9,15 @@ import { Check } from "lucide-react";
 import { generateCartHash } from "../../services/cartHash";
 import { FaGift } from "react-icons/fa";
 import Gift from "../Loading/Gift";
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  limit,
+  getDocs,
+} from "firebase/firestore";
+import { db } from "../../firebase.config";
 import { useSelector } from "react-redux";
 import { calculateCartTotalForVendor } from "../../services/carthelper";
 const TriviaGame = ({ onReward }) => {
@@ -30,11 +39,53 @@ const TriviaGame = ({ onReward }) => {
   const [isGameActive, setIsGameActive] = useState(false);
   const [reward, setReward] = useState(null);
   const cart = useSelector((state) => state.cart);
+  const fetchActiveReward = async (cartHash) => {
+    const now = new Date();
+    const q = query(
+      collection(db, "triviaRewards"),
+      where("userId", "==", currentUser.uid),
+      where("vendorId", "==", vendorId),
+      where("cartHash", "==", cartHash),
+      where("used", "==", false),
+      where("expiresAt", ">", now),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const r = snap.docs[0].data();
+      setReward({
+        type: r.rewardType,
+        discountPercent: r.discountPercent,
+        expiresAt: r.expiresAt.toDate().toISOString(),
+      });
+    } else {
+      setReward(null); // nothing active
+    }
+  };
   // load disclaimer flag from localStorage
   useEffect(() => {
     const shown = localStorage.getItem("triviaDisclaimerShown") === "true";
     setDisclaimerShown(shown);
   }, []);
+  // rebuild cartItems → cartHash any time cart or vendor changes
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const vendorCart = cart[vendorId]?.products || {};
+    const cartItems = Object.values(vendorCart).map((p) => {
+      const item = { productId: p.id, quantity: p.quantity };
+      if (p.subProductId) item.subProductId = p.subProductId;
+      else if (p.selectedColor && p.selectedSize) {
+        item.variantAttributes = {
+          color: p.selectedColor,
+          size: p.selectedSize,
+        };
+      }
+      return item;
+    });
+    const _hash = generateCartHash(cartItems);
+    fetchActiveReward(_hash); // 🔑 show it if it exists
+  }, [cart, vendorId, currentUser]);
 
   // question timer
   useEffect(() => {

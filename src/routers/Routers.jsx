@@ -5,6 +5,8 @@ import StockpileNudge from "../components/StockpileNudge.jsx";
 // Non-lazy loaded components (bottom bar routes, Checkout, StorePage)
 import Checkout from "../pages/NewCheckout.jsx";
 import StorePage from "../pages/StorePage.jsx";
+import WithCommunityModal from "../components/layout/WithCommunityinviteModal.jsx";
+import WithStoreCelebrationModal from "../components/layout/WithStoreCelebrationModal.jsx";
 
 // Lazy load all other components
 const ProductDetailPage = lazy(() =>
@@ -333,53 +335,58 @@ const Routers = () => {
 
         {/* Vendor Protected Routes */}
         <Route element={<ProtectedRoute requiredRole="vendor" />}>
-          <Route
-            path="/vendordashboard"
-            element={
-              <WithWalletSetupModal>
-                <WithPwaInstallModal />
-                <VendorDashboard />
-              </WithWalletSetupModal>
-            }
-          />
-          <Route path="/vendor-profile" element={<VendorProfile />} />
-          <Route
-            path="/vendor-products"
-            element={
-              <WithWalletSetupModal>
-                <WithPickupPrompt>
+            <Route
+              path="/vendordashboard"
+              element={
+                <WithStoreCelebrationModal><WithWalletSetupModal>
+                  <WithCommunityModal />
                   <WithPwaInstallModal />
-                  <VendorProducts />
-                </WithPickupPrompt>
-              </WithWalletSetupModal>
-            }
-          />
-          <Route path="/vendor-wallet" element={<WalletPage />} />
+                  <VendorDashboard />
+                </WithWalletSetupModal></WithStoreCelebrationModal>
+                
+              }
+            />
+            <Route path="/vendor-profile" element={<WithStoreCelebrationModal><VendorProfile /></WithStoreCelebrationModal>} />
+            <Route
+              path="/vendor-products"
+              element={
+                <WithStoreCelebrationModal><WithWalletSetupModal>
+                  <WithPickupPrompt>
+                    <WithPwaInstallModal />
+                    <VendorProducts />
+                  </WithPickupPrompt>
+                </WithWalletSetupModal></WithStoreCelebrationModal>
+                
+              }
+            />
           <Route
             path="/vendor-orders"
             element={
-              <WithWalletSetupModal>
+              <WithStoreCelebrationModal><WithWalletSetupModal>
                 <WithPickupPrompt>
                   <VendorOrders />
                 </WithPickupPrompt>
-              </WithWalletSetupModal>
+              </WithWalletSetupModal></WithStoreCelebrationModal>
+              
             }
           />
+            <Route
+              path="/vchats"
+              element={
+                <WithStoreCelebrationModal><WithWalletSetupModal>
+                  <VendorChatList />
+                </WithWalletSetupModal></WithStoreCelebrationModal>
+                
+              }
+            />
+            <Route path="/vchats/:inquiryId" element={<VendorChat />} />
+          <Route path="/vendor-wallet" element={<WalletPage />} />
           <Route
             path="/store-reviews"
             element={
               /*<WithWhatsAppModal>*/ <StoreReviews /> /*</WithWhatsAppModal>*/
             }
           />
-          <Route
-            path="/vchats"
-            element={
-              <WithWalletSetupModal>
-                <VendorChatList />
-              </WithWalletSetupModal>
-            }
-          />
-          <Route path="/vchats/:inquiryId" element={<VendorChat />} />
           <Route path="/call-guidelines" element={<CallGuide />} />
           <Route path="/delivery-guidelines" element={<DeliveryGuide />} />
           {/* Add any other vendor-specific protected routes here */}

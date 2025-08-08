@@ -235,6 +235,7 @@ export default function WalletPage() {
       });
 
       setShowPinModal(false);
+      localStorage.setItem('walletSetUp', 'true')
       toast.success("Wallet created");
     } catch (e) {
       console.error("❌ createWallet error:", e);

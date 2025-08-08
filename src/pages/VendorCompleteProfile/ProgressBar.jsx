@@ -1,7 +1,7 @@
 import React from 'react';
 
 const ProgressBar = ({ step }) => {
-  const totalSteps = 4;
+  const totalSteps = 5;
 
   return (
     <div className="flex flex-col items-start space-y-4  w-full">

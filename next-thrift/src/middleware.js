@@ -1,27 +1,30 @@
-// src/middleware.js
 import { NextResponse } from "next/server";
 
-export function middleware(req) {
-  const url = req.nextUrl.clone();
-  const host = req.headers.get("host") || "";
+export const config = { matcher: ["/"] };
+
+export default function middleware(req) {
+  const host = (req.headers.get("host") || "").replace(/:\d+$/, "");
   const apex = process.env.NEXT_PUBLIC_APEX_DOMAIN || "shopmythrift.store";
 
-  // strip :3000 in dev
-  const cleanHost = host.replace(/:\d+$/, "");
+  const isVendor =
+    host.endsWith(`.${apex}`) && host !== apex && !host.startsWith("www.");
 
-  // if subdomain like grace-enterprises.shopmythrift.store
-  if (
-    cleanHost.endsWith(apex) &&
-    cleanHost !== apex &&
-    !cleanHost.startsWith("www.")
-  ) {
-    const slug = cleanHost.slice(0, -(apex.length + 1)); // remove ".apex"
-    // only rewrite root to the store page; leave assets/API alone
-    if (url.pathname === "/" || url.pathname === "") {
-      url.pathname = `/store/${slug}`;
-      return NextResponse.rewrite(url);
-    }
+  if (!isVendor) return NextResponse.next();
+
+  const slug = host.replace(`.${apex}`, "");
+  const ua = req.headers.get("user-agent") || "";
+  const isBot =
+    /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp|SnapchatExternalHit)/i.test(
+      ua
+    );
+
+  if (isBot) {
+    // Link-preview crawlers: rewrite internally so they reach /store/[id]
+    const url = req.nextUrl.clone();
+    url.pathname = `/store/${slug}`;
+    return NextResponse.rewrite(url);
   }
 
-  return NextResponse.next();
+  // Browsers: 308 redirect to canonical URL on the apex
+  return NextResponse.redirect(`https://${apex}/store/${slug}`, 308);
 }

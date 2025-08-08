@@ -1,4 +1,4 @@
-// src/pages/store/[id].js
+// ─── imports ──────────────────────────────────────────────────────────────────
 import Head from "next/head";
 import dynamic from "next/dynamic";
 import { initAdmin } from "lib/firebaseAdmin.js";
@@ -11,6 +11,7 @@ const StorePage = dynamic(() => import("../../app/store/StorePage"), {
   ssr: false,
 });
 
+// ─── helpers ──────────────────────────────────────────────────────────────────
 function toJSON(value) {
   if (value == null) return value;
   if (value instanceof Timestamp) return value.toDate().toISOString();
@@ -24,17 +25,16 @@ function toJSON(value) {
 }
 
 async function getVendorByIdOrSlug(db, idOrSlug) {
-  // 1) try as Firestore id
+  // 1. try doc ID
   const byId = await db.collection("vendors").doc(idOrSlug).get();
   if (byId.exists) return { id: byId.id, ...byId.data() };
 
-  // 2) fall back to slug query
+  // 2. fall back to slug field
   const q = await db
     .collection("vendors")
     .where("slug", "==", (idOrSlug || "").toLowerCase())
     .limit(1)
     .get();
-
   if (!q.empty) {
     const doc = q.docs[0];
     return { id: doc.id, ...doc.data() };
@@ -42,28 +42,24 @@ async function getVendorByIdOrSlug(db, idOrSlug) {
   return null;
 }
 
+// ─── page data ────────────────────────────────────────────────────────────────
 export async function getServerSideProps({ req, params }) {
-  const ua = req.headers["user-agent"] || "";
-  const host = (req.headers.host || "").replace(/:\d+$/, "");
-  const apex = process.env.NEXT_PUBLIC_APEX_DOMAIN || "shopmythrift.store";
-
-  // True link preview crawlers:
-  const isBot =
-    /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp|SnapchatExternalHit)/i.test(
-      ua
-    );
-  // Snapchat **app** (not the crawler)
-  const isSnapchatApp = /Snapchat(?!ExternalHit)/i.test(ua);
-
-  // params.id can be an id OR a slug (from subdomain rewrite)
-  const candidate = (params?.id || "").toLowerCase();
+  // ▸ params.id is always the vendor slug or ID (middleware / redirect handles host)
+  const candidate = (params.id || "").toLowerCase();
 
   const db = initAdmin();
   const vendorRaw = await getVendorByIdOrSlug(db, candidate);
   if (!vendorRaw) return { notFound: true };
   const vendor = toJSON(vendorRaw);
 
-  // Humans / Snapchat app → keep your SPA redirect to ID route
+  const ua = req.headers["user-agent"] || "";
+  const isBot =
+    /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp|SnapchatExternalHit)/i.test(
+      ua
+    );
+  const isSnapchatApp = /Snapchat(?!ExternalHit)/i.test(ua);
+
+  // Humans & Snapchat app → SPA
   if (!isBot || isSnapchatApp) {
     return {
       redirect: {
@@ -73,32 +69,17 @@ export async function getServerSideProps({ req, params }) {
     };
   }
 
-  // Bots → SSR OG tags with pretty URL
-  const isSubdomainReq =
-    host.endsWith(apex) && host !== apex && !host.startsWith("www.");
-
-  const prettyUrl = isSubdomainReq
-    ? `https://${host}` // e.g. grace-enterprises.shopmythrift.store
-    : `https://${apex}/store/${vendor.slug || vendor.id}`;
-
-  const ogImage = getOgImageUrl(vendor.coverImageUrl);
-
-  return {
-    props: {
-      vendor: {
-        ...vendor,
-        __og: { prettyUrl, ogImage },
-      },
-    },
-  };
+  // Link-preview bots → SSR with OG tags
+  return { props: { vendor } };
 }
 
+// ─── React component ──────────────────────────────────────────────────────────
 export default function StoreSSR({ vendor }) {
   const title = vendor.shopName;
   const description =
     vendor.description || "Check out this vendor on My Thrift!";
-  const url = vendor.__og.prettyUrl;
-  const image = vendor.__og.ogImage;
+  const url = `https://shopmythrift.store/store/${vendor.id}`;
+  const image = getOgImageUrl(vendor.coverImageUrl);
 
   return (
     <>
@@ -120,9 +101,6 @@ export default function StoreSSR({ vendor }) {
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
         <meta name="twitter:image" content={image} />
-
-        {/* Canonical */}
-        <link rel="canonical" href={url} />
       </Head>
 
       <FavoritesProvider>

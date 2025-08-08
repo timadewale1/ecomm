@@ -93,13 +93,20 @@ import {
   IoSyncOutline,
 } from "react-icons/io5";
 import { TfiBolt } from "react-icons/tfi";
-import { PiCrown } from "react-icons/pi";
+import { PiCrown, PiShoppingCartBold } from "react-icons/pi";
 import { GrShare } from "react-icons/gr";
 import { RiHeart3Fill, RiHeart3Line, RiSearchLine } from "react-icons/ri";
 import PickupInfoModal from "../components/Location/PickupModal";
 import StockpileInfoModal from "../components/StockpileModal";
 import IframeModal from "../components/PwaModals/PushNotifsModal";
 import VendorPolicyModal from "./Legal/VendorPolicyModal";
+import StoreBasket from "../components/QuickMode/StoreBasket";
+import {
+  activateQuickMode,
+  deactivateQuickMode,
+} from "../redux/reducers/quickModeSlice";
+import QuickAuthModal from "../components/PwaModals/AuthModal";
+import Badge from "../components/Badge/Badge";
 Modal.setAppElement("#root"); // For accessibility
 
 const FlipCountdown = ({ endTime }) => {
@@ -141,7 +148,7 @@ const FlipCountdown = ({ endTime }) => {
     </div>
   );
 };
-function VendorDetails({ vendor }) {
+function VendorDetails({ vendor, vendorId }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true });
   const [isOpen, setIsOpen] = useState(false);
@@ -149,27 +156,23 @@ function VendorDetails({ vendor }) {
   const [hasInteracted, setHasInteracted] = useState(false);
   const [timeoutId, setTimeoutId] = useState(null);
 
-  // Auto-open when it first comes into view, only if not interacted
   useEffect(() => {
     if (!inView || autoDone || hasInteracted) return;
+    const seenKey = `vd_seen_${vendorId}`;
+    if (sessionStorage.getItem(seenKey)) return;
 
     setIsOpen(true);
     setAutoDone(true);
-    const id = setTimeout(() => {
-      setIsOpen(false);
-    }, 4000);
+    sessionStorage.setItem(seenKey, "1");
+
+    const id = setTimeout(() => setIsOpen(false), 4000);
     setTimeoutId(id);
 
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [inView, autoDone, hasInteracted, timeoutId]);
+    return () => clearTimeout(id);
+  }, [inView, autoDone, hasInteracted, vendorId]);
 
-  // Cleanup timeout on unmount or state change
   useEffect(() => {
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
+    return () => timeoutId && clearTimeout(timeoutId);
   }, [timeoutId]);
 
   const toggle = () => {
@@ -290,6 +293,7 @@ function VendorDetails({ vendor }) {
 }
 function AdditionalDetails({
   vendor,
+  vendorId,
   onPlatformPolicyClick,
   onVendorPolicyClick,
   badgeMessages,
@@ -302,27 +306,23 @@ function AdditionalDetails({
   const [hasInteracted, setHasInteracted] = useState(false);
   const [timeoutId, setTimeoutId] = useState(null);
 
-  // Auto-open when it first comes into view, only if not interacted
   useEffect(() => {
     if (!inView || autoDone || hasInteracted) return;
+    const seenKey = `ad_seen_${vendorId}`;
+    if (sessionStorage.getItem(seenKey)) return;
 
     setIsOpen(true);
     setAutoDone(true);
-    const id = setTimeout(() => {
-      setIsOpen(false);
-    }, 4000);
+    sessionStorage.setItem(seenKey, "1");
+
+    const id = setTimeout(() => setIsOpen(false), 4000);
     setTimeoutId(id);
 
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [inView, autoDone, hasInteracted, timeoutId]);
+    return () => clearTimeout(id);
+  }, [inView, autoDone, hasInteracted, vendorId]);
 
-  // Cleanup timeout on unmount or state change
   useEffect(() => {
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
+    return () => timeoutId && clearTimeout(timeoutId);
   }, [timeoutId]);
 
   const toggle = () => {
@@ -427,17 +427,66 @@ function AdditionalDetails({
     </div>
   );
 }
+// Put near other utils at top of StorePage.jsx
+const isNetworkishError = (err) => {
+  if (!err) return false;
+  const code = err.code || err.name || "";
+  const msg = (err.message || "").toLowerCase();
+
+  // Firebase/Firestore common network codes
+  if (
+    code === "unavailable" ||
+    code === "network-request-failed" ||
+    code === "deadline-exceeded"
+  ) {
+    return true;
+  }
+  // Generic signals from various layers
+  if (
+    msg.includes("offline") ||
+    msg.includes("network") ||
+    msg.includes("failed to fetch")
+  ) {
+    return true;
+  }
+  return false;
+};
+
+function NetworkIssueNotice({ onRetry }) {
+  return (
+    <div className="flex flex-col px-6 justify-center items-center h-3/6 text-center">
+      <img
+        src="/network-issue.png"
+        alt="Network issue"
+        className="w-28 h-28 opacity-80 mb-3"
+        onError={(e) => {
+          e.currentTarget.style.display = "none";
+        }}
+      />
+      <h1 className="text-xl font-bold font-opensans text-gray-800">
+        Can’t reach My Thrift right now
+      </h1>
+      <p className="text-sm mt-2 text-gray-600 font-opensans">
+        It looks like you’re offline or the connection is unstable. Please check
+        your internet and try again.
+      </p>
+      <button
+        className="mt-5 py-2 px-5 rounded-full font-medium font-opensans bg-customOrange text-white"
+        onClick={onRetry}
+      >
+        Retry
+      </button>
+    </div>
+  );
+}
+
 const StorePage = () => {
   const { id } = useParams();
-  // const [vendor, setVendor] = useState(null);
-  // const [products, setProducts] = useState([]);
+
   const [favorites, setFavorites] = useState({});
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  // const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
   const { currentUser } = useAuth();
-  // const [currentUser, setCurrentUser] = useState(null);
   const dispatch = useDispatch();
   const [selectedType, setSelectedType] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
@@ -447,10 +496,8 @@ const StorePage = () => {
   const [isBannerVisible, setIsBannerVisible] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [viewOptions, setViewOptions] = useState(false);
-  // Add this line along with your other useState declarations
-  const [sortOption, setSortOption] = useState(null); // 'priceAsc' or 'priceDesc'
-  // Instead of local "vendor" and "products" state, we read from Redux
-  // Get the slice
+  const [authOpen, setAuthOpen] = useState(false);
+  const [sortOption, setSortOption] = useState(null);
   const {
     entities,
     loading: vendorLoading,
@@ -465,6 +512,14 @@ const StorePage = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isShared = searchParams.has("shared");
+  const quick = useSelector((s) => s.quickMode); // { isActive, vendorId }
+  const quickForThisVendor = quick.isActive && quick.vendorId === id;
+  const basketRef = useRef(null);
+  const vendorCartProducts = useSelector((s) => s.cart?.[id]?.products || {});
+  const checkoutCount = Object.values(vendorCartProducts).reduce(
+    (sum, p) => sum + (p.quantity || 0),
+    0
+  );
   const [isStockpileMode, setIsStockpileMode] = useState(false);
   const [showPileModal, setShowPileModal] = useState(false);
   const [showHeader, setShowHeader] = useState(true);
@@ -485,7 +540,20 @@ const StorePage = () => {
   const [userCoords, setUserCoords] = useState(null);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [termsUrl, setTermsUrl] = useState("");
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
 
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
   useEffect(() => {
     if (!vendor) return;
 
@@ -501,8 +569,6 @@ const StorePage = () => {
     const pickupSeenKey = `introPickup_${vendor.id}`;
 
     if (sessionStorage.getItem(introDoneKey)) return; // already handled for this store
-
-    /* --- ① PICK‑UP gets first dibs ---------------------------------- */
     if (hasPickup && !sessionStorage.getItem(pickupSeenKey)) {
       // quietly request user location; don’t block if declined
       navigator.geolocation?.getCurrentPosition(
@@ -515,13 +581,11 @@ const StorePage = () => {
         { timeout: 8000 }
       );
       setShowPickupIntro(true);
-      return; // ← don’t fall through
+      return;
     }
 
-    /* --- ② otherwise fall back to STOCKPILE ------------------------- */
     if (hasStockpile && !sessionStorage.getItem(stockpileSeenKey)) {
       setShowStockpileIntro(true);
-      // no return needed; this is the last branch
     }
   }, [vendor]);
 
@@ -530,7 +594,7 @@ const StorePage = () => {
   useEffect(() => {
     const onScroll = () => {
       const currentY = window.scrollY;
-      // if you’ve scrolled down, hide; if up, show
+
       setShowSharedHeader(currentY < sharedPrevScrollY.current);
       sharedPrevScrollY.current = currentY;
     };
@@ -542,11 +606,11 @@ const StorePage = () => {
     const params = new URLSearchParams(location.search);
     const stockpileParam = params.get("stockpile");
     if (stockpileParam === "1" && currentUser) {
-      dispatch(enterStockpileMode({ vendorId: id })); // ✅ good!
-      setIsStockpileMode(true); // 🔴 HERE —> this is **key**
+      dispatch(enterStockpileMode({ vendorId: id }));
+      setIsStockpileMode(true);
     }
   }, [location.search, currentUser, dispatch, id]);
-  // ✅ hydrate scrollY once the vendor slice entry exists
+
   useEffect(() => {
     if (!vendor) return;
     const saved = localStorage.getItem(`storeScroll_${id}`);
@@ -610,24 +674,17 @@ const StorePage = () => {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, [vendor, loadingMore, noMore, id, dispatch]);
-  const bannerShown = localStorage.getItem("headsUpBannerShown");
   useEffect(() => {
-    if (!bannerShown) {
-      setIsBannerVisible(true);
-
-      const timer = setTimeout(() => {
-        setIsBannerVisible(false);
-        localStorage.setItem("headsUpBannerShown", "true");
-      }, 20000);
-
-      return () => clearTimeout(timer);
+    if (isShared) {
+      sessionStorage.setItem(`quickMode_${id}`, "1");
     }
-  }, [bannerShown]);
-
-  const handleClose = () => {
-    setIsBannerVisible(false);
-    localStorage.setItem("headsUpBannerShown", "true");
-  };
+  }, [isShared, id]);
+  useEffect(() => {
+    const forced = sessionStorage.getItem(`quickMode_${id}`) === "1";
+    if (forced) {
+      dispatch(activateQuickMode(id));
+    }
+  }, [dispatch, id]);
   useEffect(() => {
     setIsFollowing(false);
 
@@ -659,7 +716,7 @@ const StorePage = () => {
       const currentScrollPosition = window.scrollY;
       setScrollPosition(currentScrollPosition);
 
-      const threshold = 100000; // pixels
+      const threshold = 100000;
       setShowCountdownInHeader(currentScrollPosition > threshold);
     };
 
@@ -711,11 +768,16 @@ const StorePage = () => {
   }, [products.length, loadingMore, scrollY]);
   const handleOpenPileModal = () => {
     setShowPileModal(true);
-    // dispatch the thunk
+
     if (currentUser) {
       dispatch(fetchStockpileData({ userId: currentUser.uid, vendorId: id }));
     }
   };
+  const retryLoadVendor = useCallback(() => {
+    dispatch(fetchStoreVendor(id));
+    dispatch(fetchVendorProductsBatch({ vendorId: id, loadMore: false }));
+  }, [dispatch, id]);
+
   useEffect(() => {
     const handleScroll = () => {
       const currentPos = window.scrollY;
@@ -760,6 +822,15 @@ const StorePage = () => {
       gradient: "from-purple-300 to-purple-700",
     },
   };
+
+  const openDisclaimer = (path) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const abs = `${window.location.origin}${path}`;
+    setTermsUrl(abs);
+    setShowTermsModal(true);
+  };
+
   const closeStockpileIntro = () => {
     sessionStorage.setItem(`introStockpile_${vendor.id}`, "seen");
     sessionStorage.setItem(`introDone_${vendor.id}`, "yes");
@@ -801,10 +872,9 @@ const StorePage = () => {
   const handleClosePileModal = () => {
     setShowPileModal(false);
   };
-  // 👉 helper: normalises strings once
+
   const normal = (s = "") => s.toString().toLowerCase().trim();
 
-  // 👉 helper: does the product match the query?
   const matches = (p, q) => {
     const qn = normal(q);
     return (
@@ -818,19 +888,17 @@ const StorePage = () => {
     .map((_, i) => (
       <FaStar key={i} className="text-yellow-400 mr-0.5" size={12} />
     ));
-  // 👉 helper: true = we’re currently doing a “global” search
+
   const searchingUI = (isSearching, searchTerm) =>
     isSearching && normal(searchTerm) !== "";
 
-  // Format the expiry date with moment
   const expiryString = stockpileExpiry
     ? moment(stockpileExpiry).format("ddd, MMM Do YYYY")
     : null;
 
-  // ---- optimistic follow / unfollow ---------------------------
   const handleFollowClick = async () => {
     if (!currentUser) {
-      setIsLoginModalOpen(true);
+      setAuthOpen(true);
       return;
     }
 
@@ -881,18 +949,6 @@ const StorePage = () => {
       toast.error(err.message || "Something went wrong.");
     }
   };
-
-  useEffect(() => {
-    if (isLoginModalOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isLoginModalOpen]);
 
   const handleFavoriteToggle = (productId) => {
     setFavorites((prevFavorites) => {
@@ -1018,43 +1074,52 @@ const StorePage = () => {
   // }
 
   if (!vendor) {
-    return (
-      <div className="flex flex-col px-6 justify-center items-center h-3/6">
-        <Lottie
-          className="w-full h-full"
-          animationData={Productnotfund}
-          loop={true}
-          autoplay={true}
-        />
-        <h1 className="text-xl text-center font-bold font-opensans text-red-500">
-          Vendor is not found. You entered a wrong link or the vendor is not
-          available.
-        </h1>
-        <button
-          className={` mt-20  py-2 rounded-full  font-medium flex items-center font-opensans px-5 justify-center transition-colors duration-200 bg-customOrange text-white`}
-          onClick={() => {
-            if (currentUser) {
-              navigate("/browse-markets");
-            } else {
-              navigate("/confirm-state");
-            }
-          }} // Disable button when loading
-        >
-          {" "}
-          Go Home
-        </button>
-      </div>
-    );
+    const networkProblem = !isOnline || isNetworkishError(error);
+
+    if (networkProblem) {
+      return <NetworkIssueNotice onRetry={retryLoadVendor} />;
+    }
+
+    if (
+      error &&
+      (error.code === "not-found" ||
+        /not[-\s]?found/i.test(error.message || ""))
+    ) {
+      return (
+        <div className="flex flex-col px-6 justify-center items-center h-3/6">
+          <Lottie
+            className="w-full h-full"
+            animationData={Productnotfund}
+            loop
+            autoplay
+          />
+          <h1 className="text-xl text-center font-bold font-opensans text-red-500">
+            Vendor is not found. You entered a wrong link or the vendor is not
+            available.
+          </h1>
+          <button
+            className="mt-20 py-2 rounded-full font-medium flex items-center font-opensans px-5 justify-center transition-colors duration-200 bg-customOrange text-white"
+            onClick={() => {
+              if (currentUser) navigate("/browse-markets");
+              else navigate("/confirm-state");
+            }}
+          >
+            Go Home
+          </button>
+        </div>
+      );
+    }
+    return <NetworkIssueNotice onRetry={retryLoadVendor} />;
   }
+
   const handleClearSearch = () => {
     setSearchTerm("");
   };
-  // Calculate the average rating
   const averageRating =
     vendor.ratingCount > 0 ? vendor.rating / vendor.ratingCount : 0;
   const productTypes = ["All", ...(entry.categories || [])];
   const handleShare = () => {
-    const storeUrl = `https://mx.shopmythrift.store/store/${vendor.id}?shared=true`;
+    const storeUrl = `https://mx.shopmythrift.store/${vendor.slug}`;
     if (navigator.share) {
       navigator
         .share({
@@ -1090,6 +1155,54 @@ const StorePage = () => {
   const uniqueFilteredProducts = filteredProducts.filter(
     (prod, idx, arr) => arr.findIndex((p) => p.id === prod.id) === idx
   );
+
+  const FollowHeadsUp = () => {
+    const bannerShown = localStorage.getItem("headsUpBannerShown");
+    useEffect(() => {
+      if (!bannerShown) {
+        setIsBannerVisible(true);
+
+        const timer = setTimeout(() => {
+          setIsBannerVisible(false);
+          localStorage.setItem("headsUpBannerShown", "true");
+        }, 10000);
+
+        return () => clearTimeout(timer);
+      }
+    }, [bannerShown]);
+
+    const handleClose = () => {
+      setIsBannerVisible(false);
+      localStorage.setItem("headsUpBannerShown", "true");
+    };
+
+    return (
+      <>
+        <div
+          className={`z-40 transform -translate-x-3  -translate-y-2 w-4 h-4 backdrop-blur-2xl  bg-gradient-to-tr from-transparent to-black/20 -rotate-45 transition-opacity duration-500 ${
+            isBannerVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        ></div>{" "}
+        <div
+          className={`z-50 w-72 bg-gradient-to-br -translate-y-[18px] from-black/5 to-black/30 backdrop-blur-lg shadow-md text-white px-2 py-2 rounded-lg flex flex-col items-start space-y-1 transform left-1/2 transition-opacity duration-500 ${
+            isBannerVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+          style={{ maxWidth: "99%" }}
+        >
+          <span className="font-semibold font-opensans text-md">
+            Click here to follow this vendor!
+          </span>
+          <span className="text-sm font-opensans">
+            Like this vendor? Follow to get notified whenever they post new
+            products and run sales✨
+          </span>
+          <button onClick={handleClose} className="absolute top-1 right-2">
+            <MdClose className="text-white text-lg" />
+          </button>
+        </div>
+      </>
+    );
+  };
 
   return (
     <>
@@ -1182,6 +1295,16 @@ const StorePage = () => {
         onClose={closePickupIntro}
         currentUserCoords={userCoords}
       />
+
+      {quickForThisVendor && (
+        <StoreBasket
+          vendorId={id}
+          quickMode
+          ref={basketRef}
+          onQuickFlow={() => setShowDrawer(true)}
+        />
+      )}
+
       <StockpileInfoModal
         isOpen={showStockpileIntro}
         vendor={vendor}
@@ -1228,43 +1351,50 @@ const StorePage = () => {
                 )}
               </div>
             </div>
-          ) : isShared ? (
+          ) : quickForThisVendor ? (
             <div
               className={`
-      fixed inset-x-0 bg-white h-24 top-0 z-20 border-gray-300
-      transform transition-transform duration-200
-      ${showSharedHeader ? "translate-y-0" : "-translate-y-full"}
-    `}
+          fixed top-0 left-0 right-0 z-10
+          flex items-center justify-between p-4 bg-gradient-to-b from-white/40 to-transparent
+        `}
             >
-              <div className="w-full py-4">
-                <div className="flex items-center justify-between">
-                  <img
-                    src="/newlogo.png"
-                    alt="Logo"
-                    onClick={() => navigate("/newhome")}
-                    className="h-8 w-16 object-contain cursor-pointer"
-                  />
-                  <div className="flex items-center mr-2 relative">
-                    <CiSearch
-                      className="text-black text-3xl cursor-pointer"
-                      onClick={openSearch}
-                    />
-                  </div>
-                </div>
-                <div className="flex mt-4 justify-between -translate-y-2 px-4 gap-4 w-full items-center">
+              <img
+                src="/newlogo.png"
+                alt="Logo"
+                onClick={() => navigate("/newhome")}
+                className={`h-8 w-auto object-contain  ${
+                  showHeader ? "opacity-100" : "opacity-20"
+                }cursor-pointer drop-shadow-sm`}
+              />
+              {/* Right side icons */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={openSearch}
+                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg transition-opacity duration-300 border border-white/40
+          ${showHeader ? "opacity-100" : "opacity-30"}`}
+                >
+                  <RiSearchLine className="text-white text-xl" />
+                </button>
+                <button
+                  onClick={handleShare}
+                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg transition-opacity duration-300 border border-white/40
+          ${showHeader ? "opacity-100" : "opacity-30"}`}
+                >
+                  <GrShare className="text-white text-lg" />
+                </button>
+                {checkoutCount > 0 && (
                   <button
-                    onClick={() => navigate("/login")}
-                    className="px-4 py-1 text-sm w-full font-opensans text-customRichBrown border border-customRichBrown rounded-full"
+                    onClick={() => basketRef.current?.openCheckoutAuth()}
+                    className={`px-2 h-10  rounded-full bg-gradient-to-br from-yellow-300/20 to-yellow-500/30
+    backdrop-blur-md border font-opensans border-yellow-400/50 text-yellow-900 font-semibold text-sm
+    shadow-md transition-opacity duration-300 ${
+      showHeader ? "opacity-100" : "opacity-30"
+    }`}
+                    aria-label="Checkout"
                   >
-                    Login
+                    Checkout Now
                   </button>
-                  <button
-                    onClick={() => navigate("/signup")}
-                    className="px-4 py-1 w-full text-sm font-opensans text-white bg-customOrange rounded-full"
-                  >
-                    Sign Up
-                  </button>
-                </div>
+                )}
               </div>
             </div>
           ) : (
@@ -1332,37 +1462,9 @@ const StorePage = () => {
           {/* Follow heads up banner */}
           {!isShared && isBannerVisible && (
             <div
-              className={`absolute w-full top-14 left-0 right-0 z-10 flex flex-col items-end justify-end p-4 pointer-events-auto`}
+              className={`fixed w-full top-14 left-0 right-0 z-10 flex flex-col items-end justify-end p-4 pointer-events-auto`}
             >
-              <div
-                className={`z-40 transform -translate-x-3  -translate-y-2 w-4 h-4 backdrop-blur-2xl  bg-gradient-to-tr from-transparent to-black/20 -rotate-45 transition-opacity duration-500 ${
-                  isBannerVisible
-                    ? "opacity-100"
-                    : "opacity-0 pointer-events-none"
-                }`}
-              ></div>{" "}
-              <div
-                className={`z-50 w-72 bg-gradient-to-br -translate-y-[18px] from-black/5 to-black/30 backdrop-blur-lg shadow-md text-white px-2 py-2 rounded-lg flex flex-col items-start space-y-1 transform left-1/2 transition-opacity duration-500 ${
-                  isBannerVisible
-                    ? "opacity-100"
-                    : "opacity-0 pointer-events-none"
-                }`}
-                style={{ maxWidth: "99%" }}
-              >
-                <span className="font-semibold font-opensans text-md">
-                  Click here to follow this vendor!
-                </span>
-                <span className="text-sm font-opensans">
-                  Like this vendor? Follow to get notified whenever they post
-                  new products and run sales✨
-                </span>
-                <button
-                  onClick={handleClose}
-                  className="absolute top-1 right-2"
-                >
-                  <MdClose className="text-white text-lg" />
-                </button>
-              </div>
+              <FollowHeadsUp />
             </div>
           )}
 
@@ -1509,12 +1611,13 @@ const StorePage = () => {
                 {/* Additional Info Cards */}
               </div>
 
-              {vendor && <VendorDetails vendor={vendor} />}
+              {vendor && <VendorDetails vendor={vendor} vendorId={vendor.id} />}
               <hr className="mt-6 border-gray-100" />
 
               {vendor && (
                 <AdditionalDetails
                   vendor={vendor}
+                  vendorId={vendor.id}
                   badgeMessages={badgeMessages}
                   onVendorPolicyClick={() => setShowVendorPolicy(true)}
                   onLinkClick={(fragment) => {
@@ -1658,63 +1761,20 @@ const StorePage = () => {
           )}
         </div>
 
-        {isLoginModalOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                setIsLoginModalOpen(false);
+        <QuickAuthModal
+          open={authOpen}
+          onClose={() => setAuthOpen(false)}
+          onComplete={() => {
+            setAuthOpen(false);
+            const unsub = onAuthStateChanged(auth, (u) => {
+              if (u) {
+                unsub();
+                handleFollowClick(); // normal path (auth is now truthy)
               }
-            }}
-          >
-            <div
-              className="bg-white w-9/12 max-w-md rounded-lg px-3 py-4 flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex space-x-4">
-                  <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
-                    <CiLogin className="text-customRichBrown" />
-                  </div>
-                  <h2 className="text-lg font-opensans font-semibold">
-                    Please Log In
-                  </h2>
-                </div>
-                <LiaTimesSolid
-                  onClick={() => setIsLoginModalOpen(false)}
-                  className="text-black text-xl mb-6 cursor-pointer"
-                />
-              </div>
-              <p className="mb-6 text-xs font-opensans text-gray-800 ">
-                You need to be logged in to follow this vendor to recieve
-                notifications. Please log in to your account, or create a new
-                account if you don’t have one, to continue.
-              </p>
-              <div className="flex space-x-16">
-                <button
-                  onClick={() => {
-                    navigate("/signup", { state: { from: location.pathname } });
-                    setIsLoginModalOpen(false);
-                  }}
-                  className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border rounded-full"
-                >
-                  Sign Up
-                </button>
-
-                <button
-                  onClick={() => {
-                    navigate("/login", { state: { from: location.pathname } });
-                    setIsLoginModalOpen(false);
-                  }}
-                  className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
-                >
-                  Login
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+            });
+          }}
+          openDisclaimer={openDisclaimer}
+        />
       </div>
     </>
   );

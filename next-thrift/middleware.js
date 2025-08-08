@@ -1,8 +1,10 @@
+// middleware.js   ← at the repo root
 import { NextResponse } from "next/server";
 
-export const config = { matcher: ["/"] };
+export const config = { matcher: ["/"] }; // run only on the root path
 
-export default function middleware(req) {
+export function middleware(req) {
+  // ← named export, not default
   const host = (req.headers.get("host") || "").replace(/:\d+$/, "");
   const apex = process.env.NEXT_PUBLIC_APEX_DOMAIN || "shopmythrift.store";
 
@@ -19,12 +21,14 @@ export default function middleware(req) {
     );
 
   if (isBot) {
-    // Link-preview crawlers: rewrite internally so they reach /store/[id]
     const url = req.nextUrl.clone();
     url.pathname = `/store/${slug}`;
-    return NextResponse.rewrite(url);
+    return NextResponse.rewrite(url); // crawlers stay
   }
 
-  // Browsers: 308 redirect to canonical URL on the apex
-  return NextResponse.redirect(`https://${apex}/store/${slug}`, 308);
+  return NextResponse.redirect(
+    // browsers redirect
+    `https://${apex}/store/${slug}`,
+    308
+  );
 }

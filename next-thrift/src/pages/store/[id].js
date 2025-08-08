@@ -1,113 +1,20 @@
-// ─── imports ──────────────────────────────────────────────────────────────────
-import Head from "next/head";
-import dynamic from "next/dynamic";
-import { initAdmin } from "lib/firebaseAdmin.js";
-import { AuthProvider } from "@/custom-hooks/useAuth";
-import { FavoritesProvider } from "@/components/context/FavoritesContext";
-import { Timestamp } from "firebase-admin/firestore";
-import { getOgImageUrl } from "lib/imageKit";
+import { NextResponse } from "next/server";
 
-const StorePage = dynamic(() => import("../../app/store/StorePage"), {
-  ssr: false,
-});
+export const config = { matcher: ["/"] };
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
-function toJSON(value) {
-  if (value == null) return value;
-  if (value instanceof Timestamp) return value.toDate().toISOString();
-  if (Array.isArray(value)) return value.map(toJSON);
-  if (typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([k, v]) => [k, toJSON(v)])
-    );
-  }
-  return value;
-}
+export function middleware(req) {
+  const host = (req.headers.get("host") || "").replace(/:\d+$/, "");
+  const apex = process.env.NEXT_PUBLIC_APEX_DOMAIN || "shopmythrift.store";
 
-async function getVendorByIdOrSlug(db, idOrSlug) {
-  // 1. try doc ID
-  const byId = await db.collection("vendors").doc(idOrSlug).get();
-  if (byId.exists) return { id: byId.id, ...byId.data() };
+  const isVendor =
+    host.endsWith(`.${apex}`) && host !== apex && !host.startsWith("www.");
 
-  // 2. fall back to slug field
-  const q = await db
-    .collection("vendors")
-    .where("slug", "==", (idOrSlug || "").toLowerCase())
-    .limit(1)
-    .get();
-  if (!q.empty) {
-    const doc = q.docs[0];
-    return { id: doc.id, ...doc.data() };
-  }
-  return null;
-}
+  if (!isVendor) return NextResponse.next();
 
-// ─── page data ────────────────────────────────────────────────────────────────
-export async function getServerSideProps({ req, params }) {
-  // ▸ params.id is always the vendor slug or ID (middleware / redirect handles host)
-  const candidate = (params.id || "").toLowerCase();
+  const slug = host.replace(`.${apex}`, "");
 
-  const db = initAdmin();
-  const vendorRaw = await getVendorByIdOrSlug(db, candidate);
-  if (!vendorRaw) return { notFound: true };
-  const vendor = toJSON(vendorRaw);
-
-  const ua = req.headers["user-agent"] || "";
-  const isBot =
-    /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp|SnapchatExternalHit)/i.test(
-      ua
-    );
-  const isSnapchatApp = /Snapchat(?!ExternalHit)/i.test(ua);
-
-  // Humans & Snapchat app → SPA
-  if (!isBot || isSnapchatApp) {
-    return {
-      redirect: {
-        destination: `https://shopmythrift.store/store/${vendor.id}?shared=true`,
-        permanent: false,
-      },
-    };
-  }
-
-  // Link-preview bots → SSR with OG tags
-  return { props: { vendor } };
-}
-
-// ─── React component ──────────────────────────────────────────────────────────
-export default function StoreSSR({ vendor }) {
-  const title = vendor.shopName;
-  const description =
-    vendor.description || "Check out this vendor on My Thrift!";
-  const url = `https://shopmythrift.store/store/${vendor.id}`;
-  const image = getOgImageUrl(vendor.coverImageUrl);
-
-  return (
-    <>
-      <Head>
-        <title>{title}</title>
-
-        {/* Open Graph */}
-        <meta property="og:type" content="website" />
-        <meta property="og:title" content={title} />
-        <meta property="og:description" content={description} />
-        <meta property="og:url" content={url} />
-        <meta property="og:image" content={image} />
-        <meta property="og:image:secure_url" content={image} />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-
-        {/* Twitter */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={title} />
-        <meta name="twitter:description" content={description} />
-        <meta name="twitter:image" content={image} />
-      </Head>
-
-      <FavoritesProvider>
-        <AuthProvider>
-          <StorePage vendorId={vendor.id} />
-        </AuthProvider>
-      </FavoritesProvider>
-    </>
-  );
+  // Always rewrite root → /store/<slug> (no external redirect)
+  const url = req.nextUrl.clone();
+  url.pathname = `/store/${slug}`;
+  return NextResponse.rewrite(url);
 }

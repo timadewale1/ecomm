@@ -1,40 +1,36 @@
 // pages/[slug].js
 import Head from "next/head";
+import { getOgImageUrl } from "lib/imageKit"; // ← identical helper as /store/[id].js
 
-/* ───────── Helpers ───────── */
+/* ───────── helpers ───────── */
 
-const isBotUA = (ua = "") =>
+const isCrawler = (ua = "") =>
   /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp|SnapchatExternalHit)/i.test(
     ua
   );
 
-const toJSON = (v, Timestamp) => {
-  if (v == null) return v;
-  if (Timestamp && v instanceof Timestamp) return v.toDate().toISOString();
-  if (Array.isArray(v)) return v.map((x) => toJSON(x, Timestamp));
-  if (typeof v === "object")
+const toJSON = (val, Timestamp) => {
+  if (val == null) return val;
+  if (Timestamp && val instanceof Timestamp) return val.toDate().toISOString();
+  if (Array.isArray(val)) return val.map((x) => toJSON(x, Timestamp));
+  if (typeof val === "object")
     return Object.fromEntries(
-      Object.entries(v).map(([k, x]) => [k, toJSON(x, Timestamp)])
+      Object.entries(val).map(([k, v]) => [k, toJSON(v, Timestamp)])
     );
-  return v;
+  return val;
 };
 
 /* ───────── SSR ───────── */
 
 export async function getServerSideProps({ req, params }) {
   const slug = String(params?.slug || "").toLowerCase();
-  console.log("Requested slug:", slug); // Debug: Log the slug
+  if (!slug) return { notFound: true };
 
-  if (!slug) {
-    console.log("No slug provided");
-    return { notFound: true };
-  }
-
-  /* Node-only imports */
+  /* node-only imports (kept inside the function) */
   const { initAdmin } = await import("lib/firebaseAdmin");
   const { Timestamp } = await import("firebase-admin/firestore");
 
-  /* Firestore lookup */
+  /* 1️⃣  Firestore lookup */
   const db = initAdmin();
   const snapQ = await db
     .collection("vendors")
@@ -42,54 +38,44 @@ export async function getServerSideProps({ req, params }) {
     .limit(1)
     .get();
 
-  if (snapQ.empty) {
-    console.log("No vendor found for slug:", slug); // Debug: Log if no match
-    return { notFound: true };
-  }
-
+  if (snapQ.empty) return { notFound: true };
   const vendor = toJSON(
     { id: snapQ.docs[0].id, ...snapQ.docs[0].data() },
     Timestamp
   );
-  console.log("Vendor data:", vendor); // Debug: Log the vendor
 
-  /* Redirect for humans, OG for crawlers */
+  /* 2️⃣  Decide: redirect vs OG */
   const ua = req.headers["user-agent"] || "";
-  const crawler = isBotUA(ua);
-  console.log("User agent:", ua, "Is crawler:", crawler); // Debug: Log UA decision
+  const bot = isCrawler(ua);
+  const isSnapApp = /Snapchat(?!ExternalHit)/i.test(ua);
 
-  if (!crawler) {
-    console.log(
-      "Redirecting to:",
-      `https://shopmythrift.store/store/${vendor.id}?shared=true`
-    );
+  if (!bot || isSnapApp) {
     return {
       redirect: {
         destination: `https://shopmythrift.store/store/${vendor.id}?shared=true`,
-        permanent: true,
+        permanent: false, // change to true (301/308) once everything is verified
       },
     };
   }
 
-  /* Serve OG props for crawlers */
-  console.log("Serving OG tags for crawler");
+  /* 3️⃣  Crawlers get OG props */
   return { props: { vendor } };
 }
 
-/* ───────── Page Component ───────── */
+/* ───────── Page component (OG only) ───────── */
 
 export default function VendorOG({ vendor }) {
   if (!vendor) return null;
 
   const ogUrl = `https://mx.shopmythrift.store/${vendor.slug}`;
-  const ogImage = vendor.coverImageUrl
-    ? `https://ik.imagekit.io/your_path/tr:w-1200,h-630/${vendor.coverImageUrl}`
-    : "https://shopmythrift.store/default-og.jpg";
+  const ogImage = getOgImageUrl(vendor.coverImageUrl); // uniform OG build
 
   return (
     <>
       <Head>
         <title>{vendor.shopName}</title>
+
+        {/* ——— Open Graph ——— */}
         <meta property="og:type" content="website" />
         <meta property="og:title" content={vendor.shopName} />
         <meta
@@ -100,6 +86,8 @@ export default function VendorOG({ vendor }) {
         <meta property="og:image" content={ogImage} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
+
+        {/* ——— Twitter ——— */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={vendor.shopName} />
         <meta
@@ -107,8 +95,12 @@ export default function VendorOG({ vendor }) {
           content={vendor.description ?? "Check out this vendor on My Thrift!"}
         />
         <meta name="twitter:image" content={ogImage} />
+
+        {/* canonical */}
         <link rel="canonical" href={ogUrl} />
       </Head>
+
+      {/* Minimal body for crawlers; humans never see this page */}
       <main style={{ padding: "2rem", textAlign: "center" }}>
         <h1>{vendor.shopName}</h1>
         <p>{vendor.description || "Redirecting…"}</p>

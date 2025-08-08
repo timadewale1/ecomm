@@ -1119,7 +1119,7 @@ const StorePage = () => {
     vendor.ratingCount > 0 ? vendor.rating / vendor.ratingCount : 0;
   const productTypes = ["All", ...(entry.categories || [])];
   const handleShare = () => {
-    const storeUrl = `https://mx.shopmythrift.store/store/${vendor.id}?shared=true`;
+    const storeUrl = `https://mx.shopmythrift.store/${vendor.slug}`;
     if (navigator.share) {
       navigator
         .share({

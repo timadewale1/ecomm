@@ -3,7 +3,6 @@ import { messagingReady, functions, db } from "../firebase.config";
 import { getToken, onMessage } from "firebase/messaging";
 import { httpsCallable } from "firebase/functions";
 import { doc, getDoc } from "firebase/firestore";
-import { debounce } from "lodash";
 import toast from "react-hot-toast";
 
 /* ------------------------------------------------------------------ */
@@ -31,6 +30,7 @@ function tokenCacheGet(uid, token) {
 
 /** Persist the cache flag with a rolling ttl */
 function tokenCacheSet(uid, token) {
+  if (!uid) return;
   localStorage.setItem(
     `fcmToken_${uid}_${token}`,
     JSON.stringify({
@@ -78,7 +78,7 @@ export function useFCM(currentUser, currentUserData) {
 
   /* ─────────────────────── saveFcmToken callable + cache ───────────────── */
   const saveTokenToBackend = useCallback(
-    debounce(async (_msg, token) => {
+    async (token) => {
       try {
         await httpsCallable(functions, "saveFcmToken")({ token });
         setHasToken(true);
@@ -86,19 +86,23 @@ export function useFCM(currentUser, currentUserData) {
       } catch (err) {
         console.error("Error saving FCM token:", err);
       }
-    }, 1000),
+    },
     [currentUser?.uid]
   );
 
   /* ───────────────────────────── SW registration ───────────────────────── */
   const registerServiceWorker = useCallback(async () => {
-    if (
-      await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js")
-    ) {
-      console.log("FCM Service Worker already registered");
-      return true;
-    }
     try {
+      if (!("serviceWorker" in navigator)) return false;
+
+      const existing = await navigator.serviceWorker.getRegistration(
+        "/firebase-messaging-sw.js"
+      );
+      if (existing) {
+        console.log("FCM Service Worker already registered");
+        return true;
+      }
+
       const reg = await navigator.serviceWorker.register(
         "/firebase-messaging-sw.js"
       );
@@ -113,11 +117,15 @@ export function useFCM(currentUser, currentUserData) {
   /* ───────────────────── enable-notifications button ───────────────────── */
   const handleEnableNotifs = useCallback(() => {
     setShowBanner(false);
-    toast.success("Notifications enabled! You’re all set ✅");
 
     (async () => {
       setEnabling(true);
       try {
+        if (typeof Notification === "undefined") {
+          setShowBanner(isPWA);
+          return;
+        }
+
         let perm = Notification.permission;
         if (perm === "default") perm = await Notification.requestPermission();
         if (perm !== "granted") {
@@ -138,7 +146,8 @@ export function useFCM(currentUser, currentUserData) {
           return;
         }
 
-        await saveTokenToBackend(messaging, token);
+        await saveTokenToBackend(token);
+        toast.success("Notifications enabled! You’re all set ✅");
       } catch (err) {
         console.error("handleEnableNotifs error:", err);
         setShowBanner(isPWA);
@@ -158,6 +167,11 @@ export function useFCM(currentUser, currentUserData) {
 
     const bootstrap = async () => {
       try {
+        if (typeof Notification === "undefined") {
+          setShowBanner(false);
+          return;
+        }
+
         if (Notification.permission !== "granted") {
           setShowBanner(isPWA && !hasToken);
           return;
@@ -180,38 +194,59 @@ export function useFCM(currentUser, currentUserData) {
           setHasToken(true);
           setShowBanner(false);
         } else {
-          await saveTokenToBackend(messaging, token);
+          await saveTokenToBackend(token);
           setHasToken(true);
           setShowBanner(isPWA && !hasToken);
         }
 
-        /* listen for token refresh */
-        const unsub = messaging.onTokenRefresh(async () => {
-          try {
-            const newTok = await getToken(messaging, { vapidKey });
-            if (newTok) await saveTokenToBackend(messaging, newTok);
-          } catch (e) {
-            console.error("Token refresh error:", e);
-          }
-        });
-
         /* foreground push */
-        onMessage(messaging, (payload) => {
-          if (payload.data?.userId === currentUser.uid) {
-            new Notification(payload.notification.title, {
-              body: payload.notification.body,
-            });
+        const unsubMsg = onMessage(messaging, (payload) => {
+          if (payload?.data?.userId === currentUser.uid) {
+            const title = payload?.notification?.title ?? "My Thrift";
+            const body = payload?.notification?.body ?? "";
+            try {
+              if (
+                typeof Notification !== "undefined" &&
+                Notification.permission === "granted"
+              ) {
+                new Notification(title, { body });
+              } else {
+                toast(title);
+              }
+            } catch {
+              toast(title);
+            }
           }
         });
 
-        return () => unsub();
+        // Light refresh when tab becomes visible (covers rotated/expired tokens)
+        const onVisible = async () => {
+          try {
+            if (document.visibilityState === "visible") {
+              const newTok = await getToken(messaging, { vapidKey });
+              if (newTok) await saveTokenToBackend(newTok);
+            }
+          } catch (e) {
+            console.error("Token refresh/visible error:", e);
+          }
+        };
+        document.addEventListener("visibilitychange", onVisible);
+
+        return () => {
+          if (typeof unsubMsg === "function") unsubMsg();
+          document.removeEventListener("visibilitychange", onVisible);
+        };
       } catch (err) {
         console.error("Notifications setup error:", err);
         setShowBanner(isPWA && !hasToken);
       }
     };
 
-    bootstrap();
+    const cleanupPromise = bootstrap();
+    return () => {
+      // ensure any pending async errors are handled
+      Promise.resolve(cleanupPromise).catch(() => {});
+    };
   }, [
     currentUser,
     hasToken,
@@ -224,7 +259,11 @@ export function useFCM(currentUser, currentUserData) {
   /* ─────────────────── Permission revoked → clean tokens ───────────────── */
   useEffect(() => {
     if (!currentUser || !currentUserData?.notificationAllowed) return;
-    if (Notification.permission === "granted") return;
+    if (
+      typeof Notification !== "undefined" &&
+      Notification.permission === "granted"
+    )
+      return;
 
     (async () => {
       try {

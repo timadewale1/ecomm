@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { getAuth } from "firebase/auth";
 import {
   doc,
@@ -13,7 +13,7 @@ import { db } from "../../firebase.config";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Container, Row, Form } from "reactstrap";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { FiChevronLeft } from "react-icons/fi"; // Back icon
 import Loading from "../../components/Loading/Loading";
 import MarketVendor from "./marketVendor";
@@ -23,6 +23,8 @@ import { GoChevronLeft } from "react-icons/go";
 import { RotatingLines } from "react-loader-spinner";
 import SEO from "../../components/Helmet/SEO";
 import { makeSlug } from "../../services/makeSlug";
+import { useTawk } from "../../components/Context/TawkProvider";
+import { FcOnlineSupport } from "react-icons/fc";
 const CompleteProfile = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
@@ -65,6 +67,7 @@ const CompleteProfile = () => {
       accountNumber: "", // Vendor's bank account number
       accountName: "", // Vendor's bank account name
     },
+    stockpile: null, // Stockpile setup object
   });
 
   const [bankDetails, setBankDetails] = useState({
@@ -77,12 +80,44 @@ const CompleteProfile = () => {
   const [deliveryMode, setDeliveryMode] = useState(""); // Delivery Mode state
   const [idVerification, setIdVerification] = useState(""); // ID Verification type
   const [idImage, setIdImage] = useState(null); // ID Image
+  const [stockpileStep, setStockpileStep] = useState(1);
+  const [stockpile, setStockpile] = useState(null);
   const [isIdImageUploading, setIsIdImageUploading] = useState(false);
   const [isCoverImageUploading, setIsCoverImageUploading] = useState(false);
   const [showBankDropdown, setShowBankDropdown] = useState(false);
   const [selectedBank, setSelectedBank] = useState(null);
+  const [duration, setDuration] = useState(null);
   const [loading, setLoading] = useState(false); // Updated loading state
   const navigate = useNavigate();
+  const { openChat } = useTawk();
+
+  const handleStockpileChoice = async (enabled) => {
+    if (!enabled) {
+      setStockpile({ enabled: false });
+
+      setVendorData({
+        ...vendorData,
+        stockpile: {
+          enabled: false,
+        },
+      });
+      handleNextStep();
+    } else if (stockpileStep === 2) {
+      setStockpile({
+        enabled: true,
+        durationInWeeks: duration,
+      });
+      setVendorData({
+        ...vendorData,
+        stockpile: {
+          enabled: true,
+          durationInWeeks: duration,
+        },
+      });
+    } else {
+      setStockpileStep(2);
+    }
+  };
 
   const categories = [
     "Thrifts",
@@ -327,6 +362,7 @@ const CompleteProfile = () => {
       }
       if (!vendorData.coverImageUrl) missingFields.push("Cover Image");
       if (!vendorData.deliveryMode) missingFields.push("Delivery Mode");
+      if (!vendorData.stockpile) missingFields.push("Stockpile Setup");
       if (!vendorData.idVerification) missingFields.push("ID Verification");
       if (!vendorData.idImage) missingFields.push("ID Image");
     }
@@ -434,7 +470,7 @@ const CompleteProfile = () => {
         },
         recipientCode: recipientCode,
         walletSetup: false,
-        badge: "Newbie", 
+        badge: "Newbie",
       };
 
       console.log("Data being saved to Firestore:", dataToStore);
@@ -445,7 +481,6 @@ const CompleteProfile = () => {
       toast.success("Profile completed successfully!", {
         className: "custom-toast",
       });
-
       navigate("/vendordashboard");
     } catch (error) {
       console.error("Error during profile completion:", error);
@@ -464,7 +499,20 @@ const CompleteProfile = () => {
         description={`Complete your vendor profile on My Thrift`}
         url={`https://www.shopmythrift.store/complete-profile`}
       />
-      <section>
+      <section className="">
+        <div>
+          <div
+            className="flex items-center space-x-2"
+            onClick={() => {
+              openChat();
+            }}
+          >
+            <h2 className="text-xs font-normal underline font-opensans text-customOrange capitalize">
+              Having issues?{" "}
+              <span className="no-underline">Contact support</span>
+            </h2>
+          </div>
+        </div>
         <Row>
           {loading ? (
             <Loading />
@@ -562,6 +610,12 @@ const CompleteProfile = () => {
                   handleBankDetailsChange={handleBankDetailsChange}
                   deliveryMode={deliveryMode}
                   handleDeliveryModeChange={handleDeliveryModeChange}
+                  stockpile={stockpile}
+                  stockpileStep={stockpileStep}
+                  setStockpileStep={setStockpileStep}
+                  handleStockpileChoice={handleStockpileChoice}
+                  duration={duration}
+                  setDuration={setDuration}
                   idVerification={idVerification}
                   handleIdVerificationChange={handleIdVerificationChange}
                   idImage={idImage}

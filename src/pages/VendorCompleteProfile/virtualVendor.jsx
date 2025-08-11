@@ -22,7 +22,9 @@ import toast from "react-hot-toast"; // Import from react-hot-toast
 import { RotatingLines } from "react-loader-spinner";
 import LocationPicker from "../../components/Location/LocationPicker";
 
-import { GoTrash } from "react-icons/go";
+import { GoChevronLeft, GoTrash } from "react-icons/go";
+import { BsBasket, BsStack } from "react-icons/bs";
+import { IoIosClock } from "react-icons/io";
 const VirtualVendor = ({
   vendorData,
   setVendorData,
@@ -44,7 +46,11 @@ const VirtualVendor = ({
   handleProfileCompletion,
   handleImageUpload,
   handleSocialMediaChange,
-
+  stockpile,
+  stockpileStep,
+  handleStockpileChoice,
+  duration,
+  setDuration,
   setBankDetails,
   showBankDropdown,
   setShowBankDropdown,
@@ -134,6 +140,14 @@ const VirtualVendor = ({
         !vendorData.pickupAddress
       ) {
         toast.error("Please choose a pickup location before continuing.");
+        return false;
+      }
+    }
+    if (step === 5) {
+      if (
+        !duration
+      )  {
+        toast.error("Please select a stockpile duration before continuing.");
         return false;
       }
     }
@@ -287,6 +301,7 @@ const VirtualVendor = ({
 
   return (
     <div>
+      {/* <div className="w-5 bg-red-600 h-5" onClick={handleNextStep}></div> */}
       {vendorData.marketPlaceType === "virtual" && (
         <>
           {/* Step 2: Create Shop Form for Online Vendor */}
@@ -1070,6 +1085,7 @@ const VirtualVendor = ({
                   </div>
                 )}
               </div>
+
               <motion.button
                 type="button"
                 className={`w-11/12 h-12 fixed bottom-6 left-0 right-0 mx-auto flex justify-center items-center text-white font-opensans rounded-full ${
@@ -1095,14 +1111,95 @@ const VirtualVendor = ({
             </div>
           )}
 
-          {/* Step 5: ID Verification for Online Vendor */}
+          {/*Step 6: Vendor Stockpiling setup*/}
           {step === 5 && vendorData.marketPlaceType === "virtual" && (
             <div className="p-2 mt-3 ">
               <h2 className="text-xs text-customOrange font-light font-opensans mb-3">
-                Step 4: ID verification
+                Step 4: Set up Stockpiling
               </h2>
               {/* Progress bar */}
               <ProgressBar step={4} />
+              {stockpileStep === 1 ? (
+                <>
+                  <div className="mb-6 mt-4 w-full flex justify-center object-cover ">
+                    <BsStack className="text-9xl text-customRichBrown" />
+                  </div>
+                  <h2 className="text-3xl font-bold font-ubuntu text-gray-800 mb-3">
+                    Do you currently offer stockpiling?
+                  </h2>
+                  <p className="text-sm mt-10 font-ubuntu text-gray-600 mb-6">
+                    Stockpiling allows customers to reserve items and keep
+                    adding more to their order over a set period before it's
+                    shipped. Let us know if you offer this option!
+                  </p>
+                  <div className="border-t border-gray-100"></div>
+                  <p className="text-xs mt-16 ital  font-ubuntu text-customOrange mb-6 italic">
+                    For stockpiled orders, you are paid 100% of the order value
+                    upfront, and the order is ready to be shipped once the
+                    stockpile duration expires.
+                  </p>
+                  <div className="relative -bottom-8 flex flex-col  gap-4 justify-center">
+                    <button
+                      onClick={() => handleStockpileChoice(true)}
+                      className="px-6 py-3 bg-customOrange text-white rounded-full font-semibold  font-opensans shadow-lg"
+                    >
+                      Yes, I do
+                    </button>
+                    <button
+                      onClick={() => handleStockpileChoice(false)}
+                      className="px-6 py-3 border border-gray-300 text-gray-700 rounded-full font-opensans font-semibold"
+                    >
+                      No, not currently
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="mb-6 mt-2 w-full flex justify-center object-cover ">
+                    <IoIosClock className="text-9xl text-customRichBrown" />
+                  </div>
+                  <h2 className="text-3xl font-ubuntu  font-bold text-gray-800 mb-4">
+                    How long can customers stockpile?
+                  </h2>
+                  <div className="grid grid-cols-2 gap-4 mt-10 mb-6">
+                    {[2, 4, 6, 8].map((week) => (
+                      <label
+                        key={week}
+                        className={`cursor-pointer px-4 py-3  font-opensans rounded-xl border text-sm font-medium ${
+                          duration === week
+                            ? "bg-customOrange text-white"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                        onClick={() => setDuration(week)}
+                      >
+                        {week} weeks
+                      </label>
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleValidation}
+                    disabled={!duration}
+                    className={`w-full py-3 relative text-sm font-opensans -bottom-28 rounded-full font-medium ${
+                      duration
+                        ? "bg-customOrange text-white"
+                        : "bg-gray-300 text-gray-200 cursor-not-allowed"
+                    }`}
+                  >
+                    Save and continue
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Step 5: ID Verification for Online Vendor */}
+          {step === 6 && vendorData.marketPlaceType === "virtual" && (
+            <div className="p-2 mt-3 ">
+              <h2 className="text-xs text-customOrange font-light font-opensans mb-3">
+                Step 5: ID verification
+              </h2>
+              {/* Progress bar */}
+              <ProgressBar step={5} />
 
               {/* ID Verification */}
               <h3 className="text-md mt-3 font-semibold font-opensans flex items-center mb-3">
@@ -1129,6 +1226,8 @@ const VirtualVendor = ({
                     International Passport
                   </option>
                   <option value="CAC">CAC</option>
+                  <option value="School ID">School ID</option>
+                  <option value="Work ID">Work ID</option>
                 </select>
               </div>
 

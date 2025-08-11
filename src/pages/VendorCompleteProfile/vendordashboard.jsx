@@ -503,7 +503,7 @@ const VendorDashboard = () => {
         description={`Manage your store on My Thrift`}
         url={`https://www.shopmythrift.store/vendordashboard`}
       />
-      <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-1 font-opensans ">
+      <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-1 font-opensans bg-white">
         <ScrollToTop />
         <div className="flex justify-between items-center">
           <div className="flex items-center">

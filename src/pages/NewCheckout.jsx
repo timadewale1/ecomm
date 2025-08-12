@@ -777,7 +777,9 @@ const Checkout = () => {
     setIsPickup(mode === "Pickup");
     setSelectedDeliveryMode(mode);
   };
-  // inside your Checkout component, alongside handleProceedToPayment:
+  const isSelfManagedDelivery =
+    vendorsInfo[vendorId]?.deliveryPreference === "self";
+
   const handleShareLink = async () => {
     if (checkoutMode === "stockpile" && !selectedWeeks) {
       toast.error("Please select how many weeks you want to stockpile.");
@@ -1312,40 +1314,41 @@ const Checkout = () => {
                 </p>
               </div>
             )}
-            <div className="flex justify-between">
-              <span className="font-opensans text-sm">Delivery Fee</span>
+            {!isSelfManagedDelivery && (
+              <div className="flex justify-between">
+                <span className="font-opensans text-sm">Delivery Fee</span>
 
-              {isLoadingDeliveryFee ? (
-                <RotatingLines
-                  strokeColor="#f97316"
-                  strokeWidth="3"
-                  animationDuration="0.75"
-                  width="20"
-                  visible={true}
-                />
-              ) : isRepiling ? (
-                <span className="text-xs font-opensans text-orange-700 font-semibold">
-                  Will be charged when it’s time to ship
-                </span>
-              ) : previewedOrder.deliveryCharge == null ? (
-                <RotatingLines
-                  strokeColor="#f97316"
-                  strokeWidth="3"
-                  animationDuration="0.75"
-                  width="20"
-                  visible={true}
-                />
-              ) : previewedOrder.freeShipping ? (
-                <s className="text-base font-opensans text-black font-semibold">
-                  ₦{Number(previewedOrder.deliveryCharge).toLocaleString()}
-                </s>
-              ) : (
-                <span className="text-base font-opensans text-black font-semibold">
-                  ₦{Number(previewedOrder.deliveryCharge).toLocaleString()}
-                </span>
-              )}
-            </div>
-
+                {isLoadingDeliveryFee ? (
+                  <RotatingLines
+                    strokeColor="#f97316"
+                    strokeWidth="3"
+                    animationDuration="0.75"
+                    width="20"
+                    visible={true}
+                  />
+                ) : isRepiling ? (
+                  <span className="text-xs font-opensans text-orange-700 font-semibold">
+                    Will be charged when it’s time to ship
+                  </span>
+                ) : previewedOrder.deliveryCharge == null ? (
+                  <RotatingLines
+                    strokeColor="#f97316"
+                    strokeWidth="3"
+                    animationDuration="0.75"
+                    width="20"
+                    visible={true}
+                  />
+                ) : previewedOrder.freeShipping ? (
+                  <s className="text-base font-opensans text-black font-semibold">
+                    ₦{Number(previewedOrder.deliveryCharge).toLocaleString()}
+                  </s>
+                ) : (
+                  <span className="text-base font-opensans text-black font-semibold">
+                    ₦{Number(previewedOrder.deliveryCharge).toLocaleString()}
+                  </span>
+                )}
+              </div>
+            )}
             <div className="border-t mt-3 border-gray-300 my-2"></div>
             <div className="flex justify-between mt-2">
               <label className="block mb-2 font-opensans text-base font-semibold">

@@ -7,6 +7,7 @@ import Checkout from "../pages/NewCheckout.jsx";
 import StorePage from "../pages/StorePage.jsx";
 import WithCommunityModal from "../components/layout/WithCommunityinviteModal.jsx";
 import WithStoreCelebrationModal from "../components/layout/WithStoreCelebrationModal.jsx";
+import WithDeliveryPreferenceModal from "../components/layout/WithDeliveryChoice.jsx";
 
 // Lazy load all other components
 const ProductDetailPage = lazy(() =>
@@ -338,12 +339,15 @@ const Routers = () => {
           <Route
             path="/vendordashboard"
             element={
-              <WithStoreCelebrationModal>
-                <WithWalletSetupModal>
-                  <WithPwaInstallModal />
-                  <VendorDashboard />
-                </WithWalletSetupModal>
-              </WithStoreCelebrationModal>
+              <WithDeliveryPreferenceModal>
+                {" "}
+                <WithStoreCelebrationModal>
+                  <WithWalletSetupModal>
+                    <WithPwaInstallModal />
+                    <VendorDashboard />
+                  </WithWalletSetupModal>
+                </WithStoreCelebrationModal>
+              </WithDeliveryPreferenceModal>
             }
           />
           <Route

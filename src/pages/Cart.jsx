@@ -601,7 +601,7 @@ const Cart = () => {
                                       }`}
                                       style={{ maxWidth: "99%" }}
                                     >
-                                      <span className="font-semibold font-opensans text-sm mr-2">
+                                      <span className="font-semibold px-2 font-opensans text-xs mr-2">
                                        Click “View Selection” to leave a note for the
                                 vendor
                                       </span>

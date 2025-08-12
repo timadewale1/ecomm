@@ -335,51 +335,61 @@ const Routers = () => {
 
         {/* Vendor Protected Routes */}
         <Route element={<ProtectedRoute requiredRole="vendor" />}>
-            <Route
-              path="/vendordashboard"
-              element={
-                <WithStoreCelebrationModal><WithWalletSetupModal>
-                  <WithCommunityModal />
+          <Route
+            path="/vendordashboard"
+            element={
+              <WithStoreCelebrationModal>
+                <WithWalletSetupModal>
                   <WithPwaInstallModal />
                   <VendorDashboard />
-                </WithWalletSetupModal></WithStoreCelebrationModal>
-                
-              }
-            />
-            <Route path="/vendor-profile" element={<WithStoreCelebrationModal><VendorProfile /></WithStoreCelebrationModal>} />
-            <Route
-              path="/vendor-products"
-              element={
-                <WithStoreCelebrationModal><WithWalletSetupModal>
+                </WithWalletSetupModal>
+              </WithStoreCelebrationModal>
+            }
+          />
+          <Route
+            path="/vendor-profile"
+            element={
+              <WithStoreCelebrationModal>
+                <VendorProfile />
+              </WithStoreCelebrationModal>
+            }
+          />
+          <Route
+            path="/vendor-products"
+            element={
+              <WithStoreCelebrationModal>
+                <WithWalletSetupModal>
                   <WithPickupPrompt>
                     <WithPwaInstallModal />
                     <VendorProducts />
                   </WithPickupPrompt>
-                </WithWalletSetupModal></WithStoreCelebrationModal>
-                
-              }
-            />
+                </WithWalletSetupModal>
+              </WithStoreCelebrationModal>
+            }
+          />
           <Route
             path="/vendor-orders"
             element={
-              <WithStoreCelebrationModal><WithWalletSetupModal>
-                <WithPickupPrompt>
-                  <VendorOrders />
-                </WithPickupPrompt>
-              </WithWalletSetupModal></WithStoreCelebrationModal>
-              
+              <WithStoreCelebrationModal>
+                <WithWalletSetupModal>
+                  <WithPickupPrompt>
+                    <VendorOrders />
+                  </WithPickupPrompt>
+                </WithWalletSetupModal>
+              </WithStoreCelebrationModal>
             }
           />
-            <Route
-              path="/vchats"
-              element={
-                <WithStoreCelebrationModal><WithWalletSetupModal>
+          <Route
+            path="/vchats"
+            element={
+              <WithStoreCelebrationModal>
+                <WithWalletSetupModal>
                   <VendorChatList />
-                </WithWalletSetupModal></WithStoreCelebrationModal>
-                
-              }
-            />
-            <Route path="/vchats/:inquiryId" element={<VendorChat />} />
+                </WithWalletSetupModal>
+              </WithStoreCelebrationModal>
+            }
+          />
+          <Route path="/vchats/:inquiryId" element={<VendorChat />} />
           <Route path="/vendor-wallet" element={<WalletPage />} />
           <Route
             path="/store-reviews"

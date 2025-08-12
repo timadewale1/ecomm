@@ -1,21 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext, useRef } from "react";
 import StoreCelebration from "./StoreCelebration";
+import { VendorContext } from "../Context/Vendorcontext";
 
 const WithStoreCelebrationModal = ({ children }) => {
-  const [showModal, setShowModal] = useState(true);
-  sessionStorage.setItem("celebration", "true");
+  const { vendorData: vendor } = useContext(VendorContext);
+  const [showModal, setShowModal] = useState(false);
+  const openedRef = useRef(false); // prevent instant close after Firestore updates
 
   useEffect(() => {
-    const hasBeenShown = localStorage.getItem("celebrated");
+    if (!vendor) return;
+    const ready = vendor.walletSetup === true && vendor.introcelebration === false;
 
-    if (hasBeenShown === "true") {
-      setShowModal(false);
-
-      sessionStorage.removeItem("celebration");
+    // Only open the first time we detect "ready"
+    if (ready && !openedRef.current) {
+      setShowModal(true);
+      openedRef.current = true;
     }
-  }, []);
-
-  console.log("Store Celebration rendered");
+  }, [vendor]);
 
   return (
     <>
@@ -24,7 +25,6 @@ const WithStoreCelebrationModal = ({ children }) => {
         <StoreCelebration
           onClose={() => {
             setShowModal(false);
-            sessionStorage.removeItem("celebration");
           }}
         />
       )}

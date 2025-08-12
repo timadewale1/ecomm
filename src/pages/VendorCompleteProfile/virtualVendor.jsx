@@ -47,7 +47,9 @@ const VirtualVendor = ({
   handleImageUpload,
   handleSocialMediaChange,
   stockpile,
+
   stockpileStep,
+  setStockpileStep,
   handleStockpileChoice,
   duration,
   setDuration,
@@ -144,9 +146,7 @@ const VirtualVendor = ({
       }
     }
     if (step === 5) {
-      if (
-        !duration
-      )  {
+      if (stockpile?.enabled === true && !duration) {
         toast.error("Please select a stockpile duration before continuing.");
         return false;
       }
@@ -173,6 +173,20 @@ const VirtualVendor = ({
   const filteredBanks = banks.filter((bank) =>
     bank.name.toLowerCase().includes(searchBankTerm.toLowerCase())
   );
+  // Remember previous stockpile choice and weeks when user returns to Step 5
+  useEffect(() => {
+    if (step !== 5) return;
+
+    const sp = stockpile ?? vendorData?.stockpile;
+
+    if (sp?.enabled === true) {
+      setStockpileStep(2); // jump straight to weeks view
+      if (sp?.durationInWeeks) setDuration(sp.durationInWeeks); // preselect weeks
+    } else if (sp?.enabled === false) {
+      setStockpileStep(1); // show Yes/No question
+      setDuration(null); // not needed when disabled
+    }
+  }, [step, stockpile, vendorData?.stockpile, setStockpileStep, setDuration]);
 
   const toTitleCase = (str) => {
     return str
@@ -264,6 +278,12 @@ const VirtualVendor = ({
     }
 
     if (step === 5) {
+      const enabled = stockpile?.enabled ?? vendorData?.stockpile?.enabled;
+      return enabled ? Boolean(duration) : true;
+    }
+
+    // Step 6 is ID verification
+    if (step === 6) {
       return idVerification && idImage;
     }
 
@@ -1133,21 +1153,36 @@ const VirtualVendor = ({
                     shipped. Let us know if you offer this option!
                   </p>
                   <div className="border-t border-gray-100"></div>
-                  <p className="text-xs mt-16 ital  font-ubuntu text-customOrange mb-6 italic">
+                  <p className="text-xs mt-4 ital  font-ubuntu text-customOrange mb-6 italic">
                     For stockpiled orders, you are paid 100% of the order value
                     upfront, and the order is ready to be shipped once the
                     stockpile duration expires.
                   </p>
-                  <div className="relative -bottom-8 flex flex-col  gap-4 justify-center">
+                  {/* Let user switch Yes/No while on weeks screen */}
+                  <div className="flex gap-3  flex-col justify-center mb-4">
                     <button
-                      onClick={() => handleStockpileChoice(true)}
-                      className="px-6 py-3 bg-customOrange text-white rounded-full font-semibold  font-opensans shadow-lg"
+                      type="button"
+                      onClick={() => handleStockpileChoice(true)} // enables & goes to weeks
+                      className={`px-4 py-2 font-opensans font-medium rounded-full border ${
+                        stockpile?.enabled ?? vendorData?.stockpile?.enabled
+                          ? "bg-customOrange text-white border-customOrange"
+                          : "bg-gray-100 text-gray-700 border-gray-200"
+                      }`}
                     >
                       Yes, I do
                     </button>
+
                     <button
-                      onClick={() => handleStockpileChoice(false)}
-                      className="px-6 py-3 border border-gray-300 text-gray-700 rounded-full font-opensans font-semibold"
+                      type="button"
+                      onClick={() => {
+                        handleStockpileChoice(false); // disables and goes next
+                        setDuration(null);
+                      }}
+                      className={`px-4 py-2 font-opensans font-medium rounded-full border ${
+                        stockpile?.enabled ?? vendorData?.stockpile?.enabled
+                          ? "bg-gray-100 text-gray-700 border-gray-200"
+                          : "bg-customOrange text-white border-customOrange"
+                      }`}
                     >
                       No, not currently
                     </button>
@@ -1177,7 +1212,11 @@ const VirtualVendor = ({
                     ))}
                   </div>
                   <button
-                    onClick={handleValidation}
+                    onClick={() => {
+                      if (!duration) return;
+                      handleStockpileChoice(true, duration); // persist to vendorData
+                      handleValidation(); // then advance
+                    }}
                     disabled={!duration}
                     className={`w-full py-3 relative text-sm font-opensans -bottom-28 rounded-full font-medium ${
                       duration

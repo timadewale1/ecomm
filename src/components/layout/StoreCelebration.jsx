@@ -1,66 +1,76 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import StorePagePreview from "./StorePreview";
+import CommunityInviteModal from "./CommunityInviteModal";
 import { VendorContext } from "../Context/Vendorcontext";
+import { db } from "../../firebase.config";
+import { doc, updateDoc } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 const StoreCelebration = ({ onClose }) => {
-  const [showCelebration, setShowCelebration] = useState(false);
-  
-    const { vendorData } = useContext(VendorContext);
+  const { vendorData: vendor } = useContext(VendorContext);
+  const [phase, setPhase] = useState("preview"); 
 
-  const completed = localStorage.getItem("walletSetUp");
-  useEffect(() => {
-    if (completed === "true" && vendorData.isApproved) {
-      setShowCelebration(true);
-      localStorage.removeItem("walletSetUp");
-      localStorage.setItem("celebrated", "true");
+  const handleCommunityDone = async () => {
+    try {
+      const uid = vendor?.vendorId || vendor?.uid || getAuth().currentUser?.uid;
+      if (uid) {
+        await updateDoc(doc(db, "vendors", uid), { introcelebration: true });
+      }
+    } catch (err) {
+      console.error("Failed to set introcelebration=true:", err);
+    } finally {
+      onClose && onClose();
     }
-  }, [completed]);
+  };
 
   return (
     <AnimatePresence>
-      {showCelebration && (
+      <motion.div
+        key="backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.6 }}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[8999]"
+      >
         <motion.div
-          key="backdrop"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.6 }}
-          className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-[8999]"
+          key="modal"
+          initial={{ y: "100%" }}
+          animate={{ y: 0 }}
+          exit={{ y: "100%" }}
+          transition={{ type: "tween", duration: 0.8 }}
+          className="fixed inset-0 flex justify-center items-center z-[9999]"
         >
-          <motion.div
-            key="modal"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "tween", duration: 0.8 }}
-            className={`fixed inset-0 flex justify-center items-center z-[9999] font-opensans transition-opacity duration-300 ${
-              showCelebration ? "opacity-100" : "opacity-0 pointer-events-none"
-            }`}
-          >
-            <div className="bg-white rounded-2xl p-3 w-[90%] max-w-md mx-auto shadow-2xl text-center">
-              <h2 className="text-xl text-customOrange decoration-clone">🎉Congratulations!</h2>
-              <p className="text-sm mb-1">
-                Your store is live! Here's how it looks to customers:
-              </p>
-              <div className="border-2 border-customOrange border-dashed rounded-md">
+          <div className="bg-white rounded-2xl p-3 w-[90%] max-w-md mx-auto shadow-2xl text-center">
+            {phase === "preview" ? (
+              <>
+                <h2 className="text-xl font-bold uppercase font-opensans text-customOrange">
+                  🎉 Congratulations!
+                </h2>
+                <p className="text-xs px-12 font-opensans mt-3 mb-1">
+                  Your store setup is complete! Here&apos;s how it looks to
+                  customers:
+                </p>
 
-              <StorePagePreview />
-              </div>
-              <button
-                onClick={() => {
-                  setShowCelebration(false);
-                  localStorage.setItem('celebrated', 'true');
-                  onClose && onClose();
-                }}
-                className="mt-2 px-4 py-2 rounded-full border border-customOrange text-white bg-customOrange"
-              >
-                Close
-              </button>
-            </div>
-          </motion.div>
+                <div className="shadow mt-4 border-dashed rounded-md">
+                  <StorePagePreview />
+                </div>
+
+                <button
+                  onClick={() => setPhase("community")}
+                  className="mt-4 px-4 py-2 rounded-full border border-customOrange font-opensans text-white bg-customOrange"
+                >
+                  Continue
+                </button>
+              </>
+            ) : (
+          
+              <CommunityInviteModal onDone={handleCommunityDone} />
+            )}
+          </div>
         </motion.div>
-      )}
+      </motion.div>
     </AnimatePresence>
   );
 };

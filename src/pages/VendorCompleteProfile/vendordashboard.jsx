@@ -184,7 +184,7 @@ const VendorDashboard = () => {
       localStorage.setItem(cacheKey, revenue.toString());
       setTotalRevenue(revenue);
     } catch (err) {
-      console.error("Error fetching vendor revenue:", err);
+     
     }
   }
 

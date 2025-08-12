@@ -27,14 +27,14 @@ import { useTawk } from "../../components/Context/TawkProvider";
 import { FcOnlineSupport } from "react-icons/fc";
 const CompleteProfile = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(2);
   const [showDropdown, setShowDropdown] = useState(false);
 
   const [vendorData, setVendorData] = useState({
     shopName: "",
     categories: [],
     description: "",
-    marketPlaceType: "",
+    marketPlaceType: "virtual",
     // Virtual vendor specific fields
     coverImage: null,
     coverImageUrl: "",
@@ -91,32 +91,34 @@ const CompleteProfile = () => {
   const navigate = useNavigate();
   const { openChat } = useTawk();
 
-  const handleStockpileChoice = async (enabled) => {
+  const handleStockpileChoice = (enabled, weeks = null) => {
     if (!enabled) {
       setStockpile({ enabled: false });
-
-      setVendorData({
-        ...vendorData,
-        stockpile: {
-          enabled: false,
-        },
-      });
+      setVendorData((prev) => ({
+        ...prev,
+        stockpile: { enabled: false, durationInWeeks: null },
+      }));
       handleNextStep();
-    } else if (stockpileStep === 2) {
-      setStockpile({
-        enabled: true,
-        durationInWeeks: duration,
-      });
-      setVendorData({
-        ...vendorData,
-        stockpile: {
-          enabled: true,
-          durationInWeeks: duration,
-        },
-      });
-    } else {
-      setStockpileStep(2);
+      return;
     }
+
+    // enable immediately so vendorData.stockpile exists
+    setStockpile((prev) => ({
+      ...prev,
+      enabled: true,
+      durationInWeeks: weeks ?? prev?.durationInWeeks ?? null,
+    }));
+
+    setVendorData((prev) => ({
+      ...prev,
+      stockpile: {
+        enabled: true,
+        durationInWeeks: weeks ?? prev?.stockpile?.durationInWeeks ?? null,
+      },
+    }));
+
+    // move to "choose weeks" view if weeks not provided yet
+    if (weeks == null) setStockpileStep(2);
   };
 
   const categories = [
@@ -243,7 +245,18 @@ const CompleteProfile = () => {
   };
 
   const handlePreviousStep = () => {
-    setStep(step - 1);
+    // If we're on Step 5 (Stockpile) and currently on the "weeks" sub-step,
+    // go back to the Yes/No screen instead of leaving Step 5.
+    if (
+      step === 5 &&
+      vendorData.marketPlaceType === "virtual" &&
+      stockpileStep === 2
+    ) {
+      setStockpileStep(1);
+      return;
+    }
+
+    setStep((prev) => Math.max(2, prev - 1));
   };
 
   const handleInputChange = (e) => {
@@ -502,12 +515,12 @@ const CompleteProfile = () => {
       <section className="">
         <div>
           <div
-            className="flex items-center space-x-2"
+            className="flex items-center justify-end space-x-2"
             onClick={() => {
               openChat();
             }}
           >
-            <h2 className="text-xs font-normal underline font-opensans text-customOrange capitalize">
+            <h2 className="text-xs  font-normal  underline font-opensans text-customOrange capitalize">
               Having issues?{" "}
               <span className="no-underline">Contact support</span>
             </h2>
@@ -519,7 +532,7 @@ const CompleteProfile = () => {
           ) : (
             <Form className="" onSubmit={handleProfileCompletion}>
               {/* Back Button */}
-              {step > 1 && (
+              {step > 2 && (
                 <button
                   type="button" // Prevent this button from submitting the form
                   onClick={handlePreviousStep}
@@ -527,71 +540,6 @@ const CompleteProfile = () => {
                 >
                   <GoChevronLeft size={25} />
                 </button>
-              )}
-
-              {/* Step 1: Vendor Type Selection */}
-              {step === 1 && (
-                <div className="p-2 mt-16">
-                  <h1 className="text-xl gap-16 font-opensans font-semibold text-header">
-                    Choose your vendor type
-                  </h1>
-                  <p className="text-sm mt-3 font-opensans text-neutral-800">
-                    Online Vendor or Market Vendor—we have tools tailored just
-                    for you!
-                  </p>
-
-                  <div className="my-6 mb-72">
-                    <div
-                      className={`border-0 p-3 mb-4 rounded-lg cursor-pointer flex justify-between items-center ${
-                        vendorData.marketPlaceType === "virtual"
-                          ? "border-customOrange"
-                          : "border-none"
-                      } bg-gray-50 px-10 text-gray-800 rounded-lg`}
-                      onClick={() => handleVendorTypeSelection("virtual")}
-                    >
-                      <span className="font-opensans text-neutral-800 ">
-                        Online Vendor
-                      </span>
-                      <div
-                        className={`w-6 h-6 rounded-full border-2 flex justify-center items-center ${
-                          vendorData.marketPlaceType === "virtual"
-                            ? "border-customOrange"
-                            : "border-customOrange"
-                        }`}
-                      >
-                        {vendorData.marketPlaceType === "virtual" && (
-                          <div className="w-3 h-3 rounded-full bg-orange-500" />
-                        )}
-                      </div>
-                    </div>
-                    <div
-                      className={`border-0 p-3 mb-4 rounded-lg cursor-not-allowed flex justify-between items-center bg-gray-50 px-10 text-gray-800  opacity-50`}
-                    >
-                      <span className="font-opensans text-neutral-800">
-                        Market Vendor
-                      </span>
-                      <div
-                        className={`w-6 h-6 rounded-full border-2 flex justify-center items-center`}
-                      >
-                        {vendorData.marketPlaceType === "marketplace" && (
-                          <div className="w-3 h-3 rounded-full bg-orange-500" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <motion.button
-                    type="button"
-                    className={`w-11/12 h-12 fixed bottom-6 left-0 right-0 mx-auto flex justify-center items-center text-white font-opensans rounded-full ${
-                      vendorData.marketPlaceType
-                        ? "bg-customOrange"
-                        : "bg-customOrange opacity-20"
-                    }`}
-                    onClick={handleNextStep}
-                    disabled={!vendorData.marketPlaceType}
-                  >
-                    Next
-                  </motion.button>
-                </div>
               )}
 
               {/* Render the appropriate vendor component based on marketPlaceType */}
@@ -632,32 +580,6 @@ const CompleteProfile = () => {
                   setShowBankDropdown={setShowBankDropdown}
                   selectedBank={selectedBank}
                   setSelectedBank={setSelectedBank}
-                />
-              )}
-
-              {vendorData.marketPlaceType === "marketplace" && (
-                <MarketVendor
-                  vendorData={vendorData}
-                  setVendorData={setVendorData}
-                  step={step}
-                  setStep={setStep}
-                  handleInputChange={handleInputChange}
-                  handleNextStep={handleNextStep}
-                  setShowDropdown={setShowDropdown}
-                  showDropdown={showDropdown}
-                  categories={categories}
-                  bankDetails={bankDetails}
-                  handleBankDetailsChange={handleBankDetailsChange}
-                  deliveryMode={deliveryMode}
-                  handleDeliveryModeChange={handleDeliveryModeChange}
-                  idVerification={idVerification}
-                  handleIdVerificationChange={handleIdVerificationChange}
-                  idImage={idImage}
-                  handleIdImageUpload={handleIdImageUpload}
-                  isLoading={isLoading}
-                  setIdImage={setIdImage}
-                  isIdImageUploading={isIdImageUploading}
-                  handleProfileCompletion={handleProfileCompletion}
                 />
               )}
             </Form>

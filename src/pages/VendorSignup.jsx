@@ -68,6 +68,17 @@ const VendorSignup = () => {
     const isValidLength = password.length >= 8 && password.length <= 24;
     return hasUppercase && hasSpecialCharacter && hasNumeric && isValidLength;
   };
+  const getNGNational = (v) => String(v).replace(/\D/g, "").replace(/^234/, "");
+
+  const isValidNGMobile = (v) => {
+    const nat = getNGNational(v);
+    return /^0\d{10}$/.test(nat) || /^[1-9]\d{9}$/.test(nat);
+  };
+  const toE164NG = (v) => {
+    const nat = getNGNational(v);
+    const nsn = nat.startsWith("0") ? nat.slice(1) : nat; // drop the 0
+    return `+234${nsn}`;
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -106,13 +117,14 @@ const VendorSignup = () => {
       return;
     }
 
-    if (vendorData.phoneNumber.length < 10) {
-      toast.error("Phone number is too short.");
+    if (!isValidNGMobile(vendorData.phoneNumber)) {
+      toast.error(
+        "Enter a valid NG number (e.g. 0705… or 705…), we’ll save it as +234XXXXXXXXXX."
+      );
       setLoading(false);
       return;
     }
 
-    // Call the cloud function
     const createVendorAccount = httpsCallable(functions, "createVendorAccount");
 
     try {
@@ -160,10 +172,10 @@ const VendorSignup = () => {
 
   return (
     <>
-      <SEO 
-        title={`Vendor Signup - My Thrift`} 
-        description={`Sign up to grow your brand as My Thrift vendor!`}  
-        url={`https://www.shopmythrift.store/vendor-signup`} 
+      <SEO
+        title={`Vendor Signup - My Thrift`}
+        description={`Sign up to grow your brand as My Thrift vendor!`}
+        url={`https://www.shopmythrift.store/vendor-signup`}
       />
       <section>
         <Container>
@@ -200,7 +212,7 @@ const VendorSignup = () => {
                 />
               </div>
               <div className="translate-y-4">
-              <div className="mb-2">
+                <div className="mb-2">
                   <h1 className="font-ubuntu text-5xl flex items-center font-semibold text-black gap-2">
                     Sign Up
                     <span className="rounded-full px-3 py-1 bg-customOrange text-xs flex items-center justify-center">
@@ -261,9 +273,9 @@ const VendorSignup = () => {
                       country={"ng"}
                       countryCodeEditable={false}
                       value={vendorData.phoneNumber}
-                      onChange={(phone) => {
+                      onChange={(raw) => {
                         handleInputChange({
-                          target: { name: "phoneNumber", value: `+${phone}` },
+                          target: { name: "phoneNumber", value: toE164NG(raw) },
                         });
                       }}
                       inputProps={{

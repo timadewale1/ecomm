@@ -1,123 +1,102 @@
-import { AnimatePresence, motion } from "framer-motion";
-import React, { useEffect, useState } from "react";
-import { FaWhatsapp, FaX, FaXTwitter } from "react-icons/fa6";
-import { useNavigate } from "react-router-dom";
+import React from "react";
+import { motion } from "framer-motion";
+import { FaWhatsapp, FaXTwitter, FaX } from "react-icons/fa6";
+import { RiGroupFill } from "react-icons/ri";
 
-const CommunityInviteModal = ({ onClose }) => {
-  const [isVisible, setIsVisible] = useState(false); // Modal initially hidden
-  //   const navigate = useNavigate();
+const containerVariants = {
+  hidden: { opacity: 0, y: 24, scale: 0.98 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: "spring", stiffness: 260, damping: 24 },
+  },
+  exit: { opacity: 0, y: 16, scale: 0.98, transition: { duration: 0.18 } },
+};
 
-  const celebrationInProgress =
-    sessionStorage.getItem("celebration") === "true";
+const btnMotion = { whileHover: { y: -2 }, whileTap: { scale: 0.98 } };
 
-  const isCelebrated = localStorage.getItem("celebrated");
-  const isOnWhatsapp = localStorage.getItem("whatsappJoined");
-  const isOnTwitter = localStorage.getItem("twitterJoined");
-
-  if (!isCelebrated) {
-    localStorage.setItem("celebrated", "true");
-  }
-  /* 
-  Show modal if (
-    wallet modal has been shown,
-    modal hasn't been shown for up to 24 hours,
-    either whatsapp or twitter join button hasn't been clicked
-  )
-  */
-  useEffect(() => {
-    const lastShowTime = localStorage.getItem("communityModalDissmisedAt");
-    const oneDay = 24 * 60 * 60 * 1000;
-    const now = Date.now();
-    const timeElapsed = now - Number(lastShowTime);
-    const shouldShowModal =
-      isCelebrated === "true" &&
-      !celebrationInProgress &&
-      (!lastShowTime || timeElapsed > oneDay) &&
-      (!isOnWhatsapp || !isOnTwitter);
-
-    if (shouldShowModal) {
-      setTimeout(() => {
-        setIsVisible(true);
-        console.log("✅ Showing community invite modal");
-      }, 1000);
-    }
-  }, [isCelebrated, isOnTwitter, isOnWhatsapp, celebrationInProgress]);
-
-  const whatsappClicked = () => {
-    // navigate()
-    localStorage.setItem("whatsappJoined", true);
-    handleClose();
-  };
-
-  const twitterClicked = () => {
-    // navigate()
-    localStorage.setItem("twitterJoined", true);
-    handleClose();
-  };
-
-  const handleClose = () => {
-    setIsVisible(false);
-    localStorage.setItem("communityModalDismissedAt", Date.now().toString());
-    setTimeout(() => {
-      onClose && onClose();
-    }, 1000);
+const CommunityInviteModal = ({ onDone }) => {
+  const openLink = (url) => {
+    try {
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {}
+    onDone && onDone();
   };
 
   return (
-    <AnimatePresence>
-      {isVisible && (
-        <>
-          <motion.div
-            key="backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6 }}
-            className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-[8999]"
+    // Backdrop (click outside to finish)
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
+      className="fixed inset-0 bg-white/10 backdrop-blur-sm z-[8999] flex items-center justify-center px-4"
+      onClick={() => onDone && onDone()}
+    >
+      {/* Modal */}
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        className="w-full max-w-md rounded-2xl bg-white p-4 shadow-2xl text-left"
+        onClick={(e) => e.stopPropagation()} // prevent backdrop close when clicking inside
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
+              <RiGroupFill className="text-customRichBrown" />
+            </div>
+            <h2 className="font-opensans text-base font-semibold">
+              Join Our Vendor Community
+            </h2>
+          </div>
+
+          <motion.button
+            {...btnMotion}
+            aria-label="Close"
+            onClick={() => onDone && onDone()}
+            className="p-1 rounded hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-customOrange"
           >
-            <motion.div
-              key="modal"
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "tween", duration: 0.8 }}
-              className={`fixed inset-0 flex justify-center items-center z-[9999] font-opensans transition-opacity duration-300 ${
-                isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-              }`}
-            >
-              <div className="bg-white rounded-2xl p-3 w-[90%] max-w-md mx-auto shadow-2xl">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xl">Join Our Community!</div>
-                  <FaX className="text-md text-black" onClick={handleClose} />
-                </div>
-                <div className="m-1 text-sm mb-6">
-                  Our vendor community exists to bring you helpful tips and
-                  updates on My Thrift for vendors. We also help you raise
-                  engagement on your content to attract more customers. <br />{" "}
-                  Join our communities today!
-                </div>
-                <div className="w-full">
-                  <button
-                    className="items-center w-full rounded-full border border-customOrange p-2 mb-2 text-sm"
-                    onClick={whatsappClicked}
-                  >
-                    Join us on Whatsapp{" "}
-                    <FaWhatsapp className="inline-flex w-5 h-5" />
-                  </button>
-                  <button
-                    className="items-center w-full rounded-full border border-customOrange p-2 mb-2 text-sm"
-                    onClick={twitterClicked}
-                  >
-                    Join us on Twitter{" "}
-                    <FaXTwitter className="inline-flex w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+            <FaX className="text-md text-black" />
+          </motion.button>
+        </div>
+
+        {/* Copy */}
+        <p className="m-1 text-xs mb-5 font-opensans text-gray-700 leading-relaxed">
+          Join our vendor community to connect with other vendors and thrifters,
+          get first-hand access to our team, learn sales tips, receive product
+          updates, and stay connected.
+        </p>
+
+        {/* CTAs (brand-styled) */}
+        <div className="w-full space-y-2">
+          {/* WhatsApp */}
+          <motion.button
+            {...btnMotion}
+            className="w-full rounded-full py-2.5 px-4 text-sm font-medium font-opensans flex items-center justify-center gap-2
+                       text-white bg-[#25D366] hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#25D366]"
+            onClick={() => openLink("https://chat.whatsapp.com/BDJ8fGARojFJRwxXrjasSy ")}
+          >
+            Join us on WhatsApp
+            <FaWhatsapp className="w-5 h-5" />
+          </motion.button>
+
+          {/* Twitter / X */}
+          <motion.button
+            {...btnMotion}
+            className="w-full rounded-full py-2.5 px-4 text-sm font-medium font-opensans flex items-center justify-center gap-2
+                       text-white bg-black hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+            onClick={() => openLink("https://x.com/i/communities/1927724485446144183")}
+          >
+            Join us on X (Twitter)
+            <FaXTwitter className="w-5 h-5" />
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

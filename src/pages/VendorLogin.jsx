@@ -156,7 +156,7 @@ const VendorLogin = () => {
         <Container>
           <Row>
             <div className="px-2">
-              <Link to="/confirm-state">
+              <Link to="/confirm-state" onClick={localStorage.removeItem("mythrift_role")}>
                 <GoChevronLeft className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>
               <VendorLoginAnimation />

@@ -674,6 +674,26 @@ const StorePage = () => {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, [vendor, loadingMore, noMore, id, dispatch]);
+
+  const bannerShown = localStorage.getItem("headsUpBannerShown");
+  useEffect(() => {
+    if (!bannerShown) {
+      setIsBannerVisible(true);
+
+      const timer = setTimeout(() => {
+        setIsBannerVisible(false);
+        localStorage.setItem("headsUpBannerShown", "true");
+      }, 20000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [bannerShown]);
+
+  const handleClose = () => {
+    setIsBannerVisible(false);
+    localStorage.setItem("headsUpBannerShown", "true");
+  };
+
   useEffect(() => {
     if (isShared) {
       sessionStorage.setItem(`quickMode_${id}`, "1");
@@ -685,6 +705,7 @@ const StorePage = () => {
       dispatch(activateQuickMode(id));
     }
   }, [dispatch, id]);
+
   useEffect(() => {
     setIsFollowing(false);
 
@@ -1295,7 +1316,7 @@ const StorePage = () => {
         onClose={closePickupIntro}
         currentUserCoords={userCoords}
       />
-
+ 
       {quickForThisVendor && (
         <StoreBasket
           vendorId={id}

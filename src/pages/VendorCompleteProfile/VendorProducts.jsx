@@ -975,7 +975,7 @@ const VendorProducts = () => {
         description={`Manage your products on My Thrift`}
         url={`https://www.shopmythrift.store/vendor-products`}
       />
-      <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-5 font-opensans">
+      <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-5 font-opensans bg-white">
         <ScrollToTop />
         <div className="flex justify-end">
           <div className="relative flex justify-center items-center">

@@ -587,6 +587,33 @@ const Cart = () => {
                           </div>
                         </div>
                         <div className="relative w-full mt-4 flex justify-between items-center">
+                          {/* Badge */}
+                          {showNoteBadge && vendorId === firstVendorId && (
+                            <div className="absolute w-full -top-[100px] -right-5 z-[3] flex flex-col items-end justify-end p-4 pointer-events-auto">
+                                    <div
+                                      className={`absolute bottom-2 z-40 transform right-5 w-4 h-4 backdrop-blur-2xl  bg-gradient-to-bl from-transparent to-black/50 -rotate-45 transition-opacity duration-500 ${
+                                        isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+                                      }`}
+                                    ></div>{" "}
+                                    <div
+                                      className={`z-50 w-72 bg-gradient-to-br translate-x-[5px] from-black/5 to-black/30 backdrop-blur-lg shadow-lg text-white px-2 py-2 rounded-lg flex flex-col items-start space-y-1 transition-opacity duration-500 ${
+                                        isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+                                      }`}
+                                      style={{ maxWidth: "99%" }}
+                                    >
+                                      <span className="font-semibold font-opensans text-sm mr-2">
+                                       Click “View Selection” to leave a note for the
+                                vendor
+                                      </span>
+                                      <button onClick={handleClose} className="absolute top-1 right-2">
+                                        <MdClose className="text-white text-lg" />
+                                      </button>
+                                      
+                                    </div>
+                                    
+                                  </div>
+                          )}
+
                           {/* View Selection on far right */}
                           <div
                             className="ml-auto flex items-center cursor-pointer"

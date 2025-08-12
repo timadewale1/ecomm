@@ -226,6 +226,7 @@ export default function WalletPage() {
 
       await updateDoc(doc(db, "vendors", vendorData.vendorId), {
         walletSetup: true,
+        introcelebration: false,
         accountName: d.accountName,
         balance: d.balance,
         walletId: d.walletId,

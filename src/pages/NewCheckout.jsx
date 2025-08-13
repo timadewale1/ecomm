@@ -1314,7 +1314,22 @@ const Checkout = () => {
                 </p>
               </div>
             )}
-            {!isSelfManagedDelivery && (
+            {isSelfManagedDelivery ? (
+              // Self-managed ⇒ show orange notice instead of a price
+              <div className="mt-2">
+                <div className="flex items-center bg-orange-50 py-1.5 px-2 rounded-lg">
+                  <CiWarning className="text-orange-600 text-5xl mr-3" />
+                  <div>
+                    <p className="font-opensans text-xs text-orange-700 font-semibold">
+                      You won't be charged delivery fee now. After your order is placed,
+                      the vendor will share an estimated delivery quote for this
+                      order.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Platform-managed ⇒ show the normal Delivery Fee line
               <div className="flex justify-between">
                 <span className="font-opensans text-sm">Delivery Fee</span>
 
@@ -1349,6 +1364,7 @@ const Checkout = () => {
                 )}
               </div>
             )}
+
             <div className="border-t mt-3 border-gray-300 my-2"></div>
             <div className="flex justify-between mt-2">
               <label className="block mb-2 font-opensans text-base font-semibold">

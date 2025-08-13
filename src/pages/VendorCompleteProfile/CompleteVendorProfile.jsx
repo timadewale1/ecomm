@@ -60,6 +60,8 @@ const CompleteProfile = () => {
     idVerification: "", // Type of verification document (NIN, Passport, CAC)
     idImage: null, // File for the ID image
     idImageUrl: "", // URL for the ID image (if applicable)
+    deliveryPreference: "self", // "self" | "platform"
+    needsDeliveryPreference: true, // show the modal later until they choose
 
     // Bank details (for both market and virtual vendors)
     bankDetails: {

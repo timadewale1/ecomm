@@ -1321,9 +1321,9 @@ const Checkout = () => {
                   <CiWarning className="text-orange-600 text-5xl mr-3" />
                   <div>
                     <p className="font-opensans text-xs text-orange-700 font-semibold">
-                      You won't be charged delivery fee now. After your order is placed,
-                      the vendor will share an estimated delivery quote for this
-                      order.
+                      You won't be charged delivery fee now. After your order is
+                      placed, the vendor will share an estimated delivery quote
+                      for this order.
                     </p>
                   </div>
                 </div>
@@ -1623,12 +1623,16 @@ const Checkout = () => {
                     >
                       <div className="flex flex-col items-start">
                         <p className="text-base font-opensans font-semibold text-black">
-                          Door delivery
+                          {isSelfManagedDelivery ? "Delivery" : "Door delivery"}
                         </p>
-                        <p className="text-xs text-gray-800 font-opensans">
-                          1–3 working days
-                        </p>
+
+                        {!isSelfManagedDelivery && (
+                          <p className="text-xs text-gray-800 font-opensans">
+                            1–3 working days
+                          </p>
+                        )}
                       </div>
+
                       <span
                         className={`w-5 h-5 rounded-full border-2 mr-2 flex items-center justify-center ${
                           selectedDeliveryMode === "Delivery"

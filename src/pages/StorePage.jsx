@@ -1213,7 +1213,7 @@ const StorePage = () => {
           <span className="font-semibold font-opensans text-md">
             Click here to follow this vendor!
           </span>
-          <span className="text-sm font-opensans">
+          <span className="text-xs font-opensans">
             Like this vendor? Follow to get notified whenever they post new
             products and run sales✨
           </span>

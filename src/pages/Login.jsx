@@ -247,7 +247,7 @@ const Login = () => {
       }
     }
   };
-  // FAST sign-in (all original checks kept)
+
   const signIn = async (e) => {
     e.preventDefault();
 
@@ -521,7 +521,6 @@ const Login = () => {
 
       const cleanEmail = (user.email || "").toLowerCase().trim();
 
-      // If Twitter doesn't give us an email, we can't proceed safely (no vendor block, no dedupe)
       if (!cleanEmail) {
         try {
           if (isNewUser) await user.delete();
@@ -529,7 +528,6 @@ const Login = () => {
         try {
           await auth.signOut();
         } catch {}
-        setLoading(false);
         toast.error(
           "We couldn’t retrieve your email from Twitter. Please continue with Google or Email."
         );
@@ -537,9 +535,7 @@ const Login = () => {
         return;
       }
 
-      // ─────────────────────────────────────────
-      // Vendor email hard block (defense in depth)
-      // ─────────────────────────────────────────
+      // 2) Vendor email hard block (defense in depth)
       const vendorsRef = collection(db, "vendors");
       const vendorQuery = query(vendorsRef, where("email", "==", cleanEmail));
       const vendorSnapshot = await getDocs(vendorQuery);
@@ -557,15 +553,12 @@ const Login = () => {
         try {
           await auth.signOut();
         } catch {}
-        setLoading(false);
         toast.error("This email is already used for a Vendor account!");
         posthog?.capture("login_blocked_vendor_email", { method: "twitter" });
         return;
       }
 
-      // ─────────────────────────────────────────
-      // If the email already exists with another method, nudge the user
-      // ─────────────────────────────────────────
+      // 3) Cross-provider conflict: if email exists but not with twitter.com
       const methods = await fetchSignInMethodsForEmail(auth, cleanEmail);
       const hasTwitter = methods.includes("twitter.com");
       const hasGoogle = methods.includes("google.com");
@@ -573,12 +566,8 @@ const Login = () => {
 
       if (!hasTwitter && (hasGoogle || hasPassword || methods.length > 0)) {
         try {
-          // End any session created by the popup before we exit
           await auth.signOut();
         } catch {}
-        setLoading(false);
-
-        // Tailored message
         if (hasGoogle && !hasPassword) {
           toast.error(
             "This email is already registered with Google. Please sign in with Google."
@@ -599,9 +588,7 @@ const Login = () => {
         return;
       }
 
-      // ─────────────────────────────────────────
-      // Create/patch user doc
-      // ─────────────────────────────────────────
+      // 4) Create/patch user doc (non-destructive)
       const userRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userRef);
       if (!userDoc.exists()) {
@@ -619,8 +606,8 @@ const Login = () => {
         posthog?.capture("signup_completed", { method: "twitter" });
       }
 
-      // Merge cart, analytics, navigate
-      const localCart = JSON.parse(localStorage.getItem("cart")) || {};
+      // 5) Merge local cart → Firestore + analytics + navigate
+      const localCart = JSON.parse(localStorage.getItem("cart") || "{}");
       await fetchCartFromFirestore(user.uid, localCart);
       localStorage.removeItem("cart");
 
@@ -631,18 +618,14 @@ const Login = () => {
       toast.success(`Welcome back ${user.displayName || "there"}!`);
       navigate(redirectTo, { replace: true });
     } catch (error) {
-      setLoading(false);
       posthog?.capture("login_failed", {
         method: "twitter",
         code: error?.code,
       });
       console.error("Twitter Sign-In Error:", error);
 
-      // Nice wording for common cases
       let errorMessage = "Twitter sign-in failed. Please try again.";
-
       if (error?.code === "auth/account-exists-with-different-credential") {
-        // When Firebase throws this, customData.email is usually present
         const em = error?.customData?.email;
         if (em) {
           try {
@@ -820,14 +803,26 @@ const Login = () => {
                     <FcGoogle className="mr-2 text-2xl" />
                     Sign in with Google
                   </motion.button>
-                  {/* <motion.button
+                  <motion.button
                     type="button"
-                    className="w-full h-12 mt-2 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center"
+                    className="w-full h-12 mt-2 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center disabled:opacity-60"
                     onClick={handleTwitterSignIn}
+                    disabled={loading}
                   >
-                    <FaXTwitter className="mr-2 text-xl" />
-                    Sign in with Twitter
-                  </motion.button> */}
+                    {loading ? (
+                      <RotatingLines
+                        strokeColor="#000"
+                        strokeWidth="5"
+                        width="24"
+                        visible
+                      />
+                    ) : (
+                      <>
+                        <FaXTwitter className="mr-2 text-xl" />
+                        Sign in with Twitter
+                      </>
+                    )}
+                  </motion.button>
                 </Form>
 
                 <div className="text-center font-light font-lato mt-2 flex justify-center">

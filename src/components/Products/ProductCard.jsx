@@ -16,7 +16,6 @@ import {
   increment,
 } from "firebase/firestore";
 
-
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
 
 import { useAuth } from "../../custom-hooks/useAuth";
@@ -200,8 +199,19 @@ const ProductCard = ({
   // The product’s main image
   const firebaseImage = product?.productCoverImage || product?.coverImageUrl;
   const lowResImg = getImageKitUrl(firebaseImage, "w-60,q-20,bl-6");
-  // High‑res (no transform) served from ImageKit too for CDN/cache benefit
+
   const highResImg = getImageKitUrl(firebaseImage);
+  // Pick sub-product thumbs (first image of each subProduct)
+  const subThumbs = Array.isArray(product?.subProducts)
+    ? product.subProducts
+        .map((sp) => (Array.isArray(sp.images) && sp.images[0]) || null)
+        .filter(Boolean)
+    : [];
+
+  // Show up to 2 circles; if more, badge the last with +N
+  const displayThumbs = subThumbs.slice(0, 2);
+  const extraCount = Math.max(0, subThumbs.length - displayThumbs.length);
+
   return (
     <>
       {/* --- MAIN CARD --- */}
@@ -252,6 +262,57 @@ const ProductCard = ({
                 className="h-52 object-cover rounded-md w-full"
               />
             </>
+          )}
+          {/* Floating sub-product thumbs (bottom-left) */}
+          {displayThumbs.length > 0 && (
+            <motion.div
+              className="absolute bottom-2 left-2 z-20 flex items-center pointer-events-none"
+              initial={{ y: 0 }}
+              animate={{ y: [0, -2, 0] }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                repeatType: "mirror",
+                ease: "easeInOut",
+              }}
+            >
+              {displayThumbs.map((thumb, idx) => {
+                const isLast = idx === displayThumbs.length - 1;
+                return (
+                  <motion.div
+                    key={`${thumb}-${idx}`}
+                    className={`relative ${idx > 0 ? "-ml-2" : ""}`}
+                    initial={{ x: 0, y: 0, rotate: 0 }}
+                    animate={{
+                      y: [0, -1.5, 0],
+                      x: [0, idx % 2 ? 1.5 : -1.5, 0],
+                      rotate: [0, idx % 2 ? 0.6 : -0.6, 0],
+                    }}
+                    transition={{
+                      duration: 2.4 + idx * 0.35,
+                      repeat: Infinity,
+                      repeatType: "mirror",
+                      ease: "easeInOut",
+                    }}
+                  >
+                    <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-white shadow-md">
+                      <IkImage
+                        src={thumb}
+                        alt={`Variant ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+
+                    {/* Badge now sits OUTSIDE the circle */}
+                    {isLast && extraCount > 0 && (
+                      <div className="absolute -top-2 -right-2 bg-black/80 text-white text-[10px] leading-none px-1.5 py-[3px] rounded-full shadow">
+                        +{extraCount}
+                      </div>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </motion.div>
           )}
 
           {/* Favorite Icon */}

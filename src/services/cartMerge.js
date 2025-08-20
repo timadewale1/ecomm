@@ -2,59 +2,112 @@
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { setCart } from "../redux/actions/action";
 
-/**
- * Merge two cart objects by vendor, deduplicating items by
- * (productId, color, size, variation). Right-hand (newer) cart wins on conflicts.
- */
+// Build a stable identity for a cart line-item so we can dedupe correctly.
+// Works with your current item shape (id, selectedColor, selectedSize, subProductId, variation).
+export function itemIdentity(item = {}) {
+  const pid = item.id ?? item.productId ?? "";
+  const color = item.selectedColor ?? item.color ?? "";
+  const size = item.selectedSize ?? item.size ?? "";
+  const sub = item.subProductId ?? "";
+  const variation = item.variation ?? item.variant ?? "";
+  return [pid, color, size, sub, variation].join("|");
+}
+
+// Safer merge that preserves device (local) items.
+// cartA = Firestore, cartB = Local. Right-hand wins on conflicts by SUMing quantity.
+// Returns { merged, addedByVendor, conflicts } for UX decisions upstream.
 export function mergeCarts(cartA = {}, cartB = {}) {
-  const merged = { ...cartA };
+  const merged = {};
+  const addedByVendor = {}; // vendorId -> [names added OR increased]
+  const conflicts = []; // array of { vendorId, name, how: "quantity-summed" | "replaced-key" }
 
-  for (const vendorId of Object.keys(cartB || {})) {
+  const vendorIds = new Set([
+    ...Object.keys(cartA || {}),
+    ...Object.keys(cartB || {}),
+  ]);
+
+  for (const vendorId of vendorIds) {
+    const aVendor = cartA[vendorId] || {};
     const bVendor = cartB[vendorId] || {};
-    const bProducts = bVendor.products || {};
-
-    if (!merged[vendorId]) {
-      merged[vendorId] = { ...(bVendor || {}), products: { ...bProducts } };
-      continue;
-    }
-
-    const aVendor = merged[vendorId];
     const aProducts = aVendor.products || {};
+    const bProducts = bVendor.products || {};
     const outProducts = { ...aProducts };
 
-    for (const productKey of Object.keys(bProducts)) {
-      const newItem = bProducts[productKey];
+    // Map existing A items by identity to their productKey for fast lookup
+    const idToKey = new Map();
+    for (const [key, item] of Object.entries(outProducts)) {
+      idToKey.set(itemIdentity(item), key);
+    }
 
-      const exists = Object.values(outProducts).some((existing) =>
-        existing &&
-        existing.productId === newItem.productId &&
-        existing.color === newItem.color &&
-        existing.size === newItem.size &&
-        existing.variation === newItem.variation
-      );
+    for (const [bKey, bItem] of Object.entries(bProducts)) {
+      // Ignore null/invalid entries
+      if (!bItem || (!bItem.id && !bItem.productId)) continue;
 
-      if (!exists) {
-        outProducts[productKey] = newItem;
+      const bId = itemIdentity(bItem);
+
+      if (idToKey.has(bId)) {
+        // Same product/variant already exists in A. Sum quantities instead of dropping.
+        const existingKey = idToKey.get(bId);
+        const aItem = outProducts[existingKey] || {};
+        const aQty = Number(aItem.quantity || 0);
+        const bQty = Number(bItem.quantity || 0);
+        const newQty = Math.max(1, aQty + bQty); // ensure >=1
+        outProducts[existingKey] = { ...aItem, quantity: newQty };
+
+        conflicts.push({
+          vendorId,
+          name: bItem.name || aItem.name || "Item",
+          how: "quantity-summed",
+        });
+
+        if (!addedByVendor[vendorId]) addedByVendor[vendorId] = [];
+        addedByVendor[vendorId].push(
+          bItem.name || aItem.name || "Item (updated qty)"
+        );
+      } else {
+        // New identity. Add, but avoid productKey collisions.
+        let newKey = bKey;
+        if (outProducts[newKey]) {
+          newKey = `${bKey}__m${Math.random().toString(36).slice(2, 8)}`;
+          conflicts.push({
+            vendorId,
+            name: bItem.name || "Item",
+            how: "replaced-key",
+          });
+        }
+        outProducts[newKey] = bItem;
+        idToKey.set(bId, newKey);
+
+        if (!addedByVendor[vendorId]) addedByVendor[vendorId] = [];
+        addedByVendor[vendorId].push(bItem.name || "Item");
       }
     }
 
-    merged[vendorId] = { ...aVendor, products: outProducts };
+    // carry forward vendor meta (like vendorName) from whichever is present
+    const baseVendor = Object.keys(outProducts).length
+      ? aVendor.vendorName
+        ? aVendor
+        : bVendor
+      : aVendor.vendorName
+      ? aVendor
+      : bVendor;
+    merged[vendorId] = { ...(baseVendor || {}), products: outProducts };
   }
 
-  return merged;
+  return { merged, addedByVendor, conflicts };
 }
 
 /**
  * Fetch Firestore cart for a user, merge with localCart, save back,
- * and update Redux (setCart).
+ * update Redux, and return merge metadata.
  *
  * @param {import('firebase/firestore').Firestore} db
  * @param {string} userId
- * @param {function} dispatch - Redux dispatch
+ * @param {function} dispatch
  * @param {object} opts
- *   - localCart: object (defaults to localStorage 'cart' if omitted)
- *   - clearLocal: boolean (default true) remove localStorage cart after merge
- *   - onMerged: (mergedCart) => void  (optional callback)
+ *   - localCart: object (defaults to localStorage 'cart')
+ *   - clearLocal: boolean (default true)
+ *   - onMerged: (mergedCart) => void
  */
 export async function fetchAndMergeCart(db, userId, dispatch, opts = {}) {
   const {
@@ -66,32 +119,24 @@ export async function fetchAndMergeCart(db, userId, dispatch, opts = {}) {
   try {
     const ref = doc(db, "carts", userId);
     const snap = await getDoc(ref);
-    const firestoreCart = snap.exists() ? (snap.data().cart || {}) : {};
+    const firestoreCart = snap.exists() ? snap.data().cart || {} : {};
 
-    const mergedCart = mergeCarts(firestoreCart, localCart);
-    await setDoc(ref, { cart: mergedCart });
+    const { merged, addedByVendor, conflicts } = mergeCarts(
+      firestoreCart,
+      localCart
+    );
 
-    // update Redux
-    if (typeof dispatch === "function") {
-      dispatch(setCart(mergedCart));
-    }
+    // Persist
+    await setDoc(ref, { cart: merged });
 
-    if (onMerged) onMerged(mergedCart);
+    // Redux
+    if (typeof dispatch === "function") dispatch(setCart(merged));
+    if (onMerged) onMerged(merged);
     if (clearLocal) localStorage.removeItem("cart");
 
-    return mergedCart;
+    return { mergedCart: merged, addedByVendor, conflicts };
   } catch (err) {
     console.error("fetchAndMergeCart failed:", err);
-    throw err;
-  }
-}
-export async function pushLocalCart(db, userId, dispatch, cartObj) {
-  const localCart = cartObj || JSON.parse(localStorage.getItem("cart") || "{}");
-  try {
-    await setDoc(doc(db, "carts", userId), { cart: localCart });
-    if (typeof dispatch === "function") dispatch(setCart(localCart));
-  } catch (err) {
-    console.error("pushLocalCart failed:", err);
     throw err;
   }
 }

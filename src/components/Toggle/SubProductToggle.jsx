@@ -21,7 +21,7 @@ export default function VariationsToggle({
             onClick={onInfo}
           />
           <span className="font-opensans font-medium text-sm text-black">
-            Does this product have variations?
+            Add sub-products here
           </span>
         </div>
 

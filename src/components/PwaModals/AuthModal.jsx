@@ -324,15 +324,11 @@ export default function QuickAuthModal({
       const userRef = doc(db, "users", user.uid);
       const snap = await getDoc(userRef);
       if (snap.exists() && snap.data().profileComplete) {
-        if (typeof mergeCart === "function") {
-          await mergeCart(user.uid);
-        }
         onClose?.();
-
-        onComplete(user);
-
+        onComplete(user); // parent shows overlay & merges
         return;
       }
+
       if (!snap.exists()) {
         await setDoc(userRef, {
           uid: user.uid,
@@ -417,41 +413,107 @@ export default function QuickAuthModal({
     }
   };
 
-  /* ─────────────────────────────────────────────
-   *   Twitter Sign-In
-   * ───────────────────────────────────────────── */
   const handleTwitterSignIn = async () => {
     const provider = new TwitterAuthProvider();
+    const TAG = "[TWITTER_SIGNIN]";
+    console.log(`${TAG} init`);
     try {
       setLoading(true);
+      console.log(`${TAG} calling signInWithPopup...`);
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Twitter often lacks email; confirm modal always
+      console.log(`${TAG} popup resolved`);
+      console.log(`${TAG} user.uid=`, user?.uid);
+      console.log(`${TAG} user.displayName=`, user?.displayName);
+      console.log(`${TAG} user.email=`, user?.email || "(empty)");
+
+      // Optional: vendor-email guard, same as Google
+      const clean = (user.email || "").toLowerCase().trim();
+      if (clean) {
+        console.log(`${TAG} vendor email guard check for:`, clean);
+        try {
+          if (await isVendorEmail(clean)) {
+            console.log(`${TAG} vendor email detected -> signOut + block`);
+            localStorage.setItem("BLOCKED_VENDOR_EMAIL", "1");
+            await auth.signOut();
+            toast.error("This email is already used for a Vendor account!");
+            return;
+          }
+        } catch (guardErr) {
+          console.warn(`${TAG} vendor email guard error:`, guardErr);
+        }
+      }
+
+      // Ensure users/{uid} exists BEFORE confirm modal
+      const userRef = doc(db, "users", user.uid);
+      console.log(`${TAG} fetching users/${user.uid}...`);
+      const snap = await getDoc(userRef);
+
+      if (!snap.exists()) {
+        console.log(`${TAG} no user doc -> creating stub`);
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: clean || null, // Twitter may not give email
+          displayName: user.displayName ?? null,
+          username: genUsername(user.displayName),
+          role: "user",
+          profileComplete: false,
+          walletSetup: false,
+          birthday: "not-set",
+          welcomeEmailSent: false,
+          notificationAllowed: false,
+          createdAt: new Date(),
+        });
+        console.log(`${TAG} stub user doc created`);
+      } else {
+        console.log(
+          `${TAG} user doc exists -> patch minimal fields if missing`
+        );
+        const data = snap.data() || {};
+        const patch = {};
+        if (data.displayName == null && user.displayName)
+          patch.displayName = user.displayName;
+        if (!data.username) patch.username = genUsername(user.displayName);
+        if (Object.keys(patch).length) {
+          await setDoc(userRef, patch, { merge: true });
+          console.log(`${TAG} patched existing user doc:`, patch);
+        }
+      }
+
+      // If already complete, finish quickly
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists() && userSnap.data()?.profileComplete) {
+        onClose?.();
+        onComplete(user); // parent shows overlay & merges
+        return;
+      }
+
+      // Open confirm modal to collect missing fields (like last name, email)
       const { first: f, last: l } = splitDisplayName(user.displayName || "");
+      console.log(`${TAG} splitDisplayName ->`, { f, l });
+
       setFirst(f);
-      setLast(l);
-      setEmail(user.email || ""); // may be empty
+      setLast(l); // may be empty; user must fill
+      setEmail(user.email || ""); // may be empty; user must fill
       setEmailLocked(false);
       setConfirmProvider("twitter");
       setPendingUser(user);
-      const userSnap = await getDoc(doc(db, "users", user.uid));
-      if (userSnap.exists() && userSnap.data().profileComplete) {
-        if (typeof mergeCart === "function") {
-          await mergeCart(user.uid);
-        }
-        onClose?.();
-        onComplete(user);
+      console.log(`${TAG} state set. prefillFromUserDoc...`);
 
-        return;
-      }
       await prefillFromUserDoc(user.uid, {
         setPhoneRaw,
         setAddress,
         setCoords,
       });
+      console.log(`${TAG} prefill done. showConfirm=true`);
       setShowConfirm(true);
     } catch (error) {
+      console.error(`${TAG} error:`, {
+        code: error?.code,
+        message: error?.message,
+        error,
+      });
       if (error?.code === "auth/account-exists-with-different-credential") {
         const em = error?.customData?.email;
         if (!em) {
@@ -478,7 +540,7 @@ export default function QuickAuthModal({
           );
           navigate("/login", { state: { email: em, from: location.pathname } });
         } catch (mErr) {
-          console.error("fetchSignInMethodsForEmail:", mErr);
+          console.error(`${TAG} fetchSignInMethodsForEmail error:`, mErr);
           toast.error(
             "Sign-in conflict. Log in first, then link Twitter in settings."
           );
@@ -486,10 +548,11 @@ export default function QuickAuthModal({
       } else if (error?.code === "auth/popup-closed-by-user") {
         toast.error("Popup closed before completing sign-in.");
       } else {
-        console.error(error);
+        console.error(`${TAG} unhandled error:`, error);
         toast.error("Twitter sign-in failed. Please try again.");
       }
     } finally {
+      console.log(`${TAG} finally -> setLoading(false)`);
       setLoading(false);
     }
   };

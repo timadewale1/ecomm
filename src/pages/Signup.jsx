@@ -3,8 +3,11 @@ import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
 import {
   GoogleAuthProvider,
+  TwitterAuthProvider,
+  getAdditionalUserInfo,
   signInWithPopup,
   onAuthStateChanged,
+  signOut,
 } from "firebase/auth";
 import { emailBelongsToVendor } from "../services/authHelper";
 import { FcGoogle } from "react-icons/fc";
@@ -40,6 +43,7 @@ import { useAuth } from "../custom-hooks/useAuth";
 import { httpsCallable } from "firebase/functions"; // import from Firebase functions
 import Modal from "react-modal";
 import SEO from "../components/Helmet/SEO";
+import { FaXTwitter } from "react-icons/fa6";
 const Signup = () => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -213,41 +217,54 @@ const Signup = () => {
     }
   };
 
-  // Google sign-up remains purely client-side
   const handleGoogleSignUp = async () => {
     const provider = new GoogleAuthProvider();
 
     try {
       setLoading(true);
 
-      // 1️⃣  Open Google popup
-      const { user } = await signInWithPopup(auth, provider);
-      const emailLower = (user.email || "").toLowerCase();
+      // 1) Open Google popup
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      const info = getAdditionalUserInfo(result);
+      const isNewUser = !!info?.isNewUser;
 
-      // 2️⃣  Block if that email is already a vendor
+      const emailLower = (user.email || "").toLowerCase().trim();
+
+      // 2) Vendor guard
       if (await emailBelongsToVendor(emailLower)) {
-        await signOut(auth);
+        try {
+          if (isNewUser) await user.delete();
+        } catch {}
+        try {
+          await signOut(auth);
+        } catch {}
         toast.error("This email is already used for a Vendor account!");
         setLoading(false);
         return;
       }
 
-      // 3️⃣  Block if an existing /users doc has role="vendor"
+      // 3) Also block if any "users" doc with role=vendor
       const usersRef = collection(db, "users");
       const sameEmailUsers = await getDocs(
         query(usersRef, where("emailLower", "==", emailLower))
       );
-      if (!sameEmailUsers.empty) {
-        const existing = sameEmailUsers.docs[0].data();
-        if (existing.role === "vendor") {
+      if (
+        !sameEmailUsers.empty &&
+        sameEmailUsers.docs[0].data()?.role === "vendor"
+      ) {
+        try {
+          if (isNewUser) await user.delete();
+        } catch {}
+        try {
           await signOut(auth);
-          toast.error("This email is already used for a Vendor account!");
-          setLoading(false);
-          return;
-        }
+        } catch {}
+        toast.error("This email is already used for a Vendor account!");
+        setLoading(false);
+        return;
       }
 
-      // 4️⃣  Create (or update) user doc
+      // 4) Create (or keep) user doc
       const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
 
@@ -255,7 +272,7 @@ const Signup = () => {
         uid: user.uid,
         username: user.displayName || "",
         email: user.email,
-
+        emailLower, // 👈 add this so future lookups work
         role: "user",
         walletSetup: false,
         profileComplete: false,
@@ -266,9 +283,6 @@ const Signup = () => {
 
       if (!userSnap.exists()) {
         await setDoc(userRef, baseData);
-        console.log("Created new user document");
-      } else {
-        console.log("User doc exists; not overwriting sensitive fields.");
       }
 
       toast.success("Signed up with Google successfully!");
@@ -277,8 +291,107 @@ const Signup = () => {
       console.error("Google Sign-Up Error:", error);
       let msg = "Google Sign-Up failed. Please try again.";
       if (error.code === "auth/account-exists-with-different-credential") {
-        msg = "An account with the same email already exists.";
+        msg =
+          "An account with the same email already exists. Please use your original sign-in method.";
       } else if (error.code === "auth/popup-closed-by-user") {
+        msg = "Popup closed before completing sign-up.";
+      }
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleTwitterSignUp = async () => {
+    const provider = new TwitterAuthProvider();
+
+    try {
+      setLoading(true);
+
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      const info = getAdditionalUserInfo(result);
+      const isNewUser = !!info?.isNewUser;
+
+      const emailLower = (user.email || "").toLowerCase().trim();
+
+      // Twitter may not return an email — abort in that case
+      if (!emailLower) {
+        try {
+          if (isNewUser) await user.delete();
+        } catch {}
+        try {
+          await signOut(auth);
+        } catch {}
+        toast.error(
+          "We couldn’t get your email from Twitter. Please use Google or Email."
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Vendor guard
+      if (await emailBelongsToVendor(emailLower)) {
+        try {
+          if (isNewUser) await user.delete();
+        } catch {}
+        try {
+          await signOut(auth);
+        } catch {}
+        toast.error("This email is already used for a Vendor account!");
+        setLoading(false);
+        return;
+      }
+
+      // Also block if any 'users' doc has role=vendor
+      const usersRef = collection(db, "users");
+      const sameEmailUsers = await getDocs(
+        query(usersRef, where("emailLower", "==", emailLower))
+      );
+      if (
+        !sameEmailUsers.empty &&
+        sameEmailUsers.docs[0].data()?.role === "vendor"
+      ) {
+        try {
+          if (isNewUser) await user.delete();
+        } catch {}
+        try {
+          await signOut(auth);
+        } catch {}
+        toast.error("This email is already used for a Vendor account!");
+        setLoading(false);
+        return;
+      }
+
+      // Create (or keep) user doc
+      const userRef = doc(db, "users", user.uid);
+      const snap = await getDoc(userRef);
+
+      const baseData = {
+        uid: user.uid,
+        username: user.displayName || "",
+        email: user.email,
+        emailLower, // 👈 keep lowercased index field
+        role: "user",
+        walletSetup: false,
+        profileComplete: false,
+        welcomeEmailSent: false,
+        notificationAllowed: false,
+        createdAt: new Date(),
+      };
+
+      if (!snap.exists()) {
+        await setDoc(userRef, baseData);
+      }
+
+      toast.success(`Signed up with Twitter successfully!`);
+      navigate("/newhome");
+    } catch (error) {
+      console.error("Twitter Sign-Up Error:", error);
+      let msg = "Twitter Sign-Up failed. Please try again.";
+      if (error?.code === "auth/account-exists-with-different-credential") {
+        msg =
+          "This email is already registered with a different method. Please use your original sign-in method.";
+      } else if (error?.code === "auth/popup-closed-by-user") {
         msg = "Popup closed before completing sign-up.";
       }
       toast.error(msg);
@@ -478,8 +591,8 @@ const Signup = () => {
                     )}
                   </div>
                 </FormGroup>
-                <div className="text-gray-600 font-opensans text-xs mt-2 -mx-1 leading-relaxed">
-                  By signing up you agree to our {" "}
+                <div className="text-gray-600  font-opensans text-xs mt-2 -mx-1 leading-relaxed">
+                  By signing up you agree to our{" "}
                   <span
                     onClick={() =>
                       window.open(
@@ -542,7 +655,14 @@ const Signup = () => {
                   <FcGoogle className="mr-2  text-2xl" />
                   Sign up with Google
                 </motion.button>
-
+                <motion.button
+                  type="button"
+                  className="w-full h-12 mt-2 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center"
+                  onClick={handleTwitterSignUp}
+                >
+                  <FaXTwitter className="mr-2 text-xl" />
+                  Sign up with Twitter
+                </motion.button>
                 <div className="text-center text-sm font-normal font-lato mt-2 pb-4 flex justify-center">
                   <p className="text-gray-700 text-sm">
                     Already have an account?{" "}

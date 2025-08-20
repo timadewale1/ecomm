@@ -73,6 +73,8 @@ const Cart = () => {
   const [showNoteBadge, setShowNoteBadge] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
+  const [authTransitioning, setAuthTransitioning] = useState(false);
+
   const vendorIds = Object.keys(cart);
   const firstVendorId = vendorIds.length > 0 ? vendorIds[0] : null;
 
@@ -111,12 +113,14 @@ const Cart = () => {
   };
   const mergeCartFor = async (uid) => {
     try {
-      await fetchAndMergeCart(db, uid, dispatch, {
+      const res = await fetchAndMergeCart(db, uid, dispatch, {
         localCart: JSON.parse(localStorage.getItem("cart") || "{}"),
         clearLocal: true,
       });
+      return res; // { mergedCart, addedByVendor, conflicts }
     } catch (e) {
       console.warn("mergeCart failed:", e);
+      return null;
     }
   };
   useEffect(() => {
@@ -300,7 +304,21 @@ const Cart = () => {
     }
 
     /* ───── 2 – Email verified? ───── */
-    if (!authUser.emailVerified) {
+    /* ───── 2 – Email verified? (password-only) ───── */
+    const providers = (authUser.providerData || []).map((p) => p.providerId);
+    // true if user has any OAuth provider
+    const hasOAuthProvider = providers.some((p) =>
+      [
+        "google.com",
+        "twitter.com",
+        "facebook.com",
+        "apple.com",
+        "github.com",
+      ].includes(p)
+    );
+    const needsEmailVerification = !hasOAuthProvider && !authUser.emailVerified;
+
+    if (needsEmailVerification) {
       toast.error("Please verify your email before proceeding to checkout.");
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
@@ -426,13 +444,45 @@ const Cart = () => {
   };
 
   const handleAuthComplete = async (user) => {
-    setAuthOpen(false); // close modal immediately
+    // Show a clear “working” state as we merge + maybe open modal or navigate
+    setAuthTransitioning(true);
+    setAuthOpen(false); // close the auth modal immediately
+
+    // Merge device cart -> Firestore cart and get what changed
+    const mergeMeta = await mergeCartFor(user.uid);
+
+    const addedVendors = mergeMeta?.addedByVendor
+      ? Object.keys(mergeMeta.addedByVendor).filter(
+          (vid) => (mergeMeta.addedByVendor[vid] || []).length > 0
+        )
+      : [];
+
+    if (addedVendors.length > 0) {
+      const targetVendor =
+        pendingVendorForCheckout &&
+        addedVendors.includes(pendingVendorForCheckout)
+          ? pendingVendorForCheckout
+          : addedVendors[0];
+
+      setSelectedVendorId(targetVendor);
+      setIsModalOpen(true);
+      toast.success(
+        "We merged your items. Review your selection before checkout."
+      );
+      setPendingVendorForCheckout(null);
+      setAuthTransitioning(false);
+      return;
+    }
+
     const v = pendingVendorForCheckout;
     setPendingVendorForCheckout(null);
 
-    if (v) await handleCheckout(v, user);
-  };
+    if (v) {
+      await handleCheckout(v, user);
+    }
 
+    setAuthTransitioning(false);
+  };
   const calculateVendorTotal = (vendorId) => {
     const vendorCart = cart[vendorId]?.products || {};
     return Object.values(vendorCart).reduce(
@@ -513,6 +563,17 @@ const Cart = () => {
         description={`Your cart on My Thrift`}
         url={`https://www.shopmythrift.store/latest-cart`}
       />
+      {authTransitioning && (
+        <div className="fixed inset-0 z-[9999] bg-white/60 backdrop-blur-sm flex items-center justify-center">
+          <RotatingLines
+            strokeColor="#f9531e"
+            strokeWidth="5"
+            width="28"
+            visible
+          />
+        </div>
+      )}
+
       <div className="flex flex-col h-full justify-between pb-40 bg-gray-200">
         <div className="sticky top-0 bg-white w-full h-24 flex items-center p-3 shadow-md z-10">
           {fromProductDetail && (
@@ -590,28 +651,33 @@ const Cart = () => {
                           {/* Badge */}
                           {showNoteBadge && vendorId === firstVendorId && (
                             <div className="absolute w-full -top-[100px] -right-5 z-[3] flex flex-col items-end justify-end p-4 pointer-events-auto">
-                                    <div
-                                      className={`absolute bottom-2 z-40 transform right-5 w-4 h-4 backdrop-blur-2xl  bg-gradient-to-bl from-transparent to-black/50 -rotate-45 transition-opacity duration-500 ${
-                                        isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-                                      }`}
-                                    ></div>{" "}
-                                    <div
-                                      className={`z-50 w-72 bg-gradient-to-br translate-x-[5px] from-black/5 to-black/30 backdrop-blur-lg shadow-lg text-white px-2 py-2 rounded-lg flex flex-col items-start space-y-1 transition-opacity duration-500 ${
-                                        isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-                                      }`}
-                                      style={{ maxWidth: "99%" }}
-                                    >
-                                      <span className="font-semibold px-2 font-opensans text-xs mr-2">
-                                       Click “View Selection” to leave a note for the
-                                vendor
-                                      </span>
-                                      <button onClick={handleClose} className="absolute top-1 right-2">
-                                        <MdClose className="text-white text-lg" />
-                                      </button>
-                                      
-                                    </div>
-                                    
-                                  </div>
+                              <div
+                                className={`absolute bottom-2 z-40 transform right-5 w-4 h-4 backdrop-blur-2xl  bg-gradient-to-bl from-transparent to-black/50 -rotate-45 transition-opacity duration-500 ${
+                                  isVisible
+                                    ? "opacity-100"
+                                    : "opacity-0 pointer-events-none"
+                                }`}
+                              ></div>{" "}
+                              <div
+                                className={`z-50 w-72 bg-gradient-to-br translate-x-[5px] from-black/5 to-black/30 backdrop-blur-lg shadow-lg text-white px-2 py-2 rounded-lg flex flex-col items-start space-y-1 transition-opacity duration-500 ${
+                                  isVisible
+                                    ? "opacity-100"
+                                    : "opacity-0 pointer-events-none"
+                                }`}
+                                style={{ maxWidth: "99%" }}
+                              >
+                                <span className="font-semibold px-2 font-opensans text-xs mr-2">
+                                  Click “View Selection” to leave a note for the
+                                  vendor
+                                </span>
+                                <button
+                                  onClick={handleClose}
+                                  className="absolute top-1 right-2"
+                                >
+                                  <MdClose className="text-white text-lg" />
+                                </button>
+                              </div>
+                            </div>
                           )}
 
                           {/* View Selection on far right */}
@@ -697,193 +763,219 @@ const Cart = () => {
         </div>
 
         {/* Modal for viewing all products */}
-        {isModalOpen &&
-          selectedVendorId &&
-          cart[selectedVendorId]?.products && (
+        {isModalOpen && selectedVendorId && (
+          <div
+            className="fixed inset-0 modal bg-black bg-opacity-50 flex items-end justify-center"
+            onClick={handleOverlayClick}
+          >
             <div
-              className="fixed inset-0 modal bg-black bg-opacity-50 flex items-end justify-center"
-              onClick={handleOverlayClick}
+              className="bg-white w-full h-4/5 rounded-t-xl p-4 flex flex-col animate-modal-slide-up"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div
-                className="bg-white w-full h-4/5 rounded-t-xl p-4 flex flex-col animate-modal-slide-up"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Modal Header */}
-                <div className="flex justify-between pb-4 items-center">
-                  <h2 className="text-2xl font-opensans font-semibold">
-                    {isActive && selectedVendorId === stockpileVendorId
-                      ? "Review Pile"
-                      : "Review Order"}
-                  </h2>
+              {/* Modal Header */}
+              <div className="flex justify-between pb-4 items-center">
+                <h2 className="text-2xl font-opensans font-semibold">
+                  {isActive && selectedVendorId === stockpileVendorId
+                    ? "Review Pile"
+                    : "Review Order"}
+                </h2>
 
-                  <LiaTimesSolid
-                    onClick={() => setIsModalOpen(false)}
-                    className="text-black text-xl cursor-pointer"
-                  />
-                </div>
-
-                {/* Scrollable Products List */}
-                <div className="overflow-y-auto mt-4 flex-grow">
-                  {[
-                    ...(isActive && selectedVendorId === stockpileVendorId
-                      ? pileItems.map((item, index) => ({
-                          ...item,
-                          selectedImageUrl: item.imageUrl || "",
-                          quantity: item.quantity || 1,
-                          __isCart: false,
-                          __index: index,
-                        }))
-                      : []),
-                    ...Object.entries(
-                      cart[selectedVendorId]?.products || {}
-                    ).map(([key, product]) => ({
-                      ...product,
-                      __isCart: true,
-                      __productKey: key,
-                    })),
-                  ].map((item, index, fullArray) => {
-                    const isCartItem = item.__isCart;
-
-                    return (
-                      <div
-                        key={isCartItem ? item.__productKey : `pile-${index}`}
-                      >
-                        <div className="flex items-center justify-between mt-2">
-                          {/* Product Image */}
-                          <div className="relative">
-                            <IkImage
-                              src={item.selectedImageUrl}
-                              alt={item.name}
-                              className="w-16 h-16 object-cover rounded-lg"
-                            />
-                            {item.quantity > 1 && (
-                              <div className="absolute -top-1 text-xs -right-2 bg-gray-900 bg-opacity-40 text-white rounded-full w-7 h-7 flex items-center justify-center backdrop-blur-md">
-                                +{item.quantity}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Product Details */}
-                          <div className="flex-grow ml-4">
-                            <h3 className="font-opensans text-base">
-                              {item.name}
-                            </h3>
-
-                            {isCartItem && (
-                              <>
-                                <p className="font-opensans text-md mt-2 text-black font-bold">
-                                  ₦{formatPrice(item.price)}
-                                </p>
-
-                                {/* only show size if this product is fashion */}
-                                {item.isFashion && (
-                                  <p className="text-gray-600 text-xs mt-2">
-                                    Size:{" "}
-                                    <span className="font-semibold mr-4 font-opensans text-sm text-black">
-                                      {item.selectedSize}
-                                    </span>
-                                    {item.selectedColor && (
-                                      <>
-                                        Color:{" "}
-                                        <span className="font-semibold font-opensans text-black">
-                                          {formatColorText(item.selectedColor)}
-                                        </span>
-                                      </>
-                                    )}
-                                  </p>
-                                )}
-                              </>
-                            )}
-                          </div>
-
-                          {/* Right-side Action */}
-                          {isCartItem ? (
-                            <button
-                              onClick={() =>
-                                handleRemoveFromCart(
-                                  selectedVendorId,
-                                  item.__productKey
-                                )
-                              }
-                              className="text-gray-500 font-semibold font-opensans -translate-y-5 text-sm ml-2"
-                            >
-                              Remove
-                            </button>
-                          ) : (
-                            <FcPaid className="text-2xl ml-2 -translate-y-5" />
-                          )}
-                        </div>
-
-                        {/* Separator */}
-                        {index < fullArray.length - 1 && (
-                          <div className="border-t border-gray-300 my-2"></div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Sticky Footer */}
-                <div className="mt-4">
-                  {/* "Leave a Message for the Vendor" */}
-                  <div className="border-t border-gray-300 my-2"></div>
-                  <div
-                    className="flex items-center mt-4 justify-between cursor-pointer"
-                    onClick={() => setIsNoteModalOpen(true)}
-                  >
-                    <div className="flex items-center">
-                      <BiMessageDetail className="text-xl mr-3" />
-                      <span className="font-opensans text-sm">
-                        {vendorNotes[selectedVendorId]
-                          ? `Note: ${
-                              vendorNotes[selectedVendorId].length > 18
-                                ? vendorNotes[selectedVendorId].substring(
-                                    0,
-                                    18
-                                  ) + "..."
-                                : vendorNotes[selectedVendorId]
-                            }`
-                          : "Leave a message for the vendor"}
-                      </span>
-                    </div>
-                    <GoChevronRight className="text-2xl text-gray-500" />
-                  </div>
-
-                  {/* "Proceed to Checkout" and "Clear Order" Buttons */}
-                  <div className="flex flex-col justify-between space-y-4 mt-4">
-                    <button
-                      onClick={() => handleCheckout(selectedVendorId)}
-                      disabled={checkoutLoading[selectedVendorId]}
-                      className={`rounded-full flex justify-center items-center h-12 w-full font-opensans font-medium text-white px-4 py-2 ${
-                        checkoutLoading[selectedVendorId]
-                          ? "bg-orange-500"
-                          : "bg-customOrange"
-                      }`}
-                    >
-                      {checkoutLoading[selectedVendorId] ? (
-                        <RotatingLines
-                          strokeColor="#fff"
-                          strokeWidth="5"
-                          animationDuration="0.75"
-                          width="24"
-                          visible={true}
-                        />
-                      ) : (
-                        "Checkout"
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => handleClearSelection(selectedVendorId)}
-                      className="bg-gray-300 text-black font-opensans font-semibold  h-12 w-full rounded-full flex-grow"
-                    >
-                      Clear Order
-                    </button>
-                  </div>
-                </div>
+                <LiaTimesSolid
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-black text-xl cursor-pointer"
+                />
               </div>
+
+              {/* Precompute items + loading flag */}
+              {(() => {
+                const cartEntries = Object.entries(
+                  cart[selectedVendorId]?.products || {}
+                ).map(([key, product]) => ({
+                  ...product,
+                  __isCart: true,
+                  __productKey: key,
+                }));
+
+                const pileEntries =
+                  isActive && selectedVendorId === stockpileVendorId
+                    ? pileItems.map((item, index) => ({
+                        ...item,
+                        selectedImageUrl: item.imageUrl || "",
+                        quantity: item.quantity || 1,
+                        __isCart: false,
+                        __index: index,
+                      }))
+                    : [];
+
+                const items = [...pileEntries, ...cartEntries];
+                const isLoadingSelection = items.length === 0;
+
+                return (
+                  <>
+                    {/* Scrollable Products List */}
+                    <div className="overflow-y-auto mt-4 flex-grow">
+                      {isLoadingSelection ? (
+                        <div className="h-full w-full flex items-center justify-center py-10">
+                          <RotatingLines
+                            strokeColor="#f9531e"
+                            strokeWidth="5"
+                            width="28"
+                            visible
+                          />
+                        </div>
+                      ) : (
+                        items.map((item, index) => {
+                          const isCartItem = item.__isCart;
+                          const isLast = index === items.length - 1;
+
+                          return (
+                            <div
+                              key={
+                                isCartItem ? item.__productKey : `pile-${index}`
+                              }
+                            >
+                              <div className="flex items-center justify-between mt-2">
+                                {/* Product Image */}
+                                <div className="relative">
+                                  <IkImage
+                                    src={item.selectedImageUrl}
+                                    alt={item.name}
+                                    className="w-16 h-16 object-cover rounded-lg"
+                                  />
+                                  {item.quantity > 1 && (
+                                    <div className="absolute -top-1 text-xs -right-2 bg-gray-900 bg-opacity-40 text-white rounded-full w-7 h-7 flex items-center justify-center backdrop-blur-md">
+                                      +{item.quantity}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Product Details */}
+                                <div className="flex-grow ml-4">
+                                  <h3 className="font-opensans text-base">
+                                    {item.name}
+                                  </h3>
+
+                                  {isCartItem && (
+                                    <>
+                                      <p className="font-opensans text-md mt-2 text-black font-bold">
+                                        ₦{formatPrice(item.price)}
+                                      </p>
+
+                                      {/* only show size if this product is fashion */}
+                                      {item.isFashion && (
+                                        <p className="text-gray-600 text-xs mt-2">
+                                          Size:{" "}
+                                          <span className="font-semibold mr-4 font-opensans text-sm text-black">
+                                            {item.selectedSize}
+                                          </span>
+                                          {item.selectedColor && (
+                                            <>
+                                              Color:{" "}
+                                              <span className="font-semibold font-opensans text-black">
+                                                {formatColorText(
+                                                  item.selectedColor
+                                                )}
+                                              </span>
+                                            </>
+                                          )}
+                                        </p>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+
+                                {/* Right-side Action */}
+                                {isCartItem ? (
+                                  <button
+                                    onClick={() =>
+                                      handleRemoveFromCart(
+                                        selectedVendorId,
+                                        item.__productKey
+                                      )
+                                    }
+                                    className="text-gray-500 font-semibold font-opensans -translate-y-5 text-sm ml-2"
+                                  >
+                                    Remove
+                                  </button>
+                                ) : (
+                                  <FcPaid className="text-2xl ml-2 -translate-y-5" />
+                                )}
+                              </div>
+
+                              {/* Separator */}
+                              {!isLast && (
+                                <div className="border-t border-gray-300 my-2"></div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {/* Sticky Footer */}
+                    <div className="mt-4">
+                      {/* "Leave a Message for the Vendor" */}
+                      <div className="border-t border-gray-300 my-2"></div>
+                      <div
+                        className="flex items-center mt-4 justify-between cursor-pointer"
+                        onClick={() => setIsNoteModalOpen(true)}
+                      >
+                        <div className="flex items-center">
+                          <BiMessageDetail className="text-xl mr-3" />
+                          <span className="font-opensans text-sm">
+                            {vendorNotes[selectedVendorId]
+                              ? `Note: ${
+                                  vendorNotes[selectedVendorId].length > 18
+                                    ? vendorNotes[selectedVendorId].substring(
+                                        0,
+                                        18
+                                      ) + "..."
+                                    : vendorNotes[selectedVendorId]
+                                }`
+                              : "Leave a message for the vendor"}
+                          </span>
+                        </div>
+                        <GoChevronRight className="text-2xl text-gray-500" />
+                      </div>
+
+                      {/* "Proceed to Checkout" and "Clear Order" Buttons */}
+                      <div className="flex flex-col justify-between space-y-4 mt-4">
+                        <button
+                          onClick={() => handleCheckout(selectedVendorId)}
+                          disabled={checkoutLoading[selectedVendorId]}
+                          className={`rounded-full flex justify-center items-center h-12 w-full font-opensans font-medium text-white px-4 py-2 ${
+                            checkoutLoading[selectedVendorId]
+                              ? "bg-orange-500"
+                              : "bg-customOrange"
+                          }`}
+                        >
+                          {checkoutLoading[selectedVendorId] ? (
+                            <RotatingLines
+                              strokeColor="#fff"
+                              strokeWidth="5"
+                              animationDuration="0.75"
+                              width="24"
+                              visible
+                            />
+                          ) : (
+                            "Checkout"
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => handleClearSelection(selectedVendorId)}
+                          className="bg-gray-300 text-black font-opensans font-semibold  h-12 w-full rounded-full flex-grow"
+                        >
+                          Clear Order
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
-          )}
+          </div>
+        )}
 
         {/* Modal for  a note */}
         {isNoteModalOpen && (
@@ -935,7 +1027,6 @@ const Cart = () => {
           open={authOpen}
           onClose={() => setAuthOpen(false)}
           onComplete={handleAuthComplete}
-          mergeCart={mergeCartFor}
           openDisclaimer={openDisclaimer}
           vendorId={pendingVendorForCheckout}
         />

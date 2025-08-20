@@ -145,6 +145,8 @@ const ProfileDetails = ({
   if (loading) {
     return <Loading />;
   }
+  const nameParts = (s = "") => String(s).trim().split(/\s+/).filter(Boolean);
+  const hasFullName = (s = "") => nameParts(s).length >= 2;
 
   const checkProfileCompletion = async (userId, userData) => {
     const requiredFields = [
@@ -201,9 +203,9 @@ const ProfileDetails = ({
   const handleEdit = (field) => {
     setEditField(field);
     if (field === "displayName") {
-      const [first, last] = displayName.split(" ");
-      setFirstName(first || "");
-      setLastName(last || "");
+      const parts = nameParts(displayName);
+      setFirstName(parts[0] || "");
+      setLastName(parts.slice(1).join(" ") || "");
     }
     setIsEditing(true);
   };
@@ -389,9 +391,10 @@ const ProfileDetails = ({
             </p>
             <MdVerified
               className={`${
-                displayName ? "text-green-500" : "text-yellow-500"
+                hasFullName(displayName) ? "text-green-500" : "text-yellow-500"
               } text-2xl ml-2`}
             />
+
             <RiEditFill
               className="text-black cursor-pointer ml-2 text-2xl"
               onClick={() => handleEdit("displayName")}

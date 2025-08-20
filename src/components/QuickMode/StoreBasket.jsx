@@ -643,26 +643,99 @@ const StoreBasket = forwardRef(function StoreBasket(
       setLoading(false);
     }
   };
+
   const handleTwitterSignIn = async () => {
     const provider = new TwitterAuthProvider();
+    const TAG = "[TWITTER_SIGNIN]";
     try {
       setLoading(true);
       posthog?.capture("login_attempted", { method: "twitter" });
+      console.log(`${TAG} calling signInWithPopup...`);
 
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       const info = getAdditionalUserInfo(result);
       const twitterHandle = info?.username || "";
-      setPendingHandle(twitterHandle);
+      console.log(
+        `${TAG} popup resolved uid=${user?.uid} email=${
+          user?.email || "(empty)"
+        }`
+      );
+
+      // Optional vendor-email guard if you have isVendorEmail available
+      const clean = (user.email || "").toLowerCase().trim();
+      if (clean && typeof isVendorEmail === "function") {
+        try {
+          if (await isVendorEmail(clean)) {
+            console.warn(`${TAG} vendor email detected -> signOut`);
+            await auth.signOut();
+            toast.error("This email is already used for a Vendor account!");
+            setLoading(false);
+            return;
+          }
+        } catch (guardErr) {
+          console.warn(`${TAG} vendor email guard error:`, guardErr);
+        }
+      }
+
+      // Ensure a stub user doc exists BEFORE showing confirm modal
+      const userRef = doc(db, "users", user.uid);
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) {
+        console.log(`${TAG} creating stub users/${user.uid}`);
+        const makeUsername = () => {
+          if (typeof genUsername === "function")
+            return genUsername(user.displayName);
+          const base =
+            (user.displayName || "user").toString().trim().toLowerCase() ||
+            "user";
+          return `${base}${Math.floor(100 + Math.random() * 900)}`;
+        };
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: clean || null, // Twitter can be missing email
+          displayName: user.displayName ?? null,
+          username: makeUsername(),
+          role: "user",
+          profileComplete: false,
+          walletSetup: false,
+          birthday: "not-set",
+          welcomeEmailSent: false,
+          notificationAllowed: false,
+          createdAt: new Date(),
+        });
+        console.log(`${TAG} stub user doc created`);
+      } else {
+        const data = snap.data() || {};
+        const patch = {};
+        if (data.displayName == null && user.displayName)
+          patch.displayName = user.displayName;
+        if (!data.username) {
+          patch.username =
+            typeof genUsername === "function"
+              ? genUsername(user.displayName)
+              : `user${Math.floor(100000 + Math.random() * 900000)}`;
+        }
+        if (Object.keys(patch).length) {
+          await setDoc(userRef, patch, { merge: true });
+          console.log(`${TAG} patched existing user doc:`, patch);
+        }
+      }
+
+      // Prefill confirm modal inputs
       const { first, last } = splitDisplayName(user.displayName || "");
+      setPendingHandle(twitterHandle);
       setConfirmFirst(first);
-      setConfirmLast(last);
-      setConfirmEmail(user.email || "");
+      setConfirmLast(last); // may be empty; user will fill it
+      setConfirmEmail(user.email || ""); // may be empty; user will fill it
 
       setPendingAuthUser(user);
       setConfirmProvider("twitter");
       setConfirmEmailLocked(false);
       setShowConfirmModal(true);
+
+      posthog?.capture("login_succeeded", { method: "twitter" });
+      console.log(`${TAG} showConfirmModal=true`);
     } catch (error) {
       // Same cross-provider conflict handling if we got an email from Twitter (rare)
       if (error?.code === "auth/account-exists-with-different-credential") {
@@ -700,7 +773,10 @@ const StoreBasket = forwardRef(function StoreBasket(
         return;
       }
 
-      posthog?.capture("login_failed", { method: "twitter", code: error.code });
+      posthog?.capture("login_failed", {
+        method: "twitter",
+        code: error?.code || "unknown",
+      });
       console.error("Twitter Sign-In Error:", error);
       toast.error("Twitter sign-in failed. Please try again.");
     } finally {
@@ -969,7 +1045,7 @@ const StoreBasket = forwardRef(function StoreBasket(
                  justify-center gap-2 font-opensans"
               >
                 <SiReacthookform className="mr-2 text-2xl" />
-                Checkout Manually
+                Checkout as Guest
               </button>
             ) : (
               /* the 3-field form that was already in your code */

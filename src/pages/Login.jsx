@@ -51,7 +51,7 @@ const Login = () => {
   const [passwordError, setPasswordError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
-
+  const [socialLoading, setSocialLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
@@ -406,7 +406,7 @@ const Login = () => {
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      setLoading(true);
+      setSocialLoading(true);
       posthog?.capture("login_attempted", { method: "google" });
 
       const result = await signInWithPopup(auth, provider);
@@ -449,7 +449,7 @@ const Login = () => {
           console.warn("signOut failed:", soErr);
         }
 
-        setLoading(false);
+        setSocialLoading(false);
         toast.error("This email is already used for a Vendor account!");
         posthog?.capture("login_blocked_vendor_email", { method: "google" });
         return;
@@ -483,10 +483,10 @@ const Login = () => {
       posthog?.capture("login_succeeded", { method: "google" });
       const redirectTo = location.state?.from || "/newhome";
       toast.success(`Welcome back ${user.displayName}!`);
-
+      setSocialLoading(false);
       navigate(redirectTo, { replace: true });
     } catch (error) {
-      setLoading(false);
+      setSocialLoading(false);
       posthog?.capture("login_failed", {
         method: "google",
         code: error.code,
@@ -500,7 +500,7 @@ const Login = () => {
       }
       toast.error(errorMessage);
     } finally {
-      setLoading(false);
+      setSocialLoading(false);
     }
   };
 
@@ -511,7 +511,7 @@ const Login = () => {
   const handleTwitterSignIn = async () => {
     const provider = new TwitterAuthProvider();
     try {
-      setLoading(true);
+      setSocialLoading(true);
       posthog?.capture("login_attempted", { method: "twitter" });
 
       const result = await signInWithPopup(auth, provider);
@@ -654,7 +654,7 @@ const Login = () => {
 
       toast.error(errorMessage);
     } finally {
-      setLoading(false);
+      setSocialLoading(false);
     }
   };
 
@@ -695,7 +695,16 @@ const Login = () => {
         onClose={() => setShowLinkDialog(false)}
         onSubmit={linkAnonymousAccount}
       />
-
+      {socialLoading && (
+        <div className="fixed inset-0 z-[9999] bg-white/70 backdrop-blur-sm flex items-center justify-center">
+          <RotatingLines
+            strokeColor="#f97316"
+            strokeWidth="5"
+            width="24"
+            visible
+          />
+        </div>
+      )}
       <section>
         <Container>
           <Row>
@@ -795,33 +804,26 @@ const Login = () => {
                     <div className="flex-grow border-t border-gray-300"></div>
                   </div>
 
+                  {/* Google button: no inline spinner */}
                   <motion.button
                     type="button"
-                    className="w-full h-12 mt-2 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center"
+                    className="w-full h-12 mt-2 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center disabled:opacity-60"
                     onClick={handleGoogleSignIn}
+                    disabled={loading || socialLoading}
                   >
                     <FcGoogle className="mr-2 text-2xl" />
                     Sign in with Google
                   </motion.button>
+
+                  {/* Twitter button: no inline spinner */}
                   <motion.button
                     type="button"
                     className="w-full h-12 mt-2 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center disabled:opacity-60"
                     onClick={handleTwitterSignIn}
-                    disabled={loading}
+                    disabled={loading || socialLoading}
                   >
-                    {loading ? (
-                      <RotatingLines
-                        strokeColor="#000"
-                        strokeWidth="5"
-                        width="24"
-                        visible
-                      />
-                    ) : (
-                      <>
-                        <FaXTwitter className="mr-2 text-xl" />
-                        Sign in with Twitter
-                      </>
-                    )}
+                    <FaXTwitter className="mr-2 text-xl" />
+                    Sign in with Twitter
                   </motion.button>
                 </Form>
 

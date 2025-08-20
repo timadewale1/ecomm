@@ -40,6 +40,7 @@
     "framer-motion": "^7.10.3",
     "googleapis": "^140.0.1",
     "gsap": "^3.12.5",
+    "hls.js": "^1.6.10",
     "lodash": "^4.17.21",
     "lottie-react": "^2.4.0",
     "lucide-react": "^0.454.0",

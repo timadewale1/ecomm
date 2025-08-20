@@ -297,33 +297,55 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
     }
   };
 
-  const openRiderModal = (orderId) => {
+  const openRiderModal = async (orderId) => {
     const order = orders.find((o) => o.id === orderId);
     if (!order) return; // guard
 
     setSelectedOrderId(orderId);
 
-    /* 📦 PICK-UP orders ➟ new modal */
+    // 📦 PICK-UP orders → open pickup modal
     if (order.isPickup) {
       setPickupDays("");
       setPickupTime("");
       setIsPickupModalOpen(true);
-      return; // ⬅︎ done
+      return;
     }
 
-    /* 🚚 DELIVERY orders ➟ existing rider modal */
-    if (order.kwikJob?.data?.contactUs) {
-      // pre-fill from Kwik
-      setRiderName("Kwik Delivery");
-      setRiderNumber(order.kwikJob.data.contactUs.phone_no);
-      setDisableRiderFields(true);
-    } else {
+    // 🚚 DELIVERY orders → check vendor deliveryPreference first
+    try {
+      const vendorRef = doc(db, "vendors", order.vendorId);
+      const vendorSnap = await getDoc(vendorRef);
+      const pref = (
+        vendorSnap.exists() ? vendorSnap.data()?.deliveryPreference : ""
+      )?.toLowerCase();
+
+      if (pref === "platform") {
+       
+        setRiderName("My Thrift  Logistics");
+        setRiderNumber("08105911662");
+        setDisableRiderFields(true);
+      } else if (order.kwikJob?.data?.contactUs) {
+        // Kwik provided a contact → prefill & lock
+        setRiderName("Kwik Delivery");
+        setRiderNumber(order.kwikJob.data.contactUs.phone_no);
+        setDisableRiderFields(true);
+      } else {
+        // Manual entry
+        setRiderName("");
+        setRiderNumber("");
+        setDisableRiderFields(false);
+      }
+    } catch (e) {
+      console.warn("Could not read vendor.deliveryPreference:", e);
+      // graceful fallback to manual
       setRiderName("");
       setRiderNumber("");
       setDisableRiderFields(false);
     }
+
     setIsRiderModalOpen(true);
   };
+
   const groupOrdersByDate = (orders) => {
     const today = [];
     const yesterday = [];
@@ -522,6 +544,7 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
               type="number"
               placeholder="Enter Rider's Phone Number"
               value={riderNumber}
+              disabled={disableRiderFields}
               onChange={(e) => setRiderNumber(e.target.value.slice(0, 11))}
               className="w-full p-2 border text-xs h-10 rounded focus:outline-none"
             />

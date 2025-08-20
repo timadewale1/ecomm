@@ -88,6 +88,9 @@ const OrderDetailsModal = ({
   const userId = order?.userId; // Directly access userId from the order document
   const navigate = useNavigate();
   const [stockpileOrders, setStockpileOrders] = useState([]);
+  // state
+  const [vendorDeliveryPreference, setVendorDeliveryPreference] =
+    useState(null);
 
   const [vendorName, setVendorName] = useState(
     order?.vendorName || "Your Vendor Name"
@@ -162,16 +165,16 @@ const OrderDetailsModal = ({
       setProductImages(images);
       setProductDetails(details);
 
+      // inside fetchProductDetails (where you read the vendor doc)
       if (order.vendorId) {
         const vendorRef = doc(db, "vendors", order.vendorId);
         const vendorSnap = await getDoc(vendorRef);
         if (vendorSnap.exists()) {
-          setVendorDeliveryMode(
-            vendorSnap.data().deliveryMode || "Not specified"
-          );
+          const v = vendorSnap.data();
+          setVendorDeliveryMode(v.deliveryMode || "Not Specified");
+          setVendorDeliveryPreference(v.deliveryPreference || null); // "platform" | "self"
         }
       }
-
       setLoading(false);
     };
 
@@ -605,11 +608,10 @@ const OrderDetailsModal = ({
   };
 
   const handleMarkAsDelivered = async () => {
-    if (!confirmDeliveryChecked) return; // your checkbox guard
+    if (!confirmDeliveryChecked) return;
 
     setDeliverLoading(true);
     try {
-      // 1️⃣ Call CF to flip DB & external API
       const markFn = httpsCallable(functions, "markOrderDelivered");
       const { data } = await markFn({ orderId: order.id });
 
@@ -619,21 +621,23 @@ const OrderDetailsModal = ({
         return;
       }
 
-      // 2️⃣ Now your original frontend-only bits
-
-      // 2a — vendorName & cover
+      // 2a — vendorName, cover, and deliveryPreference
       let vendorName = order.vendorName;
       let vendorCoverImage = null;
+      let isPlatform = false;
+
       if (!vendorName && order.vendorId) {
         const vSnap = await getDoc(doc(db, "vendors", order.vendorId));
         if (vSnap.exists()) {
           const vData = vSnap.data();
           vendorName = vData.shopName || "Unknown Vendor";
           vendorCoverImage = vData.coverImageUrl || null;
+          isPlatform =
+            (vData.deliveryPreference || "").toLowerCase() === "platform";
         }
       }
 
-      // 2b — first product image
+      // 2b — first product image (unchanged)
       let productImage = null;
       if (order.cartItems?.length) {
         const first = order.cartItems[0];
@@ -648,8 +652,8 @@ const OrderDetailsModal = ({
         }
       }
 
-      // 2c — in‑app notification (skip if this order came via Kwik)
-      if (!order.kwikJob) {
+      // 2c — notify user ONLY if not Kwik AND not platform
+      if (!order.kwikJob && !isPlatform) {
         await notifyOrderStatusChange(
           order.userId,
           order.id,
@@ -660,7 +664,7 @@ const OrderDetailsModal = ({
         );
       }
 
-      // 2d — activity note
+      // 2d — activity note (unchanged)
       await addActivityNote(
         order.vendorId,
         "Order Delivered 😊",
@@ -668,19 +672,13 @@ const OrderDetailsModal = ({
         "order"
       );
 
-      console.log("Clearing and refreshing vendor revenue cache...");
+      // cache clear + revenue refresh (unchanged)
       localStorage.removeItem(`vendorRevenue_${order.vendorId}`);
       localStorage.removeItem(`vendorRevenue_time_${order.vendorId}`);
       fetchVendorRevenue(order.vendorId)
-        .then((revenue) => {
-          setTotalRevenue(revenue);
-          console.log("Vendor revenue refreshed successfully.");
-        })
-        .catch(() => {
-          console.error("Failed to refresh vendor revenue.");
-        });
+        .then(setTotalRevenue)
+        .catch(() => {});
 
-      // 3️⃣ UI feedback & cleanup
       toast.success("Order marked as delivered!");
       onClose();
     } catch (err) {
@@ -996,23 +994,30 @@ const OrderDetailsModal = ({
                     )}
                   </p>
                 </div>
-                <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
-                  <IoLocationOutline className="text-gray-500 text-xl" />
-                  <p className="text-gray-500 text-sm font-opensans">
-                    Location:
-                  </p>
-                  <p
-                    className={`ml-6 font-opensans text-black text-sm flex-grow ${
-                      progressStatus === "Delivered" ? "blur-sm" : ""
-                    }`}
-                  >
-                    {loading ? (
-                      <Skeleton width={200} />
-                    ) : (
-                      userInfo.address || "Not Available"
-                    )}
-                  </p>
-                </div>
+                {/* Location — hide for pickup or platform-delivery vendors */}
+                {!(
+                  order.isPickup ||
+                  (vendorDeliveryPreference || "").toLowerCase() === "platform"
+                ) && (
+                  <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
+                    <IoLocationOutline className="text-gray-500 text-xl" />
+                    <p className="text-gray-500 text-sm font-opensans">
+                      Location:
+                    </p>
+                    <p
+                      className={`ml-6 font-opensans text-black text-sm flex-grow ${
+                        progressStatus === "Delivered" ? "blur-sm" : ""
+                      }`}
+                    >
+                      {loading ? (
+                        <Skeleton width={200} />
+                      ) : (
+                        userInfo.address || "Not Available"
+                      )}
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
                   <BsBoxSeam className="text-gray-500 text-xl" />
                   <p className="text-gray-500 text-sm font-opensans">
@@ -1282,7 +1287,12 @@ const OrderDetailsModal = ({
                         ) : (
                           "Delivery"
                         )
+                      ) : vendorDeliveryPreference === "platform" ? (
+                        "Delivery handled by My Thrift logistics partners"
+                      ) : vendorDeliveryPreference === "self" ? (
+                        "Delivery handled by you"
                       ) : order.deliveryInfo ? (
+                        // fallback if you still want to show the Kwik phrase when present
                         `${vendorDeliveryMode} with Kwik Logistics`
                       ) : (
                         vendorDeliveryMode || "Not Specified"
@@ -1355,8 +1365,8 @@ const OrderDetailsModal = ({
                 <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
                   <FaGift className="text-green-500 text-3xl" />
                   <p className="ml-6 font-opensans text-black text-xs flex-grow">
-                    There's an active {pct}% order discount! Dont worry We’ll credit your
-                    wallet the full payment for these item(s).
+                    There's an active {pct}% order discount! Dont worry We’ll
+                    credit your wallet the full payment for these item(s).
                   </p>
                 </div>
               ) : null;

@@ -49,6 +49,7 @@ import ProfileView from "./profileView.jsx";
 import { useTawk } from "../../components/Context/TawkProvider.jsx";
 import { GoChevronLeft } from "react-icons/go";
 import { FcOnlineSupport } from "react-icons/fc";
+import VendorTutorials from "../../components/Tutorials/VendorTutorials.jsx";
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const defaultImageUrl =
@@ -167,46 +168,46 @@ const VendorProfile = () => {
     followersCount,
   } = userData || {};
 
-  useEffect(() => {
-    const fetchOrderData = async () => {
-      if (!currentUser.uid) return; // Ensure currentUser is defined
+  // useEffect(() => {
+  //   const fetchOrderData = async () => {
+  //     if (!currentUser.uid) return; // Ensure currentUser is defined
 
-      try {
-        const ordersRef = collection(db, "orders");
+  //     try {
+  //       const ordersRef = collection(db, "orders");
 
-        // Fulfilled Orders (Delivered)
-        const fulfilledQuery = query(
-          ordersRef,
-          where("progressStatus", "==", "Delivered"),
-          where("vendorId", "==", currentUser.uid)
-        );
-        const fulfilledSnapshot = await getDocs(fulfilledQuery);
-        setFulfilledOrders(fulfilledSnapshot.size);
+  //       // Fulfilled Orders (Delivered)
+  //       const fulfilledQuery = query(
+  //         ordersRef,
+  //         where("progressStatus", "==", "Delivered"),
+  //         where("vendorId", "==", currentUser.uid)
+  //       );
+  //       const fulfilledSnapshot = await getDocs(fulfilledQuery);
+  //       setFulfilledOrders(fulfilledSnapshot.size);
 
-        // Unfulfilled Orders (In Progress, Shipped, or Pending)
-        const unfulfilledQuery = query(
-          ordersRef,
-          where("progressStatus", "in", ["In Progress", "Shipped", "Pending"]),
-          where("vendorId", "==", currentUser.uid)
-        );
-        const unfulfilledSnapshot = await getDocs(unfulfilledQuery);
-        setUnfulfilledOrders(unfulfilledSnapshot.size);
+  //       // Unfulfilled Orders (In Progress, Shipped, or Pending)
+  //       const unfulfilledQuery = query(
+  //         ordersRef,
+  //         where("progressStatus", "in", ["In Progress", "Shipped", "Pending"]),
+  //         where("vendorId", "==", currentUser.uid)
+  //       );
+  //       const unfulfilledSnapshot = await getDocs(unfulfilledQuery);
+  //       setUnfulfilledOrders(unfulfilledSnapshot.size);
 
-        // Incoming Orders
-        const incomingQuery = query(
-          ordersRef,
-          where("progressStatus", "==", "Pending"),
-          where("vendorId", "==", currentUser.uid)
-        );
-        const incomingSnapshot = await getDocs(incomingQuery);
-        setIncomingOrders(incomingSnapshot.size);
-      } catch (error) {
-        console.error("Error fetching order data:", error);
-      }
-    };
+  //       // Incoming Orders
+  //       const incomingQuery = query(
+  //         ordersRef,
+  //         where("progressStatus", "==", "Pending"),
+  //         where("vendorId", "==", currentUser.uid)
+  //       );
+  //       const incomingSnapshot = await getDocs(incomingQuery);
+  //       setIncomingOrders(incomingSnapshot.size);
+  //     } catch (error) {
+  //       console.error("Error fetching order data:", error);
+  //     }
+  //   };
 
-    fetchOrderData();
-  }, [currentUser]);
+  //   fetchOrderData();
+  // }, [currentUser]);
 
   // useEffect(() => {
   //   setIsLoading(true);
@@ -396,54 +397,8 @@ const VendorProfile = () => {
 
             <div className="flex flex-col">
               {/* My Activity Chart */}
-              <div className=" my-4 w-full px-2">
-                <div className="w-full h-14 flex">
-                  <h1 className="text-base font-semibold font-opensans mx-2 translate-y-4 text-black">
-                    Quick Stats
-                  </h1>
-                </div>
-                <div className="relative bg-customOrange flex flex-col items-center rounded-xl">
-                  <div className="absolute top-0 right-0">
-                    <img src="./Vector.png" alt="" className="w-16 h-24" />
-                  </div>
-                  <div className="absolute bottom-0 left-0">
-                    <img src="./Vector2.png" alt="" className="w-16 h-16" />
-                  </div>
-                  <div className="w-40 h-40 relative">
-                    <Doughnut data={activityData} options={activityOptions} />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-center mt-12">
-                        <p className="text-xs text-white font-opensans font-medium">
-                          Total Orders
-                        </p>
-                        <p className="text-lg font-opensans text-white font-bold">
-                          {totalOrders}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex mt-2 space-x-6 text-sm mb-3">
-                    <div className="flex items-center space-x-1">
-                      <span className="w-3 h-3 rounded-full bg-[#28a745]"></span>
-                      <span className="font-opensans text-white">
-                        Fulfilled ({fulfilledOrders})
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <span className="w-3 h-3 rounded-full bg-[#6c757d]"></span>
-                      <span className="font-opensans text-white">
-                        Unfulfilled ({unfulfilledOrders})
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <span className="w-3 h-3 rounded-full bg-[#007bff]"></span>
-                      <span className="font-opensans text-white">
-                        Incoming ({incomingOrders})
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+
+              <VendorTutorials />
 
               {/* Profile Options */}
               <div className="w-full mt-2 px-2">

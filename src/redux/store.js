@@ -25,7 +25,7 @@ import personalDiscountsPageReducer from "./reducers/personalDiscountsPageSlice"
 import { promoReducer } from "./reducers/promoreducer";
 import exploreReducer from "./reducers/exploreSlice";
 import quickModeReducer from "./reducers/quickModeSlice";
-
+import vendorTutorialsReducer from "./reducers/vendortutorialSlice";
 import exploreUiReducer from "./reducers/exploreUiSlice";
 import chatReducer from "./reducers/chatSlice";
 import vendorChatReducer from "./reducers/vendorChatSlice";
@@ -67,6 +67,7 @@ const rootReducer = combineReducers({
   homepage: homepageReducer,
   catsection: catsectionReducer,
   categories: categoriesReducer,
+  vendorTutorials: vendorTutorialsReducer,
   vendors: vendorReducer,
   condition: conditionReducer,
   categoryProducts: categoryProductsReducer,

@@ -30,11 +30,12 @@ import exploreUiReducer from "./reducers/exploreUiSlice";
 import chatReducer from "./reducers/chatSlice";
 import vendorChatReducer from "./reducers/vendorChatSlice";
 import catsectionReducer from "./reducers/catsection";
+import vendorSuggestionsReducer from "./reducers/exploreSlice"
 import categoryProductsReducer from "./reducers/categoryProductsSlice";
 import topVendorsReducer from "./reducers/topVendorsSlice";
 import vendorStockpileReducer from "./reducers/vendorStockpileSlice";
 import categoryMetadataReducer from "./reducers/categoryMetadataSlice";
-// Redux Persist config (only for stockpile)
+import featuredReducer from "./reducers/featuredSlice";
 const persistConfig = {
   key: "root",
   storage,
@@ -51,12 +52,14 @@ const rootReducer = combineReducers({
   explore: exploreReducer,
   exploreUi: exploreUiReducer,
   user: userReducer,
+  vendorSuggestions: vendorSuggestionsReducer,
   vendorChats: vendorChatReducer,
   stockpile: stockpileReducer, // will be persisted
   storepageVendors: storepageVendorsReducer,
   orders: orderReducer,
   discountProducts: discountProductsReducer,
   market: marketReducer,
+  featured: featuredReducer,
   promo: promoReducer,
   quickMode: quickModeReducer,
   chat: chatReducer,

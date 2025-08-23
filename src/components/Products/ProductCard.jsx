@@ -2,10 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Skeleton from "react-loading-skeleton";
-import { motion } from "framer-motion";
+
 import "react-loading-skeleton/dist/skeleton.css";
 import { getImageKitUrl } from "../../services/imageKit";
-
+import { motion, AnimatePresence } from "framer-motion";
 import { db } from "../../firebase.config";
 import {
   doc,
@@ -37,6 +37,10 @@ const ProductCard = ({
   const [imgLoaded, setImgLoaded] = useState(false);
   // Auth state
   const { currentUser } = useAuth();
+  const [metaIndex, setMetaIndex] = useState(0); // 0 = condition, 1 = subType
+  const [wishCount, setWishCount] = useState(
+    typeof product?.wishCount === "number" ? product.wishCount : 0
+  );
 
   // Local Favorites Context
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
@@ -65,15 +69,18 @@ const ProductCard = ({
     };
     fetchVendorMarketplaceType();
   }, [product.vendorId]);
-
-  // Navigate to product detail page if in stock
+  useEffect(() => {
+    if (typeof product?.wishCount === "number") setWishCount(product.wishCount);
+  }, [product?.wishCount]);
+  useEffect(() => {
+    const id = setInterval(() => setMetaIndex((i) => (i + 1) % 3), 2500);
+    return () => clearInterval(id);
+  }, []);
   const handleCardClick = () => {
     if (!isLoading && product?.stockQuantity > 0) {
       navigate(`/product/${product.id}`);
     }
   };
-
-  // Navigate to vendor store (virtual or marketplace)
   const handleVendorClick = (e) => {
     e.stopPropagation();
     if (vendorMarketplaceType === "virtual") {
@@ -106,6 +113,7 @@ const ProductCard = ({
       toast.info(`Removed ${product.name} from favorites!`);
     } else {
       addFavorite(product);
+      setWishCount((c) => c + 1);
       toast.success(`Added ${product.name} to favorites!`);
     }
 
@@ -163,6 +171,7 @@ const ProductCard = ({
       if (wasFavorite) {
         // If it was a favorite, we re-add it because we optimistically removed it
         addFavorite(product);
+        setWishCount((c) => c + 1);
       } else {
         // If it was not a favorite, we remove it because we optimistically added it
         removeFavorite(product.id);
@@ -394,17 +403,59 @@ const ProductCard = ({
         </div>
 
         {/* Product Info */}
-        <div className="mt-2">
+        <div className="mt-2 ">
           {showCondition && (
-            <div className="flex font-opensans font-light items-center justify-between">
+            <div className="h-5 flex items-center overflow-hidden">
               {isLoading ? (
-                <Skeleton width={100} />
+                <Skeleton width={120} height={14} />
               ) : (
-                <>
-                  <div className="flex items-center space-x-1">
-                    {renderCondition(product.condition)}
-                  </div>
-                </>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={metaIndex} // switch on index for animation
+                    initial={{ y: 10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: -10, opacity: 0 }}
+                    transition={{ duration: 0.24 }}
+                    className="text-xs font-opensans font-light leading-none [&_p]:m-0"
+                  >
+                    {metaIndex === 0 ? (
+                      /* keep your condition styles; we just zero <p> margins using [&_p]:m-0 above */
+                      renderCondition(product.condition)
+                    ) : metaIndex === 1 ? (
+                      /* subType pill */
+                      product?.subType ? (
+                        <span
+                          className="
+                inline-flex items-center ml-0.5 gap-1 px-2 h-4
+                rounded-full bg-orange-50 text-orange-700
+                ring-1 ring-orange-200
+              "
+                        >
+                          <span className="text-[10px] -mt-[1px]">🏷️</span>
+                          <span className="text-[10px] leading-none truncate max-w-[140px]">
+                            {product.subType}
+                          </span>
+                        </span>
+                      ) : null
+                    ) : (
+                      /* wishlist pill */
+                      <span
+                        className="
+              inline-flex items-center ml-0.5 gap-1 px-2 h-4
+              rounded-full bg-rose-50 text-rose-700
+              ring-1 ring-rose-200
+            "
+                      >
+                        <RiHeart3Fill className="text-[10px]" />
+                        <span className="text-[10px] leading-none truncate max-w-[160px]">
+                          {wishCount > 0
+                            ? `${wishCount} wishlisted`
+                            : `Be the first to wishlist`}
+                        </span>
+                      </span>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
               )}
             </div>
           )}

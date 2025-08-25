@@ -43,6 +43,7 @@ import DiscountCarousel from "../components/Discounts/DiscountCarousel";
 import PersonalDiscountCarousel from "../components/Discounts/PersonalDiscounts";
 import TopVendors from "../components/TopVendors/TopVendors";
 import BlogImageGrid from "../components/Blog/BlogCarousel";
+import FeaturedInfinite from "../components/Products/FeaturedProducts";
 gsap.registerPlugin(ScrollTrigger);
 
 const Homepage = () => {
@@ -378,62 +379,15 @@ const Homepage = () => {
             </div>
           </div>
           <Condition />
-          <div className="flex justify-between items-center px-2 mt-2 text-base">
-            <h1 className="font-semibold font-opensans text-base">Markets</h1>
-            <p
-              className=" text-customOrange font-light text-xs font-opensans cursor-pointer"
-              onClick={handleShowMore}
-            >
-              Show All
-            </p>
-          </div>
-
-          <Market />
         </>
       )}
-      <BlogImageGrid />
+
       <TopVendors />
       <PopularCats />
       {/* <DiscountCarousel /> */}
       <PersonalDiscountCarousel />
-      <div className="p-2 mt-4 pb-24">
-        <div className="flex items-center mb-4">
-          <h1 className="text-left font-semibold text-xl font-opensans mr-1">
-            Featured Products
-          </h1>
-          <PiStarFill className="text-xl text-yellow-300" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 ">
-          {status === "loading" && products.length === 0 ? (
-            Array.from({ length: 6 }).map((_, index) => (
-              <Skeleton key={index} height={200} width="100%" />
-            ))
-          ) : products.length > 0 ? (
-            products.map((product, index) => (
-              <ProductCard key={product.id} product={product} />
-            ))
-          ) : (
-            <div className="col-span-2 text-center mt-4 text-lg font-medium text-gray-500">
-              Sorry, we can't find that in our stores.
-            </div>
-          )}
-        </div>
-
-        {/* Load More Button */}
-        {lastVisible && (
-          <button
-            className="w-full mt-4 py-2 h-12 font-opensans font-medium bg-customOrange text-white rounded-full"
-            onClick={handleLoadMore}
-            disabled={status === "loading"}
-          >
-            {status === "loading" ? "Loading..." : "Load More"}
-          </button>
-        )}
-        <div className="flex justify-center  ">
-          <Amazingdeals />
-        </div>
-      </div>
+      <BlogImageGrid />
+      <FeaturedInfinite />
     </>
   );
 };

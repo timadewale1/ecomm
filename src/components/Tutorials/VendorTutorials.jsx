@@ -348,7 +348,7 @@ export default function VendorTutorials() {
           ref={scrollerRef}
           onScroll={onScroll}
           className="
-            flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory
+            flex gap-3 overflow-x-auto  snap-x snap-mandatory
             [-webkit-overflow-scrolling:touch]
           "
         >

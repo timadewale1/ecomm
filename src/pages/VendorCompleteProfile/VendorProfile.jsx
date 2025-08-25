@@ -401,7 +401,7 @@ const VendorProfile = () => {
               <VendorTutorials />
 
               {/* Profile Options */}
-              <div className="w-full mt-2 px-2">
+              <div className="w-full  px-2">
                 <div className="w-full h-14 flex">
                   <h1 className="text-base font-semibold mx-2 translate-y-3 text-black">
                     Personal

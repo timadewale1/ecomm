@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 
-const PAGE_SIZE = 31;
+const PAGE_SIZE = 40;
 
 export const fetchFeaturedProducts = createAsyncThunk(
   "featured/fetch",

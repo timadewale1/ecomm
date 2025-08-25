@@ -272,11 +272,7 @@ const TermsAndConditions = () => {
                 allowed to advertise, make sales, and accept payments on our
                 platform and across all our other channels.
               </p>
-              <p className="leading-relaxed text-black">
-                <span className="text-customOrange">3.2</span> Vendors will
-                receive 60% of the subtotal of customer payments till orders
-                have been fulfilled, after which they receive the remaining 40%.
-              </p>
+             
               <p className="leading-relaxed text-black">
                 <span className="text-customOrange">3.3</span> My Thrift will
                 take no percentage cuts from vendor sales. However, we reserve

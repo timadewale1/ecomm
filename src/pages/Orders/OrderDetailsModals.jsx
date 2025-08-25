@@ -21,7 +21,7 @@ import { GrNotes } from "react-icons/gr";
 import { LiaCoinsSolid } from "react-icons/lia";
 import { ImSad2 } from "react-icons/im";
 import { HiReceiptTax } from "react-icons/hi";
-import { FaGift, FaSmileBeam } from "react-icons/fa";
+import { FaGift, FaSmileBeam, FaWhatsapp } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { MdCancel } from "react-icons/md";
 import {
@@ -82,13 +82,16 @@ const OrderDetailsModal = ({
   const [riderNumber, setRiderNumber] = useState("");
   const [riderNote, setRiderNote] = useState("");
   const [isSending, setIsSending] = useState(false);
-
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [otherReasonText, setOtherReasonText] = useState("");
   const [isDeclineInfoModalOpen, setIsDeclineInfoModalOpen] = useState(false);
-  const userId = order?.userId; // Directly access userId from the order document
+  const userId = order?.userId;
   const navigate = useNavigate();
+  const [alreadySmsSent, setAlreadySmsSent] = useState(false);
+
   const [stockpileOrders, setStockpileOrders] = useState([]);
-  // state
+  const [isSendingSMS, setIsSendingSMS] = useState(false);
+  const [shippingFeeInput, setShippingFeeInput] = useState("");
   const [vendorDeliveryPreference, setVendorDeliveryPreference] =
     useState(null);
 
@@ -96,6 +99,11 @@ const OrderDetailsModal = ({
     order?.vendorName || "Your Vendor Name"
   );
   const [vendorAmounts, setVendorAmounts] = useState(null);
+  const [vendorBank, setVendorBank] = useState({
+    accountName: "",
+    accountNumber: "",
+    bankName: "",
+  });
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   useEffect(() => {
     const fetchVendorName = async () => {
@@ -172,7 +180,13 @@ const OrderDetailsModal = ({
         if (vendorSnap.exists()) {
           const v = vendorSnap.data();
           setVendorDeliveryMode(v.deliveryMode || "Not Specified");
-          setVendorDeliveryPreference(v.deliveryPreference || null); // "platform" | "self"
+          setVendorDeliveryPreference(v.deliveryPreference || null);
+          setVendorBank({
+            accountName: v?.bankDetails?.accountName || "",
+            accountNumber: v?.bankDetails?.accountNumber || "",
+            bankName: v?.bankDetails?.bankName || "",
+          });
+          if (!order.vendorName && v?.shopName) setVendorName(v.shopName);
         }
       }
       setLoading(false);
@@ -203,6 +217,27 @@ const OrderDetailsModal = ({
   }, [order]);
 
   useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!order) return;
+      const local = localStorage.getItem(smsLocalKey(order)) === "1";
+      if (local) {
+        if (mounted) setAlreadySmsSent(true);
+        return;
+      }
+      try {
+        const remote = await hasShippingSmsBeenSent(db, order);
+        if (mounted) setAlreadySmsSent(remote);
+        if (remote) localStorage.setItem(smsLocalKey(order), "1");
+      } catch {
+        // ignore — fall back to allowing click if Firestore check fails
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [order]);
+  useEffect(() => {
     const fetchStockpileOrders = async () => {
       if (order.isStockpile && order.stockpileDocId) {
         const q = collection(db, "orders");
@@ -230,7 +265,38 @@ const OrderDetailsModal = ({
       fetchStockpileOrders();
     }
   }, [isOpen, order]);
+  const smsLocalKey = (order) =>
+    order?.isStockpile
+      ? `smsSent:stockpile:${order.stockpileDocId}`
+      : `smsSent:order:${order.id}`;
 
+  const getTargetRef = (db, order) =>
+    order?.isStockpile
+      ? doc(db, "stockpiles", order.stockpileDocId)
+      : doc(db, "orders", order.id);
+
+  // Check Firestore flag
+  const hasShippingSmsBeenSent = async (db, order) => {
+    const ref = getTargetRef(db, order);
+    const snap = await getDoc(ref);
+    const data = snap.exists() ? snap.data() : {};
+    return Boolean(data?.shippingSms?.sent);
+  };
+
+  // Mark Firestore flag after successful send
+  const markShippingSmsSent = async (db, order, { toNumber }) => {
+    const ref = getTargetRef(db, order);
+    await updateDoc(ref, {
+      shippingSms: {
+        sent: true,
+        sentAt: serverTimestamp(),
+        to: toNumber || null,
+        orderId: order.id || null,
+        stockpileId: order.stockpileDocId || null,
+        byVendor: order.vendorId || null,
+      },
+    });
+  };
   const handleDecline = async () => {
     if (!declineReason && otherReasonText === "") {
       toast.error("Select a reason or type one.");
@@ -302,6 +368,187 @@ const OrderDetailsModal = ({
       setDeclineLoading(false);
     }
   };
+  // First name only
+  const getFirstName = (full) =>
+    String(full || "")
+      .trim()
+      .split(/\s+/)[0] || "";
+
+  // Convert a phone like 080... or +234... to WhatsApp digits "2348..."
+  const toWhatsAppDigits = (raw) => {
+    const digits = String(raw || "").replace(/[^\d]/g, "");
+    if (!digits) return "";
+    if (digits.startsWith("234")) return digits;
+    if (digits.startsWith("0")) return "234" + digits.slice(1);
+    return digits; // covers already-intl without "+" as well
+  };
+  // --- SMS utils (client) ------------------------------------
+  const normalizeForGateway = (raw) => {
+    // Expect a Nigerian MSISDN; gateway wants 10-digit NSN: "8031234567"
+    const digits = String(raw || "").replace(/\D/g, "");
+    if (!digits) return "";
+    let nsn = digits;
+    if (nsn.startsWith("234")) nsn = nsn.slice(3); // +234XXXXXXXXXX → XXXXXXXXXX
+    if (nsn.startsWith("0")) nsn = nsn.slice(1); // 0XXXXXXXXXX    → XXXXXXXXXX
+    return nsn; // should be 10 digits for NG mobiles
+  };
+
+  const makeOrderSms = ({ orderId, storeName, fee, bank }) => {
+    const amt = Number(fee || 0).toLocaleString();
+    const bankLine = `${bank?.bankName || ""} ${bank?.accountNumber || ""} (${
+      bank?.accountName || ""
+    })`.trim();
+    return `Hi! Your order from ${storeName} is ready to ship. Delivery will cost N${amt}. Please pay to ${bankLine} and reply DONE.`;
+  };
+
+  const makeStockpileSms = ({ weeks, storeName, fee, bank }) => {
+    const amt = Number(fee || 0).toLocaleString();
+    const wkText = weeks ? `${weeks}-week` : "";
+    const bankLine = `${bank?.bankName || ""} ${bank?.accountNumber || ""} (${
+      bank?.accountName || ""
+    })`.trim();
+    return `Hi! Your ${wkText} stockpile from ${storeName} is ready. Delivery is N${amt}. Kindly pay to ${bankLine} and reply DONE.`;
+  };
+
+  // --- direct client call to SMS gateway (token must be in Vite env) ----
+  const sendShippingSmsDirect = async ({
+    customerUid, // <-- REQUIRED: Firebase userId of the customer
+    phone,
+    isStockpile = false,
+    weeks = null,
+    orderId = null,
+    stockpileId = null,
+    storeName = "My Thrift",
+    shippingFee = 0,
+    bank = { accountName: "", accountNumber: "", bankName: "" },
+  }) => {
+    console.groupCollapsed(
+      `[SMS] sendShippingSmsDirect → uid=${customerUid} ref=${
+        orderId || stockpileId || "-"
+      }`
+    );
+
+    // 1) Normalize phone to 10-digit NG NSN
+    const receiverNumber = normalizeForGateway(phone);
+    console.log("[SMS] normalized receiverNumber:", receiverNumber);
+    if (!receiverNumber || receiverNumber.length !== 10) {
+      console.warn("[SMS] Invalid NG mobile; expected 10 digits.");
+      throw new Error("Invalid phone number");
+    }
+
+    // 2) Build message
+    const message = isStockpile
+      ? makeStockpileSms({ weeks, storeName, fee: shippingFee, bank })
+      : makeOrderSms({ orderId, storeName, fee: shippingFee, bank });
+    console.log("[SMS] message length:", message.length);
+
+    // 3) Bearer token from Vite env (DON'T ship secrets you care about)
+    const token =
+      import.meta.env.VITE_SMS_BEARER || import.meta.env.VITE_BETOKEN;
+    if (!token) {
+      console.error("[SMS] Missing VITE_SMS_BEARER (or VITE_BETOKEN)");
+      throw new Error("Missing SMS token");
+    }
+
+    // 4) POST to gateway — use the CUSTOMER UID as receiverId
+    const body = {
+      message,
+      receiverNumber,
+      receiverId: customerUid, // <-- HERE
+    };
+
+    // Mask long fields in logs
+    const masked = { ...body, message: `${message.slice(0, 60)}…` };
+    console.log("[SMS] POST body (masked):", masked);
+
+    const res = await fetch("https://mythrift-sms.fly.dev/sendMessage", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.error("[SMS] Gateway error:", res.status, txt);
+      throw new Error(`SMS gateway error: ${res.status}`);
+    }
+
+    console.log("[SMS] OK");
+    console.groupEnd();
+    return true;
+  };
+
+  // Build the WhatsApp message with a 4-corner payment box
+  const buildWhatsAppMessage = ({
+    customerName,
+    orderId,
+    storeName,
+    shippingFee,
+    bank,
+  }) => {
+    const first = getFirstName(customerName) || "there";
+    const fee = Number(shippingFee || 0).toLocaleString();
+    return [
+      `Hello ${first},`,
+      ``,
+      `Your order on My Thrift (Order ID: ${orderId}) is ready to be shipped from ${storeName}.`,
+      ``,
+      `The delivery fee to your location is ₦${fee}.`,
+      ``,
+      `PAYMENT DETAILS `,
+      ` Account Name: ${bank.accountName}`,
+      ` Account Number: ${bank.accountNumber}`,
+      ` Bank: ${bank.bankName}`,
+      ``,
+      ``,
+      `Once payment is made, kindly reply "DONE" here and share your receipt for confirmation.`,
+      ``,
+      `Thank you for shopping with My Thrift 🧡`,
+    ].join("\n");
+  };
+  // Build the WhatsApp message for STOCKPILE ready notice + shipping payment + address confirmation
+  const buildStockpileWhatsAppMessage = ({
+    customerName,
+    weeks,
+    stockpileId,
+    storeName,
+    shippingFee,
+    bank,
+  }) => {
+    const first = getFirstName(customerName) || "there";
+    const fee = Number(shippingFee || 0).toLocaleString();
+
+    return [
+      `Hello ${first},`,
+      ``,
+      `Your stockpile of ${weeks} weeks is up.`,
+      `Stockpile ID: ${stockpileId}`,
+      ``,
+
+      ``,
+      `The delivery fee is ₦${fee}.`,
+      ``,
+      `PAYMENT DETAILS`,
+      ` Account Name: ${bank?.accountName || ""}`,
+      ` Account Number: ${bank?.accountNumber || ""}`,
+      ` Bank: ${bank?.bankName || ""}`,
+      ``,
+      `Once payment is made, kindly reply "DONE" and share your receipt for confirmation.`,
+      ``,
+      `Thank you for shopping with My Thrift 🧡`,
+    ].join("\n");
+  };
+
+  // Open WhatsApp with prefilled text to the user's number
+  const openWhatsAppWith = (phoneDigits, text) => {
+    const base = `https://wa.me/${phoneDigits}`;
+    const url = text ? `${base}?text=${encodeURIComponent(text)}` : base; // <- no text = open chat
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   const handleMoveToShippingWithRider = async () => {
     setIsMovingToShipping(true);
     try {
@@ -384,6 +631,78 @@ const OrderDetailsModal = ({
       setIsMovingToShipping(false);
     }
   };
+  const handleSendShippingSmsClick = async () => {
+    if (!userInfo?.phoneNumber) {
+      toast.error("Missing customer phone number");
+      return;
+    }
+    const fee = Number(shippingFeeInput || 0);
+    if (!fee) {
+      toast.error("Enter a shipping fee");
+      return;
+    }
+
+    // 0) Hard stop if already sent (local + Firestore)
+    if (alreadySmsSent) {
+      toast.error(
+        "SMS already sent for this " +
+          (order.isStockpile ? "stockpile" : "order")
+      );
+      return;
+    }
+    try {
+      const remoteSent = await hasShippingSmsBeenSent(db, order);
+      if (remoteSent) {
+        localStorage.setItem(smsLocalKey(order), "1");
+        setAlreadySmsSent(true);
+        toast.error(
+          "SMS already sent for this " +
+            (order.isStockpile ? "stockpile" : "order")
+        );
+        return;
+      }
+    } catch {
+      // If the check fails, we let the send proceed (you can choose to block instead)
+    }
+
+    setIsSendingSMS(true);
+    try {
+      await sendShippingSmsDirect({
+        customerUid: order.userId,
+        phone: userInfo.phoneNumber,
+        isStockpile: Boolean(order.isStockpile),
+        weeks: order.stockpileDuration || null,
+        orderId: order.id,
+        stockpileId: order.stockpileDocId || null,
+        storeName: vendorName || "Your Store",
+        shippingFee: fee,
+        bank: {
+          accountName: vendorBank.accountName || "",
+          accountNumber: vendorBank.accountNumber || "",
+          bankName: vendorBank.bankName || "",
+        },
+      });
+
+      // 1) Mark as sent (Firestore + local)
+      const toNumber = normalizeForGateway(userInfo.phoneNumber);
+      try {
+        await markShippingSmsSent(db, order, { toNumber });
+      } catch (e) {
+        console.warn("[SMS] Sent OK but failed to mark flag:", e);
+      }
+      localStorage.setItem(smsLocalKey(order), "1");
+      setAlreadySmsSent(true);
+
+      toast.success("SMS sent");
+      setIsWhatsAppModalOpen(false);
+      setShippingFeeInput(""); 
+    } catch (e) {
+      console.error("sendShippingSmsDirect failed:", e);
+      toast.error(e?.message || "Failed to send SMS");
+    } finally {
+      setIsSendingSMS(false);
+    }
+  };
 
   const closeRiderModal = () => {
     setIsRiderModalOpen(false);
@@ -461,7 +780,7 @@ const OrderDetailsModal = ({
         await addActivityNote(
           order.vendorId,
           "You’ve Been Credited 💰",
-          `You’ve received ${amt} as a 60% payout for order ID: ${order.id}.`,
+          `You’ve received ${amt} as the 100% payout for order ID: ${order.id}.`,
           "transactions"
         );
       } else if (isStockpile) {
@@ -805,6 +1124,7 @@ const OrderDetailsModal = ({
   if (!order) {
     return null;
   }
+
   // If an order is a stockpile + pending, we want to hide start/end date & show doc's own subtotal
   const shouldHideStockpileDates =
     order.isStockpile && order.progressStatus === "Pending";
@@ -818,7 +1138,11 @@ const OrderDetailsModal = ({
     subtotal,
     riderInfo = {},
   } = order;
-
+  const isSelfDelivery =
+    (vendorDeliveryPreference || "").toLowerCase() === "self";
+  const canDMOnWhatsApp = progressStatus === "In Progress";
+  const showWhatsApp =
+    (isSelfDelivery || order.isPickup) && (!order.isStockpile || isMature);
   return (
     <Modal
       isOpen={isOpen}
@@ -830,41 +1154,88 @@ const OrderDetailsModal = ({
     >
       <div className="relative h-full pb-12 px-3 overflow-y-auto space-y-4">
         {/* Sticky Header */}
-        <div className="sticky -top-1 bg-white z-10 py-4  flex justify-between items-center ">
+
+        <div className="sticky -top-1 bg-white z-10 py-4 flex justify-between items-center">
           <GoChevronLeft
             className="text-2xl cursor-pointer"
             onClick={onClose}
           />
+
           <h1 className="font-opensans text-black font-semibold text-base">
             {order.isStockpile ? "Stockpile Details" : "Order Details"}
           </h1>
 
-          {progressStatus === "Declined" ? (
-            <IoMdInformationCircleOutline
-              className="text-xl text-customRichBrown cursor-pointer"
-              onClick={handleDeclineInfoModal}
-            />
-          ) : (
-            <BsTelephone
-              className={`text-xl cursor-pointer ${
-                progressStatus === "Delivered"
-                  ? "opacity-50 cursor-not-allowed"
-                  : ""
-              }`}
-              onClick={() => {
-                if (
-                  progressStatus === "Pending" ||
-                  progressStatus === "Shipped" ||
-                  progressStatus === "In Progress"
-                ) {
-                  setIsCallModalOpen(true);
-                } else if (progressStatus === "Delivered") {
-                  toast.error("Cannot call, order is already delivered");
-                }
-              }}
-            />
-          )}
+          <div className="flex items-center gap-3">
+            {/* WhatsApp: show only for self-delivery. Enabled only when In Progress */}
+            {showWhatsApp && (
+              <button
+                type="button"
+                title="Message on WhatsApp"
+                onClick={() => {
+                  if (!canDMOnWhatsApp) {
+                    toast.error(
+                      "WhatsApp message is only available when order is In Progress"
+                    );
+                    return;
+                  }
+                  if (!userInfo?.phoneNumber) {
+                    toast.error("Missing customer phone number");
+                    return;
+                  }
+                  const phoneDigits = toWhatsAppDigits(userInfo.phoneNumber);
+                  if (!phoneDigits) {
+                    toast.error("Invalid customer phone number");
+                    return;
+                  }
+
+                  if (order.isPickup) {
+                    // 🚚 Pickup: just open chat, no template message
+                    openWhatsAppWith(phoneDigits);
+                    return;
+                  }
+
+                  // Non-pickup: keep your existing modal/template flow
+                  setIsWhatsAppModalOpen(true);
+                }}
+                disabled={!canDMOnWhatsApp}
+                className={`p-1 rounded ${
+                  !canDMOnWhatsApp
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-green-50 active:scale-[.98]"
+                }`}
+              >
+                <FaWhatsapp className="text-green-600 text-2xl" />
+              </button>
+            )}
+
+            {progressStatus === "Declined" ? (
+              <IoMdInformationCircleOutline
+                className="text-xl text-customRichBrown cursor-pointer"
+                onClick={handleDeclineInfoModal}
+              />
+            ) : (
+              <BsTelephone
+                className={`text-xl cursor-pointer ${
+                  progressStatus === "Delivered"
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
+                onClick={() => {
+                  if (
+                    progressStatus === "Pending" ||
+                    progressStatus === "Shipped" ||
+                    progressStatus === "In Progress"
+                  ) {
+                    setIsCallModalOpen(true);
+                  } else if (progressStatus === "Delivered") {
+                    toast.error("Cannot call, order is already delivered");
+                  }
+                }}
+              />
+            )}
+          </div>
         </div>
+
         <Modal
           isOpen={isCallModalOpen}
           onRequestClose={() => setIsCallModalOpen(false)}
@@ -928,6 +1299,172 @@ const OrderDetailsModal = ({
             </button>
           </div>
         </Modal>
+        <Modal
+          isOpen={isWhatsAppModalOpen}
+          onRequestClose={() => setIsWhatsAppModalOpen(false)}
+          contentLabel="Send WhatsApp Message"
+          ariaHideApp={false}
+          className="w-full h-[75vh] rounded-t-xl px-4 py-6 bg-white fixed bottom-0"
+          overlayClassName="modal-overlay backdrop-blur-sm"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
+                <FaWhatsapp className="text-green-600" />
+              </div>
+              <h2 className="font-opensans text-base font-semibold">
+                {order.isStockpile
+                  ? "Send Stockpile Ready Message"
+                  : "Send Shipping Invoice"}
+              </h2>
+            </div>
+            <MdOutlineClose
+              className="text-black text-xl cursor-pointer"
+              onClick={() => setIsWhatsAppModalOpen(false)}
+            />
+          </div>
+
+          {/* Inputs */}
+          <div className="space-y-3 mb-4">
+            {/* Store name - read only */}
+            <div>
+              <label className="block text-xs font-opensans font-semibold text-black mb-1">
+                Store Name
+              </label>
+              <input
+                type="text"
+                className="w-full p-2 border text-base font-opensans h-10 rounded bg-gray-100 cursor-not-allowed"
+                value={vendorName || ""}
+                readOnly
+              />
+            </div>
+
+            {/* Shipping Fee */}
+            <div>
+              <label className="block font-semibold text-xs font-opensans text-black mb-1">
+                Shipping Fee (₦)
+              </label>
+              <input
+                type="number"
+                inputMode="numeric"
+                placeholder="Enter delivery fee"
+                value={shippingFeeInput}
+                onChange={(e) =>
+                  setShippingFeeInput(e.target.value.replace(/[^\d]/g, ""))
+                }
+                className="w-full p-2 border text-base font-opensans h-10 rounded focus:outline-none"
+              />
+            </div>
+
+            {/* Bank details - prefilled, editable */}
+            <div className="grid grid-cols-1 gap-3">
+              <div>
+                <label className="block font-semibold text-xs font-opensans text-black mb-1">
+                  Account Name
+                </label>
+                <input
+                  type="text"
+                  value={vendorBank.accountName}
+                  onChange={(e) =>
+                    setVendorBank((b) => ({
+                      ...b,
+                      accountName: e.target.value,
+                    }))
+                  }
+                  className="w-full p-2 border text-base font-opensans h-10 rounded focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold font-opensans text-black mb-1">
+                  Account Number
+                </label>
+                <input
+                  type="text"
+                  value={vendorBank.accountNumber}
+                  onChange={(e) =>
+                    setVendorBank((b) => ({
+                      ...b,
+                      accountNumber: e.target.value.replace(/[^\d]/g, ""),
+                    }))
+                  }
+                  maxLength={12}
+                  className="w-full p-2 border text-base font-opensans h-10 rounded focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold font-opensans text-black mb-1">
+                  Bank Name
+                </label>
+                <input
+                  type="text"
+                  value={vendorBank.bankName}
+                  onChange={(e) =>
+                    setVendorBank((b) => ({ ...b, bankName: e.target.value }))
+                  }
+                  className="w-full p-2 border text-base font-opensans h-10 rounded focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center   justify-center">
+            <button
+              onClick={() => {
+                if (!userInfo?.phoneNumber) {
+                  toast.error("Missing customer phone number");
+                  return;
+                }
+                if (!shippingFeeInput) {
+                  toast.error("Enter a shipping fee");
+                  return;
+                }
+                const phoneDigits = toWhatsAppDigits(userInfo.phoneNumber);
+                if (!phoneDigits) {
+                  toast.error("Invalid customer phone number");
+                  return;
+                }
+
+                const text = order.isStockpile
+                  ? buildStockpileWhatsAppMessage({
+                      customerName: userInfo?.displayName,
+                      weeks: order.stockpileDuration || "—",
+                      stockpileId: order.stockpileDocId,
+                      storeName: vendorName || "Your Store",
+                      shippingFee: shippingFeeInput,
+                      bank: vendorBank,
+                      addressOnFile: userInfo?.address || "",
+                    })
+                  : buildWhatsAppMessage({
+                      customerName: userInfo?.displayName,
+                      orderId: order.id,
+                      storeName: vendorName || "Your Store",
+                      shippingFee: shippingFeeInput,
+                      bank: vendorBank,
+                    });
+
+                openWhatsAppWith(phoneDigits, text);
+                setIsWhatsAppModalOpen(false);
+                setShippingFeeInput(""); 
+              }}
+              className="bg-green-600 text-sm mt-6 text-white font-opensans py-2 font-semibold px-8 rounded-full"
+            >
+              Send via WhatsApp
+            </button>
+            <button
+              type="button"
+              disabled={isSendingSMS || alreadySmsSent}
+              onClick={handleSendShippingSmsClick}
+              className="text-[10px]  mt-3 font-opensans underline text-gray-600 flex justify-center hover:text-gray-800 disabled:opacity-50"
+            >
+              {alreadySmsSent
+                ? "SMS already sent"
+                : isSendingSMS
+                ? "Sending SMS…"
+                : "Number not on WhatsApp? Send SMS"}
+            </button>
+          </div>
+        </Modal>
+
         {/* Customer Details */}
         <div className="border border-black rounded-lg py-4 px-3">
           <div className="flex items-center space-x-2 mb-3">
@@ -1371,49 +1908,30 @@ const OrderDetailsModal = ({
                 </div>
               ) : null;
             })()}
-            <div className="space-y-2 mt-3">
-              {/* Total Amount */}
-              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                <div className="flex items-center space-x-2">
-                  <LiaCoinsSolid className="text-green-300 text-lg" />
-                  <p className="font-opensans text-xs text-gray-700">
-                    Subtotal:
-                  </p>
-                </div>
-                <p className="font-opensans text-xs font-semibold text-gray-700">
-                  ₦{subtotal?.toLocaleString() || "0.00"}
-                </p>
-              </div>
-              {/* Amount to Receive Now */}
-              {vendorAmounts && (
-                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                  <div className="flex items-center space-x-2">
-                    <BiCoinStack className="text-green-500" />
-                    <p className="font-opensans text-xs text-gray-700">
-                      Wallet Amount to Receive Now (60%):
-                    </p>
-                  </div>
-                  <p className="font-opensans text-xs font-semibold text-gray-700">
-                    ₦{vendorAmounts.vendor60Pay.toLocaleString() || "0.00"}
-                  </p>
-                </div>
-              )}
+     <div className="space-y-2 mt-3">
+  {/* Subtotal only */}
+  <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+    <div className="flex items-center space-x-2">
+      <LiaCoinsSolid className="text-green-300 text-lg" />
+      <p className="font-opensans text-xs text-gray-700">Subtotal:</p>
+    </div>
+    <p className="font-opensans text-xs font-semibold text-gray-700">
+      ₦{Number(subtotal || 0).toLocaleString()}
+    </p>
+  </div>
 
-              {/* Amount to Receive on Delivery */}
-              {vendorAmounts && (
-                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                  <div className="flex items-center space-x-2">
-                    <BiCoinStack className="text-blue-500" />
-                    <p className="font-opensans text-xs text-gray-700">
-                      Wallet to be Credited on Delivery (40%):
-                    </p>
-                  </div>
-                  <p className="font-opensans text-xs font-semibold text-gray-700">
-                    ₦{vendorAmounts.vendor40Pay.toLocaleString() || "0.00"}
-                  </p>
-                </div>
-              )}
-            </div>
+  {/* Payout & protection notice */}
+  <div className="flex items-start gap-2 rounded-md bg-green-50 border border-green-200 p-3">
+    <IoMdInformationCircleOutline className="text-green-700 text-lg shrink-0" />
+    <p className="text-[9px] leading-1 text-green-900 font-opensans">
+      We pay out <span className="font-semibold">100% of orders immediately to your wallet</span> — no hold of funds. 
+      To protect customers, if an order is delayed for a long period of time or there’s an anomaly 
+      (e.g., non-delivery, item not as described, or fraud indicators), we may intervene and take 
+      appropriate actions on the order after review.
+    </p>
+  </div>
+</div>
+
           </div>
         )}
         {order.isStockpile && order.stockpileDuration && (

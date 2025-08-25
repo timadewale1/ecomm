@@ -379,15 +379,15 @@ const Homepage = () => {
             </div>
           </div>
           <Condition />
-      
         </>
       )}
-      <BlogImageGrid />
+
       <TopVendors />
       <PopularCats />
       {/* <DiscountCarousel /> */}
       <PersonalDiscountCarousel />
-      <FeaturedInfinite/>
+      <BlogImageGrid />
+      <FeaturedInfinite />
     </>
   );
 };

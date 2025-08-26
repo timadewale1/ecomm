@@ -1,4 +1,4 @@
-import React from 'react'
+import React from "react";
 
 const everydayTypers = [
   {
@@ -35,6 +35,37 @@ const everydayTypers = [
 
       "Camera Lenses",
       "Photography Accessories",
+    ],
+  },
+  {
+    type: "Gift Packages",
+    subTypes: [
+      "Room Decoration",
+      "Rose Bouquet",
+      "Money Bouquets",
+      "Money Boxes",
+      "Money Tower",
+      "Gym Package",
+      "Self Care Package",
+      "Anniversary Package",
+      "Birthday Package",
+      "Period Survival Kit Package",
+      "Mother's Day Package",
+      "Father's Day Package",
+      "Reconciliation Package",
+      "Just Because I Love You Package",
+
+      // 🔹 10 more ideas
+      "Graduation Package",
+      "Valentine’s Day Package",
+      "Get Well Soon Package",
+      "Housewarming Package",
+      "Bridal Shower Package",
+      "Baby Shower Package",
+      "Friendship Package",
+      "Thank You Package",
+      "Corporate Gifting Package",
+      "Festive Holiday Package",
     ],
   },
   {
@@ -317,4 +348,4 @@ const everydayTypers = [
   },
 ];
 
-export default everydayTypers
+export default everydayTypers;

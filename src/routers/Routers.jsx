@@ -8,6 +8,7 @@ import StorePage from "../pages/StorePage.jsx";
 import WithCommunityModal from "../components/layout/WithCommunityinviteModal.jsx";
 import WithStoreCelebrationModal from "../components/layout/WithStoreCelebrationModal.jsx";
 import WithDeliveryPreferenceModal from "../components/layout/WithDeliveryChoice.jsx";
+import InfluencerRedir from "../pages/UserSide/InfluencerRedir.jsx";
 
 // Lazy load all other components
 const ProductDetailPage = lazy(() =>
@@ -125,6 +126,7 @@ const Routers = () => {
         <Route path="vendor-signup" element={<VendorSignup />} />
         <Route path="login" element={<Login />} />
         <Route path="vendorlogin" element={<VendorLogin />} />
+        <Route path="/i/:id" element={<InfluencerRedir />} />
         <Route path="complete-profile" element={<CompleteProfile />} />
         <Route path="/forgetpassword" element={<ForgetPassword />} />
         <Route path="/faqs" element={<FAQs />} />

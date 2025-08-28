@@ -274,6 +274,7 @@ const Signup = () => {
         email: user.email,
         emailLower, // 👈 add this so future lookups work
         role: "user",
+        referrer: localStorage.getItem("referrer") || null,
         walletSetup: false,
         profileComplete: false,
         welcomeEmailSent: false,
@@ -372,6 +373,7 @@ const Signup = () => {
         email: user.email,
         emailLower, // 👈 keep lowercased index field
         role: "user",
+        referrer: localStorage.getItem("referrer") || null,
         walletSetup: false,
         profileComplete: false,
         welcomeEmailSent: false,

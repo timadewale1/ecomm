@@ -470,6 +470,7 @@ const Login = () => {
           welcomeEmailSent: false,
           notificationAllowed: false,
           role: "user",
+          referrer: localStorage.getItem("referrer") || null,
           createdAt: new Date(),
         });
         console.log("New user document created in Firestore");
@@ -601,6 +602,7 @@ const Login = () => {
           welcomeEmailSent: false,
           notificationAllowed: false,
           role: "user",
+          referrer: localStorage.getItem("referrer") || null,
           createdAt: new Date(),
         });
         posthog?.capture("signup_completed", { method: "twitter" });

@@ -1,10 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
 import {
   getAuth,
   signInWithEmailAndPassword,
-  sendEmailVerification,
 } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { motion } from "framer-motion";
@@ -19,6 +18,7 @@ import { RotatingLines } from "react-loader-spinner";
 import Typewriter from "typewriter-effect";
 import { GoChevronLeft } from "react-icons/go";
 import SEO from "../components/Helmet/SEO";
+import { usePostHog } from "posthog-js/react"; // ✅ Added
 
 const VendorLogin = () => {
   const [email, setEmail] = useState("");
@@ -28,19 +28,43 @@ const VendorLogin = () => {
 
   const navigate = useNavigate();
   const auth = getAuth();
+  const posthog = usePostHog(); // ✅ Added
+
+  // ✅ Track page view
+  useEffect(() => {
+    posthog?.capture("page_view", { page: "vendor_login" });
+  }, [posthog]);
+
+  // ✅ Identify vendor in PostHog
+  const identifyVendor = (ph, userRecord, extra = {}) => {
+    if (!ph) return;
+    const aliasKey = `ph_alias_${userRecord.uid}`;
+    if (!localStorage.getItem(aliasKey)) {
+      ph.alias(userRecord.uid);
+      localStorage.setItem(aliasKey, "1");
+    }
+    ph.identify(userRecord.uid, {
+      email: userRecord.email,
+      name: userRecord.displayName ?? extra.username ?? "Unknown",
+      created_at: userRecord.metadata.creationTime,
+      ...extra,
+    });
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    // Quick check for empty fields
     if (!email.trim() || !password.trim()) {
       toast.error("Please fill in both email and password fields.");
+      posthog?.capture("vendor_login_error_missing_fields");
       setLoading(false);
       return;
     }
 
     try {
+      posthog?.capture("vendor_login_attempted", { method: "email" });
+
       // 1) Sign in via Firebase Auth
       const userCredential = await signInWithEmailAndPassword(
         auth,
@@ -54,22 +78,21 @@ const VendorLogin = () => {
       const docSnap = await getDoc(docRef);
 
       if (!docSnap.exists()) {
-        // Immediately sign out and throw a custom "vendor" error
         await auth.signOut();
+        posthog?.capture("vendor_no_record_found");
         throw { code: "vendor/no-record" };
       }
 
       const vendorData = docSnap.data();
 
       if (vendorData.isDeactivated) {
-        // Sign out and throw custom error
         await auth.signOut();
+        posthog?.capture("vendor_account_deactivated");
         throw { code: "vendor/account-deactivated" };
       }
 
       // 3) Check if email is verified
       if (!user.emailVerified) {
-        // Send verification link via Cloud Function
         const sendVerificationEmailCallable = httpsCallable(
           functions,
           "sendVendorVerificationEmail"
@@ -80,12 +103,15 @@ const VendorLogin = () => {
           lastName: vendorData.lastName,
         });
 
-        // Sign out and throw custom error
         await auth.signOut();
+        posthog?.capture("vendor_email_unverified");
         throw { code: "vendor/email-unverified" };
       }
 
-      // 4) If verified, check other vendor fields
+      // ✅ Successful login
+      identifyVendor(posthog, user, { role: "vendor" });
+      posthog?.capture("vendor_login_succeeded", { method: "email" });
+
       if (!vendorData.profileComplete) {
         toast("Please complete your profile.");
         navigate("/complete-profile");
@@ -95,50 +121,34 @@ const VendorLogin = () => {
       }
     } catch (error) {
       console.error("Error logging in:", error);
-      console.error("Error code:", error?.code);
-      console.error("Error message:", error?.message);
+      posthog?.capture("vendor_login_failed", {
+        method: "email",
+        code: error?.code,
+      });
 
       const code = error?.code;
-
-      // ---- IF–ELSE CHAIN for error codes ----
       if (!code) {
-        // If there's no code at all
-        toast.error(
-          "Oops! Something went wrong while logging you in. Please try again."
-        );
+        toast.error("Oops! Something went wrong. Please try again.");
       } else if (code === "auth/invalid-email") {
         toast.error("Please enter a valid email address.");
       } else if (code === "auth/user-not-found") {
         toast.error("We couldn't find an account with that email.");
       } else if (code === "auth/wrong-password") {
-        toast.error("Incorrect password. Please double-check and try again.");
+        toast.error("Incorrect password. Please try again.");
       } else if (code === "auth/user-disabled") {
         toast.error("This account has been disabled. Contact support.");
       } else if (code === "auth/too-many-requests") {
-        toast.error(
-          "Too many unsuccessful login attempts. Please wait and try again."
-        );
+        toast.error("Too many unsuccessful login attempts. Try later.");
       } else if (code === "auth/invalid-credential") {
-        toast.error(
-          "Invalid credentials. Please check your login details and try again."
-        );
-      }
-      // ---- CUSTOM "vendor/*" ERROR CODES ----
-      else if (code === "vendor/no-record") {
+        toast.error("Invalid credentials. Try again.");
+      } else if (code === "vendor/no-record") {
         toast.error("No vendor record found. This account is not a vendor.");
       } else if (code === "vendor/account-deactivated") {
-        toast.error(
-          "Your vendor account is deactivated. Please contact support."
-        );
+        toast.error("Your vendor account is deactivated. Contact support.");
       } else if (code === "vendor/email-unverified") {
-        toast.error(
-          "Your email is not verified. Please check your inbox for a verification link."
-        );
+        toast.error("Your email is not verified. Check your inbox.");
       } else {
-        // Catch-all for any code not explicitly handled
-        toast.error(
-          "Oops! Something went wrong while logging you in. Please try again."
-        );
+        toast.error("Oops! Something went wrong. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -156,7 +166,10 @@ const VendorLogin = () => {
         <Container>
           <Row>
             <div className="px-2">
-              <Link to="/confirm-state" onClick={localStorage.removeItem("mythrift_role")}>
+              <Link
+                to="/confirm-state"
+                onClick={localStorage.removeItem("mythrift_role")}
+              >
                 <GoChevronLeft className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>
               <VendorLoginAnimation />
@@ -174,11 +187,7 @@ const VendorLogin = () => {
               <div className="flex justify-center text-xs font-medium text-customOrange -translate-y-2">
                 <Typewriter
                   options={{
-                    strings: [
-                      "and make OWO!",
-                      "and make KUDI!",
-                      "and make EGO!",
-                    ],
+                    strings: ["and make OWO!", "and make KUDI!", "and make EGO!"],
                     autoStart: true,
                     loop: true,
                     delay: 50,
@@ -209,7 +218,10 @@ const VendorLogin = () => {
                       type="email"
                       placeholder="Enter your email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        posthog?.capture("vendor_email_input_started");
+                      }}
                       className="w-full h-12 bg-white text-black font-opensans rounded-md text-base border border-gray-200 pl-14 focus:outline-none focus:ring-2 focus:ring-customOrange"
                       required
                     />
@@ -222,7 +234,10 @@ const VendorLogin = () => {
                       type={showPassword ? "text" : "password"}
                       placeholder="Enter your password"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        posthog?.capture("vendor_password_input_started");
+                      }}
                       className="w-full h-12 bg-white text-black font-opensans rounded-md text-base border border-gray-200 pl-14 focus:outline-none focus:ring-2 focus:ring-customOrange"
                       required
                     />
@@ -240,6 +255,7 @@ const VendorLogin = () => {
                   <div className="flex justify-end">
                     <Link
                       to="/forgetpassword"
+                      onClick={() => posthog?.capture("vendor_forgot_password_clicked")}
                       className="text-customOrange font-lato text-xs"
                     >
                       Forgot password?
@@ -251,11 +267,7 @@ const VendorLogin = () => {
                     disabled={loading}
                   >
                     {loading ? (
-                      <RotatingLines
-                        strokeColor="white"
-                        strokeWidth="5"
-                        width="30"
-                      />
+                      <RotatingLines strokeColor="white" strokeWidth="5" width="30" />
                     ) : (
                       "Login"
                     )}

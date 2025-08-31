@@ -13,6 +13,10 @@ import { IoLocationOutline } from "react-icons/io5";
 import IkImage from "../services/IkImage";
 import VendorMetaTicker from "../components/VendorsData/VendorTicker";
 import { deactivateQuickMode } from "../redux/reducers/quickModeSlice";
+import { useAuth } from "../custom-hooks/useAuth";
+import posthog from 'posthog-js';
+
+
 const Marketpg = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -21,7 +25,8 @@ const Marketpg = () => {
   const { local, online, isFetched, status } = useSelector(
     (state) => state.vendors
   );
-
+    const { currentUser} = useAuth();
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -47,13 +52,47 @@ const Marketpg = () => {
     "Formal",
   ];
 
+  const vendors = online; // Only showing online vendors
+
+
+  useEffect(() => {
+  if (isFetched) {
+    posthog.capture('vendors_loaded', {
+      vendorCount: vendors.length,
+      status,
+      isAuthenticated: !!currentUser,
+    });
+  }
+}, [isFetched, vendors, status, currentUser]);
+
+useEffect(() => {
+  if (status === "error") {
+    posthog.capture('vendor_load_error', {
+      errorType: "API error",
+      isAuthenticated: !!currentUser,
+    });
+  }
+}, [status, currentUser]);
+
+useEffect(() => {
+  if (currentUser) {
+    posthog.capture('user_logged_in', {
+      userId: currentUser.uid,
+      isAuthenticated: true,
+    });
+  } else {
+    posthog.capture('user_logged_out', {
+      isAuthenticated: false,
+    });
+  }
+}, [currentUser]);
+
   useEffect(() => {
     if (!isFetched) {
       dispatch(fetchVendorsRanked());
     }
   }, [dispatch, isFetched]);
 
-  const vendors = online; // Only showing online vendors
 
   const filteredVendors = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
@@ -89,23 +128,36 @@ const Marketpg = () => {
   ]);
 
   const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value.toLowerCase());
-  };
+  setSearchTerm(e.target.value.toLowerCase());
+  setTimeout(() => {
+    posthog.capture('vendor_search', {
+      searchTerm: e.target.value,
+      vendorCount: filteredVendors.length,
+      isAuthenticated: !!currentUser,
+    });
+  }, 0);
+};
 
   const handleClearSearch = () => {
     setSearchTerm("");
   };
 
   const handleStoreView = (vendor) => {
-    dispatch(deactivateQuickMode());
-    try {
-    
-      Object.keys(sessionStorage)
-        .filter((k) => k.startsWith("quickMode_"))
-        .forEach((k) => sessionStorage.removeItem(k));
-    } catch {}
-    navigate(`/store/${vendor.id}`);
-  };
+  dispatch(deactivateQuickMode());
+  try {
+    Object.keys(sessionStorage)
+      .filter((k) => k.startsWith("quickMode_"))
+      .forEach((k) => sessionStorage.removeItem(k));
+  } catch {}
+  posthog.capture('vendor_clicked', {
+    vendorId: vendor.id,
+    vendorName: vendor.shopName,
+    categories: vendor.categories,
+    rating: vendor.rating,
+    isAuthenticated: !!currentUser,
+  });
+  navigate(`/store/${vendor.id}`);
+};
 
   const avgRating = (vendor) => {
     const { rating = 0, ratingCount = 0 } = vendor;
@@ -163,8 +215,14 @@ const Marketpg = () => {
               <div className="flex  w-full py-3 overflow-x-auto space-x-2 scrollbar-hide">
                 {/* Delivery Filter - Placed First as Requested */}
                 <button
-                  onClick={() => setHasDelivery(!hasDelivery)}
-                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100  border ${
+onClick={() => {
+  setHasDelivery(!hasDelivery);
+  posthog.capture('filter_toggled', {
+    filterType: "delivery",
+    isActive: !hasDelivery,
+    isAuthenticated: !!currentUser,
+  });
+}}                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100  border ${
                     hasDelivery ? "bg-customOrange text-white" : "bg-white"
                   }`}
                 >
@@ -173,8 +231,14 @@ const Marketpg = () => {
 
                 {/* Stockpile Filter */}
                 <button
-                  onClick={() => setHasStockpile(!hasStockpile)}
-                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100  border ${
+onClick={() => {
+  setHasStockpile(!hasStockpile);
+  posthog.capture('filter_toggled', {
+    filterType: "stockpile",
+    isActive: !hasStockpile,
+    isAuthenticated: !!currentUser,
+  });
+}}                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100  border ${
                     hasStockpile ? "bg-customOrange text-white" : "bg-white"
                   }`}
                 >
@@ -183,8 +247,14 @@ const Marketpg = () => {
 
                 {/* Pickup Filter */}
                 <button
-                  onClick={() => setHasPickup(!hasPickup)}
-                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100  border ${
+onClick={() => {
+  setHasPickup(!hasPickup);
+  posthog.capture('filter_toggled', {
+    filterType: "pickup",
+    isActive: !hasPickup,
+    isAuthenticated: !!currentUser,
+  });
+}}                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100  border ${
                     hasPickup ? "bg-customOrange text-white" : "bg-white"
                   }`}
                 >
@@ -195,11 +265,22 @@ const Marketpg = () => {
                 {categories.map((category) => (
                   <button
                     key={category}
-                    onClick={() =>
-                      setSelectedCategory(
-                        category === selectedCategory ? "" : category
-                      )
-                    }
+                    onClick={() => {
+  const newCategory = category === selectedCategory ? "" : category;
+  setSelectedCategory(newCategory);
+  setTimeout(() => {
+    posthog.capture('category_selected', {
+      category: newCategory,
+      vendorCount: vendors.filter(
+        (v) =>
+          (!searchTerm ||
+            v.shopName.toLowerCase().includes(searchTerm.toLowerCase())) &&
+          (!newCategory || v.categories.includes(newCategory))
+      ).length,
+      isAuthenticated: !!currentUser,
+    });
+  }, 0);
+}}
                     className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100  border ${
                       selectedCategory === category
                         ? "bg-customOrange text-white"

@@ -74,6 +74,9 @@ import { useFavorites } from "../../components/Context/FavoritesContext";
 import { BsBadgeHdFill } from "react-icons/bs";
 import { HiOutlineShoppingBag } from "react-icons/hi";
 import { FcShop } from "react-icons/fc";
+import posthog from 'posthog-js';
+
+
 Modal.setAppElement("#root");
 
 const debounce = (func, delay) => {
@@ -264,6 +267,28 @@ const ProductDetailPage = () => {
   const favorite = isFavorite(product?.id);
   const { isActive: quickMode = false, vendorId: basketVendorId = null } =
     useSelector((state) => selectQuickMode(state) ?? {});
+
+    useEffect(() => {
+  if (product && product.id) {
+    posthog.capture('product_viewed', {
+      productId: product.id,
+      productName: product.name,
+      vendorId: product.vendorId,
+      userId: currentUser?.uid,
+    });
+  }
+}, [product, currentUser]);
+
+useEffect(() => {
+  if (currentUser) {
+    posthog.capture('user_logged_in', {
+      userId: currentUser.uid,
+      email: currentUser.email,
+    });
+  } else {
+    posthog.capture('user_logged_out');
+  }
+}, [currentUser]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -497,8 +522,18 @@ const ProductDetailPage = () => {
     // 2) Immediately toggle local state (optimistic update)
     if (favorite) {
       removeFavorite(product.id);
+      posthog.capture('product_unfavorited', {
+    productId: product.id,
+    vendorId: product.vendorId,
+    userId: currentUser?.uid,
+  });
     } else {
       addFavorite(product);
+      posthog.capture('product_favorited', {
+    productId: product.id,
+    vendorId: product.vendorId,
+    userId: currentUser?.uid,
+  });
     }
 
     // 3) If user not logged in => we do local only, done
@@ -796,6 +831,14 @@ const ProductDetailPage = () => {
       dispatch(addToCart({ ...existingCartItem, quantity }, true));
     } else {
       dispatch(addToCart(productToAdd, true));
+posthog.capture('product_added_to_cart', {
+  productId: product.id,
+  vendorId: product.vendorId,
+  quantity,
+  selectedSize,
+  selectedColor,
+  isStockpile: isStockpileForThisVendor,
+});
     }
 
     setIsAddedToCart(true);
@@ -860,6 +903,11 @@ const ProductDetailPage = () => {
     try {
       console.log("[Q&A] writing to Firestore…");
       await addDoc(collection(db, "inquiries"), inquiryPayload);
+      posthog.capture('product_question_sent', {
+  productId: product.id,
+  questionText,
+  userId: currentUser?.uid,
+});
       console.log("[Q&A] write succeeded");
       setIsAskModalOpen(false);
       setIsThankYouOpen(true);
@@ -939,6 +987,13 @@ const ProductDetailPage = () => {
     }
 
     dispatch(increaseQuantity({ vendorId: product.vendorId, productKey }));
+    posthog.capture('product_quantity_adjusted', {
+  productId: product.id,
+  vendorId: product.vendorId,
+  newQuantity: updatedQuantity,
+  selectedSize,
+  selectedColor,
+});
     setQuantity(updatedQuantity);
   }, [
     product,
@@ -991,6 +1046,13 @@ const ProductDetailPage = () => {
     }
 
     dispatch(decreaseQuantity({ vendorId: product.vendorId, productKey }));
+    posthog.capture('product_quantity_adjusted', {
+  productId: product.id,
+  vendorId: product.vendorId,
+  newQuantity: updatedQuantity,
+  selectedSize,
+  selectedColor,
+});
     setQuantity(updatedQuantity);
   }, [
     product,
@@ -1177,8 +1239,14 @@ const ProductDetailPage = () => {
       subProductId: selectedSubProduct?.subProductId,
     });
 
-    dispatch(removeFromCart({ vendorId: product.vendorId, productKey }));
-    setIsAddedToCart(false);
+dispatch(removeFromCart({ vendorId: product.vendorId, productKey }));
+posthog.capture('product_removed_from_cart', {
+  productId: product.id,
+  vendorId: product.vendorId,
+  quantity,
+  selectedSize,
+  selectedColor,
+});    setIsAddedToCart(false);
     setQuantity(1);
     toast.success(`${product.name} removed from cart!`);
   }, [
@@ -1209,6 +1277,10 @@ const ProductDetailPage = () => {
       );
       setIsLinkCopied(true);
       toast.success("Link copied!");
+      posthog.capture('product_link_copied', {
+  productId: product.id,
+  sharedLink: `https://mx.shopmythrift.store/product/${id}?shared=true`,
+});
       setTimeout(() => setIsLinkCopied(false), 2000); // Reset after 2 seconds
     } catch (err) {
       console.error("Failed to copy the link", err);
@@ -1640,6 +1712,10 @@ const ProductDetailPage = () => {
                         <button
                           onClick={() => {
                             if (!currentUser) {
+                              posthog.capture('login_prompted_for_action', {
+    actionType: 'ask_question',
+    productId: product.id,
+  });
                               navigate("/login", {
                                 state: { from: location.pathname },
                               });

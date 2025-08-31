@@ -17,6 +17,7 @@ import WalletSetup from "../../components/Loading/WalletSetup";
 import { TbXxx } from "react-icons/tb";
 import { LuCopy, LuCopyCheck } from "react-icons/lu";
 import { FcOnlineSupport } from "react-icons/fc";
+import posthog from 'posthog-js';
 
 export default function UserWalletPage() {
   const {
@@ -30,6 +31,17 @@ export default function UserWalletPage() {
   const [walletSetup, setWalletSetup] = useState(
     currentUserData?.walletSetup ?? false
   );
+
+useEffect(() => {
+  if (authLoading) return;
+  posthog.capture('wallet_viewed', {
+    userId: currentUserData?.uid || null,
+    email: currentUserData?.email || null,
+    isAuthenticated: !!currentUserData,
+    walletSetup: !!walletSetup,
+  });
+}, [authLoading, currentUserData, walletSetup]);
+
 
   const [history, setHistory] = useState(() => {
     try {
@@ -55,16 +67,21 @@ export default function UserWalletPage() {
   const { openChat } = useTawk();
 
   const copyToClipboard = async () => {
-    if (!accountNumber) return;
-    try {
-      await navigator.clipboard.writeText(accountNumber);
-      setCopied(true);
-      toast.success("Account number copied!");
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      toast.error("Failed to copy");
-    }
-  };
+  if (!accountNumber) return;
+  try {
+    await navigator.clipboard.writeText(accountNumber);
+    setCopied(true);
+    toast.success("Account number copied!");
+    posthog.capture('account_number_copied', {
+      userId: currentUserData?.uid,
+      email: currentUserData?.email,
+      isAuthenticated: true,
+    });
+    setTimeout(() => setCopied(false), 2000);
+  } catch (err) {
+    toast.error("Failed to copy");
+  }
+};
 
   // Generate a random 4-digit PIN
   const generateRandomPin = () => {
@@ -109,7 +126,31 @@ export default function UserWalletPage() {
     }
   };
 
+  useEffect(() => {
+  if (history && history.length > 0 && currentUserData) {
+    posthog.capture('transaction_history_viewed', {
+      userId: currentUserData.uid,
+      email: currentUserData.email,
+      isAuthenticated: true,
+      transactionCount: history.length,
+    });
+  }
+}, [history, currentUserData]);
+
+
   // Create wallet with normalized phone number
+
+  useEffect(() => {
+  if (!walletSetup && currentUserData) {
+    posthog.capture('wallet_setup_prompted', {
+      userId: currentUserData.uid,
+      email: currentUserData.email,
+      isAuthenticated: true,
+      walletSetup: false,
+    });
+  }
+}, [walletSetup, currentUserData]);
+
   const createWallet = async () => {
     if (walletCreating) return;
     setWalletCreating(true);
@@ -185,13 +226,25 @@ export default function UserWalletPage() {
       });
 
       toast.success("Wallet created successfully");
-    } catch (e) {
-      console.error("❌ createWallet error:", e);
-      toast.error(e.message || "Failed to create wallet");
-    } finally {
-      setWalletCreating(false);
-    }
-  };
+    posthog.capture('wallet_created', {
+      userId: currentUserData?.uid,
+      email: currentUserData?.email,
+      isAuthenticated: true,
+      status: "success",
+    });
+  } catch (e) {
+    console.error("❌ createWallet error:", e);
+    toast.error(e.message || "Failed to create wallet");
+    posthog.capture('wallet_created', {
+      userId: currentUserData?.uid,
+      email: currentUserData?.email,
+      isAuthenticated: true,
+      status: "error",
+    });
+  } finally {
+    setWalletCreating(false);
+  }
+};
 
   // Fetch wallet data
   useEffect(() => {
@@ -260,18 +313,18 @@ export default function UserWalletPage() {
 
   if (authLoading || isLoading) return <Loading />;
   if (error) {
-    return (
-      <div className="p-4 w-full mx-auto font-opensans text-center">
-        <p className="text-red-600">{error}</p>
-        <button
-          onClick={() => navigate("/login")}
-          className="mt-4 bg-customOrange text-white rounded-full py-2.5 px-6 font-opensans font-medium"
-        >
-          Go to Login
-        </button>
-      </div>
-    );
+  if (error === "User not authenticated") {
+    posthog.capture('wallet_access_denied', {
+      userId: null,
+      isAuthenticated: false,
+    });
   }
+  return (
+    <div className="p-4 w-full mx-auto font-opensans text-center">
+      <p className="text-red-600">{error}</p>
+      <button
+        onClick={() => navigate("/login")}
+        className="mt-4 bg-customOrange text-white rounded-full py-2.5
 
   // Show create wallet button if wallet is not set up
   if (!walletSetup) {
@@ -294,10 +347,17 @@ export default function UserWalletPage() {
               Create Wallet
             </h2>
             <FcOnlineSupport
-              onClick={openChat}
-              className="absolute right-0 text-2xl text-customOrange cursor-pointer"
-              title="Customer Care"
-            />
+  onClick={() => {
+    posthog.capture('support_clicked', {
+      userId: currentUserData?.uid,
+      email: currentUserData?.email,
+      isAuthenticated: !!currentUserData,
+    });
+    openChat();
+  }}
+  className="absolute right-0 text-2xl text-customOrange cursor-pointer"
+  title="Customer Care"
+/>
           </div>
           <WalletSetup />
           <div className="flex flex-col items-center justify-center text-center space-y-4">
@@ -361,10 +421,16 @@ export default function UserWalletPage() {
             )}
             <button
               onClick={() => {
-                const next = !hideBalance;
-                setHideBalance(next);
-                localStorage.setItem("hideBalance", JSON.stringify(next));
-              }}
+  const next = !hideBalance;
+  setHideBalance(next);
+  localStorage.setItem("hideBalance", JSON.stringify(next));
+  posthog.capture('balance_visibility_toggled', {
+    userId: currentUserData?.uid,
+    email: currentUserData?.email,
+    isAuthenticated: true,
+    action: next ? "hide" : "show",
+  });
+}}
             >
               {hideBalance ? (
                 <BsEye className="text-sm" />

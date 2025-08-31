@@ -9,6 +9,7 @@ import Loading from "../../components/Loading/Loading";
 import ExpiredLink from "../../components/Loading/ExpiredLink";
 import SEO from "../../components/Helmet/SEO";
 import { useAuth } from "../../custom-hooks/useAuth";
+import posthog from "posthog-js";
 
 export default function PayPage() {
   const { token } = useParams();
@@ -46,6 +47,7 @@ export default function PayPage() {
         const expires = data.expiresAt.toDate().getTime();
         if (now > expires) {
           setExpired(true);
+          posthog?.capture("expired_pay_link_viewed", { token });
         } else {
           setDraft(data);
           interval = setInterval(() => {
@@ -53,6 +55,7 @@ export default function PayPage() {
             if (diff <= 0) {
               setExpired(true);
               clearInterval(interval);
+              posthog?.capture("expired_pay_link_viewed", { token });
             } else {
               const m = Math.floor(diff / 60000);
               const s = Math.floor((diff % 60000) / 1000)
@@ -61,15 +64,23 @@ export default function PayPage() {
               setCountdown(`${m}m ${s}s`);
             }
           }, 1000);
+
+          posthog?.capture("pay_page_viewed", {
+            token,
+            vendor: data.vendorName,
+            amount: data.amount,
+            userId: currentUser?.uid || "guest",
+          });
         }
       } catch (e) {
         setError(e.message);
+        posthog?.capture("expired_pay_link_viewed", { token, error: e.message });
       } finally {
         setLoading(false);
       }
     })();
     return () => clearInterval(interval);
-  }, [token]);
+  }, [token, currentUser]);
 
   if (loading) return <Loading />;
   if (expired || error) {
@@ -107,13 +118,19 @@ export default function PayPage() {
           <img src="/newlogo.png" alt="Logo" className="h-8 w-16" />
           <div className="flex flex-1 mt-4 space-x-3">
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => {
+                posthog?.capture("login_cta_clicked_on_paypage", { token });
+                navigate("/login");
+              }}
               className="flex-1 border border-customRichBrown text-customRichBrown rounded-full py-1 text-sm font-opensans"
             >
               Login
             </button>
             <button
-              onClick={() => navigate("/signup")}
+              onClick={() => {
+                posthog?.capture("signup_cta_clicked_on_paypage", { token });
+                navigate("/signup");
+              }}
               className="flex-1 bg-customOrange text-white rounded-full py-1 text-sm font-opensans"
             >
               Sign Up
@@ -172,11 +189,15 @@ export default function PayPage() {
             https://www.shopmythrift.store/pay/{token}
           </span>
           <button
-            onClick={() =>
+            onClick={() => {
               navigator.clipboard.writeText(
                 `https://www.shopmythrift.store/pay/${token}`
-              )
-            }
+              );
+              posthog?.capture("payment_link_copied", {
+                token,
+                userId: currentUser?.uid || "guest",
+              });
+            }}
             className="ml-2"
           >
             <RiShareForwardBoxLine className="text-customRichBrown" />
@@ -201,7 +222,15 @@ export default function PayPage() {
         </p>
 
         <button
-          onClick={() => (window.location.href = payUrl)}
+          onClick={() => {
+            posthog?.capture("pay_now_clicked", {
+              token,
+              vendor: draft.vendorName,
+              amount: draft.amount,
+              userId: currentUser?.uid || "guest",
+            });
+            window.location.href = payUrl;
+          }}
           className="w-full py-3 mt-16 bg-customOrange text-white rounded-full font-opensans font-semibold"
         >
           Pay Now

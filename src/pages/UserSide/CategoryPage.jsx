@@ -35,6 +35,8 @@ import { CiLogin, CiSearch } from "react-icons/ci";
 import { FaCheck, FaPlus, FaStar } from "react-icons/fa";
 import { LiaTimesSolid } from "react-icons/lia";
 import { auth } from "../../firebase.config";
+import posthog from "posthog-js";
+
 // Cloudinary config
 const cld = new Cloudinary({
   cloud: {
@@ -70,6 +72,20 @@ const CategoryPage = () => {
 
   console.log("[CategoryPage] Current category:", category);
   const { currentUser } = useAuth();
+
+  // Identify user in PostHog
+  useEffect(() => {
+    if (currentUser) {
+      posthog.identify(currentUser.uid, {
+        email: currentUser.email,
+        role: "user",
+      });
+    } else {
+      posthog.capture("guest_session", { role: "guest" }, { send_instantly: true });
+    }
+    posthog.capture("category_page_viewed", { category }, { send_instantly: true });
+  }, [currentUser, category]);
+
   // Retrieve cached data for this category from Redux
   const categoryData = useSelector(
     (state) => state.catsection.data[category]
@@ -99,6 +115,7 @@ const CategoryPage = () => {
 
   const [isSearching, setIsSearching] = useState(false);
   const [isSticky, setIsSticky] = useState(false);
+
   // Hero image slideshow
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const getCategoryStyles = (category) => {
@@ -131,18 +148,10 @@ const CategoryPage = () => {
   // Caching: Only fetch if there are no products cached for this category.
   useEffect(() => {
     if (!products.length) {
-      console.log(
-        "[CategoryPage] No cached products for",
-        category,
-        ", fetching..."
-      );
-      // Optionally, you can reset here if you want to clear outdated data:
-      // dispatch(resetCategorySection(category));
       dispatch(fetchCategorySection({ category, loadMore: false }));
-    } else {
-      console.log("[CategoryPage] Using cached products for", category);
     }
   }, [category, products.length, dispatch]);
+
   useEffect(() => {
     const handleScroll = () => {
       setIsSticky(window.scrollY > 100);
@@ -150,13 +159,15 @@ const CategoryPage = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
   // Infinite scroll for products
   const fetchMoreProducts = useCallback(() => {
     if (!loading && !noMoreProducts) {
-      console.log("[CategoryPage] Fetching more products for", category);
       dispatch(fetchCategorySection({ category, loadMore: true }));
+      posthog.capture("load_more_products", { category }, { send_instantly: true });
     }
   }, [dispatch, category, loading, noMoreProducts]);
+
   const [followedVendors, setFollowedVendors] = useState({});
 
   const fetchFollowedVendors = async (userId) => {
@@ -193,17 +204,13 @@ const CategoryPage = () => {
       return;
     }
 
-    // Determine the new follow state optimistically
     const newFollowState = !followedVendors[vendorId];
-
-    // Update the UI immediately (optimistic update)
     setFollowedVendors((prev) => ({
       ...prev,
       [vendorId]: newFollowState,
     }));
 
     try {
-      // Enforce follow rate limit
       await handleUserActionLimit(
         currentUser.uid,
         "follow",
@@ -219,20 +226,37 @@ const CategoryPage = () => {
       const followRef = doc(db, "follows", `${currentUser.uid}_${vendorId}`);
 
       if (newFollowState) {
-        // Create the follow document
         await setDoc(followRef, {
           userId: currentUser.uid,
           vendorId,
           createdAt: new Date(),
         });
         toast.success("You will be notified of new products and promos.");
+        posthog.capture(
+          "vendor_followed",
+          {
+            category,
+            vendorId,
+            role: "user",
+            userId: currentUser.uid,
+          },
+          { send_instantly: true }
+        );
       } else {
-        // Delete the follow document
         await deleteDoc(followRef);
         toast.success("Unfollowed.");
+        posthog.capture(
+          "vendor_unfollowed",
+          {
+            category,
+            vendorId,
+            role: "user",
+            userId: currentUser.uid,
+          },
+          { send_instantly: true }
+        );
       }
     } catch (error) {
-      // If there's an error, revert the optimistic update
       setFollowedVendors((prev) => ({
         ...prev,
         [vendorId]: !newFollowState,
@@ -269,7 +293,7 @@ const CategoryPage = () => {
     }
   }, [searchTerm, products]);
 
-  // Update filtered vendors similarly (if needed)
+  // Update filtered vendors
   useEffect(() => {
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
@@ -308,6 +332,11 @@ const CategoryPage = () => {
   const handleSearchChange = (e) => {
     const term = e.target.value.toLowerCase();
     setSearchTerm(term);
+    posthog.capture(
+      "search_started",
+      { category, searchTerm: term, role: currentUser ? "user" : "guest" },
+      { send_instantly: true }
+    );
 
     const vendMatches = vendors.filter((v) =>
       v.shopName.toLowerCase().includes(term)
@@ -337,8 +366,6 @@ const CategoryPage = () => {
         url={`https://www.shopmythrift.store/category/${category}`}
       />
       <div className="mb-14">
-        {/* Hero / Slideshow */}
-
         {/* Top Icons / Search Bar */}
         <div className="absolute top-0 z-10 w-full mt-2 flex justify-between p-2">
           {!isSearching ? (
@@ -421,7 +448,14 @@ const CategoryPage = () => {
                   <div
                     key={vendor.id}
                     className="w-full min-w-[250px] max-w-[250px] cursor-pointer"
-                    onClick={() => navigate(`/store/${vendor.id}`)}
+                    onClick={() => {
+                      posthog.capture(
+                        "vendor_clicked",
+                        { category, vendorId: vendor.id, role: currentUser ? "user" : "guest" },
+                        { send_instantly: true }
+                      );
+                      navigate(`/store/${vendor.id}`);
+                    }}
                   >
                     <img
                       src={
@@ -490,7 +524,19 @@ const CategoryPage = () => {
               </h2>
               <div className="grid grid-cols-2 gap-4">
                 {filteredProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+                  <div
+                    key={product.id}
+                    onClick={() => {
+                      posthog.capture(
+                        "product_clicked",
+                        { category, productId: product.id, role: currentUser ? "user" : "guest" },
+                        { send_instantly: true }
+                      );
+                      navigate(`/product/${product.id}`);
+                    }}
+                  >
+                    <ProductCard product={product} />
+                  </div>
                 ))}
               </div>
             </>
@@ -528,6 +574,8 @@ const CategoryPage = () => {
             </p>
           )}
         </div>
+
+        {/* Login Modal */}
         {isLoginModalOpen && (
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
@@ -564,6 +612,7 @@ const CategoryPage = () => {
               <div className="flex space-x-16">
                 <button
                   onClick={() => {
+                    posthog.capture("login_modal_signup_clicked", { category }, { send_instantly: true });
                     navigate("/signup", { state: { from: location.pathname } });
                     setIsLoginModalOpen(false);
                   }}
@@ -574,6 +623,7 @@ const CategoryPage = () => {
 
                 <button
                   onClick={() => {
+                    posthog.capture("login_modal_login_clicked", { category }, { send_instantly: true });
                     navigate("/login", { state: { from: location.pathname } });
                     setIsLoginModalOpen(false);
                   }}

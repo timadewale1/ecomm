@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import Loading from "./../../components/Loading/Loading";
 import { useParams, useNavigate } from "react-router-dom";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "./../../firebase"; // adjust path to your firebase config
+import { db } from "../../firebase.config"; // adjust path to your firebase config
 
 const InfluencerRedir = () => {
   const { id } = useParams();

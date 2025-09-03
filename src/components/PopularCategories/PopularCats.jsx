@@ -61,9 +61,9 @@ const PopularCats = () => {
   };
 
   return (
-    <div className="px-2 mt-8 ">
-      <h2 className="text-xl font-semibold  mb-3 font-opensans text-black">
-        Popular Categories
+    <div className="px-2 mt-2 ">
+      <h2 className="text-xl font-semibold  mb-5 font-opensans text-black">
+        Popular Categories 🏅
       </h2>
 
       <div className="flex overflow-x-auto space-x-3 scrollbar-hide">
@@ -124,6 +124,7 @@ const PopularCats = () => {
               );
             })}
       </div>
+      <div className="-mx-4 h-1.5 bg-gray-50" />
     </div>
   );
 };

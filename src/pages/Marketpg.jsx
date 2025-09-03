@@ -268,7 +268,7 @@ const Marketpg = () => {
                           leading-none      
                         "
                         >
-                          Flash sales
+                          Launching soon
                         </span>
                       )}
                     </h1>

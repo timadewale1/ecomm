@@ -972,7 +972,7 @@ const OrderDetailsModal = ({
       }
 
       // 2c — notify user ONLY if not Kwik AND not platform
-      if (!order.kwikJob && !isPlatform) {
+      if (!order.kwikJob ) {
         await notifyOrderStatusChange(
           order.userId,
           order.id,

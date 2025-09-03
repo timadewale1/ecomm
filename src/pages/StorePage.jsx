@@ -112,9 +112,10 @@ Modal.setAppElement("#root"); // For accessibility
 const FlipCountdown = ({ endTime }) => {
   // normalize to a JS Date
   const target =
-    typeof endTime.toDate === "function" ? endTime.toDate() : new Date(endTime);
+    endTime && typeof endTime.toDate === "function"
+      ? endTime.toDate()
+      : new Date(endTime);
 
-  // compute difference
   const calc = () => {
     const diff = Math.max(0, target.getTime() - Date.now());
     const sec = Math.floor((diff / 1000) % 60);
@@ -124,30 +125,40 @@ const FlipCountdown = ({ endTime }) => {
     return { day, hr, min, sec };
   };
 
-  const [timeLeft, setTimeLeft] = useState(calc());
-
+  const [t, setT] = useState(calc());
   useEffect(() => {
-    const timer = setInterval(() => setTimeLeft(calc()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    const id = setInterval(() => setT(calc()), 1000);
+    return () => clearInterval(id);
+  }, [endTime]);
 
-  const unitClass = "flex flex-col items-center mx-1";
-  const digitClass =
-    "bg-white text-customOrange px-2 py-1 rounded shadow flip-card";
+  const pad2 = (n) => String(n).padStart(2, "0");
+
+  const Unit = ({ value, label }) => (
+    <div className="flex flex-col items-center justify-center ">
+      <div className="text-white text-3xl sm:text-5xl font-medium  tracking-tight">
+        {pad2(value)}
+      </div>
+      <div className="text-gray-300 text-xs sm:text-sm mt-1">{label}</div>
+    </div>
+  );
+
+  const Divider = () => (
+    <div className="h-10 w-px bg-gray-50 bg-opacity-25  mx-2 " />
+  );
 
   return (
-    <div className="flex font-ubuntu text-sm items-center">
-      {["day", "hr", "min", "sec"].map((u) => (
-        <div key={u} className={unitClass}>
-          <div className={digitClass}>
-            {String(timeLeft[u]).padStart(2, "0")}
-          </div>
-          <span className="text-xs mt-0.5 uppercase">{u}</span>
-        </div>
-      ))}
+    <div className="w-full flex items-center justify-between">
+      <Unit value={t.day} label="Days" />
+      <Divider />
+      <Unit value={t.hr} label="Hours" />
+      <Divider />
+      <Unit value={t.min} label="Minutes" />
+      <Divider />
+      <Unit value={t.sec} label="Seconds" />
     </div>
   );
 };
+
 function VendorDetails({ vendor, vendorId }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true });
@@ -468,7 +479,8 @@ function NetworkIssueNotice({ onRetry }) {
       </h1>
       <p className="text-sm mt-2 text-gray-600 font-opensans">
         It looks like you’re offline or the connection is unstable. Please check
-        your internet and try again Or this store isn't accessible right now, check back later.
+        your internet and try again Or this store isn't accessible right now,
+        check back later.
       </p>
       <button
         className="mt-5 py-2 px-5 rounded-full font-medium font-opensans bg-customOrange text-white"
@@ -507,7 +519,6 @@ const StorePage = () => {
   // Convenience variables for the current vendor page
   const entry = entities[id] || {};
   const { vendor, products = [], loadingMore, noMore, scrollY } = entry;
-  const hasFlashSale = products.some((p) => p.flashSales);
   const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -970,7 +981,7 @@ const StorePage = () => {
       toast.error(err.message || "Something went wrong.");
     }
   };
-
+  const hasFlashSale = vendor?.flashSale === true;
   const handleFavoriteToggle = (productId) => {
     setFavorites((prevFavorites) => {
       const isFavorited = prevFavorites[productId];
@@ -1316,7 +1327,7 @@ const StorePage = () => {
         onClose={closePickupIntro}
         currentUserCoords={userCoords}
       />
- 
+
       {quickForThisVendor && (
         <StoreBasket
           vendorId={id}
@@ -1515,78 +1526,12 @@ const StorePage = () => {
                 className="relative bg-white -mt-8 rounded-t-3xl pt-8 pb-6"
                 style={{ boxShadow: "0 -4px 20px -10px rgba(0,0,0,0.08)" }}
               >
-                {" "}
-                {/* Flash Sale Banner */}
-                {hasFlashSale && (
-                  <div className="px-6">
-                    <div className="w-full mb-6 flex flex-col items-center rounded-2xl px-6 py-4 bg-black/10 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.12)] relative overflow-hidden">
-                      {/* Sparkle Effects */}
-                      <div className="absolute inset-0 pointer-events-none">
-                        <div
-                          className="absolute top-4 left-8 w-2 h-2 bg-customOrange rounded-full animate-ping"
-                          style={{
-                            animationDelay: "0s",
-                            animationDuration: "2s",
-                          }}
-                        ></div>
-                        <div
-                          className="absolute top-4 left-8 w-1 h-1 bg-white rounded-full animate-ping"
-                          style={{
-                            animationDelay: "0.5s",
-                            animationDuration: "2s",
-                          }}
-                        ></div>
-                        <div
-                          className="absolute top-8 right-12 w-1.5 h-1.5 bg-yellow-400 rounded-full animate-ping"
-                          style={{
-                            animationDelay: "1s",
-                            animationDuration: "2.5s",
-                          }}
-                        ></div>
-                        <div
-                          className="absolute top-6 right-8 text-customOrange text-xs animate-pulse"
-                          style={{
-                            animationDelay: "0.5s",
-                            animationDuration: "1.5s",
-                          }}
-                        >
-                          ✨
-                        </div>
-                        <div
-                          className="absolute bottom-4 left-6 text-yellow-400 text-xs animate-pulse"
-                          style={{
-                            animationDelay: "1.2s",
-                            animationDuration: "1.8s",
-                          }}
-                        >
-                          ✨
-                        </div>
-                      </div>
-
-                      <h2
-                        className="font-opensans uppercase text-sm font-semibold mb-2 text-customOrange relative z-10 drop-shadow-sm animate-pulse"
-                        style={{ animationDuration: "2s" }}
-                      >
-                        {vendor.shopName} is running a sale 🎁
-                      </h2>
-
-                      <div className="relative z-10">
-                        <FlipCountdown endTime={vendor.flashSaleEndsAt} />
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {/* Store Name */}
                 <div className="flex items-center justify-center mb-2">
                   <h1 className="text-2xl font-semibold  text-center font-opensans">
                     {vendorLoading ? <Skeleton width={200} /> : vendor.shopName}
                   </h1>
-                  {hasFlashSale && (
-                    <IoIosFlash className="text-customOrange text-2xl ml-2" />
-                  )}
                 </div>
-                {/* Ratings */}
-                {/* Description */}
+
                 <p className="text-gray-700 text-xs px-8 font-opensans text-center mb-6 leading-relaxed">
                   {vendorLoading ? <Skeleton count={2} /> : vendor.description}
                 </p>
@@ -1631,6 +1576,18 @@ const StorePage = () => {
                 <hr className="mt-6 border-gray-100" />
                 {/* Additional Info Cards */}
               </div>
+              {hasFlashSale && (
+                <div className="px-2">
+                  <div className="w-full mb-6 rounded-2xl bg-neutral-900 text-white p-4 sm:p-5 shadow-lg">
+                    <div className="flex items-center text-xs sm:text-base font-semibold mb-3">
+                      <span className="mr-1">📦</span>
+                      <span>First Drop in:</span>
+                    </div>
+
+                    <FlipCountdown endTime={vendor.flashSaleEndsAt} />
+                  </div>
+                </div>
+              )}
 
               {vendor && <VendorDetails vendor={vendor} vendorId={vendor.id} />}
               <hr className="mt-6 border-gray-100" />
@@ -1659,72 +1616,100 @@ const StorePage = () => {
           )}
         </div>
         <div className={`${isSearching ? "mt-16" : "mt-7"}`}>
-          <div className="flex items-center mb-3 justify-between">
-            <h1 className="font-opensans text-lg  font-semibold">Products</h1>
-            <div className="relative">
-              <AnimatePresence>
-                {viewOptions && (
-                  <motion.div
-                    initial={{ x: 60, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: 60, opacity: 0 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                    className="z-50 absolute bg-white w-44 h-20 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-24 top-2 p-3 flex flex-col justify-between"
-                  >
-                    <span
-                      className={`text-xs font-opensans ml-2 cursor-pointer ${
-                        sortOption === "priceAsc"
-                          ? "text-customOrange"
-                          : "text-black"
+          {!hasFlashSale && (
+            <>
+              <div className="flex items-center mb-3 justify-between">
+                <h1 className="font-opensans text-lg  font-semibold">
+                  Products
+                </h1>
+                <div className="relative">
+                  <AnimatePresence>
+                    {viewOptions && (
+                      <motion.div
+                        initial={{ x: 60, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        exit={{ x: 60, opacity: 0 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 300,
+                          damping: 25,
+                        }}
+                        className="z-50 absolute bg-white w-44 h-20 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-24 top-2 p-3 flex flex-col justify-between"
+                      >
+                        <span
+                          className={`text-xs font-opensans ml-2 cursor-pointer ${
+                            sortOption === "priceAsc"
+                              ? "text-customOrange"
+                              : "text-black"
+                          }`}
+                          onClick={() => {
+                            setSortOption("priceAsc");
+                            setViewOptions(!viewOptions);
+                          }}
+                        >
+                          Low to High
+                        </span>
+                        <hr className="text-slate-300" />
+                        <span
+                          className={`text-xs font-opensans ml-2 cursor-pointer ${
+                            sortOption === "priceDesc"
+                              ? "text-customOrange"
+                              : "text-black"
+                          }`}
+                          onClick={() => {
+                            setSortOption("priceDesc");
+                            setViewOptions(!viewOptions);
+                          }}
+                        >
+                          High to Low
+                        </span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <span className="flex text-xs font-opensans items-center">
+                    Sort by Price:{" "}
+                    <LuListFilter
+                      className="text-customOrange cursor-pointer ml-1"
+                      onClick={() => setViewOptions(!viewOptions)}
+                    />
+                  </span>
+                </div>
+              </div>
+              {!searchingUI(isSearching, searchTerm) && (
+                <div className="flex px-2 mb-4 w-full pt-2 pb-6 overflow-x-auto space-x-2 scrollbar-hide">
+                  {productTypes.map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => handleTypeSelect(type)}
+                      className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 border ${
+                        selectedType === type
+                          ? "bg-customOrange text-white"
+                          : "bg-white"
                       }`}
-                      onClick={() => {
-                        setSortOption("priceAsc");
-                        setViewOptions(!viewOptions);
-                      }}
                     >
-                      Low to High
-                    </span>
-                    <hr className="text-slate-300" />
-                    <span
-                      className={`text-xs font-opensans ml-2 cursor-pointer ${
-                        sortOption === "priceDesc"
-                          ? "text-customOrange"
-                          : "text-black"
-                      }`}
-                      onClick={() => {
-                        setSortOption("priceDesc");
-                        setViewOptions(!viewOptions);
-                      }}
-                    >
-                      High to Low
-                    </span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <span className="flex text-xs font-opensans items-center">
-                Sort by Price:{" "}
-                <LuListFilter
-                  className="text-customOrange cursor-pointer ml-1"
-                  onClick={() => setViewOptions(!viewOptions)}
-                />
-              </span>
-            </div>
-          </div>
-          {!searchingUI(isSearching, searchTerm) && (
-            <div className="flex px-2 mb-4 w-full pt-2 pb-6 overflow-x-auto space-x-2 scrollbar-hide">
-              {productTypes.map((type) => (
-                <button
-                  key={type}
-                  onClick={() => handleTypeSelect(type)}
-                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 border ${
-                    selectedType === type
-                      ? "bg-customOrange text-white"
-                      : "bg-white"
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+          {vendor?.newDrop?.images?.length > 0 && (
+            <div className=" mb-4">
+              <h3 className="text-base font-semibold font-opensans text-gray-900 mb-2">
+                What to expect in their First drop! 🕷️
+              </h3>
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                {vendor.newDrop.images.map((img) => (
+                  <img
+                    key={img.path}
+                    src={img.url}
+                    alt={img.filename}
+                    className="h-40 w-32 object-cover rounded-xl flex-none"
+                    loading="lazy"
+                  />
+                ))}
+              </div>
             </div>
           )}
           {vendorLoading || (loadingMore && filteredProducts.length === 0) ? (
@@ -1772,13 +1757,18 @@ const StorePage = () => {
               )} */}
             </>
           ) : (
-            <div className="flex justify-center items-center w-full text-center">
-              <p className="font-opensans text-gray-800 text-xs">
-                📭 <span className="font-semibold">{vendor.shopName}</span>{" "}
-                hasn’t added any products to their online store yet. Follow this
-                vendor and you will be notified when they upload products!
-              </p>
-            </div>
+            <>
+              {!hasFlashSale && (
+                <div className="flex justify-center items-center w-full text-center">
+                  <p className="font-opensans text-gray-800 text-xs">
+                    📭 <span className="font-semibold">{vendor.shopName}</span>{" "}
+                    hasn’t added any products to their online store yet. Follow
+                    this vendor and you will be notified when they upload
+                    products!
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
 

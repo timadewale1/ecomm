@@ -119,12 +119,13 @@ export default function TopVendors() {
     v.ratingCount ? (v.rating / v.ratingCount).toFixed(1) : "0.0";
 
   return (
-    <div className="my-1 mb-2 bg-gray-50 py-2 px-4">
-      <h2 className="text-xl font-semibold mb-3 font-opensans mt-4">
+    <div className="my-1 mb-2 bg-white py-2 px-4">
+      <div className="-mx-4 h-1.5 bg-gray-50" />
+      <h2 className="text-xl font-semibold mb-5 font-opensans mt-4">
         Handpicked just for you 🧡
       </h2>
 
-      <div className="flex space-x-8 overflow-x-scroll scrollbar-hide pb-4">
+      <div className="flex space-x-8  overflow-x-scroll scrollbar-hide pb-4">
         {vendors.map((v) => (
           <div
             key={v.id}
@@ -201,10 +202,11 @@ export default function TopVendors() {
                 </span>
               </div>
             </div>
+            
           </div>
         ))}
       </div>
-
+   <div className="-mx-4 h-1.5 bg-gray-50" />
       {/* login modal */}
       <Modal
         isOpen={showLogin}

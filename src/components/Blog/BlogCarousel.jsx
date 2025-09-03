@@ -37,8 +37,9 @@ const BlogImageGrid = () => {
   };
   return (
     <>
-      <div className="-mx-4 h-1.5 mt-6 bg-gray-50" />
-      <div className="px-2 mb-4 mt-6">
+      <div className="px-2 mb-4 overflow-x-hidden mt-6">
+        <div className="h-1.5 mb-4 bg-gray-50 w-[100vw] relative left-1/2 -translate-x-1/2" />
+
         <p className="text-xl font-semibold mb-3 text-black font-opensans">
           Read our Blogs 📰
         </p>
@@ -97,8 +98,9 @@ const BlogImageGrid = () => {
           onClose={() => setShowModal(false)}
           url={modalUrl}
         />
+
+        <div className="h-1.5 bg-gray-50 w-[100vw] relative mt-4 left-1/2 -translate-x-1/2" />
       </div>
-       <div className="-mx-4 h-1.5 bg-gray-50" />
     </>
   );
 };

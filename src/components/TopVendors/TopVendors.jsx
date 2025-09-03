@@ -119,8 +119,9 @@ export default function TopVendors() {
     v.ratingCount ? (v.rating / v.ratingCount).toFixed(1) : "0.0";
 
   return (
-    <div className="my-1 mb-2 bg-white py-2 px-4">
-      <div className="-mx-4 h-1.5 bg-gray-50" />
+    <div className="my-1 mb-2 overflow-x-hidden bg-white py-2 px-4">
+      <div className="h-1.5 bg-gray-50 w-[100vw] relative left-1/2 -translate-x-1/2" />
+
       <h2 className="text-xl font-semibold mb-5 font-opensans mt-4">
         Handpicked just for you 🧡
       </h2>
@@ -202,11 +203,12 @@ export default function TopVendors() {
                 </span>
               </div>
             </div>
-            
           </div>
         ))}
       </div>
-   <div className="-mx-4 h-1.5 bg-gray-50" />
+
+      <div className="h-1.5 bg-gray-50 w-[100vw] relative left-1/2 -translate-x-1/2" />
+
       {/* login modal */}
       <Modal
         isOpen={showLogin}

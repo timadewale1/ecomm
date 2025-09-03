@@ -56,9 +56,14 @@ export const fetchVendorsRanked = createAsyncThunk(
         enrich(onlineVendors),
       ]);
 
-      // 3 ─ rank each list (highest score first)
-      localEnriched.sort((a, b) => b.score - a.score);
-      onlineEnriched.sort((a, b) => b.score - a.score);
+      // 3 ─ rank each list:
+      //    - vendors with flashSale first
+      //    - then by score (desc)
+      const bySaleThenScore = (a, b) =>
+        Boolean(b.flashSale) - Boolean(a.flashSale) || b.score - a.score;
+
+      localEnriched.sort(bySaleThenScore);
+      onlineEnriched.sort(bySaleThenScore);
 
       return { local: localEnriched, online: onlineEnriched };
     } catch (err) {
@@ -88,8 +93,8 @@ const vendorsSlice = createSlice({
       })
       .addCase(fetchVendorsRanked.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.local = action.payload.local; // already sorted
-        state.online = action.payload.online; // already sorted
+        state.local = action.payload.local; // already sorted (sales first)
+        state.online = action.payload.online; // already sorted (sales first)
         state.isFetched = true;
       })
       .addCase(fetchVendorsRanked.rejected, (state, action) => {

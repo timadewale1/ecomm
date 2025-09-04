@@ -31,6 +31,9 @@ import Lottie from "lottie-react";
 import { LiaTimesSolid } from "react-icons/lia";
 import { AiOutlineHome } from "react-icons/ai";
 import SEO from "../components/Helmet/SEO";
+import posthog from 'posthog-js';
+
+
 const ReviewBanner = () => {
   const [isVisible, setIsVisible] = useState(false);
   useEffect(() => {
@@ -91,6 +94,16 @@ const MarketStorePage = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isShared = searchParams.has("shared");
+
+  useEffect(() => {
+  if (vendor && products) {
+    posthog.capture('store_page_loaded', {
+      vendorId: vendor.id,
+      productCount: products.length,
+      isAuthenticated: !!currentUser,
+    });
+  }
+}, [vendor, products, currentUser]);
 
   useEffect(() => {
     setLoading(true);
@@ -202,8 +215,12 @@ const MarketStorePage = () => {
     }
   };
   const handleTypeSelect = (type) => {
-    setSelectedType(type);
-  };
+  setSelectedType(type);
+  posthog.capture('product_category_selected', {
+    category: type,
+    isAuthenticated: !!currentUser,
+  });
+};
   const filteredProducts = products
     .filter(
       (product) =>
@@ -254,42 +271,54 @@ const MarketStorePage = () => {
   //   }
   // };
   const handleFollowClick = async () => {
-    if (!currentUser) {
-      setIsLoginModalOpen(true); // Show login modal
-      return; // Exit the function early
+  if (!currentUser) {
+    setIsLoginModalOpen(true); // Show login modal
+    posthog.capture('login_modal_shown', {
+      trigger: 'follow',
+      isAuthenticated: false,
+    });
+    return;
+  }
+
+  try {
+    setIsFollowLoading(true);
+    if (!vendor?.id) {
+      throw new Error("Vendor ID is undefined");
     }
 
-    try {
-      setIsFollowLoading(true); // Start loading
-      if (!vendor?.id) {
-        throw new Error("Vendor ID is undefined");
-      }
+    const followRef = collection(db, "follows");
+    const followDocRef = doc(followRef, `${currentUser.uid}_${vendor.id}`);
 
-      const followRef = collection(db, "follows");
-      const followDocRef = doc(followRef, `${currentUser.uid}_${vendor.id}`);
-
-      if (!isFollowing) {
-        // Add follow entry
-        await setDoc(followDocRef, {
-          userId: currentUser.uid,
-          vendorId: vendor.id,
-          createdAt: new Date(),
-        });
-        toast.success("You will be notified of new products and promos.");
-      } else {
-        // Unfollow
-        await deleteDoc(followDocRef);
-        toast.success("Unfollowed");
-      }
-
-      setIsFollowing(!isFollowing);
-    } catch (error) {
-      console.error("Error following/unfollowing:", error.message);
-      toast.error(`Error following/unfollowing: ${error.message}`);
-    } finally {
-      setIsFollowLoading(false); // End loading
+    if (!isFollowing) {
+      await setDoc(followDocRef, {
+        userId: currentUser.uid,
+        vendorId: vendor.id,
+        createdAt: new Date(),
+      });
+      toast.success("You will be notified of new products and promos.");
+      posthog.capture('vendor_followed', {
+        vendorId: vendor.id,
+        vendorName: vendor.shopName,
+        isAuthenticated: true,
+      });
+    } else {
+      await deleteDoc(followDocRef);
+      toast.success("Unfollowed");
+      posthog.capture('vendor_unfollowed', {
+        vendorId: vendor.id,
+        vendorName: vendor.shopName,
+        isAuthenticated: true,
+      });
     }
-  };
+
+    setIsFollowing(!isFollowing);
+  } catch (error) {
+    console.error("Error following/unfollowing:", error.message);
+    toast.error(`Error following/unfollowing: ${error.message}`);
+  } finally {
+    setIsFollowLoading(false);
+  }
+};
   useEffect(() => {
     if (isLoginModalOpen) {
       document.body.style.overflow = "hidden";
@@ -301,29 +330,52 @@ const MarketStorePage = () => {
       document.body.style.overflow = "unset";
     };
   }, [isLoginModalOpen]);
+
   const handleFavoriteToggle = (productId) => {
-    setFavorites((prevFavorites) => {
-      const isFavorited = prevFavorites[productId];
-      if (isFavorited) {
-        const { [productId]: removed, ...rest } = prevFavorites;
-        return rest;
-      } else {
-        return { ...prevFavorites, [productId]: true };
-      }
-    });
-  };
+  setFavorites((prevFavorites) => {
+    const isFavorited = prevFavorites[productId];
+    const product = products.find((p) => p.id === productId);
+    if (isFavorited) {
+      posthog.capture('product_unfavorited', {
+        productId,
+        productName: product?.name,
+        isAuthenticated: !!currentUser,
+      });
+      const { [productId]: removed, ...rest } = prevFavorites;
+      return rest;
+    } else {
+      posthog.capture('product_favorited', {
+        productId,
+        productName: product?.name,
+        isAuthenticated: !!currentUser,
+      });
+      return { ...prevFavorites, [productId]: true };
+    }
+  });
+};
 
   // const handleGoToCart = () => {
   //   navigate("/cart");
   // };
 
   const handleRatingClick = () => {
-    navigate(`/reviews/${id}`);
-  };
+  posthog.capture('review_banner_clicked', {
+    vendorId: vendor.id,
+    isAuthenticated: !!currentUser,
+  });
+  navigate(`/reviews/${id}`);
+};
 
   const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
-  };
+  setSearchTerm(event.target.value);
+  setTimeout(() => {
+    posthog.capture('store_search', {
+      searchTerm: event.target.value,
+      resultsCount: filteredProducts.length,
+      isAuthenticated: !!currentUser,
+    });
+  }, 0);
+};
 
   if (loading) {
     return (
@@ -551,9 +603,13 @@ const MarketStorePage = () => {
                         : "text-black"
                     }`}
                     onClick={() => {
-                      setSortOption("priceAsc");
-                      setViewOptions(!viewOptions);
-                    }}
+  setSortOption("priceAsc");
+  setViewOptions(!viewOptions);
+  posthog.capture('product_sorted', {
+    sortOption: "priceAsc",
+    isAuthenticated: !!currentUser,
+  });
+}}
                   >
                     Low to High
                   </span>
@@ -565,9 +621,13 @@ const MarketStorePage = () => {
                         : "text-black"
                     }`}
                     onClick={() => {
-                      setSortOption("priceDesc");
-                      setViewOptions(!viewOptions);
-                    }}
+  setSortOption("priceDesc");
+  setViewOptions(!viewOptions);
+  posthog.capture('product_sorted', {
+    sortOption: "priceAsc",
+    isAuthenticated: !!currentUser,
+  });
+}}
                   >
                     High to Low
                   </span>
@@ -609,15 +669,20 @@ const MarketStorePage = () => {
             <div className="grid mt-2 grid-cols-2 gap-2">
               {filteredProducts.map((product) => (
                 <ProductCard
-                  key={product.id}
-                  product={product}
-                  isFavorite={!!favorites[product.id]}
-                  onFavoriteToggle={handleFavoriteToggle}
-                  onClick={() => {
-                    navigate(`/product/${product.id}`);
-                  }}
-                  showVendorName={false}
-                />
+  key={product.id}
+  product={product}
+  isFavorite={!!favorites[product.id]}
+  onFavoriteToggle={handleFavoriteToggle}
+  onClick={() => {
+    posthog.capture('product_clicked', {
+      productId: product.id,
+      productName: product.name,
+      isAuthenticated: !!currentUser,
+    });
+    navigate(`/product/${product.id}`);
+  }}
+  showVendorName={false}
+/>
               ))}
             </div>
           ) : (
@@ -635,8 +700,11 @@ const MarketStorePage = () => {
             className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
             onClick={(e) => {
               if (e.target === e.currentTarget) {
-                setIsLoginModalOpen(false);
-              }
+setIsLoginModalOpen(false);
+  posthog.capture('login_modal_closed', {
+    trigger: 'follow',
+    isAuthenticated: !!currentUser,
+  });              }
             }}
           >
             <div

@@ -107,6 +107,9 @@ import {
 } from "../redux/reducers/quickModeSlice";
 import QuickAuthModal from "../components/PwaModals/AuthModal";
 import Badge from "../components/Badge/Badge";
+import posthog from "posthog-js";
+
+
 Modal.setAppElement("#root"); // For accessibility
 
 const FlipCountdown = ({ endTime }) => {
@@ -158,6 +161,38 @@ const FlipCountdown = ({ endTime }) => {
     </div>
   );
 };
+
+const badgeConfig = {
+    Newbie: {
+      icon: <LiaSeedlingSolid />,
+      gradient: "from-gray-300 to-gray-500",
+    },
+    "Rising Seller": {
+      icon: <IoRocketOutline />,
+      gradient: "from-orange-300 to-orange-700",
+    },
+    "Consistent Seller": {
+      icon: <MdSyncLock />,
+      gradient: "from-blue-300 to-blue-700",
+    },
+    "Steady Mover": {
+      icon: <MdOutlineShowChart />,
+      gradient: "from-indigo-300 to-indigo-700",
+    },
+    "Reliable Vendor": {
+      icon: <IoCheckmarkDoneCircleOutline />,
+      gradient: "from-teal-300 to-teal-700",
+    },
+    "Power Seller": {
+      icon: <TfiBolt />,
+      gradient: "from-yellow-300 to-yellow-700",
+    },
+    "OG Seller": {
+      icon: <PiCrown />,
+      gradient: "from-purple-300 to-purple-700",
+    },
+  };
+
 
 function VendorDetails({ vendor, vendorId }) {
   const ref = useRef(null);
@@ -554,6 +589,7 @@ const StorePage = () => {
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator !== "undefined" ? navigator.onLine : true
   );
+  const [showDrawer, setShowDrawer] = useState(false);
 
   useEffect(() => {
     const goOnline = () => setIsOnline(true);
@@ -599,6 +635,96 @@ const StorePage = () => {
       setShowStockpileIntro(true);
     }
   }, [vendor]);
+
+  const normal = (s = "") => s.toString().toLowerCase().trim();
+
+  const matches = (p, q) => {
+    const qn = normal(q);
+    return (
+      normal(p.name).includes(qn) ||
+      normal(p.productType).includes(qn) ||
+      (Array.isArray(p.tags) && p.tags.some((t) => normal(t).includes(qn)))
+    );
+  };
+
+  const filteredProducts = products
+    .filter((p) => matches(p, searchTerm))
+    .filter((p) => selectedType === "All" || p.productType === selectedType)
+    .sort((a, b) => {
+      if (sortOption === "priceAsc") return a.price - b.price;
+      if (sortOption === "priceDesc") return b.price - a.price;
+      return 0;
+    });
+
+  const uniqueFilteredProducts = filteredProducts.filter(
+    (prod, idx, arr) => arr.findIndex((p) => p.id === prod.id) === idx
+  );
+
+  const FollowHeadsUp = () => {
+    const bannerShown = localStorage.getItem("headsUpBannerShown");
+    useEffect(() => {
+      if (!bannerShown) {
+        setIsBannerVisible(true);
+
+        const timer = setTimeout(() => {
+  setIsBannerVisible(false);
+  localStorage.setItem("headsUpBannerShown", "true");
+  posthog.capture('follow_banner_closed', {
+    vendorId: vendor.id,
+    dismissType: "auto",
+  });
+}, 20000);
+
+        return () => clearTimeout(timer);
+      }
+    }, [bannerShown]);
+
+    const handleClose = () => {
+      setIsBannerVisible(false);
+      localStorage.setItem("headsUpBannerShown", "true");
+    };
+
+    return (
+      <>
+        <div
+          className={`z-40 transform -translate-x-3  -translate-y-2 w-4 h-4 backdrop-blur-2xl  bg-gradient-to-tr from-transparent to-black/20 -rotate-45 transition-opacity duration-500 ${
+            isBannerVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        ></div>{" "}
+        <div
+          className={`z-50 w-72 bg-gradient-to-br -translate-y-[18px] from-black/5 to-black/30 backdrop-blur-lg shadow-md text-white px-2 py-2 rounded-lg flex flex-col items-start space-y-1 transform left-1/2 transition-opacity duration-500 ${
+            isBannerVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+          style={{ maxWidth: "99%" }}
+        >
+          <span className="font-semibold font-opensans text-md">
+            Click here to follow this vendor!
+          </span>
+          <span className="text-xs font-opensans">
+            Like this vendor? Follow to get notified whenever they post new
+            products and run sales✨
+          </span>
+          <button onClick={handleClose} className="absolute top-1 right-2">
+            <MdClose className="text-white text-lg" />
+          </button>
+        </div>
+      </>
+    );
+  };
+  
+useEffect(() => {
+  if (!vendor) return; // ✅ still runs the hook every render
+
+  uniqueFilteredProducts.slice(0, 10).forEach((product, idx) => {
+    posthog.capture('product_viewed', {
+      productId: product.id,
+      productName: product.name,
+      vendorId: vendor.id,
+      positionInGrid: `${idx + 1}${["st", "nd", "rd"][((idx + 1) % 10) - 1] || "th"}`,
+    });
+  });
+}, [uniqueFilteredProducts, vendor]);
+
 
   const sharedPrevScrollY = useRef(0);
 
@@ -701,9 +827,13 @@ const StorePage = () => {
   }, [bannerShown]);
 
   const handleClose = () => {
-    setIsBannerVisible(false);
-    localStorage.setItem("headsUpBannerShown", "true");
-  };
+  setIsBannerVisible(false);
+  localStorage.setItem("headsUpBannerShown", "true");
+  posthog.capture('follow_banner_closed', {
+    vendorId: vendor.id,
+    dismissType: "manual",
+  });
+};
 
   useEffect(() => {
     if (isShared) {
@@ -799,12 +929,15 @@ const StorePage = () => {
     }
   }, [products.length, loadingMore, scrollY]);
   const handleOpenPileModal = () => {
-    setShowPileModal(true);
-
-    if (currentUser) {
-      dispatch(fetchStockpileData({ userId: currentUser.uid, vendorId: id }));
-    }
-  };
+  setShowPileModal(true);
+  if (currentUser) {
+    dispatch(fetchStockpileData({ userId: currentUser.uid, vendorId: id }));
+  }
+  posthog.capture('stockpile_opened', {
+    vendorId: id,
+    stockpileItemCount: pileItems.length,
+  });
+};
   const retryLoadVendor = useCallback(() => {
     dispatch(fetchStoreVendor(id));
     dispatch(fetchVendorProductsBatch({ vendorId: id, loadMore: false }));
@@ -823,37 +956,6 @@ const StorePage = () => {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  const badgeConfig = {
-    Newbie: {
-      icon: <LiaSeedlingSolid />,
-      gradient: "from-gray-300 to-gray-500",
-    },
-    "Rising Seller": {
-      icon: <IoRocketOutline />,
-      gradient: "from-orange-300 to-orange-700",
-    },
-    "Consistent Seller": {
-      icon: <MdSyncLock />,
-      gradient: "from-blue-300 to-blue-700",
-    },
-    "Steady Mover": {
-      icon: <MdOutlineShowChart />,
-      gradient: "from-indigo-300 to-indigo-700",
-    },
-    "Reliable Vendor": {
-      icon: <IoCheckmarkDoneCircleOutline />,
-      gradient: "from-teal-300 to-teal-700",
-    },
-    "Power Seller": {
-      icon: <TfiBolt />,
-      gradient: "from-yellow-300 to-yellow-700",
-    },
-    "OG Seller": {
-      icon: <PiCrown />,
-      gradient: "from-purple-300 to-purple-700",
-    },
-  };
 
   const openDisclaimer = (path) => (e) => {
     e.preventDefault();
@@ -874,6 +976,7 @@ const StorePage = () => {
     sessionStorage.setItem(`introDone_${vendor.id}`, "yes");
     setShowPickupIntro(false);
   };
+
   function VendorBadge({ badgeName }) {
     const { icon, gradient } = badgeConfig[badgeName] || badgeConfig.Newbie;
     return (
@@ -900,21 +1003,11 @@ const StorePage = () => {
       </div>
     );
   }
-
+  
   const handleClosePileModal = () => {
     setShowPileModal(false);
   };
 
-  const normal = (s = "") => s.toString().toLowerCase().trim();
-
-  const matches = (p, q) => {
-    const qn = normal(q);
-    return (
-      normal(p.name).includes(qn) ||
-      normal(p.productType).includes(qn) ||
-      (Array.isArray(p.tags) && p.tags.some((t) => normal(t).includes(qn)))
-    );
-  };
   const stars = Array(5)
     .fill(0)
     .map((_, i) => (
@@ -929,74 +1022,103 @@ const StorePage = () => {
     : null;
 
   const handleFollowClick = async () => {
-    if (!currentUser) {
-      setAuthOpen(true);
-      return;
-    }
+  if (!currentUser) {
+    setAuthOpen(true);
+    return;
+  }
 
-    if (!vendor?.id) {
-      toast.error("Vendor ID missing");
-      return;
-    }
+  if (!vendor?.id) {
+    toast.error("Vendor ID missing");
+    return;
+  }
 
-    // Optimistically flip the heart
-    const prevState = isFollowing;
-    setIsFollowing(!prevState);
+  // Optimistically flip the heart
+  const prevState = isFollowing;
+  setIsFollowing(!prevState);
 
-    try {
-      const followRef = doc(db, "follows", `${currentUser.uid}_${vendor.id}`);
-      const vendorRef = doc(db, "vendors", vendor.id);
+  try {
+    const followRef = doc(db, "follows", `${currentUser.uid}_${vendor.id}`);
+    const vendorRef = doc(db, "vendors", vendor.id);
 
-      // OPTIONAL: rate-limit check (keep if you still need it)
-      await handleUserActionLimit(
-        currentUser.uid,
-        "follow",
-        {},
-        {
-          collectionName: "usage_metadata",
-          writeLimit: 50,
-          minuteLimit: 8,
-          hourLimit: 40,
-        }
-      );
-
-      if (!prevState) {
-        // follow
-        await setDoc(followRef, {
-          userId: currentUser.uid,
-          vendorId: vendor.id,
-          createdAt: serverTimestamp(),
-        });
-        await updateDoc(vendorRef, { followersCount: increment(1) });
-        // toast.success("You’ll get updates from this vendor.");
-      } else {
-        // unfollow
-        await deleteDoc(followRef);
-        // toast.success("Unfollowed.");
+    await handleUserActionLimit(
+      currentUser.uid,
+      "follow",
+      {},
+      {
+        collectionName: "usage_metadata",
+        writeLimit: 50,
+        minuteLimit: 8,
+        hourLimit: 40,
       }
-    } catch (err) {
-      console.error("Follow/unfollow failed:", err.message);
-      // revert UI
-      setIsFollowing(prevState);
-      toast.error(err.message || "Something went wrong.");
+    );
+
+    if (!prevState) {
+      // follow
+      await setDoc(followRef, {
+        userId: currentUser.uid,
+        vendorId: vendor.id,
+        createdAt: serverTimestamp(),
+      });
+      await updateDoc(vendorRef, { followersCount: increment(1) });
+      // --- PostHog event ---
+      posthog.capture('vendor_followed', {
+        vendorId: vendor.id,
+        vendorName: vendor.shopName,
+        userId: currentUser.uid,
+      });
+    } else {
+      // unfollow
+      await deleteDoc(followRef);
+      // --- PostHog event ---
+      posthog.capture('vendor_unfollowed', {
+        vendorId: vendor.id,
+        vendorName: vendor.shopName,
+        userId: currentUser.uid,
+      });
     }
-  };
+  } catch (err) {
+    console.error("Follow/unfollow failed:", err.message);
+    setIsFollowing(prevState);
+    toast.error(err.message || "Something went wrong.");
+  }
+}
+
   const hasFlashSale = vendor?.flashSale === true;
   const handleFavoriteToggle = (productId) => {
-    setFavorites((prevFavorites) => {
-      const isFavorited = prevFavorites[productId];
-      if (isFavorited) {
-        const { [productId]: removed, ...rest } = prevFavorites;
-        return rest;
-      } else {
-        return { ...prevFavorites, [productId]: true };
-      }
-    });
-  };
+  setFavorites((prevFavorites) => {
+    const isFavorited = prevFavorites[productId];
+    const product = products.find((p) => p.id === productId);
+    if (isFavorited) {
+      // --- PostHog event ---
+      posthog.capture('product_unfavorited', {
+        productId,
+        productName: product?.name,
+        vendorId: vendor.id,
+      });
+      const { [productId]: removed, ...rest } = prevFavorites;
+      return rest;
+    } else {
+      // --- PostHog event ---
+      posthog.capture('product_favorited', {
+        productId,
+        productName: product?.name,
+        vendorId: vendor.id,
+      });
+      return { ...prevFavorites, [productId]: true };
+    }
+  });
+};
 
   const handleGoToCart = () => {
-    navigate("/cart");
-  };
+  posthog.capture('cart_opened', {
+    vendorId: vendor.id,
+    itemCount: Object.values(vendorCartProducts).reduce(
+      (sum, p) => sum + (p.quantity || 0),
+      0
+    ),
+  });
+  navigate("/cart");
+};
 
   const handleRatingClick = () => {
     navigate(`/reviews/${id}`);
@@ -1083,24 +1205,25 @@ const StorePage = () => {
   }
 
   const handleTypeSelect = async (type) => {
-    setSelectedType(type);
-    if (type !== "All") {
-      await ensureAllProductsLoaded(); // make sure every product is present
-    }
-  };
+  setSelectedType(type);
+  posthog.capture('product_filtered', {
+    filterType: type,
+    vendorId: vendor.id,
+  });
+  if (type !== "All") {
+    await ensureAllProductsLoaded();
+  }
+};
   const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
-  };
-
-  const filteredProducts = products
-    .filter((p) => matches(p, searchTerm))
-    .filter((p) => selectedType === "All" || p.productType === selectedType)
-    .sort((a, b) => {
-      if (sortOption === "priceAsc") return a.price - b.price;
-      if (sortOption === "priceDesc") return b.price - a.price;
-      return 0;
+  setSearchTerm(event.target.value);
+  setTimeout(() => {
+    posthog.capture('store_search', {
+      searchTerm: event.target.value,
+      vendorId: vendor.id,
+      resultsCount: filteredProducts.length,
     });
-
+  }, 0);
+};
   // if (reduxLoading) {
   //   return <Loading />;
   // }
@@ -1109,14 +1232,21 @@ const StorePage = () => {
     const networkProblem = !isOnline || isNetworkishError(error);
 
     if (networkProblem) {
+      posthog.capture('store_load_error', {
+        errorType: "network",
+        vendorId: id,
+      });
       return <NetworkIssueNotice onRetry={retryLoadVendor} />;
     }
-
     if (
       error &&
       (error.code === "not-found" ||
         /not[-\s]?found/i.test(error.message || ""))
     ) {
+      posthog.capture('store_load_error', {
+        errorType: "not_found",
+        vendorId: id,
+      });
       return (
         <div className="flex flex-col px-6 justify-center items-center h-3/6">
           <Lottie
@@ -1150,24 +1280,34 @@ const StorePage = () => {
   const averageRating =
     vendor.ratingCount > 0 ? vendor.rating / vendor.ratingCount : 0;
   const productTypes = ["All", ...(entry.categories || [])];
+
   const handleShare = () => {
-    const storeUrl = `https://mx.shopmythrift.store/${vendor.slug}`;
-    if (navigator.share) {
-      navigator
-        .share({
-          title: vendor.shopName,
-          text: `Check out ${vendor.shopName} on My Thrift!`,
-          url: storeUrl,
-        })
-        .catch((err) => {
-          console.error("Share failed:", err);
+  const storeUrl = `https://mx.shopmythrift.store/${vendor.slug}`;
+  if (navigator.share) {
+    navigator
+      .share({
+        title: vendor.shopName,
+        text: `Check out ${vendor.shopName} on My Thrift!`,
+        url: storeUrl,
+      })
+      .then(() => {
+        posthog.capture('store_shared', {
+          vendorId: vendor.id,
+          shareMethod: "native_share",
         });
-    } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(storeUrl);
-      toast.success("Store link copied to clipboard!");
-    }
-  };
+      })
+      .catch((err) => {
+        console.error("Share failed:", err);
+      });
+  } else {
+    navigator.clipboard.writeText(storeUrl);
+    toast.success("Store link copied to clipboard!");
+    posthog.capture('store_shared', {
+      vendorId: vendor.id,
+      shareMethod: "copy_link",
+    });
+  }
+};
   const badgeMessages = {
     Newbie: "Just getting started on My Thrift excited to grow and serve you!",
     "Rising Seller":
@@ -1183,70 +1323,14 @@ const StorePage = () => {
     "OG Seller":
       "Top-tier vendor—exceptional range, quality, and a proven track record.",
   };
-
-  const uniqueFilteredProducts = filteredProducts.filter(
-    (prod, idx, arr) => arr.findIndex((p) => p.id === prod.id) === idx
-  );
-
-  const FollowHeadsUp = () => {
-    const bannerShown = localStorage.getItem("headsUpBannerShown");
-    useEffect(() => {
-      if (!bannerShown) {
-        setIsBannerVisible(true);
-
-        const timer = setTimeout(() => {
-          setIsBannerVisible(false);
-          localStorage.setItem("headsUpBannerShown", "true");
-        }, 10000);
-
-        return () => clearTimeout(timer);
-      }
-    }, [bannerShown]);
-
-    const handleClose = () => {
-      setIsBannerVisible(false);
-      localStorage.setItem("headsUpBannerShown", "true");
-    };
-
-    return (
-      <>
-        <div
-          className={`z-40 transform -translate-x-3  -translate-y-2 w-4 h-4 backdrop-blur-2xl  bg-gradient-to-tr from-transparent to-black/20 -rotate-45 transition-opacity duration-500 ${
-            isBannerVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-          }`}
-        ></div>{" "}
-        <div
-          className={`z-50 w-72 bg-gradient-to-br -translate-y-[18px] from-black/5 to-black/30 backdrop-blur-lg shadow-md text-white px-2 py-2 rounded-lg flex flex-col items-start space-y-1 transform left-1/2 transition-opacity duration-500 ${
-            isBannerVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-          }`}
-          style={{ maxWidth: "99%" }}
-        >
-          <span className="font-semibold font-opensans text-md">
-            Click here to follow this vendor!
-          </span>
-          <span className="text-xs font-opensans">
-            Like this vendor? Follow to get notified whenever they post new
-            products and run sales✨
-          </span>
-          <button onClick={handleClose} className="absolute top-1 right-2">
-            <MdClose className="text-white text-lg" />
-          </button>
-        </div>
-      </>
-    );
-  };
-
+  
   return (
     <>
       {isActive && stockpileVendorId === id && (
         <>
           <button
             onClick={handleOpenPileModal}
-            className="fixed bottom-6 right-3 z-50 
-                       w-14 h-14 rounded-full 
-                       flex items-center justify-center
-                       bg-customOrange text-white
-                       shadow-xl"
+            className="fixed bottom-6 right-3 z-50 w-14 h-14 rounded-full flex items-center justify-center bg-customOrange text-white shadow-xl"
           >
             <BsFillBasketFill size={24} />
           </button>
@@ -1308,7 +1392,7 @@ const StorePage = () => {
                           </div>
                         </div>
                       ))
-                  )}
+                  )}   
                 </>
               )}
             </div>
@@ -1356,10 +1440,7 @@ const StorePage = () => {
         <div className="">
           {/* Header - Different styles based on state */}
           {isSearching ? (
-            <div
-              className="fixed top-0 left-0 right-0 z-10
-          flex items-center justify-between p-4 bg-gradient-to-b from-white to-transparent"
-            >
+           <div className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-white to-transparent">
               <div className="flex items-center w-full relative px-2">
                 <FaAngleLeft
                   onClick={() => {
@@ -1516,12 +1597,17 @@ const StorePage = () => {
 
           {/* Follow heads up banner */}
           {!isShared && isBannerVisible && (
-            <div
-              className={`fixed w-full top-14 left-0 right-0 z-10 flex flex-col items-end justify-end p-4 pointer-events-auto`}
-            >
-              <FollowHeadsUp />
-            </div>
-          )}
+  <div
+    className="fixed w-full top-14 left-0 right-0 z-10 flex flex-col items-end justify-end p-4 pointer-events-auto"
+  >
+    <FollowHeadsUp
+      vendorId={vendor.id}
+      isBannerVisible={isBannerVisible}
+      setIsBannerVisible={setIsBannerVisible}
+    />
+  </div>
+)}
+
 
           {!isSearching && !searchingUI(isSearching, searchTerm) && (
             <>
@@ -1576,8 +1662,15 @@ const StorePage = () => {
                   <div className="h-6 border-l border-gray-300 mx-6" />
 
                   {/* ─── Center badge ─── */}
-                  <VendorBadge badgeName={vendor.badge} />
-
+<VendorBadge
+  badgeName={vendor.badge}
+  onClick={() => {
+    posthog.capture('vendor_badge_viewed', {
+      badgeType: vendor.badge,
+      vendorId: vendor.id,
+    });
+  }}
+/>
                   {/* vertical divider */}
                   <div className="h-6 border-l border-gray-300 mx-6" />
 
@@ -1620,8 +1713,13 @@ const StorePage = () => {
                   vendor={vendor}
                   vendorId={vendor.id}
                   badgeMessages={badgeMessages}
-                  onVendorPolicyClick={() => setShowVendorPolicy(true)}
-                  onLinkClick={(fragment) => {
+onVendorPolicyClick={() => {
+  setShowVendorPolicy(true);
+  posthog.capture('vendor_policy_viewed', {
+    vendorId: vendor.id,
+    policyType: "return_policy",
+  });
+}}                  onLinkClick={(fragment) => {
                     setTermsUrl(
                       `https://www.shopmythrift.store/terms-and-conditions#${fragment}`
                     );
@@ -1640,64 +1738,38 @@ const StorePage = () => {
         </div>
         <div className={`${isSearching ? "mt-16" : "mt-7"}`}>
           {!hasFlashSale && (
-            <>
-              <div className="flex items-center mb-3 justify-between">
-                <h1 className="font-opensans text-lg  font-semibold">
-                  Products
-                </h1>
-                <div className="relative">
-                  <AnimatePresence>
-                    {viewOptions && (
-                      <motion.div
-                        initial={{ x: 60, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        exit={{ x: 60, opacity: 0 }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 300,
-                          damping: 25,
-                        }}
-                        className="z-50 absolute bg-white w-44 h-20 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-24 top-2 p-3 flex flex-col justify-between"
-                      >
-                        <span
-                          className={`text-xs font-opensans ml-2 cursor-pointer ${
-                            sortOption === "priceAsc"
-                              ? "text-customOrange"
-                              : "text-black"
-                          }`}
-                          onClick={() => {
-                            setSortOption("priceAsc");
-                            setViewOptions(!viewOptions);
-                          }}
-                        >
-                          Low to High
-                        </span>
-                        <hr className="text-slate-300" />
-                        <span
-                          className={`text-xs font-opensans ml-2 cursor-pointer ${
-                            sortOption === "priceDesc"
-                              ? "text-customOrange"
-                              : "text-black"
-                          }`}
-                          onClick={() => {
-                            setSortOption("priceDesc");
-                            setViewOptions(!viewOptions);
-                          }}
-                        >
-                          High to Low
-                        </span>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                  <span className="flex text-xs font-opensans items-center">
-                    Sort by Price:{" "}
-                    <LuListFilter
-                      className="text-customOrange cursor-pointer ml-1"
-                      onClick={() => setViewOptions(!viewOptions)}
-                    />
-                  </span>
-                </div>
-              </div>
+  <>
+    <div className="flex items-center mb-3 justify-between">
+      <h1 className="font-opensans text-lg  font-semibold">Products</h1>
+      <div className="relative">
+        <AnimatePresence>
+          {viewOptions && (
+            <motion.div>
+              {/* Sorting options */}
+              <span onClick={() => {
+                setSortOption("priceAsc");
+                setViewOptions(!viewOptions);
+                posthog.capture('product_sorted', {
+                  sortOption: "priceAsc",
+                  vendorId: vendor.id,
+                });
+              }}>Low to High</span>
+              <span onClick={() => {
+                setSortOption("priceDesc");
+                setViewOptions(!viewOptions);
+                posthog.capture('product_sorted', {
+                  sortOption: "priceDesc",
+                  vendorId: vendor.id,
+                });
+              }}>High to Low</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <span>
+          Sort by Price: <LuListFilter onClick={() => setViewOptions(!viewOptions)} />
+        </span>
+      </div>
+    </div>
               {!searchingUI(isSearching, searchTerm) && (
                 <div className="flex px-2 mb-4 w-full pt-2 pb-6 overflow-x-auto space-x-2 scrollbar-hide">
                   {productTypes.map((type) => (
@@ -1746,13 +1818,21 @@ const StorePage = () => {
               <div className="grid mt-2 grid-cols-2 gap-2">
                 {uniqueFilteredProducts.map((product) => (
                   <ProductCard
-                    key={product.id}
-                    product={product}
-                    isFavorite={!!favorites[product.id]}
-                    onFavoriteToggle={handleFavoriteToggle}
-                    onClick={() => navigate(`/product/${product.id}`)}
-                    showVendorName={false}
-                  />
+  key={product.id}
+  product={product}
+  isFavorite={!!favorites[product.id]}
+  onFavoriteToggle={handleFavoriteToggle}
+  onClick={() => {
+    posthog.capture('product_clicked', {
+      productId: product.id,
+      productName: product.name,
+      vendorId: vendor.id,
+      isFavorite: !!favorites[product.id],
+    });
+    navigate(`/product/${product.id}`);
+  }}
+  showVendorName={false}
+/>
                 ))}
               </div>
 
@@ -1777,7 +1857,7 @@ const StorePage = () => {
                     visible
                   />
                 </div>
-              )} */}
+              } */}
             </>
           ) : (
             <>

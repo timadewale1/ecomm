@@ -12,6 +12,8 @@ import RoundedStar from "../components/Roundedstar";
 import IkImage from "../services/IkImage";
 import SEO from "../components/Helmet/SEO";
 import { IoLocationOutline } from "react-icons/io5";
+import posthog from 'posthog-js';
+
 // import ProductCard from "../components/Products/ProductCard"; // if needed
 
 const OnlineVendors = () => {
@@ -46,6 +48,36 @@ const OnlineVendors = () => {
     "Sportswear",
     "Formal",
   ];
+
+  useEffect(() => {
+  if (isFetched) {
+    posthog.capture('vendors_loaded', {
+      vendorCount: vendors.length,
+      status: status === "success" ? "success" : status,
+    });
+  }
+}, [isFetched, vendors, status]);
+
+useEffect(() => {
+  if (status === "error") {
+    posthog.capture('vendor_load_error', {
+      errorType: "API error",
+    });
+  }
+}, [status]);
+
+useEffect(() => {
+  if (filteredVendors.length > 0) {
+    filteredVendors.slice(0, 10).forEach((vendor, idx) => {
+      posthog.capture('vendor_impression', {
+        vendorId: vendor.id,
+        position: `${idx + 1}${["st", "nd", "rd"][((idx + 1) % 10) - 1] || "th"}`,
+      });
+    });
+  }
+}, [filteredVendors]);
+
+
   useEffect(() => {
     if (!isFetched) {
       dispatch(fetchVendorsRanked());
@@ -88,23 +120,52 @@ const OnlineVendors = () => {
   // 3. Handlers
   // ---------------------------------
   const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
-  };
+  setSearchTerm(e.target.value);
+  const term = e.target.value;
+  // Fire event after updating search term
+  setTimeout(() => {
+    const count = filterVendors(term, selectedCategory).length;
+    posthog.capture('vendor_search', {
+      searchTerm: term,
+      vendorCount: count,
+    });
+  }, 0);
+};
   const handleCategoryClick = (category) => {
-    setSelectedCategory((prev) => (prev === category ? "" : category));
-  };
+  const newCategory = selectedCategory === category ? "" : category;
+  setSelectedCategory(newCategory);
+  // Fire event after updating category
+  setTimeout(() => {
+    const count = filterVendors(searchTerm, newCategory).length;
+    posthog.capture('category_selected', {
+      category: newCategory,
+      vendorCount: count,
+    });
+  }, 0);
+};
 
   const handleRefresh = () => {
-    setSearchTerm("");
-    setSelectedCategory("");
-    setIsSearching(false);
-    // Reset to full vendor list
-    setSearchResults(vendors);
-  };
+  posthog.capture('search_reset', {
+    previousSearch: searchTerm,
+    previousCategory: selectedCategory,
+  });
+  setSearchTerm("");
+  setSelectedCategory("");
+  setIsSearching(false);
+  // Reset to full vendor list
+  setSearchResults(vendors);
+};
 
   const handleStoreView = (vendor) => {
-    navigate(`/store/${vendor.id}`);
-  };
+  posthog.capture('vendor_clicked', {
+    vendorId: vendor.id,
+    vendorName: vendor.shopName,
+    categories: vendor.categories,
+    rating: vendor.rating,
+    ratingCount: vendor.ratingCount
+  });
+  navigate(`/store/${vendor.id}`);
+};
 
   const defaultImageUrl =
     "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
@@ -124,9 +185,14 @@ const OnlineVendors = () => {
             {!isSearching && (
               <>
                 <GoChevronLeft
-                  className="text-3xl cursor-pointer"
-                  onClick={() => navigate(-1)}
-                />
+  className="text-3xl cursor-pointer"
+  onClick={() => {
+    posthog.capture('back_button_clicked', {
+      referrer: document.referrer || "unknown",
+    });
+    navigate(-1);
+  }}
+/>
                 <h1 className="text-xl font-opensans font-semibold">
                   Online Vendors
                 </h1>

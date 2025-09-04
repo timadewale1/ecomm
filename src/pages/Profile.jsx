@@ -59,6 +59,40 @@ const Profile = () => {
   const [profileComplete, setProfileComplete] = useState();
 
   useEffect(() => {
+  if (currentUser) {
+    posthog.identify(currentUser.uid, { email: currentUser.email });
+    posthog.capture('profile_viewed', {
+      userId: currentUser.uid,
+      email: currentUser.email,
+      isAuthenticated: true,
+    });
+  } else {
+    posthog.capture('profile_viewed', {
+      userId: null,
+      email: null,
+      isAuthenticated: false,
+    });
+  }
+}, [currentUser]);
+
+useEffect(() => {
+  if (currentUser) {
+    posthog.capture('user_logged_in', {
+      userId: currentUser.uid,
+      email: currentUser.email,
+      isAuthenticated: true,
+    });
+  } else {
+    posthog.capture('user_logged_out', {
+      userId: null,
+      email: null,
+      isAuthenticated: false,
+    });
+  }
+}, [currentUser]);
+
+
+  useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const incompleteProfile = queryParams.get("incomplete") === "true";
     setIsIncomplete(incompleteProfile);
@@ -103,25 +137,37 @@ const Profile = () => {
     return () => unsub();
   }, [currentUser?.uid, dispatch]);
 
-  const handleAvatarChange = (newAvatar) => {
-    dispatch(updateUserData({ photoURL: newAvatar }));
-  };
+const handleAvatarChange = (newAvatar) => {
+  dispatch(updateUserData({ photoURL: newAvatar }));
+  posthog.capture('avatar_changed', {
+    userId: currentUser?.uid,
+    email: currentUser?.email,
+    isAuthenticated: !!currentUser,
+    action: "added",
+  });
+};
 
   const handleRemoveAvatar = async () => {
-    try {
-      await updateDoc(doc(db, "users", currentUser.uid), {
-        photoURL: "",
-      });
-      dispatch(updateUserData({ photoURL: "" }));
-      toast.success("Avatar removed successfully", {
-        className: "custom-toast",
-      });
-    } catch (error) {
-      toast.error("Error removing avatar. Please try again.", {
-        className: "custom-toast",
-      });
-    }
-  };
+  try {
+    await updateDoc(doc(db, "users", currentUser.uid), {
+      photoURL: "",
+    });
+    dispatch(updateUserData({ photoURL: "" }));
+    toast.success("Avatar removed successfully", {
+      className: "custom-toast",
+    });
+    posthog.capture('avatar_changed', {
+      userId: currentUser?.uid,
+      email: currentUser?.email,
+      isAuthenticated: !!currentUser,
+      action: "removed",
+    });
+  } catch (error) {
+    toast.error("Error removing avatar. Please try again.", {
+      className: "custom-toast",
+    });
+  }
+};
   const pulseProfileHighlight = () => {
     setShowHighlight(true);
     setTimeout(() => setShowHighlight(false), 600); // 10 s pulse
@@ -195,13 +241,19 @@ const Profile = () => {
     setShowDisclaimerModal(true);
   };
   const handleWalletClick = () => {
-    if (!profileComplete) {
-      toast.error("Please complete your personal information first.");
-      pulseProfileHighlight();
-      return;
-    }
-    navigate("/your-wallet");
-  };
+  if (!profileComplete) {
+    toast.error("Please complete your personal information first.");
+    pulseProfileHighlight();
+    return;
+  }
+  posthog.capture('wallet_accessed', {
+    userId: currentUser?.uid,
+    email: currentUser?.email,
+    isAuthenticated: !!currentUser,
+    profileComplete: !!profileComplete,
+  });
+  navigate("/your-wallet");
+};
   const { openChat } = useTawk();
   return (
     <>
@@ -267,8 +319,14 @@ const Profile = () => {
                       ? "highlight border-red-500 bg-red-100"
                       : "bg-customGrey"
                   } mb-3`}
-                  onClick={() => setShowDetails(true)}
-                >
+onClick={() => {
+  setShowDetails(true);
+  posthog.capture('profile_edit_clicked', {
+    userId: currentUser?.uid,
+    email: currentUser?.email,
+    isAuthenticated: !!currentUser,
+  });
+}}                >
                   <div className="flex items-center w-full">
                     <User className="text-black text-xl mr-4" />
                     <h2 className="text-size font-normal  text-sm  font-opensans text-black capitalize">
@@ -420,13 +478,15 @@ const Profile = () => {
             <div className="flex flex-col items-center px-2 w-full">
               <div
                 className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={() =>
-                  window.open(
-                    "/terms-and-conditions",
-                    "_blank",
-                    "noopener,noreferrer"
-                  )
-                }
+                onClick={() => {
+  posthog.capture('legal_document_accessed', {
+    documentType: "terms",
+    userId: currentUser?.uid,
+    email: currentUser?.email,
+    isAuthenticated: !!currentUser,
+  });
+  window.open("/terms-and-conditions", "_blank", "noopener,noreferrer");
+}}
               >
                 <div className="flex items-center">
                   <FaFileContract className="text-black text-xl mr-4" />
@@ -439,13 +499,15 @@ const Profile = () => {
 
               <div
                 className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={() =>
-                  window.open(
-                    "/privacy-policy",
-                    "_blank",
-                    "noopener,noreferrer"
-                  )
-                }
+                onClick={() => {
+  posthog.capture('legal_document_accessed', {
+    documentType: "privacy",
+    userId: currentUser?.uid,
+    email: currentUser?.email,
+    isAuthenticated: !!currentUser,
+  });
+  window.open("/privacy-policy", "_blank", "noopener,noreferrer");
+}}
               >
                 <div className="flex items-center">
                   <BsShieldFillCheck className="text-black text-xl mr-4" />
@@ -465,8 +527,14 @@ const Profile = () => {
               <div className="flex flex-col items-center w-full">
                 <div
                   className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => navigate("/send-us-feedback")}
-                >
+onClick={() => {
+  posthog.capture('feedback_submitted', {
+    userId: currentUser?.uid,
+    email: currentUser?.email,
+    isAuthenticated: !!currentUser,
+  });
+  navigate("/send-us-feedback");
+}}                >
                   <div className="flex items-center">
                     <MdOutlineFeedback className="text-black text-xl mr-4" />
                     <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
@@ -482,8 +550,14 @@ const Profile = () => {
               <div
                 id="contact-support-tab"
                 className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={openChat}
-              >
+onClick={() => {
+  posthog.capture('contact_support_clicked', {
+    userId: currentUser?.uid,
+    email: currentUser?.email,
+    isAuthenticated: !!currentUser,
+  });
+  openChat();
+}}              >
                 <div className="flex items-center">
                   <FcOnlineSupport className="text-black text-xl mr-4" />
                   <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
@@ -522,8 +596,13 @@ const Profile = () => {
                 <>
                   <div
                     className="flex flex-col items-center w-full cursor-pointer rounded-xl bg-customGrey mb-3 px-2"
-                    onClick={() => setShowQuickAuth(true)}
-                  >
+onClick={() => {
+  setShowQuickAuth(true);
+  posthog.capture('login_modal_shown', {
+    userId: null,
+    isAuthenticated: false,
+  });
+}}                  >
                     <div className="flex items-center justify-between w-full px-4 py-3">
                       <LuLogIn className="text-green-600 text-xl mr-4" />
                       <p className="text-black text-base font-opensans font-normal w-full">
@@ -534,8 +613,13 @@ const Profile = () => {
 
                   <QuickAuthModal
                     open={showQuickAuth}
-                    onClose={() => setShowQuickAuth(false)}
-                    onComplete={(user) => {
+onClose={() => {
+  setShowQuickAuth(false);
+  posthog.capture('login_modal_closed', {
+    userId: null,
+    isAuthenticated: false,
+  });
+}}                    onComplete={(user) => {
                       setShowQuickAuth(false);
                       // optional: refetch user/cart here
                     }}
@@ -550,9 +634,14 @@ const Profile = () => {
                 <div
                   className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
                   onClick={() => {
-                    localStorage.removeItem("mythrift_role");
-                    navigate("/confirm-state");
-                  }}
+  localStorage.removeItem("mythrift_role");
+  posthog.capture('role_switched', {
+    userId: currentUser?.uid,
+    email: currentUser?.email,
+    isAuthenticated: !!currentUser,
+  });
+  navigate("/confirm-state");
+}}
                 >
                   <div className="flex items-center justify-between w-full px-4 py-3">
                     <AiOutlineUserSwitch className="text-customOrange text-xl mr-4" />

@@ -31,8 +31,12 @@ import { useDispatch, useSelector } from "react-redux";
 import { setPromoImages, setPromoLoading } from "../redux/actions/promoaction";
 import SEO from "../components/Helmet/SEO";
 
-// import { ChevronRight } from "lucide-react";       // keep if you still use itimport { FaRocket } from "react-icons/fa";
+// ✅ Import PostHog
+import posthog from "posthog-js";
+import { useAuth } from "../custom-hooks/useAuth";
+
 const Explore = () => {
+  const { currentUserData } = useAuth(); // ✅ for user context
   const ALL_TYPES = [...productTypes, ...everydayTypers];
   const priceRanges = [
     { label: "Under ₦5 000", min: 0, max: 4_999 },
@@ -63,7 +67,6 @@ const Explore = () => {
       : { products: [], lastVisible: null, status: "idle" }
   );
   const { products, lastVisible, status } = exploreState;
-  // const { products, status } = exploreState;
   const isLoadingProducts = status === "loading";
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -83,6 +86,20 @@ const Explore = () => {
 
   const dispatch = useDispatch();
 
+  // ✅ Identify user in PostHog
+  useEffect(() => {
+    if (currentUserData?.uid) {
+      posthog.identify(currentUserData.uid, {
+        email: currentUserData.email || "unknown",
+        name: currentUserData.displayName || "Anonymous",
+        role: currentUserData.role || "user",
+      });
+    } else {
+      posthog.identify("guest_" + Date.now(), { role: "guest" });
+    }
+    posthog.capture("explore_page_viewed");
+  }, [currentUserData]);
+
   useEffect(() => {
     if (promoImages.length === 0) {
       const images = [
@@ -101,7 +118,6 @@ const Explore = () => {
   useEffect(() => {
     if (!selectedProductType) return;
 
-    // fetch only if we’ve never loaded this type
     if (status === "idle" && products.length === 0) {
       dispatch(
         fetchExploreProducts({
@@ -111,7 +127,7 @@ const Explore = () => {
       );
     }
   }, [selectedProductType, status, products.length, dispatch]);
-  // 2) Infinite scroll handler
+
   useEffect(() => {
     const onScroll = () => {
       if (
@@ -151,7 +167,6 @@ const Explore = () => {
 
   useEffect(() => {
     return () => {
-      // fires when Explore unmounts
       dispatch(
         saveExploreUi({
           selectedType: selectedProductType ? selectedProductType.type : null,
@@ -162,19 +177,17 @@ const Explore = () => {
       );
     };
   }, [dispatch, selectedProductType, selectedSubType, selectedPriceRange]);
+
   useEffect(() => {
     if (cachedUi.scrollY) {
       setTimeout(() => window.scrollTo(0, cachedUi.scrollY), 0);
     }
-  }, []); // run once
+  }, []);
   useLayoutEffect(() => {
-    if (restoredRef.current) return; // already done
-    if (cachedUi.scrollY == null) return; // nothing to restore
+    if (restoredRef.current) return;
+    if (cachedUi.scrollY == null) return;
 
-    /* wait until we’re NOT fetching anymore, otherwise height==0            */
-    const doneLoading =
-      status !== "loading" && // items for a type
-      !loading; // global product slice
+    const doneLoading = status !== "loading" && !loading;
 
     if (doneLoading) {
       window.scrollTo(0, cachedUi.scrollY);
@@ -187,6 +200,10 @@ const Explore = () => {
     setSelectedSubType(null);
     setSelectedPriceRange(null);
     setSearchTerm("");
+
+    posthog.capture("explore_category_selected", {
+      category: productType.type,
+    });
   };
 
   const handleSubTypeClick = (subType) => {
@@ -196,6 +213,10 @@ const Explore = () => {
       setSelectedSubType(subType);
     }
     setSelectedPriceRange(null);
+
+    posthog.capture("explore_subtype_selected", {
+      subtype: subType?.name || subType,
+    });
   };
 
   const handlePriceRangeClick = (range) => {
@@ -205,6 +226,10 @@ const Explore = () => {
       setSelectedPriceRange(range);
     }
     setSelectedSubType(null);
+
+    posthog.capture("explore_price_filter_applied", {
+      priceRange: range.label,
+    });
   };
 
   const toggleFilterDropdown = () => {
@@ -214,6 +239,8 @@ const Explore = () => {
   const sortProducts = (order) => {
     setSortOrder(order);
     setShowFilterDropdown(false);
+
+    posthog.capture("explore_sort_applied", { sortOrder: order });
   };
 
   const handleBackClick = () => {
@@ -233,6 +260,7 @@ const Explore = () => {
   const handleCategoryClick = (category) => {
     navigate(`/category/${category}`);
   };
+
   const scrollRef = useRef(null);
 
   const topSearches = [
@@ -259,6 +287,7 @@ const Explore = () => {
     "Corporate",
     "Perfumes",
   ];
+
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollPosition = window.scrollY;
@@ -273,6 +302,7 @@ const Explore = () => {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -285,6 +315,7 @@ const Explore = () => {
     }, 30);
     return () => clearInterval(iv);
   }, []);
+
   const handleClearSearch = () => {
     setSearchTerm("");
     setIsSearching(false);
@@ -294,7 +325,6 @@ const Explore = () => {
   const filteredProducts = React.useMemo(() => {
     let list = [...products];
 
-    // 1️⃣ price-range filter
     if (selectedPriceRange) {
       list = list.filter(
         (p) =>
@@ -302,12 +332,10 @@ const Explore = () => {
       );
     }
 
-    // 2️⃣ sub-type filter
     if (selectedSubType && selectedSubType !== "All") {
       list = list.filter((p) => p.subType === selectedSubType);
     }
 
-    // 3️⃣ sort
     if (sortOrder === "high-to-low") {
       list.sort((a, b) => b.price - a.price);
     } else if (sortOrder === "low-to-high") {
@@ -349,10 +377,12 @@ const Explore = () => {
                   : "Explore"}
               </h1>
             </div>
-            {/* Instead of local search, navigate to /search */}
             <CiSearch
               className="text-3xl cursor-pointer"
-              onClick={() => navigate("/search")}
+              onClick={() => {
+                posthog.capture("explore_search_clicked");
+                navigate("/search");
+              }}
             />
           </div>
 
@@ -370,7 +400,6 @@ const Explore = () => {
                     (r) => r.label === subTypeName
                   );
 
-                  // “All” only active if neither a subtype nor a price range is selected
                   const isAll = subTypeName === "All";
                   const isActive = isAll
                     ? selectedSubType === null && selectedPriceRange === null
@@ -410,7 +439,6 @@ const Explore = () => {
 
         {/* Main Content */}
         <div className="">
-          {/* If we have selected a SubType, show products grid */}
           {selectedProductType ? (
             <>
               <div className="grid grid-cols-2 gap-2 p-4">
@@ -454,37 +482,6 @@ const Explore = () => {
                 )}
             </>
           ) : (
-            // :
-            // selectedProductType ? (
-            //   // If we have selected a ProductType but not a SubType, show subType list
-            //   <div className="space-y-4 p-4">
-            //     {filteredSubTypes.length > 0 ? (
-            //       filteredSubTypes.map((subType) => (
-            //         <div
-            //           key={subType.name || subType}
-            //           onClick={() => handleSubTypeClick(subType)}
-            //           className="flex justify-between items-center py-2 cursor-pointer"
-            //         >
-            //           <span className="text-neutral-800 font-opensans">
-            //             {typeof subType === "string" ? subType : subType.name}
-            //           </span>
-            //           <ChevronRight className="text-neutral-400" />
-            //         </div>
-            //       ))
-            //     )
-            //      : (
-            //       <div className="text-center mt-4 text-lg font-medium text-gray-500">
-            //         <h2 className="text-xl font-semibold text-black">
-            //           No results found
-            //         </h2>
-            //         <p className="text-gray-600">
-            //           Please try searching for another product.
-            //         </p>
-            //       </div>
-            //     )}
-            //   </div>
-            // )
-            // If no ProductType selected, show list of productTypes + promo slides
             <>
               <div className="">
                 <div className="flex justify- mt-3 px-2 gap-2">
@@ -511,7 +508,6 @@ const Explore = () => {
                             </h3>
                           </div>
 
-                          {/* this is the scrollable row */}
                           <div
                             ref={scrollRef}
                             className="w-full overflow-x-auto whitespace-nowrap scrollbar-hide"
@@ -519,11 +515,15 @@ const Explore = () => {
                             {topSearches.map((term) => (
                               <motion.button
                                 key={term}
-                                onClick={() =>
+                                onClick={() => {
+                                  posthog.capture(
+                                    "explore_trending_search_clicked",
+                                    { searchTerm: term }
+                                  );
                                   navigate(
                                     `/search?query=${encodeURIComponent(term)}`
-                                  )
-                                }
+                                  );
+                                }}
                                 className="inline-block mr-4 py-2 px-3 font-medium rounded-full font-opensans text-xs bg-gray-100 hover:bg-customOrange hover:text-white transition"
                                 initial={{ opacity: 0, y: 5 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -592,14 +592,17 @@ const Explore = () => {
                         <SwiperSlide
                           key={index}
                           onClick={() => {
+                            posthog.capture("explore_promo_clicked", {
+                              promoIndex: index,
+                              url: url,
+                            });
+
                             if (index === 0) {
-                              // external link for first slide
                               window.open(
                                 "https://poshretreats.co.uk",
                                 "_blank"
                               );
                             } else if (index === 2) {
-                              // internal navigation for all others
                               navigate("/store/HiyUGWBqxEXWLcwPgOvxH5gq2uF2");
                             }
                           }}
@@ -628,7 +631,6 @@ const Explore = () => {
                         </SwiperSlide>
                       ))}
                 </Swiper>
-                {/* Dots navigation can remain unchanged if needed */}
               </div>
             </>
           )}

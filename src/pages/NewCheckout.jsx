@@ -60,6 +60,9 @@ import { generateCartHash } from "../services/cartHash";
 import IframeModal from "../components/PwaModals/PushNotifsModal";
 import TriviaGame from "../components/Games/TriviaGame";
 import { calculateCartTotalForVendor } from "../services/carthelper";
+import posthog from 'posthog-js';
+
+
 const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
   const [locationSet, setLocationSet] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
@@ -75,6 +78,7 @@ const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
     }
   }, [userInfo.address]);
 
+  
   const handleLocationSelect = ({ lat, lng, address }) => {
     setUserInfo({
       ...userInfo,
@@ -177,8 +181,14 @@ const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
           <button
             type="button"
             className="bg-customOrange text-white h-12 font-semibold rounded-full font-opensans"
-            onClick={onClose}
-          >
+onClick={() => {
+  posthog.capture('delivery_info_updated', {
+    address: userInfo.address,
+    phone: userInfo.phoneNumber,
+    email: userInfo.email,
+  });
+  onClose();
+}}          >
             Save Changes
           </button>
           <button
@@ -462,9 +472,10 @@ const Checkout = () => {
         <div className="flex font-opensans px-8 flex-col gap-3">
           <button
             onClick={() => {
-              dispatch(enterStockpileMode({ vendorId }));
-              navigate(`/latest-cart`);
-            }}
+  posthog.capture('repile_clicked', { vendorId });
+  dispatch(enterStockpileMode({ vendorId }));
+  navigate(`/latest-cart`);
+}}
             className="bg-customOrange text-white py-2 rounded-lg font-semibold"
           >
             Repile Now
@@ -482,32 +493,41 @@ const Checkout = () => {
   };
 
   useEffect(() => {
-    const fetchUserInfo = async () => {
-      if (currentUser) {
-        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-        if (userDoc.exists()) {
-          setUserInfo({
-            displayName: userDoc.data().displayName || "",
-            email: userDoc.data().email || "",
-            phoneNumber: userDoc.data().phoneNumber || "",
-            address: userDoc.data().address || "",
-
-            latitude: userDoc.data().location?.lat || null,
-            longitude: userDoc.data().location?.lng || null,
-            deliveryNote: "",
-          });
-          setWalletId(userDoc.data().walletId || "");
-          setWalletBal(userDoc.data().balance || 0);
-          setWalletSetup(Boolean(userDoc.data().walletSetup));
-        } else {
-          toast.error("User document does not exist.");
-          toast.dismiss();
-        }
+  const fetchUserInfo = async () => {
+    if (currentUser) {
+      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setUserInfo({
+          displayName: userData.displayName || "",
+          email: userData.email || "",
+          phoneNumber: userData.phoneNumber || "",
+          address: userData.address || "",
+          latitude: userData.location?.lat || null,
+          longitude: userData.location?.lng || null,
+          deliveryNote: "",
+        });
+        setWalletId(userData.walletId || "");
+        setWalletBal(userData.balance || 0);
+        setWalletSetup(Boolean(userData.walletSetup));
+        // --- PostHog Identify ---
+        posthog.identify(currentUser.uid, {
+          email: userData.email,
+          userId: currentUser.uid,
+        });
+      } else {
+        toast.error("User document does not exist.");
+        toast.dismiss();
       }
-    };
+    }
+  };
 
-    fetchUserInfo();
-  }, [currentUser]);
+  fetchUserInfo();
+}, [currentUser]);
+
+useEffect(() => {
+  posthog.capture('page_view', { page: 'checkout' });
+}, []);
 
   const fetchPreview = async () => {
     if (!currentUser) return;
@@ -670,6 +690,17 @@ const Checkout = () => {
     }
   }, [vendorsInfo, vendorId]);
 
+  
+  useEffect(() => {
+  return () => {
+    posthog.capture('checkout_abandoned', {
+      step: "incomplete",
+      cartItemCount: Object.keys(cart[vendorId]?.products || {}).length,
+      total: previewedOrder.total ?? calculateCartTotalForVendor(cart, vendorId),
+    });
+  };
+}, []);
+
   const NoStockpileModal = ({ isOpen, onClose }) => {
     return (
       <Modal
@@ -705,78 +736,105 @@ const Checkout = () => {
     vendorsInfo[vendorId]?.deliveryMode === "Pickup";
 
   const handleProceedToPayment = async () => {
-    if (checkoutMode === "stockpile" && !selectedWeeks) {
-      toast.error("Please select how many weeks you want to stockpile.");
-      return;
-    }
-    if (!selectedPayment) {
-      toast.error("Please select a payment method.");
-      return;
-    }
-    if (
-      !isRepiling &&
-      checkoutMode === "deliver" &&
-      vendorsInfo[vendorId]?.deliveryMode === "Delivery & Pickup" &&
-      !selectedDeliveryMode
-    ) {
-      toast.error("Please choose Pick-up or Door delivery.");
-      return;
-    }
-    const orderData = prepareOrderData();
-    if (!orderData) return;
+  if (checkoutMode === "stockpile" && !selectedWeeks) {
+    toast.error("Please select how many weeks you want to stockpile.");
+    return;
+  }
+  if (!selectedPayment) {
+    toast.error("Please select a payment method.");
+    return;
+  }
+  if (
+    !isRepiling &&
+    checkoutMode === "deliver" &&
+    vendorsInfo[vendorId]?.deliveryMode === "Delivery & Pickup" &&
+    !selectedDeliveryMode
+  ) {
+    toast.error("Please choose Pick-up or Door delivery.");
+    return;
+  }
+  const orderData = prepareOrderData();
+  if (!orderData) return;
 
-    try {
-      setIsLoading(true);
-      const processOrder = httpsCallable(functions, "processOrder");
-      const { data } = await processOrder(orderData);
-      if (selectedPayment === "wallet") {
-        if (data?.success) {
-          await refreshWalletInfo();
-          dispatch(clearCart(vendorId));
-          dispatch(exitStockpileMode());
-          toast.success("Paid with wallet balance! 🎉");
-          navigate("/user-orders", { replace: true });
-        } else {
-          toast.error(data?.message || "Wallet payment failed.");
-        }
-        return; // stop here – no Paystack
-      }
-
-      /* Paystack flow (default) */
-      const { authorization_url } = data;
-      if (!authorization_url) {
-        throw new Error("Missing authorization URL from Paystack.");
-      }
-      window.location.href = authorization_url; // ⏩  redirect to Paystack
-    } catch (err) {
-      console.error("Error in payment process:", err);
-
-      if (err?.details?.code === "INSUFFICIENT_FUNDS") {
-        toast.error("Your wallet balance is not enough to place this order.");
+  try {
+    setIsLoading(true);
+    const processOrder = httpsCallable(functions, "processOrder");
+    const { data } = await processOrder(orderData);
+    if (selectedPayment === "wallet") {
+      if (data?.success) {
+        await refreshWalletInfo();
+        dispatch(clearCart(vendorId));
+        dispatch(exitStockpileMode());
+        toast.success("Paid with wallet balance! 🎉");
+        posthog.capture('payment_success', {
+          method: selectedPayment,
+          amount: previewedOrder.total ?? calculateCartTotalForVendor(cart, vendorId),
+          userId: currentUser.uid,
+        });
+        navigate("/user-orders", { replace: true });
       } else {
-        const friendly =
-          err?.message ||
-          err?.details?.message ||
-          err?.data?.message ||
-          "Failed to initialise payment. Please try again later.";
-        toast.error(friendly);
+        toast.error(data?.message || "Wallet payment failed.");
+        posthog.capture('payment_failed', {
+          method: selectedPayment,
+          error: data?.message || "Wallet payment failed.",
+          userId: currentUser.uid,
+        });
       }
-    } finally {
-      setIsLoading(false);
+      return; // stop here – no Paystack
     }
-  };
+
+    /* Paystack flow (default) */
+    const { authorization_url } = data;
+    if (!authorization_url) {
+      throw new Error("Missing authorization URL from Paystack.");
+    }
+    window.location.href = authorization_url; // ⏩  redirect to Paystack
+  } catch (err) {
+    console.error("Error in payment process:", err);
+    posthog.capture('checkout_error', {
+      error: err?.message || JSON.stringify(err),
+      step: "payment_initiation",
+    });
+    if (err?.details?.code === "INSUFFICIENT_FUNDS") {
+      toast.error("Your wallet balance is not enough to place this order.");
+      posthog.capture('payment_failed', {
+        method: selectedPayment,
+        error: "INSUFFICIENT_FUNDS",
+        userId: currentUser.uid,
+      });
+    } else {
+      const friendly =
+        err?.message ||
+        err?.details?.message ||
+        err?.data?.message ||
+        "Failed to initialise payment. Please try again later.";
+      toast.error(friendly);
+      posthog.capture('payment_failed', {
+        method: selectedPayment,
+        error: friendly,
+        userId: currentUser.uid,
+      });
+    }
+  } finally {
+    setIsLoading(false);
+  }
+};
   const handleDeliveryModeSelection = (mode) => {
-    // if they tapped “Pick-up” but vendor only does Delivery:
-    if (
-      mode === "Pickup" &&
-      vendorsInfo[vendorId]?.deliveryMode !== "Delivery & Pickup"
-    ) {
-      toast.error("Sorry, this vendor doesn’t offer pick-up.");
-      return;
-    }
-    setIsPickup(mode === "Pickup");
-    setSelectedDeliveryMode(mode);
-  };
+  if (
+    mode === "Pickup" &&
+    vendorsInfo[vendorId]?.deliveryMode !== "Delivery & Pickup"
+  ) {
+    toast.error("Sorry, this vendor doesn’t offer pick-up.");
+    return;
+  }
+  setIsPickup(mode === "Pickup");
+  setSelectedDeliveryMode(mode);
+  posthog.capture('delivery_mode_selected', {
+    mode,
+    vendorId,
+    shopName: vendorsInfo[vendorId]?.shopName || "",
+  });
+};
   const isSelfManagedDelivery =
     vendorsInfo[vendorId]?.deliveryPreference === "self";
 
@@ -803,6 +861,10 @@ const Checkout = () => {
         },
         replace: true,
       });
+      posthog.capture('share_link_generated', {
+  total: previewedOrder.total ?? calculateCartTotalForVendor(cart, vendorId),
+  items: Object.keys(cart[vendorId]?.products || {}).length,
+});
     } catch (err) {
       toast.error(err.message || "Could not generate share link.");
     } finally {
@@ -971,33 +1033,34 @@ const Checkout = () => {
     );
   };
   const handleStockpileClick = async () => {
-    if (!vendorsInfo[vendorId]?.stockpile?.enabled) {
-      console.log("Vendor does not offer stockpile");
-      setShowNoStockpileModal(true);
-      return;
-    }
+  posthog.capture('stockpile_clicked', {
+    vendorId,
+    cartItemCount: Object.keys(cart[vendorId]?.products || {}).length,
+  });
 
-    const stockpilesRef = collection(db, "stockpiles");
-    const q = query(
-      stockpilesRef,
-      where("userId", "==", currentUser.uid),
-      where("vendorId", "==", vendorId),
-      where("isActive", "==", true)
-    );
+  if (!vendorsInfo[vendorId]?.stockpile?.enabled) {
+    setShowNoStockpileModal(true);
+    return;
+  }
 
-    const querySnapshot = await getDocs(q);
+  const stockpilesRef = collection(db, "stockpiles");
+  const q = query(
+    stockpilesRef,
+    where("userId", "==", currentUser.uid),
+    where("vendorId", "==", vendorId),
+    where("isActive", "==", true)
+  );
 
-    if (!querySnapshot.empty) {
-      console.log("Stockpile found for user and vendor!");
-      setShowAlreadyStockpiledModal(true);
-    } else {
-      console.log("No stockpile found. Entering stockpile mode...");
-      setCheckoutMode("stockpile");
+  const querySnapshot = await getDocs(q);
 
-      const maxWeeks = vendorsInfo[vendorId]?.stockpile?.durationInWeeks || 2;
-      setSelectedWeeks(2);
-    }
-  };
+  if (!querySnapshot.empty) {
+    setShowAlreadyStockpiledModal(true);
+  } else {
+    setCheckoutMode("stockpile");
+    const maxWeeks = vendorsInfo[vendorId]?.stockpile?.durationInWeeks || 2;
+    setSelectedWeeks(2);
+  }
+};
 
   const BuyersFeeModal = ({ isOpen, onClose }) => {
     useEffect(() => {
@@ -1047,10 +1110,11 @@ const Checkout = () => {
     );
   };
   const fetchPreviewWithDiscount = async () => {
-    setIsLoadingDiscount(true);
-    await fetchPreview();
-    setIsLoadingDiscount(false);
-  };
+  setIsLoadingDiscount(true);
+  await fetchPreview();
+  setIsLoadingDiscount(false);
+  posthog.capture('discount_redeemed', { discount: "Trivia Reward" });
+};
   const formatColorText = (color) => {
     if (!color) return "";
     return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
@@ -1418,10 +1482,13 @@ const Checkout = () => {
                       : "text-black cursor-pointer"
                   }`}
                   onClick={() => {
-                    if (!isRepiling) {
-                      setShowEditModal(true);
-                    }
-                  }}
+  if (!isRepiling) {
+    setShowEditModal(true);
+    posthog.capture('edit_delivery_info_clicked', {
+      address: userInfo.address,
+    });
+  }
+}}
                 />
               </div>
 
@@ -1588,8 +1655,13 @@ const Checkout = () => {
                       vendorsInfo[vendorId]?.pickupAddress ? (
                         <>
                           <button
-                            onClick={handleShowMapToast}
-                            className="w-full flex items-center justify-between"
+onClick={() => {
+  handleShowMapToast();
+  posthog.capture('vendor_address_selected', {
+    vendorId,
+    shopName: vendorsInfo[vendorId]?.shopName || "",
+  });
+}}                            className="w-full flex items-center justify-between"
                           >
                             <span className="font-opensans font-semibold text-xs">
                               Pick-up location
@@ -1680,8 +1752,16 @@ const Checkout = () => {
               <button
                 key={opt.id}
                 type="button"
-                onClick={() => setSelectedPayment(opt.id)}
-                className="w-full flex items-center justify-between py-4 border-b last:border-0"
+onClick={() => {
+  setSelectedPayment(opt.id);
+  posthog.capture('payment_method_selected', {
+    method: opt.id,
+    total: previewedOrder.total ?? calculateCartTotalForVendor(cart, vendorId),
+  });
+  if (opt.id === "wallet") {
+    posthog.capture('wallet_balance_viewed', { balance: walletBal });
+  }
+}}                className="w-full flex items-center justify-between py-4 border-b last:border-0"
               >
                 <span className="flex items-center space-x-3">
                   {opt.icon}
@@ -1724,8 +1804,10 @@ const Checkout = () => {
           <div className="mt-2">
             <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
               <div
-                onClick={() => setShowShopSafelyModal(true)}
-                className="flex justify-between items-center"
+onClick={() => {
+  setShowShopSafelyModal(true);
+  posthog.capture('shop_safely_modal_opened');
+}}                className="flex justify-between items-center"
               >
                 <h1 className="text-black font-semibold font-opensans text-base">
                   Shop safely and sustainably
@@ -1973,9 +2055,12 @@ const Checkout = () => {
                         options={weekOptions}
                         value={selectedOption}
                         onChange={(option) => {
-                          console.log("User selected weeks:", option.value); // Log the change
-                          setSelectedWeeks(option.value);
-                        }}
+  setSelectedWeeks(option.value);
+  posthog.capture('stockpile_duration_selected', {
+    weeks: option.value,
+    total: previewedOrder.total ?? calculateCartTotalForVendor(cart, vendorId),
+  });
+}}
                         isSearchable={false}
                         styles={customStyles}
                       />
@@ -2147,8 +2232,16 @@ const Checkout = () => {
               <button
                 key={opt.id}
                 type="button"
-                onClick={() => setSelectedPayment(opt.id)}
-                className="w-full flex items-center justify-between py-4 border-b last:border-0"
+onClick={() => {
+  setSelectedPayment(opt.id);
+  posthog.capture('payment_method_selected', {
+    method: opt.id,
+    total: previewedOrder.total ?? calculateCartTotalForVendor(cart, vendorId),
+  });
+  if (opt.id === "wallet") {
+    posthog.capture('wallet_balance_viewed', { balance: walletBal });
+  }
+}}                className="w-full flex items-center justify-between py-4 border-b last:border-0"
               >
                 <span className="flex items-center space-x-3">
                   {opt.icon}
@@ -2292,6 +2385,12 @@ const Checkout = () => {
             }
 
             if (selectedPayment === "share") return handleShareLink();
+
+            posthog.capture('payment_initiated', {
+  method: selectedPayment,
+  total: previewedOrder.total ?? calculateCartTotalForVendor(cart, vendorId),
+  items: Object.keys(cart[vendorId]?.products || {}).length,
+});
             return handleProceedToPayment();
           }}
           disabled={

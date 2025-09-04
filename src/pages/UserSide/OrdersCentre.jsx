@@ -69,6 +69,9 @@ import { clearCart } from "../../redux/actions/action";
 import { RiShareForwardBoxLine } from "react-icons/ri";
 import LinkAccountModal from "../../components/QuickMode/LinkAccountModal";
 import AccountLinkBanner from "../../components/QuickMode/AccountLinkBanner";
+import posthog from 'posthog-js';
+
+
 const ConfirmShippingModal = ({ isOpen, onClose, onConfirm }) => {
   if (!isOpen) return null;
 
@@ -475,6 +478,12 @@ const OrdersCentre = () => {
         requestedForShipping: true,
         isActive: false,
       });
+      posthog.capture('order_status_changed', {
+  orderId: order.id,
+  newStatus: 'Shipping Requested',
+  vendorId: order.vendorId,
+  userId: currentUser?.uid,
+});
 
       const updatedStockpileSnap = await getDoc(stockpileRef);
       let updatedStockpileData = {};
@@ -483,6 +492,12 @@ const OrdersCentre = () => {
       }
       dispatch(exitStockpileMode());
       toast.success("Shipping request sent successfully!");
+posthog.capture('shipping_requested', {
+  orderId: order.id,
+  vendorId: order.vendorId,
+  stockpileDocId: order.stockpileDocId,
+  userId: currentUser?.uid,
+});
 
       // Update local UI State
       setSelectedOrder((prev) => ({
@@ -517,9 +532,14 @@ const OrdersCentre = () => {
       dispatch(exitStockpileMode());
       console.log("Vendor Notification Triggered Successfully");
     } catch (error) {
-      console.error("Error requesting shipping:", error);
-      toast.error("Failed to request shipping. Please try again.");
-    } finally {
+  console.error("Error requesting shipping:", error);
+  toast.error("Failed to request shipping. Please try again.");
+  posthog.capture('orders_error', {
+    error: error?.message || String(error),
+    step: 'request_shipping',
+    orderId: order?.id,
+  });
+} finally {
       setIsRequestingShipping(false);
     }
   };
@@ -602,12 +622,17 @@ const OrdersCentre = () => {
       }
     }
   };
-  const handleViewOrder = (order) => {
-    setSelectedOrder(order);
-    setActiveProductIndex(0); // Reset to the first product
-    setIsModalOpen(true);
-  };
 
+  const handleViewOrder = (order) => {
+  setSelectedOrder(order);
+  setActiveProductIndex(0);
+  setIsModalOpen(true);
+  posthog.capture('order_modal_opened', {
+    orderId: order.id,
+    isStockpile: !!order.isStockpile,
+    status: order.progressStatus || order.firstOrderStatus,
+  });
+};
   const closeModal = () => {
     setIsModalOpen(false);
   };
@@ -630,6 +655,10 @@ const OrdersCentre = () => {
   }, [orders]);
 
   const handleStockpileAddMore = (order) => {
+    posthog.capture('stockpile_add_more_clicked', {
+  vendorId: order.vendorId,
+  orderId: order.id,
+});
     if (!currentUser) {
       // require login
       return;
@@ -646,8 +675,13 @@ const OrdersCentre = () => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUserId(user.uid);
+        posthog.capture('user_authenticated', {
+  userId: user.uid,
+  isAnonymous: user.isAnonymous,
+});
       } else {
         setUserId(null);
+        posthog.capture('user_unauthenticated');
       }
       setIsAuthChecked(true); // Authentication state has been determined
     });
@@ -658,8 +692,10 @@ const OrdersCentre = () => {
     // Authentication state is not yet known show a loading indicator
     return <Loading />;
   }
-  const openLinkDialog = () => setShowLinkDialog(true);
-
+const openLinkDialog = () => {
+  setShowLinkDialog(true);
+  posthog.capture('account_link_dialog_opened');
+};
   const linkAnonymousAccount = async ({ email, password }) => {
     const u = auth.currentUser;
     if (!u || !u.isAnonymous) {
@@ -751,6 +787,7 @@ const OrdersCentre = () => {
       }
 
       toast.success("Account linked! We’ve sent a verification email.");
+      posthog.capture('account_linked', { email: inputEmail });
       setShowLinkDialog(false);
       setShowLinkBanner(false);
     } catch (err) {
@@ -976,8 +1013,10 @@ const OrdersCentre = () => {
         <div className="flex p-3 py-3 items-center bg-white h-20 mb-3 pb-2">
           <GoChevronLeft
             className="text-3xl cursor-pointer"
-            onClick={() => navigate("/profile")}
-          />
+onClick={() => {
+  posthog.capture('orders_back_button_clicked');
+  navigate("/profile");
+}}          />
           <h1 className="text-xl font-opensans ml-5 font-semibold">Orders</h1>
         </div>
         <div className="border-t border-gray-300 my-2"></div>
@@ -987,8 +1026,10 @@ const OrdersCentre = () => {
             {tabButtons.map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-2 border h-12 rounded-full ${
+onClick={() => {
+  setActiveTab(tab);
+  posthog.capture('orders_tab_switched', { tab });
+}}                className={`px-3 py-2 border h-12 rounded-full ${
                   activeTab === tab
                     ? "bg-customOrange text-xs font-opensans text-white"
                     : "bg-white text-xs font-opensans text-black"
@@ -1295,8 +1336,11 @@ const OrdersCentre = () => {
                                       lat: order.pickupLat,
                                       lng: order.pickupLng,
                                     });
-                                    setShowMapModal(true);
-                                  }}
+setShowMapModal(true);
+posthog.capture('map_modal_opened', {
+  orderId: order.id,
+  vendorId: order.vendorId,
+});                                  }}
                                   className={`
             text-[11px] mt-1 flex font-opensans underline
             ${
@@ -1398,10 +1442,11 @@ const OrdersCentre = () => {
                         <div className="mt-2 flex justify-end">
                           <button
                             onClick={() => {
-                              const link = `${window.location.origin}/pay/${order.id}`;
-                              navigator.clipboard.writeText(link);
-                              toast.success("Link copied!");
-                            }}
+  const link = `${window.location.origin}/pay/${order.id}`;
+  navigator.clipboard.writeText(link);
+  toast.success("Link copied!");
+  posthog.capture('draft_payment_link_copied', { orderId: order.id });
+}}
                             className="px-2 py-1.5  bg-customOrange text-white rounded-md text-xs font-opensans"
                           >
                             Copy Payment Link
@@ -1475,8 +1520,10 @@ const OrdersCentre = () => {
                     <div className=" ">
                       <FcOnlineSupport
                         className="text-2xl cursor-pointer"
-                        onClick={openChat}
-                        title="Support"
+onClick={() => {
+  posthog.capture('support_chat_opened');
+  openChat();
+}}                        title="Support"
                       />
                     </div>
                   </div>
@@ -1891,8 +1938,8 @@ const OrdersCentre = () => {
                           );
                         } else {
                           setOrderToRequestShipping(selectedOrder);
-                          setShowConfirmShippingModal(true);
-                        }
+setShowConfirmShippingModal(true);
+posthog.capture('shipping_confirm_modal_opened', { orderId: selectedOrder.id });                        }
                       }}
                       className={`font-opensans px-2 text-xs rounded-md w-full border ${
                         isFirstDeclined ||
@@ -1954,8 +2001,8 @@ const OrdersCentre = () => {
                   onClose={() => setShowConfirmShippingModal(false)}
                   onConfirm={() => {
                     handleRequestShipping(orderToRequestShipping);
-                    setShowConfirmShippingModal(false);
-                  }}
+setShowConfirmShippingModal(false);
+posthog.capture('shipping_confirm_modal_closed', { orderId: selectedOrder.id });                  }}
                 />
               )}
 
@@ -1980,7 +2027,10 @@ const OrdersCentre = () => {
         })()}
       <MapModal
         isOpen={showMapModal}
-        onClose={() => setShowMapModal(false)}
+        onClose={() => {
+          setShowMapModal(false);
+          posthog.capture('map_modal_closed');
+        }}
         origin={mapOrigin}
         destination={mapDestination}
       />

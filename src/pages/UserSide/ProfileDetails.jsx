@@ -37,6 +37,7 @@ import { GoChevronLeft } from "react-icons/go";
 import Waiting from "../../components/Loading/Waiting";
 import Productnotofund from "../../components/Loading/Productnotofund";
 import LocationPicker from "../../components/Location/LocationPicker";
+import posthog from "posthog-js"; // ✅ added
 
 const ProfileDetails = ({
   currentUser,
@@ -67,6 +68,16 @@ const ProfileDetails = ({
 
   const navigate = useNavigate();
   const location = useLocation();
+  // ✅ track page view + identify
+  useEffect(() => {
+    posthog?.capture("page_view", { page: "profile_details" });
+    if (currentUser) {
+      posthog?.identify(currentUser.uid, {
+        email: currentUser.email,
+        name: currentUser.displayName,
+      });
+    }
+  }, [currentUser]);
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -162,6 +173,7 @@ const ProfileDetails = ({
       await updateDoc(userRef, {
         profileComplete: true,
       });
+      posthog?.capture("profile_completion_marked", { userId });
     }
   };
   if (!currentUser) {
@@ -189,6 +201,7 @@ const ProfileDetails = ({
           <button
             className="bg-customOrange font-opensans text-white px-4 py-2 rounded-full"
             onClick={() => {
+              posthog?.capture("profile_login_redirect_clicked");
               navigate("/login", { state: { from: location.pathname } });
             }}
           >
@@ -208,6 +221,7 @@ const ProfileDetails = ({
       setLastName(parts.slice(1).join(" ") || "");
     }
     setIsEditing(true);
+    posthog?.capture("profile_edit_started", { field });
   };
 
   const validateFields = () => {
@@ -248,6 +262,7 @@ const ProfileDetails = ({
     if (!validateFields()) return;
 
     setIsLoading(true);
+    posthog?.capture("profile_update_attempted", { field: editField });
 
     try {
       let updatedFields = {};
@@ -334,9 +349,11 @@ const ProfileDetails = ({
         ...updatedFields,
       });
       setIsEditing(false);
+      posthog?.capture("profile_update_succeeded", { field: editField });
     } catch (error) {
       console.error("Error updating profile:", error);
       toast.error("Error updating profile. Please try again later.");
+      posthog?.capture("profile_update_failed", { field: editField, error: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -409,7 +426,7 @@ const ProfileDetails = ({
           <div className="flex items-center justify-between w-full px-4 py-3">
             <MdEmail className="text-black text-xl mr-4" />
             <p className="text-sm font-normal font-opensans text-black w-full">
-              {currentUser.email}
+              {currentUser?.email || "No email set"}
             </p>
             <MdVerified
               className={`${
@@ -487,6 +504,10 @@ const ProfileDetails = ({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40"
+              onClick={() => {
+                posthog?.capture("profile_update_cancelled", { field: editField });
+                setIsEditing(false);
+              }}
             />
             <motion.div
               key="edit-modal"

@@ -20,6 +20,8 @@ import { AuthProvider } from "./custom-hooks/useAuth";
 import { TawkProvider } from "./components/Context/TawkProvider.jsx";
 
 import { PostHogProvider } from "posthog-js/react";
+import posthog from "posthog-js";
+
 
 const posthogOptions = {
   api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
@@ -27,6 +29,10 @@ const posthogOptions = {
   capture_pageview: false,
   session_recording: { sampling_rate: 1 },
 };
+
+if (typeof window !== "undefined") {
+  window.posthog = posthog;
+}
 
 createRoot(document.getElementById("root")).render(
   <HelmetProvider>

@@ -15,6 +15,7 @@ import { AiFillProduct } from "react-icons/ai";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
 import { query, where } from "firebase/firestore";
 import SEO from "../../components/Helmet/SEO";
+import posthog from "posthog-js"; // ✅ added
 
 const SearchPage = () => {
   const [searchParams] = useSearchParams();
@@ -30,6 +31,11 @@ const SearchPage = () => {
     "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 
   const db = getFirestore();
+
+  // ✅ Track page view
+  useEffect(() => {
+    posthog.capture("page_view", { page: "search_page" });
+  }, []);
 
   useEffect(() => {
     const history = JSON.parse(localStorage.getItem("searchHistory")) || [];
@@ -77,6 +83,7 @@ const SearchPage = () => {
 
     fetchData();
   }, [db]);
+
   const trendingSearches = [
     "Okirks",
     "Shirt",
@@ -102,7 +109,6 @@ const SearchPage = () => {
     "Bikini",
     "Tote Bag",
     "Lee",
-
     "Jewelry",
     "Cargos",
     "Corporate",
@@ -161,6 +167,11 @@ const SearchPage = () => {
     // Combine vendors and products into one array
     const combinedResults = [...filteredVendors, ...scoredProducts];
 
+    // ✅ Track no results
+    if (searchTerm && combinedResults.length === 0) {
+      posthog.capture("search_no_results", { query: searchTerm });
+    }
+
     return combinedResults;
   };
 
@@ -174,6 +185,13 @@ const SearchPage = () => {
 
       setSearchHistory(updatedHistory);
       localStorage.setItem("searchHistory", JSON.stringify(updatedHistory));
+
+      // ✅ Track search submitted
+      posthog.capture("search_submitted", {
+        type: selectedItem.type,
+        id: selectedItem.id,
+        name: selectedItem.name || selectedItem.shopName,
+      });
 
       // Navigate based on whether it's a product or a vendor
       if (selectedItem.type === "product") {
@@ -212,6 +230,7 @@ const SearchPage = () => {
       setTimeout(() => openMenuRef.current(), 0);
     }
   }, [initialQuery]);
+
   const getCategoryIcon = (category) => {
     switch (category?.toLowerCase()) {
       case "men":
@@ -229,12 +248,23 @@ const SearchPage = () => {
 
   const clearSearch = () => {
     setSearchTerm("");
+    posthog.capture("search_cleared"); // ✅ added
   };
 
   const removeHistoryItem = (itemId) => {
     const updatedHistory = searchHistory.filter((item) => item.id !== itemId);
+    const removed = searchHistory.find((i) => i.id === itemId);
     setSearchHistory(updatedHistory);
     localStorage.setItem("searchHistory", JSON.stringify(updatedHistory));
+
+    // ✅ Track remove recent
+    if (removed) {
+      posthog.capture("search_recent_removed", {
+        id: removed.id,
+        type: removed.type,
+        name: removed.name || removed.shopName,
+      });
+    }
   };
 
   return (
@@ -285,13 +315,14 @@ const SearchPage = () => {
                         onChange: (e) => {
                           setSearchTerm(e.target.value);
                           openMenu();
+                          posthog.capture("search_started", { query: e.target.value }); // ✅ added
                         },
                         onFocus: () => {
                           if (!searchTerm) openMenu();
                         },
                       })}
                       value={searchTerm}
-                     className="w-full border font-opensans text-black text-base border-gray-300 rounded-full px-3 py-2 font-medium focus:outline-customOrange"
+                      className="w-full border font-opensans text-black text-base border-gray-300 rounded-full px-3 py-2 font-medium focus:outline-customOrange"
                     />
                     <CiSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-2xl text-gray-400" />
 
@@ -299,7 +330,10 @@ const SearchPage = () => {
                     {searchTerm && (
                       <MdCancel
                         className="absolute right-10 top-1/2 transform -translate-y-1/2 text-xl text-gray-400 cursor-pointer"
-                        onClick={() => setSearchTerm("")}
+                        onClick={() => {
+                          posthog.capture("search_cleared"); // ✅ added
+                          setSearchTerm("");
+                        }}
                       />
                     )}
                   </div>
@@ -321,6 +355,7 @@ const SearchPage = () => {
                           key={term}
                           onClick={() => {
                             setSearchTerm(term);
+                            posthog.capture("search_trending_clicked", { query: term }); // ✅ added
                             setTimeout(() => openMenuRef.current(), 0);
                           }}
                           className="inline-block mr-3 px-3 py-1 rounded-full bg-gray-100 hover:bg-customOrange hover:text-white transition font-opensans text-xs"
@@ -429,6 +464,14 @@ const SearchPage = () => {
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "space-between",
+                              },
+                              onMouseDown: () => {
+                                // ✅ Track clicking a recent item
+                                posthog.capture("search_recent_clicked", {
+                                  id: item.id,
+                                  type: item.type,
+                                  name: item.name || item.shopName,
+                                });
                               },
                             })}
                           >

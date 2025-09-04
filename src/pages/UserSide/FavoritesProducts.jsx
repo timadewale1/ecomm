@@ -1,3 +1,4 @@
+// src/pages/FavoritesPage.jsx
 import React, { useEffect, useState } from "react";
 import { db } from "../../firebase.config";
 import { doc, getDoc } from "firebase/firestore";
@@ -9,12 +10,17 @@ import { GoChevronLeft } from "react-icons/go";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import SEO from "../../components/Helmet/SEO";
+import posthog from "posthog-js";
 
 const FavoritesPage = () => {
   const { favorites: contextFavorites } = useFavorites(); // From Context
   const [favoriteProducts, setFavoriteProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  // Determine current user
+  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+  const role = currentUser ? "user" : "guest";
 
   useEffect(() => {
     const fetchFavoriteProducts = async () => {
@@ -55,16 +61,35 @@ const FavoritesPage = () => {
           .filter((product) => product !== null);
 
         setFavoriteProducts(products);
+
+        // 🔹 Track favorites loaded
+        posthog.capture(
+          "favorites_loaded",
+          {
+            totalFavorites: products.length,
+            source: contextFavorites.length && firestoreFavorites.length ? "combined" :
+                    contextFavorites.length ? "context" :
+                    firestoreFavorites.length ? "firestore" : "none",
+            role,
+          },
+          { send_instantly: true }
+        );
       } catch (error) {
         console.error("Error fetching favorite products:", error);
         toast.error("Error fetching favorite products. Please try again.");
+
+        // 🔹 Track error
+        posthog.capture(
+          "favorites_load_error",
+          { errorMessage: error.message, role },
+          { send_instantly: true }
+        );
       } finally {
         setLoading(false);
       }
     };
 
     const fetchFirestoreFavorites = async () => {
-      const currentUser = JSON.parse(localStorage.getItem("currentUser")); // Or use a hook if available
       if (!currentUser) return []; // If not logged in, skip Firestore
 
       try {
@@ -80,54 +105,74 @@ const FavoritesPage = () => {
     };
 
     const getFavoritesFromFirestore = async (userId) => {
-      // Firestore favorites collection path: /users/{userId}/favorites
-      const favoriteDocs = []; // Simulate Firestore read logic here
-      // Loop through your favorites docs and extract the products or IDs
-      return favoriteDocs; // Return as an array of objects or IDs
+      // TODO: Replace with actual Firestore query for /users/{userId}/favorites
+      const favoriteDocs = [];
+      return favoriteDocs;
     };
 
     fetchFavoriteProducts();
-  }, [contextFavorites]);
+
+    // 🔹 Track page view
+    posthog.capture(
+      "favorites_page_viewed",
+      { role, count: contextFavorites.length },
+      { send_instantly: true }
+    );
+  }, [contextFavorites, currentUser, role]);
 
   return (
     <>
-    <SEO 
-        title={`Favorites - My Thrift`} 
+      <SEO
+        title={`Favorites - My Thrift`}
         description={`Your favorite products on My Thrift`}
-        url={`https://www.shopmythrift.store/favorites`} 
+        url={`https://www.shopmythrift.store/favorites`}
       />
-    <div className="p-2">
-      <div className="sticky top-0 bg-white z-10 flex items-center justify-between h-24">
-        <div className="flex items-center space-x-2">
-          <GoChevronLeft
-            className="text-2xl text-black cursor-pointer"
-            onClick={() => navigate(-1)}
-          />
-          <h1 className="text-xl font-opensans ml-5 font-semibold">Favorites</h1>
-        </div>
-      </div>
-      {loading ? (
-        <Loading />
-      ) : favoriteProducts.length > 0 ? (
-        <div className="grid grid-cols-2 gap-4">
-          {favoriteProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              isFavorite={true}
-              onFavoriteToggle={() => {}} // No toggle needed in FavoritesPage
+      <div className="p-2">
+        <div className="sticky top-0 bg-white z-10 flex items-center justify-between h-24">
+          <div className="flex items-center space-x-2">
+            <GoChevronLeft
+              className="text-2xl text-black cursor-pointer"
+              onClick={() => navigate(-1)}
             />
-          ))}
+            <h1 className="text-xl font-opensans ml-5 font-semibold">
+              Favorites
+            </h1>
+          </div>
         </div>
-      ) : (
-        <>
-          <Faves />
-          <p className="font-opensans text-center text-sm text-gray-800">
-            Your liked items would show here!
-          </p>
-        </>
-      )}
-    </div>
+
+        {loading ? (
+          <Loading />
+        ) : favoriteProducts.length > 0 ? (
+          <div className="grid grid-cols-2 gap-4">
+            {favoriteProducts.map((product) => (
+              <div
+                key={product.id}
+                onClick={() => {
+                  posthog.capture(
+                    "favorite_product_clicked",
+                    { productId: product.id, role },
+                    { send_instantly: true }
+                  );
+                  navigate(`/product/${product.id}`);
+                }}
+              >
+                <ProductCard
+                  product={product}
+                  isFavorite={true}
+                  onFavoriteToggle={() => {}}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <>
+            <Faves />
+            <p className="font-opensans text-center text-sm text-gray-800">
+              Your liked items would show here!
+            </p>
+          </>
+        )}
+      </div>
     </>
   );
 };

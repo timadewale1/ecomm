@@ -34,6 +34,9 @@ import { ImSad2 } from "react-icons/im";
 import { FcPaid } from "react-icons/fc";
 import { MdClose } from "react-icons/md";
 import IkImage from "../services/IkImage";
+import posthog from 'posthog-js';
+
+
 const debounce = (func, delay) => {
   let timeoutId;
   return (...args) => {
@@ -77,6 +80,34 @@ const Cart = () => {
 
   const vendorIds = Object.keys(cart);
   const firstVendorId = vendorIds.length > 0 ? vendorIds[0] : null;
+
+
+  useEffect(() => {
+  posthog.capture('cart_viewed', {
+    userId: currentUser?.uid,
+    cartVendorCount: Object.keys(cart).length,
+    cartTotal: calculateTotal(),
+  });
+}, [cart, currentUser]);
+
+useEffect(() => {
+  if (Object.keys(cart).length === 0) {
+    posthog.capture('cart_empty_viewed', {
+      userId: currentUser?.uid,
+    });
+  }
+}, [cart, currentUser]);
+
+useEffect(() => {
+  if (currentUser) {
+    posthog.capture('user_logged_in', {
+      userId: currentUser.uid,
+      email: currentUser.email,
+    });
+  } else {
+    posthog.capture('user_logged_out');
+  }
+}, [currentUser]);
 
   useEffect(() => {
     if (!localStorage.getItem("deliveryNoteBadgeShown") && firstVendorId) {
@@ -243,41 +274,55 @@ const Cart = () => {
   }, [cart, checkCartProducts]);
 
   const handleRemoveFromCart = useCallback(
-    (vendorId, productKey) => {
-      const product = cart[vendorId]?.products[productKey]; // Safely access product using productKey
-      if (!product) {
-        console.error(`Product not found for key ${productKey}`);
-        return;
-      }
+  (vendorId, productKey) => {
+    const product = cart[vendorId]?.products[productKey];
+    if (!product) {
+      console.error(`Product not found for key ${productKey}`);
+      return;
+    }
 
-      const confirmRemove = window.confirm(
-        `Are you sure you want to remove ${product.name} from the cart?`
-      );
-
-      if (confirmRemove) {
-        dispatch(removeFromCart({ vendorId, productKey }));
-        toast(`Removed ${product.name} from cart!`, { icon: "ℹ️" });
-      }
-    },
-    [cart, dispatch]
-  );
-
-  const handleClearSelection = (vendorId) => {
-    const confirmClear = window.confirm(
-      `Are you sure you want to clear the cart?`
+    const confirmRemove = window.confirm(
+      `Are you sure you want to remove ${product.name} from the cart?`
     );
-    if (confirmClear) {
-      dispatch(clearCart(vendorId));
-      toast.success(`Cleared cart for ${cart[vendorId].vendorName}!`);
-      setIsModalOpen(false);
 
-      setVendorNotes((prevNotes) => {
-        const updatedNotes = { ...prevNotes };
-        delete updatedNotes[vendorId];
-        return updatedNotes;
+    if (confirmRemove) {
+      dispatch(removeFromCart({ vendorId, productKey }));
+      toast(`Removed ${product.name} from cart!`, { icon: "ℹ️" });
+      // --- PostHog event ---
+      posthog.capture('cart_product_removed', {
+        productId: product.id,
+        vendorId,
+        quantity: product.quantity,
+        selectedSize: product.selectedSize,
+        selectedColor: product.selectedColor,
       });
     }
-  };
+  },
+  [cart, dispatch]
+);
+
+  const handleClearSelection = (vendorId) => {
+  const confirmClear = window.confirm(
+    `Are you sure you want to clear the cart?`
+  );
+  if (confirmClear) {
+    dispatch(clearCart(vendorId));
+    toast.success(`Cleared cart for ${cart[vendorId].vendorName}!`);
+    setIsModalOpen(false);
+
+    setVendorNotes((prevNotes) => {
+      const updatedNotes = { ...prevNotes };
+      delete updatedNotes[vendorId];
+      return updatedNotes;
+    });
+
+    // --- PostHog event ---
+    posthog.capture('cart_cleared', {
+      vendorId,
+      userId: currentUser?.uid,
+    });
+  }
+};
   const openDisclaimer = (path) => (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -296,12 +341,15 @@ const Cart = () => {
     }
 
     /* ───── 1 – Auth guard ───── */
-    if (!authUser) {
-      setPendingVendorForCheckout(vendorId);
-      setAuthOpen(true);
-      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
-      return;
-    }
+   if (!authUser) {
+  setPendingVendorForCheckout(vendorId);
+  setAuthOpen(true);
+  setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+  posthog.capture('cart_auth_modal_opened', {
+    vendorId,
+  });
+  return;
+}
 
     /* ───── 2 – Email verified? ───── */
     /* ───── 2 – Email verified? (password-only) ───── */
@@ -326,11 +374,16 @@ const Cart = () => {
 
     /* ───── 3 – Stockpile exit guard ───── */
     if (isActive && vendorId !== stockpileVendorId) {
-      setPendingCheckoutVendor(vendorId);
-      setShowExitStockpileModal(true);
-      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
-      return;
-    }
+  setPendingCheckoutVendor(vendorId);
+  setShowExitStockpileModal(true);
+  setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+  posthog.capture('cart_exit_stockpile_modal_opened', {
+    vendorId,
+    stockpileVendorId,
+    userId: currentUser?.uid,
+  });
+  return;
+}
 
     /* ───── 4 – Profile completeness check ───── */
     let profileComplete = authUser.profileComplete;
@@ -430,10 +483,16 @@ const Cart = () => {
     }
 
     if (outOfStockItems.length) {
-      toast.error(`Out of stock: ${outOfStockItems.join(", ")}`);
-      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
-      return;
-    }
+  toast.error(`Out of stock: ${outOfStockItems.join(", ")}`);
+  posthog.capture('cart_checkout_failed', {
+    vendorId,
+    userId: currentUser?.uid,
+    reason: 'out_of_stock',
+    outOfStockItems,
+  });
+  setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+  return;
+}
 
     /* ───── 7 – Navigate to checkout ───── */
     const note = vendorNotes[vendorId]
@@ -509,19 +568,25 @@ const Cart = () => {
   };
 
   const handleAddToSelection = (vendorId) => {
-    const vendorInfo = vendorsInfo[vendorId];
-    if (vendorInfo) {
-      const marketPlaceType = vendorInfo.marketPlaceType;
-      if (marketPlaceType === "virtual") {
-        navigate(`/store/${vendorId}`);
-      } else {
-        navigate(`/marketstorepage/${vendorId}`);
-      }
+  const vendorInfo = vendorsInfo[vendorId];
+  if (vendorInfo) {
+    const marketPlaceType = vendorInfo.marketPlaceType;
+    // --- PostHog event ---
+    posthog.capture('cart_vendor_store_navigated', {
+      vendorId,
+      userId: currentUser?.uid,
+      marketPlaceType,
+    });
+    if (marketPlaceType === "virtual") {
+      navigate(`/store/${vendorId}`);
     } else {
-      // Vendor info not available
-      console.warn(`Vendor info not available for vendorId ${vendorId}`);
+      navigate(`/marketstorepage/${vendorId}`);
     }
-  };
+  } else {
+    // Vendor info not available
+    console.warn(`Vendor info not available for vendorId ${vendorId}`);
+  }
+};
 
   const handleOverlayClick = (e) => {
     if (e.target === e.currentTarget) {
@@ -726,8 +791,15 @@ const Cart = () => {
                       {/* Vendor-specific Checkout and Clear Selection */}
                       <div className="flex-col flex mt-3">
                         <button
-                          onClick={() => handleCheckout(vendorId)}
-                          disabled={checkoutLoading[vendorId]}
+onClick={() => {
+    posthog.capture('cart_checkout_clicked', {
+      vendorId,
+      userId: currentUser?.uid,
+      cartTotal: calculateVendorTotal(vendorId),
+      productCount: Object.values(cart[vendorId].products).length,
+    });
+    handleCheckout(vendorId);
+  }}                          disabled={checkoutLoading[vendorId]}
                           className={`rounded-full flex justify-center items-center h-12 w-full font-opensans font-medium text-white px-4 py-2 ${
                             checkoutLoading[vendorId]
                               ? "bg-orange-500"
@@ -918,8 +990,13 @@ const Cart = () => {
                       <div className="border-t border-gray-300 my-2"></div>
                       <div
                         className="flex items-center mt-4 justify-between cursor-pointer"
-                        onClick={() => setIsNoteModalOpen(true)}
-                      >
+onClick={() => {
+  setIsNoteModalOpen(true);
+  posthog.capture('cart_note_modal_opened', {
+    vendorId: selectedVendorId,
+    userId: currentUser?.uid,
+  });
+}}                      >
                         <div className="flex items-center">
                           <BiMessageDetail className="text-xl mr-3" />
                           <span className="font-opensans text-sm">
@@ -993,8 +1070,14 @@ const Cart = () => {
                   Note for Vendor
                 </h2>
                 <LiaTimesSolid
-                  onClick={() => setIsNoteModalOpen(false)}
-                  className="text-black text-xl cursor-pointer"
+onClick={() => {
+  setIsNoteModalOpen(false);
+  posthog.capture('cart_note_sent', {
+    vendorId: selectedVendorId,
+    note: vendorNotes[selectedVendorId],
+    userId: currentUser?.uid,
+  });
+}}                  className="text-black text-xl cursor-pointer"
                 />
               </div>
               {/* Text input area */}

@@ -17,6 +17,7 @@ import Loading from "../../components/Loading/Loading";
 import NotificationItem from "../../components/Notificationtab";
 import notifspic from "../../Images/Notifs.svg";
 import SEO from "../../components/Helmet/SEO";
+import posthog from "posthog-js";
 
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
@@ -24,6 +25,7 @@ const NotificationsPage = () => {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -39,8 +41,9 @@ const NotificationsPage = () => {
           ...doc.data(),
         }));
 
+        // Sort newest first, safely
         notificationsList.sort(
-          (a, b) => b.createdAt.seconds - a.createdAt.seconds
+          (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
         );
 
         setNotifications(notificationsList);
@@ -52,13 +55,30 @@ const NotificationsPage = () => {
     };
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setLoadingAuth(false); // Auth check completed
+      setLoadingAuth(false);
+
       if (user) {
         setCurrentUser(user);
+
+        // PostHog identify after we have the user
+        posthog.identify(user.uid, {
+          email: user.email,
+          name: user.displayName || "Anonymous",
+        });
+
         fetchNotifications(user.uid);
+
+        // Track page view for logged in user
+        posthog.capture("notifications_page_viewed", { userId: user.uid });
       } else {
         setCurrentUser(null);
-        setLoading(false); // Stop loading when user is not logged in
+
+        // Identify guest
+        const guestId = "guest_" + Math.random().toString(36).substring(2, 10);
+        posthog.identify(guestId, { guest: true });
+        posthog.capture("notifications_page_viewed", { userId: guestId });
+
+        setLoading(false);
       }
     });
 
@@ -66,11 +86,7 @@ const NotificationsPage = () => {
   }, []);
 
   if (loadingAuth || loading) {
-    return (
-      <div>
-        <Loading />
-      </div>
-    );
+    return <Loading />;
   }
 
   const markAsRead = async (notificationId) => {
@@ -80,6 +96,11 @@ const NotificationsPage = () => {
       setNotifications((prev) =>
         prev.map((n) => (n.id === notificationId ? { ...n, seen: true } : n))
       );
+
+      posthog.capture("notification_marked_as_read", {
+        notificationId,
+        userId: currentUser?.uid || "guest",
+      });
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }
@@ -90,39 +111,34 @@ const NotificationsPage = () => {
       const notificationRef = doc(db, "notifications", notificationId);
       await deleteDoc(notificationRef);
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+
+      posthog.capture("notification_deleted", {
+        notificationId,
+        userId: currentUser?.uid || "guest",
+      });
     } catch (error) {
       console.error("Error deleting notification:", error);
     }
   };
 
   const groupNotifications = (filter = null) => {
-    const todayNotifications = [];
-    const thisWeekNotifications = [];
-    const thisMonthNotifications = [];
-    const olderNotifications = [];
+    const today = [];
+    const thisWeek = [];
+    const thisMonth = [];
+    const older = [];
 
-    notifications.forEach((notification) => {
-      if (filter && notification.type !== filter) return;
+    notifications.forEach((n) => {
+      if (filter && n.type !== filter) return;
 
-      const createdAt = moment(notification.createdAt.seconds * 1000);
+      const createdAt = moment(n.createdAt?.seconds * 1000);
 
-      if (createdAt.isSame(moment(), "day")) {
-        todayNotifications.push(notification);
-      } else if (createdAt.isSame(moment(), "week")) {
-        thisWeekNotifications.push(notification);
-      } else if (createdAt.isSame(moment(), "month")) {
-        thisMonthNotifications.push(notification);
-      } else {
-        olderNotifications.push(notification);
-      }
+      if (createdAt.isSame(moment(), "day")) today.push(n);
+      else if (createdAt.isSame(moment(), "week")) thisWeek.push(n);
+      else if (createdAt.isSame(moment(), "month")) thisMonth.push(n);
+      else older.push(n);
     });
 
-    return {
-      today: todayNotifications,
-      thisWeek: thisWeekNotifications,
-      thisMonth: thisMonthNotifications,
-      older: olderNotifications,
-    };
+    return { today, thisWeek, thisMonth, older };
   };
 
   const groupedNotifications =
@@ -141,16 +157,15 @@ const NotificationsPage = () => {
     />
   );
 
-  const renderNotificationsSection = (title, notificationsList) => {
-    return notificationsList.length > 0 ? (
+  const renderNotificationsSection = (title, list) =>
+    list.length > 0 ? (
       <>
         <h2 className="font-semibold text-sm font-opensans text-gray-500 mb-2">
           {title}
         </h2>
-        <ul>{notificationsList.map(renderNotificationItem)}</ul>
+        <ul>{list.map(renderNotificationItem)}</ul>
       </>
     ) : null;
-  };
 
   return (
     <>
@@ -160,9 +175,8 @@ const NotificationsPage = () => {
         url={`https://www.shopmythrift.store/notifications`}
       />
       <div className="relative">
-        {/* Sticky Header Section */}
+        {/* Sticky Header */}
         <div className="sticky top-0 z-20 bg-white w-full">
-          {/* Navigation Header */}
           <div className="px-2 py-3 bg-white">
             <div className="flex items-center mb-3 pb-2">
               <GoChevronLeft
@@ -176,45 +190,35 @@ const NotificationsPage = () => {
             <div className="border-b border-gray-300 w-full"></div>
           </div>
 
-          {/* Tabs for All, Vendors, and Orders */}
+          {/* Tabs */}
           <div className="flex space-x-3 mt-2 mb-4 px-2 bg-white">
-            <button
-              onClick={() => setActiveTab("all")}
-              className={`py-2.5 px-3 text-xs font-normal rounded-full ${
-                activeTab === "all"
-                  ? "bg-customOrange text-white"
-                  : "bg-transparent border text-black font-opensans"
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setActiveTab("vendor")}
-              className={`py-2.5 px-3 text-xs font-normal rounded-full ${
-                activeTab === "vendor"
-                  ? "bg-customOrange text-white"
-                  : "bg-transparent border text-black font-opensans"
-              }`}
-            >
-              Vendors
-            </button>
-            <button
-              onClick={() => setActiveTab("order")}
-              className={`py-2.5 px-3 font-normal text-xs rounded-full ${
-                activeTab === "order"
-                  ? "bg-customOrange text-white"
-                  : "bg-transparent border text-black font-opensans"
-              }`}
-            >
-              Orders
-            </button>
+            {["all", "vendor", "order"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => {
+                  setActiveTab(tab);
+                  posthog.capture("notifications_tab_switched", {
+                    tab,
+                    userId: currentUser?.uid || "guest",
+                  });
+                }}
+                className={`py-2.5 px-3 text-xs font-normal rounded-full ${
+                  activeTab === tab
+                    ? "bg-customOrange text-white"
+                    : "bg-transparent border text-black font-opensans"
+                }`}
+              >
+                {tab === "all"
+                  ? "All"
+                  : tab.charAt(0).toUpperCase() + tab.slice(1) + "s"}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Scrollable Notification List */}
+        {/* Scrollable notifications */}
         <div className="overflow-y-auto h-[calc(100vh-150px)] pb-16 px-2">
           {!currentUser ? (
-            // User not logged in
             <div className="flex flex-col px-3 items-center justify-center h-full mt-20">
               <img
                 src={notifspic}
@@ -230,6 +234,9 @@ const NotificationsPage = () => {
               </p>
               <button
                 onClick={() => {
+                  posthog.capture("login_cta_clicked_from_notifications", {
+                    from: location.pathname,
+                  });
                   navigate("/login", { state: { from: location.pathname } });
                 }}
                 className="mt-4 bg-customOrange text-white text-xs font-opensans py-2 px-4 rounded-full"
@@ -238,7 +245,6 @@ const NotificationsPage = () => {
               </button>
             </div>
           ) : notifications.length === 0 ? (
-            // User is logged in but no notifications
             <div className="flex flex-col items-center justify-center h-full mt-20">
               <img
                 src={notifspic}
@@ -254,7 +260,6 @@ const NotificationsPage = () => {
               </p>
             </div>
           ) : (
-            // User is logged in and has notifications
             <div>
               {renderNotificationsSection("Today", groupedNotifications.today)}
               {renderNotificationsSection(

@@ -27,6 +27,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import RotatingCategoryPill from "./CategoryPills";
 import { CiLogin } from "react-icons/ci";
 import { LiaTimesSolid } from "react-icons/lia";
+import posthog from "posthog-js"; // ✅ added PostHog
 
 Modal.setAppElement("#root");
 
@@ -61,10 +62,23 @@ export default function TopVendors() {
     if (status === "idle") dispatch(fetchTopVendors());
   }, [status, dispatch]);
 
-  const toggleFollow = async (e, vendorId) => {
+  // ✅ Track vendors viewed when list is loaded
+  useEffect(() => {
+    if (vendors.length > 0) {
+      posthog.capture("vendors_viewed", {
+        vendorCount: vendors.length,
+      });
+    }
+  }, [vendors]);
+
+  const toggleFollow = async (e, vendorId, vendorName) => {
     e.stopPropagation();
     if (!currentUser) {
       setShowLogin(true);
+      posthog.capture("vendor_follow_attempt_guest", {
+        vendorId,
+        vendorName,
+      }); // ✅ guest tried to follow
       return;
     }
     const willFollow = !followed[vendorId];
@@ -84,8 +98,18 @@ export default function TopVendors() {
           vendorId,
           createdAt: new Date(),
         });
+        posthog.capture("vendor_followed", {
+          userId: currentUser.uid,
+          vendorId,
+          vendorName,
+        }); // ✅ follow
       } else {
         await deleteDoc(ref);
+        posthog.capture("vendor_unfollowed", {
+          userId: currentUser.uid,
+          vendorId,
+          vendorName,
+        }); // ✅ unfollow
       }
     } catch (err) {
       setFollowed((p) => ({ ...p, [vendorId]: !willFollow }));
@@ -131,7 +155,13 @@ export default function TopVendors() {
           <div
             key={v.id}
             className="min-w-[250px] max-w-[250px] cursor-pointer"
-            onClick={() => navigate(`/store/${v.id}`)}
+            onClick={() => {
+              posthog.capture("vendor_clicked", {
+                vendorId: v.id,
+                vendorName: v.shopName,
+              }); // ✅ vendor clicked
+              navigate(`/store/${v.id}`);
+            }}
           >
             <div className="relative">
               <IkImage
@@ -152,7 +182,7 @@ export default function TopVendors() {
 
               {/* follow heart */}
               <button
-                onClick={(e) => toggleFollow(e, v.id)}
+                onClick={(e) => toggleFollow(e, v.id, v.shopName)}
                 className="absolute top-2 right-2 bg-white bg-opacity-75 rounded-full p-1"
               >
                 <AnimatePresence mode="wait">

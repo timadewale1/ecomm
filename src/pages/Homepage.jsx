@@ -26,15 +26,12 @@ import { fetchHomepageData } from "../redux/actions/homepageactions";
 import "react-loading-skeleton/dist/skeleton.css";
 import { IoIosNotificationsOutline } from "react-icons/io";
 import gsap from "gsap";
-
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-
 import "../styles/bottombar.css";
 import { useNavigation } from "../components/Context/Bottombarcontext";
 import Market from "../components/Market/Market";
 import { db } from "../firebase.config";
 import ProductCard from "../components/Products/ProductCard";
-
 import Amazingdeals from "../components/Amazingdeals";
 import PopularCats from "../components/PopularCategories/PopularCats";
 import Condition from "../components/Conditions/Condition";
@@ -44,6 +41,8 @@ import PersonalDiscountCarousel from "../components/Discounts/PersonalDiscounts"
 import TopVendors from "../components/TopVendors/TopVendors";
 import BlogImageGrid from "../components/Blog/BlogCarousel";
 import FeaturedInfinite from "../components/Products/FeaturedProducts";
+import posthog from "posthog-js"; // ✅ added
+
 import CategoryQuickNav from "../components/Categories/CategoryQuickNav";
 gsap.registerPlugin(ScrollTrigger);
 
@@ -54,7 +53,6 @@ const Homepage = () => {
   const dispatch = useDispatch();
 
   const [userName, setUserName] = useState("User");
-  // const [loading, setLoading] = useState(true);
   const location = useLocation();
 
   const { products, lastVisible, status } = useSelector(
@@ -62,10 +60,9 @@ const Homepage = () => {
   );
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const productCardsRef = useRef([]); // For GSAP animations
+  const productCardsRef = useRef([]);
   const [initialLoad, setInitialLoad] = useState(true);
-  // const [loadingMore, setLoadingMore] = useState(false);
-  const [loading, setLoading] = useState(true); // Ensure you have this state
+  const [loading, setLoading] = useState(true);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
 
   const { promoImages, promoLoading } = useSelector((state) => state.promo);
@@ -75,6 +72,21 @@ const Homepage = () => {
 
   const scrollPositionRef = useRef(0);
   const prevProductsRef = useRef(null);
+
+  // ✅ PostHog: Track page view
+  useEffect(() => {
+    const auth = getAuth();
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        posthog.capture("homepage_viewed", {
+          userId: user.uid,
+          email: user.email || null,
+        });
+      } else {
+        posthog.capture("homepage_viewed", { userId: "guest" });
+      }
+    });
+  }, []);
 
   // Fetch unread notifications
   useEffect(() => {
@@ -105,9 +117,11 @@ const Homepage = () => {
       }
     });
   }, []);
+
   useEffect(() => {
     localStorage.setItem("currentSlide", currentSlide);
   }, [currentSlide]);
+
   const handleShowMore = () => {
     setActiveNav(3);
     navigate("/browse-markets");
@@ -116,23 +130,20 @@ const Homepage = () => {
   const clearSearch = () => {
     setSearchTerm("");
     setFilteredProducts(products);
+    posthog.capture("search_cleared", { location: "homepage" }); // ✅ added
   };
 
-  // Save scroll position when leaving the page
+  // Save scroll position
   useEffect(() => {
     return () => {
-      scrollPositionRef.current = window.scrollY; // Save the scroll position
+      scrollPositionRef.current = window.scrollY;
     };
   }, []);
 
-  // Restore scroll position when returning to the page
   useEffect(() => {
-    window.scrollTo(0, scrollPositionRef.current); // Restore scroll position
+    window.scrollTo(0, scrollPositionRef.current);
   }, []);
-  useEffect(() => {
-    // Save current slide index to localStorage when it changes
-    localStorage.setItem("currentSlide", currentSlide);
-  }, [currentSlide]);
+
   useEffect(() => {
     const auth = getAuth();
     const fetchUserName = async (uid) => {
@@ -157,9 +168,9 @@ const Homepage = () => {
       }
     });
   }, []);
+
   useEffect(() => {
     if (promoImages.length === 0) {
-      // Fetch promo images only if they are not already in Redux
       const images = [
         "https://res.cloudinary.com/dtaqusjav/image/upload/v1751554023/Book_your_travels_with_posh_retreats_2_mkj6jg.png",
         "https://res.cloudinary.com/dtaqusjav/video/upload/v1751554144/Untitled_1000_x_490_px_1_nhy93v.mp4",
@@ -169,99 +180,27 @@ const Homepage = () => {
       setTimeout(() => {
         dispatch(setPromoImages(images));
         dispatch(setPromoLoading(false));
-      }, 1000); // Simulate API call delay
+      }, 1000);
     }
   }, [dispatch, promoImages]);
-  useEffect(() => {
-    console.log("Component mounted. Status:", status);
 
+  useEffect(() => {
     if (status === "idle") {
-      console.log("Dispatching fetchHomepageData...");
       dispatch(fetchHomepageData());
     }
   }, [dispatch, status]);
 
   const handleLoadMore = () => {
     if (lastVisible && status !== "loading") {
-      console.log("Dispatching fetchHomepageData for more products...");
       dispatch(fetchHomepageData());
     }
   };
-
-  useEffect(() => {
-    if (products.length > 0) {
-      console.log("Products updated:", products);
-    }
-  }, [products]);
-
-  useEffect(() => {
-    if (!loading && initialLoad) {
-      productCardsRef.current.forEach((card, index) => {
-        gsap.fromTo(
-          card,
-          {
-            opacity: 0,
-            y: 100,
-          },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 1,
-            scrollTrigger: {
-              trigger: card,
-              start: "top 80%",
-              end: "top 30%",
-              toggleActions: "play none none none",
-              once: true,
-            },
-          }
-        );
-      });
-    } else if (!loading && !initialLoad) {
-      productCardsRef.current.forEach((card) => {
-        gsap.set(card, { opacity: 1, y: 0 });
-      });
-    }
-  }, [loading, initialLoad]);
-
-  useEffect(() => {
-    if (!searchTerm) {
-      productCardsRef.current.forEach((card, index) => {
-        gsap.fromTo(
-          card,
-          {
-            opacity: 0,
-            y: 100,
-          },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 1,
-            scrollTrigger: {
-              trigger: card,
-              start: "top 80%",
-              end: "top 30%",
-              toggleActions: "play none none none",
-              once: true,
-            },
-          }
-        );
-      });
-    }
-  }, [filteredProducts]);
 
   const cld = new Cloudinary({
     cloud: {
       cloudName: "dtaqusjav",
     },
   });
-
-  // Promo images stored in a ref to avoid reinitialization
-  // const promoImages = useRef([
-  //   "https://res.cloudinary.com/dtaqusjav/image/upload/v1736717421/Promo_Card_5_azm2n3.svg",
-  //   "https://res.cloudinary.com/dtaqusjav/image/upload/v1736717421/Promo_Card_2_ofyt9b.svg",
-  //   "https://res.cloudinary.com/dtaqusjav/image/upload/v1737022557/Promo_Card_7_gxlmrs.svg",
-  // ]);
 
   return (
     <>
@@ -280,9 +219,18 @@ const Homepage = () => {
 
         <img src={logo} alt="Logo"></img>
         <div className="relative flex space-x-2">
-          <CiSearch className="text-3xl" onClick={() => navigate("/search")} />
+          <CiSearch
+            className="text-3xl cursor-pointer"
+            onClick={() => {
+              posthog.capture("search_clicked", { location: "homepage" }); // ✅ added
+              navigate("/search");
+            }}
+          />
           <IoIosNotificationsOutline
-            onClick={() => navigate("/notifications")}
+            onClick={() => {
+              posthog.capture("notification_clicked", { location: "homepage" }); // ✅ added
+              navigate("/notifications");
+            }}
             className="text-3xl cursor-pointer"
           />
           {hasUnreadNotifications && (
@@ -304,20 +252,6 @@ const Homepage = () => {
                 disableOnInteraction: false,
               }}
               onSlideChange={(swiper) => setCurrentSlide(swiper.realIndex)}
-              breakpoints={{
-                640: {
-                  slidesPerView: 2,
-                  spaceBetween: 15,
-                },
-                768: {
-                  slidesPerView: 3,
-                  spaceBetween: 20,
-                },
-                1024: {
-                  slidesPerView: 4,
-                  spaceBetween: 25,
-                },
-              }}
             >
               {promoLoading
                 ? Array.from({ length: 5 }).map((_, index) => (
@@ -331,11 +265,13 @@ const Homepage = () => {
                     <SwiperSlide
                       key={index}
                       onClick={() => {
+                        posthog.capture("promo_clicked", {
+                          index,
+                          type: url.endsWith(".mp4") ? "video" : "image",
+                        }); // ✅ added
                         if (index === 0) {
-                          // external link for first slide
                           window.open("https://poshretreats.co.uk", "_blank");
                         } else if (index === 2) {
-                          // internal navigation for all others
                           navigate("/store/HiyUGWBqxEXWLcwPgOvxH5gq2uF2");
                         }
                       }}
@@ -364,20 +300,6 @@ const Homepage = () => {
                     </SwiperSlide>
                   ))}
             </Swiper>
-            {/* Dots navigation */}
-            <div className="flex justify-center mt-2">
-              {promoImages.map((_, index) => (
-                <div
-                  key={index}
-                  className={`cursor-pointer mx-1 rounded-full transition-all duration-300 ${
-                    index === currentSlide
-                      ? "bg-customOrange h-1 w-5"
-                      : "bg-orange-300 h-1.5 w-1.5"
-                  }`}
-                  onClick={() => setCurrentSlide(index)}
-                />
-              ))}
-            </div>
           </div>
           <Condition />
 
@@ -385,9 +307,18 @@ const Homepage = () => {
         </>
       )}
 
-      <TopVendors />
+      {/* ✅ Vendors tracking */}
+      <TopVendors
+        onView={() => posthog.capture("vendors_viewed")} // ✅ added
+        onVendorClick={(vendor) =>
+          posthog.capture("vendor_clicked", {
+            vendorId: vendor.id,
+            vendorName: vendor.name,
+          })
+        }
+      />
+
       <PopularCats />
-      {/* <DiscountCarousel /> */}
       <PersonalDiscountCarousel />
       <BlogImageGrid />
       <FeaturedInfinite />

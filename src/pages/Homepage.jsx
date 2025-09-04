@@ -43,6 +43,7 @@ import BlogImageGrid from "../components/Blog/BlogCarousel";
 import FeaturedInfinite from "../components/Products/FeaturedProducts";
 import posthog from "posthog-js"; // ✅ added
 
+import CategoryQuickNav from "../components/Categories/CategoryQuickNav";
 gsap.registerPlugin(ScrollTrigger);
 
 const Homepage = () => {
@@ -301,6 +302,8 @@ const Homepage = () => {
             </Swiper>
           </div>
           <Condition />
+
+          <CategoryQuickNav />
         </>
       )}
 

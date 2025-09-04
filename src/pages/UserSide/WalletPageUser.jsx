@@ -321,11 +321,17 @@ useEffect(() => {
   }
   return (
     <div className="p-4 w-full mx-auto font-opensans text-center">
-      <p className="text-red-600">{error}</p>
-      <button
-        onClick={() => navigate("/login")}
-        className="mt-4 bg-customOrange text-white rounded-full py-2.5
-
+        <p className="text-red-600">{error}</p>
+        <button
+          onClick={() => navigate("/login")}
+          className="mt-4 bg-customOrange text-white rounded-full py-2.5"
+        >
+          Go to Login
+        </button>
+      </div>
+    );
+  }
+  
   // Show create wallet button if wallet is not set up
   if (!walletSetup) {
     return (

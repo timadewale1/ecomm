@@ -44,7 +44,7 @@ const DiscountCarousel = () => {
     <div className="mt-4">
       {/* Header */}
       <div
-        className="relative flex items-center justify-between px-2 py-4 w-full mb-4 bg-cover bg-center"
+        className="relative flex items-center justify-between px-2 py-4 w-full mb-5 bg-cover bg-center"
         style={{ backgroundImage: `url('/Val.svg')` }}
       >
         <h2 className="relative z-10 font-opensans text-white text-lg font-semibold">
@@ -61,7 +61,7 @@ const DiscountCarousel = () => {
       </div>
 
       {/* Products Carousel */}
-      <div className="flex overflow-x-auto space-x-3 scrollbar-hide px-2">
+      <div className="flex   overflow-x-auto space-x-3 scrollbar-hide px-2">
         {loading ? (
           <div className="flex space-x-3">
             {[...Array(3)].map((_, index) => (

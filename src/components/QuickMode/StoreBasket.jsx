@@ -173,6 +173,7 @@ const StoreBasket = forwardRef(function StoreBasket(
         username: genUsername(fname),
         email: cleanEmail,
         role: "user",
+        referrer: localStorage.getItem("referrer") || null,
         birthday: "not-set",
         profileComplete: false,
         walletSetup: false,
@@ -317,6 +318,7 @@ const StoreBasket = forwardRef(function StoreBasket(
         displayName: fullName,
         username: genUsername(pendingHandle || f),
         role: "user",
+        referrer: localStorage.getItem("referrer") || null,
         birthday: "not-set",
         profileComplete: false,
         walletSetup: false,
@@ -527,6 +529,7 @@ const StoreBasket = forwardRef(function StoreBasket(
           welcomeEmailSent: false,
           notificationAllowed: false,
           role: "user",
+          referrer: localStorage.getItem("referrer") || null,
           createdAt: new Date(),
         });
         posthog?.capture("signup_completed", { method: "google" });
@@ -697,6 +700,7 @@ const StoreBasket = forwardRef(function StoreBasket(
           displayName: user.displayName ?? null,
           username: makeUsername(),
           role: "user",
+          referrer: localStorage.getItem("referrer") || null,
           profileComplete: false,
           walletSetup: false,
           birthday: "not-set",

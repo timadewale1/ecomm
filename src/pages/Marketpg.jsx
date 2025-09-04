@@ -349,7 +349,7 @@ onClick={() => {
                           leading-none      
                         "
                         >
-                          Flash sales
+                          Launching soon
                         </span>
                       )}
                     </h1>

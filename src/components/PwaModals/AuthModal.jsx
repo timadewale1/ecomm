@@ -231,6 +231,7 @@ export default function QuickAuthModal({
           displayName: `${f} ${l}`.trim(),
           username: genUsername(f),
           role: "user",
+          referrer: localStorage.getItem("referrer") || null,
           birthday: "not-set",
           profileComplete: isProfileComplete,
           walletSetup: false,
@@ -341,6 +342,7 @@ export default function QuickAuthModal({
           welcomeEmailSent: false,
           notificationAllowed: false,
           role: "user",
+          referrer: localStorage.getItem("referrer") || null,
           createdAt: new Date(),
         });
       } else {
@@ -458,6 +460,7 @@ export default function QuickAuthModal({
           displayName: user.displayName ?? null,
           username: genUsername(user.displayName),
           role: "user",
+          referrer: localStorage.getItem("referrer") || null,
           profileComplete: false,
           walletSetup: false,
           birthday: "not-set",

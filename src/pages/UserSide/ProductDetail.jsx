@@ -1582,7 +1582,7 @@ posthog.capture('product_removed_from_cart', {
                         )}
                       </motion.div>
                     </button>
-                    {quickMode && productVendorId && (
+                    {/* {quickMode && productVendorId && (
                       <button
                         className="relative px-4 py-2 rounded-full border border-gray-300 backdrop-blur-md flex items-center justify-center"
                         onClick={() => {
@@ -1597,7 +1597,7 @@ posthog.capture('product_removed_from_cart', {
                         <span className="text-sm font-opensans  font-medium">Checkout</span>
                         
                       </button>
-                    )}
+                    )} */}
                     {!quickMode && (
                       <button
                         className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}

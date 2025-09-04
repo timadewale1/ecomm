@@ -74,10 +74,10 @@ export default function FeaturedInfinite() {
   }, [status, items]);
 
   return (
-    <section className="p-2 mt-4">
+    <section className="p-2 mt-">
       <div className="flex items-center mb-4">
         <h1 className="text-xl font-semibold   font-opensans text-black">
-          Featured Products
+          Featured Products ✨
         </h1>
         {/* optional star icon */}
       </div>

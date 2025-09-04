@@ -33,11 +33,11 @@ const PersonalDiscountCarousel = () => {
 
   // 3) If we get here, we have some discounts => render the carousel
   return (
-    <div className="mt-2">
+    <div className="mt-4">
       {/* Header */}
-      <div className="flex items-center justify-between px-2 py-2 w-full bg-white">
+      <div className="flex items-center mb-3 justify-between px-2 py-2 w-full bg-white">
         <div className="flex items-center">
-          <h2 className="font-opensans text-black text-lg font-semibold mr-1">
+          <h2 className="font-opensans text-black text-xl font-semibold mr-1">
             {headerName}
           </h2>
           <div className="relative ">
@@ -72,7 +72,9 @@ const PersonalDiscountCarousel = () => {
           ))
         )}
       </div>
+      
     </div>
+    
   );
 };
 

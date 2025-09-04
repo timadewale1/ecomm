@@ -36,66 +36,72 @@ const BlogImageGrid = () => {
     setShowModal(true);
   };
   return (
-    <div className="px-2 mb-4 mt-6">
-      <p className="text-xl font-semibold mb-3 text-black font-opensans">
-        Read our Blogs
-      </p>
+    <>
+      <div className="px-2 mb-4 overflow-x-hidden mt-6">
+        <div className="h-1.5 mb-4 bg-gray-50 w-[100vw] relative left-1/2 -translate-x-1/2" />
 
-      <div className="flex overflow-x-auto space-x-4 scrollbar-hide">
-        {isLoading
-          ? Array.from({ length: 3 }).map((_, index) => (
-              <Skeleton
-                key={index}
-                height={180}
-                width={280}
-                style={{ borderRadius: 8 }}
-              />
-            ))
-          : posts.map((post) => {
-              const slug = post.slug?.current;
-              const imgUrl = post.appImage?.asset?.url;
+        <p className="text-xl font-semibold mb-3 text-black font-opensans">
+          Read our Blogs 📰
+        </p>
 
-              return (
-                <div key={slug}>
-                  {/* Opens iframe modal; preserves styles */}
-                  <button
-                    onClick={() => openModal(slug)}
-                    className="focus:outline-none"
-                    style={{ padding: 0 }} /* keeps layout identical */
-                  >
-                    <img
-                      src={imgUrl}
-                      alt="Blog App Image"
-                      style={{
-                        width: "280px",
-                        height: "auto",
-                        borderRadius: "8px",
-                        objectFit: "cover",
-                      }}
-                    />
-                  </button>
+        <div className="flex overflow-x-auto space-x-4 scrollbar-hide">
+          {isLoading
+            ? Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton
+                  key={index}
+                  height={180}
+                  width={280}
+                  style={{ borderRadius: 8 }}
+                />
+              ))
+            : posts.map((post) => {
+                const slug = post.slug?.current;
+                const imgUrl = post.appImage?.asset?.url;
 
-                  {/* Fallback for users with JS disabled */}
-                  <noscript>
-                    <a
-                      href={`https://blog.shopmythrift.store/blog/${slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                return (
+                  <div key={slug}>
+                    {/* Opens iframe modal; preserves styles */}
+                    <button
+                      onClick={() => openModal(slug)}
+                      className="focus:outline-none"
+                      style={{ padding: 0 }} /* keeps layout identical */
                     >
-                      Read post
-                    </a>
-                  </noscript>
-                </div>
-              );
-            })}
-      </div>
+                      <img
+                        src={imgUrl}
+                        alt="Blog App Image"
+                        style={{
+                          width: "280px",
+                          height: "auto",
+                          borderRadius: "8px",
+                          objectFit: "cover",
+                        }}
+                      />
+                    </button>
 
-      <IframeModal
-        show={showModal}
-        onClose={() => setShowModal(false)}
-        url={modalUrl}
-      />
-    </div>
+                    {/* Fallback for users with JS disabled */}
+                    <noscript>
+                      <a
+                        href={`https://blog.shopmythrift.store/blog/${slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Read post
+                      </a>
+                    </noscript>
+                  </div>
+                );
+              })}
+        </div>
+
+        <IframeModal
+          show={showModal}
+          onClose={() => setShowModal(false)}
+          url={modalUrl}
+        />
+
+        <div className="h-1.5 bg-gray-50 w-[100vw] relative mt-4 left-1/2 -translate-x-1/2" />
+      </div>
+    </>
   );
 };
 

@@ -1,3 +1,4 @@
+// components/Condition/ConditionProducts.jsx
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -16,12 +17,28 @@ import { fetchConditionCategories } from "../../redux/reducers/conditionCategori
 import { BsFilterRight } from "react-icons/bs";
 import { IoFilter } from "react-icons/io5";
 import { LuListFilter } from "react-icons/lu";
+import { saveScroll, clearScroll } from "../../redux/reducers/scrollSlice";
+
 function ConditionProducts() {
   const { condition: slug } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const condition = slug.replace("-", " ");
   console.log("ConditionProducts: current condition:", condition);
+
+  // --- persist selected productType across visits (per condition)
+  const filterStorageKey = `cond:selectedType:${condition}`;
+  const [selectedType, setSelectedType] = useState(() => {
+    return sessionStorage.getItem(filterStorageKey) || "All";
+  });
+
+  // scroll key per condition + selectedType
+  const scrollKey = `condition:${condition}:${selectedType}`;
+  const savedY =
+    useSelector((s) => s.scroll?.positions?.[scrollKey]) ??
+    (typeof window !== "undefined"
+      ? Number(sessionStorage.getItem(`scroll:${scrollKey}`) || 0)
+      : 0);
 
   // Read cached data per condition from Redux
   const { productsByCondition } = useSelector((state) => state.condition);
@@ -48,11 +65,13 @@ function ConditionProducts() {
   const BATCH_SIZE = 50;
 
   // Optional: local search and sort states
-  const [selectedType, setSelectedType] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState(null);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const dropdownRef = useRef(null);
+
+  // guards for progressive scroll restore
+  const restoreRef = useRef({ trying: false, loadingMore: false });
 
   // close dropdown on outside click
   useEffect(() => {
@@ -64,6 +83,24 @@ function ConditionProducts() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // make browser not auto-restore; we'll handle it
+  useEffect(() => {
+    if ("scrollRestoration" in window.history) {
+      const prev = window.history.scrollRestoration;
+      window.history.scrollRestoration = "manual";
+      return () => {
+        window.history.scrollRestoration = prev;
+      };
+    }
+  }, []);
+
+  // When condition changes, re-hydrate the last selectedType pill
+  useEffect(() => {
+    const persisted = sessionStorage.getItem(filterStorageKey) || "All";
+    setSelectedType(persisted);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [condition]);
 
   // Load initial products if none cached for this condition
   useEffect(() => {
@@ -79,7 +116,8 @@ function ConditionProducts() {
         condition
       );
     }
-  }, [condition, conditionProducts, dispatch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [condition, selectedType, conditionProducts, dispatch]);
 
   const categories =
     useSelector((s) => s.conditionCategories.byCondition[condition]) || [];
@@ -181,6 +219,82 @@ function ConditionProducts() {
     }
   };
 
+  // --- persist scroll on unmount + beforeunload + tab hide
+  useEffect(() => {
+    const persist = () => {
+      const y = window.scrollY || 0;
+      dispatch(saveScroll({ key: scrollKey, y }));
+      sessionStorage.setItem(`scroll:${scrollKey}`, String(y));
+    };
+    const onBeforeUnload = () => persist();
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") persist();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("visibilitychange", onVisibility);
+      persist();
+    };
+  }, [dispatch, scrollKey]);
+
+  // --- progressive restore: keep trying until height is enough; auto-load more as needed
+  useEffect(() => {
+    if (!savedY) return;
+    if (restoreRef.current.trying) return;
+    restoreRef.current.trying = true;
+
+    let tries = 0;
+    const maxTries = 40; // ~4s total (100ms * 40)
+    const tick = async () => {
+      tries += 1;
+      const doc = document.documentElement;
+      const targetBottom = savedY + window.innerHeight - 20;
+      const ready = doc.scrollHeight >= targetBottom;
+
+      if (ready) {
+        window.scrollTo(0, savedY);
+        restoreRef.current.trying = false;
+        return;
+      }
+
+      // Need more content; ask for next page (throttled)
+      if (
+        !noMoreProducts &&
+        !restoreRef.current.loadingMore &&
+        conditionStatus !== "loading"
+      ) {
+        restoreRef.current.loadingMore = true;
+        try {
+          await loadMoreProducts();
+        } finally {
+          restoreRef.current.loadingMore = false;
+        }
+      }
+
+      if (tries < maxTries) {
+        setTimeout(tick, 100);
+      } else {
+        restoreRef.current.trying = false;
+      }
+    };
+
+    // start only when we have at least some items
+    if (conditionProducts.length) {
+      setTimeout(tick, 0);
+    } else {
+      const startWhenItems = setInterval(() => {
+        if (conditionProducts.length) {
+          clearInterval(startWhenItems);
+          setTimeout(tick, 0);
+        }
+      }, 100);
+      return () => clearInterval(startWhenItems);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedY, conditionProducts.length, noMoreProducts, conditionStatus]);
+
   const getHeaderContent = () => {
     switch (slug) {
       case "brand-new":
@@ -237,11 +351,19 @@ function ConditionProducts() {
     });
 
   const productTypes = ["All", ...categories];
+
   const handleTypeSelect = (type) => {
     setSelectedType(type);
+    sessionStorage.setItem(filterStorageKey, type); // persist pill selection
 
     // clear cache so Redux knows we want fresh data
     dispatch(resetConditionProducts({ condition }));
+
+    // clear scroll for this (condition+type) and go top
+    const nextScrollKey = `condition:${condition}:${type}`;
+    dispatch(clearScroll({ key: nextScrollKey }));
+    sessionStorage.removeItem(`scroll:${nextScrollKey}`);
+    window.scrollTo(0, 0);
 
     // refetch first page, passing the productType if not "All"
     dispatch(
@@ -249,7 +371,6 @@ function ConditionProducts() {
         condition,
         productType: type === "All" ? null : type,
         lastVisible: null,
-
         batchSize: BATCH_SIZE,
       })
     );
@@ -266,7 +387,7 @@ function ConditionProducts() {
       />
       <div className="px-2 py-24">
         {/* Header Section */}
-        <div className="w-full h-48 bg-gray-200">{getHeaderContent()}</div>
+        <div className="w-full h-40 mt-8 bg-gray-200">{getHeaderContent()}</div>
 
         <div
           className={`fixed top-0 left-0 w-full bg-white z-10 px-2 pt-6 transition-transform duration-300 shadow-sm`}
@@ -325,18 +446,18 @@ function ConditionProducts() {
           </div>
           <div className="flex px-2 mb-2 w-full py-4 overflow-x-auto space-x-2 scrollbar-hide">
             {productTypes.map((type) => (
-                <button
-                  key={type}
-                  onClick={() => handleTypeSelect(type)}
-                  className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 border ${
-                      selectedType === type
-                        ? "bg-customOrange text-white"
-                        : "bg-white"
-                    }`}
-                >
-                  {type}
-                </button>
-              ))}
+              <button
+                key={type}
+                onClick={() => handleTypeSelect(type)}
+                className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 border ${
+                  selectedType === type
+                    ? "bg-customOrange text-white"
+                    : "bg-white"
+                }`}
+              >
+                {type}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -365,13 +486,6 @@ function ConditionProducts() {
             />
           </div>
         )}
-
-        {/* You could optionally render errors if needed */}
-        {/* {conditionError && (
-          <div className="text-red-500 mt-4 text-center">
-            Error: {conditionError}
-          </div>
-        )} */}
       </div>
     </>
   );

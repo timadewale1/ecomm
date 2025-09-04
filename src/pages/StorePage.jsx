@@ -1408,6 +1408,29 @@ const StorePage = () => {
                   <RiSearchLine className="text-white text-xl" />
                 </button>
                 <button
+                  onClick={handleFollowClick}
+                  disabled={isFollowLoading}
+                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-md  transition-opacity duration-300 border border-white/40
+          ${showHeader ? "opacity-100" : "opacity-30"}`}
+                >
+                  <motion.div
+                    key={isFollowing ? "filled" : "outline"}
+                    initial={{ scale: 0.8 }}
+                    animate={{ scale: 1.1 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 400,
+                      damping: 15,
+                    }}
+                  >
+                    {isFollowing ? (
+                      <RiHeart3Fill className="text-red-500 text-lg" />
+                    ) : (
+                      <RiHeart3Line className="text-white text-lg" />
+                    )}
+                  </motion.div>
+                </button>
+                <button
                   onClick={handleShare}
                   className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg transition-opacity duration-300 border border-white/40
           ${showHeader ? "opacity-100" : "opacity-30"}`}

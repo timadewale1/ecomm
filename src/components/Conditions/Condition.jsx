@@ -4,6 +4,7 @@ import BrandNewIcon from "./icons/Brandnew";
 import ThriftIcon from "./icons/ThriftIcon";
 import DefectsIcon from "./icons/DefectsIcon";
 import WhatsNew from "./icons/WhatsNew";
+import CategoryQuickNav from "../Categories/CategoryQuickNav";
 
 const Condition = () => {
   const navigate = useNavigate();
@@ -12,95 +13,67 @@ const Condition = () => {
     navigate(`/products/condition/${slug}`);
   };
 
+  const Pill = ({ children }) => (
+    <div className="absolute inset-x-0 bottom-0">
+      {/* subtle fade for readability */}
+      <div className="h-12 bg-gradient-to-t from-black/50 to-transparent" />
+      <div className="absolute inset-x-0 bottom-2 flex justify-center">
+        <span className="py-1 rounded-full text-[10px] sm:text-xs font-medium font-opensans text-white/95 text-center">
+          {children}
+        </span>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="relative flex flex-wrap justify-center gap-2 sm:gap-4 py-3 px-2">
-      {/* Brand New Container */}
+    <div className="relative flex flex-wrap justify-center gap-2.5 sm:gap-4 py-3 px-2">
+      {/* Brand New */}
       <div
         className="flex flex-col items-center cursor-pointer w-[calc(25%-8px)]"
         onClick={() => handleNavigate("brand-new")}
       >
-        <div className="flex-none bg-gradient-to-tl from-customOrange/60 to-lighOrange border border-lighOrange text-white rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
+        <div className="relative flex-none bg-gradient-to-tl from-customOrange/60 to-lighOrange border border-lighOrange text-white rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center overflow-hidden">
           <div className="w-4/5 h-4/5 flex items-center justify-center">
             <BrandNewIcon />
           </div>
+          <Pill>Brand New</Pill>
         </div>
-        <p className="text-center text-xs font-medium text-black font-opensans mt-1 sm:mt-2 truncate w-full">
-          Brand New
-        </p>
-        <div
-          className="absolute inset-0 bg-gradient-to-l from-transparent via-white/50 to-transparent delay"
-          style={{
-            backgroundSize: "200% 200%",
-            animation: "shimmer 4s infinite ease-in-out reverse",
-            animationDelay: '1s',
-          }}
-        />
       </div>
 
-      {/* Thrifted Container */}
+      {/* Thrifted */}
       <div
         className="relative flex flex-col items-center cursor-pointer w-[calc(25%-8px)]"
         onClick={() => handleNavigate("thrift")}
       >
-        <div className="flex-none bg-gradient-to-tl from-green-600/50 to-lightGreen border border-lightGreen text-white rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
+        <div className="relative flex-none bg-gradient-to-tl from-green-600/50 to-lightGreen border border-lightGreen text-white rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center overflow-hidden">
           <div className="w-4/5 h-4/5 flex items-center justify-center">
             <ThriftIcon />
           </div>
+          <Pill>Thrifted</Pill>
         </div>
-        <p className="text-center text-xs font-medium text-black font-opensans mt-1 sm:mt-2 truncate w-full">
-          Thrifted
-        </p>
-        <div
-          className="absolute inset-0 bg-gradient-to-l from-transparent via-white/50 to-transparent"
-          style={{
-            backgroundSize: "200% 200%",
-            animation: "shimmer 4s infinite ease-in-out reverse",
-            animationDelay: '1.5s',
-          }}
-        />
       </div>
 
-      {/* Defect Container */}
+      {/* Defect */}
       <div
         className="relative flex flex-col items-center cursor-pointer w-[calc(25%-8px)]"
         onClick={() => handleNavigate("defect")}
       >
-        <div className="flex-none bg-gradient-to-tl from-purple-600/50 to-lightPurple border border-lightPurple text-white rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center">
+        <div className="relative flex-none bg-gradient-to-tl from-purple-600/50 to-lightPurple border border-lightPurple text-white rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center overflow-hidden">
           <div className="w-4/5 h-4/5 flex items-center justify-center">
             <DefectsIcon />
           </div>
+          <Pill>Defect</Pill>
         </div>
-        <p className="text-center text-xs font-medium text-black font-opensans mt-1 sm:mt-2 truncate w-full">
-          Defect
-        </p>
-        <div
-          className="absolute inset-0 bg-gradient-to-l from-transparent via-white/50 to-transparent"
-          style={{
-            backgroundSize: "200% 200%",
-            animation: "shimmer 4s infinite ease-in-out reverse",
-            animationDelay: '2s',
-          }}
-        />
       </div>
 
-      {/* What's New Container */}
+      {/* What's New (kept without navigation like your original) */}
       <div className="relative flex flex-col items-center cursor-pointer w-[calc(25%-8px)]">
-        <div className="flex-none bg-gradient-to-tl from-blue-600/50 to-blue-600/10 text-white rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center delay-[1500ms]">
+        <div className="relative flex-none bg-gradient-to-tl from-blue-600/50 to-blue-600/10 text-white rounded-lg p-1 sm:p-2 w-full aspect-square flex items-center justify-center overflow-hidden delay-[1500ms]">
           <div className="w-4/5 h-4/5 flex items-center justify-center">
             <WhatsNew />
           </div>
+          <Pill> What's New</Pill>
         </div>
-        <p className="text-center text-xs font-medium text-black font-opensans mt-1 sm:mt-2 truncate w-full">
-          What's New
-        </p>
-        <div
-          className="absolute inset-0 bg-gradient-to-l from-transparent via-white/50 to-transparent"
-          style={{
-            backgroundSize: "200% 200%",
-            animation: "shimmer 4s infinite ease-in-out reverse",
-            animationDelay: '2.5s',}
-          }
-        />
       </div>
     </div>
   );

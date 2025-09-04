@@ -41,6 +41,10 @@ const UserWalletPage = lazy(() =>
 const VendorProfile = lazy(() =>
   import("../pages/VendorCompleteProfile/VendorProfile.jsx")
 );
+const CategoryProduct = lazy(() =>
+  import("../components/Categories/CategoryP.jsx")
+);
+
 const VendorVerifyOTP = lazy(() => import("../pages/vendor/VerifyOtp.jsx"));
 const MarketStorePage = lazy(() => import("../pages/MarketStorePage.jsx"));
 const PayPage = lazy(() => import("../pages/UserSide/PayPage.jsx"));
@@ -270,7 +274,7 @@ const Routers = () => {
           element={
             <RoleBasedAccess allowedRoles={["user", null]}>
               <StockpileNudge />
-              <CategoryPage />
+              <CategoryProduct />
             </RoleBasedAccess>
           }
         />

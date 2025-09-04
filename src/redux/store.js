@@ -33,6 +33,9 @@ import catsectionReducer from "./reducers/catsection";
 import vendorSuggestionsReducer from "./reducers/exploreSlice"
 import categoryProductsReducer from "./reducers/categoryProductsSlice";
 import topVendorsReducer from "./reducers/topVendorsSlice";
+import categoryItemsReducer from "./reducers/categoryItemsSlice";
+import categoryTypesReducer from "./reducers/categoryTypesSlice";
+import scrollReducer from "./reducers/scrollSlice";
 import vendorStockpileReducer from "./reducers/vendorStockpileSlice";
 import categoryMetadataReducer from "./reducers/categoryMetadataSlice";
 import featuredReducer from "./reducers/featuredSlice";
@@ -53,6 +56,9 @@ const rootReducer = combineReducers({
   exploreUi: exploreUiReducer,
   user: userReducer,
   vendorSuggestions: vendorSuggestionsReducer,
+  categoryItems: categoryItemsReducer,
+  scroll: scrollReducer,
+  categoryTypes: categoryTypesReducer,
   vendorChats: vendorChatReducer,
   stockpile: stockpileReducer, // will be persisted
   storepageVendors: storepageVendorsReducer,

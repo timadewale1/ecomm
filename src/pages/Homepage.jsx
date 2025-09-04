@@ -44,6 +44,7 @@ import PersonalDiscountCarousel from "../components/Discounts/PersonalDiscounts"
 import TopVendors from "../components/TopVendors/TopVendors";
 import BlogImageGrid from "../components/Blog/BlogCarousel";
 import FeaturedInfinite from "../components/Products/FeaturedProducts";
+import CategoryQuickNav from "../components/Categories/CategoryQuickNav";
 gsap.registerPlugin(ScrollTrigger);
 
 const Homepage = () => {
@@ -379,6 +380,8 @@ const Homepage = () => {
             </div>
           </div>
           <Condition />
+
+          <CategoryQuickNav />
         </>
       )}
 

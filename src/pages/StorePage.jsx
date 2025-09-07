@@ -1639,7 +1639,7 @@ const StorePage = () => {
           )}
         </div>
         <div className={`${isSearching ? "mt-16" : "mt-7"}`}>
-          {!hasFlashSale && (
+         
             <>
               <div className="flex items-center mb-3 justify-between">
                 <h1 className="font-opensans text-lg  font-semibold">
@@ -1716,25 +1716,8 @@ const StorePage = () => {
                 </div>
               )}
             </>
-          )}
-          {vendor?.newDrop?.images?.length > 0 && (
-            <div className=" mb-4">
-              <h3 className="text-base font-semibold font-opensans text-gray-900 mb-2">
-                What to expect in their First drop! 🕷️
-              </h3>
-              <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-                {vendor.newDrop.images.map((img) => (
-                  <img
-                    key={img.path}
-                    src={img.url}
-                    alt={img.filename}
-                    className="h-40 w-32 object-cover rounded-xl flex-none"
-                    loading="lazy"
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+          
+      
           {vendorLoading || (loadingMore && filteredProducts.length === 0) ? (
             <div className="grid mt-2 grid-cols-2 gap-2">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -1781,7 +1764,7 @@ const StorePage = () => {
             </>
           ) : (
             <>
-              {!hasFlashSale && (
+              
                 <div className="flex justify-center items-center w-full text-center">
                   <p className="font-opensans text-gray-800 text-xs">
                     📭 <span className="font-semibold">{vendor.shopName}</span>{" "}
@@ -1790,7 +1773,7 @@ const StorePage = () => {
                     products!
                   </p>
                 </div>
-              )}
+              
             </>
           )}
         </div>

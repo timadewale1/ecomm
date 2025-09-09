@@ -11,8 +11,8 @@ const BlogImageGrid = () => {
   const [showModal, setShowModal] = useState(false);
 
   // Control sizes here
-  const CARD_WIDTH = 500;   // increase width
-  const CARD_HEIGHT = 260;  // increase height
+  const CARD_WIDTH = 300;   // increase width
+  const CARD_HEIGHT = 120;  // increase height
 
   useEffect(() => {
     const query = `*[_type == "post"]{

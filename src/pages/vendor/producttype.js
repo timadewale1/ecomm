@@ -23,6 +23,47 @@ const productTypes = [
     sizes: productSizes["Jeans"],
   },
   {
+    type: "Skincare",
+    subTypes: [
+      {
+        name: "Face Care",
+        sizes: productSizes.Skincare.FaceCare || [],
+      },
+      {
+        name: "Body Care",
+        sizes: productSizes.Skincare.BodyCare || [],
+      },
+      {
+        name: "Eye Care",
+        sizes: productSizes.Skincare.EyeCare || [],
+      },
+      {
+        name: "Lip Care",
+        sizes: productSizes.Skincare.LipCare || [],
+      },
+      {
+        name: "Hand & Foot Care",
+        sizes: productSizes.Skincare.HandFootCare || [],
+      },
+      {
+        name: "Sun Care",
+        sizes: productSizes.Skincare.SunCare || [],
+      },
+      {
+        name: "Treatments & Serums",
+        sizes: productSizes.Skincare.Treatments || [],
+      },
+      {
+        name: "Masks & Peels",
+        sizes: productSizes.Skincare.Masks || [],
+      },
+      {
+        name: "Oils",
+        sizes: productSizes.Skincare.Oils || [],
+      },
+    ],
+  },
+  {
     type: "Corporate Women",
     subTypes: [
       {

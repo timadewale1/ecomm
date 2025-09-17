@@ -378,6 +378,70 @@ const productSizes = {
     "XXL (11 inches)", // Extra Extra Large
     "Universal Size", // For adjustable or stretch-fit gloves
   ],
+  // ➕ Skincare sizes
+  Skincare: {
+    FaceCare: [
+      "15 mL",
+      "30 mL",
+      "50 mL",
+      "75 mL",
+      "100 mL",
+    ],
+    BodyCare: [
+      "100 mL",
+      "150 mL",
+      "200 mL",
+      "250 mL",
+      "500 mL",
+      "1 L",
+    ],
+    EyeCare: [
+      "10 mL",
+      "15 mL",
+      "30 mL",
+    ],
+    LipCare: [
+      "5 mL",
+      "10 mL",
+      "15 mL",
+      "20 mL",
+    ],
+    HandFootCare: [
+      "50 mL",
+      "75 mL",
+      "100 mL",
+      "150 mL",
+      "200 mL",
+    ],
+    SunCare: [
+      "30 mL",
+      "50 mL",
+      "75 mL",
+      "100 mL",
+      "150 mL",
+      "200 mL",
+      "250 mL",
+    ],
+    Treatments: [
+      "15 mL",
+      "30 mL",
+      "50 mL",
+      "100 mL",
+    ],
+    Masks: [
+      "15 mL",
+      "30 mL",
+      "50 mL",
+      "75 mL",
+      "100 mL",
+    ],
+    Oils: [
+      "15 mL",
+      "30 mL",
+      "50 mL",
+      "100 mL",
+    ],
+  },
   "Corporate Women": {
     Blazers: [
       "XS",

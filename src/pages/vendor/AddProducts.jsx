@@ -744,49 +744,65 @@ const AddProduct = ({ vendorId, closeModal }) => {
     }
   };
   const handleImageUpload = (e) => {
-    const loadingToastId = toast.loading("Uploading image...");
-    const files = Array.from(e.target.files);
+    const loadingToastId = toast.loading("Uploading image(s)...");
+    let files = Array.from(e.target.files || []);
 
-    let completed = 0;
+    // How many more we can take
+    const remaining = Math.max(0, MAX_IMAGES - productImages.length);
+    if (remaining <= 0) {
+      toast.dismiss(loadingToastId);
+      toast.error(`You can only upload a maximum of ${MAX_IMAGES} images.`);
+      e.target.value = "";
+      return;
+    }
 
-    files.forEach((file) => {
+    // Respect remaining capacity
+    if (files.length > remaining) {
+      toast(
+        `Only ${remaining} more image${
+          remaining > 1 ? "s" : ""
+        } allowed. Extra file(s) ignored.`,
+        { icon: "⚠️" }
+      );
+      files = files.slice(0, remaining);
+    }
+
+    let added = 0;
+
+    for (const file of files) {
       try {
-        if (file.size > MAX_FILE_SIZE) {
-          toast.dismiss(loadingToastId);
-          toast.error(`${file.name} exceeds the maximum file size of 3MB`, {
-            duration: 3000,
-          });
-          return;
+        if (!file.type?.startsWith("image/")) {
+          toast.error(`${file.name} is not a valid image file.`);
+          continue;
         }
-        if (!file.type.startsWith("image/")) {
-          toast.dismiss(loadingToastId);
-          toast.error(`${file.name} is not a valid image file.`, {
-            duration: 3000,
-          });
-          return;
+        if (file.size > MAX_FILE_SIZE) {
+          toast.error(`${file.name} exceeds the maximum file size of 3MB.`);
+          continue;
         }
 
         const preview = URL.createObjectURL(file);
 
+        // Safely append without exceeding MAX_IMAGES even under rapid adds
         setProductImages((prev) => {
-          if (prev.length + 1 > MAX_IMAGES) {
-            toast.error("You can only upload a maximum of 4 images.");
-            return prev;
-          }
+          if (prev.length >= MAX_IMAGES) return prev;
+          added += 1;
           return [...prev, { file, preview }];
         });
-
-        completed += 1;
-        if (completed === files.length) {
-          toast.dismiss(loadingToastId);
-          toast.success("Image uploaded!");
-        }
       } catch (err) {
-        console.error("Upload error:", err.message);
-        toast.dismiss(loadingToastId);
-        toast.error(`Image upload failed for ${file.name}: ${err.message}`);
+        console.error("Upload error:", err);
+        toast.error(`Image upload failed for ${file.name}`);
       }
-    });
+    }
+
+    toast.dismiss(loadingToastId);
+    if (added > 0) {
+      toast.success(`${added} image${added > 1 ? "s" : ""} added`);
+    } else {
+      toast.error("No images were added.");
+    }
+
+    // Allow picking the same files again next time
+    e.target.value = "";
   };
 
   const activeList = itemClass === "fashion" ? productTypes : everydayType;
@@ -1001,6 +1017,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
                 type="file"
                 accept="image/*"
                 onChange={handleImageUpload}
+                multiple
                 className="hidden"
               />
             </div>
@@ -1040,6 +1057,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
               id="imageUpload"
               type="file"
               accept="image/*"
+              multiple
               onChange={handleImageUpload}
               className="hidden"
             />

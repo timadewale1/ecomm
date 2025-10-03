@@ -161,9 +161,10 @@ const Homepage = () => {
     if (promoImages.length === 0) {
       // Fetch promo images only if they are not already in Redux
       const images = [
-        "https://res.cloudinary.com/dtaqusjav/image/upload/v1751554023/Book_your_travels_with_posh_retreats_2_mkj6jg.png",
-        "https://res.cloudinary.com/dtaqusjav/video/upload/v1751554144/Untitled_1000_x_490_px_1_nhy93v.mp4",
-        "https://res.cloudinary.com/dtaqusjav/image/upload/v1751557578/Untitled_1000_x_490_px_5_i8ssvn.png",
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1759533092/3_vieo6p.png",
+        
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1759533092/4_nmxdbr.png",
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1759535352/promo_cards_gyz5yi.png"
       ];
       dispatch(setPromoLoading(true));
       setTimeout(() => {
@@ -332,11 +333,10 @@ const Homepage = () => {
                       key={index}
                       onClick={() => {
                         if (index === 0) {
-                          // external link for first slide
-                          window.open("https://poshretreats.co.uk", "_blank");
+                          navigate("/store/k4Wu4jYuIcfQRkrMKRzk9LkUmht1");
                         } else if (index === 2) {
                           // internal navigation for all others
-                          navigate("/store/HiyUGWBqxEXWLcwPgOvxH5gq2uF2");
+                          navigate("/products/condition/brand-new");
                         }
                       }}
                       className="transition-transform duration-500 ease-in-out rounded-lg transform hover:scale-105"

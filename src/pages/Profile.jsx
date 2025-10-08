@@ -5,7 +5,7 @@ import { toast } from "react-hot-toast";
 import { ChevronRight, User, ChevronLeft } from "lucide-react";
 import { AiOutlineUserSwitch } from "react-icons/ai";
 import { useNavigate, useLocation } from "react-router-dom";
-import { doc, getDoc, onSnapshot, updateDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, updateDoc, setDoc, query, collection, where } from "firebase/firestore";
 import { useAuth } from "../custom-hooks/useAuth";
 import posthog from "posthog-js";
 import { FaHeart } from "react-icons/fa";
@@ -38,6 +38,7 @@ import { useTawk } from "../components/Context/TawkProvider";
 import { exitStockpileMode } from "../redux/reducers/stockpileSlice";
 import { TfiWallet } from "react-icons/tfi";
 import QuickAuthModal from "../components/PwaModals/AuthModal";
+import { BiSolidOffer } from "react-icons/bi";
 const Profile = () => {
   const navigate = useNavigate();
 
@@ -57,7 +58,28 @@ const Profile = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [profileComplete, setProfileComplete] = useState();
+  const [hasUnreadOffers, setHasUnreadOffers] = useState(false);
+  useEffect(() => {
+    if (!currentUser?.uid) return;
 
+    const q = query(
+      collection(db, "offers"),
+      where("buyerId", "==", currentUser.uid),
+      where("buyerRead", "==", false)
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setHasUnreadOffers(!snap.empty);
+      },
+      (err) => {
+        console.error("Unread offers listener failed:", err);
+      }
+    );
+
+    return () => unsub();
+  }, [currentUser?.uid]);
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const incompleteProfile = queryParams.get("incomplete") === "true";
@@ -201,6 +223,9 @@ const Profile = () => {
       return;
     }
     navigate("/your-wallet");
+  };
+  const handleOfferClick = () => {
+    navigate("/offers");
   };
   const { openChat } = useTawk();
   return (
@@ -347,12 +372,29 @@ const Profile = () => {
                     <TfiWallet className="text-black text-xl mr-4" />
                     <h2 className="text-size font-normal font-opensans text-black capitalize">
                       My Wallet
+                    </h2>
+                  </div>
+                  <ChevronRight className="text-black mr-1" />
+                </div>
+              )}
+              {currentUser && (
+                <div
+                  className="relative flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
+                  onClick={handleOfferClick}
+                >
+                  <div className="flex items-center relative">
+                    <BiSolidOffer className="text-green-700 text-xl mr-4" />
+                    <h2 className="text-size font-normal font-opensans text-black capitalize">
+                      My Offers
                       <span className="absolute -top-1 animate-pulse -right-10 text-[8px] font-bold text-white bg-customOrange px-2 py-0.5 rounded-md shadow-sm">
                         NEW
                       </span>
                     </h2>
                   </div>
                   <ChevronRight className="text-black mr-1" />
+                  {hasUnreadOffers && (
+                    <span className="absolute right-12 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-customOrange rounded-full animate-pulse" />
+                  )}
                 </div>
               )}
             </div>
@@ -541,7 +583,6 @@ const Profile = () => {
                     }}
                     mergeCart={mergeCarts}
                     openDisclaimer={openDisclaimer}
-                    
                   />
                 </>
               )}

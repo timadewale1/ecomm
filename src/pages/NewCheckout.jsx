@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -29,6 +35,7 @@ import {
   getDoc,
   doc,
   collection,
+  onSnapshot,
   query,
   where,
   getDocs,
@@ -369,12 +376,14 @@ const Checkout = () => {
     useState(false);
 
   const [showNoStockpileModal, setShowNoStockpileModal] = useState(false);
+  const [locksByProduct, setLocksByProduct] = useState({});
 
   const [selectedWeeks, setSelectedWeeks] = useState(null);
   const { isActive, vendorId: stockpileVendorId } = useSelector(
     (state) => state.stockpile
   );
   const isRepiling = isActive && stockpileVendorId === vendorId;
+  const priceLocks = locksByProduct;
 
   const prepareOrderData = (isPreview = false) => {
     const vendorCart = cart[vendorId]?.products;
@@ -669,6 +678,38 @@ const Checkout = () => {
       setIsPickup(false);
     }
   }, [vendorsInfo, vendorId]);
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      setLocksByProduct({});
+      console.debug("[CHK] no user → clear locks");
+      return;
+    }
+
+    const qLocks = query(
+      collection(db, "priceLocks"),
+      where("buyerId", "==", currentUser.uid),
+      where("state", "==", "active")
+    );
+
+    const unsub = onSnapshot(
+      qLocks,
+      (snap) => {
+        const map = {};
+        snap.forEach((d) => {
+          map[d.data().productId] = d.data();
+        });
+        setLocksByProduct(map);
+        console.debug("[CHK] locks snapshot:", {
+          count: Object.keys(map).length,
+          keys: Object.keys(map),
+          sample: Object.values(map)[0],
+        });
+      },
+      (err) => console.error("[CHK] priceLocks onSnapshot error:", err)
+    );
+
+    return () => unsub();
+  }, [currentUser?.uid]);
 
   const NoStockpileModal = ({ isOpen, onClose }) => {
     return (
@@ -703,6 +744,100 @@ const Checkout = () => {
   const supportsPickup =
     vendorsInfo[vendorId]?.deliveryMode === "Delivery & Pickup" ||
     vendorsInfo[vendorId]?.deliveryMode === "Pickup";
+
+  const getEffectiveUnitPrice = (product, productKey) => {
+    const now = Date.now();
+    const base = Number(product.price || 0);
+
+    // (A) cart item's own lock
+    if (
+      typeof product.lockedPrice === "number" &&
+      (!product.offerExpiresAt || product.offerExpiresAt > now)
+    ) {
+      console.debug(
+        `[PRICE] ${product.name} (${productKey}) → item.lockedPrice`,
+        {
+          picked: Number(product.lockedPrice),
+          base,
+          offerExpiresAt: product.offerExpiresAt,
+        }
+      );
+      return Number(product.lockedPrice);
+    }
+
+    // (B) lock by product id from Firestore
+    const lock = priceLocks[product.id];
+    if (lock) {
+      // Your Cart uses lock.effectivePrice
+      if (typeof lock.effectivePrice === "number") {
+        console.debug(
+          `[PRICE] ${product.name} (${productKey}) → lock.effectivePrice`,
+          {
+            picked: Number(lock.effectivePrice),
+            base,
+            lock,
+          }
+        );
+        return Number(lock.effectivePrice);
+      }
+
+      // Fallbacks if your lock doc stores different shapes
+      if (
+        product.subProductId &&
+        lock.subProducts &&
+        typeof lock.subProducts[product.subProductId] === "number"
+      ) {
+        console.debug(
+          `[PRICE] ${product.name} (${productKey}) → subProduct lock`,
+          {
+            picked: Number(lock.subProducts[product.subProductId]),
+            base,
+            lock,
+          }
+        );
+        return Number(lock.subProducts[product.subProductId]);
+      }
+      if (product.selectedColor && product.selectedSize && lock.variants) {
+        const vKey = `${product.selectedColor}|${product.selectedSize}`;
+        if (typeof lock.variants[vKey] === "number") {
+          console.debug(
+            `[PRICE] ${product.name} (${productKey}) → variant lock`,
+            {
+              vKey,
+              picked: Number(lock.variants[vKey]),
+              base,
+              lock,
+            }
+          );
+          return Number(lock.variants[vKey]);
+        }
+      }
+      if (typeof lock.price === "number") {
+        console.debug(`[PRICE] ${product.name} (${productKey}) → lock.price`, {
+          picked: Number(lock.price),
+          base,
+          lock,
+        });
+        return Number(lock.price);
+      }
+    }
+
+    console.debug(`[PRICE] ${product.name} (${productKey}) → base price`, {
+      picked: base,
+      product,
+      lock,
+    });
+    return base;
+  };
+
+  const calcFallbackSubtotal = useMemo(() => {
+    const vendorCart = cart[vendorId]?.products || {};
+    return Object.entries(vendorCart).reduce((sum, [k, p]) => {
+      const unit = getEffectiveUnitPrice(p, k);
+      const qty = Number(p.quantity || 1);
+      return sum + unit * qty;
+    }, 0);
+  }, [cart, vendorId, priceLocks]);
 
   const handleProceedToPayment = async () => {
     if (checkoutMode === "stockpile" && !selectedWeeks) {
@@ -1214,10 +1349,7 @@ const Checkout = () => {
                 Stockpile
               </button>
 
-              {/* Beta Badge */}
-              <span className="absolute -top-1 -right-1 bg-customOrange text-white text-[10px] px-2 py-[2px] rounded-full font-bold uppercase">
-                Beta
-              </span>
+             
             </div>
           </div>
         )}
@@ -1239,8 +1371,7 @@ const Checkout = () => {
               <p className="text-base font-opensans text-black font-semibold">
                 {isLoadingTotal
                   ? `₦${(
-                      previewedOrder.subtotal ??
-                      calculateCartTotalForVendor(cart, vendorId)
+                      previewedOrder.subtotal ?? calcFallbackSubtotal
                     ).toLocaleString()}`
                   : `₦${(
                       previewedOrder.subtotal ??
@@ -1501,7 +1632,11 @@ const Checkout = () => {
                               {product.name}
                             </h4>
                             <p className="font-opensans text-md mt-1 text-black font-bold">
-                              ₦{product.price.toLocaleString()}
+                              ₦
+                              {getEffectiveUnitPrice(
+                                product,
+                                productKey
+                              ).toLocaleString()}
                             </p>
                             <div className="flex items-center space-x-3 text-sm mt-1 ">
                               {product.isFashion && (
@@ -1802,8 +1937,7 @@ const Checkout = () => {
               <p className="text-base font-opensans text-black font-semibold">
                 ₦
                 {(
-                  previewedOrder.subtotal ??
-                  calculateCartTotalForVendor(cart, vendorId)
+                  previewedOrder.subtotal ?? calcFallbackSubtotal
                 ).toLocaleString()}
               </p>
             </div>
@@ -2031,7 +2165,11 @@ const Checkout = () => {
                               {product.name}
                             </h4>
                             <p className="font-opensans text-md mt-1 text-black font-bold">
-                              ₦{product.price.toLocaleString()}
+                              ₦
+                              {getEffectiveUnitPrice(
+                                product,
+                                productKey
+                              ).toLocaleString()}
                             </p>
                             <div className="flex items-center space-x-3 text-sm mt-1 ">
                               {product.isFashion && (

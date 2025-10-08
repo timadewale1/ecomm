@@ -59,6 +59,11 @@ const EmailVerification = lazy(() =>
 );
 const LatestCart = lazy(() => import("../pages/Cart.jsx"));
 const OrdersCentre = lazy(() => import("../pages/UserSide/OrdersCentre.jsx"));
+const UserOffers = lazy(() => import("../pages/UserSide/UserOffers.jsx"));
+const UserOfferDetail = lazy(() =>
+  import("../pages/UserSide/UserOfferDetail.jsx")
+);
+
 const MarketVendors = lazy(() => import("../pages/MarketVendors.jsx"));
 const Profile = lazy(() => import("../pages/Profile.jsx"));
 const ConditionProducts = lazy(() =>
@@ -221,6 +226,24 @@ const Routers = () => {
             <RoleBasedAccess allowedRoles={["user"]}>
               <StockpileNudge />
               <OrdersCentre />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/offers"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <StockpileNudge />
+              <UserOffers />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/offers/:offerId"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <StockpileNudge />
+              <UserOfferDetail />
             </RoleBasedAccess>
           }
         />

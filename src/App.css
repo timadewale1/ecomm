@@ -83,12 +83,14 @@ html {
 .vendor-badge::after {
   content: "";
   position: absolute;
-  top: 0; left: -100%;
-  width: 100%; height: 100%;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255,255,255,0.4) 50%,
+    rgba(255, 255, 255, 0.4) 50%,
     transparent 100%
   );
   transform: skewX(-20deg);
@@ -96,8 +98,12 @@ html {
 }
 
 @keyframes shimmer {
-  0%   { left: 100%; }
-  100% { left: -200%; }
+  0% {
+    left: 100%;
+  }
+  100% {
+    left: -200%;
+  }
 }
 
 /* 2) Make all text inputs at least 16px so Safari won’t auto-zoom on focus */
@@ -120,8 +126,6 @@ html {
 .modals {
   z-index: 2400;
 }
-
-
 
 .truncate {
   white-space: nowrap;
@@ -202,6 +206,29 @@ li::marker {
   padding: 20px;
   outline: none;
   transition: height 0.3s ease; /* Smooth height transition */
+}
+.modal-content-offer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background-color: white;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  padding: 4px;
+  z-index: 9000;
+  outline: none;
+  transition: transform 0.3s ease-in-out;
+  transform: translateY(0);
+}
+.offer-overlay {
+  position: fixed;
+  inset: 0;                          /* top:0 right:0 bottom:0 left:0 */
+  background: rgba(0, 0, 0, 0.20);    /* subtle dim so blur is visible */
+  backdrop-filter: blur(6px);         /* the blur */
+  -webkit-backdrop-filter: blur(6px); /* Safari */
+  z-index: 8990;                      /* below the sheet (sheet is 9000) */
 }
 @keyframes fade-in {
   0% {

@@ -650,6 +650,7 @@ const VendorRatings = () => {
             setShowModal(true);
           }}
           mergeCart={mergeCarts}
+          headerText = "Let’s set up your review"
           openDisclaimer={openDisclaimer}
         />
       </div>

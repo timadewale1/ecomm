@@ -19,7 +19,7 @@ const VendorBottomBar = ({ isSearchFocused }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser } = useAuth();
-
+  const [unreadOffersCount, setUnreadOffersCount] = useState(0);
   // State for pending orders (existing)
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
   // New: state for “unread chats” (inquiries that vendor hasn't marked as read)
@@ -98,7 +98,24 @@ const VendorBottomBar = ({ isSearchFocused }) => {
     });
     return unsubscribe;
   }, [currentUser]);
-
+  // Listen for unread offers (grouped by thread, counting unique threads with at least one unread offer)
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+    const offersRef = collection(db, "offers");
+    const q = query(offersRef, where("vendorId", "==", currentUser.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const threadMap = new Map();
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        if (!data.vendorRead) {
+          const threadKey = `${data.buyerId}_${data.productId}`;
+          threadMap.set(threadKey, true);
+        }
+      });
+      setUnreadOffersCount(threadMap.size);
+    });
+    return unsubscribe;
+  }, [currentUser]);
   const handleClick = (index, route) => {
     setActiveNav(index);
     navigate(route);
@@ -127,10 +144,10 @@ const VendorBottomBar = ({ isSearchFocused }) => {
               <Badge count={pendingOrdersCount} />
             )}
 
-            {/* Badge for unread chats */}
-            {item.label === "Chats" && unreadChatsCount > 0 && (
-              <Badge count={unreadChatsCount} />
-            )}
+            {item.label === "Chats" &&
+              unreadChatsCount + unreadOffersCount > 0 && (
+                <Badge count={unreadChatsCount + unreadOffersCount} />
+              )}
           </div>
         ))}
       </div>

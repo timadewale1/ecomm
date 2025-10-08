@@ -13,10 +13,15 @@ import { useSelector } from "react-redux";
 import { useNavigation } from "../Context/Bottombarcontext";
 import Badge from "../Badge/Badge";
 import "../../styles/bottombar.css";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { db } from "../../firebase.config";
+import { useAuth } from "../../custom-hooks/useAuth";
 
 const BottomBar = React.memo(({ isSearchFocused }) => {
   const { activeNav, setActiveNav } = useNavigation();
   const location = useLocation();
+  const { currentUser } = useAuth();
+  const [unreadOffersCount, setUnreadOffersCount] = React.useState(0);
   const cart = useSelector((state) => state.cart);
   const cartItemCount = useMemo(() => {
     if (!cart || typeof cart !== "object") return 0; // Handle undefined or null cart
@@ -86,6 +91,25 @@ const BottomBar = React.memo(({ isSearchFocused }) => {
     [setActiveNav]
   );
 
+  // Listen for unread offers (grouped by thread, counting unique threads with at least one unread offer)
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+    const offersRef = collection(db, "offers");
+    const q = query(offersRef, where("buyerId", "==", currentUser.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const threadMap = new Map();
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        if (!data.buyerRead) {
+          const threadKey = `${data.vendorId}_${data.productId}`;
+          threadMap.set(threadKey, true);
+        }
+      });
+      setUnreadOffersCount(threadMap.size);
+    });
+    return unsubscribe;
+  }, [currentUser]);
+
   return (
     <div className="bottom-bar-wrapper" onClick={(e) => e.stopPropagation()}>
       <div className={`bottom-bar  ${isSearchFocused ? "under-keypad" : ""}`}>
@@ -107,6 +131,9 @@ const BottomBar = React.memo(({ isSearchFocused }) => {
                   <item.icon className="w-8 text-white opacity-50 h-[26px]" />
                   {item.label === "Cart" && cartItemCount > 0 && (
                     <Badge count={cartItemCount} />
+                  )}
+                  {item.label === "Profile" && unreadOffersCount > 0 && (
+                    <Badge count={unreadOffersCount} />
                   )}
                 </>
               )}

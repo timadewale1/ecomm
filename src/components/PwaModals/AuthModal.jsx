@@ -95,6 +95,7 @@ export default function QuickAuthModal({
   onComplete,
   mergeCart,
   openDisclaimer,
+  headerText = "Let’s set up your order",
   vendorId,
 }) {
   const navigate = useNavigate();
@@ -584,7 +585,7 @@ export default function QuickAuthModal({
         </button>
 
         <h3 className="text-lg font-opensans -translate-y-2 font-semibold mb-4">
-          Let’s set up your order
+          {headerText}
         </h3>
 
         {/* Google */}

@@ -1781,6 +1781,7 @@ const StorePage = () => {
         <QuickAuthModal
           open={authOpen}
           onClose={() => setAuthOpen(false)}
+          headerText = "Continue to follow"
           onComplete={() => {
             setAuthOpen(false);
             const unsub = onAuthStateChanged(auth, (u) => {

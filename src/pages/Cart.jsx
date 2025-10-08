@@ -1093,6 +1093,7 @@ const Cart = () => {
           onClose={() => setAuthOpen(false)}
           onComplete={handleAuthComplete}
           openDisclaimer={openDisclaimer}
+          headerText = "Continue to checkout"
           vendorId={pendingVendorForCheckout}
         />
         <IframeModal

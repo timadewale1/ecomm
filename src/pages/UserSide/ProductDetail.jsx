@@ -10,7 +10,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart, removeFromCart } from "../../redux/actions/action";
 import { fetchProduct } from "../../redux/actions/productaction";
-
+import { mergeCarts } from "../../services/cartMerge";
+import QuickAuthModal from "../../components/PwaModals/AuthModal";
 import { useTawk } from "../../components/Context/TawkProvider";
 import Loading from "../../components/Loading/Loading";
 import { PiShoppingCartBold } from "react-icons/pi";
@@ -285,14 +286,17 @@ const ProductDetailPage = () => {
   const [selectedVariantStock, setSelectedVariantStock] = useState(0);
   const [allImages, setAllImages] = useState([]);
   const [isLinkCopied, setIsLinkCopied] = useState(false);
-
+  const [showQuickAuth, setShowQuickAuth] = useState(false);
   const currentUser = auth.currentUser;
   const userData = useSelector((state) => state.user.userData);
   const [isAskModalOpen, setIsAskModalOpen] = useState(false);
   const [questionText, setQuestionText] = useState("");
   // Inside your ProductDetailPage component
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [disclaimerUrl, setDisclaimerUrl] = useState("");
+  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
   const [showModal, setShowModal] = useState(false);
+
   const [hdImages, setHdImages] = useState([]);
   const [loadedHd, setLoadedHd] = useState(new Set());
   const [loadingHd, setLoadingHd] = useState(new Set());
@@ -1340,7 +1344,13 @@ const ProductDetailPage = () => {
       toast.error("Failed to copy the link. Please try again.");
     }
   };
-
+  const openDisclaimer = (path) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const abs = `${window.location.origin}${path}`;
+    setDisclaimerUrl(abs);
+    setShowDisclaimerModal(true);
+  };
   if (loading) {
     return <Loading />;
   }
@@ -2500,6 +2510,17 @@ const ProductDetailPage = () => {
             </button>
           </div>
         </Modal>
+        <QuickAuthModal
+          open={showQuickAuth}
+          onClose={() => setShowQuickAuth(false)}
+          onComplete={(user) => {
+            setShowQuickAuth(false);
+            setOfferModalOpen(true); // Open offer sheet after successful auth
+          }}
+          mergeCart={mergeCarts}
+          openDisclaimer={openDisclaimer}
+          headerText="Sign in to send an offer"
+        />
         <OfferSheet
           isOpen={offerModalOpen}
           onClose={() => setOfferModalOpen(false)}
@@ -2587,9 +2608,8 @@ const ProductDetailPage = () => {
               <button
                 onClick={() => {
                   if (!currentUser) {
-                    return navigate("/login", {
-                      state: { from: location.pathname },
-                    });
+                    setShowQuickAuth(true);
+                    return;
                   }
                   setOfferModalOpen(true);
                 }}

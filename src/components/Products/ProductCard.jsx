@@ -14,6 +14,11 @@ import {
   deleteDoc,
   updateDoc,
   increment,
+  collection,
+  query,
+  where,
+  getDocs,
+  limit as qLimit,
 } from "firebase/firestore";
 
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
@@ -23,8 +28,11 @@ import { useFavorites } from "../../components/Context/FavoritesContext";
 
 import { handleUserActionLimit } from "../../services/userWriteHandler";
 import IkImage from "../../services/IkImage";
-import { IoIosFlash } from "react-icons/io";
 import Sales from "../Loading/Sales";
+
+// keep this cache OUTSIDE the component so it persists between renders
+const offerCache = new Map();
+
 const ProductCard = ({
   product,
   isLoading,
@@ -52,7 +60,7 @@ const ProductCard = ({
   // Fetch vendor's marketplace type from Firestore
   useEffect(() => {
     const fetchVendorMarketplaceType = async () => {
-      if (!product.vendorId) return;
+      if (!product?.vendorId) return;
       try {
         const vendorRef = doc(db, "vendors", product.vendorId);
         const vendorDoc = await getDoc(vendorRef);
@@ -68,19 +76,140 @@ const ProductCard = ({
       }
     };
     fetchVendorMarketplaceType();
-  }, [product.vendorId]);
+  }, [product?.vendorId]);
+
   useEffect(() => {
     if (typeof product?.wishCount === "number") setWishCount(product.wishCount);
   }, [product?.wishCount]);
+
   useEffect(() => {
     const id = setInterval(() => setMetaIndex((i) => (i + 1) % 3), 2500);
     return () => clearInterval(id);
   }, []);
+
   const handleCardClick = () => {
     if (!isLoading && product?.stockQuantity > 0) {
       navigate(`/product/${product.id}`);
     }
   };
+
+  // ---- Offer helpers ----
+  const parseTS = (ts) => (ts?.toDate ? ts.toDate() : ts ? new Date(ts) : null);
+
+  // embedded shapes your API might attach to the product
+  const embeddedOffer =
+    product?.userOffer || product?.offer || product?.priceLock || null;
+
+  // if not embedded, try fetch user’s active lock for this product (once)
+  const [lockFromDB, setLockFromDB] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    // only fetch if user is logged in, product id exists, and no embedded offer
+    if (!currentUser?.uid || !product?.id || embeddedOffer) return;
+    const key = `${currentUser.uid}:${product.id}`;
+    const cached = offerCache.get(key);
+    if (cached !== undefined) {
+      setLockFromDB(cached);
+      return;
+    }
+    (async () => {
+      try {
+        const q = query(
+          collection(db, "priceLocks"),
+          where("buyerId", "==", currentUser.uid),
+          where("productId", "==", product.id),
+          where("state", "==", "active"),
+          qLimit(1)
+        );
+        const snap = await getDocs(q);
+        if (!alive) return;
+        if (!snap.empty) {
+          const d = { id: snap.docs[0].id, ...snap.docs[0].data() };
+          offerCache.set(key, d);
+          setLockFromDB(d);
+        } else {
+          offerCache.set(key, null);
+          setLockFromDB(null);
+        }
+      } catch (e) {
+        console.error("[ProductCard] priceLock lookup failed:", e);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [currentUser?.uid, product?.id, embeddedOffer]);
+
+  const effectiveOffer = embeddedOffer || lockFromDB;
+
+  // pick the price (support common fields)
+  const offerAmount =
+    effectiveOffer?.effectivePrice ??
+    effectiveOffer?.price ??
+    effectiveOffer?.amount ??
+    null;
+
+  // prefer explicit expiry; otherwise assume a 6h lock window from createdAt
+  const explicitExpiry =
+    parseTS(
+      effectiveOffer?.validUntil ??
+        effectiveOffer?.expiresAt ??
+        effectiveOffer?.endsAt
+    ) || null;
+  const createdAt = parseTS(
+    effectiveOffer?.createdAt ?? effectiveOffer?.created_on
+  );
+  const fallbackExpiry =
+    !explicitExpiry && createdAt
+      ? new Date(
+          createdAt.getTime() +
+            (effectiveOffer?.offerWindowHours ?? 6) * 60 * 60 * 1000
+        )
+      : null;
+  const offerExpiry = explicitExpiry || fallbackExpiry;
+
+  // consider it active if it has a price and is not expired
+  const hasOfferActive =
+    offerAmount != null &&
+    (!offerExpiry || offerExpiry.getTime() > Date.now()) &&
+    !["expired", "revoked", "cancelled"].includes(
+      String(
+        effectiveOffer?.state || effectiveOffer?.status || ""
+      ).toLowerCase()
+    );
+
+  // live countdown text like “2h 03m” or “12m 09s”
+  const [offerCountdown, setOfferCountdown] = useState("");
+  useEffect(() => {
+    if (!hasOfferActive || !offerExpiry) {
+      setOfferCountdown("");
+      return;
+    }
+    const fmt = (ms) => {
+      const s = Math.max(0, Math.floor(ms / 1000));
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      if (h > 0) return `${h}h ${m.toString().padStart(2, "0")}m`;
+      return `${m}m ${sec.toString().padStart(2, "0")}s`;
+    };
+    const tick = () =>
+      setOfferCountdown(fmt(offerExpiry.getTime() - Date.now()));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [hasOfferActive, offerExpiry]);
+
+  // main price to render
+  const displayPrice = hasOfferActive
+    ? Number(offerAmount)
+    : Number(product?.price || 0);
+
+  // for the struck-out “was” price when offer is active
+  const listPriceForStrike = Number(
+    product?.discount?.initialPrice ?? product?.price ?? 0
+  );
+
   const handleVendorClick = (e) => {
     e.stopPropagation();
     if (vendorMarketplaceType === "virtual") {
@@ -104,10 +233,8 @@ const ProductCard = ({
   const handleFavoriteToggle = async (e) => {
     e.stopPropagation();
 
-    // 1) Save old state so we can revert if something fails
     const wasFavorite = favorite;
 
-    // 2) Immediately toggle local state (optimistic update)
     if (favorite) {
       removeFavorite(product.id);
       toast.info(`Removed ${product.name} from favorites!`);
@@ -117,28 +244,22 @@ const ProductCard = ({
       toast.success(`Added ${product.name} to favorites!`);
     }
 
-    // 3) If user not logged in => we do local only, done
-    if (!currentUser) {
-      return;
-    }
+    if (!currentUser) return;
 
-    // 4) If user is logged in => enforce rate limit, then Firestore
     try {
-      // Rate limit check
       await handleUserActionLimit(
         currentUser.uid,
         "favorite",
         {},
         {
           collectionName: "usage_metadata",
-          writeLimit: 50, // universal writes/hour
-          minuteLimit: 10, // 10 favorites/min
-          hourLimit: 80, // 80 favorites/hour
-          dayLimit: 120, // 120 favorites/day
+          writeLimit: 50,
+          minuteLimit: 10,
+          hourLimit: 80,
+          dayLimit: 120,
         }
       );
 
-      // Firestore doc references
       const favDocRef = doc(
         db,
         "users",
@@ -149,35 +270,25 @@ const ProductCard = ({
       const vendorDocRef = doc(db, "vendors", product.vendorId);
 
       if (wasFavorite) {
-        // Previously was a favorite => means user wants to remove it
         await deleteDoc(favDocRef);
-        // Do nothing to the vendor's likesCount so it never decrements
       } else {
-        // Previously not favorite => means user wants to add it
         await setDoc(favDocRef, {
           productId: product.id,
-          vendorId: product.vendorId, // Store vendor ID here
+          vendorId: product.vendorId,
           name: product.name,
           price: product.price,
           createdAt: new Date(),
         });
-        // Increment vendor's likesCount
         await updateDoc(vendorDocRef, { likesCount: increment(1) });
       }
     } catch (err) {
       console.error("Error updating favorites:", err);
-
-      // 5) Revert the local favorite state if there's an error
       if (wasFavorite) {
-        // If it was a favorite, we re-add it because we optimistically removed it
         addFavorite(product);
         setWishCount((c) => c + 1);
       } else {
-        // If it was not a favorite, we remove it because we optimistically added it
         removeFavorite(product.id);
       }
-
-      // Show user the error
       toast.error(
         err.message || "Failed to update favorites. Please try again."
       );
@@ -186,7 +297,7 @@ const ProductCard = ({
 
   // Utility to format price
   const formatPrice = (price) => {
-    return price.toLocaleString(undefined, {
+    return Number(price || 0).toLocaleString(undefined, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
@@ -195,7 +306,7 @@ const ProductCard = ({
   // Utility to display condition
   const renderCondition = (condition) => {
     if (!condition) return null;
-    const lower = condition.toLowerCase();
+    const lower = String(condition).toLowerCase();
     if (lower.includes("defect"))
       return <p className="text-xs text-red-500">{condition}</p>;
     if (lower.includes("brand new"))
@@ -208,8 +319,8 @@ const ProductCard = ({
   // The product’s main image
   const firebaseImage = product?.productCoverImage || product?.coverImageUrl;
   const lowResImg = getImageKitUrl(firebaseImage, "w-60,q-20,bl-6");
-
   const highResImg = getImageKitUrl(firebaseImage);
+
   // Pick sub-product thumbs (first image of each subProduct)
   const subThumbs = Array.isArray(product?.subProducts)
     ? product.subProducts
@@ -221,57 +332,88 @@ const ProductCard = ({
   const displayThumbs = subThumbs.slice(0, 2);
   const extraCount = Math.max(0, subThumbs.length - displayThumbs.length);
 
+  // derive discount label (fallback if percentageCut missing)
+  const derivedPercent =
+    product?.discount?.percentageCut ??
+    (product?.discount?.initialPrice && product?.price
+      ? Math.round(
+          (1 - Number(product.price) / Number(product.discount.initialPrice)) *
+            100
+        )
+      : null);
+
   return (
     <>
       {/* --- MAIN CARD --- */}
       <div
         className={`product-card relative mb-2 cursor-pointer ${
-          product.stockQuantity === 0 ? "opacity-50 pointer-events-none" : ""
+          product?.stockQuantity === 0 ? "opacity-50 pointer-events-none" : ""
         }`}
         onClick={handleCardClick}
-        style={{
-          width: "100%",
-          margin: "0",
-        }}
+        style={{ width: "100%", margin: "0" }}
       >
         <div className="relative">
           {isLoading ? (
             <Skeleton height={160} />
           ) : (
             <>
-              {/* Discount Badge at top left */}
-              {product.discount && (
-                <div className="absolute top-2 zen right-2 ">
-                  {product.discount.discountType.startsWith(
+              {/* Top-right discount badge (hidden when an offer is active) */}
+              {!hasOfferActive && !!product?.discount && (
+                <div className="absolute top-2 right-2 z-10">
+                  {product?.discount?.discountType?.startsWith(
                     "personal-freebies"
                   ) ? (
                     <div className="bg-customPink text-customOrange text-xs px-2 py-1.5 font-opensans font-medium rounded">
-                      {product.discount.freebieText}
+                      {product?.discount?.freebieText}
                     </div>
                   ) : (
                     <div className="bg-customPink text-customOrange text-xs px-2 py-1.5 font-opensans font-medium rounded">
-                      -{product.discount.percentageCut}%
+                      {derivedPercent != null ? `-${derivedPercent}%` : "SALE"}
                     </div>
                   )}
                 </div>
               )}
-              {product.discount &&
-                product.discount.discountType.startsWith("inApp") && (
-                  <img
-                    src="/Ribbon.svg"
-                    alt="Discount Ribbon"
-                    className="absolute top-0 left-0 w-12 h-12 "
-                  />
-                )}
 
-              {/* blurred preview */}
+              {/* Offer badge (top-left) */}
+              {hasOfferActive && (
+                <div className="absolute top-2 left-2 z-1">
+                  <div
+                    className="
+                      inline-flex items-center gap-1.5 px-2 py-1 rounded-full
+                      bg-amber-50 text-amber-800 ring-1 ring-amber-200
+                      shadow-[inset_0_0_0_1px_rgba(255,255,255,0.4)]
+                      text-[11px] font-semibold
+                    "
+                  >
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    <span>Offer</span>
+                    {offerCountdown ? (
+                      <span className="opacity-70 font-opensans">· {offerCountdown}</span>
+                    ) : (
+                      <span className="opacity-60 font-opensans">· active</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Optional ribbon (safe-guarded) */}
+              {product?.discount?.discountType?.startsWith("inApp") && (
+                <img
+                  src="/Ribbon.svg"
+                  alt="Discount Ribbon"
+                  className="absolute top-0 left-0 w-12 h-12 z-10"
+                />
+              )}
+
+              {/* main image */}
               <IkImage
                 src={firebaseImage}
-                alt={product.name}
+                alt={product?.name}
                 className="h-52 object-cover rounded-md w-full"
               />
             </>
           )}
+
           {/* Floating sub-product thumbs (bottom-left) */}
           {displayThumbs.length > 0 && (
             <motion.div
@@ -326,7 +468,7 @@ const ProductCard = ({
 
           {/* Favorite Icon */}
           <motion.div
-            className="absolute bottom-2 right-2 cursor-pointer w-9 h-9 rounded-full bg-white border flex items-center justify-center shadow-md"
+            className="absolute bottom-2 right-2 cursor-pointer w-9 h-9 rounded-full bg-white border flex items-center justify-center shadow-md z-1"
             onClick={handleFavoriteToggle}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
@@ -335,18 +477,12 @@ const ProductCard = ({
               liked: {
                 scale: [1, 1.3, 1],
                 rotate: [0, -5, 5, 0],
-                transition: {
-                  duration: 0.6,
-                  ease: "easeInOut",
-                },
+                transition: { duration: 0.6, ease: "easeInOut" },
               },
               unliked: {
                 scale: 1,
                 rotate: 0,
-                transition: {
-                  duration: 0.2,
-                  ease: "easeOut",
-                },
+                transition: { duration: 0.2, ease: "easeOut" },
               },
             }}
           >
@@ -355,28 +491,16 @@ const ProductCard = ({
               variants={{
                 filled: {
                   scale: [0.8, 1.2, 1],
-                  transition: {
-                    duration: 0.4,
-                    ease: "backOut",
-                  },
+                  transition: { duration: 0.4, ease: "backOut" },
                 },
-                empty: {
-                  scale: 1,
-                  transition: {
-                    duration: 0.2,
-                  },
-                },
+                empty: { scale: 1, transition: { duration: 0.2 } },
               }}
             >
               {favorite ? (
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 500,
-                    damping: 15,
-                  }}
+                  transition={{ type: "spring", stiffness: 500, damping: 15 }}
                 >
                   <RiHeart3Fill className="text-red-500 text-2xl" />
                 </motion.div>
@@ -393,8 +517,8 @@ const ProductCard = ({
           </motion.div>
 
           {/* Out of Stock Overlay */}
-          {product.stockQuantity === 0 && (
-            <div className="absolute inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center rounded-lg">
+          {product?.stockQuantity === 0 && (
+            <div className="absolute inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center rounded-lg z-10">
               <p className="text-red-700 font-semibold text-2xl animate-pulse">
                 Sold Out!
               </p>
@@ -411,7 +535,7 @@ const ProductCard = ({
               ) : (
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div
-                    key={metaIndex} // switch on index for animation
+                    key={metaIndex}
                     initial={{ y: 10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: -10, opacity: 0 }}
@@ -419,17 +543,15 @@ const ProductCard = ({
                     className="text-xs font-opensans font-light leading-none [&_p]:m-0"
                   >
                     {metaIndex === 0 ? (
-                      /* keep your condition styles; we just zero <p> margins using [&_p]:m-0 above */
-                      renderCondition(product.condition)
+                      renderCondition(product?.condition)
                     ) : metaIndex === 1 ? (
-                      /* subType pill */
                       product?.subType ? (
                         <span
                           className="
-                inline-flex items-center ml-0.5 gap-1 px-2 h-4
-                rounded-full bg-orange-50 text-orange-700
-                ring-1 ring-orange-200
-              "
+                            inline-flex items-center ml-0.5 gap-1 px-2 h-4
+                            rounded-full bg-orange-50 text-orange-700
+                            ring-1 ring-orange-200
+                          "
                         >
                           <span className="text-[10px] -mt-[1px]">🏷️</span>
                           <span className="text-[10px] leading-none truncate max-w-[140px]">
@@ -438,13 +560,12 @@ const ProductCard = ({
                         </span>
                       ) : null
                     ) : (
-                      /* wishlist pill */
                       <span
                         className="
-              inline-flex items-center ml-0.5 gap-1 px-2 h-4
-              rounded-full bg-rose-50 text-rose-700
-              ring-1 ring-rose-200
-            "
+                          inline-flex items-center ml-0.5 gap-1 px-2 h-4
+                          rounded-full bg-rose-50 text-rose-700
+                          ring-1 ring-rose-200
+                        "
                       >
                         <RiHeart3Fill className="text-[10px]" />
                         <span className="text-[10px] leading-none truncate max-w-[160px]">
@@ -462,39 +583,49 @@ const ProductCard = ({
 
           {showName && (
             <h3 className="text-sm font-opensans font-medium mt-1">
-              {isLoading ? <Skeleton width={100} /> : product.name}
+              {isLoading ? <Skeleton width={100} /> : product?.name}
             </h3>
           )}
+
           <div className="mt-1">
             {/* Price + flash sale on one line */}
             <div className="mt-1 relative">
-              {/* Price on one line */}
+              {/* Main price */}
               <p className="text-black text-lg font-opensans font-bold">
                 {isLoading ? (
                   <Skeleton width={50} />
                 ) : (
-                  `₦${formatPrice(product.price)}`
+                  `₦${formatPrice(displayPrice)}`
                 )}
               </p>
 
-              {/* Flash badge, absolutely positioned */}
-              {product.flashSales && (
+              {/* Flash badge */}
+              {product?.flashSales && (
                 <div className="absolute -top-2 right-2 w-9 h-9">
                   <Sales />
                 </div>
               )}
 
-              {/* Crossed‑out beneath */}
-              {product.discount?.initialPrice &&
-                product.discount.discountType !== "personal-freebies" && (
-                  <p className="text-sm font-opensans text-gray-500 line-through mt-1">
-                    ₦{formatPrice(product.discount.initialPrice)}
-                  </p>
-                )}
+              {/* Struck-out “was” price (no double slashing) */}
+              {isLoading
+                ? null
+                : hasOfferActive
+                ? listPriceForStrike > 0 &&
+                  listPriceForStrike !== displayPrice && (
+                    <p className="text-sm font-opensans text-gray-500 line-through mt-1">
+                      ₦{formatPrice(listPriceForStrike)}
+                    </p>
+                  )
+                : product?.discount?.initialPrice &&
+                  product?.discount?.discountType !== "personal-freebies" && (
+                    <p className="text-sm font-opensans text-gray-500 line-through mt-1">
+                      ₦{formatPrice(product.discount.initialPrice)}
+                    </p>
+                  )}
             </div>
           </div>
 
-          {showVendorName && product.vendorName && (
+          {showVendorName && product?.vendorName && (
             <p
               className="text-xs font-opensans font-light text-gray-600 underline cursor-pointer"
               onClick={handleVendorClick}

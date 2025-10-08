@@ -42,6 +42,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 import SEO from "../components/Helmet/SEO";
 import LinkAccountModal from "../components/QuickMode/LinkAccountModal";
+import VendorRedirectModal from "../components/layout/VendorRedirectModal";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -52,6 +53,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [socialLoading, setSocialLoading] = useState(false);
+  const [showVendorModal, setShowVendorModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
@@ -283,6 +285,7 @@ const Login = () => {
       if (uData.role !== "user") {
         await auth.signOut();
         setLoading(false);
+        setShowVendorModal(true);
         return toast.error("This email is already used for a Vendor account!");
       }
 
@@ -450,6 +453,7 @@ const Login = () => {
         }
 
         setSocialLoading(false);
+        setShowVendorModal(true);
         toast.error("This email is already used for a Vendor account!");
         posthog?.capture("login_blocked_vendor_email", { method: "google" });
         return;
@@ -555,6 +559,7 @@ const Login = () => {
           await auth.signOut();
         } catch {}
         toast.error("This email is already used for a Vendor account!");
+        setShowVendorModal(true);
         posthog?.capture("login_blocked_vendor_email", { method: "twitter" });
         return;
       }
@@ -696,6 +701,10 @@ const Login = () => {
         open={showLinkDialog}
         onClose={() => setShowLinkDialog(false)}
         onSubmit={linkAnonymousAccount}
+      />
+      <VendorRedirectModal
+        open={showVendorModal}
+        onClose={() => setShowVendorModal(false)}
       />
       {socialLoading && (
         <div className="fixed inset-0 z-[9999] bg-white/70 backdrop-blur-sm flex items-center justify-center">

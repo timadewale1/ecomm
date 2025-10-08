@@ -1357,7 +1357,7 @@ const StorePage = () => {
           {/* Header - Different styles based on state */}
           {isSearching ? (
             <div
-              className="fixed top-0 left-0 right-0 z-10
+              className="fixed top-0 left-0 right-0 z-20
           flex items-center justify-between p-4 bg-gradient-to-b from-white to-transparent"
             >
               <div className="flex items-center w-full relative px-2">
@@ -1386,7 +1386,7 @@ const StorePage = () => {
           ) : quickForThisVendor ? (
             <div
               className={`
-          fixed top-0 left-0 right-0 z-10
+          fixed top-0 left-0 right-0 z-20
           flex items-center justify-between p-4 bg-gradient-to-b from-white/40 to-transparent
         `}
             >
@@ -1457,7 +1457,7 @@ const StorePage = () => {
               {/* Glassmorphism header over image */}
               <div
                 className={`
-          fixed top-0 left-0 right-0 z-10
+          fixed top-0 left-0 right-0 z-20
           flex items-center justify-between p-4 bg-gradient-to-b from-white/40 to-transparent
         `}
               >

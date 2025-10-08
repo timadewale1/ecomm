@@ -161,8 +161,9 @@ const Homepage = () => {
     if (promoImages.length === 0) {
       // Fetch promo images only if they are not already in Redux
       const images = [
-        "https://res.cloudinary.com/dtaqusjav/image/upload/v1759533092/3_vieo6p.png",
         
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1759533092/3_vieo6p.png",
+        "https://res.cloudinary.com/dtaqusjav/image/upload/v1759915853/You_can_Now_Make_an_Offer_rsuxkj.png",
         "https://res.cloudinary.com/dtaqusjav/image/upload/v1759533092/4_nmxdbr.png",
         "https://res.cloudinary.com/dtaqusjav/image/upload/v1759535352/promo_cards_gyz5yi.png"
       ];
@@ -334,7 +335,7 @@ const Homepage = () => {
                       onClick={() => {
                         if (index === 0) {
                           navigate("/store/k4Wu4jYuIcfQRkrMKRzk9LkUmht1");
-                        } else if (index === 2) {
+                        } else if (index === 3) {
                           // internal navigation for all others
                           navigate("/products/condition/brand-new");
                         }

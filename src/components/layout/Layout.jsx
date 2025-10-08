@@ -40,6 +40,7 @@ const Layout = () => {
     "/vendorlogin",
     "/vendor-signup",
     "/complete-profile",
+    
     "/newcheckout/bookingfee",
     "your-wallet",
     "/newcheckout/fulldelivery",
@@ -57,6 +58,7 @@ const Layout = () => {
     "/market-vendors",
     "/online-vendors",
     "market-vendors",
+    "/offers",
     "/vendor-verify-otp",
     "/not-found",
     "/confirm-email",
@@ -80,6 +82,7 @@ const Layout = () => {
     "/vchats/:inquiryId",
     "/payment-approve/:reference",
     "category/:id",
+    "/offers/:offerId",
     "/pay/:token",
     "marketstorepage/:id",
     "/newcheckout/:vendorId",

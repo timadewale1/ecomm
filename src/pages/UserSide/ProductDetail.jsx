@@ -10,6 +10,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart, removeFromCart } from "../../redux/actions/action";
 import { fetchProduct } from "../../redux/actions/productaction";
+
+import { useTawk } from "../../components/Context/TawkProvider";
 import Loading from "../../components/Loading/Loading";
 import { PiShoppingCartBold } from "react-icons/pi";
 import { FaExclamationTriangle, FaSmileBeam, FaStar } from "react-icons/fa";
@@ -59,6 +61,7 @@ import {
 } from "../../redux/reducers/quickModeSlice";
 import { findVariant } from "../../services/getVariant";
 import RelatedProducts from "./SimilarProducts";
+import { usePriceLock } from "../../services/usePriceLock";
 import Productnotofund from "../../components/Loading/Productnotofund";
 import { decreaseQuantity, increaseQuantity } from "../../redux/actions/action";
 import { AiOutlineHome } from "react-icons/ai";
@@ -74,6 +77,9 @@ import { useFavorites } from "../../components/Context/FavoritesContext";
 import { BsBadgeHdFill } from "react-icons/bs";
 import { HiOutlineShoppingBag } from "react-icons/hi";
 import { FcShop } from "react-icons/fc";
+import { BiInfoCircle, BiSolidOffer } from "react-icons/bi";
+
+import OfferSheet from "../../components/Offers/OfferModal";
 Modal.setAppElement("#root");
 
 const debounce = (func, delay) => {
@@ -186,6 +192,49 @@ const HdHintOverlay = () => (
     </motion.div>
   </motion.div>
 );
+// put this once (or update your existing one)
+const AnimatedPriceSwap = ({
+  items,
+  interval = 1800,
+  className = "",
+  itemClassName = "",
+}) => {
+  const [idx, setIdx] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!items?.length || items.length < 2) return;
+    const t = setInterval(
+      () => setIdx((i) => (i + 1) % items.length),
+      interval
+    );
+    return () => clearInterval(t);
+  }, [items, interval]);
+
+  if (!items?.length) return null;
+
+  // 1 item: just render it with your styles, no animation
+  if (items.length === 1) {
+    return <span className={`${className} ${itemClassName}`}>{items[0]}</span>;
+  }
+
+  return (
+    <span className={`relative overflow-hidden inline-flex ${className}`}>
+      <AnimatePresence initial={false} mode="wait">
+        <motion.span
+          key={idx}
+          initial={{ y: 12, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -12, opacity: 0 }}
+          transition={{ duration: 0.22 }}
+          className={itemClassName}
+        >
+          {items[idx]}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  );
+};
+
 const ProductDetailPage = () => {
   const { id } = useParams();
   const showHdHint = useHdHint(id);
@@ -224,6 +273,9 @@ const ProductDetailPage = () => {
   const { isActive, vendorId } = useSelector((state) => state.stockpile);
   const [isSending, setIsSending] = useState(false);
   const [isThankYouOpen, setIsThankYouOpen] = useState(false);
+  const [offerModalOpen, setOfferModalOpen] = useState(false);
+
+  const [isOfferInfoOpen, setOfferInfoOpen] = useState(false);
 
   const [vendor, setVendor] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -259,12 +311,40 @@ const ProductDetailPage = () => {
   const cart = useSelector((state) => state.cart || {});
   const [showHeader, setShowHeader] = useState(true);
   const prevScrollPos = useRef(0);
+  // put with other constants
+  const OFFER_SENT_ONCE_KEY = "mythrift_offer_sent_once_v1";
+
+  // put with other state
+  const [offerSentModalOpen, setOfferSentModalOpen] = useState(false);
+
   // Local Favorites Context
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const favorite = isFavorite(product?.id);
   const { isActive: quickMode = false, vendorId: basketVendorId = null } =
     useSelector((state) => selectQuickMode(state) ?? {});
+  const offerPriceFromState = location.state?.offerPrice;
 
+  // NEW: show one-time toast after arriving via shared link with price
+  useEffect(() => {
+    if (!isShared) return;
+    if (
+      typeof offerPriceFromState === "number" &&
+      !Number.isNaN(offerPriceFromState)
+    ) {
+      const priceText = Number(offerPriceFromState).toLocaleString("en-NG", {
+        style: "currency",
+        currency: "NGN",
+        maximumFractionDigits: 0,
+      });
+      toast.success(`You can now buy this item for ${priceText}`);
+      // clear state so toast doesn’t repeat on re-renders/navigation
+      navigate(location.pathname + location.search, {
+        replace: true,
+        state: {},
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isShared, offerPriceFromState]);
   useEffect(() => {
     const handleScroll = () => {
       const currentPos = window.scrollY;
@@ -484,6 +564,9 @@ const ProductDetailPage = () => {
     setSelectedSize(subProduct.size);
     setAllImages(subProduct.images || []);
     setAvailableColors([subProduct.color]);
+    setHdImages([]);
+    setLoadedHd(new Set());
+    setLoadingHd(new Set());
     setAvailableSizes([subProduct.size]);
   };
 
@@ -584,6 +667,15 @@ const ProductDetailPage = () => {
       ),
     [vendorCartProducts]
   );
+  /* NGN currency with two decimals */
+  const NGN = (n) =>
+    Number(n || 0).toLocaleString("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
   useEffect(() => {
     if (product && product.variants) {
       const uniqueSizes = Array.from(
@@ -814,6 +906,21 @@ const ProductDetailPage = () => {
     selectedImage,
     cart,
   ]);
+  const handleOfferSubmitted = useCallback(() => {
+    // only show once on this device
+    const seen = localStorage.getItem(OFFER_SENT_ONCE_KEY);
+    if (!seen) {
+      setOfferSentModalOpen(true);
+      localStorage.setItem(
+        OFFER_SENT_ONCE_KEY,
+        JSON.stringify({ seen: true, ts: Date.now() })
+      );
+    } else {
+      console.log("Offer sent!");
+    }
+    // close the offer sheet if still open
+    setOfferModalOpen(false);
+  }, []);
 
   const handleSendQuestion = useCallback(async () => {
     console.log("[Q&A] send button clicked, questionText:", questionText);
@@ -832,7 +939,7 @@ const ProductDetailPage = () => {
         currentUser.uid,
         "askQuestion",
         {}, // no extra userData
-        { dayLimit: 3 } // cap at 3 per 24 hours
+        { dayLimit: 20 } // cap at 3 per 24 hours
       );
     } catch (limitError) {
       // Rate limit hit: hide spinner and show error instantly
@@ -871,7 +978,15 @@ const ProductDetailPage = () => {
       setIsSending(false);
     }
   }, [questionText, id, product, currentUser, db]);
+  const uid = currentUser?.uid ?? null;
+  const priceLock = usePriceLock(db, uid, product?.id);
 
+  // Derive the price to show
+  const effectivePrice = priceLock?.effectivePrice
+    ? Number(priceLock.effectivePrice)
+    : null;
+  const displayPrice = effectivePrice ?? Number(product?.price || 0);
+  const { openChat } = useTawk();
   const handleIncreaseQuantity = useCallback(() => {
     console.log("Increase Quantity Triggered");
     console.log("Product:", product);
@@ -1053,6 +1168,12 @@ const ProductDetailPage = () => {
     setAvailableSizes(sizesForColor);
   };
 
+  const productCondition = (product?.condition || "").toLowerCase();
+  const isThriftCondition = productCondition.includes("thrift");
+  const isDefectCondition = productCondition.includes("defect");
+  const isBrandNewCondition = productCondition.includes("brand new");
+  const showMakeOffer = isThriftCondition || isDefectCondition;
+
   // Handle color selection and update sizes to show only available sizes for that color
   const handleColorClick = (color) => {
     if (selectedSubProduct) {
@@ -1200,6 +1321,10 @@ const ProductDetailPage = () => {
       ? product.color.split(",").map((color) => color.trim())
       : [];
 
+  const hasSubProducts = Array.isArray(subProducts) && subProducts.length > 0;
+  const hasVariants = Boolean(
+    isFashion && Array.isArray(product?.variants) && product.variants.length > 0
+  );
   const copyProductLink = async () => {
     try {
       const shareableLink = `https://mx.shopmythrift.store/product/${id}?shared=true`;
@@ -1219,7 +1344,20 @@ const ProductDetailPage = () => {
   if (loading) {
     return <Loading />;
   }
+  const getAvailableStock = () => {
+    if (selectedSubProduct) return Number(selectedSubProduct.stock || 0);
 
+    if (hasVariants) {
+      if (!selectedSize || !selectedColor) return 0;
+      const v = findVariant({ variants }, selectedSize, selectedColor);
+      return Number(v?.stock || 0);
+    }
+
+    return Number(product?.stockQuantity ?? product?.stock ?? 0);
+  };
+
+  const minOfferAmount = 1; // guard
+  const maxOfferQty = Math.max(1, getAvailableStock());
   if (error || !product) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
@@ -1770,39 +1908,80 @@ const ProductDetailPage = () => {
               {product.condition &&
               product.condition.toLowerCase().includes("defect") ? (
                 <div className="flex  items-center mt-2">
-                  <TbInfoTriangle className="text-red-500  cursor-pointer" />
-                  <p className="ml-2 text-xs text-red-500">
+                  <TbInfoTriangle className="text-red-500   cursor-pointer" />
+                  <p className="ml-2 text-xs font-opensans text-red-500">
                     {product.condition.replace(/:$/, "")}
                   </p>
                 </div>
               ) : product.condition.toLowerCase() === "brand new" ? (
                 <div className="flex items-center mt-2">
                   <TbSquareRoundedCheck className="text-green-700" />
-                  <p className="ml-2 text-xs text-green-700">Brand New</p>
+                  <p className="ml-2 text-xs font-opensans text-green-700">
+                    Brand New
+                  </p>
                 </div>
               ) : product.condition.toLowerCase() === "thrift" ? (
                 <div className="flex items-center mt-2">
                   <TbSquareRoundedCheck className="text-yellow-500" />
-                  <p className="ml-2 text-xs text-yellow-500">Thrift</p>
+                  <p className="ml-2 text-xs font-opensans text-yellow-500">
+                    Thrift
+                  </p>
                 </div>
               ) : null}
             </div>
           </div>
-          <p className="text-2xl font-opensans font-semibold text-black">
-            ₦{formatPrice(product.price)}
-          </p>
-          {product.discount &&
-            product.discount.initialPrice &&
-            product.discount.discountType !== "personal-freebies" && (
-              <p className="text-lg font-opensans text-gray-500 line-through">
-                ₦{formatPrice(product.discount.initialPrice)}
-              </p>
+          {/* MAIN price */}
+          <p className="text-2xl font-opensans items-center flex font-semibold text-black">
+            {NGN(displayPrice)}{" "}
+            {effectivePrice && (
+              <button
+                type="button"
+                onClick={() => setOfferInfoOpen(true)}
+                className=" ml-2 inline-flex  items-center gap-1 text-[9px] underline font-opensans  text-customOrange"
+              >
+                <BiInfoCircle className="text-base" />
+              </button>
             )}
+          </p>
+          {/* Offer is active – info link */}
+
+          {/* PREVIOUS price row (animated, same style as before) */}
+          {(() => {
+            const prevs = [];
+
+            // when there’s a locked/accepted price, show the regular product price as a reference
+            if (effectivePrice) {
+              prevs.push(NGN(Number(product.price || 0)));
+            }
+
+            // show discount initial price (if not a personal freebie)
+            if (
+              product?.discount &&
+              product.discount.initialPrice &&
+              product.discount.discountType !== "personal-freebies"
+            ) {
+              prevs.push(NGN(Number(product.discount.initialPrice)));
+            }
+
+            if (!prevs.length) return null;
+
+            return (
+              <AnimatedPriceSwap
+                items={prevs}
+                interval={1800}
+                className="mt-0.5 block" // keeps it on the line below
+                itemClassName="text-lg font-opensans text-gray-500 line-through"
+              />
+            );
+          })()}
+
           {vendorLoading ? (
             <LoadProducts className="mr-20" />
           ) : vendor ? (
             <div className="flex align- items-center mt-1">
-              <p className="text-sm text-red-600 mr-2">{vendor.shopName}</p>
+              <p className="text-sm font-opensans text-red-600 mr-2">
+                {vendor.shopName}
+              </p>
               {vendor.ratingCount > 0 && (
                 <div className="flex items-center">
                   <span className="mr-1 text-black font-medium ratings-text">
@@ -2019,8 +2198,7 @@ const ProductDetailPage = () => {
                   <p className="text-xs font-opensans text-gray-600 mb-4">
                     This is a single ask use it if you’re unsure of product
                     details or want to know more before buying. The vendor will
-                    reply as soon as possible. This feature is limited to 3 uses
-                    per day while in beta.
+                    reply as soon as possible.
                   </p>
 
                   <label className="block text-xs font-medium font-opensans text-gray-700 mb-1">
@@ -2066,6 +2244,94 @@ const ProductDetailPage = () => {
               </>
             )}
           </AnimatePresence>
+          <Modal
+            isOpen={isOfferInfoOpen}
+            onRequestClose={() => setOfferInfoOpen(false)}
+            className="modal-content-offer"
+            overlayClassName="offer-overlay backdrop-blur-md"
+            ariaHideApp={false}
+          >
+            <div className="p-3 relative">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
+                    <BiSolidOffer className="text-customRichBrown" />
+                  </div>
+                  <h2 className="font-opensans text-base font-semibold">
+                    About Offers
+                  </h2>
+                </div>
+                <MdOutlineClose
+                  onClick={() => setOfferInfoOpen(false)}
+                  className="text-gray-600 hover:text-black text-xl leading-none"
+                  aria-label="Close"
+                />
+              </div>
+
+              {/* Body */}
+              <div className="space-y-3">
+                <p className="text-sm text-gray-800 font-opensans">
+                  You’re seeing a special price because a seller <b>accepted</b>{" "}
+                  your offer or sent a <b>counter-offer</b> you can buy at for a
+                  limited time.
+                </p>
+
+                {/* Validity window */}
+                <div className="bg-gray-50 border border-gray-200 rounded-md p-2.5">
+                  <p className="text-xs font-opensans text-gray-700">
+                    <b>How long is it valid?</b> Offers lock the price for up to{" "}
+                    <span className="font-semibold">6 hours</span>.
+                    {priceLock?.validUntil && (
+                      <>
+                        {" "}
+                        This one is valid until{" "}
+                        <span className="font-semibold">
+                          {(() => {
+                            // handle Firestore Timestamp or plain ISO/date
+                            const vu = priceLock.validUntil?.toDate
+                              ? priceLock.validUntil.toDate()
+                              : new Date(priceLock.validUntil);
+                            return vu.toLocaleString();
+                          })()}
+                        </span>
+                        .
+                      </>
+                    )}
+                  </p>
+                </div>
+
+                {/* Precedence note */}
+                <p className="text-sm text-gray-800 font-opensans">
+                  <b>Which price applies?</b> If both a discount and an offer
+                  exist, the <b>offer price takes precedence</b> for you while
+                  it’s active.
+                </p>
+
+                {/* Read more */}
+                <p className="text-sm font-opensans text-gray-700">
+                  <a
+                    href="https://mythrift.tawk.help/article/sending-offers-on-my-thrift"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-customOrange underline"
+                  >
+                    Read more in our Help Center
+                  </a>
+                </p>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => setOfferInfoOpen(false)}
+                  className="px-4 py-2 bg-customOrange text-white font-opensans rounded-full"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          </Modal>
         </div>
 
         {shouldShowAlikeProducts && (
@@ -2126,6 +2392,67 @@ const ProductDetailPage = () => {
             </p>
           </motion.div>
         </Modal>
+        <AnimatePresence>
+          {offerSentModalOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.6 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => setOfferSentModalOpen(false)}
+                className="fixed inset-0 bg-black z-[8000]"
+              />
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", stiffness: 280, damping: 25 }}
+                className="fixed bottom-0 left-0 right-0 z-[8100] bg-white h-[35vh] rounded-t-2xl p-4"
+                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+              >
+                <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-3" />
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
+                    <BiSolidOffer className="text-customRichBrown" />
+                  </div>
+                  <h2 className="font-opensans text-base font-semibold">
+                    Offer sent
+                  </h2>
+                </div>
+
+                <p className="text-sm mt-6 text-gray-800 font-opensans mb-4">
+                  Your offer has been sent. We’ll notify you when the vendor
+                  responds.
+                </p>
+                <li className="text-sm  text-gray-800 font-opensans mb-4">
+                  If you need help,{" "}
+                  <button
+                    id="contact-support-tab"
+                    onClick={openChat}
+                    className="text-customOrange underline"
+                  >
+                    contact support
+                  </button>
+                  .
+                </li>
+                <div className="absolute left-0 right-0 bottom-4 flex justify-center">
+                  <button
+                    onClick={() => {
+                      setOfferSentModalOpen(false);
+                      navigate("/offers");
+                    }}
+                    className="px-6 py-2 bg-customOrange text-white font-opensans rounded-full font-semibold"
+                  >
+                    Go to My Offers
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         <Modal
           isOpen={showModal}
@@ -2173,38 +2500,34 @@ const ProductDetailPage = () => {
             </button>
           </div>
         </Modal>
+        <OfferSheet
+          isOpen={offerModalOpen}
+          onClose={() => setOfferModalOpen(false)}
+          product={product}
+          hasSubProducts={hasSubProducts}
+          subProducts={subProducts}
+          selectedSubProduct={selectedSubProduct}
+          onSelectSubProduct={handleSubProductClick}
+          hasVariants={hasVariants}
+          selectedSize={selectedSize}
+          selectedColor={selectedColor}
+          currentUser={currentUser}
+          onOfferSubmitted={handleOfferSubmitted}
+          navigate={navigate}
+          location={location}
+        />
+
         <div
           className="fixed bottom-0 left-0 right-0 z-50 p-3 flex justify-between items-center"
           style={{
             background:
-              "linear-gradient(to top, white, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0) 97%)",
+              "linear-gradient(to top, white, rgba(255,255,255,0.85) 55%, rgba(255,255,255,0) 99%)",
             zIndex: 8000,
           }}
           onClick={(e) => e.stopPropagation()} // Prevents background clicks from propagating
         >
-          {isFashion && (!selectedSize || !selectedColor) ? (
-            // Prompt user to select size and color
-            <button
-              onClick={() => {
-                toast.error("Please select size and color");
-              }}
-              className={`bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out`}
-            >
-              {isStockpileForThisVendor ? "Add to Pile" : "Add to Cart"}
-            </button>
-          ) : !isAddedToCart ? (
-            // The "Add to Cart" button
-            <button
-              onClick={() => {
-                handleAddToCart();
-                setAnimateCart(true); // Trigger the animation
-              }}
-              className={`bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out`}
-            >
-              {isStockpileForThisVendor ? "Add to Pile" : "Add to Cart"}
-            </button>
-          ) : (
-            // The Remove and Quantity controls
+          {isAddedToCart ? (
+            // Quantity controls (unchanged)
             <div
               className={`flex w-full justify-between transition-all duration-500 ease-in-out transform ${
                 animateCart
@@ -2214,7 +2537,7 @@ const ProductDetailPage = () => {
             >
               <button
                 onClick={handleRemoveFromCart}
-                className="text-black font-opensans open-sans mr-4 bg-gray-100 rounded-full h-14 w-52 text-md font-bold"
+                className="text-black font-opensans mr-4 bg-gray-100 rounded-full h-14 w-52 text-md font-bold"
               >
                 Remove
               </button>
@@ -2236,6 +2559,82 @@ const ProductDetailPage = () => {
                 </button>
               </div>
             </div>
+          ) : isBrandNewCondition ? (
+            // BRAND NEW: single full-width rounded button (if fashion and no size/color -> prompt)
+            isFashion && (!selectedSize || !selectedColor) ? (
+              <button
+                onClick={() => {
+                  toast.error("Please select size and color");
+                }}
+                className="bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out"
+              >
+                {isStockpileForThisVendor ? "Add to Pile" : "Add to Cart"}
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  handleAddToCart();
+                  setAnimateCart(true); // Trigger the animation
+                }}
+                className="bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out"
+              >
+                {isStockpileForThisVendor ? "Add to Pile" : "Add to Cart"}
+              </button>
+            )
+          ) : showMakeOffer ? (
+            // THRIFT or DEFECT: show Make Offer + Add to Cart (side-by-side)
+            <div className="flex w-full gap-2">
+              <button
+                onClick={() => {
+                  if (!currentUser) {
+                    return navigate("/login", {
+                      state: { from: location.pathname },
+                    });
+                  }
+                  setOfferModalOpen(true);
+                }}
+                className="flex-1 h-12 rounded-full border border-gray-300 bg-white text-black font-opensans font-semibold transition-all duration-300 ease-in-out"
+              >
+                Make an offer
+              </button>
+
+              <button
+                onClick={() => {
+                  if (isFashion && (!selectedSize || !selectedColor)) {
+                    return toast.error("Please select size and color first");
+                  }
+                  handleAddToCart();
+                  setAnimateCart(true);
+                }}
+                className={`flex-1 h-12 rounded-full font-opensans font-semibold text-white transition-all duration-300 ease-in-out ${
+                  isFashion && (!selectedSize || !selectedColor)
+                    ? "bg-gray-300 cursor-not-allowed"
+                    : "bg-customOrange"
+                }`}
+              >
+                {isStockpileForThisVendor ? "Add to Pile" : "Add to Cart"}
+              </button>
+            </div>
+          ) : // DEFAULT: single full-width Add to Cart (same style as brand new)
+          isFashion && (!selectedSize || !selectedColor) ? (
+            <button
+              onClick={() => {
+                toast.error("Please select size and color");
+              }}
+              className="bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out"
+            >
+              {isStockpileForThisVendor ? "Add to Pile" : "Add to Cart"}
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                handleAddToCart();
+                setAnimateCart(true);
+              }}
+              className="bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out"
+            >
+              {isStockpileForThisVendor ? "Add to Pile" : "Add to Cart"}
+            </button>
           )}
         </div>
       </div>

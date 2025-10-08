@@ -15,7 +15,14 @@ import {
 import IframeModal from "../components/PwaModals/PushNotifsModal";
 
 import toast from "react-hot-toast";
-import { getDoc, doc } from "firebase/firestore";
+import {
+  getDoc,
+  doc,
+  collection,
+  query,
+  where,
+  onSnapshot,
+} from "firebase/firestore";
 import { db } from "../firebase.config";
 import EmptyCart from "../components/Loading/EmptyCart";
 import { useAuth } from "../custom-hooks/useAuth";
@@ -77,6 +84,39 @@ const Cart = () => {
 
   const vendorIds = Object.keys(cart);
   const firstVendorId = vendorIds.length > 0 ? vendorIds[0] : null;
+  const [locksByProduct, setLocksByProduct] = useState({});
+
+  useEffect(() => {
+    // no user → no locks
+    if (!currentUser?.uid) {
+      setLocksByProduct({});
+      return;
+    }
+
+    const q = query(
+      collection(db, "priceLocks"),
+      where("buyerId", "==", currentUser.uid),
+      where("state", "==", "active")
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const map = {};
+        snap.forEach((d) => {
+          const data = d.data();
+          // one lock per (buyer, product) — we key by productId for O(1) lookups
+          map[data.productId] = data;
+        });
+        setLocksByProduct(map);
+      },
+      (err) => {
+        console.error("priceLocks onSnapshot error:", err);
+      }
+    );
+
+    return () => unsub();
+  }, [currentUser?.uid, db]);
 
   useEffect(() => {
     if (!localStorage.getItem("deliveryNoteBadgeShown") && firstVendorId) {
@@ -261,6 +301,20 @@ const Cart = () => {
     },
     [cart, dispatch]
   );
+  const NGN = (n) =>
+    Number(n || 0).toLocaleString("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      maximumFractionDigits: 0,
+    });
+  const getEffectiveUnitPrice = (product) => {
+    const lock = product?.id ? locksByProduct[product.id] : null;
+    const lockPrice = lock?.effectivePrice ? Number(lock.effectivePrice) : null;
+    // fall back to the product’s normal price if no lock
+    return typeof lockPrice === "number"
+      ? lockPrice
+      : Number(product.price || 0);
+  };
 
   const handleClearSelection = (vendorId) => {
     const confirmClear = window.confirm(
@@ -601,7 +655,18 @@ const Cart = () => {
                   Total
                 </h2>
                 <p className="font-opensans text-black text-lg font-bold">
-                  ₦{formatPrice(calculateTotal())}
+                  {NGN(
+                    Object.keys(cart).reduce(
+                      (total, vendorId) =>
+                        total +
+                        Object.values(cart[vendorId]?.products || {}).reduce(
+                          (acc, p) =>
+                            acc + getEffectiveUnitPrice(p) * (p.quantity || 1),
+                          0
+                        ),
+                      0
+                    )
+                  )}
                 </p>
               </div>
               <div className="space-y-2 pb-2">
@@ -643,7 +708,7 @@ const Cart = () => {
                               </span>
                             </h3>
                             <p className="font-opensans text-md text-black font-bold">
-                              ₦{formatPrice(firstProduct.price)}
+                              {NGN(getEffectiveUnitPrice(firstProduct))}
                             </p>
                           </div>
                         </div>
@@ -858,7 +923,7 @@ const Cart = () => {
                                   {isCartItem && (
                                     <>
                                       <p className="font-opensans text-md mt-2 text-black font-bold">
-                                        ₦{formatPrice(item.price)}
+                                        {NGN(getEffectiveUnitPrice(item))}
                                       </p>
 
                                       {/* only show size if this product is fashion */}

@@ -2435,7 +2435,8 @@ const ProductDetailPage = () => {
 
                 <p className="text-sm mt-6 text-gray-800 font-opensans mb-4">
                   Your offer has been sent. We’ll notify you when the vendor
-                  responds.
+                  responds. Please check your spam folder if you don’t see their
+                  answer in your email inbox.
                 </p>
                 <li className="text-sm  text-gray-800 font-opensans mb-4">
                   If you need help,{" "}

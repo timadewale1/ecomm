@@ -813,7 +813,7 @@ export default function VendorChat() {
             improve this experience?{" "}
             <span
               className="text-customOrange underline cursor-pointer"
-              onClick={() => navigate("/feedback")}
+              onClick={() => navigate("/send-us-feedback")}
             >
               Send feedback
             </span>

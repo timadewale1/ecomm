@@ -608,45 +608,46 @@ export default function VendorChat() {
             </div>
           )}
         </div>
+        {!IS_OFFER && inquiry?.status === "open" && (
+          <div className="border-t px-4 py-3">
+            <div className="relative">
+              <input
+                type="text"
+                className="w-full border border-gray-300 rounded-full px-4 py-2 pr-16 text-base font-opensans focus:outline-none focus:ring-2 focus:ring-customOrange"
+                placeholder="Type your reply…"
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                disabled={sending}
+              />
+              <button
+                onClick={handleSendReply}
+                disabled={sending || !replyText.trim()}
+                className={`absolute right-2 top-1/2 transform -translate-y-1/2 bg-customOrange text-white rounded-full p-1.5 text-xl ${
+                  sending || !replyText.trim()
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-orange-600"
+                }`}
+              >
+                {sending ? (
+                  <Oval
+                    height={20}
+                    width={20}
+                    strokeWidth={4}
+                    color="#ffffff"
+                    secondaryColor="transparent"
+                    visible={true}
+                  />
+                ) : (
+                  <IoMdSend />
+                )}
+              </button>
+            </div>
+          </div>
+        )}
         {IS_OFFER && showOfferActions && (
           <>
             {/* ── REPLY INPUT AREA ─────────────────────────────────────────────────────── */}
-            {!IS_OFFER && inquiry?.status === "open" && (
-              <div className="border-t px-4 py-3">
-                <div className="relative">
-                  <input
-                    type="text"
-                    className="w-full border border-gray-300 rounded-full px-4 py-2 pr-16 text-base font-opensans focus:outline-none focus:ring-2 focus:ring-customOrange"
-                    placeholder="Type your reply…"
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    disabled={sending}
-                  />
-                  <button
-                    onClick={handleSendReply}
-                    disabled={sending || !replyText.trim()}
-                    className={`absolute right-2 top-1/2 transform -translate-y-1/2 bg-customOrange text-white rounded-full p-1.5 text-xl ${
-                      sending || !replyText.trim()
-                        ? "opacity-50 cursor-not-allowed"
-                        : "hover:bg-orange-600"
-                    }`}
-                  >
-                    {sending ? (
-                      <Oval
-                        height={20}
-                        width={20}
-                        strokeWidth={4}
-                        color="#ffffff"
-                        secondaryColor="transparent"
-                        visible={true}
-                      />
-                    ) : (
-                      <IoMdSend />
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
+
             {IS_OFFER && (
               <div className="border-t px-4 py-3">
                 {(() => {
@@ -766,46 +767,50 @@ export default function VendorChat() {
             )}
           </>
         )}
-        {(() => {
-          const statusKey = (offerDoc?.status || "pending").toLowerCase();
-          const sc = STATUS_CONFIG[statusKey] || STATUS_CONFIG.pending;
+        {IS_OFFER && (
+          <>
+            {(() => {
+              const statusKey = (offerDoc?.status || "pending").toLowerCase();
+              const sc = STATUS_CONFIG[statusKey] || STATUS_CONFIG.pending;
 
-          return (
-            <div className="mt-2 flex flex-col items-center justify-center">
-              <span
-                className={[
-                  "inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-semibold",
-                  "ring-1",
-                  sc.bg,
-                  sc.text,
-                  sc.ring,
-                  "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.4)]",
-                ].join(" ")}
-              >
-                <span
-                  className={`w-1 h-1 rounded-full ${sc.dot} ${
-                    statusKey === "pending" ? "animate-pulse" : ""
-                  }`}
-                />
-                <span>{sc.label}</span>
-                {statusKey === "countered" && offerDoc?.counterAmount ? (
-                  <span className="opacity-70">
-                    · {NGN(offerDoc.counterAmount)}
+              return (
+                <div className="mt-2 flex flex-col items-center justify-center">
+                  <span
+                    className={[
+                      "inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-semibold",
+                      "ring-1",
+                      sc.bg,
+                      sc.text,
+                      sc.ring,
+                      "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.4)]",
+                    ].join(" ")}
+                  >
+                    <span
+                      className={`w-1 h-1 rounded-full ${sc.dot} ${
+                        statusKey === "pending" ? "animate-pulse" : ""
+                      }`}
+                    />
+                    <span>{sc.label}</span>
+                    {statusKey === "countered" && offerDoc?.counterAmount ? (
+                      <span className="opacity-70">
+                        · {NGN(offerDoc.counterAmount)}
+                      </span>
+                    ) : null}
                   </span>
-                ) : null}
-              </span>
 
-              {/* subtle helper text (optional) */}
-              <div className="mt-1 text-[8px] text-gray-500 font-opensans">
-                {statusKey === "pending" && "Waiting for your action"}
-                {statusKey === "countered" && "Sent to buyer "}
-                {statusKey === "accepted" && "Buyer will be notified"}
-                {statusKey === "declined" && "Offer closed"}
-                {statusKey === "expired" && "No longer valid"}
-              </div>
-            </div>
-          );
-        })()}
+                  {/* subtle helper text (optional) */}
+                  <div className="mt-1 text-[8px] text-gray-500 font-opensans">
+                    {statusKey === "pending" && "Waiting for your action"}
+                    {statusKey === "countered" && "Sent to buyer "}
+                    {statusKey === "accepted" && "Buyer will be notified"}
+                    {statusKey === "declined" && "Offer closed"}
+                    {statusKey === "expired" && "No longer valid"}
+                  </div>
+                </div>
+              );
+            })()}
+          </>
+        )}
         {/* ── FOOTER DISCLAIMER ────────────────────────────────────────────────────── */}
         {IS_OFFER ? (
           <div className="text-center text-xs text-gray-500 py-2 px-3 font-opensans">

@@ -14,7 +14,7 @@
     "imagekit": "^6.0.0",
     "imagekit-javascript": "^4.0.1",
     "lottie-react": "^2.4.1",
-    "next": "^15.1.6",
+    "next": "15.1.11",
     "node-fetch": "^3.3.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

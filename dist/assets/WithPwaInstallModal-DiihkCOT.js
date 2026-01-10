@@ -1,0 +1,1 @@
+import{r as s,j as e,eX as r}from"./index-CvIXhaMv.js";const t=({children:t})=>{const[n,a]=s.useState(!0);return e.jsxs(e.Fragment,{children:[t,n&&e.jsx(r,{onClose:()=>a(!1)})]})};export{t as default};

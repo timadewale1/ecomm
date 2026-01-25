@@ -411,7 +411,7 @@ const ProductCard = ({
               <IkImage
                 src={firebaseImage}
                 alt={product?.name}
-                className="h-52 object-cover rounded-md w-full"
+                className="h-52 object-cover rounded-xl w-full"
               />
             </>
           )}

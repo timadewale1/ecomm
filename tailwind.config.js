@@ -23,6 +23,8 @@ export default {
       colors: {
         lighOrange: "#F9DCD6",
         customGrey: "#FAFAFA",
+        customRed: "#FF383C",
+        customOrangeBg: "#fff2ed",
         customOrange: "#f9531e",
         lightOrange: "#FFF7F2",
         lightBlue: "#F5F4FE",

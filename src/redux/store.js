@@ -39,6 +39,7 @@ import scrollReducer from "./reducers/scrollSlice";
 import vendorStockpileReducer from "./reducers/vendorStockpileSlice";
 import categoryMetadataReducer from "./reducers/categoryMetadataSlice";
 import featuredReducer from "./reducers/featuredSlice";
+import searchSnapshotReducer from "./reducers/searchSnapshotReducer";
 const persistConfig = {
   key: "root",
   storage,
@@ -53,6 +54,7 @@ const rootReducer = combineReducers({
   topVendors: topVendorsReducer,
   product: productReducer,
   explore: exploreReducer,
+  searchSnapshot: searchSnapshotReducer,
   exploreUi: exploreUiReducer,
   user: userReducer,
   vendorSuggestions: vendorSuggestionsReducer,

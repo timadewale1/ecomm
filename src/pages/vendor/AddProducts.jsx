@@ -436,7 +436,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       toast.error("Please add at least one product variant.");
       return;
     }
-    if (productCondition === "Defect:" && !productDefectDescription) {
+    if (productCondition === "defect" && !productDefectDescription) {
       toast.dismiss();
       toast.error(
         "Please provide a defect description for the defective product."
@@ -624,7 +624,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       if (discountDetails) {
         product.discount = discountDetails;
       }
-      if (productCondition === "Defect:" && productDefectDescription) {
+      if (productCondition === "defect" && productDefectDescription) {
         product.defectDescription = productDefectDescription.trim();
       }
 
@@ -1507,10 +1507,10 @@ const AddProduct = ({ vendorId, closeModal }) => {
             <option value="brand new">Brand New</option>
             <option value="thrift">Thrift</option>
 
-            <option value="Defect:">Defect</option>
+            <option value="defect">Defect</option>
           </select>
 
-          {productCondition === "Defect:" && (
+          {productCondition === "defect" && (
             <div className="mt-4">
               <label className="block font-medium text-black text-sm font-opensans">
                 Defect Description

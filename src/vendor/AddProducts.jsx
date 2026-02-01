@@ -84,7 +84,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       if (productCoverImageFile) {
         const storageRef = ref(
           storage,
-          `${vendorId}/my-products/cover-${productCoverImageFile.name}`
+          `${vendorId}/my-products/cover-${productCoverImageFile.name}`,
         );
         await uploadBytes(storageRef, productCoverImageFile);
         coverImageUrl = await getDownloadURL(storageRef);
@@ -94,11 +94,11 @@ const AddProduct = ({ vendorId, closeModal }) => {
         productImageFiles.map(async (file) => {
           const storageRef = ref(
             storage,
-            `${vendorId}/my-products/${file.name}`
+            `${vendorId}/my-products/${file.name}`,
           );
           await uploadBytes(storageRef, file);
           return getDownloadURL(storageRef);
-        })
+        }),
       );
 
       const product = {
@@ -114,13 +114,14 @@ const AddProduct = ({ vendorId, closeModal }) => {
         isFeatured: false,
         condition:
           productCondition === "defect"
-            ? `Defect: ${
+            ? `defect ${
                 productDefectDescription.charAt(0).toUpperCase() +
                 productDefectDescription.slice(1).toLowerCase()
               }`
             : productCondition.charAt(0).toUpperCase() +
               productCondition.slice(1).toLowerCase(),
-        category: category.charAt(0).toUpperCase() + category.slice(1).toLowerCase(),
+        category:
+          category.charAt(0).toUpperCase() + category.slice(1).toLowerCase(),
         productType:
           productType.charAt(0).toUpperCase() +
           productType.slice(1).toLowerCase(),
@@ -166,7 +167,19 @@ const AddProduct = ({ vendorId, closeModal }) => {
       case "jewelry":
         return ["5", "6", "7", "8", "9", "10", "all sizes"];
       case "footwear":
-        return ["35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "all sizes"];
+        return [
+          "35",
+          "36",
+          "37",
+          "38",
+          "39",
+          "40",
+          "41",
+          "42",
+          "43",
+          "44",
+          "all sizes",
+        ];
       default:
         return [];
     }
@@ -190,7 +203,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           value={productName}
           onChange={(e) => setProductName(e.target.value.toUpperCase())}
           className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
-            productName
+            productName,
           )}`}
           required
         />
@@ -203,7 +216,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           value={category}
           onChange={(e) => setCategory(e.target.value)}
           className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
-            category
+            category,
           )}`}
           required
         >
@@ -222,7 +235,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           value={productType}
           onChange={(e) => setProductType(e.target.value)}
           className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
-            productType
+            productType,
           )}`}
           required
         >
@@ -242,7 +255,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
             value={size}
             onChange={(e) => setSize(e.target.value)}
             className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
-              size
+              size,
             )}`}
             required
           >
@@ -264,7 +277,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           value={color}
           onChange={(e) => setColor(e.target.value)}
           className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
-            color
+            color,
           )}`}
           required
         />
@@ -291,7 +304,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           value={productPrice}
           onChange={(e) => setProductPrice(e.target.value)}
           className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
-            productPrice
+            productPrice,
           )}`}
           required
         />
@@ -303,7 +316,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
         <div className="flex flex-col items-center">
           <div
             className={`w-full h-64 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer relative ${highlightField(
-              productCoverImageFile
+              productCoverImageFile,
             )}`}
             onClick={() => document.getElementById("coverFileInput").click()}
           >
@@ -415,7 +428,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           value={productCondition}
           onChange={(e) => setProductCondition(e.target.value)}
           className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
-            productCondition
+            productCondition,
           )}`}
           required
         >
@@ -433,7 +446,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
               value={productDefectDescription}
               onChange={(e) => setProductDefectDescription(e.target.value)}
               className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
-                productDefectDescription
+                productDefectDescription,
               )}`}
               required
             />
@@ -449,7 +462,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
           value={stockQuantity}
           onChange={(e) => setStockQuantity(e.target.value)}
           className={`mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-green-700 focus:outline-none ${highlightField(
-            stockQuantity
+            stockQuantity,
           )}`}
           required
         />

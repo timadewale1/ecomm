@@ -213,7 +213,7 @@ export default function OfferSheet({
       onRequestClose={onClose}
       ariaHideApp={false}
       overlayClassName="fixed inset-0 bg-black/40 z-[9999] flex items-end justify-center"
-      className="w-full max-w-md mx-auto outline-none bg-transparent p-0"
+      className="w-full  mx-auto outline-none bg-transparent p-0"
     >
       <motion.div
         style={{ y }}
@@ -364,7 +364,7 @@ export default function OfferSheet({
             <span className="text-gray-500">Checking daily limit…</span>
           ) : offersLeft > 0 ? (
             <span>
-              You have <b className="text-gray-800">{offersLeft}</b> offers left
+              You have <b className="text-gray-800">{offersLeft}</b> offers left today
             </span>
           ) : (
             <span className="text-red-600">

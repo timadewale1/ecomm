@@ -74,7 +74,42 @@ const PALETTE = {
   silver: { css: "#C0C0C0", label: "Silver", needsBorder: true },
   peach: { css: "#FDBA9A", label: "Peach", needsBorder: true },
   wine: { css: "#7F1D1D", label: "Wine", needsBorder: false },
+// --- add to PALETTE ---
+offwhite: { css: "#F9FAFB", label: "Off White", needsBorder: true },
+ivory: { css: "#FFFBEB", label: "Ivory", needsBorder: true },
+charcoal: { css: "#374151", label: "Charcoal", needsBorder: false },
 
+teal: { css: "#0D9488", label: "Teal", needsBorder: false },
+turquoise: { css: "#06B6D4", label: "Turquoise", needsBorder: true },
+
+olive: { css: "#556B2F", label: "Olive", needsBorder: false },
+khaki: { css: "#BDB76B", label: "Khaki", needsBorder: true },
+mustard: { css: "#D4A017", label: "Mustard", needsBorder: true },
+rust: { css: "#B45309", label: "Rust", needsBorder: false },
+tan: { css: "#D2B48C", label: "Tan", needsBorder: true },
+chocolate: { css: "#5C3A21", label: "Chocolate", needsBorder: false },
+// --- add to PALETTE (10 more single-colour swatches) ---
+lime: { css: "#84CC16", label: "Lime", needsBorder: true },
+indigo: { css: "#4F46E5", label: "Indigo", needsBorder: false },
+cobalt: { css: "#1E40AF", label: "Cobalt Blue", needsBorder: false },
+
+coral: { css: "#FB7185", label: "Coral", needsBorder: true },
+salmon: { css: "#FDA4AF", label: "Salmon", needsBorder: true },
+
+taupe: { css: "#A69080", label: "Taupe", needsBorder: true },
+camel: { css: "#C19A6B", label: "Camel", needsBorder: true },
+
+bronze: { css: "#CD7F32", label: "Bronze", needsBorder: true },
+rose: { css: "#FBCFE8", label: "Rose", needsBorder: true },
+
+lavagrey: { css: "#6B7280", label: "Lava Grey", needsBorder: true },
+
+lavender: { css: "#A78BFA", label: "Lavender", needsBorder: true },
+lilac: { css: "#C4B5FD", label: "Lilac", needsBorder: true },
+magenta: { css: "#D946EF", label: "Magenta", needsBorder: false },
+
+maroon: { css: "#6B0F1A", label: "Maroon", needsBorder: false },
+burgundy: { css: "#5B0A1E", label: "Burgundy", needsBorder: false }, 
   // shades
   navy: { css: "#0B1F3B", label: "Navy Blue", needsBorder: false },
   emerald: { css: "#047857", label: "Emerald Green", needsBorder: false },
@@ -196,27 +231,75 @@ function canonicalKeyFromPhrase(phrase) {
     return "emerald";
   if (cleaned.includes("tomato")) return "tomato";
 
-  const baseHits = [
-    "black",
-    "white",
-    "grey",
-    "gray",
-    "blue",
-    "red",
-    "yellow",
-    "green",
-    "purple",
-    "pink",
-    "orange",
-    "brown",
-    "cream",
-    "beige",
-    "nude",
-    "gold",
-    "silver",
-    "peach",
-    "wine",
-  ];
+ const baseHits = [
+  // core neutrals
+  "black",
+  "white",
+  "offwhite",
+  "ivory",
+  "grey",
+  "gray",
+  "charcoal",
+  "lavagrey",
+
+  // blues
+  "blue",
+  "navy",
+  "sky",
+  "lightblue",
+  "royalblue",
+  "cobalt",
+  "indigo",
+  "stonewashblue",
+
+  // greens
+  "green",
+  "emerald",
+  "mint",
+  "olive",
+  "khaki",
+  "teal",
+  "turquoise",
+  "lime",
+
+  // reds / pinks / purples
+  "red",
+  "tomato",
+  "wine",
+  "maroon",
+  "burgundy",
+  "pink",
+  "hotpink",
+  "rose",
+  "coral",
+  "salmon",
+  "purple",
+  "lavender",
+  "lilac",
+  "magenta",
+
+  // yellows / oranges
+  "yellow",
+  "mustard",
+  "orange",
+  "rust",
+
+  // browns / nudes / tans
+  "brown",
+  "chocolate",
+  "tan",
+  "camel",
+  "taupe",
+  "beige",
+  "cream",
+  "nude",
+  "peach",
+
+  // metals
+  "gold",
+  "silver",
+  "bronze",
+];
 
   for (const base of baseHits) {
     if (cleaned.includes(base)) {

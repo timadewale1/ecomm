@@ -87,11 +87,20 @@ const ProductCard = ({
     return () => clearInterval(id);
   }, []);
 
-  const handleCardClick = () => {
-    if (!isLoading && product?.stockQuantity > 0) {
-      navigate(`/product/${product.id}`);
-    }
-  };
+ const handleCardClick = () => {
+  if (isLoading) return;
+
+  // block only if we KNOW it's sold out
+  const soldOut =
+    product?.inStock === false || Number(product?.stockQuantity ?? 1) <= 0;
+
+  if (soldOut) return;
+
+  const id = product?.id || product?.productId;
+  if (!id) return;
+
+  navigate(`/product/${id}`);
+};
 
   // ---- Offer helpers ----
   const parseTS = (ts) => (ts?.toDate ? ts.toDate() : ts ? new Date(ts) : null);
@@ -411,7 +420,7 @@ const ProductCard = ({
               <IkImage
                 src={firebaseImage}
                 alt={product?.name}
-                className="h-52 object-cover rounded-xl w-full"
+                className="h-60 object-cover rounded-xl w-full"
               />
             </>
           )}

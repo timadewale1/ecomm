@@ -226,7 +226,7 @@ const ProductCard = ({ product, isLoading, showVendorName = true }) => {
           ) : (
             <div className="flex items-center space-x-1">
               {renderCondition(product?.condition)}
-              {product?.condition === "Defect:" &&
+              {product?.condition === "defect" &&
                 product?.defectDescription && (
                   <span className="text-xs text-red-500">
                     {product.defectDescription}

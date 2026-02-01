@@ -30,7 +30,7 @@ const SearchDropdown = ({ products, vendors }) => {
       const updatedHistory = [
         selectedItem,
         ...searchHistory.filter((item) => item.id !== selectedItem.id),
-      ].slice(0, 8);
+      ].slice(0, 12);
 
       setSearchHistory(updatedHistory);
       localStorage.setItem("searchHistory", JSON.stringify(updatedHistory));

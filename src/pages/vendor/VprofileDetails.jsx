@@ -174,7 +174,7 @@ const VprofileDetails = ({ showDetails, setShowDetails }) => {
     },
     RETURNS_EXCHANGE_ONLY: { heading: "Returns – exchange only" },
 
-    RETURNS_REFUND_IF_DEFECT: { heading: "Return & refund if defective" },
+    RETURNS_REFUND_IF_defect { heading: "Return & refund if defective" },
     RETURNS_REFUND_FLEX: { heading: "Returns & refund – flexible" },
     NONE: { heading: "Not set" }, // fallback
   };

@@ -23,14 +23,14 @@ export const fetchConditionProducts = createAsyncThunk(
   "condition/fetchConditionProducts",
   async (
     { condition, productType = null, lastVisible = null, batchSize = 5 },
-    { rejectWithValue }
+    { rejectWithValue },
   ) => {
     try {
       // 1) Get "approved" + "active" vendors
       const vendorsQuery = query(
         collection(db, "vendors"),
         where("isApproved", "==", true),
-        where("isDeactivated", "==", false)
+        where("isDeactivated", "==", false),
       );
       const vendorSnapshot = await getDocs(vendorsQuery);
       const approvedVendors = vendorSnapshot.docs.map((doc) => doc.id);
@@ -46,7 +46,7 @@ export const fetchConditionProducts = createAsyncThunk(
       }
 
       const conditionToQuery =
-        condition.toLowerCase() === "defect" ? "Defect:" : condition;
+        condition.toLowerCase() === "defect" ? "defect" : condition;
 
       // 2) Build the shared filters
       const common = [
@@ -67,13 +67,13 @@ export const fetchConditionProducts = createAsyncThunk(
             collection(db, "products"),
             where("vendorId", "in", chunkIds),
             ...common,
-            limit(batchSize)
+            limit(batchSize),
           );
           if (lastVisible) {
             q = query(q, startAfter(lastVisible));
           }
           return getDocs(q);
-        })
+        }),
       );
 
       // 4) Merge all snapshots, dedupe, sort, and take the top batch
@@ -86,7 +86,7 @@ export const fetchConditionProducts = createAsyncThunk(
       });
       const uniqueSnaps = Array.from(uniqueMap.values());
       uniqueSnaps.sort(
-        (a, b) => b.data().createdAt.seconds - a.data().createdAt.seconds
+        (a, b) => b.data().createdAt.seconds - a.data().createdAt.seconds,
       );
 
       // 5) Slice out exactly `batchSize` items
@@ -108,7 +108,7 @@ export const fetchConditionProducts = createAsyncThunk(
       console.error("fetchConditionProducts error:", error);
       return rejectWithValue(error.message);
     }
-  }
+  },
 );
 
 const conditionSlice = createSlice({
@@ -157,8 +157,8 @@ const conditionSlice = createSlice({
 
         const existingIds = new Set(
           state.productsByCondition[condition].conditionProducts.map(
-            (p) => p.id
-          )
+            (p) => p.id,
+          ),
         );
         const uniqueProducts = products.filter((p) => !existingIds.has(p.id));
 

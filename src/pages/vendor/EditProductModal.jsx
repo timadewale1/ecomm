@@ -64,7 +64,7 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
   const conditionOptions = [
     { label: "Brand New", value: "brand new" },
     { label: "Thrift", value: "thrift" },
-    { label: "Defect:", value: "Defect:" },
+    { label: "Defect", value: "defect" },
   ];
 
   // ADD: coerce any incoming 'condition' to the canonical string
@@ -76,8 +76,8 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
     // map by case-insensitive match
     const match =
       conditionOptions.find((o) => o.value.toLowerCase() === s.toLowerCase()) ||
-      // handle variants like "Defect" / "defect:" => "Defect:"
-      (s.toLowerCase().startsWith("defect") ? { value: "Defect:" } : null);
+     
+      (s.toLowerCase().startsWith("defect") ? { value: "defect" } : null);
     return match ? match.value : s;
   };
 
@@ -408,7 +408,7 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
       setIsLoading(false);
       return;
     }
-    if (productCondition === "Defect:" && !productDefectDescription) {
+    if (productCondition === "defect" && !productDefectDescription) {
       toast.error("Please enter a defect description.");
       setConfirmSave(false);
       setIsLoading(false);
@@ -560,7 +560,7 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
         subProducts: isFashion ? subProducts : [],
       };
 
-      if (productCondition === "Defect:" && productDefectDescription) {
+      if (productCondition === "defect" && productDefectDescription) {
         updateData.defectDescription = productDefectDescription.trim();
       }
 
@@ -930,7 +930,7 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
         </div>
 
         <AnimatePresence>
-          {productCondition === "Defect:" && (
+          {productCondition === "defect" && (
             <div className="mb-4">
               <label className="font-opensans font-medium mb-1 text-sm text-black">
                 Defect Description

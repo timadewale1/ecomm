@@ -107,6 +107,7 @@ import ProductSellingFastPill from "../../components/Products/ProductSellingFast
 import { toastOfferSent } from "../../components/Toasts/OfferSent";
 import { flush, track } from "../../services/signals";
 import ScanningEffect from "../../components/Products/ScanningEffect";
+import ProductReportModal from "../../components/Reports/ProductReportModal";
 
 Modal.setAppElement("#root");
 
@@ -530,6 +531,7 @@ const ProductDetailPage = () => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+const [reportOpen, setReportOpen] = useState(false);
 
   // Fetch product from Redux store
   const { product, loading, error } = useSelector((state) => state.product);
@@ -2619,9 +2621,14 @@ const requestHd = async (idx) => {
                 }}
               />
               <button
-                onClick={() =>
-                  toast("Report feature coming soon!", { icon: "⚠️" })
-                }
+              onClick={() => {
+  if (!currentUser) {
+    toast.error("Please sign in to report this product.");
+    return;
+  }
+  setReportOpen(true);
+}}
+
                 className="flex-shrink-0 flex items-center gap-1.5 bg-gray-100 px-4 py-2 rounded-full hover:bg-gray-200 transition-colors"
               >
                 <IoFlagOutline className="text-black text-lg" />
@@ -3164,6 +3171,22 @@ const requestHd = async (idx) => {
             </div>
           </Modal>
         </div>
+<ProductReportModal
+  isOpen={reportOpen}
+  onClose={() => setReportOpen(false)}
+  product={product}
+  vendor={vendor}
+  currentUser={currentUser}
+  context={{
+    surface,
+    isShared,
+    url: window.location.href,
+    selectedSize,
+    selectedColor,
+    subProductId: selectedSubProduct?.subProductId || null,
+    selectedImageUrl: selectedImage || "",
+  }}
+/>
 
         <RelatedProducts product={product} />
         <Modal
@@ -3290,7 +3313,7 @@ const requestHd = async (idx) => {
         />
 
         <div
-          className="fixed bottom-0 left-0 right-0 z-[8000] bg-white border-t border-gray-100 p-4"
+          className="fixed bottom-0 left-0 right-0 z-[7900] bg-white border-t border-gray-100 p-4"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex w-full gap-3">

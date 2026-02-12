@@ -869,8 +869,8 @@ if (Array.isArray(draft.conditions) && draft.conditions.length) {
                         const selected = draft.colors.includes(sw.key);
                         return (
                           <button
-                            key={sw.key}
-                            type="button"
+                             key={sw.key}
+                           type="button"
                             onClick={() =>
                               setDraft((p) => ({
                                 ...p,

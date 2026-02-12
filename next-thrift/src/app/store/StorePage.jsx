@@ -193,54 +193,82 @@ export default function StorePage({ vendorId }) {
     }
     return productsList;
   }
+const pagePath =
+  typeof window !== "undefined"
+    ? `${window.location.pathname}${window.location.search || ""}`
+    : "unknown";
+
+const logFollow = (type) => {
+  // type is "follow_vendor" or "unfollow_vendor"
+  track(
+    type,
+    {
+      vendorId: vendor?.id || vendorId,
+      vendorName: vendor?.shopName || null,
+    },
+    {
+      surface: "vendor_store",
+      path: pagePath,
+    }
+  );
+};
 
   // ===============================
   // D) Follow / Unfollow logic
   // ===============================
   const handleFollowClick = async () => {
-    if (!currentUser) {
-      setIsLoginModalOpen(true);
-      return;
+  if (!currentUser) {
+    setIsLoginModalOpen(true);
+    return;
+  }
+  if (!vendor?.id) return;
+
+  // snapshot current state so we don't get stale toggles
+  const wasFollowing = isFollowing;
+
+  try {
+    setIsFollowLoading(true);
+
+    const followRef = doc(db, "follows", `${currentUser.uid}_${vendor.id}`);
+
+    await handleUserActionLimit(currentUser.uid, "follow", {}, {
+      collectionName: "usage_metadata",
+      writeLimit: 50,
+      minuteLimit: 8,
+      hourLimit: 40,
+    });
+
+    if (!wasFollowing) {
+      // ✅ Follow
+      await setDoc(followRef, {
+        userId: currentUser.uid,
+        vendorId: vendor.id,
+        createdAt: serverTimestamp(),
+      });
+
+      // ✅ Log only after success
+      logFollow("follow_vendor");
+
+      toast.success("You will be notified of new products and promos.");
+      setIsFollowing(true);
+    } else {
+      // ✅ Unfollow
+      await deleteDoc(followRef);
+
+      // ✅ Log only after success
+      logFollow("unfollow_vendor");
+
+      toast.success("Unfollowed");
+      setIsFollowing(false);
     }
-    if (!vendor?.id) return;
+  } catch (error) {
+    console.error("Error during follow/unfollow operation:", error.message);
+    toast.error(error.message);
+  } finally {
+    setIsFollowLoading(false);
+  }
+};
 
-    try {
-      setIsFollowLoading(true);
-
-      const followRef = doc(db, "follows", `${currentUser.uid}_${vendor.id}`);
-      await handleUserActionLimit(
-        currentUser.uid,
-        "follow",
-        {},
-        {
-          collectionName: "usage_metadata",
-          writeLimit: 50,
-          minuteLimit: 8,
-          hourLimit: 40,
-        }
-      );
-
-      if (!isFollowing) {
-        // Follow
-        await setDoc(followRef, {
-          userId: currentUser.uid,
-          vendorId: vendor.id,
-          createdAt: serverTimestamp(),
-        });
-        toast.success("You will be notified of new products and promos.");
-      } else {
-        // Unfollow
-        await deleteDoc(followRef);
-        toast.success("Unfollowed");
-      }
-      setIsFollowing(!isFollowing);
-    } catch (error) {
-      console.error("Error during follow/unfollow operation:", error.message);
-      toast.error(error.message);
-    } finally {
-      setIsFollowLoading(false);
-    }
-  };
 
   // ===============================
   // E) UI: Searching, Sorting, Favorites
@@ -369,7 +397,7 @@ export default function StorePage({ vendorId }) {
             <>
               <div className="flex items-center">
                 <AiOutlineHome
-                  onClick={() => router.push("/newhome")}
+                  onClick={() => router.push("/")}
                   className="text-2xl cursor-pointer"
                 />
               </div>

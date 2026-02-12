@@ -1,130 +1,118 @@
-.bottom-bar {
-  position: fixed;
-  bottom: 15px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(100% - 21px);
-  max-width: 600px;
-  padding: 4px 0;
-  background: rgba(0, 0, 0, 10); /* Increased opacity - more solid look */
-  border-radius: 50px;
-  box-shadow: 
-    0px 10px 20px rgba(0, 0, 0, 0.2),
-    0px 4px 10px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  
-  /* Blur effects
-  backdrop-filter: blur(15px) saturate(120%);
-  -webkit-backdrop-filter: blur(15px) saturate(120%);
-  
-  /* Glass-like border */
-  /* border: 1px solid rgba(255, 255, 255, 0.3); */
-  
-  /* transition: all 0.3s ease;
-  overflow: visible;
-  
-  background-blend-mode: overlay;
-  perspective: 1000px;  */
-}
+/* ===== Bottom Bar (new style like screenshot) ===== */
 
 .bottom-bar-wrapper {
   position: fixed;
-  bottom: 0px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%; 
-  height: 60px;
-  background: linear-gradient(to top, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0)); /* Gradient from white to fully transparent */
-
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 999;
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1); 
+
+  background: #fff;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+
+  /* safe area padding for iOS */
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  box-shadow: 0px -6px 18px rgba(0, 0, 0, 0.06);
 }
 
+/* The actual row container */
+.bottom-bar {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
 
-  .bottom-bar.under-keypad {
-    top: 2000px;
-  }
- 
- 
-  /* .bottom-bar {
-    position: fixed;
-    bottom: 15px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: calc(100% - 20px);
-    padding: 8px 0;
-    background-color: #100f0e;
-    border-radius: 50px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    transition: bottom 0.3s;
-  } */
-  
-  .bottom-bar.under-keypad {
-    top: 2000px; /* This is for bottom bar disappearance */
-  }
-  
-  .bottom-nav-icon {
-    display: flex;
-    align-items: center;
-    padding: 9px;
-    border-radius: 50px; /* Make the background for icon and text round */
-    transition: background-color 0.3s, color 0.3s;
-    position: relative; /* Ensure relative positioning for badge positioning */
-  }
-  
-  .bottom-nav-icon .react-icons {
-    font-size: 24px; /* Adjusted font size for better alignment */
-    transition: color 0.3s;
-  }
-  
-  .bottom-nav-icon.active {
-    background-color: #f9531e;
-    color: white;
-  }
-  
-  .nav-label {
-    margin-left: 4px; /* Adjust margin to position text correctly */
-    font-size: 14px;
-    margin-top: 2px;
-    font-weight: 500;
-    color: white;
-    transition: opacity 0.2s ease-in-out;
-  }
-  
-  .bottom-nav-icon:not(.active) .nav-label {
-    display: none;
-  }
-  
-  .bottom-nav-icon.active .nav-label {
-    display: inline; /* Make sure the text is displayed inline with the icon */
-  }
-  
-  .bottom-nav-icon.active {
-    background-color: #f9531e;
-    color: white;
-  } 
-  
-  .nav-label {
-    margin-left: 4px; /* Adjust margin to position text correctly */
-    font-size: 14px;
-    margin-top: 2px;
-    font-weight: 500;
-    color: white;
-    transition: opacity 0.2s ease-in-out;
-  }
-  
-  .bottom-nav-icon:not(.active) .nav-label {
-    display: none;
-  }
-  
-  .bottom-nav-icon.active .nav-label {
-    display: inline; /* Make sure the text is displayed inline with the icon */
-  }
-  
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+
+  /* remove old floating pill behaviour */
+  position: relative;
+  left: auto;
+  transform: none;
+  bottom: auto;
+
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+/* Hide bar when keyboard is open (your existing logic) */
+.bottom-bar.under-keypad {
+  transform: translateY(200vh);
+}
+
+/* Each tab */
+.bottom-nav-icon {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  text-decoration: none;
+  padding: 6px 0;
+  position: relative; /* keep for badges */
+}
+
+/* Icon background pill (you added <div className="icon-pill"> in JSX) */
+.icon-pill {
+  width: 56px;
+  height: 44px;
+  border-radius: 9999px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  position: relative; /* badge can anchor here too if needed */
+}
+
+/* Default icon (if you used className="nav-icon") */
+.nav-icon {
+  width: 28px;
+  height: 26px;
+  color: #6b7280; /* gray-500 */
+}
+
+/* Fallback if you didn’t add .nav-icon class to svg */
+.bottom-nav-icon svg {
+  color: #6b7280;
+}
+
+/* Label should always show under icon */
+.nav-label {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 500;
+
+  color: #6b7280; /* gray-500 */
+}
+
+/* Active states */
+.bottom-nav-icon.active .icon-pill {
+  background: rgba(249, 83, 30, 0.12); /* customOrange tint */
+}
+
+.bottom-nav-icon.active .nav-icon,
+.bottom-nav-icon.active svg {
+  color: #f9531e; /* customOrange */
+}
+
+.bottom-nav-icon.active .nav-label {
+  color: #f9531e;
+}
+
+/* Avatar in the profile tab */
+.nav-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+
+.nav-avatar-active {
+  outline: 2px solid rgba(249, 83, 30, 0.55);
+  outline-offset: 2px;
+}

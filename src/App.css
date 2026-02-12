@@ -244,6 +244,21 @@ li::marker {
 .animate-fade-in {
   animation: fade-in 0.5s ease-in-out;
 }
+@keyframes toast-enter {
+  0% { transform: translate3d(0, 14px, 0); opacity: 0; }
+  100% { transform: translate3d(0, 0, 0); opacity: 1; }
+}
+@keyframes toast-leave {
+  0% { transform: translate3d(0, 0, 0); opacity: 1; }
+  100% { transform: translate3d(0, 14px, 0); opacity: 0; }
+}
+
+.animate-enter {
+  animation: toast-enter 220ms ease-out both;
+}
+.animate-leave {
+  animation: toast-leave 180ms ease-in both;
+}
 
 .modal-stockpile {
   position: fixed;

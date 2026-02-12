@@ -136,7 +136,7 @@ const MarketStorePage = () => {
           const followRef = collection(db, "follows");
           const followDocRef = doc(
             followRef,
-            `${currentUser.uid}_${vendor.id}`
+            `${currentUser.uid}_${vendor.id}`,
           );
           const followSnapshot = await getDoc(followDocRef);
 
@@ -185,7 +185,7 @@ const MarketStorePage = () => {
         const q = query(
           productsRef,
           where("__name__", "in", chunk),
-          where("published", "==", true)
+          where("published", "==", true),
         );
         const productsSnapshot = await getDocs(q);
         const productsChunk = productsSnapshot.docs.map((doc) => ({
@@ -208,7 +208,7 @@ const MarketStorePage = () => {
     .filter(
       (product) =>
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        (selectedType === "All" || product.productType === selectedType)
+        (selectedType === "All" || product.productType === selectedType),
     )
     .sort((a, b) => {
       if (sortOption === "priceAsc") {
@@ -413,7 +413,7 @@ const MarketStorePage = () => {
             <>
               <div className="flex items-center">
                 <AiOutlineHome
-                  onClick={() => navigate("/newhome")}
+                  onClick={() => navigate("/")}
                   className="text-2xl cursor-pointer"
                 />
               </div>

@@ -27,7 +27,7 @@ const ConfirmUserState = () => {
         navigate("/vendorlogin", { replace: true });
       }
     } else {
-      navigate("/newhome", { replace: true });
+      navigate("/confirm-user", { replace: true });
     }
   }, [loading, currentUser, currentUserData, navigate]);
   useEffect(() => {
@@ -37,7 +37,7 @@ const ConfirmUserState = () => {
       } else if (selectedRole === "vendor") {
         navigate("/vendorlogin", { replace: true });
       } else {
-        navigate("/newhome", { replace: true });
+        navigate("/", { replace: true });
       }
       setIsProcessing(false);
     }
@@ -56,7 +56,7 @@ const ConfirmUserState = () => {
     if (selectedRole === "vendor") {
       setIsProcessing(true);
     } else {
-      navigate("/newhome");
+      navigate("/login");
     }
   };
   if (loading) {

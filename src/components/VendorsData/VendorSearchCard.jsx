@@ -24,6 +24,89 @@ function getAvgRating(vendor) {
   return (sum / count).toFixed(1);
 }
 
+
+// Normalize the badge text to a consistent key
+function normalizeBadgeKey(badgeText = "") {
+  const b = String(badgeText || "").trim().toLowerCase();
+
+  if (b.includes("og")) return "og";
+  if (b.includes("power")) return "power";
+  if (b.includes("reliable")) return "reliable";
+  if (b.includes("steady") || b.includes("speedy")) return "speedy";
+  if (b.includes("consistent")) return "consistent";
+  if (b.includes("rising")) return "rising";
+  
+  return "newbie";
+}
+
+// Badge styling configuration
+// Using exact colors and icon paths based on your previous request
+const BADGE_STYLES = {
+  og: {
+    icon: "/OG.svg",
+    bgClass: "bg-[#FDF6E3]", // warm beige background
+    textClass: "text-[#78350F]", // dark brown text
+  },
+  reliable: {
+    icon: "/Reliable.svg",
+    bgClass: "bg-[#EFF6FF]", // light blue
+    textClass: "text-[#1E40AF]", // dark blue text
+  },
+  consistent: {
+    icon: "/Consistent.svg",
+    bgClass: "bg-[#FFF7ED]", // light orange/beige
+    textClass: "text-[#9A3412]", // dark orange text
+  },
+  rising: {
+    icon: "/Rising.svg",
+    bgClass: "bg-[#FEF2F2]", // light red
+    textClass: "text-[#991B1B]", // dark red text
+  },
+  power: {
+    icon: "/Power.svg",
+    bgClass: "bg-[#F3E8FF]", // light purple
+    textClass: "text-[#6B21A8]", // dark purple text
+  },
+  speedy: {
+    icon: "/Speedy.svg",
+    bgClass: "bg-[#F0FDF4]", // light green
+    textClass: "text-[#166534]", // dark green text
+  },
+  newbie: {
+    icon: "/Newbie.svg",
+    bgClass: "bg-[#DDF6D6]", // light gray
+    textClass: "text-[#374151]", // dark gray text
+  },
+};
+ function VendorBadgePill({ badgeText }) {
+  const key = normalizeBadgeKey(badgeText);
+  // Default to newbie if key not found
+  const style = BADGE_STYLES[key] || BADGE_STYLES.newbie;
+
+  return (
+    <div
+      className={`
+        relative inline-flex mt-1 items-center 
+        h-7 pl-8 pr-3 rounded-full 
+        ${style.bgClass}
+      `}
+    >
+      {/* Icon positioned absolutely to 'pop' off the left edge */}
+      <img
+        src={style.icon}
+        alt=""
+        className="absolute -left-2 top-1/2 -translate-y-1/2 w-9 h-9 drop-shadow-sm"
+        draggable={false}
+      />
+      
+      {/* Text Label */}
+      <span className={`text-sm font-opensans font-medium ${style.textClass}`}>
+        {badgeText || "Newbie"}
+      </span>
+    </div>
+  );
+}
+
 export default function VendorSearchCard({
   vendor,
   className = "",
@@ -156,7 +239,7 @@ export default function VendorSearchCard({
                 <span className="text-gray-500">({ratingCount})</span>
               </>
             ) : (
-              <span className="text-gray-400">No ratings yet</span>
+              <span className="text-gray-400 text-sm">No ratings yet</span>
             )}
 
             <span className="mx-1 text-gray-300">•</span>
@@ -166,11 +249,10 @@ export default function VendorSearchCard({
             </span>
           </div>
 
-          <div className="mt-1">
-            <span className="inline-flex items-center px-5 h-5 text-xs rounded-full bg-blue-600 text-white font-opensans font-semibold shadow-sm border border-blue-200">
-              {badgeText}
-            </span>
-          </div>
+        <div className="mt-1">
+  <VendorBadgePill badgeText={badgeText} />
+</div>
+
         </div>
       </div>
 

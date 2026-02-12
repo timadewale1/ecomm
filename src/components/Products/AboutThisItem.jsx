@@ -70,7 +70,6 @@ const deriveSizeText = (product) => {
   return "";
 };
 
-// --- Sub-Components ---
 const InfoRow = ({
   label,
   value,
@@ -112,7 +111,6 @@ const InfoRow = ({
   );
 };
 
-// --- Modal Component (Framer Motion) ---
 const DetailsModal = ({ data, onClose, onOpenDefect }) => {
   return (
     <>
@@ -223,7 +221,6 @@ const DetailsModal = ({ data, onClose, onOpenDefect }) => {
   );
 };
 
-// --- Main Component ---
 export default function AboutThisItem({
   product,
   showSize = true,

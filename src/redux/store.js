@@ -37,6 +37,7 @@ import categoryItemsReducer from "./reducers/categoryItemsSlice";
 import categoryTypesReducer from "./reducers/categoryTypesSlice";
 import scrollReducer from "./reducers/scrollSlice";
 import vendorStockpileReducer from "./reducers/vendorStockpileSlice";
+import homeFeedSnapshotReducer from "./reducers/homeFeedSnapshotReducer";
 import categoryMetadataReducer from "./reducers/categoryMetadataSlice";
 import featuredReducer from "./reducers/featuredSlice";
 import searchSnapshotReducer from "./reducers/searchSnapshotReducer";
@@ -54,6 +55,7 @@ const rootReducer = combineReducers({
   topVendors: topVendorsReducer,
   product: productReducer,
   explore: exploreReducer,
+   homeFeedSnapshot: homeFeedSnapshotReducer,
   searchSnapshot: searchSnapshotReducer,
   exploreUi: exploreUiReducer,
   user: userReducer,

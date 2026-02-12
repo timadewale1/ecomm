@@ -1,7 +1,13 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { IoMdOptions } from "react-icons/io";
-import { IoCheckmark, IoChevronDownOutline } from "react-icons/io5";
-
+import {
+  IoCheckmark,
+  IoChevronDownOutline,
+  IoHelpCircleOutline,
+  IoCloseOutline,
+} from "react-icons/io5";
+import { AnimatePresence, motion } from "framer-motion";
+import { createPortal } from "react-dom";
 function Chip({ label, value, active, onClick, disabled }) {
   return (
     <button
@@ -9,7 +15,7 @@ function Chip({ label, value, active, onClick, disabled }) {
       onClick={onClick}
       disabled={disabled}
       className={[
-        "shrink-0 inline-flex items-center gap-1.5 px-3 h-12 rounded-xl  text-[17px] font-opensans font-medium",
+        "shrink-0 inline-flex items-center gap-1.5 px-3 h-12 rounded-xl  text-[17px] font-opensans font-normal",
         disabled
           ? "border-gray-200 text-gray-300 bg-gray-50 cursor-not-allowed"
           : active
@@ -67,6 +73,120 @@ function sortLabel(sort) {
       return "Relevance";
   }
 }
+function SearchResultsInfoModal({ open, onClose }) {
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            className="fixed inset-0 z-[2000] bg-black/50 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+          />
+
+          {/* Bottom Sheet */}
+          <motion.div
+            className={[
+              "fixed inset-x-0 bottom-0 z-[2001]",
+              "bg-white rounded-t-2xl shadow-xl",
+              "w-full max-w-lg mx-auto",
+              "flex flex-col",
+              "overflow-hidden", // important: no inner scroll look
+            ].join(" ")}
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            drag="y"
+            dragConstraints={{ top: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(e, info) => {
+              if (info.offset.y > 100) onClose();
+            }}
+          >
+            {/* Drag Handle */}
+            <div className="w-full flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-gray-300 rounded-full" />
+            </div>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 pb-4 border-b border-gray-100">
+              <h3 className="text-[16px] font-semibold font-opensans text-gray-900">
+                How results are sorted
+              </h3>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-2 -mr-2 text-gray-700 rounded-full hover:bg-gray-100 transition-colors"
+                aria-label="Close"
+              >
+                <IoCloseOutline size={22} />
+              </button>
+            </div>
+
+            {/* Content (NO SCROLL) */}
+            <div className="px-6 pt-4 pb-6 font-opensans">
+              <div className="space-y-4">
+                {/* Inventory Disclaimer */}
+                <section className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                  <p className="text-[13px] font-semibold text-gray-900">
+                    Inventory is still growing
+                  </p>
+                  <p className="mt-1 text-[12.5px] text-gray-600 leading-snug">
+                    Some searches may show fewer results while we expand listings.
+                  </p>
+                </section>
+
+                {/* Ranking Criteria */}
+                <section>
+                  <p className="text-[13px] font-semibold text-gray-900">
+                    Ranking signals
+                  </p>
+
+                  <ul className="mt-2 space-y-2">
+                    {[
+                      "Match to your search terms",
+                      "Newly listed items",
+                      "Vendor reputation and badge level",
+                      "Popularity and engagement",
+                      "Featured placement (only when relevant)",
+                    ].map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-3">
+                        <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
+                        <span className="text-[12.5px] text-gray-700 leading-snug">
+                          {item}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+
+                {/* Featured */}
+                <section className="rounded-xl border border-gray-100 px-4 py-3">
+                  <p className="text-[13px] font-semibold text-gray-900">
+                    Featured items
+                  </p>
+                  <p className="mt-1 text-[12.5px] text-gray-600 leading-snug">
+                    Vendors can promote select items, but we only boost them when they
+                    still match your search and meet quality standards.
+                  </p>
+                </section>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>,
+    document.body
+  );
+}
+
 
 export default function SearchFilterBar({
   appliedFilters,
@@ -85,7 +205,7 @@ export default function SearchFilterBar({
   );
   const catActive = !!appliedFilters.category;
   const conditionActive = !!appliedFilters.conditions?.length;
-
+const [infoModalOpen, setInfoModalOpen] = useState(false);
   const colorActive = !!appliedFilters.colors?.length;
   const priceActive = !!(appliedFilters.priceMin || appliedFilters.priceMax);
 
@@ -147,7 +267,7 @@ export default function SearchFilterBar({
     : "";
 
   return (
-    <div className="mt-3">
+    <div className="">
       <div className="flex items-center gap-2">
         {/* Filter icon button */}
         <button
@@ -181,10 +301,28 @@ export default function SearchFilterBar({
       </div>
 
       {!!resultsText && (
-        <p className="mt-5 text-[16px] font-opensans text-gray-500">
-          {resultsText}
-        </p>
+        <div className="mt-4 flex items-center justify-between px-1">
+          <p className="text-[13px] font-opensans font-medium text-gray-500">
+            {resultsText}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setInfoModalOpen(true)}
+            className="flex items-center gap-1.5 text-[12px] font-opensans font-medium text-customOrange hover:text-orange-600 transition-colors"
+          >
+            Search results
+            <IoHelpCircleOutline className="text-base" />
+          </button>
+        </div>
       )}
+
+      {/* Info Modal */}
+      <SearchResultsInfoModal
+        open={infoModalOpen}
+        onClose={() => setInfoModalOpen(false)}
+      />
+    
     </div>
   );
 }

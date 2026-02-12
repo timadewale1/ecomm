@@ -107,7 +107,7 @@ const Login = () => {
               existingProduct.productId === newProduct.productId &&
               existingProduct.color === newProduct.color &&
               existingProduct.size === newProduct.size &&
-              existingProduct.variation === newProduct.variation
+              existingProduct.variation === newProduct.variation,
           );
 
           if (!productAlreadyExists) {
@@ -168,7 +168,7 @@ const Login = () => {
           return `${safeName}@${domain}`;
         };
         toast.error(
-          `Please use the same email you used earlier: ${mask(savedEmail)}`
+          `Please use the same email you used earlier: ${mask(savedEmail)}`,
         );
         return;
       }
@@ -176,7 +176,7 @@ const Login = () => {
       // 1) HARD BLOCK: Vendor emails
       const vendorsQ = query(
         collection(db, "vendors"),
-        where("email", "==", inputEmail)
+        where("email", "==", inputEmail),
       );
       const vendorsSnap = await getDocs(vendorsQ);
       if (!vendorsSnap.empty) {
@@ -185,7 +185,7 @@ const Login = () => {
       }
       const usersQ = query(
         collection(db, "users"),
-        where("email", "==", inputEmail)
+        where("email", "==", inputEmail),
       );
       const usersSnap = await getDocs(usersQ);
       if (!usersSnap.empty && usersSnap.docs[0].data()?.role === "vendor") {
@@ -197,7 +197,7 @@ const Login = () => {
       const methods = await fetchSignInMethodsForEmail(auth, inputEmail);
       if (methods.length > 0) {
         toast.error(
-          "This email is already registered. Please sign in and we’ll merge your data."
+          "This email is already registered. Please sign in and we’ll merge your data.",
         );
         return;
       }
@@ -218,7 +218,7 @@ const Login = () => {
         snap.exists()
           ? patch
           : { createdAt: new Date(), role: "user", ...patch },
-        { merge: true }
+        { merge: true },
       );
 
       try {
@@ -232,7 +232,7 @@ const Login = () => {
       }
 
       toast.success(
-        "Account linked! We’ve sent a verification email. Please log in again."
+        "Account linked! We’ve sent a verification email. Please log in again.",
       );
       setShowLinkDialog(false);
       await auth.signOut();
@@ -240,7 +240,7 @@ const Login = () => {
       console.error("linkWithCredential failed:", err);
       if (err.code === "auth/email-already-in-use") {
         toast.error(
-          "This email is already in use. Please sign in and link from settings."
+          "This email is already in use. Please sign in and link from settings.",
         );
       } else if (err.code === "auth/invalid-credential") {
         toast.error("Invalid email or password.");
@@ -278,7 +278,7 @@ const Login = () => {
         await auth.signOut();
         setLoading(false);
         return toast.error(
-          "Your account has been deactivated. Please contact support."
+          "Your account has been deactivated. Please contact support.",
         );
       }
 
@@ -292,7 +292,7 @@ const Login = () => {
       /* ── 3.  Success → greet & navigate immediately ────────────── */
       const name = uData.username || "User";
       toast.success(`Hello ${name}, welcome back!`);
-      const redirectTo = location.state?.from || "/newhome";
+      const redirectTo = location.state?.from || "/";
       navigate(redirectTo, { replace: true });
       setLoading(false);
       identifyUser(posthog, user, { role: uData.role ?? "user" });
@@ -305,7 +305,7 @@ const Login = () => {
           try {
             const sendMail = httpsCallable(
               functions,
-              "sendUserVerificationEmail"
+              "sendUserVerificationEmail",
             );
             await sendMail({
               email: user.email,
@@ -318,7 +318,7 @@ const Login = () => {
           await auth.signOut(); // end the session
           navigate("/login", { replace: true }); // ⬅️  back to login screen
           toast.error(
-            "Please verify your e-mail address first. We just sent you a new link."
+            "Please verify your e-mail address first. We just sent you a new link.",
           );
           setLoading(false);
           return; // bail out
@@ -359,14 +359,14 @@ const Login = () => {
             // vendor block -> if vendor, do not open modal
             const vendorsQ = query(
               collection(db, "vendors"),
-              where("email", "==", inputEmail)
+              where("email", "==", inputEmail),
             );
             const vendorsSnap = await getDocs(vendorsQ);
             if (vendorsSnap.empty) {
               // only open if email is NOT already registered in Auth
               const methods = await fetchSignInMethodsForEmail(
                 auth,
-                inputEmail
+                inputEmail,
               );
               if (methods.length === 0) {
                 setLoading(false);
@@ -441,7 +441,7 @@ const Login = () => {
           } catch (delErr) {
             console.warn(
               "Failed to delete just-created vendor auth user:",
-              delErr
+              delErr,
             );
           }
         }
@@ -486,7 +486,7 @@ const Login = () => {
       localStorage.removeItem("cart");
       identifyUser(posthog, user, { role: "user" });
       posthog?.capture("login_succeeded", { method: "google" });
-      const redirectTo = location.state?.from || "/newhome";
+      const redirectTo = location.state?.from || "/";
       toast.success(`Welcome back ${user.displayName}!`);
       setSocialLoading(false);
       navigate(redirectTo, { replace: true });
@@ -534,7 +534,7 @@ const Login = () => {
           await auth.signOut();
         } catch {}
         toast.error(
-          "We couldn’t retrieve your email from Twitter. Please continue with Google or Email."
+          "We couldn’t retrieve your email from Twitter. Please continue with Google or Email.",
         );
         posthog?.capture("login_failed_missing_email", { method: "twitter" });
         return;
@@ -576,15 +576,15 @@ const Login = () => {
         } catch {}
         if (hasGoogle && !hasPassword) {
           toast.error(
-            "This email is already registered with Google. Please sign in with Google."
+            "This email is already registered with Google. Please sign in with Google.",
           );
         } else if (hasPassword && !hasGoogle) {
           toast.error(
-            "This email is already registered with a password. Please sign in with Email."
+            "This email is already registered with a password. Please sign in with Email.",
           );
         } else {
           toast.error(
-            "This email is already registered with a different method. Please use your original sign-in method."
+            "This email is already registered with a different method. Please use your original sign-in method.",
           );
         }
         posthog?.capture("login_conflict_existing_method", {
@@ -621,7 +621,7 @@ const Login = () => {
       identifyUser(posthog, user, { role: "user" });
       posthog?.capture("login_succeeded", { method: "twitter" });
 
-      const redirectTo = location.state?.from || "/newhome";
+      const redirectTo = location.state?.from || "/";
       toast.success(`Welcome back ${user.displayName || "there"}!`);
       navigate(redirectTo, { replace: true });
     } catch (error) {

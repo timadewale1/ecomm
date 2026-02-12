@@ -36,6 +36,7 @@ export default {
         customGreen: "#def2eb",
         lightGreen: "#F2FEF2",
         customPink: "#fEE4E1",
+        customPinkyBrown: "#FFCFC0",  
         lightPurple: "#F9F4FF",
         textGreen: "#388f6e",
         dotGreen: "#9cd8c2",

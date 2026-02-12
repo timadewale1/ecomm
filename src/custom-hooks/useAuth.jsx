@@ -77,14 +77,6 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem("mythrift:userData", JSON.stringify(data));
           }
         } catch {}
-if (user.isAnonymous) {
-  const data = { role: "guest" };
-  setCurrentUser(user);
-  setCurrentUserData(data);
-  localStorage.setItem("mythrift:userData", JSON.stringify(data));
-  setLoading(false);
-  return;
-}
 
         try {
           const vendorDoc = await retryGetDoc(vendorRef);

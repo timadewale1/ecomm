@@ -107,6 +107,7 @@ import {
 } from "../redux/reducers/quickModeSlice";
 import QuickAuthModal from "../components/PwaModals/AuthModal";
 import Badge from "../components/Badge/Badge";
+import { track } from "../services/signals";
 Modal.setAppElement("#root"); // For accessibility
 
 const FlipCountdown = ({ endTime }) => {
@@ -529,7 +530,7 @@ const StorePage = () => {
   const vendorCartProducts = useSelector((s) => s.cart?.[id]?.products || {});
   const checkoutCount = Object.values(vendorCartProducts).reduce(
     (sum, p) => sum + (p.quantity || 0),
-    0
+    0,
   );
   const [isStockpileMode, setIsStockpileMode] = useState(false);
   const [showPileModal, setShowPileModal] = useState(false);
@@ -552,7 +553,7 @@ const StorePage = () => {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [termsUrl, setTermsUrl] = useState("");
   const [isOnline, setIsOnline] = useState(() =>
-    typeof navigator !== "undefined" ? navigator.onLine : true
+    typeof navigator !== "undefined" ? navigator.onLine : true,
   );
 
   useEffect(() => {
@@ -589,7 +590,7 @@ const StorePage = () => {
             lng: pos.coords.longitude,
           }),
         () => setUserCoords(null),
-        { timeout: 8000 }
+        { timeout: 8000 },
       );
       setShowPickupIntro(true);
       return;
@@ -630,10 +631,48 @@ const StorePage = () => {
         saveStoreScroll({
           vendorId: id,
           scrollY: parseFloat(saved),
-        })
+        }),
       );
     }
   }, [vendor, id, dispatch]);
+  useEffect(() => {
+    // only log when vendor is actually loaded
+    if (!vendor?.id) return;
+
+    // only log when user is logged in
+    if (!currentUser?.uid) return;
+
+    const surface = isShared ? "shared_link" : "vendor_store";
+
+    // dedupe per session per vendor per surface
+    const seenKey = `mt_vendor_view_${surface}_${vendor.id}`;
+    if (sessionStorage.getItem(seenKey)) return;
+
+    sessionStorage.setItem(seenKey, "1");
+
+    track(
+      "vendor_view",
+      {
+        vendorId: vendor.id,
+        vendorSlug: vendor.slug || null,
+        vendorName: vendor.shopName || null,
+        isQuickMode: !!quickForThisVendor,
+      },
+      {
+        surface,
+        path: `${location.pathname}${location.search || ""}`,
+      },
+    );
+  }, [
+    vendor?.id,
+    vendor?.slug,
+    vendor?.shopName,
+    currentUser?.uid,
+    isShared,
+    quickForThisVendor,
+    location.pathname,
+    location.search,
+  ]);
 
   useEffect(() => {
     if (!vendor) {
@@ -657,7 +696,7 @@ const StorePage = () => {
     try {
       while (true) {
         const { noMore } = await dispatch(
-          fetchVendorProductsBatch({ vendorId: id, loadMore: true })
+          fetchVendorProductsBatch({ vendorId: id, loadMore: true }),
         ).unwrap();
         if (noMore) break;
       }
@@ -726,7 +765,7 @@ const StorePage = () => {
           const followRef = collection(db, "follows");
           const followDocRef = doc(
             followRef,
-            `${currentUser.uid}_${vendor.id}`
+            `${currentUser.uid}_${vendor.id}`,
           );
           const followSnapshot = await getDoc(followDocRef);
 
@@ -774,7 +813,7 @@ const StorePage = () => {
     return () => {
       if (hasUserScrolledSinceRestore) {
         dispatch(
-          saveStoreScroll({ vendorId: id, scrollY: lastScrollY.current })
+          saveStoreScroll({ vendorId: id, scrollY: lastScrollY.current }),
         );
         localStorage.setItem(`storeScroll_${id}`, String(lastScrollY.current));
       }
@@ -783,7 +822,7 @@ const StorePage = () => {
 
   useLayoutEffect(() => {
     console.log(
-      `🔍 trying to restore scroll to ${scrollY} (restored? ${restored.current})`
+      `🔍 trying to restore scroll to ${scrollY} (restored? ${restored.current})`,
     );
     if (
       !restored.current &&
@@ -957,7 +996,7 @@ const StorePage = () => {
           writeLimit: 50,
           minuteLimit: 8,
           hourLimit: 40,
-        }
+        },
       );
 
       if (!prevState) {
@@ -1185,7 +1224,7 @@ const StorePage = () => {
   };
 
   const uniqueFilteredProducts = filteredProducts.filter(
-    (prod, idx, arr) => arr.findIndex((p) => p.id === prod.id) === idx
+    (prod, idx, arr) => arr.findIndex((p) => p.id === prod.id) === idx,
   );
 
   const FollowHeadsUp = () => {
@@ -1288,7 +1327,7 @@ const StorePage = () => {
                   )}
 
                   {pileItems.filter(
-                    (item) => item.progressStatus !== "Declined"
+                    (item) => item.progressStatus !== "Declined",
                   ).length === 0 ? (
                     <p>No items found</p>
                   ) : (
@@ -1393,7 +1432,7 @@ const StorePage = () => {
               <img
                 src="/newlogo.png"
                 alt="Logo"
-                onClick={() => navigate("/newhome")}
+                onClick={() => navigate("/")}
                 className={`h-8 w-auto object-contain  ${
                   showHeader ? "opacity-100" : "opacity-20"
                 }cursor-pointer drop-shadow-sm`}
@@ -1623,7 +1662,7 @@ const StorePage = () => {
                   onVendorPolicyClick={() => setShowVendorPolicy(true)}
                   onLinkClick={(fragment) => {
                     setTermsUrl(
-                      `https://www.shopmythrift.store/terms-and-conditions#${fragment}`
+                      `https://www.shopmythrift.store/terms-and-conditions#${fragment}`,
                     );
                     setShowTermsModal(true);
                   }}
@@ -1639,85 +1678,81 @@ const StorePage = () => {
           )}
         </div>
         <div className={`${isSearching ? "mt-16" : "mt-7"}`}>
-         
-            <>
-              <div className="flex items-center mb-3 justify-between">
-                <h1 className="font-opensans text-lg  font-semibold">
-                  Products
-                </h1>
-                <div className="relative">
-                  <AnimatePresence>
-                    {viewOptions && (
-                      <motion.div
-                        initial={{ x: 60, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        exit={{ x: 60, opacity: 0 }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 300,
-                          damping: 25,
-                        }}
-                        className="z-50 absolute bg-white w-44 h-20 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-24 top-2 p-3 flex flex-col justify-between"
-                      >
-                        <span
-                          className={`text-xs font-opensans ml-2 cursor-pointer ${
-                            sortOption === "priceAsc"
-                              ? "text-customOrange"
-                              : "text-black"
-                          }`}
-                          onClick={() => {
-                            setSortOption("priceAsc");
-                            setViewOptions(!viewOptions);
-                          }}
-                        >
-                          Low to High
-                        </span>
-                        <hr className="text-slate-300" />
-                        <span
-                          className={`text-xs font-opensans ml-2 cursor-pointer ${
-                            sortOption === "priceDesc"
-                              ? "text-customOrange"
-                              : "text-black"
-                          }`}
-                          onClick={() => {
-                            setSortOption("priceDesc");
-                            setViewOptions(!viewOptions);
-                          }}
-                        >
-                          High to Low
-                        </span>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                  <span className="flex text-xs font-opensans items-center">
-                    Sort by Price:{" "}
-                    <LuListFilter
-                      className="text-customOrange cursor-pointer ml-1"
-                      onClick={() => setViewOptions(!viewOptions)}
-                    />
-                  </span>
-                </div>
-              </div>
-              {!searchingUI(isSearching, searchTerm) && (
-                <div className="flex px-2 mb-4 w-full pt-2 pb-6 overflow-x-auto space-x-2 scrollbar-hide">
-                  {productTypes.map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => handleTypeSelect(type)}
-                      className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 border ${
-                        selectedType === type
-                          ? "bg-customOrange text-white"
-                          : "bg-white"
-                      }`}
+          <>
+            <div className="flex items-center mb-3 justify-between">
+              <h1 className="font-opensans text-lg  font-semibold">Products</h1>
+              <div className="relative">
+                <AnimatePresence>
+                  {viewOptions && (
+                    <motion.div
+                      initial={{ x: 60, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      exit={{ x: 60, opacity: 0 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 25,
+                      }}
+                      className="z-50 absolute bg-white w-44 h-20 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-24 top-2 p-3 flex flex-col justify-between"
                     >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
-          
-      
+                      <span
+                        className={`text-xs font-opensans ml-2 cursor-pointer ${
+                          sortOption === "priceAsc"
+                            ? "text-customOrange"
+                            : "text-black"
+                        }`}
+                        onClick={() => {
+                          setSortOption("priceAsc");
+                          setViewOptions(!viewOptions);
+                        }}
+                      >
+                        Low to High
+                      </span>
+                      <hr className="text-slate-300" />
+                      <span
+                        className={`text-xs font-opensans ml-2 cursor-pointer ${
+                          sortOption === "priceDesc"
+                            ? "text-customOrange"
+                            : "text-black"
+                        }`}
+                        onClick={() => {
+                          setSortOption("priceDesc");
+                          setViewOptions(!viewOptions);
+                        }}
+                      >
+                        High to Low
+                      </span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <span className="flex text-xs font-opensans items-center">
+                  Sort by Price:{" "}
+                  <LuListFilter
+                    className="text-customOrange cursor-pointer ml-1"
+                    onClick={() => setViewOptions(!viewOptions)}
+                  />
+                </span>
+              </div>
+            </div>
+            {!searchingUI(isSearching, searchTerm) && (
+              <div className="flex px-2 mb-4 w-full pt-2 pb-6 overflow-x-auto space-x-2 scrollbar-hide">
+                {productTypes.map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => handleTypeSelect(type)}
+                    className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 border ${
+                      selectedType === type
+                        ? "bg-customOrange text-white"
+                        : "bg-white"
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+
           {vendorLoading || (loadingMore && filteredProducts.length === 0) ? (
             <div className="grid mt-2 grid-cols-2 gap-2">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -1732,6 +1767,7 @@ const StorePage = () => {
                     key={product.id}
                     product={product}
                     isFavorite={!!favorites[product.id]}
+                    surface="vendor_store"
                     onFavoriteToggle={handleFavoriteToggle}
                     onClick={() => navigate(`/product/${product.id}`)}
                     showVendorName={false}
@@ -1764,16 +1800,14 @@ const StorePage = () => {
             </>
           ) : (
             <>
-              
-                <div className="flex justify-center items-center w-full text-center">
-                  <p className="font-opensans text-gray-800 text-xs">
-                    📭 <span className="font-semibold">{vendor.shopName}</span>{" "}
-                    hasn’t added any products to their online store yet. Follow
-                    this vendor and you will be notified when they upload
-                    products!
-                  </p>
-                </div>
-              
+              <div className="flex justify-center items-center w-full text-center">
+                <p className="font-opensans text-gray-800 text-xs">
+                  📭 <span className="font-semibold">{vendor.shopName}</span>{" "}
+                  hasn’t added any products to their online store yet. Follow
+                  this vendor and you will be notified when they upload
+                  products!
+                </p>
+              </div>
             </>
           )}
         </div>
@@ -1781,7 +1815,7 @@ const StorePage = () => {
         <QuickAuthModal
           open={authOpen}
           onClose={() => setAuthOpen(false)}
-          headerText = "Continue to follow"
+          headerText="Continue to follow"
           onComplete={() => {
             setAuthOpen(false);
             const unsub = onAuthStateChanged(auth, (u) => {

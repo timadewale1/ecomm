@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 import Downshift from "downshift";
 import { VscClose } from "react-icons/vsc";
 import { VscHistory } from "react-icons/vsc";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { IoChevronBackOutline } from "react-icons/io5";
 import { CiSearch } from "react-icons/ci";
 import { MdCancel, MdOutlineArrowBack, MdTrendingUp } from "react-icons/md";
@@ -20,7 +20,7 @@ import {
   saveSearchSnapshot,
   clearSearchSnapshot,
 } from "../../redux/actions/searchSnapshot";
-
+import { track } from "../../services/signals";
 import { FiFilter } from "react-icons/fi";
 import SearchFilterModal, {
   buildFiltersPayload,
@@ -28,6 +28,8 @@ import SearchFilterModal, {
 import { MdHistory } from "react-icons/md"; // ✅ recent icon
 import SearchFilterBar from "../../components/Search/SearchFilterBar"; // ✅ NEW
 import { GoArrowLeft } from "react-icons/go";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 import VendorSearchCard from "../../components/VendorsData/VendorSearchCard";
 import { AiOutlineArrowLeft } from "react-icons/ai";
@@ -72,6 +74,117 @@ function debounce(fn, wait = 200) {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), wait);
   };
+}
+function EmptySearchState({
+  title = "No results found",
+  subtitle = "Try a different keyword or check spelling.",
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center min-h-[40vh] px-20 py-20">
+      <img
+        src="/Search_empty.svg"
+        alt="No results"
+        className="w-24 h-24 object-contain"
+      />
+      <p className="mt-4 font-opensans text-base font-semibold text-gray-900">
+        {title}
+      </p>
+      <p className="mt-1 font-opensans text-sm text-gray-500">{subtitle}</p>
+    </div>
+  );
+}
+const ProductCardSkeleton = () => {
+  return (
+    <div className="product-card relative mb-2">
+      <div className="relative">
+        <div className="h-44 w-full rounded-xl overflow-hidden relative z-0">
+          <Skeleton
+            height="100%"
+            width="100%"
+            borderRadius="0.75rem"
+            className="h-full w-full block"
+            style={{ display: "block" }}
+          />
+        </div>
+
+        <div className="absolute top-2 right-2 z-10">
+          <Skeleton width={52} height={22} borderRadius={6} />
+        </div>
+
+        <div className="absolute bottom-2 right-2 z-10">
+          <Skeleton circle width={36} height={36} />
+        </div>
+
+        <div className="absolute bottom-2 left-2 z-10 flex items-center">
+          <Skeleton circle width={36} height={36} />
+          <div className="-ml-2">
+            <Skeleton circle width={36} height={36} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-2">
+        <div className="h-5 flex items-center overflow-hidden">
+          <Skeleton width={120} height={14} />
+        </div>
+
+        <div className="mt-2">
+          <Skeleton width="80%" height={16} />
+          <Skeleton width="40%" height={16} className="mt-1" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+function ProductGridSkeleton({ count = 10 }) {
+  return (
+    <div className="grid mt-4 grid-cols-2 gap-3">
+      {Array.from({ length: count }).map((_, i) => (
+        <ProductCardSkeleton key={i} />
+      ))}
+    </div>
+  );
+}
+function VendorSearchCardSkeleton() {
+  return (
+    <div className="bg-gray-50 w-full p-4 rounded-xl">
+      <div className="flex gap-3">
+        <div className="w-24 h-24 shrink-0">
+          <Skeleton circle width={96} height={96} />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <Skeleton width="60%" height={18} />
+          <div className="mt-2">
+            <Skeleton width="85%" height={14} />
+          </div>
+          <div className="mt-2">
+            <Skeleton width={110} height={18} borderRadius={999} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 flex gap-4">
+        <div className="flex-1">
+          <Skeleton height={48} borderRadius={16} />
+        </div>
+        <div className="flex-1">
+          <Skeleton height={48} borderRadius={16} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VendorListSkeleton({ count = 6 }) {
+  return (
+    <div className="mt-12 space-y-3">
+      {Array.from({ length: count }).map((_, i) => (
+        <VendorSearchCardSkeleton key={i} />
+      ))}
+    </div>
+  );
 }
 
 function NGN(value) {
@@ -154,12 +267,127 @@ function renderHighlighted(text, query) {
     </span>
   );
 }
+function getSessionId() {
+  const key = "mt_session_id";
+  let v = sessionStorage.getItem(key);
+  if (!v) {
+    v =
+      crypto?.randomUUID?.() ||
+      `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    sessionStorage.setItem(key, v);
+  }
+  return v;
+}
+
+function redactQuery(q) {
+  let s = cleanStr(q);
+  // redact emails
+  s = s.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email]");
+  // redact long numbers (phone-ish)
+  s = s.replace(/\b\d{10,}\b/g, "[number]");
+  return s;
+}
+
+function summarizeFilters(f) {
+  return {
+    sort: f?.sort || "relevance",
+    category: f?.category || null,
+    sizeType: f?.sizeType || null,
+    subTypesCount: Array.isArray(f?.subTypes) ? f.subTypes.length : 0,
+    colorsCount: Array.isArray(f?.colors) ? f.colors.length : 0,
+    sizesCount: Array.isArray(f?.sizes) ? f.sizes.length : 0,
+    hasPriceRange: Boolean(f?.priceMin || f?.priceMax),
+  };
+}
+
+function priceBandFromRange(min, max) {
+  const lo = Number(min || 0);
+  const hi = Number(max || 0);
+
+  // if you later add preset bands, you can map them here
+  if (!lo && !hi) return null;
+  return `${lo || 0}_${hi || "up"}`;
+}
+
+function buildIntentPayload({ query, filters, tab }) {
+  const q = (query || "").trim().toLowerCase();
+  const f = filters || {};
+
+  return {
+    tab,
+    category: f.category || null,
+    subTypes: Array.isArray(f.subTypes) ? f.subTypes : [],
+    colors: Array.isArray(f.colors) ? f.colors : [],
+    sizeType: f.sizeType || null,
+    sizes: Array.isArray(f.sizes) ? f.sizes : [],
+    priceMin: f.priceMin ? Number(f.priceMin) : null,
+    priceMax: f.priceMax ? Number(f.priceMax) : null,
+    priceBand: priceBandFromRange(f.priceMin, f.priceMax),
+    vendorNameHint: tab === "vendors" ? q : null,
+    confidence: 0.75, // filters-driven intent is usually strong
+    version: "intentV1",
+  };
+}
+
+function dedupe(arr) {
+  return Array.from(new Set(arr));
+}
+function safeFocus(el) {
+  if (!el) return false;
+
+  try {
+    // not supported everywhere
+    el.focus({ preventScroll: true });
+  } catch {
+    try {
+      el.focus();
+    } catch {}
+  }
+
+  // optional: cursor at end (only if supported)
+  try {
+    const len = (el.value || "").length;
+    el.setSelectionRange?.(len, len);
+  } catch {}
+
+  return document.activeElement === el;
+}
+function normalizeProductForCard(raw) {
+  const available = raw?.availableSizes;
+
+  const sizeFromAvailable =
+    typeof raw?.size === "string" && raw.size.trim()
+      ? raw.size.trim()
+      : typeof raw?.sizeText === "string" && raw.sizeText.trim()
+        ? raw.sizeText.trim()
+        : Array.isArray(available)
+          ? available.filter(Boolean).join(", ")
+          : typeof available === "string"
+            ? available
+            : "";
+
+  return {
+    ...raw,
+    id: raw?.id || raw?.productId,
+    // ✅ this makes ProductCard's getSizeText work
+    size: sizeFromAvailable,
+
+    // optional: sometimes different backends use different keys
+    condition: raw?.condition || raw?.itemCondition || raw?.productCondition || "",
+  };
+}
 
 export default function SearchPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlQ = cleanStr(searchParams.get("q") || "");
+  const location = useLocation();
+  const inputRef = useRef(null);
+
   const urlVQ = cleanStr(searchParams.get("vq") || "");
+  const sessionId = useMemo(() => getSessionId(), []);
+  const submitSourceRef = useRef("unknown");
+  const lastLoggedRef = useRef(""); // prevent double logs
 
   const [input, setInput] = useState(urlQ);
   const tabParam = cleanStr(searchParams.get("tab") || "");
@@ -227,6 +455,7 @@ export default function SearchPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const dispatch = useDispatch();
   const snapshot = useSelector((s) => s.searchSnapshot?.snapshot);
+  const vendorSentinelRef = useRef(null);
 
   // chips row visibility (only matters on results view)
   const [chipsVisible, setChipsVisible] = useState(true);
@@ -253,6 +482,29 @@ export default function SearchPage() {
   const dockContentRef = useRef(null);
 
   const dockContentH = useROHeight(dockContentRef);
+  function logItemsImpression({ query, filters, got, offset, page }) {
+    const searchSessionId = getSearchSessionId("items");
+    const intent = buildIntentPayload({ query, filters, tab: "items" });
+
+    track(
+      "search_results_impression",
+      {
+        tab: "items",
+        searchSessionId,
+        intent,
+        intentVersion: intent.version,
+        query: redactQuery(query),
+        page,
+        resultsReturned: got.length,
+        results: got.slice(0, 40).map((raw, i) => ({
+          id: raw?.id || raw?.productId,
+          vendorId: raw?.vendorId,
+          position: offset + i + 1,
+        })),
+      },
+      { surface: "search", sessionId },
+    );
+  }
 
   // derived “mode” flags (usable in effects)
   const showAutocomplete = activeTab === "items" && Boolean(input) && menuOpen;
@@ -271,6 +523,46 @@ export default function SearchPage() {
   useEffect(() => {
     setInput(activeTab === "items" ? urlQ : urlVQ);
   }, [urlQ, urlVQ, activeTab]);
+  const openMenuRef = useRef(null);
+  const lastAutofocusKeyRef = useRef(null);
+
+  const wantsAutofocus = Boolean(location.state?.autofocus);
+
+  useLayoutEffect(() => {
+    if (!wantsAutofocus) return;
+
+    // only once per navigation
+    if (lastAutofocusKeyRef.current === location.key) return;
+    lastAutofocusKeyRef.current = location.key;
+
+    let raf = 0;
+    let tries = 0;
+
+    const tick = () => {
+      const el = inputRef.current;
+
+      if (el) {
+        const ok = safeFocus(el);
+
+        // open Downshift menu if you want (focus should trigger onFocus too, but this is explicit)
+        openMenuRef.current?.();
+
+        // quick debug
+        console.log(
+          "[autofocus] ok:",
+          ok,
+          "active:",
+          document.activeElement === el,
+        );
+        return;
+      }
+
+      if (tries++ < 30) raf = requestAnimationFrame(tick);
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => raf && cancelAnimationFrame(raf);
+  }, [location.key, wantsAutofocus]);
 
   useEffect(() => {
     setChipsVisible(true);
@@ -381,6 +673,28 @@ export default function SearchPage() {
 
   const suggestAbortRef = useRef(null);
   const searchAbortRef = useRef(null);
+  const searchSessionIdRef = useRef(null);
+  const itemsPageRef = useRef(0);
+  const vendorsPageRef = useRef(0);
+
+  function newSearchSessionId() {
+    return (
+      crypto?.randomUUID?.() ||
+      `${Date.now()}_${Math.random().toString(16).slice(2)}`
+    );
+  }
+
+  function startNewSearchSession(kind = "items") {
+    searchSessionIdRef.current = newSearchSessionId();
+    if (kind === "items") itemsPageRef.current = 0;
+    if (kind === "vendors") vendorsPageRef.current = 0;
+    return searchSessionIdRef.current;
+  }
+
+  function getSearchSessionId(kind = "items") {
+    // if user landed on /search?q=... directly, this ensures we still have an id
+    return searchSessionIdRef.current || startNewSearchSession(kind);
+  }
 
   async function callSuggest(q) {
     if (activeTab !== "items") return;
@@ -417,7 +731,6 @@ export default function SearchPage() {
   }
 
   const debouncedSuggest = useMemo(() => debounce(callSuggest, 220), []);
-  const vendorSentinelRef = useRef(null);
 
   async function runSearchFirstPage(q, filtersOverride) {
     if (activeTab !== "items") return;
@@ -430,9 +743,10 @@ export default function SearchPage() {
       setFacets(null);
       return;
     }
+    getSearchSessionId("items");
 
     const finalFilters = filtersOverride ?? appliedFilters;
-
+    const t0 = performance.now();
     searchAbortRef.current?.abort?.();
     const ac = new AbortController();
     searchAbortRef.current = ac;
@@ -465,11 +779,59 @@ export default function SearchPage() {
 
       const got = Array.isArray(data.items) ? data.items : [];
       setItems(got);
-      setTotal(Number(data.total || 0));
+      itemsPageRef.current = 0;
+      logItemsImpression({
+        query,
+        filters: finalFilters,
+        got,
+        offset: 0,
+        page: 1,
+      });
+
       setFacets(data.facets || null);
+      const totalNum = Number(data.total || 0);
+      setTotal(totalNum);
       const cursor = data.nextCursor || null;
       setNextCursor(cursor);
       setHasMore(Boolean(cursor) && got.length > 0);
+      const searchSessionId = getSearchSessionId("items");
+      const intent = buildIntentPayload({
+        query,
+        filters: finalFilters,
+        tab: "items",
+      });
+
+      const logKey = `items|${searchSessionId}`; // per-search unique
+      if (lastLoggedRef.current !== logKey) {
+        lastLoggedRef.current = logKey;
+
+        track(
+          "search_submitted",
+          {
+            tab: "items",
+            searchSessionId,
+            intent,
+            intentVersion: intent.version,
+            query: redactQuery(query),
+            queryLen: query.length,
+            source: submitSourceRef.current || "unknown",
+            filters: summarizeFilters(finalFilters),
+            resultsTotal: totalNum,
+            resultsReturned: got.length,
+            hasResults: totalNum > 0,
+            latencyMs: Math.round(performance.now() - t0),
+            nextCursor: Boolean(cursor),
+            searchVersion: "searchV3",
+          },
+          {
+            surface: "search",
+            path: `/search?q=${encodeURIComponent(query)}&tab=items`,
+            sessionId,
+          },
+        );
+
+        submitSourceRef.current = "unknown";
+      }
     } catch (e) {
       if (String(e?.name) !== "AbortError") console.error("search error:", e);
     } finally {
@@ -527,7 +889,7 @@ export default function SearchPage() {
       setVendorHasMore(false);
       return;
     }
-
+    const t0 = performance.now();
     vendorSearchAbortRef.current?.abort?.();
     const ac = new AbortController();
     vendorSearchAbortRef.current = ac;
@@ -556,10 +918,39 @@ export default function SearchPage() {
       const got = Array.isArray(data.items) ? data.items : [];
       setVendors(got);
       setVendorTotal(Number(data.total || 0));
-
+      const totalNum = Number(data.total || 0);
       const next = data.nextCursor || null;
       setVendorNextCursor(next);
       setVendorHasMore(Boolean(next) && got.length > 0);
+      const searchSessionId = getSearchSessionId("vendors");
+      const logKey = `vendors|${searchSessionId}`;
+
+      if (lastLoggedRef.current !== logKey) {
+        lastLoggedRef.current = logKey;
+
+        track(
+          "search_submitted",
+          {
+            tab: "vendors",
+            query: redactQuery(query),
+            queryLen: query.length,
+            source: submitSourceRef.current || "unknown",
+            resultsTotal: totalNum,
+            resultsReturned: got.length,
+            hasResults: totalNum > 0,
+            latencyMs: Math.round(performance.now() - t0),
+            nextCursor: Boolean(next),
+            searchVersion: "vendorSearchV1",
+          },
+          {
+            surface: "search",
+            path: `/search?vq=${encodeURIComponent(query)}&tab=vendors`,
+            sessionId,
+          },
+        );
+
+        submitSourceRef.current = "unknown";
+      }
     } catch (e) {
       if (String(e?.name) !== "AbortError")
         console.error("vendor search error:", e);
@@ -602,30 +993,36 @@ export default function SearchPage() {
     }
   }
 
-  const onBackPress = (closeMenuFn) => {
-    const hasTyped = Boolean(cleanStr(input));
-    const hasQuery = Boolean(cleanStr(urlQ) || cleanStr(urlVQ));
+const onBackPress = (closeMenuFn) => {
+  const hasTyped = Boolean(cleanStr(input));
+  const hasQuery = Boolean(cleanStr(urlQ) || cleanStr(urlVQ));
 
-    // FIRST TAP: clear input + exit results + show recents
-    if (hasTyped || hasQuery) {
-      closeMenuFn?.();
-      setInput("");
-      setSuggestQueries([]);
-      setSuggestProducts([]);
-      setChipsVisible(true);
-
-      // remove q from url so results disappear and recent shows
-      setSearchParams({});
-
-      // refresh recent list immediately
-      setRecent(readRecentSearches());
-      return;
-    }
-
-    // SECOND TAP: actually leave page
+  // FIRST TAP: clear input + clear URL query (WITHOUT pushing history)
+  if (hasTyped || hasQuery) {
     closeMenuFn?.();
-    navigate("/newhome");
-  };
+
+    setInput("");
+    setSuggestQueries([]);
+    setSuggestProducts([]);
+    setChipsVisible(true);
+
+    // ✅ keep tab, just remove q/vq
+    setSearchParams(
+      { tab: activeTab === "vendors" ? "vendors" : "items" },
+      { replace: true }
+    );
+
+    setRecent(readRecentSearches());
+    return;
+  }
+
+  // SECOND TAP: actually leave Search
+  closeMenuFn?.();
+
+  const idx = window.history.state?.idx ?? 0;
+  if (idx > 0) navigate(-1);
+  else navigate("/", { replace: true }); // fallback if Search was the first page
+};
 
   async function runSearchLoadMore() {
     if (activeTab !== "items") return;
@@ -653,6 +1050,14 @@ export default function SearchPage() {
 
       const got = Array.isArray(data.items) ? data.items : [];
       setItems((prev) => [...prev, ...got]);
+      itemsPageRef.current += 1;
+      logItemsImpression({
+        query: urlQ,
+        filters: appliedFilters,
+        got,
+        offset: items.length, // important: offset before append
+        page: itemsPageRef.current + 1,
+      });
 
       const cursor = data.nextCursor || null;
       setNextCursor(cursor);
@@ -755,7 +1160,6 @@ export default function SearchPage() {
     return () => obs.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    sentinelRef.current,
     hasMore,
     nextCursor,
     resultsLoading,
@@ -780,21 +1184,26 @@ export default function SearchPage() {
     return [...qItems, ...pItems];
   }, [suggestQueries, suggestProducts]);
 
-  function submitItemSearch(nextQ) {
+  function submitItemSearch(nextQ, source = "enter") {
     const q = cleanStr(nextQ);
     if (!q) return;
+
+    submitSourceRef.current = source;
+    startNewSearchSession("items");
     saveRecentSearch(q);
     setRecent(readRecentSearches());
 
     setAppliedFilters(DEFAULT_FILTERS);
-    setSearchParams({ q, tab: "items" });
+      setSearchParams({ q, tab: "items" }, { replace: true });
   }
 
-  function submitVendorSearch(nextQ) {
+  function submitVendorSearch(nextQ, source = "enter") {
     const q = cleanStr(nextQ);
     if (!q) return;
 
-    setSearchParams({ vq: q, tab: "vendors" });
+    submitSourceRef.current = source;
+    startNewSearchSession("vendors");
+    setSearchParams({ vq: q, tab: "vendors" }, { replace: true });
   }
 
   return (
@@ -826,7 +1235,7 @@ export default function SearchPage() {
             if (selected.type === "query") {
               const q = selected.label || "";
               setInput(q);
-              submitItemSearch(q);
+              submitItemSearch(q, "suggestion");
               return;
             }
 
@@ -851,6 +1260,7 @@ export default function SearchPage() {
             const showResults =
               Boolean(urlQ) && !showAutocomplete && activeTab === "items";
             const DOCK_EXTRA = 0;
+            openMenuRef.current = openMenu;
 
             const dockTargetH = showResults
               ? chipsVisible
@@ -873,15 +1283,29 @@ export default function SearchPage() {
               : safeDockH;
 
             const dockSlide = -(safeDockH || 92);
+            const inputProps = getInputProps({
+              placeholder: "Search My Thrift",
+              onFocus: () => openMenu(),
+              onChange: (e) => {
+                const v = e.target.value;
+                setInput(v);
+                openMenu();
+                if (activeTab === "items") debouncedSuggest(v);
+                else debouncedVendorSuggest(v);
+              },
+              onKeyDown: (e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (activeTab === "items") submitItemSearch(input, "enter");
+                  else submitVendorSearch(input, "enter");
+                  closeMenu();
+                }
+              },
+            });
 
+            const { ref: downshiftRef, ...restInputProps } = inputProps;
             return (
               <div className="relative">
-                {resultsLoading && (
-                  <div className="fixed inset-0 z-[9999] bg-white backdrop-blur-sm flex items-center justify-center">
-                    <Loading />
-                  </div>
-                )}
-
                 {/* ✅ FIXED HEADER (now truly fixed) */}
                 <div
                   ref={headerRef}
@@ -896,28 +1320,18 @@ export default function SearchPage() {
 
                     <div className="relative flex-1">
                       <input
-                        {...getInputProps({
-                          placeholder: "Search My Thrift",
-                          onFocus: () => openMenu(),
-                          onChange: (e) => {
-                            const v = e.target.value;
-                            setInput(v);
-                            openMenu();
-                            if (activeTab === "items") debouncedSuggest(v);
-                            else debouncedVendorSuggest(v);
-                          },
-                          onKeyDown: (e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              if (activeTab === "items")
-                                submitItemSearch(input);
-                              else submitVendorSearch(input);
+                        {...restInputProps}
+                        ref={(node) => {
+                          // keep Downshift working
+                          if (typeof downshiftRef === "function")
+                            downshiftRef(node);
+                          else if (downshiftRef) downshiftRef.current = node;
 
-                              closeMenu();
-                            }
-                          },
-                        })}
+                          // your ref for autofocus
+                          inputRef.current = node;
+                        }}
                         value={input}
+                        autoFocus={wantsAutofocus}
                         className="w-full bg-gray-50 focus:outline-none focus:ring-0 font-opensans text-black text-lg rounded-full pl-12 pr-4 py-4 font-medium"
                       />
 
@@ -931,9 +1345,10 @@ export default function SearchPage() {
                             setSuggestProducts([]);
                             closeMenu();
 
-                            if (activeTab === "vendors")
-                              setSearchParams({ tab: "vendors" });
-                            else setSearchParams({ tab: "items" });
+                            setSearchParams(
+    { tab: activeTab === "vendors" ? "vendors" : "items" },
+    { replace: true }
+  );
                           }}
                         />
                       )}
@@ -1041,14 +1456,14 @@ export default function SearchPage() {
                     {recent.length > 0 ? (
                       <div className="bg-white">
                         <div className="px-4 py-2 flex items-center justify-between">
-                          <p className="text-xl font-opensans font-semibold text-black">
+                          <p className="text-lg font-opensans font-semibold text-black">
                             Recent searches
                           </p>
 
                           <button
                             type="button"
                             onClick={clearRecentSearches}
-                            className="text-lg font-opensans font-normal text-customOrange"
+                            className="text-base font-opensans font-normal text-customOrange"
                           >
                             Clear All
                           </button>
@@ -1059,13 +1474,13 @@ export default function SearchPage() {
                             key={q}
                             type="button"
                             onClick={() => {
-                              submitItemSearch(q);
+                              submitItemSearch(q, "recent");
                               closeMenu();
                             }}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50"
+                            className="w-full flex items-center gap-3 px-4 py-4 text-left hover:bg-gray-50"
                           >
                             <VscHistory className="text-2xl text-gray-500" />
-                            <span className="font-opensans text-xl text-gray-900">
+                            <span className="font-opensans text-base text-gray-900">
                               {q}
                             </span>
                           </button>
@@ -1088,7 +1503,7 @@ export default function SearchPage() {
                     style: showAutocomplete ? { top: overlayTop } : undefined,
                   })}
                 >
-                  <div className="mt-3 -mx-3 border-gray-100 bg-white">
+                  <div className=" -mx-3 border-gray-100 bg-white">
                     {!suggestLoading && suggestQueries.length > 0 && (
                       <div className="py-2 ml-4">
                         {suggestQueries.map((qText, i) => {
@@ -1108,14 +1523,14 @@ export default function SearchPage() {
                                 onMouseDown: (e) => e.preventDefault(),
                               })}
                               className={[
-                                "w-full flex items-center gap-3 px-4 py-3 text-left",
+                                "w-full flex items-center gap-3 px-4 py-4 text-left",
                                 highlightedIndex === i
                                   ? "bg-gray-50"
                                   : "bg-white",
                               ].join(" ")}
                             >
                               <CiSearch className="text-2xl text-gray-600" />
-                              <span className="font-opensans text-xl text-gray-900">
+                              <span className="font-opensans text-base text-gray-900">
                                 {renderHighlighted(qText, input)}
                               </span>
                             </button>
@@ -1137,10 +1552,13 @@ export default function SearchPage() {
                   {activeTab === "vendors" ? (
                     urlVQ ? (
                       <div className="mt-12 space-y-3">
-                        {vendors.length === 0 && !vendorResultsLoading ? (
-                          <div className="py-10 text-center font-opensans text-gray-600">
-                            ☹️ No vendors found.
-                          </div>
+                        {vendorResultsLoading ? (
+                          <VendorListSkeleton count={6} />
+                        ) : vendors.length === 0 ? (
+                          <EmptySearchState
+                            title="No vendors found"
+                            subtitle="Try searching the store name differently."
+                          />
                         ) : (
                           <>
                             {vendors.map((v) => (
@@ -1169,27 +1587,60 @@ export default function SearchPage() {
                       </div>
                     ) : (
                       <div className="mt-10 text-center text-sm font-opensans text-gray-500">
-                        Search vendors by name.
+                        Search vendors on My Thrift.....
                       </div>
                     )
                   ) : (
                     showResults && (
                       <div className="mt-4 px-3">
-                        {items.length === 0 ? (
-                          <div className="py-10 text-center font-opensans text-gray-600">
-                            ☹️ No results found.
-                          </div>
+                        {resultsLoading ? (
+                          <ProductGridSkeleton count={10} />
+                        ) : items.length === 0 ? (
+                          <EmptySearchState
+                            title="No items found"
+                            subtitle="Try different keyords or remove search filters."
+                          />
                         ) : (
                           <>
-                            <div className="grid mt-16 grid-cols-2 gap-3">
-                              {items.map((raw) => {
+                            <div className="grid mt-10 grid-cols-2 gap-3">
+                              {items.map((raw, idx) => {
                                 const id = raw?.id || raw?.productId;
-                                const product = { ...raw, id };
+                               const product = normalizeProductForCard(raw);
 
                                 return (
                                   <div
                                     key={id}
-                                    onClickCapture={() => {
+                                    onClickCapture={(e) => {
+                                      if (
+                                        e.target.closest(
+                                          "button, a, input, textarea, select",
+                                        )
+                                      )
+                                        return;
+
+                                      const searchSessionId =
+                                        getSearchSessionId("items");
+                                      const intent = buildIntentPayload({
+                                        query: urlQ,
+                                        filters: appliedFilters,
+                                        tab: "items",
+                                      });
+
+                                      track(
+                                        "search_result_click",
+                                        {
+                                          tab: "items",
+                                          searchSessionId,
+                                          intent,
+                                          intentVersion: intent.version,
+                                          query: redactQuery(urlQ),
+                                          productId: id,
+                                          vendorId: product.vendorId,
+                                          position: idx + 1,
+                                        },
+                                        { surface: "search", sessionId },
+                                      );
+
                                       dispatch(
                                         saveSearchSnapshot({
                                           q: urlQ,
@@ -1211,6 +1662,7 @@ export default function SearchPage() {
                                       product={product}
                                       vendorId={product.vendorId}
                                       quickForThisVendor={false}
+                                      surface="search"
                                     />
                                   </div>
                                 );
@@ -1250,6 +1702,8 @@ export default function SearchPage() {
                     facets={facets}
                     appliedFilters={appliedFilters}
                     onApply={(next) => {
+                      submitSourceRef.current = "filter_apply";
+                      startNewSearchSession("items");
                       setAppliedFilters(next);
                       setIsFilterOpen(false);
                       runSearchFirstPage(urlQ, next);

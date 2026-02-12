@@ -29,9 +29,111 @@ import { useFavorites } from "../../components/Context/FavoritesContext";
 import { handleUserActionLimit } from "../../services/userWriteHandler";
 import IkImage from "../../services/IkImage";
 import Sales from "../Loading/Sales";
+import { useCardImpression } from "../../services/useCardImpression";
+const toTitleCase = (str = "") =>
+  String(str)
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+
+const getSizeText = (product) => {
+  if (!product) return "";
+
+  // 1) If product.size exists (string like "S, UK 38, 47" OR "S: 32-45")
+  if (product.size) {
+    const parts = String(product.size)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (!parts.length) return "";
+    if (parts.length === 1) return parts[0];
+    return `${parts[0]} - ${parts[parts.length - 1]}`;
+  }
+
+  // 2) Derive from variants
+  if (Array.isArray(product.variants) && product.variants.length) {
+    const sizes = Array.from(
+      new Set(
+        product.variants
+          .map((v) => v?.size)
+          .filter(Boolean)
+          .map((s) => String(s).trim())
+      )
+    );
+
+    if (!sizes.length) return "";
+    if (sizes.length === 1) return sizes[0];
+    return `${sizes[0]} - ${sizes[sizes.length - 1]}`;
+  }
+
+  return "";
+};
 
 // keep this cache OUTSIDE the component so it persists between renders
 const offerCache = new Map();
+const SIZE_SHORTHAND_RE = /^(x{0,4}(s|m|l)|xs|s|m|l|xl|xxl|xxxl|xxxxl)$/i;
+const REGION_RE = /^(uk|us|eu)$/i;
+
+function capFirstLowerRest(word = "") {
+  const t = String(word).trim();
+  if (!t) return "";
+  return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+}
+
+// Formats sizes like:
+// "xxl" -> "XXL"
+// "one size" -> "One Size"
+// "ADJUSTABLE" -> "Adjustable"
+// "uk 10" -> "UK 10"
+function formatSizeText(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+
+  // Support comma-separated sizes (e.g. "M, L")
+  return s
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      // keep slash combos like "S/M"
+      if (part.includes("/")) {
+        return part
+          .split("/")
+          .map((w) => formatSizeWord(w))
+          .filter(Boolean)
+          .join("/");
+      }
+
+      return part
+        .split(/\s+/)
+        .map((w) => formatSizeWord(w))
+        .filter(Boolean)
+        .join(" ");
+    })
+    .join(", ");
+}
+
+function formatSizeWord(w) {
+  const t = String(w ?? "").trim();
+  if (!t) return "";
+
+  // digits stay digits
+  if (/^\d+$/.test(t)) return t;
+
+  // UK/US/EU stay uppercase
+  if (REGION_RE.test(t)) return t.toUpperCase();
+
+  // true size shorthands become uppercase
+  if (SIZE_SHORTHAND_RE.test(t)) return t.toUpperCase();
+
+  // default: Capitalize first letter, lowercase rest
+  return capFirstLowerRest(t);
+}
+const wishCountCache = new Map(); // productId -> number
 
 const ProductCard = ({
   product,
@@ -40,19 +142,33 @@ const ProductCard = ({
   showName = true,
   showCondition = true,
   quickForThisVendor = false,
+   surface = "unknown",
 }) => {
   const navigate = useNavigate();
   const [imgLoaded, setImgLoaded] = useState(false);
   // Auth state
+const productId = product?.id || product?.productId;
   const { currentUser } = useAuth();
   const [metaIndex, setMetaIndex] = useState(0); // 0 = condition, 1 = subType
-  const [wishCount, setWishCount] = useState(
-    typeof product?.wishCount === "number" ? product.wishCount : 0
-  );
 
   // Local Favorites Context
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
-  const favorite = isFavorite(product?.id);
+const favorite = isFavorite(productId);
+
+const [burstKey, setBurstKey] = useState(0);
+
+
+const [wishCount, setWishCount] = useState(() => {
+  const base = typeof product?.wishCount === "number" ? product.wishCount : 0;
+  return productId ? (wishCountCache.get(productId) ?? base) : base;
+});
+
+useEffect(() => {
+  if (!productId) return;
+  const base = typeof product?.wishCount === "number" ? product.wishCount : 0;
+  const cached = wishCountCache.get(productId);
+  setWishCount(cached ?? base);
+}, [productId, product?.wishCount]);
 
   // State for vendor's marketplace type
   const [vendorMarketplaceType, setVendorMarketplaceType] = useState(null);
@@ -99,8 +215,17 @@ const ProductCard = ({
   const id = product?.id || product?.productId;
   if (!id) return;
 
-  navigate(`/product/${id}`);
+navigate(`/product/${id}`, { state: { mtSurface: surface } });
+
 };
+
+  const impressionRef = useCardImpression({
+    kind: "product",
+    productId,
+    vendorId: product?.vendorId,
+    surface,          // "home" | "search" | "vendor_store"
+    enabled: !isLoading && !!productId,
+  });
 
   // ---- Offer helpers ----
   const parseTS = (ts) => (ts?.toDate ? ts.toDate() : ts ? new Date(ts) : null);
@@ -218,7 +343,6 @@ const ProductCard = ({
   const listPriceForStrike = Number(
     product?.discount?.initialPrice ?? product?.price ?? 0
   );
-
   const handleVendorClick = (e) => {
     e.stopPropagation();
     if (vendorMarketplaceType === "virtual") {
@@ -238,71 +362,114 @@ const ProductCard = ({
     }
   };
 
-  // Optimistic UI: Toggle heart immediately, then do Firestore + rate-limit checks in background
-  const handleFavoriteToggle = async (e) => {
-    e.stopPropagation();
+const handleFavoriteToggle = async (e) => {
+  e.stopPropagation();
 
-    const wasFavorite = favorite;
+  const productId = product?.id || product?.productId;
+  if (!productId) return;
 
-    if (favorite) {
-      removeFavorite(product.id);
-      toast.info(`Removed ${product.name} from favorites!`);
-    } else {
-      addFavorite(product);
-      setWishCount((c) => c + 1);
-      toast.success(`Added ${product.name} to favorites!`);
-    }
+  const wasFavorite = isFavorite(productId);
 
-    if (!currentUser) return;
-
-    try {
-      await handleUserActionLimit(
-        currentUser.uid,
-        "favorite",
-        {},
-        {
-          collectionName: "usage_metadata",
-          writeLimit: 50,
-          minuteLimit: 10,
-          hourLimit: 80,
-          dayLimit: 120,
-        }
-      );
-
-      const favDocRef = doc(
-        db,
-        "users",
-        currentUser.uid,
-        "favorites",
-        product.id
-      );
-      const vendorDocRef = doc(db, "vendors", product.vendorId);
-
-      if (wasFavorite) {
-        await deleteDoc(favDocRef);
-      } else {
-        await setDoc(favDocRef, {
-          productId: product.id,
-          vendorId: product.vendorId,
-          name: product.name,
-          price: product.price,
-          createdAt: new Date(),
-        });
-        await updateDoc(vendorDocRef, { likesCount: increment(1) });
-      }
-    } catch (err) {
-      console.error("Error updating favorites:", err);
-      if (wasFavorite) {
-        addFavorite(product);
-        setWishCount((c) => c + 1);
-      } else {
-        removeFavorite(product.id);
-      }
-      toast.error(
-        err.message || "Failed to update favorites. Please try again."
-      );
-    }
+  // helper to keep UI count consistent across route changes
+  const setWish = (next) => {
+    const v = Math.max(0, Number(next || 0));
+    wishCountCache.set(productId, v);
+    setWishCount(v);
   };
+
+  // best-effort product wishCount update (adjust paths to match your DB)
+  const tryUpdateProductWishCount = async (delta) => {
+    const candidates = [
+      // common patterns — keep the one that matches your schema
+      doc(db, "products", productId),
+      product?.vendorId ? doc(db, "vendors", product.vendorId, "products", productId) : null,
+    ].filter(Boolean);
+
+    for (const ref of candidates) {
+      try {
+        await updateDoc(ref, { wishCount: increment(delta) });
+        return true;
+      } catch (err) {
+        // try next candidate
+      }
+    }
+    return false;
+  };
+
+  // -------------------------
+  // ✅ Optimistic UI
+  // -------------------------
+  try {
+    if (wasFavorite) {
+      removeFavorite(productId);
+      setWish(Number(wishCount || 0) - 1);
+      toast.info(`Removed ${product?.name || "item"} from favorites!`);
+    } else {
+      addFavorite({ ...product, id: productId }); // ensure id exists in your favorites store
+      setWish(Number(wishCount || 0) + 1);
+      setBurstKey((k) => k + 1); // splash only on like
+      toast.success(`Added ${product?.name || "item"} to favorites!`);
+    }
+
+    // guest mode: keep it local only (cache will persist across pages in SPA)
+    if (!currentUser?.uid) return;
+
+    await handleUserActionLimit(
+      currentUser.uid,
+      "favorite",
+      {},
+      {
+        collectionName: "usage_metadata",
+        writeLimit: 50,
+        minuteLimit: 10,
+        hourLimit: 80,
+        dayLimit: 120,
+      }
+    );
+
+    const favDocRef = doc(db, "users", currentUser.uid, "favorites", productId);
+    const vendorDocRef = product?.vendorId ? doc(db, "vendors", product.vendorId) : null;
+
+    if (wasFavorite) {
+      await deleteDoc(favDocRef);
+
+      // OPTIONAL: keep vendor likes symmetrical
+      // if (vendorDocRef) await updateDoc(vendorDocRef, { likesCount: increment(-1) });
+
+      // OPTIONAL: persist wishCount globally
+      // await tryUpdateProductWishCount(-1);
+    } else {
+      await setDoc(favDocRef, {
+        productId,
+        vendorId: product?.vendorId || null,
+        name: product?.name || "",
+        price: Number(product?.price || 0),
+        createdAt: new Date(),
+      });
+
+      if (vendorDocRef) await updateDoc(vendorDocRef, { likesCount: increment(1) });
+
+      // OPTIONAL: persist wishCount globally
+      // await tryUpdateProductWishCount(1);
+    }
+  } catch (err) {
+    console.error("Error updating favorites:", err);
+
+    // -------------------------
+    // ✅ Revert optimistic UI
+    // -------------------------
+    if (wasFavorite) {
+      addFavorite({ ...product, id: productId });
+      setWish(Number(wishCount || 0) + 1);
+    } else {
+      removeFavorite(productId);
+      setWish(Number(wishCount || 0) - 1);
+    }
+
+    toast.error(err?.message || "Failed to update favorites. Please try again.");
+  }
+};
+
 
   // Utility to format price
   const formatPrice = (price) => {
@@ -355,13 +522,14 @@ const ProductCard = ({
     <>
       {/* --- MAIN CARD --- */}
       <div
+        ref={impressionRef}
         className={`product-card relative mb-2 cursor-pointer ${
           product?.stockQuantity === 0 ? "opacity-50 pointer-events-none" : ""
         }`}
         onClick={handleCardClick}
         style={{ width: "100%", margin: "0" }}
       >
-        <div className="relative">
+      <div className="relative">
           {isLoading ? (
             <Skeleton height={160} />
           ) : (
@@ -376,8 +544,8 @@ const ProductCard = ({
                       {product?.discount?.freebieText}
                     </div>
                   ) : (
-                    <div className="bg-customPink text-customOrange text-xs px-2 py-1.5 font-opensans font-medium rounded">
-                      {derivedPercent != null ? `-${derivedPercent}%` : "SALE"}
+                    <div >
+                    
                     </div>
                   )}
                 </div>
@@ -420,7 +588,7 @@ const ProductCard = ({
               <IkImage
                 src={firebaseImage}
                 alt={product?.name}
-                className="h-60 object-cover rounded-xl w-full"
+                className="h-52 object-cover rounded-[18px] w-full"
               />
             </>
           )}
@@ -476,56 +644,85 @@ const ProductCard = ({
               })}
             </motion.div>
           )}
-
-          {/* Favorite Icon */}
-          <motion.div
-            className="absolute bottom-2 right-2 cursor-pointer w-9 h-9 rounded-full bg-white border flex items-center justify-center shadow-md z-1"
-            onClick={handleFavoriteToggle}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            animate={favorite ? "liked" : "unliked"}
-            variants={{
-              liked: {
-                scale: [1, 1.3, 1],
-                rotate: [0, -5, 5, 0],
-                transition: { duration: 0.6, ease: "easeInOut" },
-              },
-              unliked: {
-                scale: 1,
-                rotate: 0,
-                transition: { duration: 0.2, ease: "easeOut" },
-              },
+{/* Favorite Pill (heart + optional count) */}
+<motion.button
+  type="button"
+  onClick={handleFavoriteToggle}
+  className="
+    absolute bottom-2 right-2 z-20
+    inline-flex items-center gap-2
+    h-9 px-3 rounded-full
+    bg-black/70 backdrop-blur
+    shadow-md
+  "
+  whileHover={{ scale: 1.05 }}
+  whileTap={{ scale: 0.95 }}
+>
+  {/* Splash burst (only on like) */}
+  <AnimatePresence>
+    {favorite && (
+      <motion.span
+        key={burstKey}
+        className="absolute inset-0 pointer-events-none"
+        initial={{ opacity: 1 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        {[
+          { x: 0, y: -16 },
+          { x: 12, y: -10 },
+          { x: 16, y: 0 },
+          { x: 12, y: 10 },
+          { x: 0, y: 16 },
+          { x: -12, y: 10 },
+          { x: -16, y: 0 },
+          { x: -12, y: -10 },
+        ].map((p, i) => (
+          <motion.span
+            key={i}
+            className="absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full bg-red-500"
+            initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
+            animate={{
+              x: p.x,
+              y: p.y,
+              scale: [0, 1, 0.6],
+              opacity: [0, 1, 0],
             }}
-          >
-            <motion.div
-              animate={favorite ? "filled" : "empty"}
-              variants={{
-                filled: {
-                  scale: [0.8, 1.2, 1],
-                  transition: { duration: 0.4, ease: "backOut" },
-                },
-                empty: { scale: 1, transition: { duration: 0.2 } },
-              }}
-            >
-              {favorite ? (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                >
-                  <RiHeart3Fill className="text-red-500 text-2xl" />
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <RiHeart3Line className="text-gray-700 text-2xl" />
-                </motion.div>
-              )}
-            </motion.div>
-          </motion.div>
+            transition={{ duration: 0.55, ease: "easeOut" }}
+          />
+        ))}
+      </motion.span>
+    )}
+  </AnimatePresence>
+
+  {/* Heart */}
+  <motion.span
+    animate={favorite ? { scale: [1, 1.18, 1] } : { scale: 1 }}
+    transition={{ duration: 0.22 }}
+    className="flex items-center justify-center"
+  >
+    {favorite ? (
+      <RiHeart3Fill className="text-red-500 text-xl" />
+    ) : (
+      <RiHeart3Line className="text-white text-xl" />
+    )}
+  </motion.span>
+
+  {/* Count (ONLY if > 0) */}
+  {Number(wishCount || 0) > 0 && (
+    <motion.span
+      key={wishCount}
+      initial={{ y: -3, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.18 }}
+      className="text-sm font-roboto font-normal text-white tabular-nums"
+    >
+      {wishCount}
+    </motion.span>
+  )}
+</motion.button>
+
+
 
           {/* Out of Stock Overlay */}
           {product?.stockQuantity === 0 && (
@@ -538,113 +735,107 @@ const ProductCard = ({
         </div>
 
         {/* Product Info */}
-        <div className="mt-2 ">
-          {showCondition && (
-            <div className="h-5 flex items-center overflow-hidden">
-              {isLoading ? (
-                <Skeleton width={120} height={14} />
-              ) : (
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={metaIndex}
-                    initial={{ y: 10, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: -10, opacity: 0 }}
-                    transition={{ duration: 0.24 }}
-                    className="text-xs font-opensans font-light leading-none [&_p]:m-0"
-                  >
-                    {metaIndex === 0 ? (
-                      renderCondition(product?.condition)
-                    ) : metaIndex === 1 ? (
-                      product?.subType ? (
-                        <span
-                          className="
-                            inline-flex items-center ml-0.5 gap-1 px-2 h-4
-                            rounded-full bg-orange-50 text-orange-700
-                            ring-1 ring-orange-200
-                          "
-                        >
-                          <span className="text-[10px] -mt-[1px]">🏷️</span>
-                          <span className="text-[10px] leading-none truncate max-w-[140px]">
-                            {product.subType}
-                          </span>
-                        </span>
-                      ) : null
-                    ) : (
-                      <span
-                        className="
-                          inline-flex items-center ml-0.5 gap-1 px-2 h-4
-                          rounded-full bg-rose-50 text-rose-700
-                          ring-1 ring-rose-200
-                        "
-                      >
-                        <RiHeart3Fill className="text-[10px]" />
-                        <span className="text-[10px] leading-none truncate max-w-[160px]">
-                          {wishCount > 0
-                            ? `${wishCount} wishlisted`
-                            : `Be the first to wishlist`}
-                        </span>
-                      </span>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              )}
+   {/* Product Info */}
+<div className="mt-2">
+  {/* 1) Name first */}
+  {showName && (
+    <h3 className="text-base font-opensans font-medium text-gray-900 truncate">
+      {isLoading ? <Skeleton width={120} /> : product?.name}
+    </h3>
+  )}
+
+  {/* 2) Size range • Condition (if no size -> condition only) */}
+  {(() => {
+    if (isLoading) return <Skeleton width={140} height={12} className="mt-1" />;
+// inside the "Size range • Condition" render IIFE
+
+const rawSizeText = getSizeText(product);
+
+// ✅ only shorthand sizes become ALL CAPS
+const sizeText = rawSizeText ? formatSizeText(rawSizeText) : "";
+
+// ✅ condition in Title Case (your existing logic is fine)
+const conditionText = product?.condition
+  ? toTitleCase(String(product.condition).replace(/:$/, ""))
+  : "";
+
+if (!sizeText && !conditionText) return null;
+
+return (
+  <div className="mt-1 flex items-center text-sm font-opensans text-gray-500 min-w-0">
+    {sizeText && <span className="truncate">{sizeText}</span>}
+    {sizeText && conditionText && <span className="mx-1 text-gray-300 shrink-0">•</span>}
+    {conditionText && <span className="truncate">{conditionText}</span>}
+  </div>
+);
+
+  })()}
+
+  {/* 3) Price row */}
+<div className="mt-1">
+  {isLoading ? (
+    <Skeleton width={90} height={18} />
+  ) : (
+    (() => {
+      const isFreebie =
+        !!product?.discount?.discountType?.startsWith("personal-freebies");
+
+      const percentOff =
+        derivedPercent != null ? Number(derivedPercent) : null;
+
+      const hasNormalDiscount =
+        !!product?.discount?.initialPrice && !isFreebie && !hasOfferActive;
+
+      const oldPrice = Number(product?.discount?.initialPrice || 0);
+
+      const showStrikeOld =
+        (hasNormalDiscount && oldPrice > 0 && oldPrice !== displayPrice) ||
+        (hasOfferActive &&
+          listPriceForStrike > 0 &&
+          listPriceForStrike !== displayPrice);
+
+      const strikeValue = hasOfferActive ? listPriceForStrike : oldPrice;
+
+      return (
+        <div className="min-w-0">
+          {/* Old price (top line) */}
+          {showStrikeOld && (
+            <div className="text-xs font-opensans text-gray-400 line-through truncate">
+              ₦{formatPrice(strikeValue)}
             </div>
           )}
 
-          {showName && (
-            <h3 className="text-sm font-opensans font-medium mt-1">
-              {isLoading ? <Skeleton width={100} /> : product?.name}
-            </h3>
-          )}
+          {/* New price + percent/badge (bottom line) */}
+          <div className="flex items-baseline gap-2 min-w-0">
+            <span className="text-base font-opensans font-semibold text-gray-900 truncate">
+              ₦{formatPrice(displayPrice)}
+            </span>
 
-          <div className="mt-1">
-            {/* Price + flash sale on one line */}
-            <div className="mt-1 relative">
-              {/* Main price */}
-              <p className="text-black text-lg font-opensans font-bold">
-                {isLoading ? (
-                  <Skeleton width={50} />
-                ) : (
-                  `₦${formatPrice(displayPrice)}`
-                )}
-              </p>
+            {/* Percent off beside new price */}
+            {hasNormalDiscount && percentOff != null && percentOff > 0 && (
+              <span className="shrink-0 text-xs font-opensans font-medium text-customOrange">
+                (-{percentOff}%)
+              </span>
+            )}
 
-              {/* Flash badge */}
-              {product?.flashSales && (
-                <div className="absolute -top-2 right-2 w-9 h-9">
-                  <Sales />
-                </div>
-              )}
-
-              {/* Struck-out “was” price (no double slashing) */}
-              {isLoading
-                ? null
-                : hasOfferActive
-                ? listPriceForStrike > 0 &&
-                  listPriceForStrike !== displayPrice && (
-                    <p className="text-sm font-opensans text-gray-500 line-through mt-1">
-                      ₦{formatPrice(listPriceForStrike)}
-                    </p>
-                  )
-                : product?.discount?.initialPrice &&
-                  product?.discount?.discountType !== "personal-freebies" && (
-                    <p className="text-sm font-opensans text-gray-500 line-through mt-1">
-                      ₦{formatPrice(product.discount.initialPrice)}
-                    </p>
-                  )}
-            </div>
+            {/* Freebie badge beside new price */}
+            {isFreebie && product?.discount?.freebieText && (
+              <span className="shrink-0 max-w-[8.5rem] truncate inline-flex items-center px-2 h-5 rounded-full bg-customPink text-customOrange text-xs font-opensans font-medium">
+                {product.discount.freebieText}
+              </span>
+            )}
           </div>
-
-          {showVendorName && product?.vendorName && (
-            <p
-              className="text-xs font-opensans font-light text-gray-600 underline cursor-pointer"
-              onClick={handleVendorClick}
-            >
-              {product.vendorName}
-            </p>
-          )}
         </div>
+      );
+    })()
+  )}
+</div>
+
+
+
+ 
+</div>
+
       </div>
     </>
   );

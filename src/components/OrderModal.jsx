@@ -43,7 +43,7 @@ const OrderPlacedModal = ({
         const followRef = doc(
           db,
           "follows",
-          `${currentUser.uid}_${order.vendorId}`
+          `${currentUser.uid}_${order.vendorId}`,
         );
         const followSnap = await getDoc(followRef);
         if (followSnap.exists()) {
@@ -81,7 +81,7 @@ const OrderPlacedModal = ({
 
       if (result.followed) {
         toast.success(
-          "You’re now following this vendor! You will be notified of new items and promos"
+          "You’re now following this vendor! You will be notified of new items and promos",
         );
         setIsFollowing(true);
         onRequestClose();
@@ -241,7 +241,7 @@ const OrderPlacedModal = ({
                 <button
                   onClick={() => {
                     onRequestClose(); // close the modal
-                    navigate("/newhome"); // then navigate
+                    navigate("/"); // then navigate
                   }}
                   className="w-full py-3 mb-3 rounded-md font-opensans font-medium bg-customOrange text-white"
                 >

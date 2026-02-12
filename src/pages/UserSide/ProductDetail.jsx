@@ -17,10 +17,17 @@ import Loading from "../../components/Loading/Loading";
 import { PiShoppingCartBold } from "react-icons/pi";
 import { FaExclamationTriangle, FaSmileBeam, FaStar } from "react-icons/fa";
 import { CiCircleInfo } from "react-icons/ci";
+import { IoMdArrowBack } from "react-icons/io";
 import { TbInfoOctagon } from "react-icons/tb";
 import { TbInfoTriangle } from "react-icons/tb";
+import {
+  getProductColorSwatches,
+  getSwatchFromRawColor,
+  normalizeColorKeyForSwatch,
+} from "../../services/colorutils";
+
 import LoadProducts from "../../components/Loading/LoadProducts";
-import { GoChevronLeft, GoChevronRight } from "react-icons/go";
+import { GoChevronLeft, GoChevronRight, GoDotFill } from "react-icons/go";
 import { LuCopyCheck, LuCopy } from "react-icons/lu";
 import toast from "react-hot-toast";
 import Modal from "react-modal";
@@ -29,7 +36,12 @@ import { buildCartKey } from "../../services/cartKey";
 import { FiMinus } from "react-icons/fi";
 import { TbSquareRoundedCheck } from "react-icons/tb";
 import Badge from "../../components/Badge/Badge";
-import { MdCancel, MdOutlineCancel, MdOutlineClose } from "react-icons/md";
+import {
+  MdCancel,
+  MdOutlineCancel,
+  MdOutlineClose,
+  MdOutlineReportProblem,
+} from "react-icons/md";
 import "swiper/css/free-mode";
 import { TbFileDescription } from "react-icons/tb";
 import "swiper/css/autoplay";
@@ -40,6 +52,8 @@ import "swiper/css";
 import { Oval, RotatingLines } from "react-loader-spinner";
 import StoreBasket from "../../components/QuickMode/StoreBasket";
 
+import { IoFlagOutline, IoShareOutline } from "react-icons/io5";
+import { BsThreeDotsVertical } from "react-icons/bs";
 import { AnimatePresence, motion } from "framer-motion";
 // import SwiperCore, { Pagination,  } from "swiper";
 import { FreeMode, Autoplay } from "swiper/modules";
@@ -51,6 +65,7 @@ import {
   serverTimestamp,
   addDoc,
   updateDoc,
+  runTransaction,
   deleteDoc,
   setDoc,
   increment,
@@ -67,10 +82,11 @@ import Productnotofund from "../../components/Loading/Productnotofund";
 import { decreaseQuantity, increaseQuantity } from "../../redux/actions/action";
 import { AiOutlineHome } from "react-icons/ai";
 import { auth, db } from "../../firebase.config";
+import { IoShareSocialOutline } from "react-icons/io5";
 import IkImage from "../../services/IkImage";
 import SEO from "../../components/Helmet/SEO";
 import QuestionandA from "../../components/Loading/QuestionandA";
-import { LiaTimesSolid } from "react-icons/lia";
+import { LiaHomeSolid, LiaShareSolid, LiaTimesSolid } from "react-icons/lia";
 import { handleUserActionLimit } from "../../services/userWriteHandler";
 import SafeImg from "../../services/safeImg";
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
@@ -81,6 +97,17 @@ import { FcShop } from "react-icons/fc";
 import { BiInfoCircle, BiSolidOffer } from "react-icons/bi";
 
 import OfferSheet from "../../components/Offers/OfferModal";
+import AskQuestionNudge from "../../components/Buttons/AskQuestion";
+import AboutThisItem from "../../components/Products/AboutThisItem";
+import ProductSocialProofPill from "../../components/Products/ProductSocialProofPill ";
+import VendorProfileMoreFromSeller from "../../components/VendorsData/VendorProfileMoreFromSeller";
+import AddToCartVariantSheet from "../../components/Cart/AddToCartVariantSheet";
+import { toastAddedToCart } from "../../components/Toasts/AddtoCart";
+import ProductSellingFastPill from "../../components/Products/ProductSellingFastPill";
+import { toastOfferSent } from "../../components/Toasts/OfferSent";
+import { flush, track } from "../../services/signals";
+import ScanningEffect from "../../components/Products/ScanningEffect";
+
 Modal.setAppElement("#root");
 
 const debounce = (func, delay) => {
@@ -160,7 +187,7 @@ const useHdHint = (productId) => {
           shownIds: [...shownIds, productId],
           totalShown: totalShown + 1,
           lastShown: now,
-        })
+        }),
       );
     }
   }, [productId]);
@@ -206,7 +233,7 @@ const AnimatedPriceSwap = ({
     if (!items?.length || items.length < 2) return;
     const t = setInterval(
       () => setIdx((i) => (i + 1) % items.length),
-      interval
+      interval,
     );
     return () => clearInterval(t);
   }, [items, interval]);
@@ -235,6 +262,267 @@ const AnimatedPriceSwap = ({
     </span>
   );
 };
+// ✅ keep one key across the whole app
+function getSessionIdV1() {
+  const key = "mt_session_id";
+  let v = sessionStorage.getItem(key);
+  if (!v) {
+    v =
+      crypto?.randomUUID?.() ||
+      `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    sessionStorage.setItem(key, v);
+  }
+  return v;
+}
+
+function useProductViewQuality({
+  enabled,
+  product,
+  vendorId,
+  surface,
+  isShared,
+  displayPrice,
+  effectivePrice,
+  isFashion,
+  hasVariants,
+  track,
+  flush,
+}) {
+  const viewKeyRef = useRef(""); // unique per product+surface+session
+  const endSentRef = useRef(false);
+
+  const qRef = useRef({
+    startTs: 0, // Date.now() at start
+    startPerf: 0, // performance.now() at start
+    lastVisiblePerf: null,
+    activeMs: 0,
+
+    // engagement
+    engaged: false,
+    gallerySwipes: 0,
+    hdLoads: 0,
+    variantChanges: 0,
+    openedOffer: false,
+    openedAsk: false,
+
+    // depth
+    maxScrollY: 0,
+  });
+
+  // ✅ Keep the latest dynamic values here so finalizeAndSend uses fresh data
+  const latestRef = useRef({
+    surface,
+    vendorId,
+    isShared,
+    displayPrice,
+    effectivePrice,
+    isFashion,
+    hasVariants,
+    productId: product?.id,
+  });
+
+  useEffect(() => {
+    latestRef.current = {
+      surface,
+      vendorId,
+      isShared,
+      displayPrice,
+      effectivePrice,
+      isFashion,
+      hasVariants,
+      productId: product?.id,
+    };
+  }, [
+    surface,
+    vendorId,
+    isShared,
+    displayPrice,
+    effectivePrice,
+    isFashion,
+    hasVariants,
+    product?.id,
+  ]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    if (!product?.id || !vendorId) return;
+
+    const sessionId = getSessionIdV1();
+    const viewKey = `${sessionId}:${product.id}:${surface}`;
+    viewKeyRef.current = viewKey;
+
+    // avoid double wiring if React strict-mode mounts twice in dev
+    endSentRef.current = false;
+
+    const q = qRef.current;
+    q.startTs = Date.now();
+    q.startPerf = performance.now();
+    q.lastVisiblePerf =
+      document.visibilityState === "visible" ? performance.now() : null;
+
+    q.activeMs = 0;
+    q.engaged = false;
+    q.gallerySwipes = 0;
+    q.hdLoads = 0;
+    q.variantChanges = 0;
+    q.openedOffer = false;
+    q.openedAsk = false;
+    q.maxScrollY = window.scrollY || 0;
+
+    const onVis = () => {
+      const now = performance.now();
+      if (document.visibilityState === "hidden") {
+        if (q.lastVisiblePerf != null) {
+          q.activeMs += now - q.lastVisiblePerf;
+          q.lastVisiblePerf = null;
+        }
+      } else {
+        q.lastVisiblePerf = now;
+      }
+    };
+
+    const onScroll = () => {
+      const y = window.scrollY || 0;
+      if (y > q.maxScrollY) q.maxScrollY = y;
+    };
+
+    const finalizeAndSend = () => {
+      if (endSentRef.current) return;
+      endSentRef.current = true;
+
+      const nowPerf = performance.now();
+      const nowTs = Date.now();
+
+      // finalize activeMs (time actually visible)
+      let activeMs = q.activeMs;
+      if (document.visibilityState === "visible" && q.lastVisiblePerf != null) {
+        activeMs += nowPerf - q.lastVisiblePerf;
+      }
+
+      const durationMs = Math.max(0, nowTs - q.startTs);
+      const activeDurationMs = Math.max(0, Math.round(activeMs));
+
+      // bounce heuristic: short + no real engagement + low scroll
+      const isBounce =
+        activeDurationMs < 2500 &&
+        !q.engaged &&
+        q.gallerySwipes === 0 &&
+        q.variantChanges === 0 &&
+        q.hdLoads === 0 &&
+        q.maxScrollY < 120;
+
+      // deep view heuristic: longer OR any meaningful engagement
+      const isDeep =
+        activeDurationMs >= 8000 ||
+        q.engaged ||
+        q.gallerySwipes >= 2 ||
+        q.variantChanges > 0 ||
+        q.openedOffer ||
+        q.openedAsk ||
+        q.maxScrollY >= 350;
+
+      // ✅ Pull freshest values at the moment we send END
+      const latest = latestRef.current;
+
+      track(
+        "product_view",
+        {
+          viewPhase: "end",
+
+          // ✅ use latest surface/vendorId/shared/price flags
+          surface: latest.surface,
+          productId: latest.productId || product.id,
+          vendorId: latest.vendorId || vendorId,
+
+          isShared: !!latest.isShared,
+          priceShown: Number(latest.displayPrice || 0),
+          hasPriceLock: !!latest.effectivePrice,
+          isFashion: !!latest.isFashion,
+          hasVariants: !!latest.hasVariants,
+
+          durationMs: Math.round(durationMs),
+          activeMs: activeDurationMs,
+          isBounce,
+          isDeep,
+
+          // engagement summary
+          gallerySwipes: q.gallerySwipes,
+          hdLoads: q.hdLoads,
+          variantChanges: q.variantChanges,
+          openedOffer: q.openedOffer,
+          openedAsk: q.openedAsk,
+
+          // depth
+          maxScrollY: Math.round(q.maxScrollY),
+        },
+        { surface: latest.surface || surface },
+      );
+
+      // flush right away on exit
+      flush?.();
+    };
+
+    // ✅ START event — ok to use current values at start
+    track(
+      "product_view",
+      {
+        viewPhase: "start",
+        surface,
+        productId: product.id,
+        vendorId,
+        isShared: !!isShared,
+        priceShown: Number(displayPrice || 0),
+        hasPriceLock: !!effectivePrice,
+        isFashion: !!isFashion,
+        hasVariants: !!hasVariants,
+      },
+      { surface },
+    );
+
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    // pagehide catches iOS safari better than beforeunload
+    window.addEventListener("pagehide", finalizeAndSend);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("pagehide", finalizeAndSend);
+      finalizeAndSend();
+    };
+    // IMPORTANT: product.id + surface changes should close previous view and start new one
+  }, [enabled, product?.id, vendorId, surface, track, flush]);
+
+  // expose tiny helpers to mark engagement from UI
+  return {
+    markGallerySwipe: () => {
+      const q = qRef.current;
+      q.gallerySwipes += 1;
+      q.engaged = true;
+    },
+    markHdLoad: () => {
+      const q = qRef.current;
+      q.hdLoads += 1;
+      q.engaged = true;
+    },
+    markVariantChange: () => {
+      const q = qRef.current;
+      q.variantChanges += 1;
+      q.engaged = true;
+    },
+    markOfferOpen: () => {
+      const q = qRef.current;
+      q.openedOffer = true;
+      q.engaged = true;
+    },
+    markAskOpen: () => {
+      const q = qRef.current;
+      q.openedAsk = true;
+      q.engaged = true;
+    },
+  };
+}
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -260,6 +548,8 @@ const ProductDetailPage = () => {
   const productVendorId = product?.vendorId;
   const [subProducts, setSubProducts] = useState([]);
   const [selectedSubProduct, setSelectedSubProduct] = useState(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   const [animateCart, setAnimateCart] = useState(false);
   const [isAddedToCart, setIsAddedToCart] = useState(false);
@@ -275,6 +565,7 @@ const ProductDetailPage = () => {
   const [isSending, setIsSending] = useState(false);
   const [isThankYouOpen, setIsThankYouOpen] = useState(false);
   const [offerModalOpen, setOfferModalOpen] = useState(false);
+  const [addSheetOpen, setAddSheetOpen] = useState(false);
 
   const [isOfferInfoOpen, setOfferInfoOpen] = useState(false);
 
@@ -284,6 +575,8 @@ const ProductDetailPage = () => {
   const [availableColors, setAvailableColors] = useState([]);
   const [availableSizes, setAvailableSizes] = useState([]);
   const [selectedVariantStock, setSelectedVariantStock] = useState(0);
+  const [selectedSwatchKey, setSelectedSwatchKey] = useState(""); // UI ONLY
+
   const [allImages, setAllImages] = useState([]);
   const [isLinkCopied, setIsLinkCopied] = useState(false);
   const [showQuickAuth, setShowQuickAuth] = useState(false);
@@ -296,6 +589,9 @@ const ProductDetailPage = () => {
   const [disclaimerUrl, setDisclaimerUrl] = useState("");
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [wishCount, setWishCount] = useState(
+    typeof product?.wishCount === "number" ? product.wishCount : 0,
+  );
 
   const [hdImages, setHdImages] = useState([]);
   const [loadedHd, setLoadedHd] = useState(new Set());
@@ -305,12 +601,14 @@ const ProductDetailPage = () => {
     loadedHd,
     setLoadedHd,
     loadingHd,
-    setLoadingHd
+    setLoadingHd,
   );
   const handleOpenModal = () => setShowModal(true);
   const handleCloseModal = () => setShowModal(false);
   const db = getFirestore();
 
+ // put near your other refs
+const hdToastShownRef = useRef(new Set());
   const isGuestShared = isShared && !currentUser;
   const cart = useSelector((state) => state.cart || {});
   const [showHeader, setShowHeader] = useState(true);
@@ -318,8 +616,17 @@ const ProductDetailPage = () => {
   // put with other constants
   const OFFER_SENT_ONCE_KEY = "mythrift_offer_sent_once_v1";
 
-  // put with other state
-  const [offerSentModalOpen, setOfferSentModalOpen] = useState(false);
+  const uid = currentUser?.uid ?? null;
+  const priceLock = usePriceLock(db, uid, product?.id);
+const favBusyRef = useRef(false);
+
+  // Derive the price to show
+  const effectivePrice = priceLock?.effectivePrice
+    ? Number(priceLock.effectivePrice)
+    : null;
+  const displayPrice = effectivePrice ?? Number(product?.price || 0);
+  // ✅ Buy Now (quick flow) trigger
+  const [pendingBuyNow, setPendingBuyNow] = useState(false);
 
   // Local Favorites Context
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
@@ -398,10 +705,10 @@ const ProductDetailPage = () => {
   useEffect(() => {
     if (product && product.variants) {
       const uniqueColors = Array.from(
-        new Set(product.variants.map((v) => v.color))
+        new Set(product.variants.map((v) => v.color)),
       );
       const uniqueSizes = Array.from(
-        new Set(product.variants.map((v) => v.size))
+        new Set(product.variants.map((v) => v.size)),
       );
 
       // Initialize state variables
@@ -417,73 +724,146 @@ const ProductDetailPage = () => {
       setSelectedSize("");
     }
   }, [product]);
+
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(e.target)) setIsMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
   const isStockpileForThisVendor = useMemo(() => {
     return isActive && vendorId === product?.vendorId;
   }, [isActive, vendorId, product?.vendorId]);
-  useEffect(() => {
-    if (product) {
-      // Set initial images when the main product is loaded
-      setAllImages(
-        product.imageUrls?.length > 1
-          ? [
-              product.coverImageUrl,
-              ...product.imageUrls.filter(
-                (url) => url !== product.coverImageUrl
-              ),
-            ]
-          : [product.coverImageUrl]
-      );
-    }
-  }, [product]);
-  useEffect(() => {
-    if (product) {
-      // Use imageUrls directly to align with hdImageUrls
-      setAllImages(product.imageUrls || []);
-      setHdImages(
-        Array.isArray(product.hdImageUrls) ? product.hdImageUrls : []
-      );
-      setMainImage(product.coverImageUrl);
-      setSelectedImage(product.coverImageUrl);
-      setSubProducts(product.subProducts || []);
-    }
-  }, [product]);
+  // useEffect(() => {
+  //   if (product) {
+  //     // Set initial images when the main product is loaded
+  //     setAllImages(
+  //       product.imageUrls?.length > 1
+  //         ? [
+  //             product.coverImageUrl,
+  //             ...product.imageUrls.filter(
+  //               (url) => url !== product.coverImageUrl
+  //             ),
+  //           ]
+  //         : [product.coverImageUrl]
+  //     );
+  //   }
+  // }, [product]);
+  // useEffect(() => {
+  //   if (product) {
+  //     // Use imageUrls directly to align with hdImageUrls
+  //     setAllImages(product.imageUrls || []);
+  //     setHdImages(
+  //       Array.isArray(product.hdImageUrls) ? product.hdImageUrls : []
+  //     );
+  //     setMainImage(product.coverImageUrl);
+  //     setSelectedImage(product.coverImageUrl);
+  //     setSubProducts(product.subProducts || []);
+  //   }
+  // }, [product]);
   // put this near the top, right after you pull `product` from redux
   const isFashion = product?.isFashion; // boolean – AddProduct already writes it
-
+  const hasVariants = Boolean(
+    isFashion &&
+    Array.isArray(product?.variants) &&
+    product.variants.length > 0,
+  );
   const variants = React.useMemo(
     () => (Array.isArray(product?.variants) ? product.variants : []),
-    [product]
+    [product],
   );
+useEffect(() => {
+  if (!product) return;
+
+  const rawImages = (Array.isArray(product.imageUrls) ? product.imageUrls : [])
+    .map((u) => String(u || "").trim())
+    .filter(Boolean);
+
+  const cover = String(product.coverImageUrl || "").trim();
+  const images = rawImages.length ? rawImages : cover ? [cover] : [];
+
+  const rawHd = Array.isArray(product.hdImageUrls) ? product.hdImageUrls : [];
+  const singleHd = String(product.hdImageUrl || "").trim() || null;
+
+  // ✅ Align HD to what you actually render
+  const hd = images.map((_, i) => rawHd[i] || (i === 0 ? singleHd : null));
+
+  setAllImages(images);
+  setHdImages(hd);
+
+  const first = images[0] || "";
+  setCurrentImageIndex(0);
+  setMainImage(first);
+  setSelectedImage(first);
+  setInitialImage(first);
+
+  setLoadedHd(new Set());
+  setLoadingHd(new Set());
+}, [product]);
+
 
   useEffect(() => {
-    if (product && selectedSize && selectedColor) {
-      // Generate product key based on whether it's a sub-product or a variant
-      const productKey = buildCartKey({
-        vendorId: product.vendorId,
-        productId: product.id,
-        isFashion,
-        selectedSize,
-        selectedColor,
-        subProductId: selectedSubProduct?.subProductId,
-      });
-      console.log("Checking cart for productKey:", productKey);
-
-      // Check if the item exists in the cart
-      const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
-
-      if (existingCartItem) {
-        setIsAddedToCart(true);
-        setQuantity(existingCartItem.quantity);
-        setAnimateCart(true);
-        console.log("Product found in cart:", existingCartItem);
-      } else {
-        setIsAddedToCart(false);
-        setQuantity(1);
-        setAnimateCart(false);
-        console.log("Product not found in cart for productKey:", productKey);
-      }
+    // If product not ready, reset
+    if (!product?.vendorId || !product?.id) {
+      setIsAddedToCart(false);
+      setAnimateCart(false);
+      return;
     }
-  }, [cart, product, selectedSize, selectedColor, selectedSubProduct]);
+
+    const hasVariantsForKey = Boolean(isFashion && (variants || []).length);
+
+    // ✅ KEY FIX: if this product has variants and no subProduct selected,
+    // and selection is incomplete -> force isAddedToCart OFF (prevents “sticky checkout”)
+    if (
+      hasVariantsForKey &&
+      !selectedSubProduct &&
+      (!selectedSize || !selectedColor)
+    ) {
+      setIsAddedToCart(false);
+      setAnimateCart(false);
+      return;
+    }
+
+    // Build the key for the *current selection*
+    const sizeForKey = selectedSubProduct?.size ?? selectedSize ?? "";
+    const colorForKey = selectedSubProduct?.color ?? selectedColor ?? "";
+
+    const productKey = buildCartKey({
+      vendorId: product.vendorId,
+      productId: product.id,
+      isFashion,
+      selectedSize: sizeForKey,
+      selectedColor: colorForKey,
+      subProductId: selectedSubProduct?.subProductId,
+    });
+
+    const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
+
+    if (existingCartItem) {
+      setIsAddedToCart(true);
+      setQuantity(existingCartItem.quantity);
+      setAnimateCart(true);
+    } else {
+      setIsAddedToCart(false);
+      setAnimateCart(false);
+      // optional: keep your original behaviour
+      setQuantity(1);
+    }
+  }, [
+    cart,
+    product?.id,
+    product?.vendorId,
+    selectedSize,
+    selectedColor,
+    selectedSubProduct?.subProductId,
+    selectedSubProduct?.size,
+    selectedSubProduct?.color,
+    variants,
+    isFashion,
+  ]);
 
   useEffect(() => {
     // Assuming sub-products are part of the product data
@@ -558,12 +938,16 @@ const ProductDetailPage = () => {
   //       return n;
   //     });
   // };
+  useEffect(() => {
+    if (typeof product?.wishCount === "number") setWishCount(product.wishCount);
+  }, [product?.wishCount]);
 
   const handleSubProductClick = (subProduct) => {
     swiperRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
     setSelectedSubProduct(subProduct);
     setSelectedImage(subProduct.images[0]);
+    setSelectedSwatchKey("");
     setSelectedColor(subProduct.color);
     setSelectedSize(subProduct.size);
     setAllImages(subProduct.images || []);
@@ -572,104 +956,255 @@ const ProductDetailPage = () => {
     setLoadedHd(new Set());
     setLoadingHd(new Set());
     setAvailableSizes([subProduct.size]);
+    setCurrentImageIndex(0);
   };
 
-  // Optimistic UI: Toggle heart immediately, then do Firestore + rate-limit checks in background
-  const handleFavoriteToggle = async (e) => {
-    e.stopPropagation();
+const handleFavoriteToggle = async (e) => {
+  e?.stopPropagation?.();
 
-    // 1) Save old state so we can revert if something fails
-    const wasFavorite = favorite;
+  const productId = product?.id;
+  const vendorId = product?.vendorId;
+  const uid = currentUser?.uid;
 
-    // 2) Immediately toggle local state (optimistic update)
-    if (favorite) {
-      removeFavorite(product.id);
+  if (!productId || !vendorId) return;
+
+  // Prevent double taps causing double increments
+  if (favBusyRef.current) return;
+  favBusyRef.current = true;
+
+  // Helper: optimistic UI count change
+  const bumpUI = (delta) =>
+    setWishCount((c) => Math.max(0, Number(c || 0) + delta));
+
+  // Use current truth from context at click-time (not stale closure)
+  const wasFavorite = isFavorite(productId);
+
+  try {
+    // ✅ Optimistic UI + favorites context
+    if (wasFavorite) {
+      removeFavorite(productId);
+      bumpUI(-1);
     } else {
-      addFavorite(product);
+      addFavorite(product); // product already has id here
+      bumpUI(1);
     }
 
-    // 3) If user not logged in => we do local only, done
-    if (!currentUser) {
+    // Guest: keep it local only
+    if (!uid) return;
+
+    // ✅ Rate limit check (if this fails, we revert below)
+    await handleUserActionLimit(
+      uid,
+      "favorite",
+      {},
+      {
+        collectionName: "usage_metadata",
+        writeLimit: 50,
+        minuteLimit: 10,
+        hourLimit: 80,
+        dayLimit: 120,
+      }
+    );
+
+    const favDocRef = doc(db, "users", uid, "favorites", productId);
+    const vendorDocRef = doc(db, "vendors", vendorId);
+    const productDocRef = doc(db, "products", productId);
+
+    // We'll set this based on DB truth (not UI truth)
+    let didLike = null;
+
+    await runTransaction(db, async (tx) => {
+      const [favSnap, vendorSnap, productSnap] = await Promise.all([
+        tx.get(favDocRef),
+        tx.get(vendorDocRef),
+        tx.get(productDocRef),
+      ]);
+
+      const currentWish = Number(productSnap.data()?.wishCount || 0);
+      const currentVendorLikes = Number(vendorSnap.data()?.likesCount || 0);
+
+      if (favSnap.exists()) {
+        // UNLIKE
+        didLike = false;
+
+        tx.delete(favDocRef);
+
+        // clamp to 0 so it never goes negative
+        if (productSnap.exists()) {
+          tx.update(productDocRef, { wishCount: Math.max(0, currentWish - 1) });
+        }
+        if (vendorSnap.exists()) {
+          tx.update(vendorDocRef, {
+            likesCount: Math.max(0, currentVendorLikes - 1),
+          });
+        }
+      } else {
+        // LIKE
+        didLike = true;
+
+        tx.set(favDocRef, {
+          productId,
+          vendorId,
+          name: product?.name || "",
+          price: Number(product?.price || 0),
+          createdAt: serverTimestamp(),
+        });
+
+        if (productSnap.exists()) {
+          tx.update(productDocRef, { wishCount: currentWish + 1 });
+        }
+        if (vendorSnap.exists()) {
+          tx.update(vendorDocRef, { likesCount: currentVendorLikes + 1 });
+        }
+      }
+    });
+
+    // ✅ Tracking (based on DB truth)
+    if (didLike === true) {
+      track(
+        "product_like",
+        {
+          surface: "product_detail",
+          productId,
+          vendorId,
+          priceShown: Number(displayPrice || product?.price || 0),
+          currency: "NGN",
+        },
+        { surface: "product_detail" }
+      );
+    } else if (didLike === false) {
+      track(
+        "product_unlike",
+        { surface: "product_detail", productId, vendorId },
+        { surface: "product_detail" }
+      );
+    }
+  } catch (err) {
+    console.error("Error updating favorites:", err);
+
+    // ✅ Revert optimistic UI
+    if (wasFavorite) {
+      addFavorite(product);
+      bumpUI(1);
+    } else {
+      removeFavorite(productId);
+      bumpUI(-1);
+    }
+
+    toast.error(err?.message || "Failed to update favorites. Please try again.");
+  } finally {
+    favBusyRef.current = false;
+  }
+};
+
+  // ---- role guard (user only) ----
+  const role =
+    userData?.role ||
+    (() => {
+      try {
+        return JSON.parse(localStorage.getItem("mythrift:userData"))?.role;
+      } catch {
+        return null;
+      }
+    })();
+
+  const isUser = !!currentUser && role === "user";
+
+  // ---- surface attribution for views ----
+  const mtSurface = isShared
+    ? "shared_link"
+    : location.state?.mtSurface || "unknown";
+  const surface = mtSurface === "unknown" ? "product_detail" : mtSurface;
+
+  useEffect(() => {
+    return () => {
+      void flush({ reason: "component_unmount" });
+    };
+  }, []);
+
+  const getShareUrl = () => {
+    // use your existing canonical product link if you already have it
+    return window.location.href;
+  };
+  useEffect(() => {
+    setSelectedSubProduct(null);
+    setSelectedSwatchKey("");
+    setSelectedColor("");
+    setSelectedSize("");
+
+    if (Array.isArray(product?.variants)) {
+      setAvailableColors(
+        Array.from(new Set(product.variants.map((v) => v.color))),
+      );
+      setAvailableSizes(
+        Array.from(new Set(product.variants.map((v) => v.size))),
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  const nativeShareProduct = async () => {
+    // ✅ mx link (same one you want)
+    const shareableLink = `https://mx.shopmythrift.store/product/${id}?shared=true`;
+
+    // ✅ same message as your copy function
+    const message = `Hey, check out this item I saw on ${
+      vendor?.shopName || "this store"
+    }'s store on My Thrift: ${shareableLink}`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: product?.name || "My Thrift product",
+          text: message, // 👈 full message
+          url: shareableLink, // 👈 mx link
+        });
+
+        return;
+      }
+
+      // fallback: copy the same message
+      await navigator.clipboard.writeText(message);
+      toast.success("Link copied!");
+    } catch (err) {
+      console.log("Share failed:", err);
+      toast.error("Failed to share. Please try again.");
+    }
+  };
+
+const handleTopLeftBack = () => {
+    // If the link was shared, always go to Home (/)
+    // Otherwise, go back in history (-1)
+    if (isShared) {
+      navigate("/");
+    } else {
+      navigate(-1);
+    }
+  };
+
+  const handleMenuPrimaryAction = () => {
+    setIsMenuOpen(false);
+
+    if (isGuestShared) {
+      if (productVendorId) navigate(`/store/${productVendorId}?shared=true`);
       return;
     }
 
-    // 4) If user is logged in => enforce rate limit, then Firestore
-    try {
-      // Rate limit check
-      await handleUserActionLimit(
-        currentUser.uid,
-        "favorite",
-        {},
-        {
-          collectionName: "usage_metadata",
-          writeLimit: 50, // universal writes/hour
-          minuteLimit: 10, // 10 favorites/min
-          hourLimit: 80, // 80 favorites/hour
-          dayLimit: 120, // 120 favorites/day
-        }
-      );
-
-      // Firestore doc references
-      const favDocRef = doc(
-        db,
-        "users",
-        currentUser.uid,
-        "favorites",
-        product.id
-      );
-      const vendorDocRef = doc(db, "vendors", product.vendorId);
-
-      if (wasFavorite) {
-        // Previously was a favorite => means user wants to remove it
-        await deleteDoc(favDocRef);
-        // Do nothing to the vendor's likesCount so it never decrements
-      } else {
-        // Previously not favorite => means user wants to add it
-        await setDoc(favDocRef, {
-          productId: product.id,
-          vendorId: product.vendorId, // Store vendor ID here
-          name: product.name,
-          price: product.price,
-          createdAt: new Date(),
-        });
-        // Increment vendor's likesCount
-        await updateDoc(vendorDocRef, { likesCount: increment(1) });
-      }
-    } catch (err) {
-      console.error("Error updating favorites:", err);
-
-      // 5) Revert the local favorite state if there's an error
-      if (wasFavorite) {
-        // If it was a favorite, we re-add it because we optimistically removed it
-        addFavorite(product);
-      } else {
-        // If it was not a favorite, we remove it because we optimistically added it
-        removeFavorite(product.id);
-      }
-
-      // Show user the error
-      toast.error(
-        err.message || "Failed to update favorites. Please try again."
-      );
-    }
+    // normal view: go to cart (text option)
+    navigate("/latest-cart", { state: { fromProductDetail: true } });
   };
 
-  const handleDotClick = (index) => {
-    setCurrentImageIndex(index);
-    const swiperInstance = document.querySelector(".swiper").swiper;
-    swiperInstance.slideTo(index);
-  };
   const basketRef = useRef(null);
   const vendorCartProducts = useSelector(
-    (s) => s.cart?.[productVendorId]?.products || {}
+    (s) => s.cart?.[productVendorId]?.products || {},
   );
   const checkoutCount = useMemo(
     () =>
       Object.values(vendorCartProducts).reduce(
         (sum, p) => sum + (p.quantity || 0),
-        0
+        0,
       ),
-    [vendorCartProducts]
+    [vendorCartProducts],
   );
   /* NGN currency with two decimals */
   const NGN = (n) =>
@@ -680,61 +1215,75 @@ const ProductDetailPage = () => {
       maximumFractionDigits: 2,
     });
 
-  useEffect(() => {
-    if (product && product.variants) {
-      const uniqueSizes = Array.from(
-        new Set(product.variants.map((v) => v.size))
-      );
-      setAvailableSizes(uniqueSizes); // Show all sizes initially
-    }
-  }, [product]);
-  useEffect(() => {
-    if (product && product.variants) {
-      const uniqueColors = Array.from(
-        new Set(product.variants.map((v) => v.color))
-      );
-      const uniqueSizes = Array.from(
-        new Set(product.variants.map((v) => v.size))
-      );
+  // useEffect(() => {
+  //   if (product && product.variants) {
+  //     const uniqueSizes = Array.from(
+  //       new Set(product.variants.map((v) => v.size)),
+  //     );
+  //     setAvailableSizes(uniqueSizes); // Show all sizes initially
+  //   }
+  // }, [product]);
+  // useEffect(() => {
+  //   if (product && product.variants) {
+  //     const uniqueColors = Array.from(
+  //       new Set(product.variants.map((v) => v.color)),
+  //     );
+  //     const uniqueSizes = Array.from(
+  //       new Set(product.variants.map((v) => v.size)),
+  //     );
 
-      setAvailableColors(uniqueColors);
-      setAvailableSizes(uniqueSizes);
-      setSelectedColor("");
-      setSelectedSize("");
-    } else {
-      setAvailableColors([]);
-      setAvailableSizes([]);
-      setSelectedColor("");
-      setSelectedSize("");
-    }
-  }, [product]);
+  //     setAvailableColors(uniqueColors);
+  //     setAvailableSizes(uniqueSizes);
+  //     setSelectedColor("");
+  //     setSelectedSize("");
+  //   } else {
+  //     setAvailableColors([]);
+  //     setAvailableSizes([]);
+  //     setSelectedColor("");
+  //     setSelectedSize("");
+  //   }
+  // }, [product]);
 
-  const handleMainProductClick = () => {
-    setSelectedSubProduct(null);
-    setSelectedImage(mainImage);
-    setSelectedColor("");
-    setSelectedSize("");
+const handleMainProductClick = () => {
+  setSelectedSubProduct(null);
+  setSelectedSwatchKey("");
+  setSelectedColor("");
+  setSelectedSize("");
 
-    // Reset available colors and sizes to the main product’s variants
-    const mainColors = Array.from(
-      new Set(product.variants.map((v) => v.color))
-    );
-    const mainSizes = Array.from(new Set(product.variants.map((v) => v.size)));
+  const rawImages = (Array.isArray(product?.imageUrls) ? product.imageUrls : [])
+    .map((u) => String(u || "").trim())
+    .filter(Boolean);
 
-    setAvailableColors(mainColors);
-    setAvailableSizes(mainSizes);
+  const cover = String(product?.coverImageUrl || "").trim();
+  const images = rawImages.length ? rawImages : cover ? [cover] : [];
 
-    setAllImages(
-      product.imageUrls?.length > 1
-        ? [
-            product.coverImageUrl,
-            ...product.imageUrls.filter((url) => url !== product.coverImageUrl),
-          ]
-        : [product.coverImageUrl]
-    );
-  };
+  setAllImages(images);
+
+  // ✅ keep HD aligned to `images` (what you render)
+  const rawHd = Array.isArray(product?.hdImageUrls) ? product.hdImageUrls : [];
+  const singleHd = String(product?.hdImageUrl || "").trim() || null;
+
+  const hd = images.map((_, i) => rawHd[i] || (i === 0 ? singleHd : null));
+  setHdImages(hd);
+
+  setCurrentImageIndex(0);
+  setSelectedImage(images[0] || "");
+  setMainImage(images[0] || "");
+
+  // Reset available colors/sizes like you already do
+  const mainColors = Array.from(new Set((product?.variants || []).map((v) => v.color)));
+  const mainSizes = Array.from(new Set((product?.variants || []).map((v) => v.size)));
+  setAvailableColors(mainColors);
+  setAvailableSizes(mainSizes);
+};
+
+  const norm = (v) =>
+    String(v || "")
+      .trim()
+      .toLowerCase();
 
   // Automatically select color if only one is available
+  const swiperInstanceRef = useRef(null);
 
   useEffect(() => {
     // Only run for products that really have variants
@@ -754,12 +1303,16 @@ const ProductDetailPage = () => {
       toast.error("Failed to load product details.");
     });
   }, [dispatch, id]);
-  useEffect(() => {
-    if (product) {
-      setMainImage(product.coverImageUrl);
-      setInitialImage(product.coverImageUrl);
-    }
-  }, [product]);
+useEffect(() => {
+  if (!product) return;
+  const first =
+    (Array.isArray(product.imageUrls) && product.imageUrls.find(Boolean)) ||
+    product.coverImageUrl ||
+    "";
+  setMainImage(first);
+  setInitialImage(first);
+}, [product]);
+
 
   useEffect(() => {
     if (product && product.vendorId) {
@@ -810,121 +1363,175 @@ const ProductDetailPage = () => {
     };
   }, []);
   const swiperRef = useRef(null);
+  useEffect(() => {
+    if (!pendingBuyNow) return;
+    if (!(quickMode && product?.vendorId === basketVendorId)) return;
 
-  const handleAddToCart = useCallback(() => {
-    console.log("Add to Cart Triggered");
-    console.log("Product:", product);
-    console.log("Selected Size:", selectedSize);
-    console.log("Selected Color:", selectedColor);
-    console.log("Selected Sub-Product:", selectedSubProduct);
-    console.log("Quantity:", quantity);
+    // wait until cart count is non-zero for this vendor
+    if (checkoutCount <= 0) return;
 
-    if (!product) {
-      console.error("Product is missing. Cannot add to cart.");
-      return;
-    }
+    basketRef.current?.openCheckoutAuth?.();
+    setPendingBuyNow(false);
+  }, [
+    pendingBuyNow,
+    quickMode,
+    product?.vendorId,
+    basketVendorId,
+    checkoutCount,
+  ]);
+  const handleAddToCart = useCallback(
+    (override = {}) => {
+      // ✅ ADDED: allow modal (or any caller) to pass values immediately
+      const finalSize = override.size ?? selectedSize;
+      const finalColor = override.color ?? selectedColor;
+      const finalQty = override.qty ?? quantity;
 
-    // Ask for size / colour ONLY when it’s a fashion item
-    if (isFashion) {
-      if (!selectedSize) return toast.error("Please select a size first!");
-      if (!selectedColor) return toast.error("Please select a color first!");
-    }
+      console.log("Add to Cart Triggered");
+      console.log("Product:", product);
+      console.log("Selected Size:", finalSize);
+      console.log("Selected Color:", finalColor);
+      console.log("Selected Sub-Product:", selectedSubProduct);
+      console.log("Quantity:", finalQty);
 
-    if (!product.id || !product.vendorId) {
-      toast.error("Product or Vendor ID is missing. Cannot add to cart!");
-      console.error("Product or Vendor ID is missing:", product);
-      return;
-    }
-
-    /* ---------- determine stock ---------- */
-    let maxStock = 0;
-
-    if (selectedSubProduct) {
-      maxStock = selectedSubProduct.stock;
-    } else if (isFashion) {
-      // only check variants for true fashion items
-      const matchingVariant = findVariant(
-        { variants },
-        selectedSize,
-        selectedColor
-      );
-      if (!matchingVariant) {
-        toast.error("Selected variant is not available!");
-        console.error(
-          "Matching variant not found for selected size and color."
-        );
+      if (!product) {
+        console.error("Product is missing. Cannot add to cart.");
         return;
       }
-      maxStock = matchingVariant.stock;
-    } else {
-      maxStock = Number(product.stockQuantity ?? product.stock ?? 1);
-    }
 
-    if (quantity > maxStock) {
-      toast.error("Selected quantity exceeds stock availability!");
-      return;
-    }
-    /* ---------- /determine stock ---------- */
+      // Ask for size / colour ONLY when it’s a fashion item
+      if (isFashion) {
+        if (!finalSize) return toast.error("Please select a size first!");
+        if (!finalColor) return toast.error("Please select a color first!");
+      }
 
-    const productToAdd = {
-      ...product,
+      if (!product.id || !product.vendorId) {
+        toast.error("Product or Vendor ID is missing. Cannot add to cart!");
+        console.error("Product or Vendor ID is missing:", product);
+        return;
+      }
+
+      /* ---------- determine stock ---------- */
+      let maxStock = 0;
+
+      if (selectedSubProduct) {
+        maxStock = selectedSubProduct.stock;
+      } else if (isFashion) {
+        // only check variants for true fashion items
+        const matchingVariant = findVariant(
+          { variants },
+          finalSize,
+          finalColor,
+        );
+        if (!matchingVariant) {
+          toast.error("Selected variant is not available!");
+          console.error(
+            "Matching variant not found for selected size and color.",
+          );
+          return;
+        }
+        maxStock = matchingVariant.stock;
+      } else {
+        maxStock = Number(product.stockQuantity ?? product.stock ?? 1);
+      }
+
+      if (finalQty > maxStock) {
+        toast.error("Selected quantity exceeds stock availability!");
+        return;
+      }
+      /* ---------- /determine stock ---------- */
+
+      const productToAdd = {
+        ...product,
+        quantity: finalQty,
+        condition: product?.condition || "",
+        selectedSize: finalSize,
+        selectedColor: finalColor,
+        selectedImageUrl: selectedImage,
+        selectedSubProduct,
+        subProductId: selectedSubProduct
+          ? selectedSubProduct.subProductId
+          : null,
+      };
+
+      const productKey = buildCartKey({
+        vendorId: product.vendorId,
+        productId: product.id,
+        isFashion,
+        selectedSize: finalSize,
+        selectedColor: finalColor,
+        subProductId: selectedSubProduct?.subProductId,
+      });
+      console.log("Generated productKey in add:", productKey);
+
+      const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
+
+      if (existingCartItem) {
+        dispatch(addToCart({ ...existingCartItem, quantity: finalQty }, true));
+      } else {
+        dispatch(addToCart(productToAdd, true));
+      }
+
+      setIsAddedToCart(true);
+      // ✅ PostHog: add_to_cart
+      if (isUser) {
+        track(
+          "add_to_cart",
+          {
+            surface,
+            productId: product.id,
+            vendorId: product.vendorId,
+            productKey,
+            qty: finalQty,
+            priceShown: Number(displayPrice || product?.price || 0),
+            currency: "NGN",
+            isFashion: !!isFashion,
+            selectedSize: finalSize || null,
+            selectedColor: finalColor || null,
+            subProductId: selectedSubProduct?.subProductId || null,
+            wasUpdate: !!existingCartItem,
+            cartMode: isStockpileForThisVendor ? "stockpile" : "cart",
+          },
+          { surface },
+        );
+      }
+
+      toastAddedToCart({
+        imageUrl: selectedImage || product?.coverImageUrl,
+        title: isStockpileForThisVendor ? "Added to Pile" : "Added to cart",
+        name: product?.name || "",
+        actionLabel: isStockpileForThisVendor ? "View Pile" : "View Cart",
+        onAction: () => {
+          // pick where you want to go
+          navigate("/latest-cart", { state: { fromProductDetail: true } });
+        },
+      });
+    },
+    [
+      product,
       quantity,
       selectedSize,
       selectedColor,
-      selectedImageUrl: selectedImage,
       selectedSubProduct,
-      subProductId: selectedSubProduct ? selectedSubProduct.subProductId : null,
-    };
+      dispatch,
+      selectedImage,
+      cart,
+      navigate,
+      variants, // ✅ ADDED dependency (you already use it inside)
+      isFashion, // ✅ ADDED dependency (you use it inside)
+      isStockpileForThisVendor, // ✅ ADDED dependency (you use it inside)
+      isUser, // ✅
+      surface, // ✅
+      displayPrice, // ✅
+    ],
+  );
 
-    const productKey = buildCartKey({
-      vendorId: product.vendorId,
-      productId: product.id,
-      isFashion,
-      selectedSize,
-      selectedColor,
-      subProductId: selectedSubProduct?.subProductId,
-    });
-    console.log("Generated productKey in add:", productKey);
-
-    const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
-
-    if (existingCartItem) {
-      dispatch(addToCart({ ...existingCartItem, quantity }, true));
-    } else {
-      dispatch(addToCart(productToAdd, true));
-    }
-
-    setIsAddedToCart(true);
-    toast.success(
-      isStockpileForThisVendor
-        ? `${product.name} added to Pile!`
-        : `Added ${product.name} to cart!`
-    );
-  }, [
-    product,
-    quantity,
-    selectedSize,
-    selectedColor,
-    selectedSubProduct,
-    dispatch,
-    selectedImage,
-    cart,
-  ]);
   const handleOfferSubmitted = useCallback(() => {
-    // only show once on this device
-    const seen = localStorage.getItem(OFFER_SENT_ONCE_KEY);
-    if (!seen) {
-      setOfferSentModalOpen(true);
-      localStorage.setItem(
-        OFFER_SENT_ONCE_KEY,
-        JSON.stringify({ seen: true, ts: Date.now() })
-      );
-    } else {
-      console.log("Offer sent!");
-    }
-    // close the offer sheet if still open
+    toastOfferSent({
+      onAction: () => navigate("/offers"),
+    });
+
     setOfferModalOpen(false);
-  }, []);
+  }, [navigate]);
 
   const handleSendQuestion = useCallback(async () => {
     console.log("[Q&A] send button clicked, questionText:", questionText);
@@ -943,7 +1550,7 @@ const ProductDetailPage = () => {
         currentUser.uid,
         "askQuestion",
         {}, // no extra userData
-        { dayLimit: 20 } // cap at 3 per 24 hours
+        { dayLimit: 20 }, // cap at 3 per 24 hours
       );
     } catch (limitError) {
       // Rate limit hit: hide spinner and show error instantly
@@ -982,14 +1589,22 @@ const ProductDetailPage = () => {
       setIsSending(false);
     }
   }, [questionText, id, product, currentUser, db]);
-  const uid = currentUser?.uid ?? null;
-  const priceLock = usePriceLock(db, uid, product?.id);
 
-  // Derive the price to show
-  const effectivePrice = priceLock?.effectivePrice
-    ? Number(priceLock.effectivePrice)
-    : null;
-  const displayPrice = effectivePrice ?? Number(product?.price || 0);
+  const viewLoggedRef = useRef(new Set());
+  const viewSignals = useProductViewQuality({
+    enabled: isUser && !!product?.id && !!product?.vendorId,
+    product,
+    vendorId: product?.vendorId,
+    surface,
+    isShared,
+    displayPrice,
+    effectivePrice,
+    isFashion,
+    hasVariants,
+    track,
+    flush,
+  });
+
   const { openChat } = useTawk();
   const handleIncreaseQuantity = useCallback(() => {
     console.log("Increase Quantity Triggered");
@@ -1004,7 +1619,7 @@ const ProductDetailPage = () => {
     // Fashion items still need size + colour picked
     if (isFashion && (!selectedSize || !selectedColor)) {
       return toast.error(
-        "Please select a size and color before adjusting quantity."
+        "Please select a size and color before adjusting quantity.",
       );
     }
 
@@ -1017,12 +1632,12 @@ const ProductDetailPage = () => {
       const matchingVariant = findVariant(
         { variants },
         selectedSize,
-        selectedColor
+        selectedColor,
       );
       if (!matchingVariant) {
         toast.error("Selected variant is not available!");
         console.error(
-          "Matching variant not found for selected size and color."
+          "Matching variant not found for selected size and color.",
         );
         return;
       }
@@ -1083,7 +1698,7 @@ const ProductDetailPage = () => {
 
     if (isFashion && (!selectedSize || !selectedColor)) {
       return toast.error(
-        "Please select a size and color before adjusting quantity."
+        "Please select a size and color before adjusting quantity.",
       );
     }
 
@@ -1121,6 +1736,70 @@ const ProductDetailPage = () => {
     selectedSubProduct,
   ]);
 
+  // ✅ max stock for current selection (same rules used everywhere)
+  const getMaxStockForSelection = useCallback(() => {
+    if (!product) return 0;
+
+    if (selectedSubProduct) return Number(selectedSubProduct.stock || 0);
+
+    if (hasVariants) {
+      if (!selectedSize || !selectedColor) return 0; // raw color is required
+      const v = findVariant({ variants }, selectedSize, selectedColor);
+      return Number(v?.stock || 0);
+    }
+
+    return Number(product?.stockQuantity ?? product?.stock ?? 0);
+  }, [
+    product,
+    selectedSubProduct,
+    hasVariants,
+    selectedSize,
+    selectedColor,
+    variants,
+  ]);
+
+  const maxQty = useMemo(
+    () => getMaxStockForSelection(),
+    [getMaxStockForSelection],
+  );
+
+  // ✅ can user adjust quantity right now?
+  const canAdjustQty = useMemo(() => {
+    if (!product) return false;
+    if (!isFashion) return true;
+    if (selectedSubProduct) return true;
+    return Boolean(selectedSize && selectedColor); // must have RAW color
+  }, [product, isFashion, selectedSubProduct, selectedSize, selectedColor]);
+
+  const decDisabled = !canAdjustQty || quantity <= 1;
+  const incDisabled = !canAdjustQty || maxQty <= 0 || quantity >= maxQty;
+
+  // ✅ single handlers used by the new UI
+  const handleQtyDecrease = useCallback(() => {
+    if (!canAdjustQty) return toast.error("Please select size and color first");
+    if (decDisabled) return;
+
+    // if already in cart -> update cart
+    if (isAddedToCart) return handleDecreaseQuantity();
+
+    // before adding -> local state only
+    setQuantity((q) => Math.max(1, q - 1));
+  }, [canAdjustQty, decDisabled, isAddedToCart, handleDecreaseQuantity]);
+
+  const handleQtyIncrease = useCallback(() => {
+    if (!canAdjustQty) return toast.error("Please select size and color first");
+    if (incDisabled) return;
+
+    if (isAddedToCart) return handleIncreaseQuantity();
+    setQuantity((q) => q + 1);
+  }, [canAdjustQty, incDisabled, isAddedToCart, handleIncreaseQuantity]);
+
+  const handleThumbClick = (index) => {
+    setCurrentImageIndex(index);
+    const img = allImages[index];
+    if (img) setSelectedImage(img); // important for cart selectedImageUrl
+  };
+
   const formatPrice = (price) => {
     return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
@@ -1132,7 +1811,7 @@ const ProductDetailPage = () => {
   // Check if a color is available for the selected size
   const isColorAvailableForSize = (color) => {
     return variants.some(
-      (variant) => variant.size === selectedSize && variant.color === color
+      (variant) => variant.size === selectedSize && variant.color === color,
     );
   };
   const cartItemCount = Object.values(cart || {}).reduce(
@@ -1145,7 +1824,7 @@ const ProductDetailPage = () => {
         }, 0)
       );
     },
-    0
+    0,
   );
   // Handle color selection
 
@@ -1154,8 +1833,8 @@ const ProductDetailPage = () => {
       new Set(
         product.variants
           .filter((variant) => variant.color === color)
-          .map((variant) => variant.size)
-      )
+          .map((variant) => variant.size),
+      ),
     );
     setAvailableSizes(uniqueSizesForColor);
   };
@@ -1191,7 +1870,7 @@ const ProductDetailPage = () => {
     if (selectedColor === color) {
       setSelectedColor("");
       setAvailableSizes(
-        Array.from(new Set(product.variants.map((variant) => variant.size)))
+        Array.from(new Set(product.variants.map((variant) => variant.size))),
       );
       setSelectedSize("");
       console.log("Color deselected. Available sizes reset.");
@@ -1208,36 +1887,66 @@ const ProductDetailPage = () => {
     }
   };
 
-  // Function to check if a specific size has stock for the selected color
-  const isSizeInStock = (size) => {
-    // Everyday items (no variants) don’t gate on size at all
+  const getSizeValue = (s) => (typeof s === "object" && s ? s.size : s);
+
+  const isSizeInStock = (sizeLike) => {
+    const size = getSizeValue(sizeLike);
+
     if (!isFashion) return true;
 
-    // Sub-product path
     if (selectedSubProduct) {
-      return selectedSubProduct.size === size && selectedSubProduct.stock > 0;
+      return (
+        String(selectedSubProduct.size) === String(size) &&
+        Number(selectedSubProduct.stock) > 0
+      );
     }
 
-    // Regular fashion variant path
-    if (selectedColor) {
-      const matchingVariant = findVariant({ variants }, size, selectedColor);
-      return matchingVariant && matchingVariant.stock > 0;
+    // ✅ KEY CHANGE: no color picked yet → never show “Out of Stock”
+    const hasColorContext = Boolean(selectedColor || selectedSwatchKey);
+    if (!hasColorContext) return true;
+
+    // ✅ swatch-mode stock check (only after swatch selected)
+    if (selectedSwatchKey) {
+      return (variants || []).some(
+        (v) =>
+          String(v?.size) === String(size) &&
+          normalizeColorKeyForSwatch(v?.color) === selectedSwatchKey &&
+          Number(v?.stock) > 0,
+      );
     }
+
+    // ✅ raw-color mode (only after color selected)
+    if (selectedColor) {
+      const v = findVariant({ variants }, size, selectedColor);
+      return !!v && Number(v?.stock) > 0;
+    }
+
     return true;
   };
 
   const handleSizeClick = (size) => {
-    if (!isSizeInStock(size)) {
-      console.log("Size clicked is out of stock:", size);
+    if (!isSizeInStock(size)) return;
+    viewSignals?.markVariantChange?.();
+    if (selectedSize === size) {
+      setSelectedSize("");
+      // if main product swatch mode: clear raw color too
+      if (!selectedSubProduct) setSelectedColor("");
       return;
     }
 
-    if (selectedSize === size) {
-      setSelectedSize("");
-      console.log("Size deselected:", size);
-    } else {
-      setSelectedSize(size);
-      console.log("Size selected:", size);
+    setSelectedSize(size);
+
+    // If main product swatch is chosen, resolve RAW DB color from the variant row
+    if (!selectedSubProduct && selectedSwatchKey) {
+      const match = (variants || []).find(
+        (v) =>
+          String(v?.size) === String(size) &&
+          normalizeColorKeyForSwatch(v?.color) === selectedSwatchKey,
+      );
+
+      if (match?.color) {
+        setSelectedColor(match.color); // ✅ RAW Firestore string
+      }
     }
   };
 
@@ -1250,7 +1959,7 @@ const ProductDetailPage = () => {
 
     // Fallback to the main product's variants if no sub-product is selected
     return variants.some(
-      (variant) => variant.color === selectedColor && variant.size === size
+      (variant) => variant.color === selectedColor && variant.size === size,
     );
   };
 
@@ -1305,6 +2014,26 @@ const ProductDetailPage = () => {
     dispatch(removeFromCart({ vendorId: product.vendorId, productKey }));
     setIsAddedToCart(false);
     setQuantity(1);
+    // ✅ PostHog: remove_from_cart
+    if (isUser) {
+      track(
+        "remove_from_cart",
+        {
+          surface,
+          productId: product.id,
+          vendorId: product.vendorId,
+          productKey,
+          qty: quantity,
+          isFashion: !!isFashion,
+          selectedSize: selectedSize || null,
+          selectedColor: selectedColor || null,
+          subProductId: selectedSubProduct?.subProductId || null,
+          cartMode: isStockpileForThisVendor ? "stockpile" : "cart",
+        },
+        { surface },
+      );
+    }
+
     toast.success(`${product.name} removed from cart!`);
   }, [
     dispatch,
@@ -1313,6 +2042,10 @@ const ProductDetailPage = () => {
     selectedColor,
     selectedSubProduct,
     isFashion,
+    isUser,
+    surface,
+    quantity,
+    isStockpileForThisVendor,
   ]);
 
   const sizes =
@@ -1326,15 +2059,13 @@ const ProductDetailPage = () => {
       : [];
 
   const hasSubProducts = Array.isArray(subProducts) && subProducts.length > 0;
-  const hasVariants = Boolean(
-    isFashion && Array.isArray(product?.variants) && product.variants.length > 0
-  );
+
   const copyProductLink = async () => {
     try {
       const shareableLink = `https://mx.shopmythrift.store/product/${id}?shared=true`;
 
       await navigator.clipboard.writeText(
-        `Hey, check out this item I saw on ${vendor.shopName}'s store on My Thrift: ${shareableLink}`
+        `Hey, check out this item I saw on ${vendor.shopName}'s store on My Thrift: ${shareableLink}`,
       );
       setIsLinkCopied(true);
       toast.success("Link copied!");
@@ -1351,6 +2082,88 @@ const ProductDetailPage = () => {
     setDisclaimerUrl(abs);
     setShowDisclaimerModal(true);
   };
+
+  const handleBuyNow = useCallback(() => {
+    if (!product) return;
+
+    // ✅ Require selection ONLY when variants exist (same as your UI)
+    if (hasVariants && !selectedSubProduct) {
+      if (!selectedSize) return toast.error("Please select a size first!");
+      if (!selectedColor) return toast.error("Please select a color first!");
+    }
+
+    // ✅ stock guard (maxQty already matches your selection rules)
+    const stock = Number(maxQty || 0);
+    if (stock <= 0) return toast.error("This item is out of stock.");
+    if (quantity > stock)
+      return toast.error("Selected quantity exceeds stock availability!");
+
+    // ✅ build cart payload (same as Add to Cart)
+    const productToAdd = {
+      ...product,
+      quantity,
+      selectedSize,
+      selectedColor,
+      selectedImageUrl: selectedImage,
+      selectedSubProduct,
+      subProductId: selectedSubProduct ? selectedSubProduct.subProductId : null,
+    };
+
+    const productKey = buildCartKey({
+      vendorId: product.vendorId,
+      productId: product.id,
+      isFashion,
+      selectedSize,
+      selectedColor,
+      subProductId: selectedSubProduct?.subProductId,
+    });
+
+    const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
+
+    if (existingCartItem) {
+      dispatch(addToCart({ ...existingCartItem, quantity }, true));
+    } else {
+      dispatch(addToCart(productToAdd, true));
+    }
+
+    setIsAddedToCart(true);
+    track(
+      "checkout_started",
+      {
+        surface: "product_detail",
+        vendorId: product.vendorId,
+        productId: product.id,
+        qty: quantity,
+        intent: "buy_now",
+      },
+      { surface: "product_detail" },
+    );
+    // ✅ QUICK MODE: use StoreBasket flow (auth + delivery)
+    if (quickMode && product.vendorId === basketVendorId) {
+      setPendingBuyNow(true);
+      return;
+    }
+
+    // ✅ NORMAL MODE: go straight to vendor checkout
+    navigate(`/newcheckout/${product.vendorId}`, {
+      state: { fromProductDetail: true, buyNow: true },
+    });
+  }, [
+    product,
+    quantity,
+    selectedSize,
+    selectedColor,
+    selectedImage,
+    selectedSubProduct,
+    cart,
+    dispatch,
+    navigate,
+    quickMode,
+    basketVendorId,
+    hasVariants,
+    maxQty,
+    isFashion,
+  ]);
   if (loading) {
     return <Loading />;
   }
@@ -1365,6 +2178,85 @@ const ProductDetailPage = () => {
 
     return Number(product?.stockQuantity ?? product?.stock ?? 0);
   };
+
+const requestHd = async (idx) => {
+  const url = hdImages?.[idx];
+
+  // 1) No HD available for this slide
+  if (!url) {
+    if (!hdToastShownRef.current.has(`nohd-${idx}`)) {
+      hdToastShownRef.current.add(`nohd-${idx}`);
+      toast("No HD image available for this photo.", { icon: "ℹ️" });
+    }
+    return;
+  }
+
+  try {
+    viewSignals?.markHdLoad?.();
+
+    // loadHd might be sync or async depending on your hook.
+    // Awaiting it is safe either way.
+    await Promise.resolve(loadHd(idx));
+  } catch (err) {
+    console.error("HD load failed:", err);
+
+    if (!hdToastShownRef.current.has(`err-${idx}`)) {
+      hdToastShownRef.current.add(`err-${idx}`);
+      toast.error(
+        err?.message ||
+          "Failed to load HD image. Please try again (or check your connection).",
+      );
+    }
+  }
+};
+
+
+  const getSizeText = (product) => {
+    if (!product) return "";
+
+    // 1) If product.size exists (string like "S, UK 38, 47")
+    if (product.size) {
+      const parts = String(product.size)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      if (!parts.length) return "";
+      if (parts.length === 1) return parts[0];
+      return `${parts[0]} - ${parts[parts.length - 1]}`;
+    }
+
+    // 2) If size is not on product, derive from variants (common in your setup)
+    if (Array.isArray(product.variants) && product.variants.length) {
+      const sizes = Array.from(
+        new Set(
+          product.variants
+            .map((v) => v?.size)
+            .filter(Boolean)
+            .map((s) => String(s).trim()),
+        ),
+      );
+
+      if (!sizes.length) return "";
+      if (sizes.length === 1) return sizes[0];
+      return `${sizes[0]} - ${sizes[sizes.length - 1]}`;
+    }
+
+    return "";
+  };
+  const toTitleCase = (str = "") =>
+    String(str)
+      .trim()
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+
+  // usage where you build conditionText
+  const conditionText = product?.condition
+    ? toTitleCase(product.condition.replace(/:$/, ""))
+    : "";
 
   const minOfferAmount = 1; // guard
   const maxOfferQty = Math.max(1, getAvailableStock());
@@ -1391,7 +2283,7 @@ const ProductDetailPage = () => {
 
         <button
           className="w-32 bg-customOrange font-opensans text-xs px-2 h-10 text-white rounded-lg mt-12"
-          onClick={() => navigate("/newhome")} // Navigate to /newhome on click
+          onClick={() => navigate("/")} // Navigate to / on click
         >
           Back Home
         </button>
@@ -1411,7 +2303,7 @@ const ProductDetailPage = () => {
         </p>
         <button
           className="w-32 bg-customOrange font-opensans text-xs px-2 h-10 text-white rounded-lg mt-12"
-          onClick={() => navigate("/newhome")} // Navigate to the homepage
+          onClick={() => navigate("/")} // Navigate to the homepage
         >
           Back Home
         </button>
@@ -1511,219 +2403,58 @@ const ProductDetailPage = () => {
         image={product.coverImageUrl}
         url={`https://www.shopmythrift.store/product/${product.id}`}
       />
-      <div className="relative pb-20">
-        <div>
-          {isGuestShared ? (
-            <>
-              <div
-                className={`px-2 fixed top-0 left-0 w-full h-20 py-10 bg-white z-20 shadow-md`}
-              >
-                <div className="flex items-center justify-between h-full">
-                  <div className="w-full ">
-                    {/* LEFT: logo */}
-
-                    <div className="flex items-center justify-between">
-                      <img
-                        src="/newlogo.png"
-                        alt="Logo"
-                        onClick={() => navigate("/newhome")}
-                        className="h-8 w-16 object-contain"
-                      />
-
-                      <div className="flex items-center mr-2 space-x-0 relative">
-                        <button
-                          className={`w-10 h-10 translate-x-1 rounded-full backdrop-blur-md flex items-center justify-center`}
-                          onClick={copyProductLink}
-                        >
-                          {isLinkCopied ? (
-                            <LuCopyCheck className="text-xl" />
-                          ) : (
-                            <LuCopy className="text-xl" />
-                          )}
-                        </button>
-
-                        {/* Favorite Icon */}
-                        <button
-                          className="w-10 h-10 rounded-full -translate-x-1 backdrop-blur-md flex items-center justify-center"
-                          onClick={handleFavoriteToggle}
-                        >
-                          <motion.div
-                            // whenever `favorite` is true we run this keyframe pop
-                            animate={
-                              favorite ? { scale: [1, 1.3, 1] } : { scale: 1 }
-                            }
-                            transition={{
-                              duration: 0.4,
-                              ease: "easeOut",
-                              // you can swap this for a spring:
-                              // type: "spring", stiffness: 300, damping: 20
-                            }}
-                          >
-                            {favorite ? (
-                              <RiHeart3Fill className="text-red-500 text-2xl" />
-                            ) : (
-                              <RiHeart3Line className="text-black text-2xl" />
-                            )}
-                          </motion.div>
-                        </button>
-
-                        {!quickMode && (
-                          <button
-                            className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
-                            onClick={() =>
-                              navigate("/latest-cart", {
-                                state: { fromProductDetail: true },
-                              })
-                            }
-                          >
-                            <PiShoppingCartBold className="text-xl" />
-                            {cartItemCount > 0 && (
-                              <div className="top-1 absolute right-1">
-                                <Badge count={cartItemCount} />
-                              </div>
-                            )}
-                          </button>
-                        )}
-                        {productVendorId && (
-                          <button
-                            onClick={() =>
-                              navigate(`/store/${productVendorId}?shared=true`)
-                            }
-                            className="bg-transparent border border-customRichBrown text-customRichBrown px-2 py-1.5 rounded-full font-opensans text-xs flex items-center gap-2"
-                          >
-                            <FcShop className="text-sm" />
-                            View Store
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div
-                className={` fixed top-0 left-0 w-full h-20 py-10 z-20 bg-white shadow-sm`}
-              >
-                <div className="flex items-center justify-between h-full">
-                  {/* your existing “back + title” on the left */}
-                  <div className="flex items-center">
-                    <button
-                      onClick={() => navigate(-1)}
-                      className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
-                    >
-                      <GoChevronLeft className="text-xl" />
-                    </button>
-
-                    <span className={`text-lg font-opensans font-semibold`}>
-                      Details
-                    </span>
-                  </div>
-
-                  {/* your existing copy/cart on the right */}
-                  <div className="flex items-center mr-2 space-x-0 relative">
-                    <button
-                      className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
-                      onClick={copyProductLink}
-                    >
-                      {isLinkCopied ? (
-                        <LuCopyCheck className="text-xl" />
-                      ) : (
-                        <LuCopy className="text-xl" />
-                      )}
-                    </button>
-
-                    {/* Favorite Icon */}
-                    <button
-                      className="w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center"
-                      onClick={handleFavoriteToggle}
-                    >
-                      <motion.div
-                        // whenever `favorite` is true we run this keyframe pop
-                        animate={
-                          favorite ? { scale: [1, 1.3, 1] } : { scale: 1 }
-                        }
-                        transition={{
-                          duration: 0.4,
-                          ease: "easeOut",
-                          // you can swap this for a spring:
-                          // type: "spring", stiffness: 300, damping: 20
-                        }}
-                      >
-                        {favorite ? (
-                          <RiHeart3Fill className="text-red-500 text-2xl" />
-                        ) : (
-                          <RiHeart3Line className="text-black text-2xl" />
-                        )}
-                      </motion.div>
-                    </button>
-                    {/* {quickMode && productVendorId && (
-                      <button
-                        className="relative px-4 py-2 rounded-full border border-gray-300 backdrop-blur-md flex items-center justify-center"
-                        onClick={() => {
-                          if (productVendorId === basketVendorId) {
-                            basketRef.current?.openCheckoutAuth();
-                          } else {
-                            navigate("/latest-cart");
-                          }
-                        }}
-                        aria-label="Checkout"
-                      >
-                        <span className="text-sm font-opensans  font-medium">Checkout</span>
-                        
-                      </button>
-                    )} */}
-                    {!quickMode && (
-                      <button
-                        className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center`}
-                        onClick={() =>
-                          navigate("/latest-cart", {
-                            state: { fromProductDetail: true },
-                          })
-                        }
-                      >
-                        <PiShoppingCartBold className="text-xl" />
-                        {cartItemCount > 0 && (
-                          <div className="top-1 absolute right-1">
-                            <Badge count={cartItemCount} />
-                          </div>
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+      <div className="relative px-2 pb-20">
+        {/* --- IMAGE SWIPER SECTION --- */}
 
         <div
           ref={swiperRef}
-          className={`flex rounded-t-md justify-center h-[540px] relative mt-20`}
+          className="flex rounded-md justify-center mt-3 h-[500px] relative bg-gray-50"
         >
+          {/* OVERLAY CONTROLS (Back Button) */}
+         {/* OVERLAY CONTROLS (Back/Home Button) */}
+          <div className="fixed top-5 left-4 z-[9000]">
+            <button
+              onClick={handleTopLeftBack}
+              aria-label={isShared ? "Home" : "Back"}
+              className={[
+                "w-11 h-11 rounded-xl backdrop-blur-md flex items-center justify-center",
+                "transition-all duration-200 active:scale-95",
+                isSticky
+                  ? "bg-black/25 opacity-70 shadow-none"
+                  : "bg-black/50 opacity-100 shadow-sm",
+              ].join(" ")}
+            >
+              {/* If shared, show Home icon, else show Back arrow */}
+              {isShared ? (
+                <LiaHomeSolid className="text-xl text-white" />
+              ) : (
+                <IoMdArrowBack className="text-xl text-white" />
+              )}
+            </button>
+          </div>
+
+          <ProductSocialProofPill productId={id} />
+          {/* SWIPER COMPONENT */}
           {allImages.length > 1 ? (
             <>
               <Swiper
                 modules={[FreeMode, Autoplay]}
-                pagination={{ clickable: true }}
                 autoplay={{
                   delay: 7500,
                   disableOnInteraction: false,
                 }}
-                className="product-images-swiper"
-                preventClicks={true}
-                preventClicksPropagation={true}
-                onSlideChange={(swiper) =>
-                  setCurrentImageIndex(swiper.activeIndex)
-                }
+                className="product-images-swiper  w-full h-full"
+                onSlideChange={(swiper) => {
+                  setCurrentImageIndex(swiper.activeIndex);
+                  viewSignals?.markGallerySwipe?.();
+                }}
               >
                 {allImages.map((image, index) => (
                   <SwiperSlide key={index}>
                     <div
                       className="relative w-full h-full"
-                      onDoubleClick={() => loadHd(index)}
-                      onTouchEnd={makeDoubleTap(() => loadHd(index))}
+                      onDoubleClick={() => requestHd(index)}
+                      onTouchEnd={makeDoubleTap(() => requestHd(index))}
                     >
                       <SafeImg
                         src={
@@ -1732,8 +2463,10 @@ const ProductDetailPage = () => {
                             : image
                         }
                         alt={`${product.name} image ${index + 1}`}
-                        className="object-cover w-full h-full"
+                        className="object-cover rounded-xl w-full h-full"
                       />
+
+                      {/* HD Loader */}
                       {loadingHd.has(index) && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
                           <Oval
@@ -1746,6 +2479,8 @@ const ProductDetailPage = () => {
                           />
                         </div>
                       )}
+
+                      {/* HD Badge */}
                       {loadedHd.has(index) && hdImages[index] && (
                         <div className="absolute top-6 left-2 z-10">
                           <BsBadgeHdFill
@@ -1754,238 +2489,242 @@ const ProductDetailPage = () => {
                           />
                         </div>
                       )}
+
+                      {/* Hint Overlay (First slide only) */}
                       {showHdHint && index === 0 && <HdHintOverlay />}
-                      {/* Discount Badge inside each slide */}
-                      {index === 0 && product.discount && (
-                        <div className="absolute top-2 right-2 z-20">
-                          {product.discount.discountType.startsWith(
-                            "personal-freebies"
-                          ) ? (
-                            <div className="bg-customPink text-customOrange text-xs px-2 py-1.5 font-opensans font-medium rounded">
-                              {product.discount.freebieText}
-                            </div>
-                          ) : (
-                            <div className="bg-customPink text-customOrange text-xs px-2 py-1.5 font-opensans font-medium rounded">
-                              -{product.discount.percentageCut}%
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {index === 0 && product.defectDescription && (
-                        <div
-                          onClick={handleOpenModal}
-                          className="px-3 w-28 py-1 absolute bg-opacity-40 bottom-16 right-2 bg-black rounded-md cursor-pointer"
-                        >
-                          <p className="text-[10px]  text-white font-opensans">
-                            Tap to view defect description
-                          </p>
-                        </div>
-                      )}
-                      <div className="absolute bottom-12 left-2 bg-white bg-opacity-40 px-2 py-1 rounded-lg shadow-md flex items-center space-x-2">
-                        <p className="text-xs font-opensans text-gray-700">
-                          Still not sure?
-                        </p>
-                        <button
-                          onClick={() => {
-                            if (!currentUser) {
-                              navigate("/login", {
-                                state: { from: location.pathname },
-                              });
-                            } else {
-                              setIsAskModalOpen(true);
-                            }
-                          }}
-                          className="text-xs font-semibold font-opensans text-customOrange hover:underline focus:outline-none"
-                        >
-                          Ask a question
-                        </button>
-                      </div>
                     </div>
                   </SwiperSlide>
                 ))}
               </Swiper>
 
-              {/* Dot Indicators */}
-              <div className="absolute bottom-4 z-10 w-full flex justify-center">
-                {allImages.map((_, index) => (
-                  <div
-                    key={index}
-                    className={`cursor-pointer mx-1 rounded-full transition-all duration-300 ${
-                      index === currentImageIndex
-                        ? "bg-customOrange h-3 w-3"
-                        : "bg-gray-300 h-2 w-2"
-                    }`}
-                    onClick={() => handleDotClick(index)}
-                  ></div>
-                ))}
+              {/* Dot Indicators (Scaling Effect) */}
+              <div className="absolute bottom-6 z-10 w-full flex justify-center items-center gap-1.5">
+                {allImages.map((_, index) => {
+                  const distance = Math.abs(currentImageIndex - index);
+
+                  // Determine size and opacity based on distance from active index
+                  let dotStyle = "w-1.5 h-1.5 bg-white/40"; // Default (Far away)
+
+                  if (distance === 0) {
+                    dotStyle =
+                      "w-2.5 h-2.5 bg-white shadow-sm scale-110 opacity-100"; // Active
+                  } else if (distance === 1) {
+                    dotStyle = "w-2 h-2 bg-white/70"; // Neighbor
+                  }
+
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => {
+                        const swiper = document.querySelector(
+                          ".product-images-swiper",
+                        ).swiper;
+                        swiper.slideTo(index);
+                      }}
+                      className={`cursor-pointer rounded-full transition-all duration-300 ${dotStyle}`}
+                    ></div>
+                  );
+                })}
               </div>
             </>
           ) : (
-            // Single image fallback
-            <>
-              <div
-                className="relative w-full h-full"
-                onDoubleClick={() => loadHd(0)}
-                onTouchEnd={makeDoubleTap(() => loadHd(0))}
-              >
-                <IkImage
-                  src={
-                    loadedHd.has(0) && hdImages[0] ? hdImages[0] : allImages[0]
-                  }
-                  alt={`${product.name} image`}
-                  className="object-cover w-full h-full rounded-b-lg"
-                />
-                {loadingHd.has(0) && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
-                    <Oval
-                      height={50}
-                      width={50}
-                      color="#f9531e"
-                      secondaryColor="rgba(0,0,0,0.2)"
-                      strokeWidth={4}
-                      ariaLabel="loading"
-                    />
-                  </div>
-                )}
-                {loadedHd.has(0) && hdImages[0] && (
-                  <div className="absolute top-6 left-2 z-10">
-                    <BsBadgeHdFill
-                      className="text-white bg-black bg-opacity-40 p-1 rounded-full text-xl"
-                      title="HD image"
-                    />
-                  </div>
-                )}
-                {showHdHint && <HdHintOverlay />}
-              </div>
-              {product.discount && (
-                <div className="absolute top-10 right-2 ">
-                  {product.discount.discountType.startsWith(
-                    "personal-freebies"
-                  ) ? (
-                    <div className="bg-customPink text-customOrange text-xs px-2 py-1.5 font-opensans font-medium rounded">
-                      {product.discount.freebieText}
-                    </div>
-                  ) : (
-                    <div className="bg-customPink text-customOrange text-xs px-2 py-1.5 font-opensans font-medium rounded">
-                      -{product.discount.percentageCut}%
-                    </div>
-                  )}
-                </div>
-              )}
-              {product.defectDescription && (
-                <div
-                  onClick={handleOpenModal}
-                  className="px-3 w-28 py-1 absolute bg-opacity-40 bottom-16 right-2 bg-black rounded-md cursor-pointer"
-                >
-                  <p className="text-xs text-white font-opensans truncate">
-                    {product.defectDescription.slice(0, 20)} ...
-                  </p>
-                  <span className="text-[10px]  text-white font-opensans">
-                    Tap to view defect
-                  </span>
-                </div>
-              )}
+            // Single Image Fallback
+<div
+  className="relative w-full h-full overflow-hidden rounded-xl bg-gray-100" // Added bg-gray-100 and overflow-hidden
+  onDoubleClick={() => requestHd(0)}
+  onTouchEnd={makeDoubleTap(() => requestHd(0))}
+>
+  <AnimatePresence mode="wait">
+    {/* We wrap the image in motion.div to handle the "Flash" effect when switching.
+      Note: We check if it is HD to apply a 'sharp' look, otherwise 'blur' if loading.
+    */}
+    <motion.div
+      key={loadedHd.has(0) && hdImages[0] ? `hd-${hdImages[0]}` : `sd-${allImages[0]}`}
+      initial={{ filter: "blur(0px)", opacity: 0.8 }}
+      animate={{ 
+        filter: loadingHd.has(0) ? "blur(2px)" : "blur(0px)", 
+        opacity: 1 
+      }}
+      transition={{ duration: 0.5 }}
+      className="w-full h-full"
+    >
+      <SafeImg
+        src={loadedHd.has(0) && hdImages[0] ? hdImages[0] : allImages[0]}
+        alt={`${product.name} image`}
+        className="object-cover w-full h-full"
+      />
+    </motion.div>
+  </AnimatePresence>
 
-              <div className="absolute bottom-4 left-2 bg-white bg-opacity-60 px-2 py-1 rounded-lg shadow-md flex items-center space-x-2">
-                <p className="text-xs font-opensans text-gray-700">
-                  Still not sure?
-                </p>
-                <button
-                  onClick={() => {
-                    if (!currentUser) {
-                      navigate("/login", {
-                        state: { from: location.pathname },
-                      });
-                    } else {
-                      setIsAskModalOpen(true);
-                    }
-                  }}
-                  className="text-xs font-semibold font-opensans text-customOrange hover:underline focus:outline-none"
-                >
-                  Ask a question
-                </button>
-              </div>
-            </>
+  {/* THE COOL LOADING EFFECT */}
+  <AnimatePresence>
+    {loadingHd.has(0) && (
+      <motion.div
+        key="scanner"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0, transition: { duration: 0.3 } }}
+      >
+        <ScanningEffect />
+      </motion.div>
+    )}
+  </AnimatePresence>
+
+  {/* Success Badge (Pop in animation) */}
+ 
+
+  {showHdHint && <HdHintOverlay />}
+</div>
           )}
         </div>
 
-        <div className="px-3 mt-2">
-          <div className="flex items-center justify-between">
-            <h1 className="text-sm font-opensans text-black font-normal ">
-              {product.name}
-            </h1>
-            <div className="">
-              {product.condition &&
-              product.condition.toLowerCase().includes("defect") ? (
-                <div className="flex  items-center mt-2">
-                  <TbInfoTriangle className="text-red-500   cursor-pointer" />
-                  <p className="ml-2 text-xs font-opensans text-red-500">
-                    {product.condition.replace(/:$/, "")}
-                  </p>
-                </div>
-              ) : product.condition.toLowerCase() === "brand new" ? (
-                <div className="flex items-center mt-2">
-                  <TbSquareRoundedCheck className="text-green-700" />
-                  <p className="ml-2 text-xs font-opensans text-green-700">
-                    Brand New
-                  </p>
-                </div>
-              ) : product.condition.toLowerCase() === "thrift" ? (
-                <div className="flex items-center mt-2">
-                  <TbSquareRoundedCheck className="text-yellow-500" />
-                  <p className="ml-2 text-xs font-opensans text-yellow-500">
-                    Thrift
-                  </p>
-                </div>
-              ) : null}
+        <div className="px-2 mt-2">
+          <div className="w-full bg-white mt-3 mb-2">
+            <div className="flex items-center gap-2  overflow-x-auto no-scrollbar pb-2">
+              {/* Like Button */}
+              <button
+                onClick={handleFavoriteToggle}
+                className="flex-shrink-0 flex items-center gap-1.5 bg-gray-100 px-4 py-2 rounded-full hover:bg-gray-200 transition-colors"
+              >
+                {favorite ? (
+                  <RiHeart3Fill className="text-red-500 text-lg" />
+                ) : (
+                  <RiHeart3Line className="text-black text-lg" />
+                )}
+                <span className="text-sm font-opensans font-medium text-black">
+                  {wishCount > 0 ? `${wishCount} ` : "Like"}
+                </span>
+              </button>
+
+              {/* Share Button */}
+              <button
+                onClick={nativeShareProduct}
+                className="flex-shrink-0 flex items-center gap-1.5 bg-gray-100 px-4 py-2 rounded-full hover:bg-gray-200 transition-colors"
+              >
+                <LiaShareSolid className="text-black text-lg" />
+                <span className="text-sm font-opensans font-medium text-black">
+                  Share
+                </span>
+              </button>
+
+              <AskQuestionNudge
+                variant="inline"
+                onAskClick={() => {
+                  if (!currentUser) {
+                    navigate("/login", { state: { from: location.pathname } });
+                  } else {
+                    setIsAskModalOpen(true);
+                    viewSignals?.markAskOpen?.();
+                  }
+                }}
+              />
+              <button
+                onClick={() =>
+                  toast("Report feature coming soon!", { icon: "⚠️" })
+                }
+                className="flex-shrink-0 flex items-center gap-1.5 bg-gray-100 px-4 py-2 rounded-full hover:bg-gray-200 transition-colors"
+              >
+                <IoFlagOutline className="text-black text-lg" />
+                <span className="text-sm font-opensans font-medium text-black">
+                  Report
+                </span>
+              </button>
+              {/* Report Button */}
             </div>
           </div>
+          <div className="flex mt-2 flex-col">
+            <h1 className="text-base font-opensans  text-black font-normal ">
+              {product.name}
+            </h1>
+
+            {(() => {
+              const sizeText = getSizeText(product);
+              const conditionText = product?.condition
+                ? toTitleCase(product.condition.replace(/:$/, ""))
+                : "";
+
+              if (!sizeText && !conditionText) return null;
+
+              return (
+                <div className="flex items-center mt-0.5 text-sm font-opensans text-gray-500">
+                  {sizeText && <span>{sizeText}</span>}
+
+                  {sizeText && conditionText && (
+                    <GoDotFill className="mx-1 dot-size text-gray-300" />
+                  )}
+
+                  {conditionText && <span>{conditionText}</span>}
+                </div>
+              );
+            })()}
+          </div>
           {/* MAIN price */}
-          <p className="text-2xl font-opensans items-center flex font-semibold text-black">
-            {NGN(displayPrice)}{" "}
-            {effectivePrice && (
-              <button
-                type="button"
-                onClick={() => setOfferInfoOpen(true)}
-                className=" ml-2 inline-flex  items-center gap-1 text-[9px] underline font-opensans  text-customOrange"
-              >
-                <BiInfoCircle className="text-base" />
-              </button>
+          <div className="flex items-baseline gap-2 font-satoshi">
+            {/* 1. PREVIOUS PRICE (Strikethrough, Smaller, Grey) */}
+            {(() => {
+              const prevs = [];
+
+              // when there’s a locked/accepted price
+              if (effectivePrice) {
+                prevs.push(NGN(Number(product.price || 0)));
+              }
+
+              // show discount initial price
+              if (
+                product?.discount &&
+                product.discount.initialPrice &&
+                product.discount.discountType !== "personal-freebies"
+              ) {
+                prevs.push(NGN(Number(product.discount.initialPrice)));
+              }
+
+              if (!prevs.length) return null;
+
+              return (
+                <AnimatedPriceSwap
+                  items={prevs}
+                  interval={1800}
+                  // Removed "block" and added text sizing/color here
+                  className="text-md text-gray-400 line-through"
+                  itemClassName="text-md text-gray-400 line-through"
+                />
+              );
+            })()}
+
+            {/* 2. CURRENT PRICE (Larger, Bold, Black) */}
+            <div className="flex items-center">
+              <p className="text-2xl font-normal text-black">
+                {NGN(displayPrice)}
+              </p>
+
+              {/* Info Icon for Effective Price */}
+              {effectivePrice && (
+                <button
+                  type="button"
+                  onClick={() => setOfferInfoOpen(true)}
+                  className="ml-2 inline-flex items-center text-[9px] underline text-customOrange"
+                >
+                  <BiInfoCircle className="text-base" />
+                </button>
+              )}
+            </div>
+
+            {/* 3. DISCOUNT PERCENTAGE (Grey text in brackets) */}
+            {product?.discount && (
+              <span className="text-md text-gray-500 font-medium">
+                (
+                {product.discount.discountType.startsWith("personal-freebies")
+                  ? product.discount.freebieText
+                  : `-${product.discount.percentageCut}%`}
+                )
+              </span>
             )}
-          </p>
+          </div>
           {/* Offer is active – info link */}
 
           {/* PREVIOUS price row (animated, same style as before) */}
-          {(() => {
-            const prevs = [];
 
-            // when there’s a locked/accepted price, show the regular product price as a reference
-            if (effectivePrice) {
-              prevs.push(NGN(Number(product.price || 0)));
-            }
-
-            // show discount initial price (if not a personal freebie)
-            if (
-              product?.discount &&
-              product.discount.initialPrice &&
-              product.discount.discountType !== "personal-freebies"
-            ) {
-              prevs.push(NGN(Number(product.discount.initialPrice)));
-            }
-
-            if (!prevs.length) return null;
-
-            return (
-              <AnimatedPriceSwap
-                items={prevs}
-                interval={1800}
-                className="mt-0.5 block" // keeps it on the line below
-                itemClassName="text-lg font-opensans text-gray-500 line-through"
-              />
-            );
-          })()}
-
-          {vendorLoading ? (
+          {/* {vendorLoading ? (
             <LoadProducts className="mr-20" />
           ) : vendor ? (
             <div className="flex align- items-center mt-1">
@@ -2005,118 +2744,169 @@ const ProductDetailPage = () => {
             <p className="text-xs font-opensans text-gray-500">
               Vendor information not available
             </p>
-          )}
-          {isFashion && availableColors.length > 0 && (
-            <div className="mt-3">
-              <label
-                htmlFor="color-select"
-                className="text-sm font-semibold text-black font-opensans mb-2 block"
+          )} */}
+          <ProductSellingFastPill productId={id} className="mb-2" />
+          {showMakeOffer && (
+            <div className="mt-4">
+              <button
+                onClick={() => {
+                  if (!currentUser) {
+                    setShowQuickAuth(true);
+                    return;
+                  }
+                  setOfferModalOpen(true);
+                  viewSignals?.markOfferOpen?.();
+                }}
+                className="w-full px-8 h-12 rounded-xl bg-gray-100 text-black font-satoshi font-normal"
               >
-                Color
-              </label>
-
-              <Select
-                // 1) Transform `availableColors` into an array of { label, value } objects
-                options={availableColors.map((color) => ({
-                  label: capitalizeFirstLetter(color),
-                  value: color,
-                }))}
-                // 2) If `selectedColor` is a string, convert it to an object
-                value={
-                  selectedColor
-                    ? {
-                        label: capitalizeFirstLetter(selectedColor),
-                        value: selectedColor,
-                      }
-                    : null
-                }
-                onChange={(selectedOption) => {
-                  const selectedValue = selectedOption.value;
-                  setSelectedColor(selectedValue);
-
-                  // Update sizes for the selected color
-                  const sizesForColor = product.variants
-                    .filter((variant) => variant.color === selectedValue)
-                    .map((variant) => variant.size);
-                  setAvailableSizes(Array.from(new Set(sizesForColor)));
-
-                  setSelectedSize(""); // Reset the selected size
-                }}
-                placeholder="Select"
-                // 3) Style it similarly to your Product Type select
-                className="w-[109px] font-opensans text-sm"
-                classNamePrefix="custom-select"
-                isSearchable={false}
-                styles={{
-                  control: (provided, state) => ({
-                    ...provided,
-                    height: "2rem", // h-12
-                    borderColor: state.isFocused ? "#f9531e" : "#D1D5DB", // Use the `state` parameter
-                    borderRadius: "0.5rem", // rounded-lg
-                    fontFamily: "Open Sans, sans-serif",
-                    fontSize: "0.75rem", // text-sm
-                    color: "black",
-                    paddingLeft: "0.75rem", // px-4
-                  }),
-                  input: (provided) => ({
-                    ...provided,
-                    fontFamily: "Open Sans, sans-serif",
-                    fontSize: "1rem",
-                    color: "black",
-                  }),
-                  placeholder: (provided) => ({
-                    ...provided,
-                    fontFamily: "Open Sans, sans-serif",
-                    fontSize: "1rem",
-                    color: "#6B7280", // text-gray-500
-                  }),
-                }}
-              />
+                Make an Offer
+              </button>
             </div>
           )}
+
+          {isFashion && hasVariants && (
+            <div className="mt-3">
+              <label className="text-sm font-normal text-black font-satoshi  block">
+                Colour
+              </label>
+
+              {/* ✅ If a subproduct is selected: show its color ONLY (read-only) */}
+              {selectedSubProduct
+                ? (() => {
+                    const sw = getSwatchFromRawColor(selectedSubProduct?.color);
+                    if (!sw) return null;
+
+                    return (
+                      <div className="flex gap-4 px-2 overflow-x-auto no-scrollbar py-1">
+                        <div className="flex flex-col items-center shrink-0">
+                          <div
+                            className={[
+                              "w-10 h-10 rounded-full",
+                              sw.needsBorder ? "border border-gray-200" : "",
+                              "ring-2 ring-black ring-offset-2", // always selected
+                            ].join(" ")}
+                            style={sw.style}
+                          />
+                          <span className="mt-1 text-xs font-satoshi text-gray-700 whitespace-nowrap">
+                            {sw.label}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()
+                : /* ✅ Main product: show ONLY variant swatches */
+                  (() => {
+                    const swatches = getProductColorSwatches(product, {
+                      source: "variants",
+                    });
+                    if (!swatches.length) return null;
+
+                    return (
+                      <div className="flex gap-4  overflow-x-auto no-scrollbar py-1">
+                        {swatches.map((sw) => {
+                          const isSelected = selectedSwatchKey === sw.key;
+
+                          return (
+                            <button
+                              key={sw.key + sw.label}
+                              type="button"
+                              onClick={() => {
+                                viewSignals?.markVariantChange?.();
+                                setSelectedSwatchKey((prev) => {
+                                  const next = prev === sw.key ? "" : sw.key;
+
+                                  setSelectedColor("");
+                                  setSelectedSize("");
+
+                                  if (!next) {
+                                    // swatch cleared -> show all sizes
+                                    const all = Array.from(
+                                      new Set(
+                                        (variants || [])
+                                          .map((v) => v?.size)
+                                          .filter(Boolean),
+                                      ),
+                                    );
+                                    setAvailableSizes(all);
+                                  } else {
+                                    // swatch selected -> sizes for that swatch
+                                    const sizesForSwatch = (variants || [])
+                                      .filter(
+                                        (v) =>
+                                          normalizeColorKeyForSwatch(
+                                            v?.color,
+                                          ) === next,
+                                      )
+                                      .map((v) => v?.size)
+                                      .filter(Boolean);
+
+                                    setAvailableSizes(
+                                      Array.from(new Set(sizesForSwatch)),
+                                    );
+                                  }
+
+                                  return next;
+                                });
+                              }}
+                              className="flex flex-col items-center shrink-0"
+                            >
+                              <div
+                                className={[
+                                  "w-10 h-10 rounded-full",
+                                  sw.needsBorder
+                                    ? "border border-gray-200"
+                                    : "",
+                                  isSelected
+                                    ? "ring-2 mx-1 ring-black ring-offset-2"
+                                    : "",
+                                ].join(" ")}
+                                style={sw.style}
+                              />
+                              <span className="mt-1 text-xs font-satoshi text-gray-700 whitespace-nowrap">
+                                {sw.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+            </div>
+          )}
+
           {/* Size Selection */}
           {isFashion && (
             <div className="mt-3">
-              <p className="text-sm font-semibold text-black font-opensans mb-2">
-                Sizes
+              <p className="text-sm font-normal text-black font-satoshi mb-2">
+                Size
               </p>
               <div className="flex flex-wrap gap-2">
-                {availableSizes.map((size, index) => {
-                  const inStock = isSizeInStock(size);
-                  const isSelected = selectedSize === size && inStock;
+                {availableSizes.map((s, index) => {
+                  const size = getSizeValue(s); // ✅ normalize to string/number
+                  const inStock = isSizeInStock(s); // can pass s or size (see note below)
+                  const isSelected =
+                    String(selectedSize) === String(size) && inStock;
 
                   return (
                     <div
-                      key={index}
+                      key={`${size}-${index}`}
                       onClick={() => {
-                        if (inStock) {
-                          handleSizeClick(size);
-                        }
+                        if (inStock) handleSizeClick(size); // ✅ pass normalized
                       }}
                       className={`relative py-2 px-4 border rounded-lg ${
                         isSelected
                           ? "bg-customOrange text-white cursor-pointer"
                           : inStock
-                          ? "bg-transparent text-black cursor-pointer"
-                          : "bg-gray-200 text-black opacity-50 cursor-not-allowed"
+                            ? "bg-transparent text-black cursor-pointer"
+                            : "bg-gray-200  text-black opacity-50 cursor-not-allowed"
                       }`}
-                      style={{ position: "relative" }}
                     >
                       <span className="text-xs font-opensans font-semibold">
                         {size}
                       </span>
+
                       {!inStock && (
-                        <span
-                          className="absolute inset-0 animate-pulse flex items-center justify-center bg-gray-800 bg-opacity-50  text-customOrange font-opensans font-semibold text-xs text-center rounded-lg"
-                          style={{
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            zIndex: 10,
-                            pointerEvents: "none", // Prevents clicks on out-of-stock items
-                          }}
-                        >
+                        <span className="absolute inset-0 animate-pulse flex items-center justify-center bg-gray-800 bg-opacity-50 text-customOrange font-opensans font-semibold text-xs text-center rounded-lg pointer-events-none">
                           Out of Stock
                         </span>
                       )}
@@ -2126,26 +2916,46 @@ const ProductDetailPage = () => {
               </div>
             </div>
           )}
-          <div
-            className="flex items-center mt-5 mb-2 cursor-pointer"
-            onClick={() => setIsModalOpen(true)}
-          >
-            {/* Left label */}
-            <span className="text-black text-md font-opensans whitespace-nowrap">
-              Product Details
-            </span>
+          {/* Quantity (before add to cart) */}
+          <div className="mt-4">
+            <p className="text-sm font-normal text-black font-opensans mb-2">
+              Quantity
+            </p>
 
-            {/* Vertical divider */}
-            <span className="mx-2 h-4 border-r border-gray-300" />
+            <div className="inline-flex items-center bg-gray-100 rounded-lg px-3 py-2">
+              <button
+                type="button"
+                onClick={handleQtyDecrease}
+                disabled={decDisabled}
+                className={`p-1 ${decDisabled ? "opacity-40 cursor-not-allowed" : ""}`}
+                aria-label="Decrease quantity"
+              >
+                <GoChevronLeft className="text-xl" />
+              </button>
 
-            {/* Truncated description */}
-            <span className="text-xs text-gray-600 truncate font-opensans max-w-[140px]">
-              {product.description?.slice(0, 20)}...
-            </span>
+              <span className="w-10 text-center font-opensans text-sm">
+                {quantity}
+              </span>
 
-            {/* Arrow icon */}
-            <GoChevronRight className="ml-auto text-2xl" />
+              <button
+                type="button"
+                onClick={handleQtyIncrease}
+                disabled={incDisabled}
+                className={`p-1 ${incDisabled ? "opacity-40 cursor-not-allowed" : ""}`}
+                aria-label="Increase quantity"
+              >
+                <GoChevronRight className="text-xl" />
+              </button>
+            </div>
           </div>
+
+          <AboutThisItem product={product} onOpenDefect={handleOpenModal} />
+
+          <VendorProfileMoreFromSeller
+            vendorId={product?.vendorId}
+            currentProduct={product}
+            currentProductId={product?.id}
+          />
           {quickMode && product?.vendorId === basketVendorId && (
             <StoreBasket
               vendorId={basketVendorId}
@@ -2154,32 +2964,7 @@ const ProductDetailPage = () => {
               onQuickFlow={() => setShowFastDrawer(true)}
             />
           )}
-          <Modal
-            isOpen={isModalOpen}
-            onRequestClose={() => setIsModalOpen(false)}
-            className="modal-content"
-            overlayClassName="modal-overlay backdrop-blur-md"
-          >
-            <div className="p-2 relative">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
-                    <TbFileDescription className="text-customRichBrown" />
-                  </div>
-                  <h2 className="font-opensans text-base font-semibold">
-                    Product Description
-                  </h2>
-                </div>
-                <MdOutlineClose
-                  onClick={() => setIsModalOpen(false)}
-                  className="absolute top-2 right-2 text-gray-600 cursor-pointer text-2xl"
-                />
-              </div>{" "}
-              <p className="text-gray-600 mt-2 font-opensans text-sm">
-                {product.description}
-              </p>
-            </div>
-          </Modal>
+
           <AnimatePresence>
             {isAskModalOpen && (
               <>
@@ -2254,6 +3039,42 @@ const ProductDetailPage = () => {
               </>
             )}
           </AnimatePresence>
+          <AddToCartVariantSheet
+            open={addSheetOpen}
+            onClose={() => setAddSheetOpen(false)}
+            product={product}
+            variants={variants}
+            imageUrl={product?.coverImageUrl || selectedImage}
+            title="Add to Cart"
+            priceText={NGN(displayPrice)}
+            prevPriceText={
+              product?.discount?.initialPrice &&
+              product?.discount?.discountType !== "personal-freebies"
+                ? NGN(Number(product.discount.initialPrice))
+                : effectivePrice
+                  ? NGN(Number(product.price || 0))
+                  : ""
+            }
+            initialSwatchKey={selectedSwatchKey}
+            initialSize={selectedSize}
+            initialRawColor={selectedColor}
+            initialQty={quantity}
+            onConfirm={({ swatchKey, size, rawColor, qty }) => {
+              // keep your UI in sync (robust)
+              setSelectedSwatchKey(swatchKey);
+              setSelectedSize(size);
+              setSelectedColor(rawColor);
+              setQuantity(qty);
+
+              // call same Add To Cart behaviour
+              // IMPORTANT: this will work best if handleAddToCart can accept overrides.
+              handleAddToCart({ size, color: rawColor, qty });
+
+              setAnimateCart(true);
+              setAddSheetOpen(false);
+            }}
+          />
+
           <Modal
             isOpen={isOfferInfoOpen}
             onRequestClose={() => setOfferInfoOpen(false)}
@@ -2344,15 +3165,6 @@ const ProductDetailPage = () => {
           </Modal>
         </div>
 
-        {shouldShowAlikeProducts && (
-          <>
-            <div className="border-t-8 border-gray-100 mt-4"></div>
-            <AlikeProducts />
-          </>
-        )}
-
-        <div className="border-t-8 border-gray-100 mt-4"></div>
-
         <RelatedProducts product={product} />
         <Modal
           isOpen={isThankYouOpen}
@@ -2402,68 +3214,6 @@ const ProductDetailPage = () => {
             </p>
           </motion.div>
         </Modal>
-        <AnimatePresence>
-          {offerSentModalOpen && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.6 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                onClick={() => setOfferSentModalOpen(false)}
-                className="fixed inset-0 bg-black z-[8000]"
-              />
-              <motion.div
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", stiffness: 280, damping: 25 }}
-                className="fixed bottom-0 left-0 right-0 z-[8100] bg-white h-[35vh] rounded-t-2xl p-4"
-                onClick={(e) => e.stopPropagation()}
-                role="dialog"
-                aria-modal="true"
-              >
-                <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-3" />
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
-                    <BiSolidOffer className="text-customRichBrown" />
-                  </div>
-                  <h2 className="font-opensans text-base font-semibold">
-                    Offer sent
-                  </h2>
-                </div>
-
-                <p className="text-sm mt-6 text-gray-800 font-opensans mb-4">
-                  Your offer has been sent. We’ll notify you when the vendor
-                  responds. Please check your spam folder if you don’t see their
-                  answer in your email inbox.
-                </p>
-                <li className="text-sm  text-gray-800 font-opensans mb-4">
-                  If you need help,{" "}
-                  <button
-                    id="contact-support-tab"
-                    onClick={openChat}
-                    className="text-customOrange underline"
-                  >
-                    contact support
-                  </button>
-                  .
-                </li>
-                <div className="absolute left-0 right-0 bottom-4 flex justify-center">
-                  <button
-                    onClick={() => {
-                      setOfferSentModalOpen(false);
-                      navigate("/offers");
-                    }}
-                    className="px-6 py-2 bg-customOrange text-white font-opensans rounded-full font-semibold"
-                  >
-                    Go to My Offers
-                  </button>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
 
         <Modal
           isOpen={showModal}
@@ -2540,123 +3290,48 @@ const ProductDetailPage = () => {
         />
 
         <div
-          className="fixed bottom-0 left-0 right-0 z-50 p-3 flex justify-between items-center"
-          style={{
-            background:
-              "linear-gradient(to top, white, rgba(255,255,255,0.85) 55%, rgba(255,255,255,0) 99%)",
-            zIndex: 8000,
-          }}
-          onClick={(e) => e.stopPropagation()} // Prevents background clicks from propagating
+          className="fixed bottom-0 left-0 right-0 z-[8000] bg-white border-t border-gray-100 p-4"
+          onClick={(e) => e.stopPropagation()}
         >
-          {isAddedToCart ? (
-            // Quantity controls (unchanged)
-            <div
-              className={`flex w-full justify-between transition-all duration-500 ease-in-out transform ${
-                animateCart
-                  ? "translate-x-0 opacity-100"
-                  : "translate-x-full opacity-0"
-              }`}
-            >
-              <button
-                onClick={handleRemoveFromCart}
-                className="text-black font-opensans mr-4 bg-gray-100 rounded-full h-14 w-52 text-md font-bold"
-              >
-                Remove
-              </button>
-              <div className="flex space-x-4 items-center">
-                <button
-                  onClick={handleDecreaseQuantity}
-                  className="flex items-center justify-center w-12 h-12 opacity-40 bg-customOrange text-white text-3xl rounded-full"
-                >
-                  <FiMinus />
-                </button>
-                <span className="font-opensans font-semibold text-lg">
-                  {quantity}
-                </span>
-                <button
-                  onClick={handleIncreaseQuantity}
-                  className="flex items-center justify-center w-12 h-12 bg-customOrange text-white text-3xl rounded-full"
-                >
-                  <FiPlus />
-                </button>
-              </div>
-            </div>
-          ) : isBrandNewCondition ? (
-            // BRAND NEW: single full-width rounded button (if fashion and no size/color -> prompt)
-            isFashion && (!selectedSize || !selectedColor) ? (
-              <button
-                onClick={() => {
-                  toast.error("Please select size and color");
-                }}
-                className="bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out"
-              >
-                {isStockpileForThisVendor ? "Add to Pile" : "Add to Cart"}
-              </button>
-            ) : (
-              <button
-                onClick={() => {
-                  handleAddToCart();
-                  setAnimateCart(true); // Trigger the animation
-                }}
-                className="bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out"
-              >
-                {isStockpileForThisVendor ? "Add to Pile" : "Add to Cart"}
-              </button>
-            )
-          ) : showMakeOffer ? (
-            // THRIFT or DEFECT: show Make Offer + Add to Cart (side-by-side)
-            <div className="flex w-full gap-2">
-              <button
-                onClick={() => {
-                  if (!currentUser) {
-                    setShowQuickAuth(true);
-                    return;
-                  }
-                  setOfferModalOpen(true);
-                }}
-                className="flex-1 h-12 rounded-full border border-gray-300 bg-white text-black font-opensans font-semibold transition-all duration-300 ease-in-out"
-              >
-                Make an offer
-              </button>
+          <div className="flex w-full gap-3">
+            <button
+              onClick={() => {
+                // If already in cart -> checkout
+                if (isAddedToCart) {
+                  // choose what your checkout route should be
+                  // 1) cart page:
+                  return navigate("/latest-cart", {
+                    state: { fromProductDetail: true },
+                  });
+                }
 
-              <button
-                onClick={() => {
-                  if (isFashion && (!selectedSize || !selectedColor)) {
-                    return toast.error("Please select size and color first");
-                  }
-                  handleAddToCart();
-                  setAnimateCart(true);
-                }}
-                className={`flex-1 h-12 rounded-full font-opensans font-semibold text-white transition-all duration-300 ease-in-out ${
-                  isFashion && (!selectedSize || !selectedColor)
-                    ? "bg-gray-300 cursor-not-allowed"
-                    : "bg-customOrange"
-                }`}
-              >
-                {isStockpileForThisVendor ? "Add to Pile" : "Add to Cart"}
-              </button>
-            </div>
-          ) : // DEFAULT: single full-width Add to Cart (same style as brand new)
-          isFashion && (!selectedSize || !selectedColor) ? (
-            <button
-              onClick={() => {
-                toast.error("Please select size and color");
-              }}
-              className="bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out"
-            >
-              {isStockpileForThisVendor ? "Add to Pile" : "Add to Cart"}
-            </button>
-          ) : (
-            <button
-              onClick={() => {
+                // If missing variant selection -> open modal (instead of toast)
+                const needsModal =
+                  hasVariants &&
+                  !selectedSubProduct &&
+                  (!selectedSize || !selectedColor);
+
+                if (needsModal) return setAddSheetOpen(true);
+
+                // Normal behaviour
                 handleAddToCart();
                 setAnimateCart(true);
               }}
-              className="bg-customOrange text-white h-12 rounded-full font-opensans font-semibold w-full transition-all duration-300 ease-in-out"
+              className="flex-1 h-12 rounded-lg bg-gray-100 text-gray-900 font-opensans font-medium shadow-sm active:scale-[0.98] transition-transform"
             >
-              {isStockpileForThisVendor ? "Add to Pile" : "Add to Cart"}
+              {isAddedToCart ? "View in Cart" : "Add to Cart"}
             </button>
-          )}
+
+            {/* Buy Now (UNCHANGED) */}
+            <button
+              onClick={() => {
+                handleBuyNow();
+              }}
+              className="flex-1 h-12 rounded-lg bg-customOrange text-white font-opensans font-medium shadow-sm active:scale-[0.98] transition-transform"
+            >
+              Buy Now
+            </button>
+          </div>
         </div>
       </div>
     </>

@@ -121,7 +121,7 @@ const Routers = () => {
     <Suspense fallback={<Loading />}>
       <Routes>
         {/* Default Route */}
-        <Route path="/" element={<ConfirmUserState />} />
+        <Route path="/confirm-user" element={<ConfirmUserState />} />
 
         {/* Public Routes */}
         <Route path="/pay/:token" element={<PayPage />} />
@@ -179,7 +179,7 @@ const Routers = () => {
           }
         />
         <Route
-          path="/newhome"
+          path="/"
           element={
             <RoleBasedAccess allowedRoles={["user"]}>
               <WithAnswerModal>

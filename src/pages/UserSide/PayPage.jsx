@@ -84,7 +84,7 @@ export default function PayPage() {
           Ooops! Payment link has expired.
         </h2>
         <button
-          onClick={() => navigate("/newhome")}
+          onClick={() => navigate("/")}
           className="px-4 py-3 bg-customOrange text-sm z-50 font-opensans text-white rounded"
         >
           Browse Stores
@@ -174,7 +174,7 @@ export default function PayPage() {
           <button
             onClick={() =>
               navigator.clipboard.writeText(
-                `https://www.shopmythrift.store/pay/${token}`
+                `https://www.shopmythrift.store/pay/${token}`,
               )
             }
             className="ml-2"
@@ -189,9 +189,9 @@ export default function PayPage() {
           payment, please{" "}
           <a
             href={`mailto:hello@shopmythrift.store?subject=Issue Paying for ${encodeURIComponent(
-              draft.ownerInfo.displayName
+              draft.ownerInfo.displayName,
             )}&body=${encodeURIComponent(
-              `Hey, I am having issues paying for ${draft.ownerInfo.displayName}. The order token is ${token}.`
+              `Hey, I am having issues paying for ${draft.ownerInfo.displayName}. The order token is ${token}.`,
             )}`}
             className="underline text-customOrange"
           >

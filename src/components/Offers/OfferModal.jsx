@@ -1,8 +1,15 @@
 /* eslint-disable react/prop-types */
 import React, { useMemo, useState, useEffect } from "react";
 import Modal from "react-modal";
-import { MdOutlineClose } from "react-icons/md";
+import { MdOutlineClose, MdInfoOutline } from "react-icons/md";
+import { CiCircleInfo } from "react-icons/ci";
 import toast from "react-hot-toast";
+import {
+  motion,
+  useMotionValue,
+  useDragControls,
+  animate,
+} from "framer-motion";
 import {
   addDoc,
   collection,
@@ -32,6 +39,8 @@ export default function OfferSheet({
 
   const DAILY_OFFER_LIMIT = 10;
   const [offersLeft, setOffersLeft] = useState(null); // null = loading
+
+  const [showHeadsUp, setShowHeadsUp] = useState(true);
 
   const price = Number(product?.price || 0);
   const MIN_OFFER_NAIRA = 300; // global floor (still enforced on submit)
@@ -78,10 +87,10 @@ export default function OfferSheet({
     mode === "p10"
       ? p10Price
       : mode === "p25"
-      ? p25Price
-      : hasEnteredCustom
-      ? customVal
-      : 0;
+        ? p25Price
+        : hasEnteredCustom
+          ? customVal
+          : 0;
 
   // Enable/disable “Send offer”
   const customOk =
@@ -105,7 +114,7 @@ export default function OfferSheet({
         const qRef = query(
           collection(db, "offers"),
           where("buyerId", "==", currentUser.uid),
-          where("createdAt", ">=", Timestamp.fromDate(start))
+          where("createdAt", ">=", Timestamp.fromDate(start)),
         );
         const snap = await getDocs(qRef);
         const left = Math.max(0, DAILY_OFFER_LIMIT - snap.size);
@@ -160,10 +169,9 @@ export default function OfferSheet({
 
       // Optimistic update of the local counter (doesn't replace server enforcement)
       setOffersLeft((prev) =>
-        typeof prev === "number" ? Math.max(0, prev - 1) : prev
+        typeof prev === "number" ? Math.max(0, prev - 1) : prev,
       );
 
-      toast.success("Offer sent. You’ll be notified when the vendor responds.");
       onOfferSubmitted?.(); // ← inform parent to show the one-time modal
       onClose?.();
     } catch (err) {
@@ -174,67 +182,125 @@ export default function OfferSheet({
     }
   };
 
+  // ---- drag-to-close sheet (pill handle) ----
+  const y = useMotionValue(0);
+  const dragControls = useDragControls();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    y.set(420);
+    requestAnimationFrame(() => {
+      animate(y, 0, { type: "spring", stiffness: 260, damping: 28 });
+    });
+  }, [isOpen, y]);
+
+  const onDragEnd = (_, info) => {
+    const shouldClose = info.offset.y > 140 || info.velocity.y > 900;
+    if (shouldClose) {
+      onClose?.();
+      return;
+    }
+    animate(y, 0, { type: "spring", stiffness: 260, damping: 28 });
+  };
+  // ---- /drag-to-close sheet ----
+
+  const save10 = Math.max(0, price - p10Price);
+  const save25 = Math.max(0, price - p25Price);
+
   return (
     <Modal
       isOpen={isOpen}
       onRequestClose={onClose}
-      className="modal-content-offer animate-modal-slide-up"
-      overlayClassName="offer-overlay"
       ariaHideApp={false}
+      overlayClassName="fixed inset-0 bg-black/40 z-[9999] flex items-end justify-center"
+      className="w-full  mx-auto outline-none bg-transparent p-0"
     >
-      <div className="p-3 relative h-full flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-opensans font-semibold">
-              Make an offer
-            </h2>
-            <span className="bg-customOrange -translate-y-2 text-white text-[10px] px-2 py-[2px]  font-satoshi rounded-md uppercase">
-              Beta
-            </span>
-          </div>
-          <MdOutlineClose
-            className="text-2xl cursor-pointer"
-            onClick={onClose}
-          />
+      <motion.div
+        style={{ y }}
+        drag="y"
+        dragControls={dragControls}
+        dragListener={false}
+        dragConstraints={{ top: 0, bottom: 520 }}
+        dragElastic={0.15}
+        onDragEnd={onDragEnd}
+        className="w-full h-[50vh] bg-white rounded-t-[28px] px-4 pt-3 pb-5 shadow-2xl"
+      >
+        {/* Drag pill */}
+        <div
+          className="w-full flex justify-center pb-2"
+          onPointerDown={(e) => dragControls.start(e)}
+        >
+          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
         </div>
 
+        {/* Header */}
+        <div className="relative flex items-center justify-center py-2">
+          <h2 className="text-base font-opensans font-semibold">
+            Make an Offer
+          </h2>
+          <button
+            type="button"
+            className="absolute right-0 top-1/2 -translate-y-1/2 p-1"
+            onClick={onClose}
+          >
+            <MdOutlineClose className="text-xl" />
+          </button>
+        </div>
+
+        {/* Heads up banner */}
+        {showHeadsUp && (
+          <div className="mt-3 flex items-start gap-2 bg-customOrangeBg   rounded-xl px-3 py-3">
+            <div className="mt-[2px] flex items-center justify-center w-5 h-5 rounded-full">
+              <CiCircleInfo className="text-customOrange text-base" />
+            </div>
+            <p className="text-[12px] leading-[16px] font-opensans text-gray-700 flex-1">
+              Note: This item remains available for others to purchase while
+              your offer is pending.{" "}
+            </p>
+            <button
+              type="button"
+              className="p-1 -mr-1 -mt-1"
+              onClick={() => setShowHeadsUp(false)}
+            >
+              <MdOutlineClose className="text-base text-gray-500" />
+            </button>
+          </div>
+        )}
+
         {/* Options */}
-        <div className="flex gap-2">
-          {/* 10% off */}
+        <div className="mt-4 flex gap-3">
+          {/* 10% */}
           <button
             type="button"
             onClick={() => setMode("p10")}
-            className={`flex-1 border rounded-lg px-1.5 py-2 text-left font-opensans ${
-              mode === "p10"
-                ? "border-customOrange ring-2 ring-customOrange/20 bg-orange-50/40"
-                : "border-gray-200"
+            className={`flex-1 border rounded-xl px-3 py-3 text-left font-opensans ${
+              mode === "p10" ? "border-customOrange" : "border-gray-200"
             }`}
           >
             <div className="flex flex-col">
-              <span className="text-base font-semibold">₦{fmt(p10Price)}</span>
-              <span className="text-xs text-customOrange mt-0.5">10% off</span>
-              <span className="text-[9px] text-gray-500 mt-0.5">
-                You save ₦{fmt(price - p10Price)}
+              <span className="text-base font-semibold">
+                ₦{fmt(p10Price)}
+              </span>
+              <span className="text-sm text-gray-500 mt-1">
+                Save ₦{fmt(save10)}
               </span>
             </div>
           </button>
 
-          {/* 25% off */}
+          {/* 25% */}
           <button
             type="button"
             onClick={() => setMode("p25")}
-            className={`flex-1 border rounded-lg px-1.5 py-2 text-left font-opensans ${
-              mode === "p25"
-                ? "border-customOrange ring-2 ring-customOrange/20 bg-orange-50/40"
-                : "border-gray-200"
+            className={`flex-1 border rounded-xl px-3 py-3 text-left font-opensans ${
+              mode === "p25" ? "border-customOrange" : "border-gray-200"
             }`}
           >
             <div className="flex flex-col">
-              <span className="text-base font-semibold">₦{fmt(p25Price)}</span>
-              <span className="text-xs text-customOrange mt-0.5">25% off</span>
-              <span className="text-[9px] text-gray-500 mt-0.5">
-                You save ₦{fmt(price - p25Price)}
+              <span className="text-base font-semibold">
+                ₦{fmt(p25Price)}
+              </span>
+              <span className="text-sm text-gray-500  mt-1">
+                Save ₦{fmt(save25)}
               </span>
             </div>
           </button>
@@ -243,99 +309,85 @@ export default function OfferSheet({
           <button
             type="button"
             onClick={() => setMode("custom")}
-            className={`flex-1 border rounded-lg px-1.5 py-2 text-left font-opensans ${
-              mode === "custom"
-                ? "border-customOrange ring-2 ring-customOrange/20 bg-orange-50/40"
-                : "border-gray-200"
+            className={`flex-1 border rounded-xl px-3 py-3 text-left font-opensans ${
+              mode === "custom" ? "border-customOrange" : "border-gray-200"
             }`}
           >
             <div className="flex flex-col">
-              <span className="text-xs text-gray-700 font-semibold">
-                Custom
-              </span>
-              <span className="text-base font-semibold mt-0.5">
-                ₦{hasEnteredCustom ? fmt(customVal) : "—"}
-              </span>
-              <span className="text-[9px] text-gray-500 mt-0.5">
-                {hasEnteredCustom
-                  ? `You save ₦${fmt(Math.max(0, price - customVal))}`
-                  : "Set a price"}
+              <span className="text-base font-semibold">Custom</span>
+              <span className="text-sm text-gray-500 mt-1">
+                {hasEnteredCustom ? `₦${fmt(customVal)}` : "Set Price"}
               </span>
             </div>
           </button>
         </div>
 
-        {/* Gentle hint for ₦300 min (after 3s idle if relevant) */}
-        {mode === "custom" && customBelowMinNairaIdle && (
-          <p className="text-[11px] font-opensans text-red-500 mt-2">
-            Minimum offer is ₦{fmt(MIN_OFFER_NAIRA)}.
-          </p>
-        )}
-
         {/* Price input for Custom */}
         {mode === "custom" && (
-          <div className="mt-3">
+          <div className="mt-4">
             <input
               type="number"
               inputMode="numeric"
-              placeholder={`₦${fmt(price)}`}
+              placeholder="₦0"
               value={customPriceInput}
               onChange={(e) => setCustomPriceInput(e.target.value)}
-              className={`w-full border rounded-lg px-3 py-2 text-sm font-opensans ${
+              className={`w-full border rounded-xl px-4 py-4 text-base font-opensans focus:outline-none focus:ring-2 focus:ring-customOrange/20 ${
                 customBelow40Cap ||
                 (within40CapHitsMinNaira &&
                   idleMinCheck &&
                   customVal < MIN_OFFER_NAIRA)
-                  ? "bg-gray-100"
-                  : ""
+                  ? "bg-gray-50"
+                  : "bg-white"
               }`}
             />
             {customBelow40Cap && (
-              <p className="text-[11px] font-opensans text-red-500 mt-1">
+              <p className="text-[11px] font-opensans text-red-500 mt-2">
                 Minimum allowed for this item is ₦{fmt(minCustomPrice)}
               </p>
             )}
             {idleMinCheck && hasEnteredCustom && customVal >= price && (
-              <p className="text-[11px] font-opensans text-red-500 mt-1">
+              <p className="text-[11px] font-opensans text-red-500 mt-2">
                 Offer must be below the list price ₦{fmt(price)}.
+              </p>
+            )}
+            {mode === "custom" && customBelowMinNairaIdle && (
+              <p className="text-[11px] font-opensans text-red-500 mt-2">
+                Minimum offer is ₦{fmt(MIN_OFFER_NAIRA)}.
               </p>
             )}
           </div>
         )}
 
+        {/* Offers left */}
+        <div className="mt-5 text-center text-base font-opensans text-gray-600">
+          {offersLeft === null ? (
+            <span className="text-gray-500">Checking daily limit…</span>
+          ) : offersLeft > 0 ? (
+            <span>
+              You have <b className="text-gray-800">{offersLeft}</b> offers left today
+            </span>
+          ) : (
+            <span className="text-red-600">
+              You’ve reached your daily limit (10). Try again tomorrow.
+            </span>
+          )}
+        </div>
+
         {/* Footer */}
-        <div className="mt-4 pt-4">
+        <div className="mt-4">
           <button
             disabled={finalDisabled}
             onClick={handleSubmit}
-            className={`w-full rounded-full h-11 font-opensans font-semibold text-white ${
+            className={`w-full rounded-xl h-12 font-opensans font-medium text-white ${
               finalDisabled
                 ? "bg-gray-300 cursor-not-allowed"
                 : "bg-customOrange"
             }`}
           >
-            {submitting
-              ? "Sending…"
-              : `Send offer ( ₦${fmt(selectedOfferAmount)} )`}
+            {submitting ? "Sending…" : "Send Offer"}
           </button>
-
-          {/* Offers left today */}
-          <div className="mt-2 text-center text-[11px] font-opensans">
-            {offersLeft === null ? (
-              <span className="text-gray-500">Checking daily limit…</span>
-            ) : offersLeft > 0 ? (
-              <span className="text-gray-900">
-                Offers left today: <b>{offersLeft}</b>/
-                <b>{DAILY_OFFER_LIMIT}</b>
-              </span>
-            ) : (
-              <span className="text-red-600 font-opensans">
-                You’ve reached your daily limit (10). Try again tomorrow.
-              </span>
-            )}
-          </div>
         </div>
-      </div>
+      </motion.div>
     </Modal>
   );
 }

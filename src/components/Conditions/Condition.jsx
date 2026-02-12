@@ -26,7 +26,7 @@ const Condition = () => {
   );
 
   return (
-    <div className="relative flex flex-wrap justify-center gap-2.5 sm:gap-4 py-3 px-2">
+    <div className="relative flex flex-wrap justify-center gap-2.5 sm:gap-4">
       {/* Brand New */}
       <div
         className="flex flex-col items-center cursor-pointer w-[calc(25%-8px)]"

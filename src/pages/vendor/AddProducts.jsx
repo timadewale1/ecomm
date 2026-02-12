@@ -41,11 +41,87 @@ import DiscountToggle from "../../components/Toggle/DiscountToggle";
 import VariationsToggle from "../../components/Toggle/SubProductToggle";
 import { LuBadgeInfo } from "react-icons/lu";
 import { MdOutlineCancel, MdOutlineClose } from "react-icons/md";
+import { motion, AnimatePresence } from "framer-motion";
+import { IoCloseOutline, IoCheckmark } from "react-icons/io5";
+import { PALETTE, PALETTE_ORDER } from "../../services/pallete";
 
 import Compressor from "compressorjs";
 const animatedComponents = makeAnimated();
 const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
+function PaletteColorSheet({ open, onClose, swatches, selectedKey, onSelect }) {
+  // We use createPortal to move this element to document.body, 
+  // ensuring 'fixed' positioning relates to the viewport, not the parent container.
+  return ReactDOM.createPortal(
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[2000] bg-black/40 flex justify-center" // added flex justify-center to help with centering on wider screens if needed
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) onClose?.();
+          }}
+        >
+          <motion.div
+            className="absolute inset-x-0 bottom-0 h-[50vh] scrollbar-hide bg-white rounded-t-3xl flex flex-col w-full max-w-md mx-auto" // added max-w-md mx-auto for safety on desktop
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", stiffness: 140, damping: 20 }}
+          >
+            <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-gray-100">
+              <p className="font-opensans font-semibold text-lg text-black">
+                Choose Colour
+              </p>
 
+              <button type="button" onClick={onClose} className="p-2 -mr-2">
+                <IoCloseOutline className="text-3xl text-black" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              <div className="grid grid-cols-4 gap-x-4 gap-y-5">
+                {(swatches || []).map((sw) => {
+                  const selected = sw.key === selectedKey;
+
+                  return (
+                    <button
+                      key={sw.key}
+                      type="button"
+                      onClick={() => onSelect?.(sw.key)}
+                      className="flex flex-col items-center"
+                    >
+                      <div
+                        className={[
+                          "relative w-10 h-10 rounded-full",
+                          sw.needsBorder ? "border border-gray-200" : "",
+                          selected ? "ring-2 ring-black ring-offset-2" : "",
+                        ].join(" ")}
+                        style={{ background: sw.css }}
+                      >
+                        {selected && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <IoCheckmark className="text-white text-xl drop-shadow" />
+                          </div>
+                        )}
+                      </div>
+
+                      <span className="mt-1 text-xs font-opensans text-gray-700 whitespace-nowrap">
+                        {sw.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body // This is the key fix
+  );
+}
 const AddProduct = ({ vendorId, closeModal }) => {
   const [productName, setProductName] = useState("");
   const [productDescription, setProductDescription] = useState("");
@@ -69,7 +145,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
   );
 
   const [sizeOptions, setSizeOptions] = useState([]);
-  const [color, setColor] = useState("");
+
   const [productImages, setProductImages] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const scrollContainerRef = useRef(null);
@@ -98,6 +174,47 @@ const AddProduct = ({ vendorId, closeModal }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [discountDetails, setDiscountDetails] = useState(null); // Store discount details
   const [isPriceEditable, setIsPriceEditable] = useState(true); // Control productPrice field's editability
+const paletteSwatches = React.useMemo(() => {
+  return PALETTE_ORDER.map((key) => ({
+    key,
+    ...PALETTE[key],
+  })).filter((x) => x && x.key);
+}, []);
+
+const colorLabelMap = React.useMemo(() => {
+  const m = new Map();
+  PALETTE_ORDER.forEach((k) => {
+    const item = PALETTE?.[k];
+    if (item?.label) m.set(k, item.label);
+  });
+  return m;
+}, []);
+
+const [colorSheetOpen, setColorSheetOpen] = useState(false);
+const [activeColorIndex, setActiveColorIndex] = useState(null);
+
+const openColorSheet = (idx) => {
+  setActiveColorIndex(idx);
+  setColorSheetOpen(true);
+};
+
+const closeColorSheet = () => {
+  setColorSheetOpen(false);
+  setActiveColorIndex(null);
+};
+
+const selectVariantColor = (paletteKey) => {
+  if (activeColorIndex === null) return;
+
+  setProductVariants((prev) => {
+    const next = [...prev];
+    if (!next[activeColorIndex]) return prev;
+    next[activeColorIndex] = { ...next[activeColorIndex], color: paletteKey };
+    return next;
+  });
+
+  closeColorSheet();
+};
 
   const storage = getStorage();
   Modal.setAppElement("#root");
@@ -436,7 +553,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       toast.error("Please add at least one product variant.");
       return;
     }
-    if (productCondition === "Defect:" && !productDefectDescription) {
+    if (productCondition === "defect" && !productDefectDescription) {
       toast.dismiss();
       toast.error(
         "Please provide a defect description for the defective product."
@@ -624,7 +741,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
       if (discountDetails) {
         product.discount = discountDetails;
       }
-      if (productCondition === "Defect:" && productDefectDescription) {
+      if (productCondition === "defect" && productDefectDescription) {
         product.defectDescription = productDefectDescription.trim();
       }
 
@@ -1223,17 +1340,29 @@ const AddProduct = ({ vendorId, closeModal }) => {
                 <label className="block text-black mb-1 font-opensans text-sm">
                   Color
                 </label>
+<button
+  type="button"
+  onClick={() => openColorSheet(colorIndex)}
+  className="w-full h-12 px-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange flex items-center justify-between"
+>
+  <div className="flex items-center gap-3">
+    <div
+      className="w-6 h-6 rounded-full border border-gray-200"
+      style={{
+        background:
+          (variant.color && PALETTE?.[variant.color]?.css) || "#ffffff",
+      }}
+    />
+    <span className="text-sm">
+      {variant.color
+        ? colorLabelMap.get(variant.color) || variant.color
+        : "Choose a colour"}
+    </span>
+  </div>
 
-                <input
-                  type="text"
-                  value={variant.color}
-                  placeholder=" One color per variant"
-                  onChange={(e) =>
-                    handleColorChange(colorIndex, e.target.value)
-                  }
-                  className="w-full h-12 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
-                  required
-                />
+  <span className="text-xs text-gray-500">Select</span>
+</button>
+
 
                 {/* Sizes and stock for this color */}
                 {variant.sizes.map((sizeStock, sizeIndex) => {
@@ -1507,10 +1636,10 @@ const AddProduct = ({ vendorId, closeModal }) => {
             <option value="brand new">Brand New</option>
             <option value="thrift">Thrift</option>
 
-            <option value="Defect:">Defect</option>
+            <option value="defect">Defect</option>
           </select>
 
-          {productCondition === "Defect:" && (
+          {productCondition === "defect" && (
             <div className="mt-4">
               <label className="block font-medium text-black text-sm font-opensans">
                 Defect Description
@@ -1526,7 +1655,8 @@ const AddProduct = ({ vendorId, closeModal }) => {
           )}
         </div>
 
-        <div className="mb-3">
+
+  <div className="mb-3">
           <label className="mb-1 text-black font-medium font-opensans text-sm">
             Product Description
           </label>
@@ -1563,7 +1693,13 @@ const AddProduct = ({ vendorId, closeModal }) => {
             )}
           </div>
 
-          <div className="flex justify-end mt-2">
+          {/* Disclaimer / Pro Tip */}
+          <p className="mt-1.5 text-xs text-customOrange font-opensans font-medium flex items-center">
+            <span className="mr-1.5">🚀</span>
+            Pro Tip: 98% of Products with proper descriptions get sold ASAP!
+          </p>
+
+          {/* <div className="flex justify-end mt-2">
             <button
               type="button"
               onClick={generateDescription}
@@ -1582,7 +1718,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
                 <GiRegeneration />
               )}
             </button>
-          </div>
+          </div> */}
         </div>
         <div className="mb-4">
           <label className="font-opensans mb-1 text-sm font-medium text-black">
@@ -1597,16 +1733,17 @@ const AddProduct = ({ vendorId, closeModal }) => {
             }}
           >
             {[
-              "Discounts",
-              "New Arrival",
-              "Cargos",
-              "Trending",
-              "Limited Edition",
               "Jeans",
               "Tees",
               "Nike",
               "Adidas",
               "Sports",
+              "Discounts",
+              "New Arrival",
+              "Cargos",
+              "Trending",
+              "Limited Edition",
+              
             ].map((suggestion, index) => (
               <span
                 key={index}
@@ -1638,7 +1775,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
             />
           </div>
         </div>
-        {itemClass === "fashion" && (
+        {/* {itemClass === "fashion" && (
           <div className="mb-4">
             <VariationsToggle
               hasVariations={hasVariations}
@@ -1660,7 +1797,7 @@ const AddProduct = ({ vendorId, closeModal }) => {
               onAddMore={() => setShowSubProductModal(true)}
             />
           </div>
-        )}
+        )} */}
         {/* Discount Modal */}
         <DiscountModal
           isOpen={isDiscountModalOpen}
@@ -1688,7 +1825,15 @@ const AddProduct = ({ vendorId, closeModal }) => {
 
         {/* Debug console log for modal status */}
       </div>
-
+<PaletteColorSheet
+  open={colorSheetOpen}
+  onClose={closeColorSheet}
+  swatches={paletteSwatches}
+  selectedKey={
+    activeColorIndex !== null ? productVariants?.[activeColorIndex]?.color : ""
+  }
+  onSelect={selectVariantColor}
+/>
       <button
         type="button"
         onClick={handleAddProduct}

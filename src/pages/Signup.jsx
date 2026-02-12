@@ -78,7 +78,7 @@ const Signup = () => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         console.log("User is already logged in after popup:", user);
-        navigate("/newhome");
+        navigate("/");
       }
     });
     return () => unsubscribe();
@@ -92,7 +92,7 @@ const Signup = () => {
         const formattedUsername = formatUsername(username);
         const q = query(
           collection(db, "users"),
-          where("username", "==", formattedUsername)
+          where("username", "==", formattedUsername),
         );
         const querySnapshot = await getDocs(q);
 
@@ -136,7 +136,7 @@ const Signup = () => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         console.log("User is already logged in after redirect:", user);
-        navigate("/newhome");
+        navigate("/");
       }
     });
     return () => unsubscribe();
@@ -169,7 +169,7 @@ const Signup = () => {
     }
     if (!validatePassword(password)) {
       toast.error(
-        "Password must be at least 8 characters, include uppercase, special char, numeric."
+        "Password must be at least 8 characters, include uppercase, special char, numeric.",
       );
       return;
     }
@@ -247,7 +247,7 @@ const Signup = () => {
       // 3) Also block if any "users" doc with role=vendor
       const usersRef = collection(db, "users");
       const sameEmailUsers = await getDocs(
-        query(usersRef, where("emailLower", "==", emailLower))
+        query(usersRef, where("emailLower", "==", emailLower)),
       );
       if (
         !sameEmailUsers.empty &&
@@ -287,7 +287,7 @@ const Signup = () => {
       }
 
       toast.success("Signed up with Google successfully!");
-      navigate("/newhome");
+      navigate("/");
     } catch (error) {
       console.error("Google Sign-Up Error:", error);
       let msg = "Google Sign-Up failed. Please try again.";
@@ -324,7 +324,7 @@ const Signup = () => {
           await signOut(auth);
         } catch {}
         toast.error(
-          "We couldn’t get your email from Twitter. Please use Google or Email."
+          "We couldn’t get your email from Twitter. Please use Google or Email.",
         );
         setLoading(false);
         return;
@@ -346,7 +346,7 @@ const Signup = () => {
       // Also block if any 'users' doc has role=vendor
       const usersRef = collection(db, "users");
       const sameEmailUsers = await getDocs(
-        query(usersRef, where("emailLower", "==", emailLower))
+        query(usersRef, where("emailLower", "==", emailLower)),
       );
       if (
         !sameEmailUsers.empty &&
@@ -386,7 +386,7 @@ const Signup = () => {
       }
 
       toast.success(`Signed up with Twitter successfully!`);
-      navigate("/newhome");
+      navigate("/");
     } catch (error) {
       console.error("Twitter Sign-Up Error:", error);
       let msg = "Twitter Sign-Up failed. Please try again.";
@@ -449,8 +449,8 @@ const Signup = () => {
                       isUsernameTaken
                         ? "border-2 border-red-500"
                         : isUsernameAvailable
-                        ? "border-2 border-green-500"
-                        : ""
+                          ? "border-2 border-green-500"
+                          : ""
                     }`}
                     onChange={(e) =>
                       setUsername(formatUsername(e.target.value))
@@ -600,7 +600,7 @@ const Signup = () => {
                       window.open(
                         "/terms-and-conditions",
                         "_blank",
-                        "noopener,noreferrer"
+                        "noopener,noreferrer",
                       )
                     }
                     className="text-customOrange font-medium hover:underline cursor-pointer mr-1"
@@ -613,7 +613,7 @@ const Signup = () => {
                       window.open(
                         "/privacy-policy",
                         "_blank",
-                        "noopener,noreferrer"
+                        "noopener,noreferrer",
                       )
                     }
                     className="text-customOrange font-medium hover:underline cursor-pointer ml-1"

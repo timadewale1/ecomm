@@ -40,14 +40,14 @@ const Layout = () => {
     "/vendorlogin",
     "/vendor-signup",
     "/complete-profile",
-    
+    "/confirm-user",
     "/newcheckout/bookingfee",
     "your-wallet",
     "/newcheckout/fulldelivery",
     "/user-dashboard",
     "/search",
     "/send-us-feedback",
-    "/",
+    
     "/faqs",
     "/vendor-reviews",
     "/vendor-wallet",

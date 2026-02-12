@@ -5,7 +5,16 @@ import { toast } from "react-hot-toast";
 import { ChevronRight, User, ChevronLeft } from "lucide-react";
 import { AiOutlineUserSwitch } from "react-icons/ai";
 import { useNavigate, useLocation } from "react-router-dom";
-import { doc, getDoc, onSnapshot, updateDoc, setDoc, query, collection, where } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  onSnapshot,
+  updateDoc,
+  setDoc,
+  query,
+  collection,
+  where,
+} from "firebase/firestore";
 import { useAuth } from "../custom-hooks/useAuth";
 import posthog from "posthog-js";
 import { FaHeart } from "react-icons/fa";
@@ -65,7 +74,7 @@ const Profile = () => {
     const q = query(
       collection(db, "offers"),
       where("buyerId", "==", currentUser.uid),
-      where("buyerRead", "==", false)
+      where("buyerRead", "==", false),
     );
 
     const unsub = onSnapshot(
@@ -75,7 +84,7 @@ const Profile = () => {
       },
       (err) => {
         console.error("Unread offers listener failed:", err);
-      }
+      },
     );
 
     return () => unsub();
@@ -120,7 +129,7 @@ const Profile = () => {
         // keep Redux in sync if you like
         dispatch(updateUserData({ profileComplete: complete }));
       },
-      (err) => console.error("profileComplete listener failed:", err)
+      (err) => console.error("profileComplete listener failed:", err),
     );
     return () => unsub();
   }, [currentUser?.uid, dispatch]);
@@ -171,7 +180,7 @@ const Profile = () => {
                 uid: { value: "" },
                 role: { value: "" },
               },
-              () => res()
+              () => res(),
             );
           });
         });
@@ -200,7 +209,7 @@ const Profile = () => {
       console.log("✓ Redux & localStorage cleared");
 
       toast.success("Successfully logged out", { className: "custom-toast" });
-      navigate("/newhome"); // or "/newhome" for buyers
+      navigate("/"); // or "/" for buyers
     } catch (err) {
       console.error("Logout error:", err);
       toast.error("Error logging out", { className: "custom-toast" });
@@ -466,7 +475,7 @@ const Profile = () => {
                   window.open(
                     "/terms-and-conditions",
                     "_blank",
-                    "noopener,noreferrer"
+                    "noopener,noreferrer",
                   )
                 }
               >
@@ -485,7 +494,7 @@ const Profile = () => {
                   window.open(
                     "/privacy-policy",
                     "_blank",
-                    "noopener,noreferrer"
+                    "noopener,noreferrer",
                   )
                 }
               >

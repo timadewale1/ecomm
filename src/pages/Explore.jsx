@@ -30,7 +30,8 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { setPromoImages, setPromoLoading } from "../redux/actions/promoaction";
 import SEO from "../components/Helmet/SEO";
-
+import Condition from "../components/Conditions/Condition";
+import CategoryQuickNav from "../components/Categories/CategoryQuickNav";
 // import { ChevronRight } from "lucide-react";       // keep if you still use itimport { FaRocket } from "react-icons/fa";
 const Explore = () => {
   const ALL_TYPES = [...productTypes, ...everydayTypers];
@@ -336,6 +337,7 @@ const Explore = () => {
         >
           <div className="flex items-center justify-between pb-2">
             <div className="flex items-center">
+              
               {(selectedProductType || selectedSubType) && (
                 <GoChevronLeft
                   className="text-3xl cursor-pointer mr-2"
@@ -408,9 +410,11 @@ const Explore = () => {
           )}
           <hr className="bg-customGrey" />
         </div>
+ 
 
+         
         {/* Main Content */}
-        <div className="">
+        <div className="-translate-y-4">
           {/* If we have selected a SubType, show products grid */}
           {selectedProductType ? (
             <>
@@ -500,49 +504,13 @@ const Explore = () => {
                     ))
                   ) : (
                     <>
-                      {!selectedProductType && (
-                        <div className="bg-white w-full border-gray-200">
-                          <div className="flex items-center gap-2 mb-5 mt-1">
-                            <MdTrendingUp
-                              className="text-customOrange"
-                              size={18}
-                            />
-                            <h3 className="text-sm font-semibold font-opensans text-gray-900">
-                              Trending Searches
-                            </h3>
-                          </div>
-
-                          {/* this is the scrollable row */}
-                          <div
-                            ref={scrollRef}
-                            className="w-full overflow-x-auto whitespace-nowrap scrollbar-hide"
-                          >
-                            {topSearches.map((term) => (
-                              <motion.button
-                                key={term}
-                                onClick={() =>
-                                  navigate(
-                                    `/search?query=${encodeURIComponent(term)}`
-                                  )
-                                }
-                                className="inline-block mr-4 py-2 px-3 font-medium rounded-full font-opensans text-xs bg-gray-100 hover:bg-customOrange hover:text-white transition"
-                                initial={{ opacity: 0, y: 5 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -5 }}
-                                transition={{ duration: 0.3 }}
-                              >
-                                {term}
-                              </motion.button>
-                            ))}
-                          </div>
-                          <div className="border-b  mt-4 border-gray-50"></div>
-                        </div>
-                      )}
+                   {/* deleeted */}
                     </>
                   )}
                 </div>
               </div>
               <div className="space-y-4 p-4">
+                <Condition />
                 {filteredProductTypes.length > 0 ? (
                   filteredProductTypes.map((productType) => (
                     <div
@@ -567,66 +535,7 @@ const Explore = () => {
                   </div>
                 )}
               </div>
-              <div className="px-1 mb-0">
-                <Swiper
-                  modules={[FreeMode, Autoplay]}
-                  spaceBetween={5}
-                  slidesPerView={1}
-                  freeMode={true}
-                  loop={true}
-                  autoplay={{ delay: 2500, disableOnInteraction: false }}
-                  breakpoints={{
-                    640: { slidesPerView: 2, spaceBetween: 10 },
-                    768: { slidesPerView: 3, spaceBetween: 30 },
-                    1024: { slidesPerView: 4, spaceBetween: 40 },
-                  }}
-                >
-                  {promoLoading
-                    ? Array.from({ length: 5 }).map((_, index) => (
-                        <SwiperSlide key={index}>
-                          <div className="p-1 w-full h-44 shadow-md rounded-lg overflow-hidden">
-                            <Skeleton height="100%" />
-                          </div>
-                        </SwiperSlide>
-                      ))
-                    : promoImages.map((url, index) => (
-                        <SwiperSlide
-                          key={index}
-                          onClick={() => {
-                            if (index === 0) {
-                              navigate("/store/k4Wu4jYuIcfQRkrMKRzk9LkUmht1");
-                            } else if (index === 3) {
-                              // internal navigation for all others
-                              navigate("/products/condition/brand-new");
-                            }
-                          }}
-                          className="transition-transform duration-500 ease-in-out rounded-lg transform hover:scale-105"
-                        >
-                          <div className=" w-auto h-44 shadow-md rounded-lg overflow-hidden">
-                            {url.endsWith(".mp4") ? (
-                              <video
-                                src={url}
-                                className="w-full h-full object-cover object-center rounded-lg"
-                                autoPlay
-                                muted
-                                loop
-                                playsInline
-                                preload="auto"
-                              />
-                            ) : (
-                              <img
-                                src={url}
-                                alt={`Promo ${index + 1}`}
-                                className="w-full h-full object-cover object-center rounded-lg"
-                                loading="lazy"
-                              />
-                            )}
-                          </div>
-                        </SwiperSlide>
-                      ))}
-                </Swiper>
-                {/* Dots navigation can remain unchanged if needed */}
-              </div>
+              
             </>
           )}
         </div>

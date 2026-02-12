@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@capacitor/android": "^6.1.2",
-    "@capacitor/core": "^6.1.2",
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^6.2.1",
     "@capacitor/ios": "^6.1.2",
     "@cloudinary/react": "^1.13.0",
     "@cloudinary/url-gen": "^1.19.0",

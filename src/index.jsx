@@ -20,6 +20,7 @@ import { AuthProvider } from "./custom-hooks/useAuth";
 import { TawkProvider } from "./components/Context/TawkProvider.jsx";
 
 import { PostHogProvider } from "posthog-js/react";
+import SwipeToast from "./components/Toasts/SwipeToast.jsx";
 
 const posthogOptions = {
   api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
@@ -44,19 +45,22 @@ createRoot(document.getElementById("root")).render(
                   <VendorProvider>
                     <TawkProvider>
                       <FavoritesProvider>
-                        <Toaster
-                          position="top-center"
-                          reverseOrder={false}
-                          toastOptions={{
-                            duration: 2000,
-                            style: {
-                              minWidth: "220px", // Make toast wider
-                              fontSize: "12px", // Reduce text size
-                              padding: "10px 20px", // Adjust padding if needed
-                              fontFamily: "Poppins, sans-serif", // Use Poppins font
-                            },
-                          }}
-                        />
+                     <Toaster
+  position="bottom-center"
+  reverseOrder={false}
+  gutter={10}
+  toastOptions={{
+    duration: 2500,
+    style: {
+      background: "transparent",
+      boxShadow: "none",
+      padding: 0,
+    },
+  }}
+>
+  {(t) => <SwipeToast t={t} />}
+</Toaster>
+
                         <App />
                       </FavoritesProvider>
                     </TawkProvider>

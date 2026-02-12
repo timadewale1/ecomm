@@ -22,15 +22,15 @@ export const fetchConditionCategories = createAsyncThunk(
       query(
         collection(db, "vendors"),
         where("isApproved", "==", true),
-        where("isDeactivated", "==", false)
-      )
+        where("isDeactivated", "==", false),
+      ),
     );
     const vendorIds = vendorSnap.docs.map((d) => d.id);
     const allTypes = new Set();
 
     // 🔥 Normalize exactly like fetchConditionProducts
     const conditionToQuery =
-      condition.toLowerCase() === "defect" ? "Defect:" : condition;
+      condition.toLowerCase() === "defect" ? "defect" : condition;
 
     // 2️⃣ Pull productType only, in 10-vendor batches to dodge the “in ≤10” rule
     for (let i = 0; i < vendorIds.length; i += 10) {
@@ -59,7 +59,7 @@ export const fetchConditionCategories = createAsyncThunk(
     }
 
     return [...allTypes];
-  }
+  },
 );
 
 const conditionCategoriesSlice = createSlice({

@@ -2,7 +2,7 @@
 require("dotenv").config(); // ← loads .env
 if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
   console.error(
-    "❌ Missing FIREBASE_SERVICE_ACCOUNT – check your .env or Vercel settings"
+    "❌ Missing FIREBASE_SERVICE_ACCOUNT – check your .env or Vercel settings",
   );
   process.exit(1);
 }
@@ -29,7 +29,7 @@ async function build() {
   // 3) Static top-level pages
   const links = [
     { url: "/", changefreq: "daily", priority: 1.0, lastmod: now },
-    { url: "/newhome", changefreq: "weekly", priority: 0.8, lastmod: now },
+    { url: "/", changefreq: "weekly", priority: 0.8, lastmod: now },
     { url: "/explore", changefreq: "weekly", priority: 0.8, lastmod: now },
     {
       url: "/producttype/Tops",

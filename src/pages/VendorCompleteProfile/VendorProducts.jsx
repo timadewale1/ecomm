@@ -97,7 +97,7 @@ const VendorProducts = () => {
     return Object.entries(groupedVariants).map(
       ([color, variants], colorIndex) => {
         const hasOutOfStockVariant = variants.some(
-          (variant) => variant.stock === 0
+          (variant) => variant.stock === 0,
         );
 
         return (
@@ -152,11 +152,11 @@ const VendorProducts = () => {
                                   handleRestockInputChange(
                                     "quantity",
                                     variantKey,
-                                    value
+                                    value,
                                   );
                                 } else {
                                   toast.error(
-                                    "Please enter a non-negative value."
+                                    "Please enter a non-negative value.",
                                   );
                                 }
                               }}
@@ -175,7 +175,7 @@ const VendorProducts = () => {
             </table>
           </div>
         );
-      }
+      },
     );
   };
 
@@ -248,7 +248,7 @@ const VendorProducts = () => {
     const productsQuery = query(
       collection(db, "products"),
       where("vendorId", "==", vendorId),
-      where("isDeleted", "==", false) // Exclude deleted products
+      where("isDeleted", "==", false), // Exclude deleted products
     );
 
     const unsubscribe = onSnapshot(productsQuery, async (snapshot) => {
@@ -280,7 +280,7 @@ const VendorProducts = () => {
     const pinnedQuery = query(
       collection(db, "products"),
       where("isFeatured", "==", true),
-      where("vendorId", "==", vendorId) // Ensure only the vendor's products are counted
+      where("vendorId", "==", vendorId), // Ensure only the vendor's products are counted
     );
     onSnapshot(pinnedQuery, (snapshot) => {
       setPinnedCount(snapshot.size); // Update count of pinned products
@@ -325,7 +325,7 @@ const VendorProducts = () => {
     setPickedProducts((prevPicked) =>
       prevPicked.includes(productId)
         ? prevPicked.filter((id) => id !== productId)
-        : [...prevPicked, productId]
+        : [...prevPicked, productId],
     );
   };
 
@@ -333,7 +333,7 @@ const VendorProducts = () => {
   const canPublishOrUnpublish = () => {
     if (pickedProducts.length === 0) return false;
     const selectedProducts = products.filter((p) =>
-      pickedProducts.includes(p.id)
+      pickedProducts.includes(p.id),
     );
     const isAllPublished = selectedProducts.every((p) => p.published);
     const isAllDrafted = selectedProducts.every((p) => !p.published);
@@ -369,7 +369,7 @@ const VendorProducts = () => {
       toast.success(
         tabOpt === "Drafts"
           ? "Selected products published successfully."
-          : "Selected products unpublished successfully."
+          : "Selected products unpublished successfully.",
       );
       setPickedProducts([]);
       setViewPickOption((prev) => !prev);
@@ -420,7 +420,7 @@ const VendorProducts = () => {
         } no longer exist in your store and customers that have ${
           length > 1 ? "them" : "it"
         } in their carts will be notified.`,
-        "Product Update"
+        "Product Update",
       );
     } catch (error) {
       console.error("Error deleting products: ", error);
@@ -476,7 +476,7 @@ const VendorProducts = () => {
       await addActivityNote(
         "Discounts Disabled ❌",
         `You've disabled the discount on some products. Customers can now only buy them at their original prices.`,
-        "Product Update"
+        "Product Update",
       );
       toast.success("Discounts removed from selected product(s).");
 
@@ -566,9 +566,9 @@ const VendorProducts = () => {
                       discount: null,
                       discountId: null,
                     }
-                  : p
-              )
-            )
+                  : p,
+              ),
+            ),
           )
         : await updateDoc(productRef, {
             discount: null,
@@ -582,15 +582,15 @@ const VendorProducts = () => {
                       discount: null,
                       discountId: null,
                     }
-                  : p
-              )
-            )
+                  : p,
+              ),
+            ),
           );
 
       await addActivityNote(
         "Discount Disabled ❌",
         `You've disabled the discount on ${selectedProduct.name}. Customers can now only buy this at the original price.`,
-        "Product Update"
+        "Product Update",
       );
       toast.success("Discount disabled successfully.");
       setDisableLoading(false);
@@ -618,7 +618,7 @@ const VendorProducts = () => {
       if (timeElapsed < twelveHoursInMilliseconds) {
         // Prevent unpinning if less than 12 hours have passed
         toast.error(
-          "You cannot unfeature a product within 12 hours of featuring it."
+          "You cannot unfeature a product within 12 hours of featuring it.",
         );
         return;
       }
@@ -643,13 +643,13 @@ const VendorProducts = () => {
                 isFeatured: newIsFeaturedStatus,
                 pinnedAt: newIsFeaturedStatus ? currentTime : null,
               }
-            : p
-        )
+            : p,
+        ),
       );
 
       // Update pinned count locally
       setPinnedCount((prevCount) =>
-        newIsFeaturedStatus ? prevCount + 1 : prevCount - 1
+        newIsFeaturedStatus ? prevCount + 1 : prevCount - 1,
       );
 
       // If the product was just pinned (isFeatured set to true), add an activity note
@@ -657,7 +657,7 @@ const VendorProducts = () => {
         await addActivityNote(
           "Product Starred ⭐",
           `You've made ${product.name} one of your featured products! This will be part of the first products customers see in your store.`,
-          "Product Update"
+          "Product Update",
         );
         toast.success("Product featured successfully.");
       } else {
@@ -707,7 +707,7 @@ const VendorProducts = () => {
       await addActivityNote(
         "Product Sold Out 🚫",
         `You've marked ${selectedProduct.name} as "Sold Out". Customers will not be able to buy this product until it is restocked.`,
-        "Product Update"
+        "Product Update",
       );
     } catch (error) {
       console.error("Error marking as Sold Out:", error);
@@ -725,7 +725,7 @@ const VendorProducts = () => {
         db,
         "vendors",
         vendorId,
-        "activityNotes"
+        "activityNotes",
       );
       await addDoc(activityNotesRef, {
         title,
@@ -761,12 +761,12 @@ const VendorProducts = () => {
       await addActivityNote(
         "Deleted Product 🗑",
         `You removed ${selectedProduct.name} from your store! This product no longer exists in your store and customers that have it in their carts will be notified.`,
-        "Product Update"
+        "Product Update",
       );
 
       // Update the products state
       setProducts(
-        products.filter((product) => product.id !== selectedProduct.id)
+        products.filter((product) => product.id !== selectedProduct.id),
       );
 
       toast.success("Product deleted successfully.");
@@ -820,7 +820,7 @@ const VendorProducts = () => {
         const variantKey = `${variant.color}-${variant.size}`;
         const restockQuantity = parseInt(
           restockValues[variantKey]?.quantity,
-          10
+          10,
         );
         if (!isNaN(restockQuantity)) {
           return {
@@ -835,7 +835,7 @@ const VendorProducts = () => {
       const updatedSubProducts = subProducts.map((subProduct) => {
         const restockQuantity = parseInt(
           restockValues[subProduct.subProductId]?.quantity,
-          10
+          10,
         );
         if (!isNaN(restockQuantity)) {
           return {
@@ -850,11 +850,11 @@ const VendorProducts = () => {
       const totalStock =
         updatedVariants.reduce(
           (sum, variant) => sum + (variant.stock || 0),
-          0
+          0,
         ) +
         updatedSubProducts.reduce(
           (sum, subProduct) => sum + (subProduct.stock || 0),
-          0
+          0,
         );
 
       // Update Firestore with the modified stock quantities and total stockQuantity
@@ -868,7 +868,7 @@ const VendorProducts = () => {
       await addActivityNote(
         "Restocked Product 🔄",
         `You restocked ${selectedProduct.name}! Customers can now buy more of this product from your store.`,
-        "Product Update"
+        "Product Update",
       );
       setIsRestocking(false);
       setRestockValues({});
@@ -1070,8 +1070,8 @@ const VendorProducts = () => {
               {tabOpt === "Active"
                 ? tabOpt
                 : tabOpt === "Drafts"
-                ? "Drafted"
-                : "Out of Stock"}{" "}
+                  ? "Drafted"
+                  : "Out of Stock"}{" "}
               Products
             </p>
             <p className="text-white text-3xl font-bold">
@@ -1139,7 +1139,7 @@ const VendorProducts = () => {
           (() => {
             const activeDiscountedProducts = products.filter(
               (product) =>
-                product.discount && !product.isDeleted && product.published
+                product.discount && !product.isDeleted && product.published,
             );
             return (
               activeDiscountedProducts.length > 0 && (
@@ -1170,10 +1170,10 @@ const VendorProducts = () => {
             filteredProducts.map((product) => {
               // Check if any sub-product has stock of zero
               const hasOutOfStockSubProduct = product.subProducts?.some(
-                (sp) => sp.stock === 0
+                (sp) => sp.stock === 0,
               );
               const hasOutOfStockVariant = product.variants?.some(
-                (variant) => variant.stock === 0
+                (variant) => variant.stock === 0,
               );
               return (
                 <div
@@ -1239,7 +1239,7 @@ const VendorProducts = () => {
                     {!picking && product.discount && (
                       <div className="absolute top-2 left-2 flex items-center">
                         {product.discount.discountType.startsWith(
-                          "personal-freebies"
+                          "personal-freebies",
                         ) ? (
                           <div className="bg-customPink text-customOrange text-sm px-2 py-1 font-medium rounded-md">
                             {truncateText(product.discount.freebieText)}
@@ -1286,11 +1286,11 @@ const VendorProducts = () => {
                         {product.discount.discountType.startsWith("inApp")
                           ? "In-App Discount"
                           : product.discount.discountType ===
-                            "personal-monetary"
-                          ? "Personal Monetary Discount"
-                          : `Freebie: ${truncateText(
-                              product.discount.freebieText
-                            )}`}
+                              "personal-monetary"
+                            ? "Personal Monetary Discount"
+                            : `Freebie: ${truncateText(
+                                product.discount.freebieText,
+                              )}`}
                       </p>
                     )}
                   </div>
@@ -1565,7 +1565,7 @@ const VendorProducts = () => {
                 </p>
               </div>
 
-              {selectedProduct.condition === "Defect:" && (
+              {selectedProduct.condition === "defect" && (
                 <>
                   {" "}
                   <p className="text-red-400 font-opensans font-semibold text-sm">
@@ -1600,14 +1600,14 @@ const VendorProducts = () => {
                       {selectedProduct.discount.discountType.startsWith("inApp")
                         ? "In‑App Discount"
                         : selectedProduct.discount.discountType ===
-                          "personal-monetary"
-                        ? "Personal Monetary Discount"
-                        : selectedProduct.discount.discountType ===
-                          "personal-freebies"
-                        ? `Freebie: ${truncateText(
-                            selectedProduct.discount.freebieText
-                          )}`
-                        : ""}
+                            "personal-monetary"
+                          ? "Personal Monetary Discount"
+                          : selectedProduct.discount.discountType ===
+                              "personal-freebies"
+                            ? `Freebie: ${truncateText(
+                                selectedProduct.discount.freebieText,
+                              )}`
+                            : ""}
                     </span>
                     <span className="bg-green-600 text-white text-xs px-2 py-1 rounded-full">
                       Active
@@ -1663,7 +1663,7 @@ const VendorProducts = () => {
                           {" "}
                           &#x20a6;
                           {formatNumber(
-                            selectedProduct.discount.subtractiveValue
+                            selectedProduct.discount.subtractiveValue,
                           )}
                         </span>
                       </p>
@@ -1738,11 +1738,11 @@ const VendorProducts = () => {
                                 handleRestockInputChange(
                                   "quantity",
                                   sp.subProductId,
-                                  e.target.value
+                                  e.target.value,
                                 );
                               } else {
                                 toast.error(
-                                  "Please enter a non-negative value."
+                                  "Please enter a non-negative value.",
                                 );
                               }
                             }}
@@ -1802,7 +1802,7 @@ const VendorProducts = () => {
                   <hr className="text-customOrange opacity-40" />
                 )}
 
-                {(
+                {
                   <div
                     className={`flex relative space-x-1 justify-between items-center font-medium text-base cursor-pointer text-black ${
                       selectedProduct.editCount > 0 ? "text-gray-400" : ""
@@ -1815,8 +1815,8 @@ const VendorProducts = () => {
                         // only toggle if no edits yet
                         setIsEditModalOpen(!isEditModalOpen);
                       } else {
-                        setAction("editUnavailable")
-                        setShowConfirmation(true)
+                        setAction("editUnavailable");
+                        setShowConfirmation(true);
                       }
                     }}
                   >
@@ -1829,7 +1829,7 @@ const VendorProducts = () => {
                       }`}
                     />
                   </div>
-                )}
+                }
 
                 <hr className="text-customOrange opacity-40" />
                 <div className="flex justify-between">

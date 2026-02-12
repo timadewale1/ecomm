@@ -36,7 +36,7 @@ function App() {
   useEffect(() => {
     const ua = navigator.userAgent || "";
     const isInApp = /(FBAN|FBAV|FB_IAB|Instagram|Twitter)(?!.*Safari)/i.test(
-      ua
+      ua,
     );
     if (!("serviceWorker" in navigator) || isInApp) return;
 
@@ -67,7 +67,7 @@ function App() {
       <nav className="sr-only" aria-label="Site map">
         <ul>
           <li>
-            <a href="/newhome">Shop Now</a>
+            <a href="/">Shop Now</a>
           </li>
           <li>
             <a href="/explore">Explore</a>

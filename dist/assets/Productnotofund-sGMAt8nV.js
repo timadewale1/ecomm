@@ -1,0 +1,1 @@
+import{j as l,L as s,cO as a}from"./index-CvIXhaMv.js";const e=()=>l.jsx("div",{children:l.jsx("div",{className:"flex w-full h-full justify-center items-center",children:l.jsx(s,{className:"w-full h-full",animationData:a,loop:!0,autoplay:!0})})});export{e as P};

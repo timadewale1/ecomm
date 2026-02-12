@@ -223,7 +223,7 @@ export default function OfferSheet({
         dragConstraints={{ top: 0, bottom: 520 }}
         dragElastic={0.15}
         onDragEnd={onDragEnd}
-        className="w-full h-[50vh] bg-white rounded-t-[28px] px-4 pt-3 pb-5 shadow-2xl"
+        className="w-full h-[60vh] bg-white rounded-t-[28px] px-4 pt-3 pb-5 shadow-2xl"
       >
         {/* Drag pill */}
         <div

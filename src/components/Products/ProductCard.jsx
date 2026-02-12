@@ -652,7 +652,7 @@ const handleFavoriteToggle = async (e) => {
     absolute bottom-2 right-2 z-20
     inline-flex items-center gap-2
     h-9 px-3 rounded-full
-    bg-black/70 backdrop-blur
+    bg-black/50 backdrop-blur
     shadow-md
   "
   whileHover={{ scale: 1.05 }}

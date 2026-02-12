@@ -664,7 +664,7 @@ if (Array.isArray(draft.conditions) && draft.conditions.length) {
                     <IoChevronDownOutline className="text-lg text-gray-500 rotate-180" />
                   </button>
 
-                  <div className="mt-2 p-3 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-between">
+                  {/* <div className="mt-2 p-3 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-between">
                     <div className="text-xs font-opensans text-gray-700">
                       Save your sizes to shop what fits
                     </div>
@@ -674,7 +674,7 @@ if (Array.isArray(draft.conditions) && draft.conditions.length) {
                     >
                       Set My Sizes
                     </button>
-                  </div>
+                  </div> */}
 
                   <div className="mt-4 overflow-x-auto no-scrollbar">
                     <div className="flex gap-3 min-w-max border-b border-gray-100">

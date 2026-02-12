@@ -86,7 +86,7 @@ import { IoShareSocialOutline } from "react-icons/io5";
 import IkImage from "../../services/IkImage";
 import SEO from "../../components/Helmet/SEO";
 import QuestionandA from "../../components/Loading/QuestionandA";
-import { LiaShareSolid, LiaTimesSolid } from "react-icons/lia";
+import { LiaHomeSolid, LiaShareSolid, LiaTimesSolid } from "react-icons/lia";
 import { handleUserActionLimit } from "../../services/userWriteHandler";
 import SafeImg from "../../services/safeImg";
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
@@ -1172,10 +1172,14 @@ const handleFavoriteToggle = async (e) => {
     }
   };
 
-  const handleTopLeftBack = () => {
-    // choose what makes sense for your shared route
-    if (isGuestShared) navigate("/");
-    else navigate(-1);
+const handleTopLeftBack = () => {
+    // If the link was shared, always go to Home (/)
+    // Otherwise, go back in history (-1)
+    if (isShared) {
+      navigate("/");
+    } else {
+      navigate(-1);
+    }
   };
 
   const handleMenuPrimaryAction = () => {
@@ -2407,19 +2411,25 @@ const requestHd = async (idx) => {
           className="flex rounded-md justify-center mt-3 h-[500px] relative bg-gray-50"
         >
           {/* OVERLAY CONTROLS (Back Button) */}
+         {/* OVERLAY CONTROLS (Back/Home Button) */}
           <div className="fixed top-5 left-4 z-[9000]">
             <button
               onClick={handleTopLeftBack}
-              aria-label="Back"
+              aria-label={isShared ? "Home" : "Back"}
               className={[
                 "w-11 h-11 rounded-xl backdrop-blur-md flex items-center justify-center",
                 "transition-all duration-200 active:scale-95",
                 isSticky
-                  ? "bg-black/25 opacity-70 shadow-none" // 👈 when scrolled
-                  : "bg-black/50 opacity-100 shadow-sm", // 👈 at top
+                  ? "bg-black/25 opacity-70 shadow-none"
+                  : "bg-black/50 opacity-100 shadow-sm",
               ].join(" ")}
             >
-              <IoMdArrowBack className="text-xl text-white" />
+              {/* If shared, show Home icon, else show Back arrow */}
+              {isShared ? (
+                <LiaHomeSolid className="text-xl text-white" />
+              ) : (
+                <IoMdArrowBack className="text-xl text-white" />
+              )}
             </button>
           </div>
 

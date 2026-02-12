@@ -492,6 +492,216 @@ function NetworkIssueNotice({ onRetry }) {
     </div>
   );
 }
+// --- Badge helpers (same as VendorSearchCard) ---
+const cleanStr = (x) => (typeof x === "string" ? x.trim() : "");
+
+function normalizeBadgeKey(badgeText = "") {
+  const b = String(badgeText || "").trim().toLowerCase();
+
+  if (b.includes("og")) return "og";
+  if (b.includes("power")) return "power";
+  if (b.includes("reliable")) return "reliable";
+  if (b.includes("steady") || b.includes("speedy")) return "speedy";
+  if (b.includes("consistent")) return "consistent";
+  if (b.includes("rising")) return "rising";
+
+  return "newbie";
+}
+
+// Badge styling configuration (re-using your existing assets)
+const BADGE_STYLES = {
+  og: {
+    icon: "/OG.svg",
+    pillBgClass: "bg-[#FDF6E3]",
+    pillTextClass: "text-[#78350F]",
+    modalBase: "#FDECC8",
+    modalGlow: "rgba(245, 158, 11, 0.35)",
+    modalLabelBg: "rgba(255,255,255,0.75)",
+    modalLabelText: "#78350F",
+  },
+  reliable: {
+    icon: "/Reliable.svg",
+    pillBgClass: "bg-[#EFF6FF]",
+    pillTextClass: "text-[#1E40AF]",
+    modalBase: "#D1FAE5",
+    modalGlow: "rgba(16, 185, 129, 0.35)",
+    modalLabelBg: "rgba(255,255,255,0.75)",
+    modalLabelText: "#065F46",
+  },
+  consistent: {
+    icon: "/Consistent.svg",
+    pillBgClass: "bg-[#FFF7ED]",
+    pillTextClass: "text-[#9A3412]",
+    modalBase: "#FFEDD5",
+    modalGlow: "rgba(249, 115, 22, 0.35)",
+    modalLabelBg: "rgba(255,255,255,0.75)",
+    modalLabelText: "#9A3412",
+  },
+  rising: {
+    icon: "/Rising.svg",
+    pillBgClass: "bg-[#FEF2F2]",
+    pillTextClass: "text-[#991B1B]",
+    modalBase: "#FEE2E2",
+    modalGlow: "rgba(239, 68, 68, 0.35)",
+    modalLabelBg: "rgba(255,255,255,0.75)",
+    modalLabelText: "#991B1B",
+  },
+  power: {
+    icon: "/Power.svg",
+    pillBgClass: "bg-[#F3E8FF]",
+    pillTextClass: "text-[#6B21A8]",
+    modalBase: "#E9D5FF",
+    modalGlow: "rgba(168, 85, 247, 0.35)",
+    modalLabelBg: "rgba(255,255,255,0.75)",
+    modalLabelText: "#6B21A8",
+  },
+  speedy: {
+    icon: "/Speedy.svg",
+    pillBgClass: "bg-[#F0FDF4]",
+    pillTextClass: "text-[#166534]",
+    modalBase: "#DCFCE7",
+    modalGlow: "rgba(34, 197, 94, 0.35)",
+    modalLabelBg: "rgba(255,255,255,0.75)",
+    modalLabelText: "#166534",
+  },
+  newbie: {
+    icon: "/Newbie.svg",
+    pillBgClass: "bg-[#DDF6D6]",
+    pillTextClass: "text-[#374151]",
+    modalBase: "#DCFCE7",
+    modalGlow: "rgba(16, 185, 129, 0.22)",
+    modalLabelBg: "rgba(255,255,255,0.75)",
+    modalLabelText: "#14532D",
+  },
+};
+
+// --- Clickable pill (same look as search page) ---
+function VendorBadgePill({ badgeText, onClick }) {
+  const key = normalizeBadgeKey(badgeText);
+  const style = BADGE_STYLES[key] || BADGE_STYLES.newbie;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "relative inline-flex items-center",
+        "h-7 pl-8 pr-3 rounded-full",
+        style.pillBgClass,
+        "active:scale-[0.98] transition",
+      ].join(" ")}
+      aria-label="Open vendor badge details"
+    >
+      <img
+        src={style.icon}
+        alt=""
+        className="absolute -left-2 top-1/2 -translate-y-1/2 w-9 h-9 drop-shadow-sm"
+        draggable={false}
+      />
+      <span className={["text-sm font-opensans font-medium", style.pillTextClass].join(" ")}>
+        {badgeText || "Newbie"}
+      </span>
+    </button>
+  );
+}
+
+// --- Modal like your screenshot (rays + gradient + centered badge) ---
+function VendorBadgeModal({ open, onClose, badgeText, message }) {
+  const key = normalizeBadgeKey(badgeText);
+  const style = BADGE_STYLES[key] || BADGE_STYLES.newbie;
+
+  const bgStyle = {
+    backgroundImage: `
+      radial-gradient(circle at 50% 10%, rgba(255,255,255,0.9), ${style.modalBase}),
+      repeating-conic-gradient(
+        from 0deg,
+        rgba(255,255,255,0.22) 0deg 10deg,
+        rgba(255,255,255,0) 10deg 20deg
+      )
+    `,
+  };
+
+  return (
+    <Modal
+      isOpen={open}
+      onRequestClose={onClose}
+      closeTimeoutMS={180}
+      // 👇 bottom sheet container
+      className="
+        fixed bottom-0 left-1/2 -translate-x-1/2
+        w-full max-w-md
+        outline-none
+      "
+      // 👇 overlay pinned bottom
+      overlayClassName="
+        fixed inset-0 z-[60] bg-black/40
+        flex items-end justify-center
+      "
+    >
+      {/* Sheet */}
+      <div className="rounded-t-3xl overflow-hidden shadow-2xl">
+        <div className="relative px-4 pt-3 pb-8" style={bgStyle}>
+          {/* little handle */}
+          <div className="flex justify-center">
+            <div className="w-12 h-1.5 rounded-full bg-black/10" />
+          </div>
+
+          {/* top bar */}
+          <div className="mt-2 flex items-center justify-between">
+            <div className="w-8 h-8" />
+            <p className="font-opensans font-semibold text-sm text-gray-800">
+              Vendor&apos;s Badge
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-white/40 hover:bg-white/60 transition"
+              aria-label="Close"
+            >
+              <MdClose className="text-gray-800 text-lg" />
+            </button>
+          </div>
+
+          {/* center badge */}
+          <div className="mt-6 flex flex-col items-center">
+            <div className="relative">
+              <div
+                className="absolute inset-0 rounded-full blur-2xl"
+                style={{ background: style.modalGlow }}
+              />
+              <img
+                src={style.icon}
+                alt=""
+                className="relative w-24 h-24 drop-shadow-xl"
+                draggable={false}
+              />
+            </div>
+
+            <div
+              className="mt-5 px-5 py-2 rounded-full text-xs font-opensans font-semibold shadow-md"
+              style={{
+                background: style.modalLabelBg,
+                color: style.modalLabelText,
+              }}
+            >
+              {badgeText || "Newbie"}
+            </div>
+
+            {!!message && (
+              <p className="mt-3 text-center text-xs font-opensans text-gray-800/80 px-6 leading-relaxed">
+                {message}
+              </p>
+            )}
+
+            {/* optional bottom spacing so it breathes on iPhones */}
+            <div className="h-3" />
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 
 const StorePage = () => {
   const { id } = useParams();
@@ -516,6 +726,7 @@ const StorePage = () => {
     loading: vendorLoading,
     error,
   } = useSelector((state) => state.storepageVendors);
+const [badgeOpen, setBadgeOpen] = useState(false);
 
   // Convenience variables for the current vendor page
   const entry = entities[id] || {};
@@ -704,11 +915,10 @@ const StorePage = () => {
       setLoadingAll(false);
     }
   }, [vendor, entry.noMore, dispatch, id]);
-  const openSearch = useCallback(async () => {
-    setIsSearching(true);
-    await ensureAllProductsLoaded(); // pull the whole catalogue once
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [ensureAllProductsLoaded]);
+const openSearch = useCallback(() => {
+  navigate("/search", { state: { autofocus: true } });
+}, [navigate]);
+
   // Infinite scroll – load more when the user nears the bottom
   useEffect(() => {
     const onScroll = () => {
@@ -1614,8 +1824,10 @@ const StorePage = () => {
                   {/* vertical divider */}
                   <div className="h-6 border-l border-gray-300 mx-6" />
 
-                  {/* ─── Center badge ─── */}
-                  <VendorBadge badgeName={vendor.badge} />
+                  <VendorBadgePill
+  badgeText={cleanStr(vendor?.badge) || "Newbie"}
+  onClick={() => setBadgeOpen(true)}
+/>
 
                   {/* vertical divider */}
                   <div className="h-6 border-l border-gray-300 mx-6" />
@@ -1811,6 +2023,12 @@ const StorePage = () => {
             </>
           )}
         </div>
+<VendorBadgeModal
+  open={badgeOpen}
+  onClose={() => setBadgeOpen(false)}
+  badgeText={cleanStr(vendor?.badge) || "Newbie"}
+  message={badgeMessages[vendor?.badge] || ""}
+/>
 
         <QuickAuthModal
           open={authOpen}

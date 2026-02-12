@@ -212,20 +212,32 @@ const [infoModalOpen, setInfoModalOpen] = useState(false);
   const chips = useMemo(
     () => [
       {
+        key: "sort",
+        label: "Sort",
+        active: sortActive,
+      },
+     
+      {
         key: "size",
         label: "Size",
         active: sizeActive,
       },
+       {
+        key: "price",
+        label: "Price",
+        active: priceActive,
+      },
+      {
+  key: "condition",
+  label: "Condition",
+  active: conditionActive,
+},
       {
         key: "category",
         label: "Category",
         active: catActive,
       },
-      {
-        key: "sort",
-        label: "Sort",
-        active: sortActive,
-      },
+      
       // ✅ NEW
       {
         key: "subType",
@@ -237,16 +249,8 @@ const [infoModalOpen, setInfoModalOpen] = useState(false);
         label: "Colour",
         active: colorActive,
       },
-      {
-        key: "price",
-        label: "Price",
-        active: priceActive,
-      },
-      {
-  key: "condition",
-  label: "Condition",
-  active: conditionActive,
-},
+      
+      
 
     ],
     [

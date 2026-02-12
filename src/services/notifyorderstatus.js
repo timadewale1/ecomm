@@ -4,6 +4,7 @@ import axios from "axios"; // Add axios for API call
 
 const notifyOrderStatusChange = async (
   userId,
+  vendorId,
   orderId,
   newStatus,
   vendorName,

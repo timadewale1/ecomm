@@ -46,6 +46,7 @@ const notifyFollowers = async (vendorId, productDetails) => {
       // Create an in-app notification for the user
       await addDoc(collection(db, "notifications"), {
         userId,
+         vendorId, // ✅ ADD THIS
         message: `New product added by ${vendorData.shopName}: ${productDetails.name}`,
         productLink: `/product/${productDetails.id}`,
         productId: productDetails.id,

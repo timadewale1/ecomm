@@ -626,7 +626,7 @@ const Signup = () => {
                 {/* Sign Up button */}
                 <motion.button
                   type="submit"
-                  className="glow-button w-full h-12 mt-4 bg-customOrange text-white font-medium rounded-full flex justify-center font-opensans items-center"
+                  className="glow-button w-full h-12 mt-4 bg-customOrange text-white font-medium rounded-xl flex justify-center font-opensans items-center"
                   disabled={loading}
                 >
                   {loading ? (
@@ -651,7 +651,7 @@ const Signup = () => {
                 {/* Google Sign-Up button */}
                 <motion.button
                   type="button"
-                  className="w-full h-12 mt-2 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center"
+                  className="w-full h-12 mt-2 bg-white border-2  font-opensans border-gray-100 text-black font-medium rounded-xl flex justify-center items-center"
                   onClick={handleGoogleSignUp}
                 >
                   <FcGoogle className="mr-2  text-2xl" />
@@ -659,7 +659,7 @@ const Signup = () => {
                 </motion.button>
                 <motion.button
                   type="button"
-                  className="w-full h-12 mt-2 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center"
+                  className="w-full h-12 mt-2 bg-white border-2 border-gray-100 font-opensans text-black font-medium rounded-xl flex justify-center items-center"
                   onClick={handleTwitterSignUp}
                 >
                   <FaXTwitter className="mr-2 text-xl" />

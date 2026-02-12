@@ -791,7 +791,7 @@ const Login = () => {
 
                   <motion.button
                     type="submit"
-                    className="w-full h-12 mt-4 flex items-center justify-center rounded-full bg-customOrange text-white font-semibold font-opensans  hover:bg-orange-600"
+                    className="w-full h-12 mt-4 flex items-center justify-center rounded-xl bg-customOrange text-white font-semibold font-opensans  hover:bg-orange-600"
                     disabled={!email || !password}
                   >
                     {loading ? (
@@ -818,7 +818,7 @@ const Login = () => {
                   {/* Google button: no inline spinner */}
                   <motion.button
                     type="button"
-                    className="w-full h-12 mt-2 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center disabled:opacity-60"
+                    className="w-full h-12 mt-2 bg-white border-2 font-opensans border-gray-100 text-black font-medium rounded-xl flex justify-center items-center disabled:opacity-60"
                     onClick={handleGoogleSignIn}
                     disabled={loading || socialLoading}
                   >
@@ -829,7 +829,7 @@ const Login = () => {
                   {/* Twitter button: no inline spinner */}
                   <motion.button
                     type="button"
-                    className="w-full h-12 mt-2 bg-white border-2 border-gray-300 text-black font-medium rounded-full flex justify-center items-center disabled:opacity-60"
+                    className="w-full h-12 mt-2 bg-white border-2 font-opensans border-gray-100 text-black font-medium rounded-xl flex justify-center items-center disabled:opacity-60"
                     onClick={handleTwitterSignIn}
                     disabled={loading || socialLoading}
                   >

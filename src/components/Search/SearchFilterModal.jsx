@@ -207,7 +207,7 @@ export default function SearchFilterModal({
   const [draft, setDraft] = useState(DEFAULT_DRAFT);
   const [previewTotal, setPreviewTotal] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-
+const isHalfSheet = Boolean(initialSection);
   const abortRef = useRef(null);
   const debounceRef = useRef(null);
   const subTypeOptions = useMemo(() => {
@@ -538,32 +538,46 @@ if (Array.isArray(draft.conditions) && draft.conditions.length) {
           }}
         >
           <motion.div
-            className="absolute inset-x-0 bottom-0 top-0 bg-white flex flex-col"
-            initial={{ y: "8%" }}
+            className={[
+              "absolute inset-x-0 bottom-0   bg-white flex flex-col",
+              "overflow-hidden", // important so rounded corners look clean
+              isHalfSheet
+                ? "h-[65vh] rounded-t-3xl" // ✅ half sheet
+                : "top-0",                // ✅ full screen
+            ].join(" ")}
+            initial={{ y: "100%" }}
             animate={{ y: 0 }}
-            exit={{ y: "8%" }}
+            exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 120, damping: 18 }}
           >
-            {/* Header */}
-            <div className="relative px-4 pt-4 pb-3  flex items-center">
-              {/* Close Button (Left) - Added 'z-10' to ensure it stays clickable above text if they overlap */}
-              <button
-                onClick={onClose}
-                className="p-2 -ml-2 relative z-10"
-                type="button"
-              >
-                <IoCloseOutline className="text-3xl text-black" />
-              </button>
+            {/* Optional: show a grab handle only on half sheet */}
+            {isHalfSheet && (
+              <div className="w-full flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 bg-gray-300 rounded-full" />
+              </div>
+            )}
+         <div className="relative px-4 pt-4 pb-3 flex items-center">
+  {/* Close Button */}
+  <button
+    onClick={onClose}
+    type="button"
+    className={[
+      "p-2 relative z-10",
+      isHalfSheet ? "ml-auto -mr-2" : "-ml-2", // ✅ right on half, left on full
+    ].join(" ")}
+  >
+    <IoCloseOutline className="text-3xl text-black" />
+  </button>
 
-              {/* Filter Text (Absolute Center) */}
-              <p className="absolute left-1/2 -translate-x-1/2 font-opensans font-semibold text-2xl text-black">
-                Filter
-              </p>
-            </div>
+  {/* Filter Text (Absolute Center) */}
+  <p className="absolute left-1/2 -translate-x-1/2 font-opensans font-semibold text-2xl text-black">
+    Filter
+  </p>
+</div>
 
             {/* Body */}
             {/* ✅ min-h-0 fixes footer not showing */}
-  <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
+  <div className="flex-1 min-h-0 scrollbar-hide overflow-y-auto px-4 py-3">
 
  {/* LIST MODE */}
               {!section && (

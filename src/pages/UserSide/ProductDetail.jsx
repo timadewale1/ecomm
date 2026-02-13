@@ -553,6 +553,7 @@ const [reportOpen, setReportOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
+const [variantSheetMode, setVariantSheetMode] = useState("add"); // "add" | "buy"
   const [animateCart, setAnimateCart] = useState(false);
   const [isAddedToCart, setIsAddedToCart] = useState(false);
   const [toastShown, setToastShown] = useState({
@@ -629,7 +630,10 @@ const favBusyRef = useRef(false);
   const displayPrice = effectivePrice ?? Number(product?.price || 0);
   // ✅ Buy Now (quick flow) trigger
   const [pendingBuyNow, setPendingBuyNow] = useState(false);
-
+const openVariantSheet = useCallback((mode) => {
+  setVariantSheetMode(mode);
+  setAddSheetOpen(true);
+}, []);
   // Local Favorites Context
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const favorite = isFavorite(product?.id);
@@ -739,34 +743,53 @@ const favBusyRef = useRef(false);
   const isStockpileForThisVendor = useMemo(() => {
     return isActive && vendorId === product?.vendorId;
   }, [isActive, vendorId, product?.vendorId]);
-  // useEffect(() => {
-  //   if (product) {
-  //     // Set initial images when the main product is loaded
-  //     setAllImages(
-  //       product.imageUrls?.length > 1
-  //         ? [
-  //             product.coverImageUrl,
-  //             ...product.imageUrls.filter(
-  //               (url) => url !== product.coverImageUrl
-  //             ),
-  //           ]
-  //         : [product.coverImageUrl]
-  //     );
-  //   }
-  // }, [product]);
-  // useEffect(() => {
-  //   if (product) {
-  //     // Use imageUrls directly to align with hdImageUrls
-  //     setAllImages(product.imageUrls || []);
-  //     setHdImages(
-  //       Array.isArray(product.hdImageUrls) ? product.hdImageUrls : []
-  //     );
-  //     setMainImage(product.coverImageUrl);
-  //     setSelectedImage(product.coverImageUrl);
-  //     setSubProducts(product.subProducts || []);
-  //   }
-  // }, [product]);
-  // put this near the top, right after you pull `product` from redux
+ // (optional) return path so you can come back after profile completion
+const returnTo = React.useMemo(
+  () => `${location.pathname}${location.search || ""}`,
+  [location.pathname, location.search],
+);
+
+// ✅ Same behaviour as Cart: block checkout if profile/location missing
+const ensureProfileCompleteBeforeCheckout = React.useCallback(async () => {
+  // If not signed in, let your existing auth flow handle it (don’t block here)
+  if (!currentUser?.uid) return true;
+
+  let profileComplete = userData?.profileComplete;
+  let userLoc = userData?.location;
+
+  // If we don’t have it locally, fetch from Firestore like Cart does
+  if (profileComplete === undefined || userLoc === undefined) {
+    try {
+      const userSnap = await getDoc(doc(db, "users", currentUser.uid));
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        profileComplete = data.profileComplete;
+        userLoc = data.location;
+      }
+    } catch (err) {
+      console.error("Error fetching user profile from Firestore:", err);
+      toast.error("Unable to proceed with checkout at this time.");
+      return false;
+    }
+  }
+
+  if (!profileComplete) {
+    toast.error("Please complete your profile before proceeding to checkout.");
+    navigate("/profile?incomplete=true", { state: { returnTo } });
+    return false;
+  }
+
+  if (
+    typeof userLoc?.lat !== "number" ||
+    typeof userLoc?.lng !== "number"
+  ) {
+    toast.error("Please update your delivery address before checking out.");
+    navigate("/profile?incomplete=true", { state: { returnTo } });
+    return false;
+  }
+
+  return true;
+}, [currentUser?.uid, userData, db, navigate, returnTo]);
   const isFashion = product?.isFashion; // boolean – AddProduct already writes it
   const hasVariants = Boolean(
     isFashion &&
@@ -1365,22 +1388,31 @@ useEffect(() => {
     };
   }, []);
   const swiperRef = useRef(null);
-  useEffect(() => {
-    if (!pendingBuyNow) return;
-    if (!(quickMode && product?.vendorId === basketVendorId)) return;
+useEffect(() => {
+  if (!pendingBuyNow) return;
+  if (!(quickMode && product?.vendorId === basketVendorId)) return;
 
-    // wait until cart count is non-zero for this vendor
-    if (checkoutCount <= 0) return;
+  // wait until cart count is non-zero for this vendor
+  if (checkoutCount <= 0) return;
+
+  (async () => {
+    const ok = await ensureProfileCompleteBeforeCheckout();
+    if (!ok) {
+      setPendingBuyNow(false);
+      return;
+    }
 
     basketRef.current?.openCheckoutAuth?.();
     setPendingBuyNow(false);
-  }, [
-    pendingBuyNow,
-    quickMode,
-    product?.vendorId,
-    basketVendorId,
-    checkoutCount,
-  ]);
+  })();
+}, [
+  pendingBuyNow,
+  quickMode,
+  product?.vendorId,
+  basketVendorId,
+  checkoutCount,
+  ensureProfileCompleteBeforeCheckout,
+]);
   const handleAddToCart = useCallback(
     (override = {}) => {
       // ✅ ADDED: allow modal (or any caller) to pass values immediately
@@ -2085,87 +2117,110 @@ useEffect(() => {
     setShowDisclaimerModal(true);
   };
 
-  const handleBuyNow = useCallback(() => {
-    if (!product) return;
+const handleBuyNow = useCallback(async (override = {}) => {
+  if (!product) return;
 
-    // ✅ Require selection ONLY when variants exist (same as your UI)
-    if (hasVariants && !selectedSubProduct) {
-      if (!selectedSize) return toast.error("Please select a size first!");
-      if (!selectedColor) return toast.error("Please select a color first!");
-    }
+  const finalSize = override.size ?? selectedSize;
+  const finalColor = override.color ?? selectedColor;
+  const finalQty = override.qty ?? quantity;
+  const finalImage = override.imageUrl ?? selectedImage;
 
-    // ✅ stock guard (maxQty already matches your selection rules)
-    const stock = Number(maxQty || 0);
-    if (stock <= 0) return toast.error("This item is out of stock.");
-    if (quantity > stock)
-      return toast.error("Selected quantity exceeds stock availability!");
+  // ✅ Require selection ONLY when variants exist (same as your UI)
+  if (hasVariants && !selectedSubProduct) {
+    if (!finalSize) return toast.error("Please select a size first!");
+    if (!finalColor) return toast.error("Please select a color first!");
+  }
 
-    // ✅ build cart payload (same as Add to Cart)
-    const productToAdd = {
-      ...product,
-      quantity,
-      selectedSize,
-      selectedColor,
-      selectedImageUrl: selectedImage,
-      selectedSubProduct,
-      subProductId: selectedSubProduct ? selectedSubProduct.subProductId : null,
-    };
+  // ✅ stock guard (compute from the FINAL selection, not maxQty)
+  let stock = 0;
 
-    const productKey = buildCartKey({
+  if (selectedSubProduct) {
+    stock = Number(selectedSubProduct.stock || 0);
+  } else if (hasVariants) {
+    const v = findVariant({ variants }, finalSize, finalColor);
+    if (!v) return toast.error("Selected variant is not available!");
+    stock = Number(v?.stock || 0);
+  } else {
+    stock = Number(product?.stockQuantity ?? product?.stock ?? 0);
+  }
+
+  if (stock <= 0) return toast.error("This item is out of stock.");
+  if (finalQty > stock)
+    return toast.error("Selected quantity exceeds stock availability!");
+
+  // ✅ build cart payload (same as Add to Cart)
+  const productToAdd = {
+    ...product,
+    quantity: finalQty,
+    selectedSize: finalSize,
+    selectedColor: finalColor,
+    selectedImageUrl: finalImage,
+    selectedSubProduct,
+    subProductId: selectedSubProduct ? selectedSubProduct.subProductId : null,
+  };
+
+  const productKey = buildCartKey({
+    vendorId: product.vendorId,
+    productId: product.id,
+    isFashion,
+    selectedSize: finalSize,
+    selectedColor: finalColor,
+    subProductId: selectedSubProduct?.subProductId,
+  });
+
+  const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
+
+  if (existingCartItem) {
+    dispatch(addToCart({ ...existingCartItem, quantity: finalQty }, true));
+  } else {
+    dispatch(addToCart(productToAdd, true));
+  }
+
+  setIsAddedToCart(true);
+
+  track(
+    "checkout_started",
+    {
+      surface: "product_detail",
       vendorId: product.vendorId,
       productId: product.id,
-      isFashion,
-      selectedSize,
-      selectedColor,
-      subProductId: selectedSubProduct?.subProductId,
-    });
+      qty: finalQty,
+      intent: "buy_now",
+    },
+    { surface: "product_detail" },
+  );
 
-    const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
+  // ✅ PROFILE COMPLETENESS GUARD (same as Cart)
+  const ok = await ensureProfileCompleteBeforeCheckout();
+  if (!ok) return;
 
-    if (existingCartItem) {
-      dispatch(addToCart({ ...existingCartItem, quantity }, true));
-    } else {
-      dispatch(addToCart(productToAdd, true));
-    }
+  // ✅ QUICK MODE: use StoreBasket flow (auth + delivery)
+  if (quickMode && product.vendorId === basketVendorId) {
+    setPendingBuyNow(true);
+    return;
+  }
 
-    setIsAddedToCart(true);
-    track(
-      "checkout_started",
-      {
-        surface: "product_detail",
-        vendorId: product.vendorId,
-        productId: product.id,
-        qty: quantity,
-        intent: "buy_now",
-      },
-      { surface: "product_detail" },
-    );
-    // ✅ QUICK MODE: use StoreBasket flow (auth + delivery)
-    if (quickMode && product.vendorId === basketVendorId) {
-      setPendingBuyNow(true);
-      return;
-    }
-
-    // ✅ NORMAL MODE: go straight to vendor checkout
-    navigate(`/newcheckout/${product.vendorId}`, {
-      state: { fromProductDetail: true, buyNow: true },
-    });
-  }, [
-    product,
-    quantity,
-    selectedSize,
-    selectedColor,
-    selectedImage,
-    selectedSubProduct,
-    cart,
-    dispatch,
-    navigate,
-    quickMode,
-    basketVendorId,
-    hasVariants,
-    maxQty,
-    isFashion,
-  ]);
+  // ✅ NORMAL MODE: go straight to vendor checkout
+  navigate(`/newcheckout/${product.vendorId}`, {
+    state: { fromProductDetail: true, buyNow: true },
+  });
+}, [
+  product,
+  quantity,
+  selectedSize,
+  selectedColor,
+  selectedImage,
+  selectedSubProduct,
+  cart,
+  dispatch,
+  navigate,
+  quickMode,
+  basketVendorId,
+  hasVariants,
+  isFashion,
+  variants,
+  ensureProfileCompleteBeforeCheckout,
+]);
   if (loading) {
     return <Loading />;
   }
@@ -2452,50 +2507,53 @@ const requestHd = async (idx) => {
                 }}
               >
                 {allImages.map((image, index) => (
-                  <SwiperSlide key={index}>
-                    <div
-                      className="relative w-full h-full"
-                      onDoubleClick={() => requestHd(index)}
-                      onTouchEnd={makeDoubleTap(() => requestHd(index))}
-                    >
-                      <SafeImg
-                        src={
-                          loadedHd.has(index) && hdImages[index]
-                            ? hdImages[index]
-                            : image
-                        }
-                        alt={`${product.name} image ${index + 1}`}
-                        className="object-cover rounded-xl w-full h-full"
-                      />
+                <SwiperSlide key={index}>
+  <div
+    className="relative w-full h-full"
+    onDoubleClick={() => requestHd(index)}
+    onTouchEnd={makeDoubleTap(() => requestHd(index))}
+  >
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={
+          loadedHd.has(index) && hdImages[index]
+            ? `hd-${hdImages[index]}`
+            : `sd-${image}`
+        }
+        initial={{ filter: "blur(0px)", opacity: 0.8 }}
+        animate={{
+          filter: loadingHd.has(index) ? "blur(2px)" : "blur(0px)",
+          opacity: 1,
+        }}
+        transition={{ duration: 0.5 }}
+        className="w-full h-full"
+      >
+        <SafeImg
+          src={loadedHd.has(index) && hdImages[index] ? hdImages[index] : image}
+          alt={`${product.name} image ${index + 1}`}
+          className="object-cover rounded-xl w-full h-full"
+        />
+      </motion.div>
+    </AnimatePresence>
 
-                      {/* HD Loader */}
-                      {loadingHd.has(index) && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
-                          <Oval
-                            height={50}
-                            width={50}
-                            color="#f9531e"
-                            secondaryColor="rgba(0,0,0,0.2)"
-                            strokeWidth={4}
-                            ariaLabel="loading"
-                          />
-                        </div>
-                      )}
+    {/* THE COOL LOADING EFFECT (same as single image fallback) */}
+    <AnimatePresence>
+      {loadingHd.has(index) && (
+        <motion.div
+          key={`scanner-${index}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, transition: { duration: 0.3 } }}
+        >
+          <ScanningEffect />
+        </motion.div>
+      )}
+    </AnimatePresence>
 
-                      {/* HD Badge */}
-                      {loadedHd.has(index) && hdImages[index] && (
-                        <div className="absolute top-6 left-2 z-10">
-                          <BsBadgeHdFill
-                            className="text-white bg-black bg-opacity-40 p-1 rounded-full text-xl"
-                            title="HD image"
-                          />
-                        </div>
-                      )}
-
-                      {/* Hint Overlay (First slide only) */}
-                      {showHdHint && index === 0 && <HdHintOverlay />}
-                    </div>
-                  </SwiperSlide>
+    {/* Hint Overlay (First slide only) */}
+    {showHdHint && index === 0 && <HdHintOverlay />}
+  </div>
+</SwiperSlide>
                 ))}
               </Swiper>
 
@@ -3046,41 +3104,47 @@ const requestHd = async (idx) => {
               </>
             )}
           </AnimatePresence>
-          <AddToCartVariantSheet
-            open={addSheetOpen}
-            onClose={() => setAddSheetOpen(false)}
-            product={product}
-            variants={variants}
-            imageUrl={product?.coverImageUrl || selectedImage}
-            title="Add to Cart"
-            priceText={NGN(displayPrice)}
-            prevPriceText={
-              product?.discount?.initialPrice &&
-              product?.discount?.discountType !== "personal-freebies"
-                ? NGN(Number(product.discount.initialPrice))
-                : effectivePrice
-                  ? NGN(Number(product.price || 0))
-                  : ""
-            }
-            initialSwatchKey={selectedSwatchKey}
-            initialSize={selectedSize}
-            initialRawColor={selectedColor}
-            initialQty={quantity}
-            onConfirm={({ swatchKey, size, rawColor, qty }) => {
-              // keep your UI in sync (robust)
-              setSelectedSwatchKey(swatchKey);
-              setSelectedSize(size);
-              setSelectedColor(rawColor);
-              setQuantity(qty);
+        <AddToCartVariantSheet
+  open={addSheetOpen}
+  onClose={() => setAddSheetOpen(false)}
+  product={product}
+  variants={variants}
+  imageUrl={product?.coverImageUrl || selectedImage}
+  title={variantSheetMode === "buy" ? "Buy Now" : "Add to Cart"}
+  confirmLabel={variantSheetMode === "buy" ? "Buy Now" : "Add to Cart"}
+  priceText={NGN(displayPrice)}
+  prevPriceText={
+    product?.discount?.initialPrice &&
+    product?.discount?.discountType !== "personal-freebies"
+      ? NGN(Number(product.discount.initialPrice))
+      : effectivePrice
+        ? NGN(Number(product.price || 0))
+        : ""
+  }
+  initialSwatchKey={selectedSwatchKey}
+  initialSize={selectedSize}
+  initialRawColor={selectedColor}
+  initialQty={quantity}
+  onConfirm={async ({ swatchKey, size, rawColor, qty }) => {
+    // keep your UI in sync
+    setSelectedSwatchKey(swatchKey);
+    setSelectedSize(size);
+    setSelectedColor(rawColor);
+    setQuantity(qty);
 
-              // call same Add To Cart behaviour
-              // IMPORTANT: this will work best if handleAddToCart can accept overrides.
-              handleAddToCart({ size, color: rawColor, qty });
+    // close sheet immediately
+    setAddSheetOpen(false);
 
-              setAnimateCart(true);
-              setAddSheetOpen(false);
-            }}
-          />
+    if (variantSheetMode === "buy") {
+      // ✅ go through BUY NOW flow using overrides
+      await handleBuyNow({ size, color: rawColor, qty, imageUrl: selectedImage });
+    } else {
+      // ✅ normal add to cart
+      handleAddToCart({ size, color: rawColor, qty });
+      setAnimateCart(true);
+    }
+  }}
+/>
 
           <Modal
             isOpen={isOfferInfoOpen}
@@ -3334,7 +3398,7 @@ const requestHd = async (idx) => {
                   !selectedSubProduct &&
                   (!selectedSize || !selectedColor);
 
-                if (needsModal) return setAddSheetOpen(true);
+                if (needsModal) return openVariantSheet("add");
 
                 // Normal behaviour
                 handleAddToCart();
@@ -3348,6 +3412,13 @@ const requestHd = async (idx) => {
             {/* Buy Now (UNCHANGED) */}
             <button
               onClick={() => {
+                  const needsModal =
+      hasVariants &&
+      !selectedSubProduct &&
+      (!selectedSize || !selectedColor);
+
+    if (needsModal) return openVariantSheet("buy");
+
                 handleBuyNow();
               }}
               className="flex-1 h-12 rounded-lg bg-customOrange text-white font-opensans font-medium shadow-sm active:scale-[0.98] transition-transform"

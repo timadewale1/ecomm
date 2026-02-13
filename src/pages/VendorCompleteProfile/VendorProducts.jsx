@@ -1373,7 +1373,7 @@ const VendorProducts = () => {
       {!picking && (
         <button
           onClick={openAddProductModal}
-          className={`fixed bottom-24 right-5 flex justify-center items-center ${
+          className={`fixed bottom-28 right-5 flex justify-center items-center ${
             vendorData?.isApproved
               ? "bg-customOrange"
               : "bg-customOrange opacity-35 cursor-not-allowed"

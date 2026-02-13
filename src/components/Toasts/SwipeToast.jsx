@@ -52,7 +52,7 @@ export default function SwipeToast({ t }) {
         onPointerUp={end}
         onPointerCancel={end}
         onClick={() => toast.dismiss(t.id)}
-        className="flex items-center bg-black/80 backdrop-blur-md shadow-lg select-none overflow-hidden rounded-2xl"
+        className="flex items-stretch bg-black/80 backdrop-blur-md shadow-lg select-none overflow-hidden rounded-2xl"
         style={{
           transform: `translateX(${dx}px)`,
           opacity,
@@ -66,7 +66,7 @@ export default function SwipeToast({ t }) {
         aria-live="polite"
       >
         {/* left icon block */}
-        <div className="h-16 w-16 flex items-center justify-center rounded-l-2xl shrink-0 bg-white/10">
+        <div className="w-16 flex items-center justify-center rounded-l-2xl shrink-0 bg-white/10">
           <span className="text-xl text-white">
             <ToastIcon toast={t} />
           </span>
@@ -79,14 +79,14 @@ export default function SwipeToast({ t }) {
           </p>
 
           {typeof message === "string" ? (
-            <p className="text-xs font-opensans mt-1 text-white/70 truncate max-w-[260px]">
-              {message}
-            </p>
-          ) : (
-            <div className="text-xs font-opensans mt-1 text-white/70 truncate max-w-[260px]">
-              {message}
-            </div>
-          )}
+  <p className="text-xs font-opensans mt-1 text-white/70 whitespace-normal break-words">
+    {message}
+  </p>
+) : (
+  <div className="text-xs font-opensans mt-1 text-white/70 whitespace-normal break-words">
+    {message}
+  </div>
+)}
         </div>
       </div>
     </div>

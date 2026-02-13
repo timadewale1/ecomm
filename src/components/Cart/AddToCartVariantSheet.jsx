@@ -21,7 +21,7 @@ export default function AddToCartVariantSheet({
 
   product,
   variants = [],
-
+ confirmLabel = "Add to Cart",
   // display
   title = "Add to Cart",
   imageUrl,
@@ -346,14 +346,14 @@ export default function AddToCartVariantSheet({
               {/* bottom button like screenshot */}
               <div className="mt-6 pb-5">
                 <button
-                  onClick={handleConfirm}
-                  disabled={!canSubmit}
-                  className={`w-full h-12 rounded-xl font-opensans font-semibold transition
-                    ${canSubmit ? "bg-customOrange text-white" : "bg-gray-200 text-gray-500"}
-                  `}
-                >
-                  Add to Cart
-                </button>
+  onClick={handleConfirm}
+  disabled={!canSubmit}
+  className={`w-full h-12 rounded-xl font-opensans font-semibold transition
+    ${canSubmit ? "bg-customOrange text-white" : "bg-gray-200 text-gray-500"}
+  `}
+>
+  {confirmLabel}
+</button>
               </div>
             </div>
           </motion.div>

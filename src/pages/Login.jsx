@@ -719,7 +719,7 @@ const Login = () => {
       <section>
         <Container>
           <Row>
-            <div className="px-3 md:hidden">
+            <div className="px-3 ">
               <Link to={-1}>
                 <IoCloseOutline className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>

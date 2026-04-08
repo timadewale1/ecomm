@@ -113,21 +113,26 @@ const Layout = () => {
 
   const isVendorPath = vendorPaths.includes(location.pathname);
 
+  // ... (keep your imports and logic same until the return)
+
   return (
     <NavigationProvider>
       <VendorNavigationProvider>
         {showInstallModal && isPWA && (
           <PWAInstallModal onClose={() => setShowInstallModal(false)} />
         )}
-        {isMobile ? (
-          <>
+
+        {/* This wrapper creates the black background "padding" */}
+        <div className="ipad-wrapper">
+          {/* This wrapper constrains the app width */}
+          <div className="app-container">
             {showBanner && (
               <NotificationPermissionBanner
                 onEnable={handleEnableNotifs}
                 enabling={enabling}
               />
             )}
-            <div className="relative">
+            <div className="relative content-area">
               <ScrollToTop />
               <Routers />
             </div>
@@ -137,22 +142,8 @@ const Layout = () => {
               ) : (
                 <BottomBar isSearchFocused={false} />
               ))}
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center w-full h-96 mt-20">
-            <Lottie
-              className="w-full h-full"
-              animationData={phoneTransition}
-              loop={true}
-              autoplay={true}
-            />
-            <div className="text-center text-xl font-opensans p-20">
-              We're currently optimizing our website for this screen size. For
-              the best experience, we recommend accessing it on your mobile
-              device.✨
-            </div>
           </div>
-        )}
+        </div>
       </VendorNavigationProvider>
     </NavigationProvider>
   );

@@ -581,85 +581,87 @@ const VendorDashboard = () => {
           </div>
         </div>
         <TipChat />
-        <div className="flex flex-col justify-center translate-y-4">
-          <div>
-            <p className="text-black text-lg text-start font-semibold mb-3">
-              Overview
-            </p>
-            <div className="flex justify-center">
-              <div className="grid grid-cols-2 gap-2 justify-center">
-                <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
-                  <div className="flex justify-between items-center">
-                    <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
-                      <BsBoxSeam className="text-sm text-customOrange" />
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-customRichBrown font-medium">
-                        Total Orders
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-lg font-semibold text-end">
-                    {totalOrders}
-                  </div>
+    <div className="flex flex-col justify-center translate-y-4">
+      <div>
+        <p className="text-black text-lg text-start font-semibold mb-3">
+          Overview
+        </p>
+        {/* Swapped flex-center for a full width container */}
+        <div className="w-full"> 
+          <div className="grid grid-cols-2 gap-3 w-full">
+            
+            {/* CARD 1: Total Orders */}
+            <div className="flex flex-col justify-between w-full min-h-[5.5rem] rounded-xl bg-customSoftGray p-3">
+              <div className="flex justify-between items-start gap-2">
+                <div className="rounded-md bg-white w-7 h-7 min-w-[28px] flex justify-center items-center shrink-0">
+                  <BsBoxSeam className="text-sm text-customOrange" />
                 </div>
-
-                <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
-                  <div className="flex justify-between items-center">
-                    <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
-                      <BsBoxSeam className="text-sm text-customOrange" />
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-customRichBrown font-medium">
-                        Total Products
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-lg font-semibold text-end">
-                    {totalProducts}
-                  </div>
-                </div>
-
-                <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
-                  <div className="flex justify-between items-center">
-                    <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
-                      <BsBoxSeam className="text-sm text-customOrange" />
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-customRichBrown font-medium">
-                        Unfulfilled Orders
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-lg font-semibold text-end">
-                    {totalUnfulfilledOrders}
-                  </div>
-                </div>
-
-                <div className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2">
-                  <div className="flex justify-between items-center">
-                    <div className="rounded-md bg-white w-7 h-7 flex justify-center items-center">
-                      <BsBoxSeam className="text-sm text-customOrange" />
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-customRichBrown font-medium">
-                        Fulfilled Orders
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-lg font-semibold text-end">
-                    {totalFulfilledOrders}
-                  </div>
+                <div className="text-right">
+                  <p className="text-xs text-customRichBrown font-medium leading-tight">
+                    Total Orders
+                  </p>
                 </div>
               </div>
+              <div className="text-lg font-semibold text-end mt-2">
+                {totalOrders}
+              </div>
             </div>
+
+            {/* CARD 2: Total Products */}
+            <div className="flex flex-col justify-between w-full min-h-[5.5rem] rounded-xl bg-customSoftGray p-3">
+              <div className="flex justify-between items-start gap-2">
+                <div className="rounded-md bg-white w-7 h-7 min-w-[28px] flex justify-center items-center shrink-0">
+                  <BsBoxSeam className="text-sm text-customOrange" />
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-customRichBrown font-medium leading-tight">
+                    Total Products
+                  </p>
+                </div>
+              </div>
+              <div className="text-lg font-semibold text-end mt-2">
+                {totalProducts}
+              </div>
+            </div>
+
+            {/* CARD 3: Unfulfilled Orders */}
+            <div className="flex flex-col justify-between w-full min-h-[5.5rem] rounded-xl bg-customSoftGray p-3">
+              <div className="flex justify-between items-start gap-2">
+                <div className="rounded-md bg-white w-7 h-7 min-w-[28px] flex justify-center items-center shrink-0">
+                  <BsBoxSeam className="text-sm text-customOrange" />
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-customRichBrown font-medium leading-tight">
+                    Unfulfilled Orders
+                  </p>
+                </div>
+              </div>
+              <div className="text-lg font-semibold text-end mt-2">
+                {totalUnfulfilledOrders}
+              </div>
+            </div>
+
+            {/* CARD 4: Fulfilled Orders */}
+            <div className="flex flex-col justify-between w-full min-h-[5.5rem] rounded-xl bg-customSoftGray p-3">
+              <div className="flex justify-between items-start gap-2">
+                <div className="rounded-md bg-white w-7 h-7 min-w-[28px] flex justify-center items-center shrink-0">
+                  <BsBoxSeam className="text-sm text-customOrange" />
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-customRichBrown font-medium leading-tight">
+                    Fulfilled Orders
+                  </p>
+                </div>
+              </div>
+              <div className="text-lg font-semibold text-end mt-2">
+                {totalFulfilledOrders}
+              </div>
+            </div>
+
           </div>
         </div>
-
+      </div>
+    </div>
         <div className="flex flex-col justify-center translate-y-8 ">
           <div className="flex justify-between mb-3">
             <p className="text-black text-lg font-semibold">Recent activity</p>

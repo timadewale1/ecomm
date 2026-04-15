@@ -259,63 +259,7 @@ li::marker {
 .animate-leave {
   animation: toast-leave 180ms ease-in both;
 }
-/* Container that fills the whole iPad screen with black */
-.ipad-wrapper {
-  background-color: #000000; /* Black padding color */
-  min-height: 100vh;
-  width: 100%;
-  display: flex;
-  
-  justify-content: center;
-  align-items: center;
-}
 
-/* The actual "Phone Screen" */
-.app-container {
-  width: 100%;
-  max-width: 430px; /* Standard large phone width */
-  height: 100vh;
-  background-color: #ffffff; /* App background */
-  
-  /* ----------------------------------------------------- */
-  /* THE MAGIC FIX: Traps all position: fixed elements!    */
-  /* ----------------------------------------------------- */
-  transform: translateZ(0); 
-  
-  position: relative;
-  overflow-x: hidden;
-  overflow-y: hidden; /* Prevent body scroll from leaking */
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 0 50px rgba(0,0,0,0.5); 
-}
-/* Ensure content scrolls inside the container */
-.content-area {
-  flex: 1;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* If you want it to look like a floating phone on very large screens */
-@media (min-height: 900px) and (min-width: 768px) {
-  .app-container {
-    height: 90vh;
-    border-radius: 30px; /* Rounded phone corners */
-    margin: 20px 0;
-  }
-}
-
-/* On small phones, keep it full screen */
-@media (max-width: 575px) {
-  .ipad-wrapper {
-    background-color: transparent;
-  }
-  .app-container {
-    max-width: 100%;
-    height: 100vh;
-    border-radius: 0;
-  }
-}
 .modal-content-stockpile {
   position: fixed;
   top: auto;          /* Disable top positioning */

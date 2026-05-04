@@ -796,7 +796,6 @@ const Cart = () => {
                     <div
                       key={vendorId}
                       className="bg-white rounded-lg py-2 mb-4 cursor-pointer"
-                      onClick={() => handleCartCardClick(vendorId)}
                     >
                       <div className="flex gap-3">
                         {/* LEFT COLUMN: Image Area */}
@@ -805,9 +804,15 @@ const Cart = () => {
                           className={`relative w-[110px] h-[140px] flex-shrink-0 rounded-lg overflow-hidden ${
                             productCount > 1 ? "cursor-pointer" : ""
                           }`}
-                          onClick={() =>
-                            productCount > 1 && handleViewSelection(vendorId)
-                          }
+                          onClick={() => {
+                            if (productCount > 1) {
+                              handleViewSelection(vendorId);
+                            } else {
+                              const pid =
+                                firstProduct?.id || firstProduct?.productId;
+                              if (pid) openProduct(pid);
+                            }
+                          }}
                         >
                           <IkImage
                             src={firstProduct.selectedImageUrl}
@@ -838,7 +843,18 @@ const Cart = () => {
                         <div className="flex flex-col flex-1 justify-between py-1">
                           {/* Top Row: Title & Note Icon */}
                           <div className="flex justify-between items-start gap-2">
-                            <h3 className="font-opensans text-sm font-medium text-gray-800 leading-tight line-clamp-2">
+                            <h3
+                              onClick={() => {
+                                if (productCount > 1) {
+                                  handleViewSelection(vendorId);
+                                } else {
+                                  const pid =
+                                    firstProduct?.id || firstProduct?.productId;
+                                  if (pid) openProduct(pid);
+                                }
+                              }}
+                              className="font-opensans text-sm font-medium text-gray-800 leading-tight line-clamp-2"
+                            >
                               {productCount > 1
                                 ? (() => {
                                     const names = Object.values(
@@ -852,27 +868,34 @@ const Cart = () => {
                             </h3>
 
                             {/* Note Icon (Replaces View Selection) */}
-                      <button
-  type="button"
-  onClick={(e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setSelectedVendorId(vendorId);
-    setIsNoteModalOpen(true);
-  }}
-  className="relative text-gray-500 hover:text-gray-700 -mt-1"
-  aria-label="Add note for vendor"
->
-  <TfiCommentAlt size={16} />
-  {hasVendorNote(vendorId) && (
-    <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
-  )}
-</button>
-
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setSelectedVendorId(vendorId);
+                                setIsNoteModalOpen(true);
+                              }}
+                              className="relative text-gray-500 hover:text-gray-700 -mt-1"
+                              aria-label="Add note for vendor"
+                            >
+                              <TfiCommentAlt size={16} />
+                              {hasVendorNote(vendorId) && (
+                                <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+                              )}
+                            </button>
                           </div>
 
                           {/* Middle Section: Price & Specs */}
-                          <div>
+                          <div onClick={() => {
+                                if (productCount > 1) {
+                                  handleViewSelection(vendorId);
+                                } else {
+                                  const pid =
+                                    firstProduct?.id || firstProduct?.productId;
+                                  if (pid) openProduct(pid);
+                                }
+                              }}>
                             {/* Price */}
                             <p className="font-opensans text-md text-black font-semibold">
                               {NGN(getEffectiveUnitPrice(firstProduct))}

@@ -22,13 +22,25 @@ const Layout = () => {
     currentUserData
   );
   const [showInstallModal, setShowInstallModal] = useState(true);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 575);
+const [isMobile, setIsMobile] = useState(() =>
+  window.matchMedia("(max-width: 574px)").matches
+);
 
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 575);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+useEffect(() => {
+  const mediaQuery = window.matchMedia("(max-width: 574px)");
+
+  const handleChange = (event) => {
+    setIsMobile(event.matches);
+  };
+
+  setIsMobile(mediaQuery.matches);
+
+  mediaQuery.addEventListener("change", handleChange);
+
+  return () => {
+    mediaQuery.removeEventListener("change", handleChange);
+  };
+}, []);
 
   const noBottomBarPaths = [
     "/login",

@@ -1,5 +1,7 @@
 .vendor-detail-page { height: 100dvh; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: env(safe-area-inset-bottom,0px); background: #fff; color: #111827; font-family: "Satoshi",sans-serif; -webkit-overflow-scrolling: touch; }
-.vendor-detail-page>.app-page-header { border-bottom:1px solid #f3f4f6; background:rgba(255,255,255,.97); }
+.vendor-detail-page>.app-page-header { border-bottom:1px solid #f3f4f6; background:#fff; }
+.native-ios .vendor-detail-page>.app-page-header.is-sticky,
+.native-android .vendor-detail-page>.app-page-header.is-sticky { top:0 !important; }
 .vendor-detail-content { padding: 6px 16px 24px; }
 .vendor-detail-content section { padding: 22px 0 12px; }
 .vendor-detail-content h2 { margin: 0 0 8px; font-size: 18px; font-weight: 650; }

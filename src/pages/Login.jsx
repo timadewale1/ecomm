@@ -4,12 +4,8 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { IoCloseOutline } from "react-icons/io5";
 import {
-  GoogleAuthProvider,
-  signInWithPopup,
   EmailAuthProvider,
-  getAdditionalUserInfo,
   fetchSignInMethodsForEmail,
-  TwitterAuthProvider,
   linkWithCredential,
   sendEmailVerification,
 } from "firebase/auth";
@@ -29,10 +25,11 @@ import { MdOutlineCancel, MdOutlineEmail, MdOutlineLock } from "react-icons/md";
 import toast from "react-hot-toast";
 import LoginAnimation from "../components/LoginAssets/LoginAnimation";
 import Typewriter from "typewriter-effect";
-import { FaAngleLeft, FaXTwitter } from "react-icons/fa6";
+import { FaAngleLeft, FaApple, FaXTwitter } from "react-icons/fa6";
 import { FcGoogle } from "react-icons/fc";
 import { useDispatch } from "react-redux";
-import { setCart } from "../redux/actions/action";
+import { fetchAndMergeCart } from "../services/cartMerge";
+import { stageAnonymousCartAsGuest } from "../services/cartPersistence";
 import { RotatingLines } from "react-loader-spinner";
 import { GoChevronLeft } from "react-icons/go";
 import { usePostHog } from "posthog-js/react";
@@ -43,6 +40,27 @@ import { httpsCallable } from "firebase/functions";
 import SEO from "../components/Helmet/SEO";
 import LinkAccountModal from "../components/QuickMode/LinkAccountModal";
 import VendorRedirectModal from "../components/layout/VendorRedirectModal";
+import { appHaptics } from "../services/haptics";
+import { useAppExperience } from "../components/Context/AppExperienceContext";
+import { APP_EXPERIENCE } from "../services/appExperience";
+import { authDestinationFromState } from "../services/authIntent";
+import {
+  authenticateBuyerWithProvider,
+  socialAuthErrorMessage,
+} from "../services/buyerSocialAuth";
+import { isNativeApp } from "../services/platform";
+
+const withLoginTimeout = (promise, label, timeoutMs = 15000) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => {
+        const error = new Error(`${label} timed out`);
+        error.code = "app/login-timeout";
+        reject(error);
+      }, timeoutMs),
+    ),
+  ]);
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -58,6 +76,9 @@ const Login = () => {
   const location = useLocation();
   const dispatch = useDispatch();
   const posthog = usePostHog();
+  const { selectExperience } = useAppExperience();
+  const showAppleAuth =
+    isNativeApp || import.meta.env.VITE_ENABLE_APPLE_WEB_AUTH === "true";
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
@@ -81,63 +102,15 @@ const Login = () => {
     });
   };
 
-  const syncCartWithFirestore = async (userId) => {
+  const fetchCartFromFirestore = async (userId) => {
     try {
-      const localCart = JSON.parse(localStorage.getItem("cart")) || {};
-      console.log("Syncing local cart to Firestore: ", localCart);
-      await setDoc(doc(db, "carts", userId), { cart: localCart });
+      return await fetchAndMergeCart(db, userId, dispatch);
     } catch (error) {
-      console.error("Error syncing cart with Firestore: ", error);
-    }
-  };
-
-  const mergeCarts = (cart1, cart2) => {
-    const mergedCart = { ...cart1 };
-
-    for (const vendorId in cart2) {
-      if (mergedCart[vendorId]) {
-        const vendorCart1 = mergedCart[vendorId].products;
-        const vendorCart2 = cart2[vendorId].products;
-
-        for (const productKey in vendorCart2) {
-          const newProduct = vendorCart2[productKey];
-
-          const productAlreadyExists = Object.values(vendorCart1).some(
-            (existingProduct) =>
-              existingProduct.productId === newProduct.productId &&
-              existingProduct.color === newProduct.color &&
-              existingProduct.size === newProduct.size &&
-              existingProduct.variation === newProduct.variation,
-          );
-
-          if (!productAlreadyExists) {
-            vendorCart1[productKey] = newProduct;
-          }
-        }
-      } else {
-        mergedCart[vendorId] = cart2[vendorId];
-      }
-    }
-
-    return mergedCart;
-  };
-
-  const fetchCartFromFirestore = async (userId, localCart = {}) => {
-    try {
-      const cartDoc = await getDoc(doc(db, "carts", userId));
-      let firestoreCart = {};
-      if (cartDoc.exists()) {
-        firestoreCart = cartDoc.data().cart;
-        console.log("Fetched cart from Firestore: ", firestoreCart);
-      } else {
-        console.log("No cart found in Firestore, initializing empty cart");
-      }
-      const mergedCart = mergeCarts(firestoreCart, localCart);
-      console.log("Merged cart: ", mergedCart);
-      await setDoc(doc(db, "carts", userId), { cart: mergedCart });
-      dispatch(setCart(mergedCart));
-    } catch (error) {
-      console.error("Error fetching or merging cart from Firestore: ", error);
+      // Authentication succeeded independently of cart persistence. Keep the
+      // retry silent so a background cart write cannot masquerade as a login
+      // failure or produce a sync toast.
+      console.warn("Cart import will retry after login:", error);
+      return null;
     }
   };
   const linkAnonymousAccount = async ({ email, password }) => {
@@ -263,15 +236,36 @@ const Login = () => {
       return toast.error("Please enter your password.");
     }
 
+    void appHaptics.medium();
     setLoading(true);
 
     try {
       posthog?.capture("login_attempted", { method: "email" });
       /* ── 1.  Firebase Auth sign-in  (edge POP ≈ 250 ms) ────────── */
-      const { user } = await signInWithEmailAndPassword(auth, email, password);
+      const anonymousUid = auth.currentUser?.isAnonymous
+        ? auth.currentUser.uid
+        : null;
+      const { user } = await withLoginTimeout(
+        signInWithEmailAndPassword(auth, email, password),
+        "Email authentication",
+      );
+
+      if (anonymousUid && anonymousUid !== user.uid) {
+        try {
+          stageAnonymousCartAsGuest(anonymousUid);
+        } catch (cartHandoffError) {
+          console.error(
+            "Anonymous cart handoff after email sign-in failed:",
+            cartHandoffError,
+          );
+        }
+      }
 
       /* ── 2.  Firestore doc — role / deactivation check ─────────── */
-      const snap = await getDoc(doc(db, "users", user.uid));
+      const snap = await withLoginTimeout(
+        getDoc(doc(db, "users", user.uid)),
+        "Account lookup",
+      );
       const uData = snap.exists() ? snap.data() : {};
 
       if (uData.isDeactivated) {
@@ -289,46 +283,37 @@ const Login = () => {
         return toast.error("This email is already used for a Vendor account!");
       }
 
-      /* ── 3.  Success → greet & navigate immediately ────────────── */
+      /* ── 3.  Verification must finish before buyer cart import ─── */
+      if (!user.emailVerified) {
+        try {
+          const sendMail = httpsCallable(functions, "sendUserVerificationEmail");
+          await sendMail({
+            email: user.email,
+            username: user.displayName || "Friend",
+          });
+        } catch (mailError) {
+          console.error("sendUserVerificationEmail:", mailError);
+        }
+
+        await auth.signOut();
+        navigate("/login", { replace: true });
+        setLoading(false);
+        toast.error(
+          "Please verify your e-mail address first. We just sent you a new link.",
+        );
+        return;
+      }
+
+      /* ── 4.  Import device cart once, then greet and navigate ───── */
+      await fetchCartFromFirestore(user.uid);
+      await selectExperience(APP_EXPERIENCE.CUSTOMER);
       const name = uData.username || "User";
       toast.success(`Hello ${name}, welcome back!`);
-      const redirectTo = location.state?.from || "/";
+      const redirectTo = authDestinationFromState(location.state, "/");
       navigate(redirectTo, { replace: true });
       setLoading(false);
       identifyUser(posthog, user, { role: uData.role ?? "user" });
       posthog?.capture("login_succeeded", { method: "email" });
-      /* ── 4.  Background jobs (non-blocking) ────────────────────── */
-      (async () => {
-        /* 4a – send your custom verification e-mail once per session */
-        // ⛔︎ Block unverified accounts right after sign-in
-        if (!user.emailVerified) {
-          try {
-            const sendMail = httpsCallable(
-              functions,
-              "sendUserVerificationEmail",
-            );
-            await sendMail({
-              email: user.email,
-              username: user.displayName || "Friend",
-            });
-          } catch (err) {
-            console.error("sendUserVerificationEmail:", err);
-          }
-
-          await auth.signOut(); // end the session
-          navigate("/login", { replace: true }); // ⬅️  back to login screen
-          toast.error(
-            "Please verify your e-mail address first. We just sent you a new link.",
-          );
-          setLoading(false);
-          return; // bail out
-        }
-
-        /* 4b – merge local cart into Firestore */
-        const localCart = JSON.parse(localStorage.getItem("cart")) || {};
-        await fetchCartFromFirestore(user.uid, localCart);
-        localStorage.removeItem("cart");
-      })();
     } catch (error) {
       setLoading(false);
       console.error("Error during sign-in:", error);
@@ -401,294 +386,64 @@ const Login = () => {
       } else if (error.code === "permission-denied") {
         errorMessage =
           "Your account has been disabled. Please contact support.";
+      } else if (error.code === "app/login-timeout") {
+        errorMessage =
+          "Sign-in reached Firebase but the account lookup timed out. Please try again.";
       }
       toast.error(errorMessage);
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    const provider = new GoogleAuthProvider();
+  const handleSocialSignIn = async (providerId, method, providerLabel) => {
+    void appHaptics.medium();
     try {
       setSocialLoading(true);
-      posthog?.capture("login_attempted", { method: "google" });
+      posthog?.capture("login_attempted", { method });
+      const authResult = await withLoginTimeout(
+        authenticateBuyerWithProvider({ auth, db, providerId }),
+        `${providerLabel} authentication`,
+        30000,
+      );
+      const { user, isNewUser, displayName } = authResult;
 
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      const info = getAdditionalUserInfo(result);
-      const isNewUser = !!info?.isNewUser;
-      const cleanEmail = (user.email || "").toLowerCase().trim();
-
-      // ─────────────────────────────────────────
-      // Vendor email hard block (defense in depth)
-      // ─────────────────────────────────────────
-      // Check if email exists in 'vendors'
-      const vendorsRef = collection(db, "vendors");
-      const vendorQuery = query(vendorsRef, where("email", "==", cleanEmail));
-      const vendorSnapshot = await getDocs(vendorQuery);
-
-      // Check if any 'users' doc with role=vendor
-      const usersRef = collection(db, "users");
-      const userQuery = query(usersRef, where("email", "==", cleanEmail));
-      const userSnapshot = await getDocs(userQuery);
-      const isVendorRole =
-        !userSnapshot.empty && userSnapshot.docs[0].data()?.role === "vendor";
-
-      if (!vendorSnapshot.empty || isVendorRole) {
-        // If Firebase just created a new auth user for this sign-in, remove it
-        if (isNewUser) {
-          try {
-            await user.delete(); // allowed right after sign-in
-          } catch (delErr) {
-            console.warn(
-              "Failed to delete just-created vendor auth user:",
-              delErr,
-            );
-          }
-        }
-        // Always end the session
-        try {
-          await auth.signOut();
-        } catch (soErr) {
-          console.warn("signOut failed:", soErr);
-        }
-
-        setSocialLoading(false);
-        setShowVendorModal(true);
-        toast.error("This email is already used for a Vendor account!");
-        posthog?.capture("login_blocked_vendor_email", { method: "google" });
-        return;
-      }
-
-      // ─────────────────────────────────────────
-      // Create user doc if doesn't exist
-      // ─────────────────────────────────────────
-      const userRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userRef);
-      if (!userDoc.exists()) {
-        await setDoc(userRef, {
-          uid: user.uid,
-          username: user.displayName,
-          email: cleanEmail,
-          profileComplete: false,
-          walletSetup: false,
-          welcomeEmailSent: false,
-          notificationAllowed: false,
-          role: "user",
-          referrer: localStorage.getItem("referrer") || null,
-          createdAt: new Date(),
-        });
-        console.log("New user document created in Firestore");
-        posthog?.capture("signup_completed", { method: "google" });
-      }
-
-      const localCart = JSON.parse(localStorage.getItem("cart")) || {};
-      await fetchCartFromFirestore(user.uid, localCart);
-      localStorage.removeItem("cart");
+      await fetchCartFromFirestore(user.uid);
+      await selectExperience(APP_EXPERIENCE.CUSTOMER);
       identifyUser(posthog, user, { role: "user" });
-      posthog?.capture("login_succeeded", { method: "google" });
-      const redirectTo = location.state?.from || "/";
-      toast.success(`Welcome back ${user.displayName}!`);
-      setSocialLoading(false);
+      if (isNewUser) posthog?.capture("signup_completed", { method });
+      posthog?.capture("login_succeeded", { method });
+
+      const redirectTo = authDestinationFromState(location.state, "/");
+      toast.success(`Welcome back ${displayName || user.displayName || "there"}!`);
       navigate(redirectTo, { replace: true });
     } catch (error) {
-      setSocialLoading(false);
-      posthog?.capture("login_failed", {
-        method: "google",
-        code: error.code,
-      });
-      console.error("Google Sign-In Error:", error);
-      let errorMessage = "Google Sign-In failed. Please try again.";
-      if (error.code === "auth/account-exists-with-different-credential") {
-        errorMessage = "An account with the same email already exists.";
-      } else if (error.code === "auth/popup-closed-by-user") {
-        errorMessage = "Popup closed before completing sign-in.";
-      }
-      toast.error(errorMessage);
+      posthog?.capture("login_failed", { method, code: error?.code });
+      console.error(`${providerLabel} Sign-In Error:`, error);
+      if (error?.code === "app/vendor-account") setShowVendorModal(true);
+      const message = socialAuthErrorMessage(error, providerLabel);
+      if (message) toast.error(message);
     } finally {
       setSocialLoading(false);
     }
+  };
+
+  const handleGoogleSignIn = () =>
+    handleSocialSignIn("google.com", "google", "Google");
+  const handleAppleSignIn = () => {
+    void appHaptics.light();
+    toast("Apple sign-in is coming soon.");
   };
 
   const handleEmailChange = (e) => {
     setEmail(e.target.value);
     if (e.target.value) setEmailError(false);
   };
-  const handleTwitterSignIn = async () => {
-    const provider = new TwitterAuthProvider();
-    try {
-      setSocialLoading(true);
-      posthog?.capture("login_attempted", { method: "twitter" });
-
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      const info = getAdditionalUserInfo(result);
-      const isNewUser = !!info?.isNewUser;
-
-      const cleanEmail = (user.email || "").toLowerCase().trim();
-
-      if (!cleanEmail) {
-        try {
-          if (isNewUser) await user.delete();
-        } catch {}
-        try {
-          await auth.signOut();
-        } catch {}
-        toast.error(
-          "We couldn’t retrieve your email from Twitter. Please continue with Google or Email.",
-        );
-        posthog?.capture("login_failed_missing_email", { method: "twitter" });
-        return;
-      }
-
-      // 2) Vendor email hard block (defense in depth)
-      const vendorsRef = collection(db, "vendors");
-      const vendorQuery = query(vendorsRef, where("email", "==", cleanEmail));
-      const vendorSnapshot = await getDocs(vendorQuery);
-
-      const usersRef = collection(db, "users");
-      const userQuery = query(usersRef, where("email", "==", cleanEmail));
-      const userSnapshot = await getDocs(userQuery);
-      const isVendorRole =
-        !userSnapshot.empty && userSnapshot.docs[0].data()?.role === "vendor";
-
-      if (!vendorSnapshot.empty || isVendorRole) {
-        try {
-          if (isNewUser) await user.delete();
-        } catch {}
-        try {
-          await auth.signOut();
-        } catch {}
-        toast.error("This email is already used for a Vendor account!");
-        setShowVendorModal(true);
-        posthog?.capture("login_blocked_vendor_email", { method: "twitter" });
-        return;
-      }
-
-      // 3) Cross-provider conflict: if email exists but not with twitter.com
-      const methods = await fetchSignInMethodsForEmail(auth, cleanEmail);
-      const hasTwitter = methods.includes("twitter.com");
-      const hasGoogle = methods.includes("google.com");
-      const hasPassword = methods.includes("password");
-
-      if (!hasTwitter && (hasGoogle || hasPassword || methods.length > 0)) {
-        try {
-          await auth.signOut();
-        } catch {}
-        if (hasGoogle && !hasPassword) {
-          toast.error(
-            "This email is already registered with Google. Please sign in with Google.",
-          );
-        } else if (hasPassword && !hasGoogle) {
-          toast.error(
-            "This email is already registered with a password. Please sign in with Email.",
-          );
-        } else {
-          toast.error(
-            "This email is already registered with a different method. Please use your original sign-in method.",
-          );
-        }
-        posthog?.capture("login_conflict_existing_method", {
-          method: "twitter",
-          methods,
-        });
-        return;
-      }
-
-      // 4) Create/patch user doc (non-destructive)
-      const userRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userRef);
-      if (!userDoc.exists()) {
-        await setDoc(userRef, {
-          uid: user.uid,
-          username: user.displayName,
-          email: cleanEmail,
-          profileComplete: false,
-          walletSetup: false,
-          welcomeEmailSent: false,
-          notificationAllowed: false,
-          role: "user",
-          referrer: localStorage.getItem("referrer") || null,
-          createdAt: new Date(),
-        });
-        posthog?.capture("signup_completed", { method: "twitter" });
-      }
-
-      // 5) Merge local cart → Firestore + analytics + navigate
-      const localCart = JSON.parse(localStorage.getItem("cart") || "{}");
-      await fetchCartFromFirestore(user.uid, localCart);
-      localStorage.removeItem("cart");
-
-      identifyUser(posthog, user, { role: "user" });
-      posthog?.capture("login_succeeded", { method: "twitter" });
-
-      const redirectTo = location.state?.from || "/";
-      toast.success(`Welcome back ${user.displayName || "there"}!`);
-      navigate(redirectTo, { replace: true });
-    } catch (error) {
-      posthog?.capture("login_failed", {
-        method: "twitter",
-        code: error?.code,
-      });
-      console.error("Twitter Sign-In Error:", error);
-
-      let errorMessage = "Twitter sign-in failed. Please try again.";
-      if (error?.code === "auth/account-exists-with-different-credential") {
-        const em = error?.customData?.email;
-        if (em) {
-          try {
-            const methods = await fetchSignInMethodsForEmail(auth, em);
-            if (methods.includes("google.com")) {
-              errorMessage =
-                "This email is already registered with Google. Please sign in with Google.";
-            } else if (methods.includes("password")) {
-              errorMessage =
-                "This email is already registered with a password. Please sign in with Email.";
-            } else {
-              errorMessage =
-                "This email is already registered with a different method. Please use your original sign-in method.";
-            }
-          } catch {
-            errorMessage =
-              "This email is already registered. Please use your original sign-in method.";
-          }
-        } else {
-          errorMessage =
-            "This email is already registered. Please use your original sign-in method.";
-        }
-      } else if (error?.code === "auth/popup-closed-by-user") {
-        errorMessage = "Popup closed before completing sign-in.";
-      }
-
-      toast.error(errorMessage);
-    } finally {
-      setSocialLoading(false);
-    }
-  };
+  const handleTwitterSignIn = () =>
+    handleSocialSignIn("twitter.com", "twitter", "X");
 
   const handlePasswordChange = (e) => {
     setPassword(e.target.value);
     if (e.target.value) setPasswordError(false);
   };
-
-  useEffect(() => {
-    const handleFocus = () => {
-      document.body.classList.add("scroll-lock");
-    };
-    const handleBlur = () => {
-      document.body.classList.remove("scroll-lock");
-    };
-    const inputs = document.querySelectorAll("input");
-    inputs.forEach((input) => {
-      input.addEventListener("focus", handleFocus);
-      input.addEventListener("blur", handleBlur);
-    });
-    return () => {
-      inputs.forEach((input) => {
-        input.removeEventListener("focus", handleFocus);
-        input.removeEventListener("blur", handleBlur);
-      });
-    };
-  }, []);
 
   return (
     <>
@@ -716,10 +471,10 @@ const Login = () => {
           />
         </div>
       )}
-      <section>
-        <Container>
-          <Row>
-            <div className="px-3 ">
+      <section className="w-full">
+        <Container className="mx-auto w-full max-w-[574px] px-0">
+          <Row className="mx-0 w-full">
+            <div className="w-full px-4">
               <Link to={-1}>
                 <IoCloseOutline className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>
@@ -815,6 +570,18 @@ const Login = () => {
                     <div className="flex-grow border-t border-gray-300"></div>
                   </div>
 
+                  {showAppleAuth && (
+                    <motion.button
+                      type="button"
+                      className="w-full h-12 mt-2 bg-black border-2 font-satoshi border-black text-white font-medium rounded-xl flex justify-center items-center disabled:opacity-60"
+                      onClick={handleAppleSignIn}
+                      disabled={loading || socialLoading}
+                    >
+                      <FaApple className="mr-2 text-2xl" />
+                      Sign in with Apple
+                    </motion.button>
+                  )}
+
                   {/* Google button: no inline spinner */}
                   <motion.button
                     type="button"
@@ -834,7 +601,7 @@ const Login = () => {
                     disabled={loading || socialLoading}
                   >
                     <FaXTwitter className="mr-2 text-xl" />
-                    Sign in with Twitter
+                    Sign in with X
                   </motion.button>
                 </Form>
 

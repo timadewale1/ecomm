@@ -14,6 +14,8 @@ import { IoTime } from "react-icons/io5";
 import { httpsCallable } from "firebase/functions";
 
 import addActivityNote from "../../services/activityNotes";
+import { openExternalUrl } from "../../services/nativeLinks";
+import { acquireScrollLock } from "../../services/scrollLock";
 const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
   const [productImages, setProductImages] = useState({});
   const [imageIndexes, setImageIndexes] = useState({});
@@ -31,15 +33,8 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
   const [pickupDays, setPickupDays] = useState("");
   const [pickupTime, setPickupTime] = useState("");
   useEffect(() => {
-    if (isRiderModalOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-
-    return () => {
-      document.body.style.overflow = "";
-    };
+    if (!isRiderModalOpen) return undefined;
+    return acquireScrollLock("InProgressOrderRiderModal");
   }, [isRiderModalOpen]);
 
   useEffect(() => {
@@ -436,7 +431,13 @@ const InProgressOrders = ({ orders, openModal, moveToShipped }) => {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-black font-opensans"
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            void openExternalUrl(
+                              order.kwikJob.data.pickups[0].result_tracking_link,
+                            );
+                          }}
                         >
                           This order will be picked up by our rider{" "}
                           <span className="text-xs text-customOrange underline font-opensans">

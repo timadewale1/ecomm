@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { FaWhatsapp, FaXTwitter, FaX } from "react-icons/fa6";
 import { RiGroupFill } from "react-icons/ri";
+import { openExternalUrl } from "../../services/nativeLinks";
 
 const containerVariants = {
   hidden: { opacity: 0, y: 24, scale: 0.98 },
@@ -18,9 +19,7 @@ const btnMotion = { whileHover: { y: -2 }, whileTap: { scale: 0.98 } };
 
 const CommunityInviteModal = ({ onDone }) => {
   const openLink = (url) => {
-    try {
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch {}
+    void openExternalUrl(url).catch(() => {});
     onDone && onDone();
   };
 

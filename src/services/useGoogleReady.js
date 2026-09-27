@@ -1,17 +1,28 @@
-/* useGoogleReady.js ----------------------------------------------------- */
 import { useEffect, useState } from "react";
-
-const isMapsLoaded = () => Boolean(window.google && window.google.maps);
+import { loadGoogleMapsWeb } from "./maps/platformMaps";
 
 export function useGoogleReady() {
-  const [ready, setReady] = useState(isMapsLoaded());
+  const [state, setState] = useState(() => ({
+    ready: Boolean(window.google?.maps),
+    error: null,
+  }));
 
   useEffect(() => {
-    if (ready) return;                        // already loaded
+    if (state.ready) return undefined;
+    let active = true;
 
-    // the <script …callback=initMap> tag in index.html calls this
-    window.initMap = () => setReady(true);
-  }, [ready]);
+    loadGoogleMapsWeb()
+      .then(() => {
+        if (active) setState({ ready: true, error: null });
+      })
+      .catch((error) => {
+        if (active) setState({ ready: false, error });
+      });
 
-  return ready;
+    return () => {
+      active = false;
+    };
+  }, [state.ready]);
+
+  return state;
 }

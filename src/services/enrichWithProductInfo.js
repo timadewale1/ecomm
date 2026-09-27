@@ -1,6 +1,7 @@
 // src/utils/enrichOrders.ts
 import { collection, query, where, getDocs, documentId } from "firebase/firestore";
 import { db } from "../firebase.config";
+import { isVariantSizeHidden } from "./productVariantSelection";
 
 export async function enrichWithProductInfo(rawOrders) {
   // gather all productIds
@@ -20,7 +21,16 @@ export async function enrichWithProductInfo(rawOrders) {
   return rawOrders.map(order => ({
     ...order,
     cartItems: order.cartItems.map(item => {
-      const p = products[item.productId] || {};
+      const product = products[item.productId];
+      const p = product || {};
+      const savedSizeHidden =
+        item.variantAttributes?.sizeHidden ?? item.sizeHidden;
+      const hideSize =
+        typeof savedSizeHidden === "boolean"
+          ? savedSizeHidden
+          : product
+            ? isVariantSizeHidden(product)
+            : false;
       return {
         ...item,
         name: p.name,
@@ -28,6 +38,7 @@ export async function enrichWithProductInfo(rawOrders) {
         imageUrl: p.coverImageUrl || p.imageUrls?.[0] || "",
         color: item.color || item.variantAttributes?.color || p.color || "",
         size: item.size || item.variantAttributes?.size || p.size || "",
+        hideSize,
       };
     }),
   }));

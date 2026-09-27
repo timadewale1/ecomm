@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../../firebase.config";
 import {
@@ -6,50 +6,51 @@ import {
   getDoc,
   collection,
   getDocs,
-  addDoc,
-  updateDoc,
-  increment,
-  query,
-  where,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-import { GoChevronLeft, GoDotFill } from "react-icons/go";
+import { GoChevronLeft } from "react-icons/go";
 import { FiPlus } from "react-icons/fi";
 import { FaStar } from "react-icons/fa";
 import { ProgressBar } from "react-bootstrap";
-import { mergeCarts } from "../../services/cartMerge";
 import toast from "react-hot-toast";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import ReactStars from "react-rating-stars-component";
-import { LiaTimesSolid } from "react-icons/lia";
-import { CiLogin } from "react-icons/ci";
-import RoundedStars from "../../components/RoundedStars";
-import { RotatingLines } from "react-loader-spinner";
 import { IoMdContact } from "react-icons/io";
-import { handleUserActionLimit } from "../../services/userWriteHandler";
 import SEO from "../../components/Helmet/SEO";
 import QuickAuthModal from "../../components/PwaModals/AuthModal";
+import ReviewComposer from "../../components/Reviews/ReviewComposer";
+import ReviewOrderPicker from "../../components/Reviews/ReviewOrderPicker";
+import {
+  fetchEligibleReviewOrders,
+  findRequestedReviewOrder,
+} from "../../components/Reviews/reviewOrders";
+import { takeAuthIntent } from "../../services/authIntent";
+import { acquireScrollLock } from "../../services/scrollLock";
 const VendorRatings = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const [reviews, setReviews] = useState([]);
   const [vendor, setVendor] = useState(null);
-  const [inputValid, setInputValid] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [newReview, setNewReview] = useState("");
+  const [showOrderPicker, setShowOrderPicker] = useState(false);
+  const [eligibleOrders, setEligibleOrders] = useState([]);
+  const [eligibleOrdersLoading, setEligibleOrdersLoading] = useState(false);
+  const [eligibleOrdersReady, setEligibleOrdersReady] = useState(false);
+  const [selectedReviewOrder, setSelectedReviewOrder] = useState(null);
+  const [pendingReviewOpen, setPendingReviewOpen] = useState(false);
+  const requestedOrderHandled = useRef("");
+  const [allReviews, setAllReviews] = useState([]);
+  const [reviewsLoaded, setReviewsLoaded] = useState(false);
+  const [reviewsVendorId, setReviewsVendorId] = useState("");
   const [showQuickAuth, setShowQuickAuth] = useState(false);
 
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [selectedRating, setSelectedRating] = useState("All");
-  const [newRating, setNewRating] = useState(0);
 
   const [hasDeliveredOrder, setHasDeliveredOrder] = useState(false);
 
   const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [ratingBreakdown, setRatingBreakdown] = useState({
     5: 0,
     4: 0,
@@ -65,7 +66,7 @@ const VendorRatings = () => {
       try {
         const userDoc = await getDoc(doc(db, "users", uid));
         const userData = userDoc.data();
-        setCurrentUser(userData);
+        setCurrentUser({ uid, ...userData });
 
         // Check if the user's profile is complete
         if (userData.displayName && userData.birthday) {
@@ -108,37 +109,10 @@ const VendorRatings = () => {
 
     fetchVendorData();
   }, [id]);
-  useEffect(() => {
-    const checkIfUserCanReview = async () => {
-      if (!currentUser || !id) {
-        setHasDeliveredOrder(false);
-        return;
-      }
-      try {
-        const ordersRef = collection(db, "orders");
-        const q = query(
-          ordersRef,
-          where("userId", "==", currentUser.uid),
-          where("vendorId", "==", id),
-          where("progressStatus", "==", "Delivered")
-        );
-        const snapshot = await getDocs(q);
-        // If we find at least one delivered order => user can review
-        setHasDeliveredOrder(!snapshot.empty);
-      } catch (err) {
-        console.error("Error checking delivered orders:", err);
-        setHasDeliveredOrder(false);
-      }
-    };
-
-    checkIfUserCanReview();
-  }, [currentUser, id]);
   const openDisclaimer = (path) => (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const abs = `${window.location.origin}${path}`;
-    setDisclaimerUrl(abs);
-    setShowDisclaimerModal(true);
+    navigate(path);
   };
   const fetchReviews = async () => {
     try {
@@ -148,6 +122,7 @@ const VendorRatings = () => {
         id: doc.id,
         ...doc.data(),
       }));
+      setAllReviews(reviewsList);
 
       // Apply filter based on selectedRating
       let filteredReviews = reviewsList;
@@ -158,9 +133,8 @@ const VendorRatings = () => {
         );
       }
 
-      // Separate text and non-text reviews
-      const textReviews = filteredReviews.filter((review) => review.reviewText);
-      setReviews(textReviews);
+      // Ratings without optional text are still valid reviews and must remain visible.
+      setReviews(filteredReviews);
 
       // Calculate rating breakdown including all reviews (with and without text)
       const allReviews = reviewsList;
@@ -177,14 +151,10 @@ const VendorRatings = () => {
       console.error("Error fetching reviews:", error);
     } finally {
       setLoading(false);
+      setReviewsLoaded(true);
+      setReviewsVendorId(id);
     }
   };
-
-  useEffect(() => {
-    if (id) {
-      fetchReviews();
-    }
-  }, [id]);
 
   useEffect(() => {
     if (id) {
@@ -192,152 +162,152 @@ const VendorRatings = () => {
     }
   }, [id, selectedRating]);
 
-  const forbiddenWords = [
-    "damn",
-    "hell",
-    "fool",
-    "werey",
-    "ode",
-    "idiot",
-    "shit",
-    "crap",
-    "bastard",
-    "bitch",
-    "asshole",
-    "dick",
-    "piss",
-    "prick",
-    "cunt",
-    "fuck",
-    "motherfucker",
-    "fucker",
-    "cock",
-    "pussy",
-    "twat",
-    "whore",
-    "slut",
-    "nigger",
-    "chink",
-    "spic",
-    "wanker",
-    "bollocks",
-    "bugger",
-    "tosser",
-    "shithead",
-    "douchebag",
-    "jackass",
-    "retard",
-  ];
   useEffect(() => {
-    if (showModal || isLoginModalOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [showModal, isLoginModalOpen]);
-
-  const handleLoginOverlayClick = (e) => {
-    if (e.target === e.currentTarget) {
-      setIsLoginModalOpen(false);
-    }
-  };
-  const checkForForbiddenWords = (text) => {
-    const lowerText = text.toLowerCase();
-    return forbiddenWords.some((word) => lowerText.includes(word));
-  };
-
-  const handleReviewChange = (e) => {
-    const text = e.target.value;
-    setNewReview(text);
-
-    if (checkForForbiddenWords(text)) {
-      setInputValid(false);
-    } else {
-      setInputValid(true);
-    }
-  };
-
-  const handleAddReview = async () => {
-    if (!inputValid) {
-      toast.error("Your review contains inappropriate language.");
-      return;
-    }
-
-    if (!isProfileComplete) {
-      toast.error("Please complete your profile before submitting a review.");
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      if (!id || !currentUser) {
-        toast.error("You must be logged in to submit a review.");
-        setIsSubmitting(false);
+    let active = true;
+    const loadEligibleOrders = async () => {
+      setEligibleOrdersReady(false);
+      if (
+        !currentUser?.uid ||
+        !id ||
+        !reviewsLoaded ||
+        reviewsVendorId !== id
+      ) {
+        if (active) {
+          setEligibleOrders([]);
+          setHasDeliveredOrder(false);
+        }
         return;
       }
-
-      if (!newRating) {
-        toast.error("Please select a rating.");
-        setIsSubmitting(false);
-        return;
-      }
-
       try {
-        await handleUserActionLimit(
-          currentUser.uid,
-          "review",
-          {},
-          {
-            collectionName: "usage_metadata",
-            writeLimit: 50,
-            minuteLimit: 8,
-            hourLimit: 40,
-          }
-        );
-      } catch (limitError) {
-        // If limit is reached, throw an error
-        setIsSubmitting(false);
-        toast.error(limitError.message);
-        return;
+        setEligibleOrdersLoading(true);
+        const orders = await fetchEligibleReviewOrders({
+          userId: currentUser.uid,
+          vendorId: id,
+          reviews: allReviews,
+        });
+        if (!active) return;
+        setEligibleOrders(orders);
+        setHasDeliveredOrder(orders.length > 0);
+      } catch (error) {
+        console.error("Error loading reviewable orders:", error);
+        if (active) {
+          setEligibleOrders([]);
+          setHasDeliveredOrder(false);
+        }
+      } finally {
+        if (active) {
+          setEligibleOrdersLoading(false);
+          setEligibleOrdersReady(true);
+        }
       }
+    };
 
-      // If we passed the usage limit check, proceed to create a review
-      const reviewsRef = collection(db, "vendors", id, "reviews");
+    loadEligibleOrders();
+    return () => {
+      active = false;
+    };
+  }, [currentUser?.uid, id, allReviews, reviewsLoaded, reviewsVendorId]);
 
-      await addDoc(reviewsRef, {
-        reviewText: newReview.trim() !== "" ? newReview : null, // Add text if provided
-        rating: newRating,
-        userName: currentUser.username || currentUser.displayName,
-        userPhotoURL: currentUser.photoURL || null,
-        createdAt: new Date(),
-      });
+  useEffect(() => {
+    if (
+      !currentUser?.uid ||
+      !reviewsLoaded ||
+      reviewsVendorId !== id ||
+      !eligibleOrdersReady ||
+      eligibleOrdersLoading
+    )
+      return;
+    const params = new URLSearchParams(location.search);
+    const requestKey = params.get("rateStockpile")
+      ? `stockpile:${params.get("rateStockpile")}`
+      : params.get("rateOrder")
+      ? `order:${params.get("rateOrder")}`
+      : "";
+    if (!requestKey || requestedOrderHandled.current === requestKey) return;
 
-      // Update vendor rating
-      const vendorRef = doc(db, "vendors", id);
-      await updateDoc(vendorRef, {
-        ratingCount: increment(1),
-        rating: increment(newRating),
-      });
+    requestedOrderHandled.current = requestKey;
+    const requested = findRequestedReviewOrder(eligibleOrders, params);
+    if (requested) {
+      setSelectedReviewOrder(requested);
+      setShowOrderPicker(false);
+      setShowModal(true);
+    } else {
+      toast("This order is not ready to rate or has already been rated.");
+    }
+  }, [
+    currentUser?.uid,
+    eligibleOrders,
+    eligibleOrdersLoading,
+    eligibleOrdersReady,
+    location.search,
+    reviewsLoaded,
+    reviewsVendorId,
+    id,
+  ]);
 
-      setShowModal(false);
-      setNewReview("");
-      setNewRating(0);
-      fetchReviews(); // Refresh the reviews and progress bar
-      toast.success("Review added successfully!");
-    } catch (error) {
-      console.error("Error adding review:", error.message);
-      toast.error("Error adding review, please try again.");
-    } finally {
-      setIsSubmitting(false);
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+    const intent = takeAuthIntent({types: "open-vendor-review", pathname: location.pathname});
+    if (!intent || String(intent.payload?.vendorId || "") !== String(id)) return;
+    setPendingReviewOpen(true);
+  }, [currentUser?.uid, id, location.pathname]);
+
+  useEffect(() => {
+    if (
+      !pendingReviewOpen ||
+      !currentUser?.uid ||
+      !reviewsLoaded ||
+      reviewsVendorId !== id ||
+      !eligibleOrdersReady ||
+      eligibleOrdersLoading
+    )
+      return;
+    setPendingReviewOpen(false);
+    setShowOrderPicker(true);
+  }, [
+    pendingReviewOpen,
+    currentUser?.uid,
+    eligibleOrdersLoading,
+    eligibleOrdersReady,
+    reviewsLoaded,
+    reviewsVendorId,
+    id,
+  ]);
+
+  const openReviewFlow = () => {
+    if (!currentUser) {
+      setShowQuickAuth(true);
+      return;
+    }
+    setShowOrderPicker(true);
+  };
+
+  const closeComposer = () => {
+    setShowModal(false);
+    setSelectedReviewOrder(null);
+    const params = new URLSearchParams(location.search);
+    if (params.has("rateOrder") || params.has("rateStockpile")) {
+      navigate(-1);
+    } else {
+      setShowOrderPicker(true);
     }
   };
 
-  const DefaultImageUrl =
-    "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
+  const handleReviewSuccess = () => {
+    setShowModal(false);
+    setShowOrderPicker(false);
+    setSelectedReviewOrder(null);
+    void fetchReviews();
+    const params = new URLSearchParams(location.search);
+    if (params.has("rateOrder") || params.has("rateStockpile")) {
+      navigate(-1);
+    }
+  };
+
+  useEffect(() => {
+    if (!showModal && !showOrderPicker) return undefined;
+    return acquireScrollLock("VendorRatingsReviewFlow");
+  }, [showModal, showOrderPicker]);
 
   const averageRating =
     vendor?.ratingCount > 0 ? vendor.rating / vendor.ratingCount : 0;
@@ -376,13 +346,7 @@ const VendorRatings = () => {
             {!currentUser || hasDeliveredOrder ? (
               <FiPlus
                 className="text-3xl cursor-pointer"
-                onClick={() => {
-                  if (!currentUser) {
-                    setShowQuickAuth(true);
-                  } else {
-                    setShowModal(true);
-                  }
-                }}
+                onClick={openReviewFlow}
               />
             ) : (
               <div className="w-8 h-8" />
@@ -501,14 +465,42 @@ const VendorRatings = () => {
                   ))}
                 </div>
                 <span className="ratings-text font-medium font-opensans text-gray-500">
-                  {new Date(
-                    review.createdAt.seconds * 1000
-                  ).toLocaleDateString()}
+                  {review.createdAt?.toDate
+                    ? review.createdAt.toDate().toLocaleDateString()
+                    : review.createdAt?.seconds
+                    ? new Date(review.createdAt.seconds * 1000).toLocaleDateString()
+                    : review.createdAt
+                    ? new Date(review.createdAt).toLocaleDateString()
+                    : "Just now"}
                 </span>
               </div>
-              <p className="mt-2 text-black font-opensans text-sm">
-                {review.reviewText}
-              </p>
+              {review.reviewText && (
+                <p className="mt-2 text-black font-opensans text-sm">
+                  {review.reviewText}
+                </p>
+              )}
+              {((review.productSnapshots || []).some(
+                (item) => item.productImageUrl
+              ) || (review.reviewImageUrls || []).length > 0) && (
+                <div className="vendor-review-media" aria-label="Review images">
+                  {(review.productSnapshots || [])
+                    .filter((item) => item.productImageUrl)
+                    .map((item, index) => (
+                      <img
+                        key={`product-${item.productId || index}`}
+                        src={item.productImageUrl}
+                        alt={item.productName || "Reviewed product"}
+                      />
+                    ))}
+                  {(review.reviewImageUrls || []).map((imageUrl, index) => (
+                    <img
+                      key={`review-${index}`}
+                      src={imageUrl}
+                      alt={`Buyer review ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           <div className="fixed bottom-0 left-0 w-full bg-white py-4">
@@ -526,132 +518,42 @@ const VendorRatings = () => {
           </div>
         </div>
 
-        {showModal && vendor && (
-          <div className="fixed inset-0 bg-white z-50">
-            <div className="flex items-center px-2 py-4 mb-2">
-              <GoChevronLeft
-                className="text-3xl cursor-pointer"
-                onClick={() => setShowModal(false)}
-              />
-              <h1 className="text-lg ml-4 font-opensans font-semibold">
-                Rate {vendor.shopName}
-              </h1>
-              <div />
-            </div>
-            <div className="border-b border-gray-300 w-full mb-2"></div>
-
-            <div className="p-3">
-              <div className="flex justify-center mb-2 ">
-                <div className="relative w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
-                  {vendor.coverImageUrl ? (
-                    <img
-                      className="w-32 h-32 rounded-full bg-slate-700 object-cover"
-                      src={vendor.coverImageUrl}
-                      alt={vendor.shopName}
-                    />
-                  ) : (
-                    <img
-                      className="w-32 h-32 rounded-full bg-slate-700 object-cover"
-                      src={DefaultImageUrl}
-                      alt=""
-                    />
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-center">
-                {/* <div className="flex items-center text-black text-lg font-semibold">
-                {vendor.socialMediaHandle}
-              </div> */}
-              </div>
-              <div className="flex justify-center mt-2">
-                <>
-                  <FaStar className="text-yellow-400" size={16} />
-                  <span className="flex text-xs font-opensans items-center ml-2">
-                    {averageRating.toFixed(1)}
-                    <GoDotFill className="mx-1 text-gray-300 font-opensans dot-size" />
-                    {vendor.ratingCount || 0} ratings
-                  </span>
-                </>
-              </div>
-              <div className="w-fit text-center bg-customGreen p-2 flex items-center justify-center rounded-full mt-3 mx-auto">
-                <div className="mt-2 flex flex-wrap items-center -translate-y-1 justify-center text-textGreen text-xs space-x-1">
-                  {loading ? (
-                    <Skeleton width={80} height={24} count={4} inline={true} />
-                  ) : (
-                    vendor.categories.map((category, index) => (
-                      <React.Fragment key={index}>
-                        {index > 0 && (
-                          <GoDotFill className="mx-1 dot-size text-dotGreen" />
-                        )}
-                        <span>{category}</span>
-                      </React.Fragment>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <h1 className="font-opensans text-sm mt-4 font-semibold">
-                Rate this shop
-              </h1>
-              <div className="mt-2 mb-3 flex justify-center">
-                <ReactStars
-                  count={5}
-                  onChange={(newRating) => setNewRating(newRating)}
-                  size={24}
-                  activeColor="#ffd700"
-                  emptyIcon={<RoundedStars filled={false} />}
-                  filledIcon={<RoundedStars filled={true} />}
-                />
-              </div>
-              <textarea
-                value={newReview}
-                onFocus={() => {
-                  const input = document.querySelector("textarea");
-                  input.scrollIntoView({ behavior: "smooth" });
-                }}
-                onChange={handleReviewChange}
-                placeholder="Describe your experience with this shop (Optional)"
-                className={`w-full p-2 border h-20 text-xs text-gray-900 rounded mb-4 ${
-                  inputValid ? "border-gray-300" : "border-red-500"
-                }`}
-                style={{ resize: "none" }}
-              />
-
-              <div className="fixed inset-x-0 bottom-0 p-4 bg-white">
-                <button
-                  onClick={handleAddReview}
-                  className={`${
-                    inputValid ? "bg-customOrange" : "bg-gray-400"
-                  } text-white font-opensans font-medium h-12 px-6 rounded-full w-full flex items-center justify-center`}
-                  disabled={isSubmitting || !inputValid}
-                >
-                  {isSubmitting ? (
-                    <RotatingLines
-                      strokeColor="#ffffff"
-                      strokeWidth="5"
-                      animationDuration="0.75"
-                      width="24"
-                      visible={true}
-                    />
-                  ) : (
-                    "Post"
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
+        {showOrderPicker && (
+          <ReviewOrderPicker
+            orders={eligibleOrders}
+            loading={eligibleOrdersLoading}
+            onBack={() => setShowOrderPicker(false)}
+            onSelect={(order) => {
+              setSelectedReviewOrder(order);
+              setShowOrderPicker(false);
+              setShowModal(true);
+            }}
+          />
+        )}
+        {showModal && vendor && selectedReviewOrder && (
+          <ReviewComposer
+            vendor={{ ...vendor, id }}
+            order={selectedReviewOrder}
+            currentUser={currentUser}
+            isProfileComplete={isProfileComplete}
+            onClose={closeComposer}
+            onSuccess={handleReviewSuccess}
+          />
         )}
         <QuickAuthModal
           open={showQuickAuth}
           onClose={() => setShowQuickAuth(false)}
           onComplete={(user) => {
             setShowQuickAuth(false);
-            setShowModal(true);
+            setPendingReviewOpen(true);
           }}
-          mergeCart={mergeCarts}
-          headerText = "Let’s set up your review"
+          headerText="Let’s set up your review"
           openDisclaimer={openDisclaimer}
+          authIntent={{
+            type: "open-vendor-review",
+            returnTo: `${location.pathname}${location.search}`,
+            payload: {vendorId: id},
+          }}
         />
       </div>
     </>

@@ -28,10 +28,13 @@ import {
   query,
   where,
   orderBy,
+  getDocs,
+  limit,
 } from "firebase/firestore";
 import Loading from "../../components/Loading/Loading";
 import SEO from "../../components/Helmet/SEO";
 import { GiCheckMark } from "react-icons/gi";
+import { ensureOfferConversation } from "../../services/offerConversations";
 
 export default function VendorChat() {
   const { inquiryId } = useParams();
@@ -80,9 +83,54 @@ export default function VendorChat() {
   const [showAlreadyReportedModal, setShowAlreadyReportedModal] =
     useState(false);
 
+  // Preserve old offer links, but move them into the secure buyer/vendor
+  // conversation rather than maintaining a second product-scoped offer UI.
+  useEffect(() => {
+    if (!IS_OFFER && !isOfferThread) return undefined;
+    let cancelled = false;
+    const redirectOffer = async () => {
+      try {
+        let sourceOfferId = IS_OFFER ? inquiryId : null;
+        if (!sourceOfferId && buyerIdParam && productIdParam && auth.currentUser?.uid) {
+          const snapshot = await getDocs(
+            query(
+              collection(db, "offers"),
+              where("vendorId", "==", auth.currentUser.uid),
+              where("buyerId", "==", buyerIdParam),
+              where("productId", "==", productIdParam),
+              orderBy("createdAt", "desc"),
+              limit(1),
+            ),
+          );
+          sourceOfferId = snapshot.docs[0]?.id || null;
+        }
+        if (!sourceOfferId) throw new Error("Offer unavailable");
+        const conversationId = await ensureOfferConversation(sourceOfferId);
+        if (!conversationId) throw new Error("Conversation unavailable");
+        if (!cancelled) {
+          navigate(
+            `/offer-conversations/${conversationId}?focusOffer=${encodeURIComponent(sourceOfferId)}`,
+            {replace: true},
+          );
+        }
+      } catch (error) {
+        console.error("[vendor-offers] legacy redirect failed", error);
+        if (!cancelled) {
+          toast.error("This offer conversation could not be opened.");
+          navigate("/vchats", {replace: true});
+        }
+      }
+    };
+    redirectOffer();
+    return () => {
+      cancelled = true;
+    };
+  }, [IS_OFFER, buyerIdParam, inquiryId, isOfferThread, navigate, productIdParam]);
+
   // ── 3) On mount: fetch inquiry/product/customer once, then subscribe ─────────
   useEffect(() => {
     if (!inquiryId) return;
+    if (IS_OFFER || isOfferThread) return;
 
     if (isOfferThread) {
       // subscribe to all offers in this (vendor, buyer, product) thread

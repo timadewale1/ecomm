@@ -1,25 +1,22 @@
 /* eslint-disable react/prop-types */
-import React, { useMemo, useState, useEffect } from "react";
-import Modal from "react-modal";
-import { MdOutlineClose, MdInfoOutline } from "react-icons/md";
+import React, { useMemo, useState, useEffect, useRef } from "react";
+import { MdOutlineClose } from "react-icons/md";
 import { CiCircleInfo } from "react-icons/ci";
+import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
-  motion,
-  useMotionValue,
-  useDragControls,
-  animate,
-} from "framer-motion";
-import {
-  addDoc,
   collection,
-  serverTimestamp,
   query,
   where,
   getDocs,
   Timestamp,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
+import AppBottomSheet from "../layout/AppBottomSheet";
+import {
+  createMarketplaceOffer,
+  marketplaceActionErrorMessage,
+} from "../../services/marketplaceActions";
 
 export default function OfferSheet({
   isOpen,
@@ -35,9 +32,11 @@ export default function OfferSheet({
 }) {
   const [mode, setMode] = useState("custom"); // 'custom' | 'p10' | 'p25'
   const [submitting, setSubmitting] = useState(false);
+  const submissionLockRef = useRef(false);
+  const submissionAttemptRef = useRef(null);
   const [customPriceInput, setCustomPriceInput] = useState("");
 
-  const DAILY_OFFER_LIMIT = 10;
+  const ROLLING_OFFER_LIMIT = 24;
   const [offersLeft, setOffersLeft] = useState(null); // null = loading
 
   const [showHeadsUp, setShowHeadsUp] = useState(true);
@@ -101,7 +100,7 @@ export default function OfferSheet({
     selectedOfferAmount <= 0 ||
     (offersLeft !== null && offersLeft <= 0);
 
-  // 🔢 Load how many offers are left for today (client-side hint)
+  // Client-side hint only. The Cloud Function owns the atomic rolling limit.
   useEffect(() => {
     if (!isOpen || !currentUser?.uid) {
       setOffersLeft(null);
@@ -109,15 +108,14 @@ export default function OfferSheet({
     }
     (async () => {
       try {
-        const start = new Date();
-        start.setHours(0, 0, 0, 0);
+        const start = new Date(Date.now() - 24 * 60 * 60 * 1000);
         const qRef = query(
           collection(db, "offers"),
           where("buyerId", "==", currentUser.uid),
           where("createdAt", ">=", Timestamp.fromDate(start)),
         );
         const snap = await getDocs(qRef);
-        const left = Math.max(0, DAILY_OFFER_LIMIT - snap.size);
+        const left = Math.max(0, ROLLING_OFFER_LIMIT - snap.size);
         setOffersLeft(left);
       } catch (e) {
         console.error("Failed to compute daily offers:", e);
@@ -126,14 +124,37 @@ export default function OfferSheet({
     })();
   }, [isOpen, currentUser?.uid]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      submissionLockRef.current = false;
+      submissionAttemptRef.current = null;
+      setSubmitting(false);
+    }
+  }, [isOpen]);
+
+  const getSubmissionAttempt = (signature) => {
+    if (submissionAttemptRef.current?.signature === signature) {
+      return submissionAttemptRef.current.id;
+    }
+    const id =
+      typeof window.crypto?.randomUUID === "function"
+        ? window.crypto.randomUUID()
+        : `offer_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 14)}`;
+    submissionAttemptRef.current = { id, signature };
+    return id;
+  };
+
   const handleSubmit = async () => {
+    if (submissionLockRef.current) return;
     if (!currentUser) {
       return navigate("/login", { state: { from: location?.pathname } });
     }
 
-    // Guard on daily limit (client hint — final gate is in Cloud Functions)
+    // Guard on the rolling limit (client hint — final gate is server-side).
     if (offersLeft !== null && offersLeft <= 0) {
-      return toast.error("Daily offer limit reached (10). Try again tomorrow.");
+      return toast.error(
+        "You’ve used your 24 offers for this rolling 24-hour period. Try again when an earlier offer leaves the window.",
+      );
     }
 
     // same validations you already have
@@ -150,91 +171,71 @@ export default function OfferSheet({
       return toast.error("Offer must be below list price.");
     }
 
+    const signature = JSON.stringify({
+      buyerId: currentUser.uid,
+      vendorId: product.vendorId,
+      productId: product.id,
+      amount: selectedOfferAmount,
+      size: hasVariants ? selectedSize || null : null,
+      color: hasVariants ? selectedColor || null : null,
+    });
+    const submissionId = getSubmissionAttempt(signature);
+
+    submissionLockRef.current = true;
     setSubmitting(true);
     try {
       const payload = {
-        buyerId: currentUser.uid,
         vendorId: product.vendorId,
         productId: product.id,
         amount: selectedOfferAmount, // integer NGN
-        note: "",
         variantAttributes: hasVariants
           ? { size: selectedSize || null, color: selectedColor || null }
           : null,
-        status: "pending",
-        createdAt: serverTimestamp(),
+        submissionId,
       };
 
-      await addDoc(collection(db, "offers"), payload);
+      const result = await createMarketplaceOffer(payload);
 
       // Optimistic update of the local counter (doesn't replace server enforcement)
       setOffersLeft((prev) =>
-        typeof prev === "number" ? Math.max(0, prev - 1) : prev,
+        Number.isFinite(result?.offersRemaining)
+          ? Math.max(0, Number(result.offersRemaining))
+          : typeof prev === "number"
+            ? Math.max(0, prev - 1)
+            : prev,
       );
 
       onOfferSubmitted?.(); // ← inform parent to show the one-time modal
+      submissionAttemptRef.current = null;
       onClose?.();
     } catch (err) {
       console.error(err);
-      toast.error(err?.message || "Failed to send offer");
+      toast.error(marketplaceActionErrorMessage(err, "Failed to send offer."));
     } finally {
+      submissionLockRef.current = false;
       setSubmitting(false);
     }
   };
-
-  // ---- drag-to-close sheet (pill handle) ----
-  const y = useMotionValue(0);
-  const dragControls = useDragControls();
-
-  useEffect(() => {
-    if (!isOpen) return;
-    y.set(420);
-    requestAnimationFrame(() => {
-      animate(y, 0, { type: "spring", stiffness: 260, damping: 28 });
-    });
-  }, [isOpen, y]);
-
-  const onDragEnd = (_, info) => {
-    const shouldClose = info.offset.y > 140 || info.velocity.y > 900;
-    if (shouldClose) {
-      onClose?.();
-      return;
-    }
-    animate(y, 0, { type: "spring", stiffness: 260, damping: 28 });
-  };
-  // ---- /drag-to-close sheet ----
 
   const save10 = Math.max(0, price - p10Price);
   const save25 = Math.max(0, price - p25Price);
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onRequestClose={onClose}
-      ariaHideApp={false}
-      overlayClassName="fixed inset-0 bg-black/40 z-[9999] flex items-end justify-center"
-      className="w-full  mx-auto outline-none bg-transparent p-0"
+    <AppBottomSheet
+      open={isOpen}
+      onClose={() => {
+        if (!submitting) onClose?.();
+      }}
+      height="60dvh"
+      ariaLabel="Make an Offer"
+      zIndex={9999}
+      dismissible={!submitting}
+
     >
-      <motion.div
-        style={{ y }}
-        drag="y"
-        dragControls={dragControls}
-        dragListener={false}
-        dragConstraints={{ top: 0, bottom: 520 }}
-        dragElastic={0.15}
-        onDragEnd={onDragEnd}
-        className="w-full h-[60vh] bg-white rounded-t-[28px] px-4 pt-3 pb-5 shadow-2xl"
-      >
-        {/* Drag pill */}
-        <div
-          className="w-full flex justify-center pb-2"
-          onPointerDown={(e) => dragControls.start(e)}
-        >
-          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
-        </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-5 pt-5">
 
         {/* Header */}
-        <div className="relative flex items-center justify-center py-2">
+        <div className="relative flex items-center justify-center">
           <h2 className="text-base font-opensans font-semibold">
             Make an Offer
           </h2>
@@ -242,6 +243,7 @@ export default function OfferSheet({
             type="button"
             className="absolute right-0 top-1/2 -translate-y-1/2 p-1"
             onClick={onClose}
+            disabled={submitting}
           >
             <MdOutlineClose className="text-xl" />
           </button>
@@ -361,14 +363,14 @@ export default function OfferSheet({
         {/* Offers left */}
         <div className="mt-5 text-center text-base font-opensans text-gray-600">
           {offersLeft === null ? (
-            <span className="text-gray-500">Checking daily limit…</span>
+            <span className="text-gray-500">Checking your 24-hour offer limit…</span>
           ) : offersLeft > 0 ? (
             <span>
-              You have <b className="text-gray-800">{offersLeft}</b> offers left today
+              You have <b className="text-gray-800">{offersLeft}</b> of your 24 offers left in the current rolling 24-hour window.
             </span>
           ) : (
             <span className="text-red-600">
-              You’ve reached your daily limit (10). Try again tomorrow.
+              You’ve reached 24 offers in the current rolling 24-hour window. Try again when an earlier offer leaves the window.
             </span>
           )}
         </div>
@@ -384,10 +386,17 @@ export default function OfferSheet({
                 : "bg-customOrange"
             }`}
           >
-            {submitting ? "Sending…" : "Send Offer"}
+            {submitting ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                Sending…
+              </span>
+            ) : (
+              "Send Offer"
+            )}
           </button>
         </div>
-      </motion.div>
-    </Modal>
+      </div>
+    </AppBottomSheet>
   );
 }

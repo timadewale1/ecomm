@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { siteUrls } from "../config/siteUrls.mjs";
 import { auth, db } from "../firebase.config";
 import { FaAngleLeft } from "react-icons/fa6";
 import toast from "react-hot-toast";
@@ -46,7 +47,7 @@ const logError = (traceId, step, err, extra = {}) => {
  */
 const sendPasswordReset = async (traceId, email) => {
   const actionCodeSettings = {
-    url: "https://shopmythrift.store/reset-password", // your current URL
+    url: siteUrls.appUrl("/reset-password"),
     handleCodeInApp: true, // your current flag
   };
 
@@ -282,10 +283,10 @@ const ForgetPassword = () => {
         description={`Reset your password`}
         url={`https://www.shopmythrift.store/forgetpassword`}
       />
-      <section>
-        <Container>
-          <Row>
-            <div className="px-3 ">
+      <section className="w-full">
+        <Container className="mx-auto w-full max-w-[574px] px-0">
+          <Row className="mx-0 w-full">
+            <div className="w-full px-4">
               <FaAngleLeft
                 className="text-2xl cursor-pointer mb-2"
                 onClick={() => navigate(-1)}

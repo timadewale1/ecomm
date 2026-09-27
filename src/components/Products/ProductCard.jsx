@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Skeleton from "react-loading-skeleton";
@@ -12,8 +12,7 @@ import {
   getDoc,
   setDoc,
   deleteDoc,
-  updateDoc,
-  increment,
+  serverTimestamp,
   collection,
   query,
   where,
@@ -30,6 +29,9 @@ import { handleUserActionLimit } from "../../services/userWriteHandler";
 import IkImage from "../../services/IkImage";
 import Sales from "../Loading/Sales";
 import { useCardImpression } from "../../services/useCardImpression";
+import { appHaptics } from "../../services/haptics";
+import { isVariantSizeHidden } from "../../services/productVariantSelection";
+import { isProductSoldOut } from "../../services/productAvailability";
 const toTitleCase = (str = "") =>
   String(str)
     .trim()
@@ -41,6 +43,7 @@ const toTitleCase = (str = "") =>
 
 const getSizeText = (product) => {
   if (!product) return "";
+  if (isVariantSizeHidden(product)) return "";
 
   // 1) If product.size exists (string like "S, UK 38, 47" OR "S: 32-45")
   if (product.size) {
@@ -142,12 +145,20 @@ const ProductCard = ({
   showName = true,
   showCondition = true,
   quickForThisVendor = false,
-   surface = "unknown",
+
+  surface = "unknown",
+
+  // V2 recommendation attribution
+  position,
+  requestId,
+  algorithmVersion,
+  candidateSource,
 }) => {
   const navigate = useNavigate();
   const [imgLoaded, setImgLoaded] = useState(false);
   // Auth state
 const productId = product?.id || product?.productId;
+  const soldOut = isProductSoldOut(product);
   const { currentUser } = useAuth();
   const [metaIndex, setMetaIndex] = useState(0); // 0 = condition, 1 = subType
 
@@ -156,6 +167,7 @@ const productId = product?.id || product?.productId;
 const favorite = isFavorite(productId);
 
 const [burstKey, setBurstKey] = useState(0);
+const favoriteBusyRef = useRef(false);
 
 
 const [wishCount, setWishCount] = useState(() => {
@@ -206,25 +218,41 @@ useEffect(() => {
  const handleCardClick = () => {
   if (isLoading) return;
 
-  // block only if we KNOW it's sold out
-  const soldOut =
-    product?.inStock === false || Number(product?.stockQuantity ?? 1) <= 0;
-
-  if (soldOut) return;
-
   const id = product?.id || product?.productId;
   if (!id) return;
 
-navigate(`/product/${id}`, { state: { mtSurface: surface } });
+navigate(`/product/${id}`, {
+  state: {
+    mtSurface: surface,
+    mtProductId: String(id),
+    mtProductName: product?.name || "",
+  },
+});
 
 };
 
-  const impressionRef = useCardImpression({
+const impressionRef =
+  useCardImpression({
     kind: "product",
+
     productId,
-    vendorId: product?.vendorId,
-    surface,          // "home" | "search" | "vendor_store"
-    enabled: !isLoading && !!productId,
+
+    vendorId:
+      product?.vendorId,
+
+    surface,
+
+    enabled:
+      !isLoading &&
+      !!productId,
+
+    requestId,
+
+    position,
+
+    algorithmVersion,
+
+    candidateSource,
   });
 
   // ---- Offer helpers ----
@@ -345,17 +373,14 @@ navigate(`/product/${id}`, { state: { mtSurface: surface } });
   );
   const handleVendorClick = (e) => {
     e.stopPropagation();
-    if (vendorMarketplaceType === "virtual") {
+    if (
+      vendorMarketplaceType === "virtual" ||
+      vendorMarketplaceType === "marketplace"
+    ) {
       navigate(
         quickForThisVendor
           ? `/store/${product.vendorId}?shared=true`
           : `/store/${product.vendorId}`
-      );
-    } else if (vendorMarketplaceType === "marketplace") {
-      navigate(
-        quickForThisVendor
-          ? `/marketstorepage/${product.vendorId}?shared=true`
-          : `/marketstorepage/${product.vendorId}`
       );
     } else {
       console.error("Unknown marketplace type or vendor not found");
@@ -366,7 +391,8 @@ const handleFavoriteToggle = async (e) => {
   e.stopPropagation();
 
   const productId = product?.id || product?.productId;
-  if (!productId) return;
+  if (!productId || favoriteBusyRef.current) return;
+  favoriteBusyRef.current = true;
 
   const wasFavorite = isFavorite(productId);
 
@@ -377,29 +403,11 @@ const handleFavoriteToggle = async (e) => {
     setWishCount(v);
   };
 
-  // best-effort product wishCount update (adjust paths to match your DB)
-  const tryUpdateProductWishCount = async (delta) => {
-    const candidates = [
-      // common patterns — keep the one that matches your schema
-      doc(db, "products", productId),
-      product?.vendorId ? doc(db, "vendors", product.vendorId, "products", productId) : null,
-    ].filter(Boolean);
-
-    for (const ref of candidates) {
-      try {
-        await updateDoc(ref, { wishCount: increment(delta) });
-        return true;
-      } catch (err) {
-        // try next candidate
-      }
-    }
-    return false;
-  };
-
   // -------------------------
   // ✅ Optimistic UI
   // -------------------------
   try {
+    appHaptics.favorite(!wasFavorite);
     if (wasFavorite) {
       removeFavorite(productId);
       setWish(Number(wishCount || 0) - 1);
@@ -428,29 +436,17 @@ const handleFavoriteToggle = async (e) => {
     );
 
     const favDocRef = doc(db, "users", currentUser.uid, "favorites", productId);
-    const vendorDocRef = product?.vendorId ? doc(db, "vendors", product.vendorId) : null;
 
     if (wasFavorite) {
       await deleteDoc(favDocRef);
-
-      // OPTIONAL: keep vendor likes symmetrical
-      // if (vendorDocRef) await updateDoc(vendorDocRef, { likesCount: increment(-1) });
-
-      // OPTIONAL: persist wishCount globally
-      // await tryUpdateProductWishCount(-1);
     } else {
       await setDoc(favDocRef, {
         productId,
         vendorId: product?.vendorId || null,
         name: product?.name || "",
         price: Number(product?.price || 0),
-        createdAt: new Date(),
+        createdAt: serverTimestamp(),
       });
-
-      if (vendorDocRef) await updateDoc(vendorDocRef, { likesCount: increment(1) });
-
-      // OPTIONAL: persist wishCount globally
-      // await tryUpdateProductWishCount(1);
     }
   } catch (err) {
     console.error("Error updating favorites:", err);
@@ -467,6 +463,8 @@ const handleFavoriteToggle = async (e) => {
     }
 
     toast.error(err?.message || "Failed to update favorites. Please try again.");
+  } finally {
+    favoriteBusyRef.current = false;
   }
 };
 
@@ -523,9 +521,7 @@ const handleFavoriteToggle = async (e) => {
       {/* --- MAIN CARD --- */}
       <div
         ref={impressionRef}
-        className={`product-card relative mb-2 cursor-pointer ${
-          product?.stockQuantity === 0 ? "opacity-50 pointer-events-none" : ""
-        }`}
+        className="product-card relative mb-2 cursor-pointer"
         onClick={handleCardClick}
         style={{ width: "100%", margin: "0" }}
       >
@@ -725,10 +721,10 @@ const handleFavoriteToggle = async (e) => {
 
 
           {/* Out of Stock Overlay */}
-          {product?.stockQuantity === 0 && (
-            <div className="absolute inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center rounded-lg z-10">
-              <p className="text-red-700 font-semibold text-2xl animate-pulse">
-                Sold Out!
+          {soldOut && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[18px] bg-slate-900/45">
+              <p className="rounded-full bg-black/70 px-4 py-2 font-satoshi text-sm font-medium text-white">
+                Sold
               </p>
             </div>
           )}
@@ -818,12 +814,6 @@ return (
               </span>
             )}
 
-            {/* Freebie badge beside new price */}
-            {isFreebie && product?.discount?.freebieText && (
-              <span className="shrink-0 max-w-[8.5rem] truncate inline-flex items-center px-2 h-5 rounded-full bg-customPink text-customOrange text-xs font-opensans font-medium">
-                {product.discount.freebieText}
-              </span>
-            )}
           </div>
         </div>
       );

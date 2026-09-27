@@ -17,19 +17,11 @@ const WithWalletSetupModal = ({ children }) => {
     const unsubscribe = onSnapshot(vendorRef, (snap) => {
       const data = snap.data();
       // Show modal if walletSetup is explicitly false
-      if (data?.walletSetup) {
-        localStorage.setItem('walletModalShown', true)
-      }
       setShowModal(data?.walletSetup === false);
     });
 
     return () => unsubscribe();
   }, [currentUser]);
-
-  const handleClose = () => {
-    setShowModal(false);
-    localStorage.setItem('walletModalShown', true)
-  };
 
   return (
     <>
@@ -37,8 +29,6 @@ const WithWalletSetupModal = ({ children }) => {
       {currentUser && (
         <WalletSetupModal
           isOpen={showModal}
-          onClose={handleClose}
-          vendorId={currentUser.uid}
         />
       )}
     </>

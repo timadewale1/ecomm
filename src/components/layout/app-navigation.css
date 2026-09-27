@@ -1,0 +1,204 @@
+.app-back-button {
+  position: relative;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none !important;
+  color: #111827;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.app-back-button.has-long-press,
+.app-back-button.has-long-press * {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.app-back-button__hint {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: calc(100% + 8px);
+  width: max-content;
+  max-width: min(230px, calc(100vw - 78px));
+  padding: 7px 10px;
+  transform: translateY(-50%);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.94);
+  box-shadow: 0 6px 18px rgba(17, 24, 39, 0.2);
+  color: #fff;
+  font-family: "Satoshi", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  animation: app-back-hint-in 180ms ease-out both;
+}
+
+.app-back-button__hint::before {
+  position: absolute;
+  top: 50%;
+  left: -4px;
+  width: 8px;
+  height: 8px;
+  transform: translateY(-50%) rotate(45deg);
+  background: rgba(17, 24, 39, 0.94);
+  content: "";
+}
+
+@keyframes app-back-hint-in {
+  from {
+    opacity: 0;
+    transform: translate(5px, -50%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-back-button__hint {
+    animation: none;
+  }
+}
+
+.app-back-button svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.5;
+}
+
+.app-back-button:focus-visible {
+  outline: 2px solid #f9531e;
+  outline-offset: 2px;
+}
+
+.app-back-button:active {
+  transform: scale(0.96);
+}
+
+.app-back-button--overlay {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(17, 24, 39, 0.72);
+  color: #fff;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.app-back-button--overlay.is-scrolled {
+  border-color: #e5e7eb;
+  background: rgba(255, 255, 255, 0.96);
+  color: #111827;
+}
+
+.app-back-button.is-fixed {
+  position: fixed;
+  z-index: 9000;
+  top: calc(var(--app-safe-top, env(safe-area-inset-top, 0px)) + 12px);
+  left: calc(var(--app-safe-left, env(safe-area-inset-left, 0px)) + 12px);
+}
+
+.app-page-header {
+  z-index: 40;
+  width: 100%;
+  background: #fff;
+  color: #111827;
+  font-family: "Satoshi", sans-serif;
+}
+
+.app-page-header.is-sticky {
+  position: sticky;
+  top: 0;
+}
+
+.native-ios .app-page-header.is-sticky,
+.native-android .app-page-header.is-sticky {
+  top: var(--app-safe-top, env(safe-area-inset-top, 0px));
+}
+
+.app-page-header__row {
+  display: grid;
+  min-height: 48px;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  padding: 2px 6px;
+}
+
+.app-page-header h1 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #111827;
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 25px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-page-header--center h1 {
+  text-align: center;
+}
+
+.app-page-header--left h1 {
+  padding-left: 6px;
+  text-align: left;
+}
+
+.app-page-header__placeholder,
+.app-page-header__action {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+}
+
+.app-page-header__action > button,
+.app-page-header__action > a {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #111827;
+}
+
+.app-page-header__action svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.5;
+}
+
+/* Shared top-level format for the vendor Orders, Messages and Products tabs. */
+.app-page-header.vendor-section-header {
+  border-bottom: 1px solid #f3f4f6;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.app-page-header.vendor-section-header.is-sticky,
+.native-ios .app-page-header.vendor-section-header.is-sticky {
+  top: 0;
+}

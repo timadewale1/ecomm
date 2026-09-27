@@ -2,6 +2,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { db } from "../../firebase.config";
 import { collection, query, where, getDocs } from "firebase/firestore";
+import { isMarketplaceProductEligible } from "../../services/marketplaceVisibility";
 
 // This version queries the "products" collection for products with discount.discountType in ["personal-monetary", "personal-freebies"].
 export const fetchPersonalDiscounts = createAsyncThunk(
@@ -26,10 +27,12 @@ export const fetchPersonalDiscounts = createAsyncThunk(
       const snapshot = await getDocs(q);
       // console.log(`[fetchPersonalDiscounts] Snapshot size: ${snapshot.size}`);
 
-      const personalDiscountProducts = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const personalDiscountProducts = snapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .filter(isMarketplaceProductEligible);
       // console.log(
       //   "[fetchPersonalDiscounts] Fetched personal discount products:",
       //   personalDiscountProducts

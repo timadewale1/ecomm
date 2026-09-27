@@ -8,12 +8,18 @@ import React, {
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { clearCart } from "../redux/actions/action";
+import { clearCart, removeFromCart } from "../redux/actions/action";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase.config";
+import { appHaptics } from "../services/haptics";
+import usePriceLockExpiryClock from "../custom-hooks/usePriceLockExpiryClock";
+import { resolveEffectiveUnitPrice } from "../services/priceLocks";
+import { resumePaystackTransaction } from "../services/paystackCheckout";
+import { markOrderPaymentClientCompleted } from "../services/paymentConfirmation";
 import { PiStackPlusFill, PiStackSimpleFill } from "react-icons/pi";
 import { getTripAdvice } from "../services/estimateTrips";
 import { useAuth } from "../custom-hooks/useAuth";
+import useHorizontalTabSwipe from "../custom-hooks/useHorizontalTabSwipe";
 import { RiShareForwardBoxLine } from "react-icons/ri";
 import { SiAdguard } from "react-icons/si";
 import {
@@ -22,14 +28,12 @@ import {
 } from "../redux/reducers/stockpileSlice";
 import { CiWarning } from "react-icons/ci";
 import { GiBookPile } from "react-icons/gi";
-import { FaPen, FaUserFriends } from "react-icons/fa";
-import serviceimage from "../Images/servicemodal.jpg";
-import PaystackPop from "@paystack/inline-js";
+import { Clock3, X } from "lucide-react";
+import AppPageHeader from "../components/layout/AppPageHeader";
+import AppBottomSheet from "../components/layout/AppBottomSheet";
+import NativePickerField from "../components/Form/NativePickerField";
 import { IoIosInformationCircle } from "react-icons/io";
-import bookingimage from "../Images/bookingfee.jpg";
-import Modal from "react-modal";
 import { IoCopyOutline } from "react-icons/io5";
-import { AiOutlineSafety } from "react-icons/ai";
 // import { createOrderAndReduceStock } from "../styles/services/Services";
 import {
   getDoc,
@@ -42,45 +46,76 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase.config";
 import Loading from "../components/Loading/Loading";
-import { GoChevronLeft, GoChevronRight } from "react-icons/go";
-import { CiCircleInfo } from "react-icons/ci";
+import { GoChevronRight } from "react-icons/go";
 import { RiSecurePaymentFill } from "react-icons/ri";
-import { MdOutlineClose, MdOutlineLock, MdSupportAgent } from "react-icons/md";
-import { LiaShippingFastSolid, LiaTimesSolid } from "react-icons/lia";
+import {
+  MdDeliveryDining,
+  MdOutlineLock,
+  MdSupportAgent,
+} from "react-icons/md";
+import { LiaShippingFastSolid } from "react-icons/lia";
 import { FaCheck } from "react-icons/fa6";
 import Skeleton from "react-loading-skeleton";
 import { RotatingLines } from "react-loader-spinner";
-import { IoSettingsOutline } from "react-icons/io5";
 import { calculateDeliveryFee } from "../services/states";
-import { NigerianStates } from "../services/states";
 import LocationPicker from "../components/Location/LocationPicker";
 
 import SEO from "../components/Helmet/SEO";
-import ReactSelect from "react-select";
-import { BsInfoCircle } from "react-icons/bs";
 import { RiUser3Line } from "react-icons/ri";
 import { LuCreditCard } from "react-icons/lu";
 
 import Link from "../components/Loading/Link";
-import { TfiWallet } from "react-icons/tfi";
+import WithdrawLoad from "../components/Loading/WithdrawLoad";
 import { generateCartHash } from "../services/cartHash";
 import IframeModal from "../components/PwaModals/PushNotifsModal";
-import TriviaGame from "../components/Games/TriviaGame";
-import { calculateCartTotalForVendor } from "../services/carthelper";
-const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
-  const [locationSet, setLocationSet] = useState(false);
-  const [showLocationPicker, setShowLocationPicker] = useState(false);
+import "./new-checkout.css";
+import { isVariantSizeHidden } from "../services/productVariantSelection";
+import { isMarketplaceVendorEligible } from "../services/marketplaceVisibility";
 
-  useEffect(() => {
-    if (userInfo.address) {
-      const stateInAddress = NigerianStates.find((state) =>
-        userInfo.address.endsWith(state)
-      );
-      if (stateInAddress) {
-        setSelectedState(stateInAddress);
+const CHECKOUT_ASSETS = {
+  edit: "/figma-assets/checkout-edit.svg",
+  info: "/figma-assets/checkout-info.svg",
+  payForMe: "/figma-assets/checkout-pay-for-me.svg",
+  paystack: "/figma-assets/checkout-paystack.svg",
+  radioEmpty: "/figma-assets/checkout-radio-empty.svg",
+  radioEmptyPayment: "/figma-assets/checkout-radio-empty-payment.svg",
+  radioSelected: "/figma-assets/checkout-radio-selected.svg",
+  trash: "/figma-assets/checkout-trash.svg",
+  wallet: "/figma-assets/checkout-wallet.svg",
+};
+
+const formatNaira = (value) => {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? `₦${amount.toLocaleString()}` : "—";
+};
+
+const CheckoutRadio = ({ selected, payment = false }) => (
+  <span className="checkout-radio" aria-hidden="true">
+    <img
+      src={
+        selected
+          ? CHECKOUT_ASSETS.radioSelected
+          : payment
+            ? CHECKOUT_ASSETS.radioEmptyPayment
+            : CHECKOUT_ASSETS.radioEmpty
       }
-    }
-  }, [userInfo.address]);
+      alt=""
+    />
+  </span>
+);
+
+const CheckoutSheetHeader = ({ title, onClose }) => (
+  <header className="checkout-modal-header">
+    <span aria-hidden="true" />
+    <h2>{title}</h2>
+    <button type="button" aria-label={`Close ${title}`} onClick={onClose}>
+      <X aria-hidden="true" />
+    </button>
+  </header>
+);
+
+const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   const handleLocationSelect = ({ lat, lng, address }) => {
     setUserInfo({
@@ -90,100 +125,96 @@ const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
       longitude: lng,
     });
     setShowLocationPicker(false); // Hide the picker
-    setLocationSet(true); // Mark location as selected
   };
 
-  useEffect(() => {
-    // Disable background scrolling when modal is open
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      // Clean up when the modal is closed
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen]);
-
   return (
-    <Modal
-      isOpen={isOpen}
-      onRequestClose={onClose}
-      className="bg-white w-full max-w-full h-[60vh] rounded-t-2xl shadow-lg px-3 py-3 relative overflow-y-scroll scrollbar-hide"
-      overlayClassName="fixed inset-0 bg-white bg-opacity-20 backdrop-blur flex justify-center items-end z-50"
-      ariaHideApp={false}
+    <AppBottomSheet
+      open={isOpen}
+      onClose={onClose}
+      height="78dvh"
+      ariaLabel="Edit delivery information"
+      surfaceClassName="checkout-edit-sheet checkout-font-surface"
     >
-      <div className="flex justify-between mt-3 items-center">
-        <h2 className="text-xl font-opensans font-semibold">
-          Edit Delivery Information
-        </h2>
-        <div className="w-8 h-8 bg-gray-200 rounded-full flex justify-center items-center">
-          <LiaTimesSolid
-            className="text-xl text-black cursor-pointer"
-            onClick={onClose}
-          />
-        </div>
-      </div>
-
-      <form>
-        <div className="flex flex-col mt-8 space-y-3">
-          <div>
-            <label className="font-opensans text-black">Name</label>
-            <input
-              type="text"
-              className="border bg-gray-100 py-2.5 mt-2 rounded-lg w-full px-2 font-opensans text-gray-600"
-              value={userInfo.displayName}
-              onChange={(e) =>
-                setUserInfo({ ...userInfo, displayName: e.target.value })
-              }
-            />
-          </div>
-          <div>
-            <label className="font-opensans">Phone Number</label>
-            <input
-              type="text"
-              className="border bg-gray-100 py-2.5 mt-2 rounded-lg w-full px-2 font-opensans text-gray-600"
-              value={userInfo.phoneNumber}
-              onChange={(e) =>
-                setUserInfo({ ...userInfo, phoneNumber: e.target.value })
-              }
-            />
-          </div>
-          <div>
-            <label className="font-opensans">Email</label>
-            <input
-              type="text"
-              className="border bg-gray-100 py-2.5 mt-2 rounded-lg w-full px-2 font-opensans text-gray-600"
-              value={userInfo.email}
-              onChange={(e) =>
-                setUserInfo({ ...userInfo, email: e.target.value })
-              }
-            />
-          </div>
-          <div>
-            <label className="font-opensans">Delivery Address</label>
-            {!showLocationPicker ? (
-              <input
-                type="text"
-                className="border bg-gray-100 py-2.5 mt-2 rounded-lg w-full px-2 font-opensans text-gray-600"
-                value={userInfo.address}
-                readOnly
-                onClick={() => setShowLocationPicker(true)}
-                placeholder="Click to select your location"
-              />
-            ) : (
-              <LocationPicker onLocationSelect={handleLocationSelect} />
-            )}
-          </div>
-        </div>
-
-        <div className="border-t mt-4 border-gray-300 my-2"></div>
-
-        <div className="flex mt-2 flex-col">
+      <form className="checkout-edit-sheet-form">
+        <header className="checkout-edit-sheet-header">
+          <span aria-hidden="true" />
+          <h2>Edit Delivery Information</h2>
           <button
             type="button"
-            className="bg-customOrange text-white h-12 font-semibold rounded-full font-opensans"
+            aria-label="Close delivery information"
+            onClick={onClose}
+          >
+            <X aria-hidden="true" />
+          </button>
+        </header>
+
+        <div className="checkout-edit-sheet-scroll scrollbar-hide">
+          <div className="checkout-edit-fields">
+            <label className="checkout-edit-field">
+              <span>Name</span>
+              <input
+                type="text"
+                value={userInfo.displayName}
+                onChange={(e) =>
+                  setUserInfo({ ...userInfo, displayName: e.target.value })
+                }
+              />
+            </label>
+
+            <label className="checkout-edit-field">
+              <span>Phone Number</span>
+              <input
+                type="text"
+                inputMode="tel"
+                value={userInfo.phoneNumber}
+                onChange={(e) =>
+                  setUserInfo({ ...userInfo, phoneNumber: e.target.value })
+                }
+              />
+            </label>
+
+            <label className="checkout-edit-field">
+              <span>Email</span>
+              <input
+                type="text"
+                inputMode="email"
+                value={userInfo.email}
+                onChange={(e) =>
+                  setUserInfo({ ...userInfo, email: e.target.value })
+                }
+              />
+            </label>
+
+            <div className="checkout-edit-field">
+              <span>Delivery Address</span>
+              {!showLocationPicker ? (
+                <input
+                  type="text"
+                  value={userInfo.address}
+                  readOnly
+                  onClick={() => setShowLocationPicker(true)}
+                  placeholder="Click to select your location"
+                />
+              ) : (
+                <div className="checkout-edit-location-picker">
+                  <LocationPicker
+                    onLocationSelect={handleLocationSelect}
+                    initialAddress={userInfo.address}
+                    initialCoords={{
+                      lat: userInfo.latitude,
+                      lng: userInfo.longitude,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <footer className="checkout-edit-sheet-actions">
+          <button
+            type="button"
+            className="checkout-edit-save"
             onClick={onClose}
           >
             Save Changes
@@ -191,126 +222,312 @@ const EditDeliveryModal = ({ isOpen, userInfo, setUserInfo, onClose }) => {
           <button
             type="button"
             onClick={onClose}
-            className="bg-gray-100 text-black h-12 rounded-full font-semibold font-opensans mt-3"
+            className="checkout-edit-cancel"
           >
             Cancel
           </button>
-        </div>
+        </footer>
       </form>
-    </Modal>
+    </AppBottomSheet>
   );
 };
 
 const ShopSafelyModal = ({ isOpen, onClose }) => {
-  useEffect(() => {
-    // Disable background scrolling when modal is open
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      // Clean up when the modal is closed
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen]);
+  return (
+    <AppBottomSheet
+      open={isOpen}
+      onClose={onClose}
+      height="78dvh"
+      ariaLabel="Shop safely and sustainably"
+      surfaceClassName="checkout-modal-sheet checkout-font-surface"
+    >
+      <div className="checkout-modal-shell">
+        <CheckoutSheetHeader
+          title="Shop Safely and Sustainably"
+          onClose={onClose}
+        />
+
+        <div className="checkout-modal-scroll scrollbar-hide">
+          {/* Secure Payment */}
+          <div className="flex items-start mb-4">
+            <div className="w-16 flex flex-col items-center">
+              <RiSecurePaymentFill className="text-3xl text-green-700" />
+              <FaCheck className="text-green-700 mt-2" />
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm text-green-700 font-semibold font-opensans">
+                Secure Your Payment
+              </h3>
+              <p className="text-sm font-opensans text-black mt-2">
+                Encrypted Transactions: Your data is always protected.
+              </p>
+              <p className="text-sm font-opensans text-black">
+                Fraud Prevention: Transactions are monitored in real-time.
+              </p>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-300 my-1"></div>
+
+          {/* Security & Privacy */}
+          <div className="flex items-start mt-3 mb-4">
+            <div className="w-16 flex flex-col items-center">
+              <MdOutlineLock className="text-3xl text-green-700" />
+              <FaCheck className="text-green-700 mt-2" />
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm text-green-700 font-semibold font-opensans">
+                Security & Privacy
+              </h3>
+              <p className="text-sm font-opensans text-black mt-2">
+                No Data Sharing: We will never share your information with third
+                parties.
+              </p>
+              <p className="text-sm font-opensans text-black">
+                Your data is used solely to enhance your experience.
+              </p>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-300 my-1"></div>
+
+          {/* Secure Shipment */}
+          <div className="flex items-start mt-3 mb-4">
+            <div className="w-16 flex flex-col items-center">
+              <LiaShippingFastSolid className="text-3xl text-green-700" />
+              <FaCheck className="text-green-700 mt-2" />
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm text-green-700 font-semibold font-opensans">
+                Secure Shipment Guarantee
+              </h3>
+              <p className="text-sm font-opensans text-black mt-2">
+                Escrow Payments: A percentage of your funds are held securely
+                and released to the vendor only after delivery is confirmed.
+              </p>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-300 my-1"></div>
+
+          {/* Customer Support */}
+          <div className="flex items-start mt-3">
+            <div className="w-16 flex flex-col items-center">
+              <MdSupportAgent className="text-3xl text-green-700" />
+              <FaCheck className="text-green-700 mt-2" />
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm text-green-700 font-semibold font-opensans">
+                Customer Support
+              </h3>
+              <p className="text-sm font-opensans text-black mt-2">
+                Our dedicated support team is available to assist with any
+                issues related to your order, payment, or delivery.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </AppBottomSheet>
+  );
+};
+
+const AlreadyStockpiledModal = ({
+  isOpen,
+  onClose,
+  vendorId,
+  vendorName,
+  dispatch,
+}) => (
+  <AppBottomSheet
+    open={isOpen}
+    onClose={onClose}
+    height="42dvh"
+    ariaLabel="Active stockpile found"
+    surfaceClassName="checkout-modal-sheet checkout-font-surface"
+  >
+    <div className="checkout-modal-shell">
+      <CheckoutSheetHeader title="Active Stockpile Found" onClose={onClose} />
+      <div className="checkout-modal-scroll checkout-notice-content scrollbar-hide">
+        <div className="checkout-notice-icon checkout-notice-icon--stockpile">
+          <GiBookPile aria-hidden="true" />
+        </div>
+        <p>
+          You already have an active stockpile with{" "}
+          <strong>{vendorName || "this vendor"}</strong>. Would you like to add
+          more items to your pile?
+        </p>
+      </div>
+
+      <footer className="checkout-modal-actions">
+        <button
+          type="button"
+          className="checkout-modal-primary"
+          onClick={() => {
+            dispatch(enterStockpileMode({ vendorId }));
+            void appHaptics.success();
+            onClose();
+          }}
+        >
+          Repile Now
+        </button>
+        <button
+          type="button"
+          className="checkout-modal-secondary"
+          onClick={onClose}
+        >
+          Cancel
+        </button>
+      </footer>
+    </div>
+  </AppBottomSheet>
+);
+
+const ExistingStockpileDeliveryModal = ({
+  isOpen,
+  vendorName,
+  onContinue,
+  onBack,
+}) => (
+  <AppBottomSheet
+    open={isOpen}
+    onClose={onBack}
+    variant="fullscreen"
+    dismissible={false}
+    closeOnBackdrop={false}
+    ariaLabel="Deliver separately from active stockpile"
+    zIndex={9500}
+    surfaceClassName="checkout-existing-pile-screen checkout-font-surface"
+  >
+    <div className="checkout-existing-pile-shell">
+      <header className="checkout-existing-pile-header">
+        <span aria-hidden="true" />
+        <h2>Active stockpile</h2>
+        <button type="button" onClick={onBack} aria-label="Return to cart">
+          <X aria-hidden="true" />
+        </button>
+      </header>
+
+      <main className="checkout-existing-pile-content">
+        <div className="checkout-existing-pile-icon" aria-hidden="true">
+          <GiBookPile />
+        </div>
+        <div>
+          <p className="checkout-existing-pile-eyebrow">Before you continue</p>
+          <h1>You already have a stockpile with this store</h1>
+        </div>
+        <p>
+          Your active stockpile with{" "}
+          <strong>{vendorName || "this vendor"}</strong> will remain exactly as
+          it is.
+        </p>
+        <div className="checkout-existing-pile-card">
+          <h3>Deliver Now is a separate order</h3>
+          <p>
+            These items will not be added to your existing stockpile. Once the
+            vendor accepts the order, it will be prepared and delivered
+            separately using the delivery option you select here.
+          </p>
+        </div>
+        <p className="checkout-existing-pile-hint">
+          Want these items in your pile instead? Continue to Checkout, open the{" "}
+          <strong>Stockpile</strong> tab, then choose{" "}
+          <strong>Repile Now</strong>.
+        </p>
+      </main>
+
+      <footer className="checkout-existing-pile-actions">
+        <button type="button" className="is-primary" onClick={onContinue}>
+          I understand, continue
+        </button>
+        <button type="button" className="is-secondary" onClick={onBack}>
+          Go back
+        </button>
+      </footer>
+    </div>
+  </AppBottomSheet>
+);
+
+const NoStockpileModal = ({ isOpen, onClose }) => (
+  <AppBottomSheet
+    open={isOpen}
+    onClose={onClose}
+    height="34dvh"
+    ariaLabel="Stockpiling not available"
+    surfaceClassName="checkout-modal-sheet checkout-font-surface"
+  >
+    <div className="checkout-modal-shell">
+      <CheckoutSheetHeader
+        title="Stockpiling Not Available"
+        onClose={onClose}
+      />
+      <div className="checkout-modal-scroll checkout-notice-content scrollbar-hide">
+        <div className="checkout-notice-icon checkout-notice-icon--unavailable">
+          <GiBookPile aria-hidden="true" />
+        </div>
+        <p>Sorry, but this vendor does not offer stockpiling at the moment.</p>
+      </div>
+    </div>
+  </AppBottomSheet>
+);
+
+const BuyersFeeModal = ({ isOpen, onClose, isStockpile }) => {
+  const title = isStockpile
+    ? "Stockpile Buyer Protection"
+    : "Buyer Protection Fee";
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onRequestClose={onClose}
-      className="bg-white w-full max-w-full h-[85vh] rounded-t-2xl shadow-lg overflow-y-scroll px-4 py-4 relative scrollbar-hide"
-      overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
-      ariaHideApp={false}
+    <AppBottomSheet
+      open={isOpen}
+      onClose={onClose}
+      height={isStockpile ? "56dvh" : "42dvh"}
+      ariaLabel={title}
+      surfaceClassName="checkout-modal-sheet checkout-font-surface"
     >
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-xl font-opensans font-semibold">
-          Shop Safely and Sustainably
-        </h1>
-        <div className="h-8 w-8 rounded-full p-2 bg-gray-200">
-          <LiaTimesSolid className=" cursor-pointer" onClick={onClose} />
+      <div className="checkout-modal-shell">
+        <CheckoutSheetHeader title={title} onClose={onClose} />
+        <div className="checkout-modal-scroll checkout-protection-content scrollbar-hide">
+          <div className="checkout-protection-icon">
+            <SiAdguard aria-hidden="true" />
+          </div>
+
+          {isStockpile ? (
+            <div className="checkout-protection-copy">
+              <p>
+                Stockpile Buyer Protection covers the items in your new pile
+                while they are stored with the vendor and until the pile is
+                delivered.
+              </p>
+              <p>
+                The protection fee is charged when you start a new stockpile.
+                Its exact amount is shown in your order summary before you pay,
+                so you can review the complete total first.
+              </p>
+              <p>
+                If you add more items to the same active stockpile, you will not
+                be charged another Buyer Protection fee for items you add later.
+              </p>
+              <p>
+                Delivery is separate from Buyer Protection. Any applicable
+                delivery charge will be provided when your completed pile is
+                ready to ship.
+              </p>
+            </div>
+          ) : (
+            <div className="checkout-protection-copy">
+              <p>
+                Buyer Protection helps keep your purchase safe if an order is
+                missing, damaged or not as described.
+              </p>
+              <p>
+                The applicable fee is shown in your order summary before you
+                pay, so you can review the complete checkout total first.
+              </p>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Secure Payment */}
-      <div className="flex items-start mb-4">
-        <div className="w-16 flex flex-col items-center">
-          <RiSecurePaymentFill className="text-3xl text-green-700" />
-          <FaCheck className="text-green-700 mt-2" />
-        </div>
-        <div className="ml-4">
-          <h3 className="text-sm text-green-700 font-semibold font-opensans">
-            Secure Your Payment
-          </h3>
-          <p className="text-sm font-opensans text-black mt-2">
-            Encrypted Transactions: Your data is always protected.
-          </p>
-          <p className="text-sm font-opensans text-black">
-            Fraud Prevention: Transactions are monitored in real-time.
-          </p>
-        </div>
-      </div>
-
-      <div className="border-t border-gray-300 my-1"></div>
-
-      {/* Security & Privacy */}
-      <div className="flex items-start mt-3 mb-4">
-        <div className="w-16 flex flex-col items-center">
-          <MdOutlineLock className="text-3xl text-green-700" />
-          <FaCheck className="text-green-700 mt-2" />
-        </div>
-        <div className="ml-4">
-          <h3 className="text-sm text-green-700 font-semibold font-opensans">
-            Security & Privacy
-          </h3>
-          <p className="text-sm font-opensans text-black mt-2">
-            No Data Sharing: We will never share your information with third
-            parties.
-          </p>
-          <p className="text-sm font-opensans text-black">
-            Your data is used solely to enhance your experience.
-          </p>
-        </div>
-      </div>
-
-      <div className="border-t border-gray-300 my-1"></div>
-
-      {/* Secure Shipment */}
-      <div className="flex items-start mt-3 mb-4">
-        <div className="w-16 flex flex-col items-center">
-          <LiaShippingFastSolid className="text-3xl text-green-700" />
-          <FaCheck className="text-green-700 mt-2" />
-        </div>
-        <div className="ml-4">
-          <h3 className="text-sm text-green-700 font-semibold font-opensans">
-            Secure Shipment Guarantee
-          </h3>
-          <p className="text-sm font-opensans text-black mt-2">
-            Escrow Payments: A percentage of your funds are held securely and
-            released to the vendor only after delivery is confirmed.
-          </p>
-        </div>
-      </div>
-
-      <div className="border-t border-gray-300 my-1"></div>
-
-      {/* Customer Support */}
-      <div className="flex items-start mt-3">
-        <div className="w-16 flex flex-col items-center">
-          <MdSupportAgent className="text-3xl text-green-700" />
-          <FaCheck className="text-green-700 mt-2" />
-        </div>
-        <div className="ml-4">
-          <h3 className="text-sm text-green-700 font-semibold font-opensans">
-            Customer Support
-          </h3>
-          <p className="text-sm font-opensans text-black mt-2">
-            Our dedicated support team is available to assist with any issues
-            related to your order, payment, or delivery.
-          </p>
-        </div>
-      </div>
-    </Modal>
+    </AppBottomSheet>
   );
 };
 
@@ -321,6 +538,10 @@ const Checkout = () => {
   const note = searchParams.get("note") || "";
   const [deliveryEstimate, setDeliveryEstimate] = useState("");
   const [selectedDeliveryMode, setSelectedDeliveryMode] = useState("");
+  // The delivery API may return a recommended/default option with its quote.
+  // Keep the customer's actual choice separate so a returned recommendation
+  // can never silently become a charge in the checkout UI or payment payload.
+  const [selectedCourierOptionId, setSelectedCourierOptionId] = useState("");
   const cart = useSelector((state) => state.cart);
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -334,24 +555,33 @@ const Checkout = () => {
   });
   const [displayText, setDisplayText] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
+  const closeEditModal = useCallback(() => setShowEditModal(false), []);
   const [showShopSafelyModal, setShowShopSafelyModal] = useState(false);
+  const closeShopSafelyModal = useCallback(
+    () => setShowShopSafelyModal(false),
+    []
+  );
   const [previewedOrder, setPreviewedOrder] = useState({
     subtotal: null,
     bookingFee: null,
-    serviceFee: "Calculating fees...",
+    serviceFee: null,
     deliveryCharge: null,
+    providerDeliveryCharge: null,
     total: null,
     discount: 0,
     freeShipping: false,
     freeServiceFee: false,
+    deliveryFulfillmentId: null,
+    deliveryOption: null,
+    deliveryOptions: [],
+    deliveryQuoteGeneration: null,
+    deliveryQuoteRefreshAfter: null,
+    deliveryQuoteExpiresAt: null,
   });
-  const [showBookingFeeModal, setShowBookingFeeModal] = useState(false);
-  const [showServiceFeeModal, setShowServiceFeeModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingLink, setIsLoadingLink] = useState(false);
   const [showServiceFee, setShowServiceFee] = useState(false);
   const [showBuyersFee, setShowBuyersFee] = useState(false);
-  const [isFetchingOrderPreview, setIsFetchingOrderPreview] = useState(true);
   const [checkoutMode, setCheckoutMode] = useState("deliver");
   const [deliveryNote, setDeliveryNote] = useState("");
   const [userState, setUserState] = useState(null);
@@ -366,31 +596,156 @@ const Checkout = () => {
   const [isLoadingServiceFee, setIsLoadingServiceFee] = useState(false);
   const [isLoadingDeliveryFee, setIsLoadingDeliveryFee] = useState(false);
   const [isLoadingTotal, setIsLoadingTotal] = useState(false);
+  const previewRequestIdRef = useRef(0);
+  const deliveryMethodTransitionRef = useRef(false);
+  const deliveryQuoteSessionIdRef = useRef(
+    window.crypto?.randomUUID?.() ||
+      `checkout-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+  const stockpileTabTransitionRef = useRef(false);
+  const [isSelectingCourier, setIsSelectingCourier] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [walletSetup, setWalletSetup] = useState(false);
   const [isPickup, setIsPickup] = useState(false);
-  const [isLoadingDiscount, setIsLoadingDiscount] = useState(false);
   const [tripAdvice, setTripAdvice] = useState(null);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showAlreadyStockpiledModal, setShowAlreadyStockpiledModal] =
     useState(false);
+  const closeAlreadyStockpiledModal = useCallback(
+    () => setShowAlreadyStockpiledModal(false),
+    []
+  );
 
   const [showNoStockpileModal, setShowNoStockpileModal] = useState(false);
+  const closeNoStockpileModal = useCallback(
+    () => setShowNoStockpileModal(false),
+    []
+  );
+  const closeBuyersFeeModal = useCallback(() => setShowBuyersFee(false), []);
   const [locksByProduct, setLocksByProduct] = useState({});
+  const [activePile, setActivePile] = useState({
+    items: [],
+    itemCount: 0,
+    subtotal: 0,
+    endDate: null,
+    loading: false,
+  });
 
   const [selectedWeeks, setSelectedWeeks] = useState(null);
   const { isActive, vendorId: stockpileVendorId } = useSelector(
     (state) => state.stockpile
   );
   const isRepiling = isActive && stockpileVendorId === vendorId;
+  const vendorDeliveryMode = vendorsInfo[vendorId]?.deliveryMode || "";
+  const [existingStockpileForCheckout, setExistingStockpileForCheckout] =
+    useState(false);
+  const [existingStockpileCheckPending, setExistingStockpileCheckPending] =
+    useState(true);
+  const [deliverNowWarningAccepted, setDeliverNowWarningAccepted] =
+    useState(false);
   const priceLocks = locksByProduct;
+  const priceLockNow = usePriceLockExpiryClock(locksByProduct);
+  const [liveProductPrices, setLiveProductPrices] = useState({});
+  const checkoutProductIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          Object.values(cart[vendorId]?.products || {})
+            .map((product) => product?.id)
+            .filter(Boolean),
+        ),
+      ),
+    [cart, vendorId],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkExistingStockpile = async () => {
+      setDeliverNowWarningAccepted(false);
+
+      if (!currentUser?.uid || !vendorId || isRepiling) {
+        setExistingStockpileForCheckout(false);
+        setExistingStockpileCheckPending(false);
+        return;
+      }
+
+      setExistingStockpileCheckPending(true);
+      try {
+        const pileSnapshot = await getDocs(
+          query(
+            collection(db, "stockpiles"),
+            where("userId", "==", currentUser.uid),
+            where("vendorId", "==", vendorId),
+            where("isActive", "==", true)
+          )
+        );
+        if (!cancelled) {
+          setExistingStockpileForCheckout(!pileSnapshot.empty);
+        }
+      } catch (error) {
+        console.warn("Unable to check for an existing stockpile:", error);
+        // Do not strand a customer on a blocking screen if this advisory read
+        // is temporarily unavailable. The Stockpile tab performs its own
+        // authoritative check before enabling repile mode.
+        if (!cancelled) setExistingStockpileForCheckout(false);
+      } finally {
+        if (!cancelled) setExistingStockpileCheckPending(false);
+      }
+    };
+
+    void checkExistingStockpile();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.uid, vendorId, isRepiling]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!checkoutProductIds.length) {
+      setLiveProductPrices({});
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void Promise.all(
+      checkoutProductIds.map(async (productId) => {
+        try {
+          const snapshot = await getDoc(doc(db, "products", productId));
+          if (!snapshot.exists()) return [productId, null];
+          const price = Number(snapshot.data()?.price);
+          return [productId, Number.isFinite(price) ? price : null];
+        } catch (error) {
+          console.warn("[CHK] Unable to refresh current product price:", {
+            productId,
+            error,
+          });
+          return [productId, null];
+        }
+      }),
+    ).then((entries) => {
+      if (cancelled) return;
+      setLiveProductPrices(
+        Object.fromEntries(entries.filter(([, price]) => price != null)),
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [checkoutProductIds]);
 
   const prepareOrderData = (isPreview = false) => {
     const vendorCart = cart[vendorId]?.products;
 
     if (!vendorCart || Object.keys(vendorCart).length === 0) {
-      toast.error("Cart is empty");
-      toast.dismiss();
+      // Preview effects can run once more after a successful payment clears the
+      // paid vendor cart and before navigation unmounts checkout. That is an
+      // expected transition, not a payment failure, so only an explicit payment
+      // attempt should surface the empty-cart error.
+      if (!isPreview) toast.error("Cart is empty");
       return null;
     }
 
@@ -419,10 +774,22 @@ const Checkout = () => {
     const cartHash = generateCartHash(cartItems);
 
     // Compose full order payload
+    const checkoutPaymentMethod = selectedPayment
+      ? selectedPayment === "wallet"
+        ? "wallet"
+        : "paystack"
+      : null;
+
     const orderData = {
       cartItems,
       cartHash,
-      userInfo: { ...userInfo, isPickup },
+      userInfo: {
+        ...userInfo,
+        isPickup,
+        ...(checkoutPaymentMethod && {
+          paymentMethod: checkoutPaymentMethod,
+        }),
+      },
       preview: isPreview,
       isRepiling,
       deliveryNote: userInfo.deliveryNote,
@@ -432,6 +799,16 @@ const Checkout = () => {
           ? selectedWeeks
           : undefined,
     };
+    if (checkoutMode === "deliver" && !isRepiling && !isPickup) {
+      orderData.deliveryQuoteSessionId =
+        deliveryQuoteSessionIdRef.current;
+    }
+
+    // Persist a canonical method on newly-created orders. Pay-for-me still
+    // settles through Paystack, while previews may run before a method is set.
+    if (checkoutPaymentMethod) {
+      orderData.paymentMethod = checkoutPaymentMethod;
+    }
 
     if (note) {
       orderData.note = note;
@@ -439,57 +816,22 @@ const Checkout = () => {
     if (selectedPayment === "wallet") {
       orderData.walletId = walletId;
     }
+    if (
+      checkoutMode === "deliver" &&
+      !isRepiling &&
+      !isPickup &&
+      previewedOrder.deliveryFulfillmentId
+    ) {
+      orderData.deliveryFulfillmentId =
+        previewedOrder.deliveryFulfillmentId;
+      if (!isPreview && selectedCourierOptionId) {
+        orderData.deliveryQuoteOptionId =
+          selectedCourierOptionId;
+      }
+    }
 
     return orderData;
   };
-  const AlreadyStockpiledModal = ({
-    isOpen,
-    onClose,
-    vendorId,
-    dispatch,
-    navigate,
-  }) => {
-    return (
-      <Modal
-        isOpen={isOpen}
-        onRequestClose={onClose}
-        overlayClassName="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
-        className="bg-white w-[90%] max-w-md mx-auto p-6 rounded-lg"
-        ariaHideApp={false}
-      >
-        <h2 className="text-lg font-semibold font-opensans mb-3 text-center">
-          Active Stockpile Found!
-        </h2>
-        <p className="text-gray-700 text-sm text-center font-opensans mb-6">
-          You already have an active stockpile with{" "}
-          <span className="font-semibold text-customOrange">
-            {vendorsInfo[vendorId]?.shopName || "this vendor"}
-          </span>
-          . Would you like to add more items to your pile?
-        </p>
-
-        <div className="flex font-opensans px-8 flex-col gap-3">
-          <button
-            onClick={() => {
-              dispatch(enterStockpileMode({ vendorId }));
-              navigate(`/latest-cart`);
-            }}
-            className="bg-customOrange text-white py-2 rounded-lg font-semibold"
-          >
-            Repile Now
-          </button>
-
-          <button
-            onClick={onClose}
-            className="bg-transparent text-customRichBrown border-customRichBrown border   py-2 rounded-lg font-semibold"
-          >
-            Cancel
-          </button>
-        </div>
-      </Modal>
-    );
-  };
-
   useEffect(() => {
     const fetchUserInfo = async () => {
       if (currentUser) {
@@ -518,13 +860,25 @@ const Checkout = () => {
     fetchUserInfo();
   }, [currentUser]);
 
-  const fetchPreview = async () => {
+  const fetchPreview = async (requestId) => {
     if (!currentUser) return;
 
     // Kick off loaders
-    setIsLoadingServiceFee(true);
+    const isDeliveryMethodTransition = deliveryMethodTransitionRef.current;
+    deliveryMethodTransitionRef.current = false;
+    if (!isDeliveryMethodTransition) setIsLoadingServiceFee(true);
     setIsLoadingDeliveryFee(true);
     setIsLoadingTotal(true);
+    if (checkoutMode === "deliver" && !isRepiling && !isPickup) {
+      // A refreshed quote has a new authoritative option set. Force a fresh,
+      // explicit customer selection instead of retaining an option from the
+      // previous address/cart/quote generation.
+      setSelectedCourierOptionId("");
+      setPreviewedOrder((previous) => ({
+        ...previous,
+        deliveryFulfillmentId: null,
+      }));
+    }
 
     // Ensure user info is complete
     if (
@@ -533,33 +887,67 @@ const Checkout = () => {
       !userInfo.phoneNumber ||
       !userInfo.address
     ) {
-      setIsLoadingServiceFee(false);
-      setIsLoadingDeliveryFee(false);
-      setIsLoadingTotal(false);
+      if (requestId === previewRequestIdRef.current) {
+        setIsLoadingServiceFee(false);
+        setIsLoadingDeliveryFee(false);
+        setIsLoadingTotal(false);
+        setShowServiceFee(false);
+      }
       return;
     }
 
     try {
+      const orderData = prepareOrderData(true);
+      if (!orderData) return;
+
       const processOrder = httpsCallable(functions, "processOrder");
-      const { data } = await processOrder(prepareOrderData(true));
+      const { data } = await processOrder(orderData);
+
+      // A mode, timeline, address or cart change may have started a newer
+      // preview while this callable was in flight. Never let an older response
+      // replace the latest checkout totals.
+      if (requestId !== previewRequestIdRef.current) return;
 
       setPreviewedOrder((prev) => {
-        // build new sticky flags
-        const newFreeService =
-          prev.freeServiceFee || Boolean(data.freeServiceFee);
-        const newFreeShipping = prev.freeShipping || Boolean(data.freeShipping);
+        const isStockpilePreview = checkoutMode === "stockpile" || isRepiling;
+        const isDoorDeliveryPreview = !isStockpilePreview && !isPickup;
+        const returnedDeliveryCharge = Number(data.deliveryCharge || 0);
+        const returnedTotal =
+          data.total != null ? Number(data.total) : Number(prev.total);
+        const totalBeforeCourier = Number.isFinite(returnedTotal)
+          ? Math.max(0, returnedTotal - returnedDeliveryCharge)
+          : prev.total;
 
-        if (isPickup) {
-          // Only update deliveryCharge & total in pickup mode
+        // build new sticky flags
+        const newFreeService = isStockpilePreview
+          ? Boolean(data.freeServiceFee)
+          : prev.freeServiceFee || Boolean(data.freeServiceFee);
+        const newFreeShipping = isStockpilePreview
+          ? Boolean(data.freeShipping)
+          : prev.freeShipping || Boolean(data.freeShipping);
+
+        if (isPickup && !isStockpilePreview) {
+          // Pickup still returns authoritative totals. Clear the courier quote
+          // without leaving a stale/string service fee behind.
           return {
             ...prev,
-            deliveryCharge: newFreeShipping
-              ? prev.deliveryCharge
-              : data.deliveryCharge != null
-              ? Number(data.deliveryCharge)
-              : prev.deliveryCharge,
+            subtotal:
+              data.subtotal != null ? Number(data.subtotal) : prev.subtotal,
+            serviceFee:
+              data.serviceFee != null
+                ? Number(data.serviceFee)
+                : prev.serviceFee,
+            deliveryCharge:
+              data.deliveryCharge != null ? Number(data.deliveryCharge) : 0,
             total: data.total != null ? Number(data.total) : prev.total,
+            discount:
+              data.discount != null ? Number(data.discount) : prev.discount,
+            freeServiceFee: Boolean(data.freeServiceFee),
             freeShipping: newFreeShipping,
+            deliveryFulfillmentId: null,
+            deliveryOption: null,
+            deliveryOptions: [],
+            providerDeliveryCharge: null,
           };
         } else {
           // Full update for delivery/stockpile
@@ -571,21 +959,39 @@ const Checkout = () => {
               data.bookingFee != null
                 ? Number(data.bookingFee)
                 : prev.bookingFee,
-            serviceFee: newFreeService
-              ? prev.serviceFee
-              : data.serviceFee != null
-              ? Number(data.serviceFee)
-              : prev.serviceFee,
-            deliveryCharge: newFreeShipping
-              ? prev.deliveryCharge
-              : data.deliveryCharge != null
-              ? Number(data.deliveryCharge)
-              : prev.deliveryCharge,
-            total: data.total != null ? Number(data.total) : prev.total,
+            // A stockpile preview must always render the exact fee returned by
+            // processOrder. Deliver-now reward behavior remains unchanged.
+            serviceFee:
+              isStockpilePreview && data.serviceFee != null
+                ? Number(data.serviceFee)
+                : newFreeService
+                ? prev.serviceFee
+                : data.serviceFee != null
+                ? Number(data.serviceFee)
+                : prev.serviceFee,
+            deliveryCharge: isDoorDeliveryPreview
+              ? null
+              : isStockpilePreview && data.deliveryCharge != null
+                ? Number(data.deliveryCharge)
+                : newFreeShipping
+                ? prev.deliveryCharge
+                : data.deliveryCharge != null
+                ? Number(data.deliveryCharge)
+                : prev.deliveryCharge,
+            // The API can recommend a courier, but the customer has not yet
+            // selected it. Until they do, the checkout total intentionally
+            // excludes that returned quote.
+            total: isDoorDeliveryPreview
+              ? totalBeforeCourier
+              : data.total != null
+              ? Number(data.total)
+              : prev.total,
 
             // once discount > 0 it sticks
             discount:
-              prev.discount > 0
+              isStockpilePreview
+                ? Number(data.discount || 0)
+                : prev.discount > 0
                 ? prev.discount
                 : data.discount != null
                 ? Number(data.discount)
@@ -593,32 +999,180 @@ const Checkout = () => {
 
             freeServiceFee: newFreeService,
             freeShipping: newFreeShipping,
+            deliveryFulfillmentId:
+              data.deliveryFulfillmentId || null,
+            deliveryOption: isDoorDeliveryPreview
+              ? null
+              : data.deliveryOption || null,
+            deliveryOptions: Array.isArray(data.deliveryOptions)
+              ? data.deliveryOptions
+              : [],
+            providerDeliveryCharge: isDoorDeliveryPreview
+              ? null
+              : data.providerDeliveryCharge != null
+                ? Number(data.providerDeliveryCharge)
+                : null,
+            deliveryQuoteGeneration:
+              data.deliveryQuoteGeneration ?? null,
+            deliveryQuoteRefreshAfter:
+              Number(data.deliveryQuoteRefreshAfter) || null,
+            deliveryQuoteExpiresAt:
+              Number(data.deliveryQuoteExpiresAt) || null,
           };
         }
       });
-    } catch (err) {
-      console.error("Preview error:", err);
-    } finally {
-      setIsLoadingServiceFee(false);
-      setIsLoadingDeliveryFee(false);
-      setIsLoadingTotal(false);
       setShowServiceFee(true);
+    } catch (err) {
+      if (requestId === previewRequestIdRef.current) {
+        console.error("Preview error:", err);
+        setShowServiceFee(false);
+      }
+    } finally {
+      if (requestId === previewRequestIdRef.current) {
+        setIsLoadingServiceFee(false);
+        setIsLoadingDeliveryFee(false);
+        setIsLoadingTotal(false);
+      }
     }
   };
 
   // 3) Call it in an effect whenever inputs change
   useEffect(() => {
-    fetchPreview();
+    const requestId = ++previewRequestIdRef.current;
+
+    if (!currentUser) {
+      setIsLoadingServiceFee(false);
+      setIsLoadingDeliveryFee(false);
+      setIsLoadingTotal(false);
+      setShowServiceFee(false);
+      return;
+    }
+
+    // Vendor data and the customer's fulfilment choice arrive asynchronously.
+    // Do not let the default `isPickup=false` state manufacture a delivery
+    // quote before either one is known.
+    if (
+      checkoutMode === "deliver" &&
+      !isRepiling &&
+      (!vendorDeliveryMode || !selectedDeliveryMode)
+    ) {
+      setSelectedCourierOptionId("");
+      setIsLoadingServiceFee(false);
+      setIsLoadingDeliveryFee(false);
+      setIsLoadingTotal(false);
+      setShowServiceFee(false);
+      setPreviewedOrder((previous) => ({
+        ...previous,
+        serviceFee: null,
+        deliveryCharge: null,
+        total: null,
+        deliveryFulfillmentId: null,
+        deliveryOption: null,
+        deliveryOptions: [],
+        providerDeliveryCharge: null,
+      }));
+      return;
+    }
+
+    // Do not create a delivery quote behind the required active-stockpile
+    // decision screen. Waiting here avoids orphaned quote sessions and makes
+    // the customer's explicit choice the start of the Deliver Now flow.
+    if (
+      existingStockpileCheckPending ||
+      (existingStockpileForCheckout &&
+        !isRepiling &&
+        !deliverNowWarningAccepted)
+    ) {
+      setIsLoadingServiceFee(false);
+      setIsLoadingDeliveryFee(false);
+      setIsLoadingTotal(false);
+      setShowServiceFee(false);
+      setPreviewedOrder((previous) => ({
+        ...previous,
+        deliveryFulfillmentId: null,
+        deliveryOption: null,
+        deliveryOptions: [],
+        providerDeliveryCharge: null,
+      }));
+      return;
+    }
+
+    // A new stockpile is not priceable until its timeline is selected. Besides
+    // preventing a misleading stale fee, this avoids sending the backend the
+    // same payload shape used by a genuine repile (stockpile with no duration).
+    if (checkoutMode === "stockpile" && !isRepiling && !selectedWeeks) {
+      setIsLoadingServiceFee(false);
+      setIsLoadingDeliveryFee(false);
+      setIsLoadingTotal(false);
+      setShowServiceFee(false);
+      setPreviewedOrder((prev) => ({
+        ...prev,
+        serviceFee: null,
+        deliveryCharge: null,
+        total: null,
+        freeServiceFee: false,
+        freeShipping: false,
+        deliveryFulfillmentId: null,
+        deliveryOption: null,
+        deliveryOptions: [],
+        providerDeliveryCharge: null,
+      }));
+      return;
+    }
+
+    fetchPreview(requestId);
   }, [
     vendorId,
     cart,
     currentUser,
     checkoutMode,
+    isRepiling,
     isPickup,
     userInfo.address,
     userInfo.latitude,
     userInfo.longitude,
     selectedWeeks,
+    existingStockpileCheckPending,
+    existingStockpileForCheckout,
+    deliverNowWarningAccepted,
+    selectedDeliveryMode,
+    vendorDeliveryMode,
+  ]);
+
+  useEffect(
+    () => () => {
+      // Invalidate any callable response that completes after checkout unmounts.
+      previewRequestIdRef.current += 1;
+    },
+    []
+  );
+  useEffect(() => {
+    const refreshAt = Number(previewedOrder.deliveryQuoteRefreshAfter);
+    if (
+      !refreshAt ||
+      !previewedOrder.deliveryFulfillmentId ||
+      checkoutMode !== "deliver" ||
+      isRepiling ||
+      isPickup ||
+      isLoading
+    ) {
+      return undefined;
+    }
+
+    const refreshQuote = () => {
+      const requestId = ++previewRequestIdRef.current;
+      void fetchPreview(requestId);
+    };
+    const delay = Math.max(0, refreshAt - Date.now());
+    const timeout = window.setTimeout(refreshQuote, delay);
+    return () => window.clearTimeout(timeout);
+  }, [
+    checkoutMode,
+    isLoading,
+    isPickup,
+    isRepiling,
+    previewedOrder.deliveryFulfillmentId,
+    previewedOrder.deliveryQuoteRefreshAfter,
   ]);
   useEffect(() => {
     if (!expiresAt) return;
@@ -651,20 +1205,35 @@ const Checkout = () => {
 
         const vendorDoc = await getDoc(doc(db, "vendors", vendorId));
         if (vendorDoc.exists()) {
-          setVendorsInfo({ [vendorId]: vendorDoc.data() });
+          const vendor = vendorDoc.data();
+          if (!isMarketplaceVendorEligible(vendor)) {
+            toast.error("This store is not currently available.");
+            navigate("/latest-cart", { replace: true });
+            return;
+          }
+          setVendorsInfo({ [vendorId]: vendor });
         } else {
-          toast.error(`Vendor with ID ${vendorId} does not exist.`);
+          toast.error("This store is not currently available.");
+          navigate("/latest-cart", { replace: true });
         }
       } catch (error) {
-        toast.error("Error fetching vendor info:", error);
+        console.error("Error fetching vendor info:", error);
+        toast.error("Unable to verify this store right now. Please try again.");
       }
     };
 
     fetchVendorInfo();
-  }, [vendorId]);
+  }, [vendorId, navigate]);
   useEffect(() => {
     const mode = vendorsInfo[vendorId]?.deliveryMode;
     if (!mode) return;
+
+    // Every stockpile, including a genuine repile, is delivered later as one
+    // pile. A pickup-only vendor must not leak isPickup=true into that order.
+    if (isRepiling) {
+      setIsPickup(false);
+      return;
+    }
 
     if (mode === "Delivery") {
       setSelectedDeliveryMode("Delivery");
@@ -677,7 +1246,7 @@ const Checkout = () => {
       setSelectedDeliveryMode(""); // clear any previous value
       setIsPickup(false);
     }
-  }, [vendorsInfo, vendorId]);
+  }, [vendorsInfo, vendorId, isRepiling]);
   useEffect(() => {
     if (!currentUser?.uid) {
       setLocksByProduct({});
@@ -711,124 +1280,141 @@ const Checkout = () => {
     return () => unsub();
   }, [currentUser?.uid]);
 
-  const NoStockpileModal = ({ isOpen, onClose }) => {
-    return (
-      <Modal
-        isOpen={isOpen}
-        onRequestClose={onClose}
-        overlayClassName="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
-        className="bg-white w-[90%] max-w-md mx-auto p-6 rounded-lg"
-        ariaHideApp={false}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <div className="w-7 h-7 bg-rose-100 flex justify-center items-center rounded-full">
-              <GiBookPile className="text-customRichBrown" />
-            </div>
-            <h2 className="font-opensans text-base font-semibold">
-              Ooops, Stockpiling Not Available
-            </h2>
-          </div>
-          <MdOutlineClose
-            className="text-black text-xl cursor-pointer"
-            onClick={onClose}
-          />
-        </div>
+  useEffect(() => {
+    let cancelled = false;
 
-        <p className="mb-6 text-gray-800 font-opensans text-sm">
-          Sorry, but this vendor does not offer stockpiling at the moment.
-        </p>
-      </Modal>
-    );
-  };
+    const loadActivePile = async () => {
+      if (!isRepiling || !currentUser?.uid || !vendorId) {
+        setActivePile({
+          items: [],
+          itemCount: 0,
+          subtotal: 0,
+          endDate: null,
+          loading: false,
+        });
+        return;
+      }
+
+      setActivePile((previous) => ({ ...previous, loading: true }));
+
+      try {
+        const pileSnapshot = await getDocs(
+          query(
+            collection(db, "stockpiles"),
+            where("userId", "==", currentUser.uid),
+            where("vendorId", "==", vendorId),
+            where("isActive", "==", true)
+          )
+        );
+
+        if (pileSnapshot.empty) {
+          if (!cancelled) {
+            setActivePile({
+              items: [],
+              itemCount: 0,
+              subtotal: 0,
+              endDate: null,
+              loading: false,
+            });
+          }
+          return;
+        }
+
+        const pileData = pileSnapshot.docs[0].data();
+        const orderIds = Array.isArray(pileData.orderIds)
+          ? pileData.orderIds
+          : [];
+        const orderSnapshots = await Promise.all(
+          orderIds.map((orderId) => getDoc(doc(db, "orders", orderId)))
+        );
+        const orders = orderSnapshots
+          .filter((snapshot) => snapshot.exists())
+          .map((snapshot) => snapshot.data());
+        const rawItems = orders.flatMap((order) => order.cartItems || []);
+        const productIds = [...new Set(rawItems.map((item) => item.productId))];
+        const productSnapshots = await Promise.all(
+          productIds.map((productId) =>
+            getDoc(doc(db, "products", productId))
+          )
+        );
+        const products = {};
+        productSnapshots.forEach((snapshot) => {
+          if (snapshot.exists()) products[snapshot.id] = snapshot.data();
+        });
+
+        const items = rawItems.map((item, index) => {
+          const product = products[item.productId] || {};
+          const subProduct = item.subProductId
+            ? product.subProducts?.find(
+                (candidate) => candidate.subProductId === item.subProductId
+              )
+            : null;
+
+          return {
+            ...item,
+            key: `${item.productId}-${item.subProductId || index}`,
+            name: product.name || "Stockpiled item",
+            imageUrl:
+              subProduct?.images?.[0] ||
+              product.coverImageUrl ||
+              product.imageUrls?.[0] ||
+              "",
+          };
+        });
+
+        if (!cancelled) {
+          setActivePile({
+            items,
+            itemCount: rawItems.reduce(
+              (sum, item) => sum + Number(item.quantity || 1),
+              0
+            ),
+            subtotal: orders.reduce(
+              (sum, order) => sum + Number(order.subtotal || 0),
+              0
+            ),
+            endDate: pileData.endDate || null,
+            loading: false,
+          });
+        }
+      } catch (error) {
+        console.error("Unable to load active stockpile preview:", error);
+        if (!cancelled) {
+          setActivePile((previous) => ({ ...previous, loading: false }));
+        }
+      }
+    };
+
+    loadActivePile();
+    return () => {
+      cancelled = true;
+    };
+  }, [isRepiling, currentUser?.uid, vendorId]);
+
   const supportsPickup =
     vendorsInfo[vendorId]?.deliveryMode === "Delivery & Pickup" ||
     vendorsInfo[vendorId]?.deliveryMode === "Pickup";
 
-  const getEffectiveUnitPrice = (product, productKey) => {
-    const now = Date.now();
-    const base = Number(product.price || 0);
+  const getEffectiveUnitPrice = useCallback(
+    (product, productKey) => {
+      const lock = priceLocks[product.id];
+      const resolution = resolveEffectiveUnitPrice({
+        product,
+        lock,
+        basePrice: liveProductPrices[product.id],
+        now: priceLockNow,
+      });
 
-    // (A) cart item's own lock
-    if (
-      typeof product.lockedPrice === "number" &&
-      (!product.offerExpiresAt || product.offerExpiresAt > now)
-    ) {
-      console.debug(
-        `[PRICE] ${product.name} (${productKey}) → item.lockedPrice`,
-        {
-          picked: Number(product.lockedPrice),
-          base,
-          offerExpiresAt: product.offerExpiresAt,
-        }
-      );
-      return Number(product.lockedPrice);
-    }
-
-    // (B) lock by product id from Firestore
-    const lock = priceLocks[product.id];
-    if (lock) {
-      // Your Cart uses lock.effectivePrice
-      if (typeof lock.effectivePrice === "number") {
-        console.debug(
-          `[PRICE] ${product.name} (${productKey}) → lock.effectivePrice`,
-          {
-            picked: Number(lock.effectivePrice),
-            base,
-            lock,
-          }
-        );
-        return Number(lock.effectivePrice);
-      }
-
-      // Fallbacks if your lock doc stores different shapes
-      if (
-        product.subProductId &&
-        lock.subProducts &&
-        typeof lock.subProducts[product.subProductId] === "number"
-      ) {
-        console.debug(
-          `[PRICE] ${product.name} (${productKey}) → subProduct lock`,
-          {
-            picked: Number(lock.subProducts[product.subProductId]),
-            base,
-            lock,
-          }
-        );
-        return Number(lock.subProducts[product.subProductId]);
-      }
-      if (product.selectedColor && product.selectedSize && lock.variants) {
-        const vKey = `${product.selectedColor}|${product.selectedSize}`;
-        if (typeof lock.variants[vKey] === "number") {
-          console.debug(
-            `[PRICE] ${product.name} (${productKey}) → variant lock`,
-            {
-              vKey,
-              picked: Number(lock.variants[vKey]),
-              base,
-              lock,
-            }
-          );
-          return Number(lock.variants[vKey]);
-        }
-      }
-      if (typeof lock.price === "number") {
-        console.debug(`[PRICE] ${product.name} (${productKey}) → lock.price`, {
-          picked: Number(lock.price),
-          base,
-          lock,
-        });
-        return Number(lock.price);
-      }
-    }
-
-    console.debug(`[PRICE] ${product.name} (${productKey}) → base price`, {
-      picked: base,
-      product,
-      lock,
-    });
-    return base;
-  };
+      console.debug(`[PRICE] ${product.name} (${productKey})`, {
+        picked: resolution.unitPrice,
+        base: resolution.base,
+        source: resolution.source,
+        hasLock: Boolean(lock),
+      });
+      return resolution.unitPrice;
+    },
+    [liveProductPrices, priceLockNow, priceLocks],
+  );
 
   const calcFallbackSubtotal = useMemo(() => {
     const vendorCart = cart[vendorId]?.products || {};
@@ -837,9 +1423,29 @@ const Checkout = () => {
       const qty = Number(p.quantity || 1);
       return sum + unit * qty;
     }, 0);
-  }, [cart, vendorId, priceLocks]);
+  }, [cart, vendorId, getEffectiveUnitPrice]);
+
+  const checkoutItemCount = useMemo(
+    () =>
+      Object.values(cart[vendorId]?.products || {}).reduce(
+        (sum, product) => sum + Number(product.quantity || 1),
+        0
+      ),
+    [cart, vendorId]
+  );
 
   const handleProceedToPayment = async () => {
+    if (isLoading) return;
+
+    if (
+      existingStockpileCheckPending ||
+      (existingStockpileForCheckout &&
+        !isRepiling &&
+        !deliverNowWarningAccepted)
+    ) {
+      return;
+    }
+
     if (checkoutMode === "stockpile" && !selectedWeeks) {
       toast.error("Please select how many weeks you want to stockpile.");
       return;
@@ -857,36 +1463,123 @@ const Checkout = () => {
       toast.error("Please choose Pick-up or Door delivery.");
       return;
     }
+    if (
+      checkoutMode === "deliver" &&
+      !isRepiling &&
+      !isPickup &&
+      !previewedOrder.deliveryFulfillmentId
+    ) {
+      toast.error("Please wait while we prepare your delivery quote.");
+      return;
+    }
+    if (
+      checkoutMode === "deliver" &&
+      !isRepiling &&
+      !isPickup &&
+      !selectedCourierOptionId
+    ) {
+      toast.error("Please select a courier before continuing.");
+      return;
+    }
     const orderData = prepareOrderData();
     if (!orderData) return;
 
     try {
+      // Ignore any preview/courier response that was already in flight. The
+      // backend now locks the same quote, and this keeps stale UI work from
+      // being applied while payment is processing.
+      previewRequestIdRef.current += 1;
       setIsLoading(true);
+      if (selectedPayment === "wallet") {
+        void appHaptics.medium();
+      }
       const processOrder = httpsCallable(functions, "processOrder");
       const { data } = await processOrder(orderData);
       if (selectedPayment === "wallet") {
         if (data?.success) {
-          await refreshWalletInfo();
-          dispatch(clearCart(vendorId));
+          // Payment/order creation is authoritative. Wallet refresh and local
+          // cart persistence are follow-up synchronisation and must never hold
+          // the success transition on a slow iOS network.
+          void refreshWalletInfo().catch((refreshError) => {
+            console.warn("Wallet balance refresh will retry later:", refreshError);
+          });
+          void Promise.resolve(dispatch(clearCart(vendorId))).catch(
+            (cartError) => {
+              console.warn("Paid cart cleanup will retry from sync:", cartError);
+            },
+          );
           dispatch(exitStockpileMode());
+          void appHaptics.success();
           toast.success("Paid with wallet balance! 🎉");
-          navigate("/user-orders", { replace: true });
+          navigate("/user-orders", {
+            replace: true,
+            state: {
+              orderCreated: true,
+              orderId: data?.orderId || null,
+              paymentReference: data?.reference || null,
+            },
+          });
         } else {
           toast.error(data?.message || "Wallet payment failed.");
         }
         return; // stop here – no Paystack
       }
 
-      /* Paystack flow (default) */
-      const { authorization_url } = data;
-      if (!authorization_url) {
-        throw new Error("Missing authorization URL from Paystack.");
-      }
-      window.location.href = authorization_url; // ⏩  redirect to Paystack
+      /* Paystack flow (default). The backend/webhook remains authoritative;
+       * the inline callback only tells us that the customer finished the
+       * secure Paystack interaction. */
+      const outcome = await resumePaystackTransaction({
+        accessCode: data?.access_code,
+      });
+      if (outcome.status === "cancelled") return;
+
+      // The webhook remains authoritative for stock and order creation. This
+      // acknowledgement gives the backend a deterministic recovery signal if
+      // Paystack completed in the app but its webhook is delayed or fails.
+      void markOrderPaymentClientCompleted(outcome.reference).catch(
+        (confirmationError) => {
+          console.warn(
+            "Payment completion acknowledgement will be reconciled server-side:",
+            confirmationError,
+          );
+        },
+      );
+
+      // A completed Buy Now/checkout is the end of the current repile
+      // session regardless of which payment rail was used. Wallet and
+      // Pay-for-me already clear this state; keep Paystack consistent so a
+      // successful Buy Now cannot leave the customer trapped in repile mode.
+      dispatch(exitStockpileMode());
+      void appHaptics.success();
+      toast.success("Payment received. We’re confirming your order.");
+      navigate("/user-orders", {
+        replace: true,
+        state: {
+          paymentConfirmationPending: true,
+          paymentReference: outcome.reference || null,
+        },
+      });
     } catch (err) {
       console.error("Error in payment process:", err);
+      appHaptics.error();
 
-      if (err?.details?.code === "INSUFFICIENT_FUNDS") {
+      const checkoutErrorCode =
+        err?.details?.code || err?.data?.code || err?.code || null;
+      if (
+        checkoutErrorCode === "ORDER_PAYMENT_FINALIZATION_PENDING" ||
+        checkoutErrorCode === "ORDER_PAYMENT_OUTCOME_UNKNOWN"
+      ) {
+        dispatch(exitStockpileMode());
+        toast("Your payment is being confirmed. Please don’t pay again.");
+        navigate("/user-orders", {
+          replace: true,
+          state: {
+            paymentConfirmationPending: true,
+            paymentReference:
+              err?.details?.reference || err?.data?.reference || null,
+          },
+        });
+      } else if (err?.details?.code === "INSUFFICIENT_FUNDS") {
         toast.error("Your wallet balance is not enough to place this order.");
       } else {
         const friendly =
@@ -904,20 +1597,120 @@ const Checkout = () => {
     // if they tapped “Pick-up” but vendor only does Delivery:
     if (
       mode === "Pickup" &&
-      vendorsInfo[vendorId]?.deliveryMode !== "Delivery & Pickup"
+      !["Delivery & Pickup", "Pickup"].includes(
+        vendorsInfo[vendorId]?.deliveryMode
+      )
     ) {
       toast.error("Sorry, this vendor doesn’t offer pick-up.");
       return;
     }
+    if (selectedDeliveryMode === mode) return;
+    deliveryMethodTransitionRef.current = true;
+    setSelectedCourierOptionId("");
     setIsPickup(mode === "Pickup");
     setSelectedDeliveryMode(mode);
   };
-  const isSelfManagedDelivery =
-    vendorsInfo[vendorId]?.deliveryPreference === "self";
 
+  const courierPickerOptions = useMemo(
+    () =>
+      previewedOrder.deliveryOptions.map((option) => {
+        const quotedAmount = Number(option.amount || 0);
+        const priceLabel = previewedOrder.freeShipping
+          ? "Free"
+          : `₦${quotedAmount.toLocaleString()}`;
+        const estimate = option.eta
+          ? `Estimated delivery: ${option.eta}`
+          : "Delivery estimate unavailable";
+        return {
+          value: option.id,
+          label: `${option.provider || "Courier"} · ${priceLabel}`,
+          detail: previewedOrder.freeShipping
+            ? `${estimate} · Normally ₦${quotedAmount.toLocaleString()}`
+            : estimate,
+        };
+      }),
+    [previewedOrder.deliveryOptions, previewedOrder.freeShipping]
+  );
+
+  const handleCourierSelection = async (quoteOptionId) => {
+    if (
+      !quoteOptionId ||
+      quoteOptionId === selectedCourierOptionId ||
+      !previewedOrder.deliveryFulfillmentId ||
+      isSelectingCourier ||
+      isLoading
+    ) {
+      return;
+    }
+    const requestId = ++previewRequestIdRef.current;
+    setIsSelectingCourier(true);
+    setIsLoadingDeliveryFee(true);
+    setIsLoadingTotal(true);
+    try {
+      const selectCourier = httpsCallable(
+        functions,
+        "selectNormalOrderDeliveryOptionV1"
+      );
+      const { data } = await selectCourier({
+        deliveryFulfillmentId: previewedOrder.deliveryFulfillmentId,
+        quoteOptionId,
+      });
+      if (requestId !== previewRequestIdRef.current) return;
+      setSelectedCourierOptionId(data.selectedOption?.id || quoteOptionId);
+      setPreviewedOrder((previous) => {
+        const previousDelivery = Number(previous.deliveryCharge || 0);
+        const nextDelivery = Number(data.deliveryCharge || 0);
+        const currentTotal = Number(previous.total);
+        return {
+          ...previous,
+          deliveryCharge: nextDelivery,
+          providerDeliveryCharge: Number(
+            data.providerQuotedAmount ?? nextDelivery
+          ),
+          deliveryOption: data.selectedOption || previous.deliveryOption,
+          deliveryOptions: Array.isArray(data.deliveryOptions)
+            ? data.deliveryOptions
+            : previous.deliveryOptions,
+          total: Number.isFinite(currentTotal)
+            ? currentTotal - previousDelivery + nextDelivery
+            : previous.total,
+        };
+      });
+      void appHaptics.selection();
+    } catch (error) {
+      console.error("Unable to select courier:", error);
+      toast.error(
+        error?.message || "This courier could not be selected. Please retry."
+      );
+    } finally {
+      if (requestId === previewRequestIdRef.current) {
+        setIsLoadingDeliveryFee(false);
+        setIsLoadingTotal(false);
+      }
+      setIsSelectingCourier(false);
+    }
+  };
   const handleShareLink = async () => {
     if (checkoutMode === "stockpile" && !selectedWeeks) {
       toast.error("Please select how many weeks you want to stockpile.");
+      return;
+    }
+    if (
+      checkoutMode === "deliver" &&
+      !isRepiling &&
+      !isPickup &&
+      !previewedOrder.deliveryFulfillmentId
+    ) {
+      toast.error("Please wait while we prepare your delivery quote.");
+      return;
+    }
+    if (
+      checkoutMode === "deliver" &&
+      !isRepiling &&
+      !isPickup &&
+      !selectedCourierOptionId
+    ) {
+      toast.error("Please select a courier before continuing.");
       return;
     }
 
@@ -926,10 +1719,21 @@ const Checkout = () => {
       const orderData = prepareOrderData();
       if (!orderData) return;
 
-      const payload = { ...orderData, shareOnly: true };
+      const { walletId: _walletId, ...payForMeOrderData } = orderData;
+      const payload = {
+        ...payForMeOrderData,
+        userInfo: {
+          ...payForMeOrderData.userInfo,
+          paymentMethod: "pay for me",
+        },
+        paymentMethod: "pay for me",
+        shareOnly: true,
+      };
       const processOrder = httpsCallable(functions, "processOrder");
       const { data } = await processOrder(payload);
-      dispatch(clearCart(vendorId));
+      // Clearing is immediate locally; the persistence queue retries in the
+      // background without showing cart-sync implementation details.
+      await dispatch(clearCart(vendorId));
       dispatch(exitStockpileMode());
       navigate("/user-orders", {
         state: {
@@ -949,6 +1753,11 @@ const Checkout = () => {
     !isRepiling && // repiling skips delivery selection
     vendorsInfo[vendorId]?.deliveryMode === "Delivery & Pickup" &&
     !selectedDeliveryMode; // user hasn’t decided
+  const mustChooseCourier =
+    checkoutMode === "deliver" &&
+    !isRepiling &&
+    selectedDeliveryMode === "Delivery" &&
+    !selectedCourierOptionId;
 
   const refreshWalletInfo = async () => {
     if (!currentUser) return;
@@ -1000,198 +1809,122 @@ const Checkout = () => {
     return Object.values(groupedProducts);
   };
 
-  const BookingFeeModal = ({ isOpen, onClose }) => {
-    useEffect(() => {
-      // Disable background scrolling when modal is open
-      if (isOpen) {
-        document.body.style.overflow = "hidden";
-      } else {
-        document.body.style.overflow = "unset";
-      }
-      return () => {
-        // Clean up when the modal is closed
-        document.body.style.overflow = "unset";
-      };
-    }, [isOpen]);
-
-    return (
-      <Modal
-        isOpen={isOpen}
-        onRequestClose={onClose}
-        className="bg-white w-full max-w-full h-[60vh] rounded-t-2xl shadow-lg overflow-y-scroll relative"
-        overlayClassName="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-end z-50"
-        ariaHideApp={false}
-      >
-        <div className="relative h-full overflow-y-scroll">
-          <LiaTimesSolid
-            className="text-2xl cursor-pointer absolute top-4 right-4"
-            onClick={onClose}
-          />
-          <img
-            src={bookingimage}
-            alt="Booking Fee Details"
-            className="w-full h-40 object-cover"
-          />
-          <div className="px-4 mb-4">
-            <p className="text-sm font-opensans text-black">
-              A 40% booking fee applies to marketplace vendor purchases,
-              securing your items and guaranteeing they'll be packaged and
-              reserved for pickup. Once payment is confirmed, you'll receive an
-              email with the vendor's store location and operational hours in
-              the market. Your items will be securely held by the vendor for 5
-              days after payment, ensuring they're ready for collection at your
-              convenience.
-            </p>
-            <p className="text-xs mt-4 text-gray-500 italic">
-              <span className="font-semibold">Note:</span> This fee is
-              non-refundable.
-            </p>
-          </div>
-        </div>
-      </Modal>
-    );
-  };
   const handleShowMapToast = () => {
     toast(
       " ⚠️ We will allow you to calculate an estimate for pickup and distance after the order has been placed."
     );
   };
 
-  const ServiceFeeModal = ({ isOpen, onClose }) => {
-    useEffect(() => {
-      // Disable background scrolling when modal is open
-      if (isOpen) {
-        document.body.style.overflow = "hidden";
-      } else {
-        document.body.style.overflow = "unset";
-      }
-      return () => {
-        // Clean up when the modal is closed
-        document.body.style.overflow = "unset";
-      };
-    }, [isOpen]);
-
-    return (
-      <Modal
-        isOpen={isOpen}
-        onRequestClose={onClose}
-        className="bg-white w-full max-w-full h-[30vh] rounded-t-2xl shadow-lg overflow-y-scroll scrollbar-hide relative flex flex-col"
-        overlayClassName="fixed inset-0 bg-gray-900  backdrop-blur-sm bg-opacity-50 flex justify-center items-end z-50"
-        ariaHideApp={false}
-      >
-        <div className="relative h-full ">
-          {" "}
-          <div className="mt-6 flex items-center px-4 font-semibold  justify-between">
-            <h1 className="font-opensans text-2xl text-black">
-              Why do we charge this?
-            </h1>
-            <div className="absolute top-4 right-4 bg-gray-200 w-8 h-8 rounded-full px-1.5 py-1.5">
-              <LiaTimesSolid
-                className="text-xl cursor-pointer modals "
-                onClick={onClose}
-              />
-            </div>
-          </div>
-          <div className="px-4  flex items-center mb-4">
-            <IoSettingsOutline className="text-9xl text-black" />
-            <p className="text-xs ml-4 font-opensans font-light text-black z-10">
-              Service fees are dynamic charges applied to transactions to
-              support the app's operations and customer support teams. These
-              fees are capped at a fixed amount, so no need to worry about
-              excessive charges.
-            </p>
-          </div>
-        </div>
-      </Modal>
-    );
-  };
   const handleStockpileClick = async () => {
-    if (!vendorsInfo[vendorId]?.stockpile?.enabled) {
-      console.log("Vendor does not offer stockpile");
-      setShowNoStockpileModal(true);
+    if (checkoutMode === "stockpile" || stockpileTabTransitionRef.current) {
       return;
     }
 
-    const stockpilesRef = collection(db, "stockpiles");
-    const q = query(
-      stockpilesRef,
-      where("userId", "==", currentUser.uid),
-      where("vendorId", "==", vendorId),
-      where("isActive", "==", true)
-    );
+    stockpileTabTransitionRef.current = true;
+    try {
+      if (existingStockpileForCheckout) {
+        void appHaptics.selection();
+        setShowAlreadyStockpiledModal(true);
+        return;
+      }
 
-    const querySnapshot = await getDocs(q);
+      const stockpilesRef = collection(db, "stockpiles");
+      const q = query(
+        stockpilesRef,
+        where("userId", "==", currentUser.uid),
+        where("vendorId", "==", vendorId),
+        where("isActive", "==", true)
+      );
 
-    if (!querySnapshot.empty) {
-      console.log("Stockpile found for user and vendor!");
-      setShowAlreadyStockpiledModal(true);
-    } else {
-      console.log("No stockpile found. Entering stockpile mode...");
-      setCheckoutMode("stockpile");
+      const querySnapshot = await getDocs(q);
 
-      const maxWeeks = vendorsInfo[vendorId]?.stockpile?.durationInWeeks || 2;
-      setSelectedWeeks(2);
+      if (!querySnapshot.empty) {
+        console.log("Stockpile found for user and vendor!");
+        setExistingStockpileForCheckout(true);
+        void appHaptics.selection();
+        setShowAlreadyStockpiledModal(true);
+      } else if (!vendorsInfo[vendorId]?.stockpile?.enabled) {
+        // A vendor turning off new stockpiles must not prevent customers from
+        // repiling into a pile that already exists. Only show unavailable once
+        // the active-pile query has confirmed that this customer has none.
+        console.log("Vendor does not offer new stockpiles");
+        setShowNoStockpileModal(true);
+      } else {
+        console.log("No stockpile found. Entering stockpile mode...");
+        // Stockpiles are delivered later as one pile; do not carry a previous
+        // Deliver Now pickup choice into either the preview or final order.
+        setIsPickup(false);
+        setCheckoutMode("stockpile");
+        setSelectedWeeks(null);
+        appHaptics.selection();
+      }
+    } catch (error) {
+      console.error("Unable to check active stockpile:", error);
+      toast.error("We couldn’t check your stockpile. Please try again.");
+    } finally {
+      stockpileTabTransitionRef.current = false;
     }
   };
 
-  const BuyersFeeModal = ({ isOpen, onClose }) => {
-    useEffect(() => {
-      // Disable background scrolling when modal is open
-      if (isOpen) {
-        document.body.style.overflow = "hidden";
-      } else {
-        document.body.style.overflow = "unset";
-      }
-      return () => {
-        // Clean up when the modal is closed
-        document.body.style.overflow = "unset";
-      };
-    }, [isOpen]);
+  const handleDeliverClick = () => {
+    if (checkoutMode === "deliver") return;
+    setCheckoutMode("deliver");
+    // Restore the vendor/default Deliver Now selection after leaving the
+    // Stockpile tab. selectedDeliveryMode is intentionally retained while the
+    // Stockpile tab is active so the user's earlier choice is not lost.
+    setIsPickup(selectedDeliveryMode === "Pickup");
+    appHaptics.selection();
+  };
 
-    return (
-      <Modal
-        isOpen={isOpen}
-        onRequestClose={onClose}
-        className="bg-white w-full max-w-full h-[30vh] rounded-t-2xl shadow-lg overflow-y-scroll relative flex flex-col"
-        overlayClassName="fixed inset-0 bg-gray-900  backdrop-blur-sm bg-opacity-50 flex justify-center items-end z-50"
-        ariaHideApp={false}
-      >
-        <div className="relative h-full ">
-          {" "}
-          <div className="mt-6 flex items-center px-4 font-semibold  justify-between">
-            <h1 className="font-ubuntu text-2xl text-black">
-              Why do we charge this?
-            </h1>
-            <LiaTimesSolid
-              className="text-2xl cursor-pointer modals absolute top-4 right-4"
-              onClick={onClose}
-            />
-          </div>
-          <div className="px-4  flex items-center mb-4">
-            <SiAdguard className="text-9xl text-green-600" />
-            <p className="text-xs ml-4 font-opensans font-light text-black z-10">
-              The Buyer’s Protection Fee ensures a safe and secure stockpiling
-              experience. It helps protect your items while they’re reserved
-              with the vendor and offers peace of mind in case your order is
-              missing, damaged, or not as described. It’s our way of making sure
-              you’re covered — even while your order is still being piled up.
-            </p>
-          </div>
-        </div>
-      </Modal>
-    );
-  };
-  const fetchPreviewWithDiscount = async () => {
-    setIsLoadingDiscount(true);
-    await fetchPreview();
-    setIsLoadingDiscount(false);
-  };
+  const checkoutTabSwipeHandlers = useHorizontalTabSwipe({
+    tabs: ["deliver", "stockpile"],
+    activeTab: checkoutMode,
+    enabled: !isRepiling,
+    onChange: (nextMode) => {
+      if (nextMode === "stockpile") {
+        void handleStockpileClick();
+      } else {
+        handleDeliverClick();
+      }
+    },
+  });
+
   const formatColorText = (color) => {
     if (!color) return "";
     return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
   };
 
-  if (loading) {
+  const formatConditionText = (condition) => {
+    if (!condition) return "";
+    const clean = String(condition).replace(/:$/, "").trim();
+    return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+  };
+
+  const getActivePileTimeLeft = () => {
+    if (!activePile.endDate) return "Active";
+    const end = activePile.endDate.toDate
+      ? activePile.endDate.toDate()
+      : new Date(activePile.endDate);
+    const days = Math.max(
+      0,
+      Math.ceil((end.getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+    );
+    return days === 1 ? "1 day left" : `${days} days left`;
+  };
+
+  const handleCheckoutItemRemove = async (productKey, product) => {
+    const syncPromise = dispatch(removeFromCart({ vendorId, productKey }));
+    appHaptics.removeFromCart();
+    toast(`Removed ${product?.name || "item"} from cart`, { icon: "ℹ️" });
+
+    if (Object.keys(cart[vendorId]?.products || {}).length <= 1) {
+      navigate("/latest-cart", { replace: true });
+    }
+
+    await syncPromise;
+  };
+
+  if (loading || existingStockpileCheckPending) {
     // Show skeleton placeholders instead of the Loading component
     return (
       <div className="bg-gray-100 pb-12">
@@ -1308,43 +2041,35 @@ const Checkout = () => {
   }
 
   return (
-    <div className="bg-gray-100 h-full ">
+    <div
+      {...checkoutTabSwipeHandlers}
+      className="new-checkout-page app-horizontal-tab-swipe"
+    >
       <SEO
         title={`Checkout - My Thrift`}
         description={`Checkout your order on My Thrift`}
         url={`https://www.shopmythrift.store/newcheckout/`}
       />
       {isLoadingLink && <Link />}
+      {isLoading && selectedPayment === "wallet" && (
+        <WithdrawLoad message="Securing your order…" />
+      )}
 
-      <div className="flex p-3 py-3 items-center sticky top-0 bg-white w-full h-20 shadow-md z-10 mb-3 pb-2">
-        <GoChevronLeft
-          className="text-3xl cursor-pointer"
-          onClick={() => navigate(-1)}
-        />
-        <h1 className="text-xl font-opensans ml-5 font-semibold">Checkout</h1>
-      </div>
-      <div className="px-4">
+      <AppPageHeader title="Checkout" onBack={() => navigate(-1)} />
+      <div className="checkout-tabs-wrap">
         {!isRepiling && (
-          <div className="w-full max-w-md mx-auto flex justify-between items-center rounded-full bg-gray-200 px-1 py-1 mb-3 relative">
+          <div className="checkout-tabs">
             <button
-              onClick={() => setCheckoutMode("deliver")}
-              className={`w-1/2 py-2 rounded-full text-sm font-opensans font-semibold transition-all duration-200 ${
-                checkoutMode === "deliver"
-                  ? "bg-white text-customOrange"
-                  : "text-gray-800"
-              }`}
+              onClick={handleDeliverClick}
+              className={checkoutMode === "deliver" ? "is-active" : ""}
             >
-              Deliver now
+              Deliver Now
             </button>
 
-            <div className="relative w-1/2">
+            <div>
               <button
                 onClick={handleStockpileClick}
-                className={`w-full py-2 rounded-full text-sm font-opensans font-medium transition-all duration-200 ${
-                  checkoutMode === "stockpile"
-                    ? "bg-white text-customOrange"
-                    : "text-gray-800"
-                }`}
+                className={checkoutMode === "stockpile" ? "is-active" : ""}
               >
                 Stockpile
               </button>
@@ -1354,19 +2079,18 @@ const Checkout = () => {
           </div>
         )}
       </div>
+      <div className="checkout-tab-swipe-surface">
       {checkoutMode === "deliver" ? (
-        <div className="px-3">
-          <div className="mt-4 px-4 w-full py-4 rounded-lg bg-white ">
+        <div className="checkout-flow checkout-deliver-flow">
+          <div className="checkout-section checkout-summary order-7">
             <h1 className="text-black font-semibold font-opensans text-base ">
-              {isRepiling || checkoutMode === "stockpile"
-                ? "Pile Summary"
-                : "Order Summary"}
+              Order Summary
             </h1>
 
             <div className="border-t border-gray-300 my-2"></div>
             <div className="flex justify-between">
               <label className="block mb-2 text-sm font-opensans ">
-                Sub-Total
+                Items ({checkoutItemCount})
               </label>
               <p className="text-base font-opensans text-black font-semibold">
                 {isLoadingTotal
@@ -1374,38 +2098,20 @@ const Checkout = () => {
                       previewedOrder.subtotal ?? calcFallbackSubtotal
                     ).toLocaleString()}`
                   : `₦${(
-                      previewedOrder.subtotal ??
-                      calculateCartTotalForVendor(cart, vendorId)
+                      previewedOrder.subtotal ?? calcFallbackSubtotal
                     ).toLocaleString()}`}
               </p>
             </div>
 
-            {vendorsInfo[vendorId]?.marketPlaceType === "marketplace" && (
-              <div className="flex justify-between">
-                <label className="block mb-2 font-opensans">
-                  Booking Fee
-                  <CiCircleInfo
-                    className="inline ml-2 text-customOrange cursor-pointer"
-                    onClick={() => setShowBookingFeeModal(true)}
-                  />
-                </label>
-                <p className="text-base font-opensans text-black font-semibold">
-                  {isFetchingOrderPreview ? (
-                    <Skeleton width={80} />
-                  ) : (
-                    `₦${previewedOrder.bookingFee.toLocaleString()}`
-                  )}
-                </p>
-              </div>
-            )}
-
             {!isRepiling && (
               <div className="flex justify-between">
                 <label className="block mb-2 text-sm font-opensans">
-                  Service Fee
-                  <CiCircleInfo
-                    className="inline ml-2 text-customOrange cursor-pointer"
-                    onClick={() => setShowServiceFeeModal(true)}
+                  Buyer Protection fee
+                  <img
+                    src={CHECKOUT_ASSETS.info}
+                    alt="More information about Buyer Protection"
+                    className="checkout-summary-info"
+                    onClick={() => setShowBuyersFee(true)}
                   />
                 </label>
                 <p
@@ -1428,10 +2134,10 @@ const Checkout = () => {
                   ) : showServiceFee ? (
                     previewedOrder.freeServiceFee ? (
                       <s className="text-black text-base font-opensans font-semibold">
-                        ₦{previewedOrder.serviceFee.toLocaleString()}
+                        {formatNaira(previewedOrder.serviceFee)}
                       </s>
                     ) : (
-                      `₦${previewedOrder.serviceFee.toLocaleString()}`
+                      formatNaira(previewedOrder.serviceFee)
                     )
                   ) : (
                     <RotatingLines
@@ -1445,26 +2151,22 @@ const Checkout = () => {
                 </p>
               </div>
             )}
-            {isSelfManagedDelivery ? (
-              // Self-managed ⇒ show orange notice instead of a price
-              <div className="mt-2">
-                <div className="flex items-center bg-orange-50 py-1.5 px-2 rounded-lg">
-                  <CiWarning className="text-orange-600 text-5xl mr-3" />
-                  <div>
-                    <p className="font-opensans text-xs text-orange-700 font-semibold">
-                      You won't be charged delivery fee now. After your order is
-                      placed, the vendor will share an estimated delivery quote
-                      for this order.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              // Platform-managed ⇒ show the normal Delivery Fee line
-              <div className="flex justify-between">
+            <div className="flex justify-between">
                 <span className="font-opensans text-sm">Delivery Fee</span>
 
-                {isLoadingDeliveryFee ? (
+                {isRepiling ? (
+                  <span className="text-xs font-opensans text-orange-700 font-semibold">
+                    At shipping
+                  </span>
+                ) : !selectedDeliveryMode ? (
+                  <span className="text-xs font-opensans text-gray-500 font-semibold">
+                    Select method
+                  </span>
+                ) : selectedDeliveryMode === "Pickup" ? (
+                  <span className="text-base font-opensans text-black font-semibold">
+                    ₦0
+                  </span>
+                ) : isLoadingDeliveryFee ? (
                   <RotatingLines
                     strokeColor="#f97316"
                     strokeWidth="3"
@@ -1472,9 +2174,9 @@ const Checkout = () => {
                     width="20"
                     visible={true}
                   />
-                ) : isRepiling ? (
-                  <span className="text-xs font-opensans text-orange-700 font-semibold">
-                    Will be charged when it’s time to ship
+                ) : !selectedCourierOptionId ? (
+                  <span className="text-xs font-opensans text-gray-500 font-semibold">
+                    Select courier
                   </span>
                 ) : previewedOrder.deliveryCharge == null ? (
                   <RotatingLines
@@ -1486,7 +2188,10 @@ const Checkout = () => {
                   />
                 ) : previewedOrder.freeShipping ? (
                   <s className="text-base font-opensans text-black font-semibold">
-                    ₦{Number(previewedOrder.deliveryCharge).toLocaleString()}
+                    ₦
+                    {Number(
+                      previewedOrder.providerDeliveryCharge || 0
+                    ).toLocaleString()}
                   </s>
                 ) : (
                   <span className="text-base font-opensans text-black font-semibold">
@@ -1494,56 +2199,32 @@ const Checkout = () => {
                   </span>
                 )}
               </div>
-            )}
-
-            <div className="border-t mt-3 border-gray-300 my-2"></div>
-            <div className="flex justify-between mt-2">
-              <label className="block mb-2 font-opensans text-base font-semibold">
-                Total
-              </label>
-              <p className="text-lg font-opensans text-black font-semibold">
-                {isLoadingTotal ? (
-                  <p className="font-opensans text-xs text-black animate-pulse">
-                    {" "}
-                    Estimating total...
-                  </p>
-                ) : previewedOrder.total == null ? (
-                  <p className="font-opensans text-xs text-black animate-pulse">
-                    Just a moment...
-                  </p>
-                ) : (
-                  `₦${Number(previewedOrder.total).toLocaleString()}`
-                )}
-              </p>
-            </div>
 
             {isRepiling && (
               <div className="flex items-center bg-green-50 p-3 rounded-lg mt-3">
                 <PiStackSimpleFill className="text-green-600 text-3xl mr-3" />
                 <div>
                   <p className="font-opensans text-xs text-green-700 font-semibold">
-                    You’ve saved ₦{previewedOrder.serviceFee.toLocaleString()}{" "}
-                    in service fees by choosing to stockpile.
+                    You won’t be charged a new Buyer Protection Fee when
+                    adding these items to your active pile.
                   </p>
                 </div>
               </div>
             )}
           </div>
-          <TriviaGame onReward={fetchPreviewWithDiscount} />
-
-          <div className="mt-2">
+          <div className="order-3">
             <div
-              className={`mt-3 px-3 w-full py-4 rounded-lg ${
-                isRepiling ? "bg-white" : "bg-white"
-              }`}
+              className="checkout-section checkout-delivery-info"
             >
               <div className="flex justify-between items-center">
                 <h1 className="text-black font-semibold font-opensans text-base">
                   Delivery Information
                 </h1>
 
-                <FaPen
-                  className={`${
+                <img
+                  src={CHECKOUT_ASSETS.edit}
+                  alt=""
+                  className={`checkout-edit-icon ${
                     isRepiling
                       ? "text-gray-400 cursor-not-allowed"
                       : "text-black cursor-pointer"
@@ -1560,7 +2241,7 @@ const Checkout = () => {
 
               <div className="flex text-sm ">
                 <label className="block mb-2 mr-1 font-semibold font-opensans">
-                  Name:
+                  Name
                 </label>
                 <p className="font-opensans text-black">
                   {userInfo.displayName}
@@ -1568,7 +2249,7 @@ const Checkout = () => {
               </div>
               <div className="flex text-sm">
                 <label className="block mb-2 mr-1 font-semibold font-opensans">
-                  Phone Number:
+                  Phone Number
                 </label>
                 <p className="font-opensans text-black ">
                   {userInfo.phoneNumber}
@@ -1576,31 +2257,29 @@ const Checkout = () => {
               </div>
               <div className="flex text-sm">
                 <label className="block mb-2 font-semibold mr-1 font-opensans">
-                  Email:
+                  Email
                 </label>
                 <p className="font-opensans text-black">{userInfo.email}</p>
               </div>
               <div className="flex text-sm">
                 <label className="block mb-2 mr-1 font-semibold font-opensans">
-                  Address:
+                  Delivery Address
                 </label>
                 <p className="font-opensans text-black ">{userInfo.address}</p>
               </div>
             </div>
           </div>
 
-          <form className="bg-white mt-3 p-3 rounded-lg shadow-md">
+          <form className="checkout-section checkout-products order-1">
             {vendorId && cart[vendorId] && (
               <>
                 <div className="flex justify-between">
                   <h1 className="text-black font-semibold font-opensans text-base">
-                    {isRepiling || checkoutMode === "stockpile"
-                      ? "Pile"
-                      : "Shipment"}
+                    Review Item(s)
                   </h1>
                   <h3 className="text-xs font-opensans">
                     <span className="text-gray-600 mr-1 font-normal text-xs font-opensans">
-                      From:
+                      From
                     </span>
                     {vendorsInfo[vendorId]?.shopName?.length > 26
                       ? `${vendorsInfo[vendorId]?.shopName.slice(0, 26)}...`
@@ -1622,7 +2301,7 @@ const Checkout = () => {
                               "https://via.placeholder.com/150"
                             }
                             alt={product.name}
-                            className="w-16 h-16 object-cover rounded-lg mr-4"
+                            className="checkout-product-image"
                             onError={(e) => {
                               e.target.src = "https://via.placeholder.com/150";
                             }}
@@ -1638,32 +2317,40 @@ const Checkout = () => {
                                 productKey
                               ).toLocaleString()}
                             </p>
-                            <div className="flex items-center space-x-3 text-sm mt-1 ">
+                            <div className="checkout-product-attributes">
                               {product.isFashion && (
                                 <>
-                                  <p className="text-black text-sm font-semibold font-opensans">
-                                    <span className="font-normal text-xs text-gray-600">
-                                      Size:
-                                    </span>{" "}
-                                    {product.selectedSize || "N/A"}
-                                  </p>
-                                  <p className="text-black text-sm font-semibold font-opensans">
-                                    <span className="font-normal text-xs text-gray-600">
-                                      Color:
-                                    </span>{" "}
+                                  {!isVariantSizeHidden(product) && (
+                                    <span>
+                                      {product.selectedSize || "N/A"}
+                                    </span>
+                                  )}
+                                  <span>
                                     {formatColorText(product.selectedColor)}
-                                  </p>
+                                  </span>
                                 </>
                               )}
-                              <p className="text-black text-sm font-semibold font-opensans">
-                                <span className="font-normal text-xs text-gray-600">
-                                  Qty:
-                                </span>{" "}
-                                {product.quantity}
-                              </p>
+                              {product.condition && (
+                                <span>
+                                  {formatConditionText(product.condition)}
+                                </span>
+                              )}
                             </div>
+                            <p className="checkout-product-quantity">
+                              Qty: {product.quantity}
+                            </p>
                           </div>
                         </div>
+                        <button
+                          type="button"
+                          className="checkout-remove-item"
+                          aria-label={`Remove ${product.name} from cart`}
+                          onClick={() =>
+                            handleCheckoutItemRemove(productKey, product)
+                          }
+                        >
+                          <img src={CHECKOUT_ASSETS.trash} alt="" />
+                        </button>
                       </div>
                     )
                   )}
@@ -1671,8 +2358,55 @@ const Checkout = () => {
               </>
             )}
           </form>
+          {isRepiling && (
+            <section className="checkout-section checkout-current-pile order-2">
+              <div className="checkout-section-heading">
+                <div className="checkout-pile-heading-copy">
+                  <h2>Current Pile</h2>
+                  <div className="checkout-pile-meta">
+                    <span>
+                      {vendorsInfo[vendorId]?.shopName || "This vendor"}
+                    </span>
+                    <span>{getActivePileTimeLeft()}</span>
+                  </div>
+                </div>
+              </div>
+              {activePile.loading ? (
+                <div className="checkout-pile-loading">
+                  <Skeleton count={1} height={72} />
+                </div>
+              ) : activePile.items.length ? (
+                <>
+                  <div className="checkout-pile-strip">
+                    {activePile.items.map((item) => (
+                      <img
+                        key={item.key}
+                        src={item.imageUrl || "https://via.placeholder.com/150"}
+                        alt={item.name}
+                        onError={(event) => {
+                          event.currentTarget.src =
+                            "https://via.placeholder.com/150";
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div className="checkout-pile-total">
+                    <span>
+                      {activePile.itemCount}{" "}
+                      {activePile.itemCount === 1 ? "item" : "items"}
+                    </span>
+                    <strong>
+                      Item(s) Total: ₦{activePile.subtotal.toLocaleString()}
+                    </strong>
+                  </div>
+                </>
+              ) : (
+                <p className="checkout-muted">Your active pile is loading.</p>
+              )}
+            </section>
+          )}
           {!isRepiling && (
-            <div className="bg-white mt-3 p-3 rounded-lg shadow-md">
+            <div className="checkout-section checkout-delivery-method order-4">
               {vendorId && vendorsInfo[vendorId] && (
                 <>
                   <h2 className="text-base font-opensans font-semibold mb-3">
@@ -1680,70 +2414,51 @@ const Checkout = () => {
                   </h2>
                   <div className="border-t border-gray-200 mb-2" />
                   <div className="px-2">
-                    <button
-                      type="button"
+                    <div
+                      role="radio"
+                      aria-checked={selectedDeliveryMode === "Pickup"}
+                      tabIndex={0}
                       onClick={() => handleDeliveryModeSelection("Pickup")}
-                      className={`w-full flex items-center justify-between py-2  ${
-                        selectedDeliveryMode === "Pickup"
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleDeliveryModeSelection("Pickup");
+                        }
+                      }}
+                      className={`checkout-choice checkout-pickup-choice w-full ${
+                        selectedDeliveryMode === "Pickup" ? "is-selected" : ""
                       }`}
                     >
-                      <div className="flex flex-col items-start">
-                        <p className="text-base font-opensans font-semibold text-black">
-                          Pick-up
-                          {/* <span className="font-normal text-xs text-customOrange ml-1">
-                            {pickupDistance
-                              ? `(≈ ${pickupDistance})`
-                              : "(distance — …)"}
-                          </span> */}
+                      <div className="checkout-pickup-copy">
+                        <p className="checkout-pickup-title">Pick-up location</p>
+                        <p className="checkout-pickup-address">
+                          {supportsPickup &&
+                          vendorsInfo[vendorId]?.pickupAddress
+                            ? vendorsInfo[vendorId].pickupAddress
+                            : "Vendor doesn’t offer pickup"}
                         </p>
-                        {/* <p className="text-xs text-gray-800 font-opensans">
-                          {tripAdvice
-                            ? `${tripAdvice.headline} • ${tripAdvice.sub}`
-                            : "Calculating …"}
-                        </p> */}
                       </div>
-                      <span
-                        className={`w-5 h-5 rounded-full border-2 mr-2 flex items-center justify-center ${
-                          selectedDeliveryMode === "Pickup"
-                            ? "border-customOrange"
-                            : "border-gray-300"
-                        }`}
-                      >
-                        {selectedDeliveryMode === "Pickup" && (
-                          <span className="w-3 h-3 rounded-full bg-customOrange" />
-                        )}
-                      </span>
-                    </button>
-
-                    {/* Pick-up location (always visible) */}
-                    <div className="mt-1 rounded bg-gray-100 py-3 px-2">
-                      {supportsPickup &&
-                      vendorsInfo[vendorId]?.pickupLat &&
-                      vendorsInfo[vendorId]?.pickupLng &&
-                      vendorsInfo[vendorId]?.pickupAddress ? (
-                        <>
+                      <div className="checkout-pickup-actions">
+                        <CheckoutRadio
+                          selected={selectedDeliveryMode === "Pickup"}
+                        />
+                        {supportsPickup &&
+                          vendorsInfo[vendorId]?.pickupLat &&
+                          vendorsInfo[vendorId]?.pickupLng &&
+                          vendorsInfo[vendorId]?.pickupAddress && (
                           <button
-                            onClick={handleShowMapToast}
-                            className="w-full flex items-center justify-between"
+                            type="button"
+                            className="checkout-open-map"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleShowMapToast();
+                            }}
                           >
-                            <span className="font-opensans font-semibold text-xs">
-                              Pick-up location
-                            </span>
-                            <div className="flex items-center text-xs font-opensans text-blue-800">
-                              <span>Open map</span>
-                              <GoChevronRight className="text-lg" />
-                            </div>
+                            <span>Open map</span>
+                            <GoChevronRight aria-hidden="true" />
                           </button>
-                          <hr className="border-t border-gray-300 my-2" />
-                          <p className="mt-2 text-xs font-opensans text-black">
-                            {vendorsInfo[vendorId].pickupAddress}
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-xs font-opensans text-gray-500">
-                          Vendor doesn’t offer pickup
-                        </p>
-                      )}
+                        )}
+                      </div>
                     </div>
 
                     <hr className="border-t border-gray-200 my-2" />
@@ -1752,34 +2467,84 @@ const Checkout = () => {
                     <button
                       type="button"
                       onClick={() => handleDeliveryModeSelection("Delivery")}
-                      className={`w-full flex items-start justify-between py-4 ${
+                      className={`checkout-choice w-full flex items-start justify-between ${
                         selectedDeliveryMode === "Delivery"
+                          ? "is-selected"
+                          : ""
                       }`}
                     >
                       <div className="flex flex-col items-start">
                         <p className="text-base font-opensans font-semibold text-black">
-                          {isSelfManagedDelivery ? "Delivery" : "Door delivery"}
+                          Home delivery
                         </p>
 
-                        {!isSelfManagedDelivery && (
-                          <p className="text-xs text-gray-800 font-opensans">
-                            1–3 working days
-                          </p>
-                        )}
+                        <p>Delivered straight to your doorstep</p>
                       </div>
 
-                      <span
-                        className={`w-5 h-5 rounded-full border-2 mr-2 flex items-center justify-center ${
-                          selectedDeliveryMode === "Delivery"
-                            ? "border-customOrange"
-                            : "border-gray-300"
-                        }`}
-                      >
-                        {selectedDeliveryMode === "Delivery" && (
-                          <span className="w-3 h-3 rounded-full bg-customOrange" />
-                        )}
-                      </span>
+                      <CheckoutRadio
+                        selected={selectedDeliveryMode === "Delivery"}
+                      />
                     </button>
+
+                    {selectedDeliveryMode === "Delivery" &&
+                      (isSelectingCourier || isLoadingDeliveryFee) && (
+                        <div
+                          className="checkout-courier-loading"
+                          role="status"
+                          aria-live="polite"
+                        >
+                          <div
+                            className="checkout-courier-loading-visual"
+                            aria-hidden="true"
+                          >
+                            <MdDeliveryDining />
+                            <span className="checkout-courier-loading-road" />
+                          </div>
+                          <div className="checkout-courier-loading-copy">
+                            <strong>
+                              {isSelectingCourier
+                                ? "Finalising delivery…"
+                                : courierPickerOptions.length > 0
+                                  ? "Updating courier options…"
+                                  : "Finding available couriers"}
+                            </strong>
+                            <span>
+                              {isSelectingCourier
+                                ? "Confirming your courier and updating the total…"
+                                : "Checking live prices and delivery times…"}
+                            </span>
+                          </div>
+                          <span
+                            className="checkout-courier-loading-spinner"
+                            aria-hidden="true"
+                          />
+                        </div>
+                      )}
+
+                    {selectedDeliveryMode === "Delivery" &&
+                      courierPickerOptions.length > 0 && (
+                        <div
+                          className="checkout-courier-picker"
+                          aria-busy={isSelectingCourier || isLoadingDeliveryFee}
+                        >
+                          <span className="checkout-courier-picker-label">
+                            Courier
+                          </span>
+                          <NativePickerField
+                            id="checkout-courier"
+                            title="Select courier"
+                            value={selectedCourierOptionId}
+                            options={courierPickerOptions}
+                            onChange={handleCourierSelection}
+                            placeholder="Select courier"
+                            disabled={
+                              isSelectingCourier || isLoadingDeliveryFee
+                            }
+                            className="checkout-courier-picker-control"
+                            ariaLabel="Select a courier and delivery price"
+                          />
+                        </div>
+                      )}
                   </div>
                   {/* Pick-up */}
                 </>
@@ -1787,9 +2552,9 @@ const Checkout = () => {
             </div>
           )}
           {/* ───────────────── Payment Method ───────────────── */}
-          <div className="bg-white mt-3 p-4 rounded-lg shadow-md">
+          <div className="checkout-section checkout-payment-method order-5">
             <h2 className="text-base font-opensans font-semibold mb-3">
-              Payment Method
+              Payment method
             </h2>
             <div className="border-t border-gray-200 my-2" />
 
@@ -1797,67 +2562,63 @@ const Checkout = () => {
               {
                 id: "paystack",
                 label: "Paystack",
-                icon: (
-                  <img src="/paystacklogo.png" alt="" className="w-6 h-6" />
-                ),
+                icon: <img src={CHECKOUT_ASSETS.paystack} alt="" />,
               },
               {
                 id: "wallet",
-                label: "Wallet",
-                icon: <TfiWallet className="text-xl" />,
+                label: walletSetup
+                  ? `My Wallet (₦${walletBal.toLocaleString()})`
+                  : "My Wallet",
+                icon: <img src={CHECKOUT_ASSETS.wallet} alt="" />,
               },
               {
                 id: "share",
                 label: "Pay for me",
-                icon: <FaUserFriends className="text-xl" />,
+                description: "Send a payment link to someone",
+                icon: <img src={CHECKOUT_ASSETS.payForMe} alt="" />,
               },
             ].map((opt) => (
               <button
                 key={opt.id}
                 type="button"
                 onClick={() => setSelectedPayment(opt.id)}
-                className="w-full flex items-center justify-between py-4 border-b last:border-0"
+                className={`w-full flex items-center justify-between ${
+                  selectedPayment === opt.id ? "is-selected" : ""
+                }`}
               >
                 <span className="flex items-center space-x-3">
                   {opt.icon}
-                  <span className="text-sm font-semibold font-opensans">
-                    {opt.label}
+                  <span className="checkout-payment-copy">
+                    <span>{opt.label}</span>
+                    {opt.description && <small>{opt.description}</small>}
                   </span>
                   {opt.id === "wallet" &&
-                    (walletSetup ? (
-                      <span className="text-[11px] -translate-x-1 font-opensans font-medium text-customOrange">
-                        [₦{walletBal.toLocaleString()}]
-                      </span>
-                    ) : (
+                    !walletSetup && (
                       <span
-                        className=" -translate-x-1 font-opensans py-0.5 font-medium bg-customOrange  px-1 rounded-md cursor-pointer"
+                        className="checkout-wallet-setup"
                         onClick={() => navigate("/your-wallet")}
                       >
-                        <p className="text-[10px] text-white font-opensans font-medium">
-                          {" "}
-                          Setup Wallet
-                        </p>
+                        Setup Wallet
                       </span>
-                    ))}
+                    )}
                 </span>
 
                 {/* radio */}
-                <span
-                  className={`w-5 h-5 rounded-full mr-2 border-2 flex items-center justify-center ${
-                    selectedPayment === opt.id
-                      ? "border-customOrange"
-                      : "border-gray-300"
-                  }`}
-                >
-                  {selectedPayment === opt.id && (
-                    <span className="w-3 h-3 rounded-full bg-customOrange" />
-                  )}
-                </span>
+                <CheckoutRadio
+                  selected={selectedPayment === opt.id}
+                  payment
+                />
               </button>
             ))}
           </div>
-          <div className="mt-2">
-            <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
+          {note.trim() && (
+            <section className="checkout-section checkout-note order-6">
+              <h2>Your note</h2>
+              <p>{note}</p>
+            </section>
+          )}
+          <div className="order-8">
+            <div className="checkout-section checkout-safe-card">
               <div
                 onClick={() => setShowShopSafelyModal(true)}
                 className="flex justify-between items-center"
@@ -1900,39 +2661,39 @@ const Checkout = () => {
           </div>
         </div>
       ) : (
-        <div className="px-3">
-          <div className="bg-white text-xs font-opensans text-gray-800 px-4 py-3 rounded-lg flex items-start space-x-2 ">
-            <BsInfoCircle className="text-5xl text-gray-600" />
-            <div>
-              <p className="font-semibold font-opensans text-sm text-black mb-1">
-                You've selected Stockpiling.
-              </p>
-              <p className="mb- text-gray-800 font-opensans text-xs">
-                The vendor allows a maximum stockpile time of{" "}
-                <span className="font-semibold text-customOrange">
-                  {vendorsInfo[vendorId]?.stockpile?.durationInWeeks} weeks
-                </span>
-                .
-              </p>
-              <p className="text-xs text-gray-800">
-                Stockpiling means your order won't be shipped immediately — you
-                can keep adding more items to your pile after this order is
-                placed.
-              </p>
+        <div className="checkout-flow checkout-stockpile-flow">
+          <section className="checkout-section checkout-stockpile-intro-section order-1">
+            <div className="checkout-stockpile-intro">
+              <Clock3 />
+              <div>
+                <p className="font-semibold font-opensans text-sm text-black mb-1">
+                  You've selected Stockpiling.
+                </p>
+                <p className="mb- text-gray-800 font-opensans text-xs">
+                  The vendor allows a maximum stockpile time of{" "}
+                  <span className="font-semibold text-customOrange">
+                    {vendorsInfo[vendorId]?.stockpile?.durationInWeeks} weeks
+                  </span>
+                  .
+                </p>
+                <p className="text-xs text-gray-800">
+                  Stockpiling means your order won't be shipped immediately — you
+                  can keep adding more items to your pile after this order is
+                  placed.
+                </p>
+              </div>
             </div>
-          </div>
+          </section>
 
-          <div className="mt-4 px-4 w-full py-4 rounded-lg bg-white ">
+          <div className="checkout-section checkout-summary order-7">
             <h1 className="text-black font-semibold font-opensans text-base ">
-              {isRepiling || checkoutMode === "stockpile"
-                ? "Pile Summary"
-                : "Order Summary"}
+              Order Summary
             </h1>
 
             <div className="border-t border-gray-300 my-2"></div>
             <div className="flex justify-between">
               <label className="block mb-2 text-sm font-opensans ">
-                Sub-Total
+                Items ({checkoutItemCount})
               </label>
               <p className="text-base font-opensans text-black font-semibold">
                 ₦
@@ -1942,36 +2703,13 @@ const Checkout = () => {
               </p>
             </div>
 
-            {vendorsInfo[vendorId]?.marketPlaceType === "marketplace" && (
-              <div className="flex justify-between">
-                <label className="block mb-2 font-opensans">
-                  Booking Fee
-                  <CiCircleInfo
-                    className="inline ml-2 text-customOrange cursor-pointer"
-                    onClick={() => setShowBookingFeeModal(true)}
-                  />
-                </label>
-                <p className="text-lg font-opensans text-black font-semibold">
-                  {isLoadingTotal ? (
-                    <RotatingLines
-                      strokeColor="#f97316"
-                      strokeWidth="3"
-                      animationDuration="0.75"
-                      width="20"
-                      visible={true}
-                    />
-                  ) : (
-                    `₦${previewedOrder.bookingFee.toLocaleString()}`
-                  )}
-                </p>
-              </div>
-            )}
-
             <div className="flex items-center justify-between">
               <label className=" flex items-center text-sm mb-2 font-opensans">
-                Buyers Protection Fee
-                <AiOutlineSafety
-                  className="inline ml-2 text-green-600 cursor-pointer"
+                Buyer Protection fee
+                <img
+                  src={CHECKOUT_ASSETS.info}
+                  alt="More information about Buyer Protection"
+                  className="checkout-summary-info"
                   onClick={() => setShowBuyersFee(true)}
                 />
               </label>
@@ -1991,7 +2729,7 @@ const Checkout = () => {
                     visible={true}
                   />
                 ) : showServiceFee ? (
-                  `₦${previewedOrder.serviceFee.toLocaleString()}`
+                  formatNaira(previewedOrder.serviceFee)
                 ) : (
                   <RotatingLines
                     strokeColor="#f97316"
@@ -2007,36 +2745,19 @@ const Checkout = () => {
               <CiWarning className="text-orange-600 text-7xl mr-3" />
               <div>
                 <p className="font-opensans text-xs text-orange-700 font-semibold">
-                  You won’t be charged any delivery fees until your stockpile
-                  ships. The vendor will share an estimated cost with you once
-                  it’s ready to go.
+                  No delivery charge today. Choose and pay for delivery when
+                  you end your pile.
                 </p>
               </div>
             </div>
 
-            <div className="border-t mt-3 border-gray-300 my-2"></div>
-            <div className="flex justify-between mt-2">
-              <label className="block mb-2 font-opensans text-base font-semibold">
-                Total
-              </label>
-              <p className="text-lg font-opensans text-black font-semibold">
-                {isLoadingTotal ? (
-                  <p className="font-opensans text-xs text-black animate-pulse">
-                    {" "}
-                    Just a moment...
-                  </p>
-                ) : (
-                  `₦${previewedOrder.total.toLocaleString()}`
-                )}
-              </p>
-            </div>
           </div>
-          <div className="bg-white mt-3 p-3 rounded-lg shadow-md">
+          <div className="checkout-section checkout-timeline order-3">
             {vendorId && vendorsInfo[vendorId] && (
               <>
                 <div className="flex items-center">
-                  <h1 className="text-black font-semibold font-opensans text-base">
-                    Stockpile Instructions
+                    <h1 className="text-black font-semibold font-opensans text-base">
+                    Set Timeline
                   </h1>
                   {/* <CiCircleInfo
                   className="text-customOrange ml-2 cursor-pointer text-xl"
@@ -2047,72 +2768,47 @@ const Checkout = () => {
                 <div className="border-t border-gray-300 my-3"></div>
 
                 <div className="mt-2">
-                  <label className="block text-sm font-opensans  mb-1">
-                    How many weeks would you like to stockpile?
-                  </label>
-                  {/* Convert the stockpile weeks into an array of {value, label} objects */}
+                  <div className="checkout-timeline-note">
+                    <Clock3 />
+                    <span>
+                      {vendorsInfo[vendorId]?.shopName || "This vendor"} allows
+                      you to stockpile up to{" "}
+                      <strong>
+                        {vendorsInfo[vendorId]?.stockpile?.durationInWeeks || 2}
+                        {" "}weeks
+                      </strong>
+                    </span>
+                  </div>
                   {(() => {
                     const duration =
                       vendorsInfo[vendorId]?.stockpile?.durationInWeeks || 2;
-
-                    // Create the array [2,3,4,...,duration]
                     const weekOptions = Array.from(
                       { length: duration - 1 },
                       (_, i) => i + 2
-                    ).map((week) => ({
-                      value: week,
-                      label: `${week} weeks`,
-                    }));
-                    const customStyles = {
-                      control: (base, state) => ({
-                        ...base,
-                        borderColor: state.isFocused ? "#F97316" : "#ccc", // orange when focused
-                        boxShadow: state.isFocused
-                          ? "0 0 0 1px #f9531e"
-                          : "none",
-                        "&:hover": {
-                          borderColor: "#F97316",
-                        },
-                      }),
-                      option: (base, state) => ({
-                        ...base,
-                        backgroundColor: state.isSelected
-                          ? "#F97316"
-                          : state.isFocused
-                          ? "#fde4c5" // light orange on hover
-                          : "white",
-                        color: state.isSelected ? "white" : "#111827", // text color
-                        "&:hover": {
-                          backgroundColor: "#fde4c5",
-                        },
-                      }),
-                      singleValue: (base) => ({
-                        ...base,
-                        color: "#f9531e", // text in dropdown
-                        fontWeight: "600",
-                      }),
-                    };
-                    // Our current selection in { value, label } form
-                    const selectedOption =
-                      weekOptions.find(
-                        (opt) => opt.value === (selectedWeeks || 2)
-                      ) ||
-                      weekOptions[0] ||
-                      null;
+                    );
 
                     return (
-                      // In your ReactSelect component:
-                      <ReactSelect
-                        className="mt-3 w-32 font-opensans text-customRichBrown text-sm"
-                        options={weekOptions}
-                        value={selectedOption}
-                        onChange={(option) => {
-                          console.log("User selected weeks:", option.value); // Log the change
-                          setSelectedWeeks(option.value);
+                      <select
+                        className={`checkout-stockpile-native-select ${
+                          selectedWeeks ? "is-selected" : ""
+                        }`}
+                        value={selectedWeeks ?? ""}
+                        aria-label="Select stockpile timeline"
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          appHaptics.selection();
+                          setSelectedWeeks(value ? Number(value) : null);
                         }}
-                        isSearchable={false}
-                        styles={customStyles}
-                      />
+                      >
+                        <option value="" disabled>
+                          Select timeline
+                        </option>
+                        {weekOptions.map((week) => (
+                          <option value={week} key={week}>
+                            {week} weeks
+                          </option>
+                        ))}
+                      </select>
                     );
                   })()}
                 </div>
@@ -2120,20 +2816,17 @@ const Checkout = () => {
             )}
           </div>
 
-          <form className="bg-white mt-3 p-3 rounded-lg shadow-md">
+          <form className="checkout-section checkout-products order-2">
             {vendorId && cart[vendorId] && (
               <>
                 <div className="flex justify-between">
-                  <div className="flex items-center">
-                    <h1 className="text-black font-medium mr-1 font-opensans text-base">
-                      Pile
-                    </h1>
-                    <PiStackSimpleFill className="text-xl" />
-                  </div>
+                  <h1 className="text-black font-medium mr-1 font-opensans text-base">
+                    Review Item(s)
+                  </h1>
 
                   <h3 className="text-xs font-opensans ">
                     <span className="text-gray-600 text-xs mr-1 font-opensans">
-                      From:
+                      From
                     </span>
                     {vendorsInfo[vendorId]?.shopName?.length > 8
                       ? `${vendorsInfo[vendorId]?.shopName.slice(0, 28)}`
@@ -2155,7 +2848,7 @@ const Checkout = () => {
                               "https://via.placeholder.com/150"
                             }
                             alt={product.name}
-                            className="w-16 h-16 object-cover rounded-lg mr-4"
+                            className="checkout-product-image"
                             onError={(e) => {
                               e.target.src = "https://via.placeholder.com/150";
                             }}
@@ -2171,32 +2864,40 @@ const Checkout = () => {
                                 productKey
                               ).toLocaleString()}
                             </p>
-                            <div className="flex items-center space-x-3 text-sm mt-1 ">
+                            <div className="checkout-product-attributes">
                               {product.isFashion && (
                                 <>
-                                  <p className="text-black text-sm font-semibold font-opensans">
-                                    <span className="font-normal text-xs text-gray-600">
-                                      Size:
-                                    </span>{" "}
-                                    {product.selectedSize || "N/A"}
-                                  </p>
-                                  <p className="text-black text-sm font-semibold font-opensans">
-                                    <span className="font-normal text-xs text-gray-600">
-                                      Color:
-                                    </span>{" "}
+                                  {!isVariantSizeHidden(product) && (
+                                    <span>
+                                      {product.selectedSize || "N/A"}
+                                    </span>
+                                  )}
+                                  <span>
                                     {formatColorText(product.selectedColor)}
-                                  </p>
+                                  </span>
                                 </>
                               )}
-                              <p className="text-black text-sm font-semibold font-opensans">
-                                <span className="font-normal text-xs text-gray-600">
-                                  Qty:
-                                </span>{" "}
-                                {product.quantity}
-                              </p>
+                              {product.condition && (
+                                <span>
+                                  {formatConditionText(product.condition)}
+                                </span>
+                              )}
                             </div>
+                            <p className="checkout-product-quantity">
+                              Qty: {product.quantity}
+                            </p>
                           </div>
                         </div>
+                        <button
+                          type="button"
+                          className="checkout-remove-item"
+                          aria-label={`Remove ${product.name} from cart`}
+                          onClick={() =>
+                            handleCheckoutItemRemove(productKey, product)
+                          }
+                        >
+                          <img src={CHECKOUT_ASSETS.trash} alt="" />
+                        </button>
                       </div>
                     )
                   )}
@@ -2205,14 +2906,16 @@ const Checkout = () => {
             )}
           </form>
 
-          <div className="mt-2">
-            <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
+          <div className="order-4">
+            <div className="checkout-section checkout-delivery-info">
               <div className="flex justify-between items-center">
                 <h1 className="text-black font-semibold font-opensans text-base">
                   Delivery Information
                 </h1>
-                <FaPen
-                  className="text-black cursor-pointer"
+                <img
+                  src={CHECKOUT_ASSETS.edit}
+                  alt=""
+                  className="checkout-edit-icon cursor-pointer"
                   onClick={() => setShowEditModal(true)}
                 />
               </div>
@@ -2221,7 +2924,7 @@ const Checkout = () => {
 
               <div className="flex text-sm">
                 <label className="block mb-2 mr-1 font-semibold font-opensans">
-                  Name:
+                  Name
                 </label>
                 <p className="font-opensans text-black">
                   {userInfo.displayName}
@@ -2229,7 +2932,7 @@ const Checkout = () => {
               </div>
               <div className="flex text-sm">
                 <label className="block mb-2 mr-1 font-semibold font-opensans">
-                  Phone Number:
+                  Phone Number
                 </label>
                 <p className="font-opensans text-black ">
                   {userInfo.phoneNumber}
@@ -2237,29 +2940,29 @@ const Checkout = () => {
               </div>
               <div className="flex text-sm">
                 <label className="block mb-2 font-semibold mr-1 font-opensans">
-                  Email:
+                  Email
                 </label>
                 <p className="font-opensans text-black">{userInfo.email}</p>
               </div>
               <div className="flex text-sm">
                 <label className="block mb-2 mr-1 font-semibold font-opensans">
-                  Address:
+                  Delivery Address
                 </label>
                 <p className="font-opensans text-black ">{userInfo.address}</p>
               </div>
               <div className="bg-customCream flex items-center py-1 mt-4 animate-pulse px-2 text-left rounded-md">
                 <CiWarning className="text-orange-600 text-4xl mr-3" />
                 <p className="text-xs font-ubuntu font-medium text-red-600">
-                  This cannot be updated after now. Please ensure to put your
-                  correct details
+                  You can update these details and choose the final delivery
+                  address when you close the stockpile and request delivery.
                 </p>
               </div>
             </div>
           </div>
           {/* ───────────────── Payment Method ───────────────── */}
-          <div className="bg-white mt-3 p-4 rounded-lg shadow-md">
+          <div className="checkout-section checkout-payment-method order-5">
             <h2 className="text-base font-opensans font-semibold mb-3">
-              Payment Method
+              Payment method
             </h2>
             <div className="border-t border-gray-200 my-2" />
 
@@ -2267,67 +2970,63 @@ const Checkout = () => {
               {
                 id: "paystack",
                 label: "Paystack",
-                icon: (
-                  <img src="/paystacklogo.png" alt="" className="w-6 h-6" />
-                ),
+                icon: <img src={CHECKOUT_ASSETS.paystack} alt="" />,
               },
               {
                 id: "wallet",
-                label: "Wallet",
-                icon: <TfiWallet className="text-xl" />,
+                label: walletSetup
+                  ? `My Wallet (₦${walletBal.toLocaleString()})`
+                  : "My Wallet",
+                icon: <img src={CHECKOUT_ASSETS.wallet} alt="" />,
               },
               {
                 id: "share",
                 label: "Pay for me",
-                icon: <FaUserFriends className="text-xl" />,
+                description: "Send a payment link to someone",
+                icon: <img src={CHECKOUT_ASSETS.payForMe} alt="" />,
               },
             ].map((opt) => (
               <button
                 key={opt.id}
                 type="button"
                 onClick={() => setSelectedPayment(opt.id)}
-                className="w-full flex items-center justify-between py-4 border-b last:border-0"
+                className={`w-full flex items-center justify-between ${
+                  selectedPayment === opt.id ? "is-selected" : ""
+                }`}
               >
                 <span className="flex items-center space-x-3">
                   {opt.icon}
-                  <span className="text-sm font-semibold font-opensans">
-                    {opt.label}
+                  <span className="checkout-payment-copy">
+                    <span>{opt.label}</span>
+                    {opt.description && <small>{opt.description}</small>}
                   </span>
                   {opt.id === "wallet" &&
-                    (walletSetup ? (
-                      <span className="text-[11px] -translate-x-1 font-opensans font-medium text-customOrange">
-                        [₦{walletBal.toLocaleString()}]
-                      </span>
-                    ) : (
+                    !walletSetup && (
                       <span
-                        className=" -translate-x-1 font-opensans py-0.5 font-medium bg-customOrange  px-1 rounded-md cursor-pointer"
+                        className="checkout-wallet-setup"
                         onClick={() => navigate("/your-wallet")}
                       >
-                        <p className="text-[10px] text-white font-opensans font-medium">
-                          {" "}
-                          Setup Wallet
-                        </p>
+                        Setup Wallet
                       </span>
-                    ))}
+                    )}
                 </span>
 
                 {/* radio */}
-                <span
-                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    selectedPayment === opt.id
-                      ? "border-customOrange"
-                      : "border-gray-300"
-                  }`}
-                >
-                  {selectedPayment === opt.id && (
-                    <span className="w-3 h-3 rounded-full bg-customOrange" />
-                  )}
-                </span>
+                <CheckoutRadio
+                  selected={selectedPayment === opt.id}
+                  payment
+                />
               </button>
             ))}
           </div>
-          <div className="mt-2">
-            <div className="mt-3 px-3 w-full py-4 rounded-lg bg-white">
+          {note.trim() && (
+            <section className="checkout-section checkout-note order-6">
+              <h2>Your note</h2>
+              <p>{note}</p>
+            </section>
+          )}
+          <div className="order-8">
+            <div className="checkout-section checkout-safe-card">
               <div
                 onClick={() => setShowShopSafelyModal(true)}
                 className="flex justify-between items-center"
@@ -2370,22 +3069,40 @@ const Checkout = () => {
           </div>
         </div>
       )}
+      </div>
       <EditDeliveryModal
         isOpen={showEditModal}
         userInfo={userInfo}
         setUserInfo={setUserInfo}
-        onClose={() => setShowEditModal(false)}
+        onClose={closeEditModal}
       />
       <NoStockpileModal
         isOpen={showNoStockpileModal}
-        onClose={() => setShowNoStockpileModal(false)}
+        onClose={closeNoStockpileModal}
       />
       <AlreadyStockpiledModal
         isOpen={showAlreadyStockpiledModal}
-        onClose={() => setShowAlreadyStockpiledModal(false)}
+        onClose={closeAlreadyStockpiledModal}
         vendorId={vendorId}
+        vendorName={vendorsInfo[vendorId]?.shopName}
         dispatch={dispatch}
-        navigate={navigate}
+      />
+      <ExistingStockpileDeliveryModal
+        isOpen={
+          !existingStockpileCheckPending &&
+          existingStockpileForCheckout &&
+          !isRepiling &&
+          !deliverNowWarningAccepted
+        }
+        vendorName={vendorsInfo[vendorId]?.shopName}
+        onContinue={() => {
+          void appHaptics.selection();
+          setDeliverNowWarningAccepted(true);
+        }}
+        onBack={() => {
+          void appHaptics.selection();
+          navigate(-1);
+        }}
       />
       {/* <MapModal
         isOpen={showMapModal}
@@ -2402,26 +3119,29 @@ const Checkout = () => {
 
       <ShopSafelyModal
         isOpen={showShopSafelyModal}
-        onClose={() => setShowShopSafelyModal(false)}
+        onClose={closeShopSafelyModal}
       />
       {/* <DeliveryInfoModal
         isOpen={showDeliveryInfoModal}
         onClose={() => setShowDeliveryInfoModal(false)}
       /> */}
-      <ServiceFeeModal
-        isOpen={showServiceFeeModal}
-        onClose={() => setShowServiceFeeModal(false)}
-      />
       <BuyersFeeModal
         isOpen={showBuyersFee}
-        onClose={() => setShowBuyersFee(false)}
-      />
-      <BookingFeeModal
-        isOpen={showBookingFeeModal}
-        onClose={() => setShowBookingFeeModal(false)}
+        onClose={closeBuyersFeeModal}
+        isStockpile={checkoutMode === "stockpile"}
       />
 
-      <div className=" px-4 mt-6 pb-6 ">
+      <div className="checkout-pay-bar" data-native-bottom-bar>
+        <div className="checkout-pay-total">
+          <span>Total to pay</span>
+          <strong>
+            {mustChooseDelivery
+              ? "Select delivery"
+              : isLoadingTotal || previewedOrder.total == null
+              ? "Calculating…"
+              : `₦${Number(previewedOrder.total).toLocaleString()}`}
+          </strong>
+        </div>
         <button
           onClick={() => {
             if (selectedPayment === "wallet" && !walletSetup) {
@@ -2435,16 +3155,24 @@ const Checkout = () => {
           disabled={
             !selectedPayment ||
             isLoading ||
+            isSelectingCourier ||
+            isLoadingDeliveryFee ||
+            isLoadingTotal ||
             mustChooseDelivery ||
+            mustChooseCourier ||
             isLoadingLink ||
             (checkoutMode === "stockpile" && !selectedWeeks)
           }
-          className={`w-full h-12 rounded-full font-opensans font-semibold flex items-center justify-center
+          className={`checkout-pay-button
     ${
       !selectedPayment ||
       isLoading ||
+      isSelectingCourier ||
+      isLoadingDeliveryFee ||
+      isLoadingTotal ||
       isLoadingLink ||
       mustChooseDelivery ||
+      mustChooseCourier ||
       (checkoutMode === "stockpile" && !selectedWeeks)
         ? "bg-gray-400 cursor-not-allowed text-white"
         : "bg-customOrange text-white"
@@ -2453,11 +3181,7 @@ const Checkout = () => {
           {isLoading || isLoadingLink ? (
             <RotatingLines strokeColor="#fff" strokeWidth="5" width="24" />
           ) : (
-            (() => {
-              if (selectedPayment === "wallet") return "Pay with Wallet";
-              if (selectedPayment === "share") return "Generate link";
-              return "Pay with Paystack";
-            })()
+            "Pay"
           )}
         </button>
       </div>

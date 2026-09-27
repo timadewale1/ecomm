@@ -1,10 +1,8 @@
 // src/components/Pickup/PickupInfo.jsx
-import React, { useEffect, useState } from "react";
-import Modal from "react-modal";
-import { AnimatePresence, motion } from "framer-motion";
-import { MdDeliveryDining } from "react-icons/md";
+import React from "react";
 import { GoChevronRight } from "react-icons/go";
 import Pickup from "../Loading/Pickup";
+import AppBottomSheet from "../layout/AppBottomSheet";
 
 /* ----------------------------------------------------------------
    The pickup‑intro modal used in StorePage
@@ -17,22 +15,13 @@ const PickupInfoModal = ({
 }) => {
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <Modal
-          isOpen
-          onRequestClose={onClose}
-          ariaHideApp={false}
-          overlayClassName="fixed inset-0 bg-black/50 flex items-end z-50"
-          className="bg-white w-full  h-[60vh] rounded-t-3xl shadow-xl p-4 flex flex-col"
-        >
-          <motion.div
-            initial={{ y: 60, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 60, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="flex-1 flex flex-col"
-          >
+    <AppBottomSheet
+      open={isOpen}
+      onClose={onClose}
+      height="60dvh"
+      ariaLabel={`${vendor?.shopName || "This vendor"} pickup information`}
+    >
+          <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-6 font-satoshi">
             {/* ─── header ─────────────────────────────────────────────── */}
             <div className="flex flex-col items-center mb-4">
               <Pickup />
@@ -75,10 +64,8 @@ const PickupInfoModal = ({
                 Close
               </button>
             </div>
-          </motion.div>
-        </Modal>
-      )}
-    </AnimatePresence>
+          </div>
+    </AppBottomSheet>
   );
 };
 

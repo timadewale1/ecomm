@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { FaAngleRight } from "react-icons/fa";
 import { LiaTimesSolid } from "react-icons/lia";
-import { GoChevronLeft } from "react-icons/go";
 import ScrollToTop from "../../components/layout/ScrollToTop";
+import AppPageHeader from "../../components/layout/AppPageHeader";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 const FAQs = ({ setShowFAQs }) => {
@@ -22,16 +22,10 @@ const FAQs = ({ setShowFAQs }) => {
   };
 
   return (
-    <div className="flex p-2 flex-col items-center">
+    <div className="flex flex-col items-center">
       <ScrollToTop />
-      <div className="flex mt-3 items-center w-full mb-4">
-        <GoChevronLeft
-          className="text-2xl text-black cursor-pointer"
-          onClick={() => navigate("/profile")}
-        />
-        <h2 className="text-xl text-black font-opensans ml-2">FAQs</h2>
-      </div>
-      <div className="w-full mt-12 font-opensans">
+      <AppPageHeader title="FAQs" alignment="left" onBack={() => navigate("/profile")} />
+      <div className="w-full mt-12 p-2 font-opensans">
         {[
           "What is your shipping policy?",
           "My order arrived damaged. How do we fix this?",

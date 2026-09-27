@@ -24,6 +24,7 @@ import { HiBuildingStorefront } from "react-icons/hi2";
 import { TiCameraOutline } from "react-icons/ti";
 import { PiIdentificationCardThin } from "react-icons/pi";
 import { GoTrash } from "react-icons/go";
+import NativeImageInput from "../../components/Inputs/NativeImageInput";
 const MarketVendor = ({
   vendorData,
   setVendorData,
@@ -967,8 +968,7 @@ const MarketVendor = ({
                           />
                         </label>
 
-                        <input
-                          type="file"
+                        <NativeImageInput
                           className="hidden"
                           onChange={handleIdImageUpload}
                           id="idImageUpload"

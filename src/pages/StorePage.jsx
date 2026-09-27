@@ -1,3 +1,4 @@
+import { siteUrls } from "../config/siteUrls.mjs";
 import React, {
   useState,
   useEffect,
@@ -6,33 +7,36 @@ import React, {
   useCallback,
 } from "react";
 import { motion, AnimatePresence, useInView } from "framer-motion";
-import { handleUserActionLimit } from "../services/userWriteHandler";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../firebase.config";
 import {
   doc,
   getDoc,
-  setDoc,
-  deleteDoc,
   collection,
   getDocs,
   query,
   where,
-  updateDoc,
-  increment,
-  serverTimestamp,
+  onSnapshot,
 } from "firebase/firestore";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchStoreVendor,
   saveStoreScroll,
   fetchVendorCategories,
-  fetchVendorProductsBatch,
+  fetchVendorCatalogPage,
+  fetchVendorReviews,
+  setVendorFollowersCount,
+  vendorCatalogRequestKey,
 } from "../redux/reducers/storepageVendorsSlice";
+import {
+  getVendorFollowerCount,
+  setVendorFollowState,
+} from "../services/vendorFollow";
 import { onAuthStateChanged } from "firebase/auth";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { GoChevronLeft, GoDotFill } from "react-icons/go";
+import AppBackButton from "../components/layout/AppBackButton";
 import { FiChevronDown, FiChevronUp, FiSearch } from "react-icons/fi";
 import {
   FaAngleLeft,
@@ -45,7 +49,6 @@ import {
   FaChartLine,
   FaMapMarkerAlt,
   FaTshirt,
-  FaCalendarWeek,
   FaTruck,
   FaCheckCircle,
   FaBolt,
@@ -55,15 +58,15 @@ import {
 } from "react-icons/fa";
 import Productnotfund from "../Animations/productnotfound.json";
 import toast from "react-hot-toast";
+import { shareContent } from "../services/nativeLinks";
 import ProductCard from "../components/Products/ProductCard";
 import Loading from "../components/Loading/Loading";
 import { useAuth } from "../custom-hooks/useAuth";
-import { FaSpinner, FaStar } from "react-icons/fa6";
+import { FaSpinner } from "react-icons/fa6";
 import { CiLogin, CiSearch } from "react-icons/ci";
 import Modal from "react-modal";
 import moment from "moment";
 import {
-  MdCancel,
   MdClose,
   MdDeliveryDining,
   MdIosShare,
@@ -100,7 +103,10 @@ import PickupInfoModal from "../components/Location/PickupModal";
 import StockpileInfoModal from "../components/StockpileModal";
 import IframeModal from "../components/PwaModals/PushNotifsModal";
 import VendorPolicyModal from "./Legal/VendorPolicyModal";
+import BuyerProtectionModal from "./Legal/BuyerProtectionModal";
 import StoreBasket from "../components/QuickMode/StoreBasket";
+import VendorStoreExperience, { VendorStoreSkeleton } from "../components/VendorsData/VendorStoreExperience";
+import AppBottomSheet from "../components/layout/AppBottomSheet";
 import {
   activateQuickMode,
   deactivateQuickMode,
@@ -108,6 +114,9 @@ import {
 import QuickAuthModal from "../components/PwaModals/AuthModal";
 import Badge from "../components/Badge/Badge";
 import { track } from "../services/signals";
+import { appHaptics } from "../services/haptics";
+import { takeAuthIntent } from "../services/authIntent";
+import useNativePageRefresh from "../custom-hooks/useNativePageRefresh";
 Modal.setAppElement("#root"); // For accessibility
 
 const FlipCountdown = ({ endTime }) => {
@@ -708,19 +717,16 @@ const StorePage = () => {
 
   const [favorites, setFavorites] = useState({});
   const [isFollowing, setIsFollowing] = useState(false);
-  const [isFollowLoading, setIsFollowLoading] = useState(false);
-  const { currentUser } = useAuth();
+  const [isFollowLoading, setIsFollowLoading] = useState(true);
+  const followMutationRef = useRef(false);
+  const { currentUser, currentUserData } = useAuth();
   const dispatch = useDispatch();
-  const [selectedType, setSelectedType] = useState("All");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loadingAll, setLoadingAll] = useState(false);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [showCountdownInHeader, setShowCountdownInHeader] = useState(false);
   const [isBannerVisible, setIsBannerVisible] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [viewOptions, setViewOptions] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [sortOption, setSortOption] = useState(null);
   const {
     entities,
     loading: vendorLoading,
@@ -730,7 +736,20 @@ const [badgeOpen, setBadgeOpen] = useState(false);
 
   // Convenience variables for the current vendor page
   const entry = entities[id] || {};
-  const { vendor, products = [], loadingMore, noMore, scrollY } = entry;
+  const { vendor, scrollY } = entry;
+  const catalog = entry.catalog || {};
+  const products = catalog.items || [];
+  const loadingMore = Boolean(catalog.loadingMore);
+  const noMore = Boolean(catalog.initialized && !catalog.hasMore);
+  const catalogQuery = catalog.query || "";
+  const catalogFilters = catalog.filters || {};
+  const desiredCatalogRequestKey = vendorCatalogRequestKey(
+    catalogQuery,
+    catalogFilters,
+  );
+  const catalogRequestRef = useRef(null);
+  const storeRefreshRequestRef = useRef(null);
+  const storeRefreshRef = useRef(false);
   const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -750,22 +769,71 @@ const [badgeOpen, setBadgeOpen] = useState(false);
   const {
     isActive,
     vendorId: stockpileVendorId,
-    pileItems,
-    stockpileExpiry,
+    pileOrders,
+  stockpileExpiry,
     loading: stockpileLoading,
   } = useSelector((state) => state.stockpile);
   const [showVendorPolicy, setShowVendorPolicy] = useState(false);
+  const [showBuyerProtection, setShowBuyerProtection] = useState(false);
   const isStockpileForThisVendor = isActive && stockpileVendorId === id;
   const lastScrollY = useRef(0);
   const [showStockpileIntro, setShowStockpileIntro] = useState(false);
   const [showSharedHeader, setShowSharedHeader] = useState(true);
   const [showPickupIntro, setShowPickupIntro] = useState(false);
-  const [userCoords, setUserCoords] = useState(null);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [termsUrl, setTermsUrl] = useState("");
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator !== "undefined" ? navigator.onLine : true,
   );
+
+  const refreshStore = useCallback(async () => {
+    if (!id || storeRefreshRef.current) return;
+    storeRefreshRef.current = true;
+
+    try {
+      catalogRequestRef.current?.abort?.();
+      storeRefreshRequestRef.current?.abort?.();
+      const catalogRequest = dispatch(
+        fetchVendorCatalogPage({
+          vendorId: id,
+          loadMore: false,
+          query: catalogQuery,
+          filters: catalogFilters,
+        }),
+      );
+      storeRefreshRequestRef.current = catalogRequest;
+
+      const refreshes = [
+        dispatch(fetchStoreVendor(id)).unwrap(),
+        dispatch(fetchVendorCategories(id)).unwrap(),
+        catalogRequest.unwrap(),
+      ];
+      if (entry.reviewsLoaded) {
+        refreshes.push(dispatch(fetchVendorReviews({vendorId: id})).unwrap());
+      }
+
+      await Promise.all(refreshes);
+    } finally {
+      storeRefreshRequestRef.current = null;
+      storeRefreshRef.current = false;
+    }
+  }, [
+    catalogFilters,
+    catalogQuery,
+    dispatch,
+    entry.reviewsLoaded,
+    id,
+  ]);
+
+  useNativePageRefresh(refreshStore, {
+    enabled: Boolean(id),
+    verticalOffset: 116,
+    minimumVisibleMs: 600,
+  });
+
+  useEffect(() => () => {
+    storeRefreshRequestRef.current?.abort?.();
+  }, []);
 
   useEffect(() => {
     const goOnline = () => setIsOnline(true);
@@ -793,16 +861,6 @@ const [badgeOpen, setBadgeOpen] = useState(false);
 
     if (sessionStorage.getItem(introDoneKey)) return; // already handled for this store
     if (hasPickup && !sessionStorage.getItem(pickupSeenKey)) {
-      // quietly request user location; don’t block if declined
-      navigator.geolocation?.getCurrentPosition(
-        (pos) =>
-          setUserCoords({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          }),
-        () => setUserCoords(null),
-        { timeout: 8000 },
-      );
       setShowPickupIntro(true);
       return;
     }
@@ -850,9 +908,6 @@ const [badgeOpen, setBadgeOpen] = useState(false);
     // only log when vendor is actually loaded
     if (!vendor?.id) return;
 
-    // only log when user is logged in
-    if (!currentUser?.uid) return;
-
     const surface = isShared ? "shared_link" : "vendor_store";
 
     // dedupe per session per vendor per surface
@@ -878,7 +933,6 @@ const [badgeOpen, setBadgeOpen] = useState(false);
     vendor?.id,
     vendor?.slug,
     vendor?.shopName,
-    currentUser?.uid,
     isShared,
     quickForThisVendor,
     location.pathname,
@@ -897,24 +951,40 @@ const [badgeOpen, setBadgeOpen] = useState(false);
     }
   }, [vendor, entry.categories, id, dispatch]);
   useEffect(() => {
-    if (vendor && products.length === 0) {
-      dispatch(fetchVendorProductsBatch({ vendorId: id, loadMore: false }));
+    if (!vendor) return undefined;
+    if (
+      catalog.initialized &&
+      catalog.loadedRequestKey === desiredCatalogRequestKey
+    ) {
+      return undefined;
     }
-  }, [vendor, products.length, id, dispatch]);
-  const ensureAllProductsLoaded = useCallback(async () => {
-    if (!vendor || entry.noMore) return; // already complete
-    setLoadingAll(true);
-    try {
-      while (true) {
-        const { noMore } = await dispatch(
-          fetchVendorProductsBatch({ vendorId: id, loadMore: true }),
-        ).unwrap();
-        if (noMore) break;
-      }
-    } finally {
-      setLoadingAll(false);
-    }
-  }, [vendor, entry.noMore, dispatch, id]);
+
+    const timer = window.setTimeout(() => {
+      catalogRequestRef.current?.abort?.();
+      catalogRequestRef.current = dispatch(
+        fetchVendorCatalogPage({
+          vendorId: id,
+          loadMore: false,
+          query: catalogQuery,
+          filters: catalogFilters,
+        }),
+      );
+    }, catalog.initialized ? 250 : 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      catalogRequestRef.current?.abort?.();
+    };
+  }, [
+    vendor,
+    id,
+    dispatch,
+    desiredCatalogRequestKey,
+    catalog.initialized,
+    catalog.loadedRequestKey,
+    catalogQuery,
+    catalogFilters,
+  ]);
 const openSearch = useCallback(() => {
   navigate("/search", { state: { autofocus: true } });
 }, [navigate]);
@@ -926,14 +996,31 @@ const openSearch = useCallback(() => {
         window.innerHeight + window.scrollY >=
         document.documentElement.scrollHeight - 150;
 
-      if (vendor && nearBottom && !loadingMore && !noMore) {
-        dispatch(fetchVendorProductsBatch({ vendorId: id, loadMore: true }));
+      if (
+        vendor &&
+        entry.activeTab === "products" &&
+        nearBottom &&
+        !loadingMore &&
+        !noMore &&
+        catalog.initialized &&
+        !catalog.loadingInitial
+      ) {
+        dispatch(fetchVendorCatalogPage({ vendorId: id, loadMore: true }));
       }
     };
 
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
-  }, [vendor, loadingMore, noMore, id, dispatch]);
+  }, [
+    vendor,
+    entry.activeTab,
+    loadingMore,
+    noMore,
+    catalog.initialized,
+    catalog.loadingInitial,
+    id,
+    dispatch,
+  ]);
 
   const bannerShown = localStorage.getItem("headsUpBannerShown");
   useEffect(() => {
@@ -967,31 +1054,64 @@ const openSearch = useCallback(() => {
   }, [dispatch, id]);
 
   useEffect(() => {
-    setIsFollowing(false);
+    const userId = currentUser?.uid;
+    const vendorId = vendor?.id;
+    if (!userId || !vendorId) {
+      setIsFollowing(false);
+      setIsFollowLoading(false);
+      return undefined;
+    }
 
-    const checkIfFollowing = async () => {
-      if (currentUser && vendor) {
-        try {
-          const followRef = collection(db, "follows");
-          const followDocRef = doc(
-            followRef,
-            `${currentUser.uid}_${vendor.id}`,
-          );
-          const followSnapshot = await getDoc(followDocRef);
+    setIsFollowLoading(true);
+    const followRef = doc(db, "follows", `${userId}_${vendorId}`);
+    return onSnapshot(
+      followRef,
+      (snapshot) => {
+        setIsFollowing(snapshot.exists());
+        if (!followMutationRef.current) setIsFollowLoading(false);
+      },
+      (followError) => {
+        console.error("Error listening to follow status:", followError);
+        if (!followMutationRef.current) setIsFollowLoading(false);
+      },
+    );
+  }, [currentUser?.uid, vendor?.id]);
 
-          if (followSnapshot.exists()) {
-            setIsFollowing(true);
-          } else {
-            setIsFollowing(false);
-          }
-        } catch (error) {
-          console.error("Error checking follow status:", error);
+  useEffect(() => {
+    const vendorId = vendor?.id;
+    if (!vendorId) return undefined;
+
+    return onSnapshot(
+      doc(db, "vendors", vendorId),
+      (snapshot) => {
+        const count = Number(snapshot.data()?.followersCount);
+        if (Number.isFinite(count)) {
+          dispatch(setVendorFollowersCount({ vendorId, count }));
         }
-      }
-    };
+      },
+      (countError) => {
+        console.error("Error listening to follower count:", countError);
+      },
+    );
+  }, [dispatch, vendor?.id]);
 
-    checkIfFollowing();
-  }, [currentUser, vendor]);
+  useEffect(() => {
+    const vendorId = vendor?.id;
+    if (!vendorId) return undefined;
+
+    let cancelled = false;
+    getVendorFollowerCount(vendorId)
+      .then((count) => {
+        if (!cancelled) dispatch(setVendorFollowersCount({ vendorId, count }));
+      })
+      .catch((countError) => {
+        console.error("Error loading exact follower count:", countError);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, vendor?.id]);
   useEffect(() => {
     const handleScrollChange = () => {
       const currentScrollPosition = window.scrollY;
@@ -1044,6 +1164,7 @@ const openSearch = useCallback(() => {
         console.log(`🚀 restoring scroll to ${scrollY}`);
         window.scrollTo(0, scrollY);
         restored.current = true;
+        if (Number(scrollY) > 0) appHaptics.light();
       });
     }
   }, [products.length, loadingMore, scrollY]);
@@ -1056,7 +1177,7 @@ const openSearch = useCallback(() => {
   };
   const retryLoadVendor = useCallback(() => {
     dispatch(fetchStoreVendor(id));
-    dispatch(fetchVendorProductsBatch({ vendorId: id, loadMore: false }));
+    dispatch(fetchVendorCatalogPage({ vendorId: id, loadMore: false }));
   }, [dispatch, id]);
 
   useEffect(() => {
@@ -1154,31 +1275,12 @@ const openSearch = useCallback(() => {
     setShowPileModal(false);
   };
 
-  const normal = (s = "") => s.toString().toLowerCase().trim();
-
-  const matches = (p, q) => {
-    const qn = normal(q);
-    return (
-      normal(p.name).includes(qn) ||
-      normal(p.productType).includes(qn) ||
-      (Array.isArray(p.tags) && p.tags.some((t) => normal(t).includes(qn)))
-    );
-  };
-  const stars = Array(5)
-    .fill(0)
-    .map((_, i) => (
-      <FaStar key={i} className="text-yellow-400 mr-0.5" size={12} />
-    ));
-
-  const searchingUI = (isSearching, searchTerm) =>
-    isSearching && normal(searchTerm) !== "";
-
   const expiryString = stockpileExpiry
     ? moment(stockpileExpiry).format("ddd, MMM Do YYYY")
     : null;
 
-  const handleFollowClick = async () => {
-    if (!currentUser) {
+  const performFollow = async (authUser) => {
+    if (!authUser?.uid) {
       setAuthOpen(true);
       return;
     }
@@ -1188,48 +1290,51 @@ const openSearch = useCallback(() => {
       return;
     }
 
-    // Optimistically flip the heart
+    if (isFollowLoading || followMutationRef.current) return;
+
     const prevState = isFollowing;
+    followMutationRef.current = true;
+    setIsFollowLoading(true);
     setIsFollowing(!prevState);
+    appHaptics.medium();
 
     try {
-      const followRef = doc(db, "follows", `${currentUser.uid}_${vendor.id}`);
-      const vendorRef = doc(db, "vendors", vendor.id);
-
-      // OPTIONAL: rate-limit check (keep if you still need it)
-      await handleUserActionLimit(
-        currentUser.uid,
-        "follow",
-        {},
-        {
-          collectionName: "usage_metadata",
-          writeLimit: 50,
-          minuteLimit: 8,
-          hourLimit: 40,
-        },
-      );
-
-      if (!prevState) {
-        // follow
-        await setDoc(followRef, {
-          userId: currentUser.uid,
-          vendorId: vendor.id,
-          createdAt: serverTimestamp(),
-        });
-        await updateDoc(vendorRef, { followersCount: increment(1) });
-        // toast.success("You’ll get updates from this vendor.");
-      } else {
-        // unfollow
-        await deleteDoc(followRef);
-        // toast.success("Unfollowed.");
+      const result = await setVendorFollowState({
+        userId: authUser.uid,
+        vendorId: vendor.id,
+        shouldFollow: !prevState,
+      });
+      setIsFollowing(result.followed);
+      try {
+        const count = await getVendorFollowerCount(vendor.id);
+        dispatch(setVendorFollowersCount({ vendorId: vendor.id, count }));
+      } catch (countError) {
+        console.error("Follow changed but exact count refresh failed:", countError);
       }
     } catch (err) {
       console.error("Follow/unfollow failed:", err.message);
-      // revert UI
       setIsFollowing(prevState);
+      appHaptics.error();
       toast.error(err.message || "Something went wrong.");
+    } finally {
+      followMutationRef.current = false;
+      setIsFollowLoading(false);
     }
   };
+
+  // Keep the DOM event separate from the authenticated action. Passing this
+  // function directly to onClick previously treated React's click event as the
+  // user object and incorrectly opened the sign-in sheet for signed-in users.
+  const handleFollowClick = () => {
+    void performFollow(currentUser);
+  };
+
+  useEffect(() => {
+    if (!currentUser?.uid || !vendor?.id) return;
+    const intent = takeAuthIntent({types: "follow-vendor", pathname: location.pathname});
+    if (!intent || String(intent.payload?.vendorId || "") !== String(vendor.id)) return;
+    void performFollow(currentUser);
+  }, [currentUser?.uid, location.pathname, vendor?.id]);
   const hasFlashSale = vendor?.flashSale === true;
   const handleFavoriteToggle = (productId) => {
     setFavorites((prevFavorites) => {
@@ -1250,105 +1355,9 @@ const openSearch = useCallback(() => {
   const handleRatingClick = () => {
     navigate(`/reviews/${id}`);
   };
-  if (vendorLoading || (!vendor && !error)) {
-    return (
-      <div className="p-3 mb-24 animate-pulse">
-        {/* Header skeleton */}
-        <div className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between p-4">
-          <Skeleton circle width={40} height={40} />
-          <div className="flex space-x-2">
-            <Skeleton circle width={40} height={40} />
-            <Skeleton circle width={40} height={40} />
-            <Skeleton circle width={40} height={40} />
-          </div>
-        </div>
-        <div className="pt-20">
-          {/* Cover image skeleton */}
-          <Skeleton height={320} />
-
-          {/* Curved white section */}
-          <div className="relative bg-white -mt-8 rounded-t-3xl pt-8 pb-6 px-6">
-            {/* Flash sale banner */}
-            <Skeleton className="mb-6 h-20 rounded-2xl" />
-
-            {/* Store name */}
-            <div className="flex justify-center mb-2">
-              <Skeleton width={200} height={32} />
-            </div>
-
-            {/* Description */}
-            <Skeleton count={2} />
-
-            {/* Rating / badge / reviews row */}
-            <div className="flex items-center justify-center space-x-6 mt-6">
-              <Skeleton circle width={40} height={40} />
-              <Skeleton width={120} height={40} />
-              <Skeleton circle width={40} height={40} />
-            </div>
-
-            <hr className="mt-6 border-gray-100" />
-
-            {/* More about this Vendor */}
-            <Skeleton width={150} height={24} className="mt-6 mb-4" />
-            <div className="space-y-4">
-              <Skeleton height={60} />
-              <Skeleton height={60} />
-              <Skeleton height={60} />
-            </div>
-
-            <hr className="mt-6 border-gray-100" />
-
-            {/* Additional Details */}
-            <Skeleton width={180} height={24} className="mt-6 mb-4" />
-            <div className="space-y-4">
-              <Skeleton height={60} />
-              <Skeleton height={60} />
-              <Skeleton height={60} />
-            </div>
-
-            <hr className="mt-6 border-gray-100" />
-          </div>
-
-          {/* Products section */}
-          <div className="mt-7">
-            <div className="flex items-center justify-between mb-3">
-              <Skeleton width={120} height={24} />
-              <Skeleton width={100} height={24} />
-            </div>
-            <div className="flex mb-4 space-x-2 overflow-x-auto">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} width={80} height={40} />
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} height={200} />
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  if ((vendorLoading && !vendor) || (!vendor && !error)) {
+    return <VendorStoreSkeleton />;
   }
-
-  const handleTypeSelect = async (type) => {
-    setSelectedType(type);
-    if (type !== "All") {
-      await ensureAllProductsLoaded(); // make sure every product is present
-    }
-  };
-  const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
-  };
-
-  const filteredProducts = products
-    .filter((p) => matches(p, searchTerm))
-    .filter((p) => selectedType === "All" || p.productType === selectedType)
-    .sort((a, b) => {
-      if (sortOption === "priceAsc") return a.price - b.price;
-      if (sortOption === "priceDesc") return b.price - a.price;
-      return 0;
-    });
 
   // if (reduxLoading) {
   //   return <Loading />;
@@ -1381,8 +1390,8 @@ const openSearch = useCallback(() => {
           <button
             className="mt-20 py-2 rounded-full font-medium flex items-center font-opensans px-5 justify-center transition-colors duration-200 bg-customOrange text-white"
             onClick={() => {
-              if (currentUser) navigate("/browse-markets");
-              else navigate("/confirm-state");
+              if (currentUser) navigate("/");
+              else navigate("/login", { state: { returnTo: location.pathname } });
             }}
           >
             Go Home
@@ -1393,28 +1402,19 @@ const openSearch = useCallback(() => {
     return <NetworkIssueNotice onRetry={retryLoadVendor} />;
   }
 
-  const handleClearSearch = () => {
-    setSearchTerm("");
-  };
-  const averageRating =
-    vendor.ratingCount > 0 ? vendor.rating / vendor.ratingCount : 0;
-  const productTypes = ["All", ...(entry.categories || [])];
-  const handleShare = () => {
-    const storeUrl = `https://mx.shopmythrift.store/${vendor.slug}`;
-    if (navigator.share) {
-      navigator
-        .share({
-          title: vendor.shopName,
-          text: `Check out ${vendor.shopName} on My Thrift!`,
-          url: storeUrl,
-        })
-        .catch((err) => {
-          console.error("Share failed:", err);
-        });
-    } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(storeUrl);
-      toast.success("Store link copied to clipboard!");
+  const handleShare = async () => {
+    const storeUrl = siteUrls.storeShareUrl({ slug: vendor.slug, id });
+    try {
+      const result = await shareContent({
+        title: vendor.shopName,
+        text: `Check out ${vendor.shopName} on My Thrift!`,
+        url: storeUrl,
+      });
+      if (result === "copied") {
+        toast.success("Store link copied to clipboard!");
+      }
+    } catch (error) {
+      console.error("Share failed:", error);
     }
   };
   const badgeMessages = {
@@ -1432,10 +1432,6 @@ const openSearch = useCallback(() => {
     "OG Seller":
       "Top-tier vendor—exceptional range, quality, and a proven track record.",
   };
-
-  const uniqueFilteredProducts = filteredProducts.filter(
-    (prod, idx, arr) => arr.findIndex((p) => p.id === prod.id) === idx,
-  );
 
   const FollowHeadsUp = () => {
     const bannerShown = localStorage.getItem("headsUpBannerShown");
@@ -1485,112 +1481,195 @@ const openSearch = useCallback(() => {
     );
   };
 
+  // The storefront presentation below is the Figma-aligned layer. All data,
+  // pagination, cache, analytics, follow, stockpile and quick-checkout state
+  // continues to be owned by StorePage so this redesign stays additive.
   return (
     <>
-      {isActive && stockpileVendorId === id && (
-        <>
-          <button
-            onClick={handleOpenPileModal}
-            className="fixed bottom-6 right-3 z-50 
-                       w-14 h-14 rounded-full 
-                       flex items-center justify-center
-                       bg-customOrange text-white
-                       shadow-xl"
-          >
-            <BsFillBasketFill size={24} />
-          </button>
-
-          {/* Our modal for showing the user's existing pile items */}
-          <Modal
-            isOpen={showPileModal}
-            onRequestClose={handleClosePileModal}
-            className="fixed bottom-0 left-1/2 transform -translate-x-1/2  w-full max-h-[80vh] rounded-t-3xl bg-white p-4 overflow-y-auto"
-            overlayClassName="fixed z-50 inset-0 bg-black bg-opacity-50 flex justify-center items-end"
-            closeTimeoutMS={200}
-          >
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <h2 className="text-xl font-opensans  font-semibold text-gray-800">
-                  Your Current Pile
-                </h2>
-                <MdClose
-                  onClick={handleClosePileModal}
-                  className="text-xl text-gray-600"
-                />
-              </div>
-              <div className="border-b border-gray-300 mb-3"></div>
-
-              {stockpileLoading ? (
-                <div className="flex justify-center items-center h-40">
-                  <Loading />
-                </div>
-              ) : (
-                <>
-                  {/* Show expiry date if we have it */}
-                  {expiryString && (
-                    <p className="mb-4 text-sm font-opensans text-gray-500">
-                      Your pile expires on{" "}
-                      <span className="font-medium text-customOrange">
-                        {expiryString}
-                      </span>
-                    </p>
-                  )}
-
-                  {pileItems.filter(
-                    (item) => item.progressStatus !== "Declined",
-                  ).length === 0 ? (
-                    <p>No items found</p>
-                  ) : (
-                    pileItems
-                      .filter((item) => item.progressStatus !== "Declined")
-                      .map((item, idx) => (
-                        <div key={idx} className="flex items-center mb-3">
-                          <img
-                            src={item.imageUrl}
-                            alt={item.name}
-                            className="w-16 h-16 object-cover rounded-md"
-                          />
-                          <div className="ml-3">
-                            <p className="font-medium text-black font-opensans text-sm">
-                              {item.name}
-                            </p>
-                          </div>
-                        </div>
-                      ))
-                  )}
-                </>
-              )}
-            </div>
-          </Modal>
-        </>
-      )}
       <SEO
         title={`${vendor.shopName} - My Thrift`}
         description={`Shop ${vendor.shopName} on My Thrift`}
         image={`${vendor.coverImageUrl}`}
         url={`https://www.shopmythrift.store/store/${id}`}
       />
+
+      <VendorStoreExperience
+        vendor={vendor}
+        vendorId={id}
+        entry={entry}
+        products={products}
+        categories={entry.categories || []}
+        loadingProducts={
+          (Boolean(catalog.loadingInitial) && products.length === 0) ||
+          !catalog.initialized
+        }
+        onRetryProducts={() =>
+          dispatch(fetchVendorCatalogPage({ vendorId: id, loadMore: false }))
+        }
+        favorites={favorites}
+        onFavoriteToggle={handleFavoriteToggle}
+        isFollowing={isFollowing}
+        isFollowLoading={isFollowLoading}
+        onFollow={handleFollowClick}
+        onShare={handleShare}
+        onPolicy={() => setShowVendorPolicy(true)}
+        onPlatformPolicy={() => setShowBuyerProtection(true)}
+        currentUser={currentUser}
+        currentUserData={currentUserData}
+        quickMode={quickForThisVendor}
+        checkoutCount={checkoutCount}
+        onCheckout={() => basketRef.current?.openCheckoutAuth?.()}
+        flashSale={
+          hasFlashSale ? (
+            <section className="vendor-store-flash-sale" aria-label="Flash sale countdown">
+              <strong>First Drop in:</strong>
+              <FlipCountdown endTime={vendor.flashSaleEndsAt} />
+            </section>
+          ) : null
+        }
+        badgeMessage={badgeMessages[vendor.badge] || badgeMessages.Newbie}
+      />
+
+      {loadingMore && products.length > 0 && (
+        <div className="flex justify-center my-4" aria-label="Loading more products">
+          <RotatingLines
+            strokeColor="#f9531e"
+            strokeWidth="4"
+            animationDuration="0.75"
+            width="16"
+            visible
+          />
+        </div>
+      )}
+
+      {isActive && stockpileVendorId === id && (
+        <button
+          type="button"
+          onClick={handleOpenPileModal}
+          className="fixed bottom-6 right-3 z-50 w-14 h-14 rounded-full flex items-center justify-center bg-customOrange text-white shadow-xl"
+          aria-label="Open your current stockpile"
+        >
+          <BsFillBasketFill size={24} />
+        </button>
+      )}
+
+      <AppBottomSheet
+        open={showPileModal}
+        onClose={handleClosePileModal}
+        height="70dvh"
+        ariaLabel="Your current pile"
+      >
+        <div className="flex h-full flex-col px-4 pb-4 pt-6 font-satoshi">
+          <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+            <h2 className="text-xl font-medium text-gray-900">Your Current Pile</h2>
+            <button type="button" onClick={handleClosePileModal} className="grid h-8 w-8 place-items-center" aria-label="Close">
+              <MdClose className="text-2xl text-gray-700" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto pt-4">
+            {stockpileLoading ? (
+              <div className="flex h-40 items-center justify-center"><Loading /></div>
+            ) : (
+              <>
+                {expiryString && (
+                  <p className="mb-4 text-sm text-gray-500">
+                    Your pile expires on <span className="font-medium text-customOrange">{expiryString}</span>
+                  </p>
+                )}
+                {(pileOrders || []).length === 0 ? (
+                  <p className="text-sm text-gray-500">No items found</p>
+                ) : (
+                  pileOrders.map((order, orderIndex) => {
+                    const isAccepted = order.membershipStatus === "ready";
+                    const isDeclined = order.membershipStatus === "declined";
+                    const statusLabel = isAccepted
+                      ? "Accepted"
+                      : isDeclined
+                        ? "Declined"
+                        : "Pending";
+                    const statusColor = isAccepted
+                      ? "bg-emerald-500"
+                      : isDeclined
+                        ? "bg-red-500"
+                        : "bg-amber-500";
+
+                    return (
+                      <section
+                        key={order.id}
+                        className={orderIndex > 0 ? "border-t border-gray-200 pt-3" : ""}
+                      >
+                        <div className="flex items-center justify-between gap-3 py-2">
+                          <p className="min-w-0 truncate text-xs font-medium text-gray-500">
+                            Order {order.orderId}
+                          </p>
+                          <span className="inline-flex shrink-0 items-center gap-2 text-xs font-medium text-gray-600">
+                            <span
+                              className={`h-2 w-2 rounded-full ${statusColor}`}
+                              aria-hidden="true"
+                            />
+                            {statusLabel}
+                          </span>
+                        </div>
+
+                        <div>
+                          {(order.items || []).map((item, index) => (
+                            <div
+                              key={`${order.id}-${item.productKey || item.productId || index}`}
+                              className="flex min-h-20 items-stretch gap-3 py-3"
+                            >
+                              <img
+                                src={item.imageUrl}
+                                alt={item.name}
+                                className="h-20 w-20 shrink-0 rounded-lg object-cover"
+                              />
+                              <div className="min-w-0 self-center">
+                                <p className="line-clamp-2 text-sm font-medium text-gray-950">
+                                  {item.name}
+                                </p>
+                                {Number.isFinite(Number(item.unitPrice)) && (
+                                  <p className="mt-1 text-sm font-semibold text-gray-950">
+                                    ₦{Number(item.unitPrice).toLocaleString()}
+                                  </p>
+                                )}
+                                {(item.selectedSize || item.selectedColor) && (
+                                  <p className="mt-1 text-xs text-gray-500">
+                                    {[item.selectedSize, item.selectedColor]
+                                      .filter(Boolean)
+                                      .join(" · ")}
+                                  </p>
+                                )}
+                                <p className="mt-1 text-xs text-gray-500">
+                                  Qty: {Number(item.quantity || 1)}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    );
+                  })
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </AppBottomSheet>
+
       <PickupInfoModal
         isOpen={showPickupIntro}
         vendor={vendor}
         onClose={closePickupIntro}
-        currentUserCoords={userCoords}
       />
-
-      {quickForThisVendor && (
-        <StoreBasket
-          vendorId={id}
-          quickMode
-          ref={basketRef}
-          onQuickFlow={() => setShowDrawer(true)}
-        />
-      )}
-
       <StockpileInfoModal
         isOpen={showStockpileIntro}
         vendor={vendor}
         onClose={closeStockpileIntro}
       />
+
+      {quickForThisVendor && (
+        <StoreBasket vendorId={id} quickMode ref={basketRef} />
+      )}
+
       <IframeModal
         show={showTermsModal}
         onClose={() => setShowTermsModal(false)}
@@ -1601,453 +1680,28 @@ const openSearch = useCallback(() => {
         onClose={() => setShowVendorPolicy(false)}
         policy={vendor.returnPolicy ?? { type: "NONE", notes: "" }}
       />
-      <div className="p-3 mb-24">
-        <div className="">
-          {/* Header - Different styles based on state */}
-          {isSearching ? (
-            <div
-              className="fixed top-0 left-0 right-0 z-20
-          flex items-center justify-between p-4 bg-gradient-to-b from-white to-transparent"
-            >
-              <div className="flex items-center w-full relative px-2">
-                <FaAngleLeft
-                  onClick={() => {
-                    setIsSearching(false);
-                    handleClearSearch();
-                  }}
-                  className="cursor-pointer text-2xl mr-2"
-                />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                  placeholder={"Search " + (vendor?.shopName || "") + "..."}
-                  className="flex-1 border rounded-full font-opensans text-black text-base border-gray-300 px-3 py-2 font-medium shadow-xl focus:outline-none"
-                />
-                {searchTerm && (
-                  <MdCancel
-                    className="text-xl text-gray-500 cursor-pointer absolute right-4"
-                    onClick={handleClearSearch}
-                  />
-                )}
-              </div>
-            </div>
-          ) : quickForThisVendor ? (
-            <div
-              className={`
-          fixed top-0 left-0 right-0 z-20
-          flex items-center justify-between p-4 bg-gradient-to-b from-white/40 to-transparent
-        `}
-            >
-              <img
-                src="/newlogo.png"
-                alt="Logo"
-                onClick={() => navigate("/")}
-                className={`h-8 w-auto object-contain  ${
-                  showHeader ? "opacity-100" : "opacity-20"
-                }cursor-pointer drop-shadow-sm`}
-              />
-              {/* Right side icons */}
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={openSearch}
-                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg transition-opacity duration-300 border border-white/40
-          ${showHeader ? "opacity-100" : "opacity-30"}`}
-                >
-                  <RiSearchLine className="text-white text-xl" />
-                </button>
-                <button
-                  onClick={handleFollowClick}
-                  disabled={isFollowLoading}
-                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-md  transition-opacity duration-300 border border-white/40
-          ${showHeader ? "opacity-100" : "opacity-30"}`}
-                >
-                  <motion.div
-                    key={isFollowing ? "filled" : "outline"}
-                    initial={{ scale: 0.8 }}
-                    animate={{ scale: 1.1 }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 400,
-                      damping: 15,
-                    }}
-                  >
-                    {isFollowing ? (
-                      <RiHeart3Fill className="text-red-500 text-lg" />
-                    ) : (
-                      <RiHeart3Line className="text-white text-lg" />
-                    )}
-                  </motion.div>
-                </button>
-                <button
-                  onClick={handleShare}
-                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg transition-opacity duration-300 border border-white/40
-          ${showHeader ? "opacity-100" : "opacity-30"}`}
-                >
-                  <GrShare className="text-white text-lg" />
-                </button>
-                {checkoutCount > 0 && (
-                  <button
-                    onClick={() => basketRef.current?.openCheckoutAuth()}
-                    className={`px-2 h-10  rounded-full bg-gradient-to-br from-yellow-300/20 to-yellow-500/30
-    backdrop-blur-md border font-opensans border-yellow-400/50 text-yellow-900 font-semibold text-sm
-    shadow-md transition-opacity duration-300 ${
-      showHeader ? "opacity-100" : "opacity-30"
-    }`}
-                    aria-label="Checkout"
-                  >
-                    Checkout Now
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Glassmorphism header over image */}
-              <div
-                className={`
-          fixed top-0 left-0 right-0 z-20
-          flex items-center justify-between p-4 bg-gradient-to-b from-white/40 to-transparent
-        `}
-              >
-                {/* Back button */}
-                <button
-                  onClick={() => navigate(-1)}
-                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg transition-opacity duration-300 border border-white/40
-          ${showHeader ? "opacity-100" : "opacity-30"}`}
-                >
-                  <GoChevronLeft className="text-white text-xl" />
-                </button>
-
-                {/* Right side icons */}
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={openSearch}
-                    className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg transition-opacity duration-300 border border-white/40
-          ${showHeader ? "opacity-100" : "opacity-30"}`}
-                  >
-                    <RiSearchLine className="text-white text-xl" />
-                  </button>
-                  <button
-                    onClick={handleShare}
-                    className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-lg transition-opacity duration-300 border border-white/40
-          ${showHeader ? "opacity-100" : "opacity-30"}`}
-                  >
-                    <GrShare className="text-white text-lg" />
-                  </button>
-                  <button
-                    onClick={handleFollowClick}
-                    disabled={isFollowLoading}
-                    className={`w-10 h-10 rounded-full bg-gradient-to-br from-transparent to-black/30 backdrop-blur-md flex items-center justify-center shadow-md  transition-opacity duration-300 border border-white/40
-          ${showHeader ? "opacity-100" : "opacity-30"}`}
-                  >
-                    <motion.div
-                      key={isFollowing ? "filled" : "outline"}
-                      initial={{ scale: 0.8 }}
-                      animate={{ scale: 1.1 }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 400,
-                        damping: 15,
-                      }}
-                    >
-                      {isFollowing ? (
-                        <RiHeart3Fill className="text-red-500 text-lg" />
-                      ) : (
-                        <RiHeart3Line className="text-white text-lg" />
-                      )}
-                    </motion.div>
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Follow heads up banner */}
-          {!isShared && isBannerVisible && (
-            <div
-              className={`fixed w-full top-14 left-0 right-0 z-10 flex flex-col items-end justify-end p-4 pointer-events-auto`}
-            >
-              <FollowHeadsUp />
-            </div>
-          )}
-
-          {!isSearching && !searchingUI(isSearching, searchTerm) && (
-            <>
-              {/* Store Cover Image */}
-              <div className="relative w-full h-80 overflow-hidden">
-                {vendorLoading ? (
-                  <Skeleton height={320} />
-                ) : vendor.coverImageUrl ? (
-                  <img
-                    className="w-full h-full object-cover"
-                    src={vendor.coverImageUrl}
-                    alt={vendor.shopName}
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-300 flex items-center justify-center">
-                    <span className="text-center  font-opensans font-bold text-gray-600">
-                      {vendor.shopName}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Curved White Section */}
-              <div
-                className="relative bg-white -mt-8 rounded-t-3xl pt-8 pb-6"
-                style={{ boxShadow: "0 -4px 20px -10px rgba(0,0,0,0.08)" }}
-              >
-                <div className="flex items-center justify-center mb-2">
-                  <h1 className="text-2xl font-semibold  text-center font-opensans">
-                    {vendorLoading ? <Skeleton width={200} /> : vendor.shopName}
-                  </h1>
-                </div>
-
-                <p className="text-gray-700 text-xs px-8 font-opensans text-center mb-6 leading-relaxed">
-                  {vendorLoading ? <Skeleton count={2} /> : vendor.description}
-                </p>
-                {/* Top Rated Badge */}
-                <div className="flex items-center justify-center">
-                  {/* ─── Rating on the left ─── */}
-                  <div
-                    onClick={handleRatingClick}
-                    className="flex flex-col items-center cursor-pointer"
-                  >
-                    {/* rating number */}
-                    <span className="text-base font-ubuntu font-medium">
-                      {averageRating.toFixed(1)}
-                    </span>
-                    <div className="flex">{stars}</div>
-                  </div>
-
-                  {/* vertical divider */}
-                  <div className="h-6 border-l border-gray-300 mx-6" />
-
-                  <VendorBadgePill
-  badgeText={cleanStr(vendor?.badge) || "Newbie"}
-  onClick={() => setBadgeOpen(true)}
-/>
-
-                  {/* vertical divider */}
-                  <div className="h-6 border-l border-gray-300 mx-6" />
-
-                  {/* ─── Reviews count on the right ─── */}
-                  <div
-                    onClick={handleRatingClick}
-                    className="flex flex-col items-center cursor-pointer"
-                  >
-                    {/* review count */}
-                    <span className="text-base font-ubuntu font-medium">
-                      {vendor.ratingCount || 0}
-                    </span>
-                    {/* “Reviews” label under the number */}
-                    <span className="text-xs font-opensans font-medium text-gray-600 mt-1">
-                      Reviews
-                    </span>
-                  </div>
-                </div>
-                <hr className="mt-6 border-gray-100" />
-                {/* Additional Info Cards */}
-              </div>
-              {hasFlashSale && (
-                <div className="px-2">
-                  <div className="w-full mb-6 rounded-2xl bg-neutral-900 text-white p-4 sm:p-5 shadow-lg">
-                    <div className="flex items-center text-xs sm:text-base font-semibold mb-3">
-                      <span className="mr-1">📦</span>
-                      <span>First Drop in:</span>
-                    </div>
-
-                    <FlipCountdown endTime={vendor.flashSaleEndsAt} />
-                  </div>
-                </div>
-              )}
-
-              {vendor && <VendorDetails vendor={vendor} vendorId={vendor.id} />}
-              <hr className="mt-6 border-gray-100" />
-
-              {vendor && (
-                <AdditionalDetails
-                  vendor={vendor}
-                  vendorId={vendor.id}
-                  badgeMessages={badgeMessages}
-                  onVendorPolicyClick={() => setShowVendorPolicy(true)}
-                  onLinkClick={(fragment) => {
-                    setTermsUrl(
-                      `https://www.shopmythrift.store/terms-and-conditions#${fragment}`,
-                    );
-                    setShowTermsModal(true);
-                  }}
-                />
-              )}
-              <hr className="mt-6 border-gray-100" />
-            </>
-          )}
-
-          {/* Search UI */}
-          {searchingUI(isSearching, searchTerm) && (
-            <div className="p-4">{/* Search results content goes here */}</div>
-          )}
-        </div>
-        <div className={`${isSearching ? "mt-16" : "mt-7"}`}>
-          <>
-            <div className="flex items-center mb-3 justify-between">
-              <h1 className="font-opensans text-lg  font-semibold">Products</h1>
-              <div className="relative">
-                <AnimatePresence>
-                  {viewOptions && (
-                    <motion.div
-                      initial={{ x: 60, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      exit={{ x: 60, opacity: 0 }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 300,
-                        damping: 25,
-                      }}
-                      className="z-50 absolute bg-white w-44 h-20 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-24 top-2 p-3 flex flex-col justify-between"
-                    >
-                      <span
-                        className={`text-xs font-opensans ml-2 cursor-pointer ${
-                          sortOption === "priceAsc"
-                            ? "text-customOrange"
-                            : "text-black"
-                        }`}
-                        onClick={() => {
-                          setSortOption("priceAsc");
-                          setViewOptions(!viewOptions);
-                        }}
-                      >
-                        Low to High
-                      </span>
-                      <hr className="text-slate-300" />
-                      <span
-                        className={`text-xs font-opensans ml-2 cursor-pointer ${
-                          sortOption === "priceDesc"
-                            ? "text-customOrange"
-                            : "text-black"
-                        }`}
-                        onClick={() => {
-                          setSortOption("priceDesc");
-                          setViewOptions(!viewOptions);
-                        }}
-                      >
-                        High to Low
-                      </span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <span className="flex text-xs font-opensans items-center">
-                  Sort by Price:{" "}
-                  <LuListFilter
-                    className="text-customOrange cursor-pointer ml-1"
-                    onClick={() => setViewOptions(!viewOptions)}
-                  />
-                </span>
-              </div>
-            </div>
-            {!searchingUI(isSearching, searchTerm) && (
-              <div className="flex px-2 mb-4 w-full pt-2 pb-6 overflow-x-auto space-x-2 scrollbar-hide">
-                {productTypes.map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => handleTypeSelect(type)}
-                    className={`flex-shrink-0 h-12 px-4 text-xs font-semibold font-opensans text-black rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-100 border ${
-                      selectedType === type
-                        ? "bg-customOrange text-white"
-                        : "bg-white"
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            )}
-          </>
-
-          {vendorLoading || (loadingMore && filteredProducts.length === 0) ? (
-            <div className="grid mt-2 grid-cols-2 gap-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} height={200} width="100%" />
-              ))}
-            </div>
-          ) : filteredProducts.length > 0 ? (
-            <>
-              <div className="grid mt-2 grid-cols-2 gap-2">
-                {uniqueFilteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    isFavorite={!!favorites[product.id]}
-                    surface="vendor_store"
-                    onFavoriteToggle={handleFavoriteToggle}
-                    onClick={() => navigate(`/product/${product.id}`)}
-                    showVendorName={false}
-                  />
-                ))}
-              </div>
-
-              {loadingMore && (
-                <div className="flex justify-center my-4">
-                  <RotatingLines
-                    strokeColor="#f9531e"
-                    strokeWidth="4"
-                    animationDuration="0.75"
-                    width="16"
-                    visible
-                  />
-                </div>
-              )}
-              {/* {loadingAll && (
-                <div className="flex justify-center my-4">
-                  <RotatingLines
-                    strokeColor="#f9531e"
-                    strokeWidth="5"
-                    animationDuration="0.75"
-                    width="20"
-                    visible
-                  />
-                </div>
-              )} */}
-            </>
-          ) : (
-            <>
-              <div className="flex justify-center items-center w-full text-center">
-                <p className="font-opensans text-gray-800 text-xs">
-                  📭 <span className="font-semibold">{vendor.shopName}</span>{" "}
-                  hasn’t added any products to their online store yet. Follow
-                  this vendor and you will be notified when they upload
-                  products!
-                </p>
-              </div>
-            </>
-          )}
-        </div>
-<VendorBadgeModal
-  open={badgeOpen}
-  onClose={() => setBadgeOpen(false)}
-  badgeText={cleanStr(vendor?.badge) || "Newbie"}
-  message={badgeMessages[vendor?.badge] || ""}
-/>
-
-        <QuickAuthModal
-          open={authOpen}
-          onClose={() => setAuthOpen(false)}
-          headerText="Continue to follow"
-          onComplete={() => {
-            setAuthOpen(false);
-            const unsub = onAuthStateChanged(auth, (u) => {
-              if (u) {
-                unsub();
-                handleFollowClick(); // normal path (auth is now truthy)
-              }
-            });
-          }}
-          openDisclaimer={openDisclaimer}
-        />
-      </div>
+      <BuyerProtectionModal
+        show={showBuyerProtection}
+        onClose={() => setShowBuyerProtection(false)}
+      />
+      <QuickAuthModal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        headerText="Let’s set you up to follow"
+        onComplete={(user) => {
+          setAuthOpen(false);
+          void performFollow(user);
+        }}
+        openDisclaimer={openDisclaimer}
+        authIntent={{
+          type: "follow-vendor",
+          returnTo: `${location.pathname}${location.search}`,
+          payload: {vendorId: vendor?.id || id},
+        }}
+      />
     </>
   );
+
 };
 
 export default StorePage;

@@ -1,6 +1,7 @@
 // pages/[slug].js
 import Head from "next/head";
 import { getOgImageUrl } from "lib/imageKit"; // ← identical helper as /store/[id].js
+import shareRouting from "lib/shareRouting.cjs";
 
 /* ───────── helpers ───────── */
 
@@ -22,7 +23,8 @@ const toJSON = (val, Timestamp) => {
 
 /* ───────── SSR ───────── */
 
-export async function getServerSideProps({ req, params }) {
+export async function getServerSideProps({ req, res, params, resolvedUrl }) {
+  shareRouting.prepareShareResponse(res);
   const slug = String(params?.slug || "").toLowerCase();
   if (!slug) return { notFound: true };
 
@@ -40,34 +42,34 @@ export async function getServerSideProps({ req, params }) {
 
   if (snapQ.empty) return { notFound: true };
   const vendor = toJSON(
-    { id: snapQ.docs[0].id, ...snapQ.docs[0].data() },
+    shareRouting.previewVendor(snapQ.docs[0].id, snapQ.docs[0].data()),
     Timestamp
   );
 
   /* 2️⃣  Decide: redirect vs OG */
   const ua = req.headers["user-agent"] || "";
-  const bot = isCrawler(ua);
+  const bot = shareRouting.isPreviewCrawler(ua);
   const isSnapApp = /Snapchat(?!ExternalHit)/i.test(ua);
 
   if (!bot || isSnapApp) {
     return {
       redirect: {
-        destination: `https://shopmythrift.store/store/${vendor.id}?shared=true`,
-        permanent: false, // change to true (301/308) once everything is verified
+        destination: shareRouting.appDestination("store", vendor.id, resolvedUrl),
+        permanent: false, // People and preview crawlers intentionally get different responses.
       },
     };
   }
 
   /* 3️⃣  Crawlers get OG props */
-  return { props: { vendor } };
+  return { props: { vendor, canonicalUrl: shareRouting.canonicalUrl("store", vendor) } };
 }
 
 /* ───────── Page component (OG only) ───────── */
 
-export default function VendorOG({ vendor }) {
+export default function VendorOG({ vendor, canonicalUrl }) {
   if (!vendor) return null;
 
-  const ogUrl = `https://mx.shopmythrift.store/${vendor.slug}`;
+  const ogUrl = canonicalUrl;
   const ogImage = getOgImageUrl(vendor.coverImageUrl); // uniform OG build
 
   return (

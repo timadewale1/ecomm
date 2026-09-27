@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Container, Row, Form, FormGroup } from "reactstrap";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -19,6 +19,10 @@ import { RotatingLines } from "react-loader-spinner";
 import Typewriter from "typewriter-effect";
 import { GoChevronLeft } from "react-icons/go";
 import SEO from "../components/Helmet/SEO";
+import { appHaptics } from "../services/haptics";
+import { useAppExperience } from "../components/Context/AppExperienceContext";
+import { APP_EXPERIENCE } from "../services/appExperience";
+import { authDestinationFromState } from "../services/authIntent";
 
 const VendorLogin = () => {
   const [email, setEmail] = useState("");
@@ -27,6 +31,8 @@ const VendorLogin = () => {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const { selectExperience, resetExperience } = useAppExperience();
   const auth = getAuth();
 
   const handleLogin = async (e) => {
@@ -39,6 +45,8 @@ const VendorLogin = () => {
       setLoading(false);
       return;
     }
+
+    void appHaptics.medium();
 
     try {
       // 1) Sign in via Firebase Auth
@@ -69,36 +77,72 @@ const VendorLogin = () => {
 
       // 3) Check if email is verified
       if (!user.emailVerified) {
-        // Send verification link via Cloud Function
+        let verificationMessage =
+          "Your email is not verified. We sent you a new verification link.";
+        let verifiedAfterRefresh = false;
+
         const sendVerificationEmailCallable = httpsCallable(
           functions,
-          "sendVendorVerificationEmail"
+          "sendVendorVerificationEmail",
         );
-        await sendVerificationEmailCallable({
-          email: user.email,
-          firstName: vendorData.firstName,
-          lastName: vendorData.lastName,
-        });
+        try {
+          const response = await sendVerificationEmailCallable({});
+          if (response.data?.alreadyVerified) {
+            await user.reload();
+            verifiedAfterRefresh = user.emailVerified;
+          } else if (response.data?.verificationEmailSent === false) {
+            verificationMessage =
+              "Your email is not verified, and we couldn’t send another link right now. Please try again shortly.";
+          }
+        } catch (resendError) {
+          const resendCode = String(resendError?.code || "").replace(
+            /^functions\//,
+            "",
+          );
+          if (resendCode === "resource-exhausted") {
+            verificationMessage =
+              "Your email is not verified. A link was requested recently, so please check your inbox or try again shortly.";
+          } else if (
+            resendCode === "unavailable" ||
+            resendCode === "deadline-exceeded"
+          ) {
+            verificationMessage =
+              "Your email is not verified. We couldn’t request another link because of a connection problem.";
+          } else {
+            verificationMessage =
+              "Your email is not verified, and we couldn’t send another link right now. Please try again shortly.";
+          }
+          console.error("Vendor verification email retry failed:", {
+            code: resendCode || "unknown",
+          });
+        }
 
-        // Sign out and throw custom error
-        await auth.signOut();
-        throw { code: "vendor/email-unverified" };
+        if (!verifiedAfterRefresh) {
+          await auth.signOut();
+          const verificationError = new Error(verificationMessage);
+          verificationError.code = "vendor/email-unverified";
+          throw verificationError;
+        }
       }
 
       // 4) If verified, check other vendor fields
       if (!vendorData.profileComplete) {
+        await selectExperience(APP_EXPERIENCE.VENDOR);
         toast("Please complete your profile.");
-        navigate("/complete-profile");
+        navigate("/complete-profile", { replace: true });
       } else {
+        await selectExperience(APP_EXPERIENCE.VENDOR);
         toast.success("Login successful!");
-        navigate("/vendordashboard");
+        navigate(authDestinationFromState(location.state, "/vendordashboard"), {
+          replace: true,
+        });
       }
     } catch (error) {
       console.error("Error logging in:", error);
       console.error("Error code:", error?.code);
       console.error("Error message:", error?.message);
 
-      const code = error?.code;
+      const code = String(error?.code || "").replace(/^functions\//, "");
 
       // ---- IF–ELSE CHAIN for error codes ----
       if (!code) {
@@ -132,7 +176,8 @@ const VendorLogin = () => {
         );
       } else if (code === "vendor/email-unverified") {
         toast.error(
-          "Your email is not verified. Please check your inbox for a verification link."
+          error?.message ||
+            "Your email is not verified. Please check your inbox for a verification link.",
         );
       } else {
         // Catch-all for any code not explicitly handled
@@ -152,11 +197,19 @@ const VendorLogin = () => {
         description={`Login to your My Thrift vendor account`}
         url={`https://www.shopmythrift.store/vendorlogin`}
       />
-      <section>
-        <Container>
-          <Row>
-            <div className="px-2">
-              <Link to="/confirm-state" onClick={localStorage.removeItem("mythrift_role")}>
+      <section className="w-full">
+        <Container className="mx-auto w-full max-w-[574px] px-0">
+          <Row className="mx-0 w-full">
+            <div className="w-full px-4">
+              <Link
+                to="/confirm-state"
+                onClick={async (event) => {
+                  event.preventDefault();
+                  await resetExperience();
+                  navigate("/confirm-state", { replace: true });
+                }}
+                aria-label="Change app experience"
+              >
                 <GoChevronLeft className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>
               <VendorLoginAnimation />
@@ -202,7 +255,7 @@ const VendorLogin = () => {
               <div className="translate-y-1 mt-6 px-2">
                 <Form onSubmit={handleLogin}>
                   <FormGroup className="relative mb-3">
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
                       <MdEmail className="text-gray-500 text-xl" />
                     </div>
                     <input
@@ -210,12 +263,12 @@ const VendorLogin = () => {
                       placeholder="Enter your email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full h-12 bg-white text-black font-opensans rounded-md text-base border border-gray-200 pl-14 focus:outline-none focus:ring-2 focus:ring-customOrange"
+                      className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-base border-none focus:outline-none focus:ring-2 focus:ring-customOrange"
                       required
                     />
                   </FormGroup>
                   <FormGroup className="relative mb-3">
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
                       <GrSecure className="text-gray-500 text-xl" />
                     </div>
                     <input
@@ -223,7 +276,7 @@ const VendorLogin = () => {
                       placeholder="Enter your password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full h-12 bg-white text-black font-opensans rounded-md text-base border border-gray-200 pl-14 focus:outline-none focus:ring-2 focus:ring-customOrange"
+                      className="w-full h-12 bg-gray-100 pl-14 text-black font-opensans rounded-md text-base border-none focus:outline-none focus:ring-2 focus:ring-customOrange"
                       required
                     />
                     <div
@@ -247,7 +300,7 @@ const VendorLogin = () => {
                   </div>
                   <motion.button
                     type="submit"
-                    className="w-full h-12 mt-4 rounded-full flex items-center justify-center bg-customOrange text-white font-semibold font-opensans text-sm hover:bg-orange-600 shadow-md"
+                    className="w-full h-12 mt-4 flex items-center justify-center rounded-xl bg-customOrange text-white font-semibold font-opensans hover:bg-orange-600"
                     disabled={loading}
                   >
                     {loading ? (

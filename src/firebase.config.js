@@ -3,13 +3,16 @@
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
+  initializeAuth,
   setPersistence,
   browserLocalPersistence,
+  indexedDBLocalPersistence,
 } from "firebase/auth";
 import {
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
+  memoryLocalCache,
   getFirestore,
   CACHE_SIZE_UNLIMITED,
 } from "firebase/firestore";
@@ -23,6 +26,7 @@ import {
   initializeAppCheck,
   ReCaptchaEnterpriseProvider,
 } from "firebase/app-check";
+import { isNativeApp } from "./services/platform";
 
 /* 1) Firebase config */
 const firebaseConfig = {
@@ -39,9 +43,13 @@ const app = initializeApp(firebaseConfig);
 
 /* 3) App Check — do not let failures crash the app */
 try {
-  if (import.meta.env.VITE_FIREBASE_DEBUG_TOKEN) {
-    self.FIREBASE_APPCHECK_DEBUG_TOKEN =
-      import.meta.env.VITE_FIREBASE_DEBUG_TOKEN;
+  // Firebase debug tokens bypass real attestation and must never be embedded
+  // in a production web or Capacitor bundle.
+  const appCheckDebugToken = import.meta.env.DEV
+    ? import.meta.env.VITE_FIREBASE_DEBUG_TOKEN
+    : "";
+  if (appCheckDebugToken) {
+    window.FIREBASE_APPCHECK_DEBUG_TOKEN = appCheckDebugToken;
   }
   const recaptchaKey = import.meta.env.VITE_RECAPTCHA_ENTERPRISE_KEY;
   if (recaptchaKey) {
@@ -58,24 +66,45 @@ try {
 }
 
 /* 4) Auth + local persistence */
-export const auth = getAuth(app);
-setPersistence(auth, browserLocalPersistence).catch((err) =>
-  console.error("Auth persistence failed:", err)
+export const auth = isNativeApp
+  ? initializeAuth(app, {
+      // Initialize durable WKWebView storage up front. Passing persistence to
+      // initializeAuth avoids the async setPersistence race that blocked login.
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+    })
+  : getAuth(app);
+
+if (!isNativeApp) {
+  setPersistence(auth, browserLocalPersistence).catch((err) =>
+    console.error("Auth persistence failed:", err),
+  );
+}
+console.log(
+  `Auth initialized with ${isNativeApp ? "native durable" : "browser-local"} persistence.`,
 );
-console.log("Auth initialized with local persistence.");
 
 /* 5) Firestore + Persistent local cache (multi-tab) */
 let dbInstance;
 try {
-  dbInstance = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager(),
-      cacheSizeBytes: CACHE_SIZE_UNLIMITED,
-    }),
-    // Helps in restrictive networks/VPNs
-    experimentalAutoDetectLongPolling: true,
-    useFetchStreams: false,
-  });
+  dbInstance = initializeFirestore(
+    app,
+    isNativeApp
+      ? {
+          // WKWebView does not need browser multi-tab persistence. Force
+          // long-polling so Firestore does not stall on streaming transports.
+          localCache: memoryLocalCache(),
+          experimentalForceLongPolling: true,
+          useFetchStreams: false,
+        }
+      : {
+          localCache: persistentLocalCache({
+            tabManager: persistentMultipleTabManager(),
+            cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+          }),
+          experimentalAutoDetectLongPolling: true,
+          useFetchStreams: false,
+        },
+  );
   console.log(
     "✅ Firestore initialized with persistent local cache (multi-tab)."
   );

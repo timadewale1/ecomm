@@ -1,0 +1,440 @@
+.notifications-page {
+  width: 100%;
+  min-height: 100dvh;
+  background: #ffffff;
+  color: #111827;
+  font-family: "Satoshi", sans-serif;
+}
+
+.notifications-page .app-page-header {
+  box-shadow: none;
+}
+
+.notifications-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px 16px;
+  background: #ffffff;
+}
+
+.notifications-tabs button {
+  display: inline-flex;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: #f7f7f7;
+  color: #4b5563;
+  font: 400 16px/20px "Satoshi", sans-serif;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.notifications-tabs button.is-active {
+  border-color: #f9531e;
+  background: #fff2ed;
+  color: #f9531e;
+}
+
+.notifications-tabs button:focus-visible,
+.notification-item-main:focus-visible,
+.notification-more-button:focus-visible,
+.notification-options-sheet button:focus-visible {
+  outline: 2px solid #f9531e;
+  outline-offset: 2px;
+}
+
+.notifications-scroll {
+  min-height: calc(100dvh - 116px);
+  overflow: visible;
+  background: #ffffff;
+}
+
+.native-ios .notifications-scroll {
+  min-height: calc(100dvh - var(--app-safe-top, env(safe-area-inset-top, 0px)) - 116px);
+}
+
+.notifications-list {
+  padding: 0 0 calc(24px + var(--app-safe-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+.notifications-progressive-sentinel {
+  width: 100%;
+  height: 1px;
+}
+
+.notifications-group {
+  padding-top: 0;
+}
+
+.notifications-group + .notifications-group {
+  padding-top: 16px;
+}
+
+.notifications-group > h2 {
+  margin: 0;
+  padding: 0 16px 4px;
+  color: #4b5563;
+  font: 500 14px/18px "Satoshi", sans-serif;
+}
+
+.notifications-group ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notification-item {
+  position: relative;
+  display: grid;
+  min-height: 86px;
+  grid-template-columns: minmax(0, 1fr) 24px;
+  column-gap: 8px;
+  align-items: center;
+  padding: 12px 8px;
+  background: #ffffff;
+}
+
+.notification-item-main {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 6px 40px minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.notification-item-main:has(.notification-product-image) {
+  grid-template-columns: 6px 40px minmax(0, 1fr) 64px;
+}
+
+.notification-item-main:active,
+.notification-more-button:active,
+.notification-options-sheet button:active {
+  opacity: 0.68;
+}
+
+.notification-unread-dot {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.notification-unread-dot.is-visible {
+  background: #f9531e;
+}
+
+.notification-source-avatar,
+.notification-source-fallback,
+.notification-source-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.notification-source-avatar {
+  object-fit: cover;
+}
+
+.notification-source-fallback,
+.notification-source-icon {
+  background: #f7f7f7;
+  color: #4b5563;
+}
+
+.notification-source-fallback {
+  font: 500 16px/20px "Satoshi", sans-serif;
+}
+
+.notification-source-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.5;
+}
+
+.notification-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.notification-copy strong,
+.notification-body,
+.notification-copy time {
+  display: block;
+  max-width: 100%;
+}
+
+.notification-copy strong {
+  overflow: hidden;
+  color: #111827;
+  font: 500 16px/20px "Satoshi", sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-body {
+  overflow: hidden;
+  color: #111827;
+  font: 400 16px/20px "Satoshi", sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-copy time {
+  margin-top: 2px;
+  color: #4b5563;
+  font: 400 14px/18px "Satoshi", sans-serif;
+}
+
+.notification-product-image {
+  display: block;
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.notification-more-button {
+  display: grid;
+  width: 24px;
+  height: 40px;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #111827;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.notification-more-button svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.5;
+}
+
+.notifications-empty {
+  display: flex;
+  min-height: 520px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 32px 96px;
+  text-align: center;
+}
+
+.notifications-empty img {
+  width: 144px;
+  height: 128px;
+  margin-bottom: 16px;
+}
+
+.notifications-empty h2 {
+  margin: 0;
+  color: #111827;
+  font: 500 18px/24px "Satoshi", sans-serif;
+}
+
+.notifications-empty p {
+  max-width: 328px;
+  margin: 8px 0 0;
+  color: #4b5563;
+  font: 400 14px/20px "Satoshi", sans-serif;
+}
+
+.notifications-empty > button {
+  min-width: 120px;
+  height: 44px;
+  margin-top: 20px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 12px;
+  background: #f9531e;
+  color: #ffffff;
+  font: 500 16px/20px "Satoshi", sans-serif;
+}
+
+.notifications-empty--filtered {
+  min-height: 360px;
+}
+
+.notifications-skeleton {
+  padding-top: 2px;
+}
+
+.notifications-skeleton-heading,
+.notifications-skeleton-row span {
+  display: block;
+  background: linear-gradient(90deg, #f1f2f4 25%, #fafafa 50%, #f1f2f4 75%);
+  background-size: 200% 100%;
+  animation: notifications-shimmer 1.25s ease-in-out infinite;
+}
+
+.notifications-skeleton-heading {
+  width: 42px;
+  height: 14px;
+  margin: 0 16px 8px;
+  border-radius: 5px;
+}
+
+.notifications-skeleton-row {
+  display: grid;
+  min-height: 86px;
+  grid-template-columns: 6px 40px minmax(0, 1fr) auto 24px;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 8px;
+}
+
+.notifications-skeleton-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.notifications-skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.notifications-skeleton-copy {
+  display: flex !important;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+  background: transparent !important;
+  animation: none !important;
+}
+
+.notifications-skeleton-copy span:nth-child(1) {
+  width: min(170px, 88%);
+  height: 15px;
+  border-radius: 5px;
+}
+
+.notifications-skeleton-copy span:nth-child(2) {
+  width: min(132px, 70%);
+  height: 13px;
+  border-radius: 5px;
+}
+
+.notifications-skeleton-copy span:nth-child(3) {
+  width: 58px;
+  height: 11px;
+  border-radius: 5px;
+}
+
+.notifications-skeleton-product {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+}
+
+.notifications-skeleton-menu {
+  width: 4px;
+  height: 18px;
+  margin: 0 auto;
+  border-radius: 4px;
+}
+
+@keyframes notifications-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notifications-skeleton-heading,
+  .notifications-skeleton-row span {
+    animation: none;
+  }
+}
+
+.notification-options-sheet {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  padding-top: 12px;
+  font-family: "Satoshi", sans-serif;
+}
+
+.notification-options-header {
+  display: grid;
+  height: 48px;
+  flex: 0 0 48px;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.notification-options-header h2 {
+  margin: 0;
+  color: #111827;
+  font: 500 18px/22px "Satoshi", sans-serif;
+  text-align: center;
+}
+
+.notification-options-header button {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #111827;
+}
+
+.notification-options-header svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.5;
+}
+
+.notification-options-action {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  align-items: center;
+  padding: 16px;
+  border: 0;
+  background: #ffffff;
+  color: #111827;
+  font: 500 16px/20px "Satoshi", sans-serif;
+  text-align: left;
+}
+
+.notification-options-action--bordered {
+  border-top: 1px solid #e5e7eb;
+}
+
+.notification-options-sheet button:disabled {
+  opacity: 0.5;
+}
+
+@media (min-width: 575px) {
+  .notifications-page {
+    max-width: 574px;
+    margin: 0 auto;
+  }
+}

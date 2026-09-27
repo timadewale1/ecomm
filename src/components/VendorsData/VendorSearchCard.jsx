@@ -1,13 +1,16 @@
 // src/components/Vendors/VendorSearchCard.jsx
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { doc, onSnapshot, setDoc, deleteDoc, updateDoc, increment, serverTimestamp } from "firebase/firestore";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { doc, onSnapshot } from "firebase/firestore";
 import { FaStar } from "react-icons/fa";
 
-import { db, auth } from "../../firebase.config";
-import { handleUserActionLimit } from "../../services/userWriteHandler";
+import { db } from "../../firebase.config";
+import { setVendorFollowState } from "../../services/vendorFollow";
 import QuickAuthModal from "../../components/PwaModals/AuthModal";
 import SafeImg from "../../services/safeImg";
+import { pendingAuthIntent, takeAuthIntent } from "../../services/authIntent";
+import { useAuth } from "../../custom-hooks/useAuth";
+import { appHaptics } from "../../services/haptics";
 
 const cleanStr = (x) => (typeof x === "string" ? x.trim() : "");
 const shortCount = (n) => {
@@ -113,27 +116,38 @@ export default function VendorSearchCard({
   openDisclaimer,
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { currentUser } = useAuth();
 
   const vendorId =
     vendor?.vendorId || vendor?.id || vendor?.uid || vendor?._id || null;
 
-  const uid = auth.currentUser?.uid || null;
+  const uid = currentUser?.uid || null;
 
   const [isFollowing, setIsFollowing] = useState(false);
-  const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(true);
+  const followMutationRef = useRef(false);
   const [authOpen, setAuthOpen] = useState(false);
 
   // realtime follow status (same pattern you already use)
   useEffect(() => {
     if (!uid || !vendorId) {
       setIsFollowing(false);
+      setIsFollowLoading(false);
       return;
     }
+    setIsFollowLoading(true);
     const followRef = doc(db, "follows", `${uid}_${vendorId}`);
     return onSnapshot(
       followRef,
-      (snap) => setIsFollowing(snap.exists()),
-      () => setIsFollowing(false),
+      (snap) => {
+        setIsFollowing(snap.exists());
+        if (!followMutationRef.current) setIsFollowLoading(false);
+      },
+      () => {
+        setIsFollowing(false);
+        if (!followMutationRef.current) setIsFollowLoading(false);
+      },
     );
   }, [uid, vendorId]);
 
@@ -142,7 +156,8 @@ export default function VendorSearchCard({
 
   const productCount =
     Number(
-      vendor?.productCount ??
+      vendor?.availableTotal ??
+        vendor?.productCount ??
         vendor?.productsCount ??
         vendor?.products ??
         vendor?.totalProducts ??
@@ -164,53 +179,54 @@ export default function VendorSearchCard({
     navigate(`/store/${vendorId}`);
   }, [navigate, vendorId]);
 
-  const handleFollowClick = useCallback(async () => {
+  const performFollow = useCallback(async (authUser) => {
     if (!vendorId) return;
 
-    if (!auth.currentUser) {
+    if (!authUser?.uid) {
       setAuthOpen(true);
       return;
     }
 
+    if (followMutationRef.current) return;
+
     const prev = isFollowing;
+    followMutationRef.current = true;
+    setIsFollowLoading(true);
     setIsFollowing(!prev);
+    appHaptics.medium();
 
     try {
-      setIsFollowLoading(true);
-
-      await handleUserActionLimit(
-        auth.currentUser.uid,
-        "follow",
-        {},
-        {
-          collectionName: "usage_metadata",
-          writeLimit: 50,
-          minuteLimit: 8,
-          hourLimit: 40,
-        },
-      );
-
-      const followRef = doc(db, "follows", `${auth.currentUser.uid}_${vendorId}`);
-      const vendorRef = doc(db, "vendors", vendorId);
-
-      if (!prev) {
-        await setDoc(followRef, {
-          userId: auth.currentUser.uid,
-          vendorId,
-          createdAt: serverTimestamp(),
-        });
-        await updateDoc(vendorRef, { followersCount: increment(1) });
-      } else {
-        await deleteDoc(followRef);
-        // keep your existing behavior: no decrement
-      }
+      const result = await setVendorFollowState({
+        userId: authUser.uid,
+        vendorId,
+        shouldFollow: !prev,
+      });
+      setIsFollowing(result.followed);
     } catch (e) {
       console.error("[VendorSearchCard] follow failed:", e?.message || e);
       setIsFollowing(prev);
+      appHaptics.error();
     } finally {
+      followMutationRef.current = false;
       setIsFollowLoading(false);
     }
   }, [vendorId, isFollowing]);
+
+  const handleFollowClick = useCallback(() => {
+    void performFollow(currentUser);
+  }, [currentUser, performFollow]);
+
+  useEffect(() => {
+    if (!uid || !vendorId) return;
+    const pending = pendingAuthIntent();
+    if (
+      pending?.type !== "follow-vendor" ||
+      String(pending.payload?.vendorId || "") !== String(vendorId)
+    ) return;
+    const intent = takeAuthIntent({types: "follow-vendor", pathname: location.pathname});
+    if (!intent) return;
+    void performFollow(currentUser);
+  }, [currentUser, location.pathname, performFollow, uid, vendorId]);
 
   return (
     <div className={["bg-gray-50", "w-full"  ,  "p-4", className].join(" ")}>
@@ -288,12 +304,17 @@ export default function VendorSearchCard({
       <QuickAuthModal
         open={authOpen}
         onClose={() => setAuthOpen(false)}
-        headerText="Continue to follow"
-        onComplete={() => {
+        headerText="Let’s set you up to follow"
+        onComplete={(user) => {
           setAuthOpen(false);
-          setTimeout(() => handleFollowClick(), 0);
+          void performFollow(user);
         }}
         openDisclaimer={openDisclaimer}
+        authIntent={{
+          type: "follow-vendor",
+          returnTo: `${location.pathname}${location.search}`,
+          payload: {vendorId},
+        }}
       />
     </div>
   );

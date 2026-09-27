@@ -1,5 +1,47 @@
 apply plugin: 'com.android.application'
 
+def readEnvValue = { File envFile, String key ->
+    if (!envFile.exists()) return null
+
+    def prefix = "${key}="
+    def matchingLine = envFile.readLines().find { line ->
+        def normalized = line.trim()
+        normalized.startsWith(prefix) || normalized.startsWith("export ${prefix}")
+    }
+
+    if (!matchingLine) return null
+
+    def value = matchingLine.trim()
+    if (value.startsWith('export ')) value = value.substring('export '.length()).trim()
+    value = value.substring(value.indexOf('=') + 1).trim()
+
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.substring(1, value.length() - 1)
+    }
+
+    return value.trim()
+}
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+}
+
+// Production/CI should provide an Android-restricted key. The existing Vite
+// key is a development fallback so a local Android build cannot crash during
+// native Google Maps plugin registration.
+def androidMapsApiKey = localProperties.getProperty('MYTHRIFT_ANDROID_MAPS_API_KEY') ?: 
+        System.getenv('MYTHRIFT_ANDROID_MAPS_API_KEY') ?: 
+        readEnvValue(rootProject.file('../.env'), 'VITE_GOOGLE_MAPS_KEY')
+
+if (!androidMapsApiKey) {
+    throw new GradleException(
+            'Missing Android Maps API key. Set MYTHRIFT_ANDROID_MAPS_API_KEY in android/local.properties or the environment.'
+    )
+}
+
 android {
     namespace = "com.mythrift.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -9,6 +51,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        manifestPlaceholders = [MYTHRIFT_ANDROID_MAPS_API_KEY: androidMapsApiKey]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

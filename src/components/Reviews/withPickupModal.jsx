@@ -4,6 +4,7 @@ import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { useAuth } from "../../custom-hooks/useAuth";
 import { db } from "../../firebase.config";
 import PickupPromptModal from "./PickupModal";
+import { updateVendorProfileField } from "../../services/vendorProfileManagement";
 
 const WithPickupPrompt = ({ children }) => {
   const { currentUser } = useAuth();
@@ -35,12 +36,16 @@ const WithPickupPrompt = ({ children }) => {
 
     if (offersPickup && location) {
       updates.deliveryMode = "Delivery & Pickup";
-      updates.pickupAddress = location.address;
-      updates.pickupLat = location.lat;
-      updates.pickupLng = location.lng;
     }
 
     try {
+      if (offersPickup && location) {
+        await updateVendorProfileField("pickupAddress", {
+          address: location.address,
+          lat: location.lat,
+          lng: location.lng,
+        });
+      }
       await updateDoc(vendorRef, updates);
     } catch (err) {
       console.error("Error updating pickup settings:", err);

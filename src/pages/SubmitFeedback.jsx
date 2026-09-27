@@ -5,9 +5,10 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from "../firebase.config";
 import toast from "react-hot-toast";
 import { RotatingLines } from "react-loader-spinner";
-import { GoChevronLeft } from "react-icons/go";
 import { useNavigate } from "react-router-dom";
 import SEO from "../components/Helmet/SEO";
+import AppPageHeader from "../components/layout/AppPageHeader";
+import NativeImageInput from "../components/Inputs/NativeImageInput";
 
 const SubmitFeedback = () => {
   const [feedbackType, setFeedbackType] = useState("");
@@ -120,17 +121,7 @@ const SubmitFeedback = () => {
       />
     <div className="flex flex-col items-center bg-gray-50  pb-4 font-opensans text-gray-800">
       {/* Header */}
-      <div className="sticky top-0 bg-white z-10 flex items-center justify-between w-full px-3 py-4 border-b shadow-sm">
-        <div className="flex items-center space-x-2">
-          <GoChevronLeft
-            className="text-2xl text-black cursor-pointer"
-            onClick={() => navigate(-1)}
-          />
-          <h1 className="text-lg font-semibold text-gray-900">
-            Send Us Feedback
-          </h1>
-        </div>
-      </div>
+      <AppPageHeader title="Send Us Feedback" alignment="left" onBack={() => navigate(-1)} />
 
       {/* Content */}
       <div className="w-full max-w-3xl bg-white  px-2">
@@ -214,8 +205,8 @@ const SubmitFeedback = () => {
               {attachments.length < 3 && (
                 <label className="w-36 h-36 rounded-lg border-2 border-dashed border-customOrange flex items-center justify-center cursor-pointer">
                   <span className="text-customOrange">+</span>
-                  <input
-                    type="file"
+                  <NativeImageInput
+                    accept="image/*"
                     onChange={handleFileChange}
                     className="hidden"
                   />

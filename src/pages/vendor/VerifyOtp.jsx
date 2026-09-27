@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { siteUrls } from "../../config/siteUrls.mjs";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   getAuth,
@@ -139,7 +140,7 @@ const VendorVerifyOTP = () => {
         console.log("Email/password credential linked to user account.");
 
         const actionCodeSettings = {
-          url: "https://shopmythrift.store/confirm-email", // Replace with your email verification link
+          url: siteUrls.appUrl("/confirm-email"),
           handleCodeInApp: true,
         };
         await sendEmailVerification(user, actionCodeSettings);

@@ -15,13 +15,13 @@ const TextContainer = styled.div`
   left: 50%;
   transform: translate(-50%, -45%);
   text-align: center;
-  font-family: 'Roboto', sans-serif; 
+  font-family: 'Satoshi', sans-serif;
 `;
 
 const ValueText = styled.div`
   font-size: 60px;
   font-weight: bold;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Satoshi', sans-serif;
 `;
 
 const LabelText = styled.div`

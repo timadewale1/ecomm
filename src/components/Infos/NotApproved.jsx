@@ -2,9 +2,12 @@ import React from "react";
 import { PiSealWarning } from "react-icons/pi"; 
 import "./NotApproved.css"; // Import the CSS for styling
 
-const NotApproved = () => {
+const NotApproved = ({ allowCatalogue = false }) => {
   return (
-    <div className="relative not-approved-container mt-6">
+    <div
+      className="relative not-approved-container mt-6"
+      data-vendor-tour="approval-status"
+    >
       <div className="absolute -top-4 -left-2 mr-3 w-10 h-10 rounded-full bg-white flex justify-center items-center">
         <PiSealWarning className="w-7 h-7 text-customOrange" />
       </div>
@@ -13,8 +16,10 @@ const NotApproved = () => {
           <span role="img" aria-label="hourglass">
             ⏳
           </span>{" "}
-          Your account is being reviewed! Hang tight—verification typically
-          takes 6-12 hours or less. Have a nice day!
+          Your store is being reviewed. This usually takes 6–12 hours.
+          {allowCatalogue
+            ? "Your listings will become visible to buyers as soon as your store is approved."
+            : " We’ll let you know as soon as your store is approved."}
         </p>
       </div>
     </div>

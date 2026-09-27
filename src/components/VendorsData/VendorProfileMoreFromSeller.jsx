@@ -1,31 +1,24 @@
 /* VendorProfileMoreFromSeller.jsx */
-import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import {
-  collection,
   doc,
   getDoc,
-  getDocs,
-  limit,
-  query,
-  setDoc,
-  deleteDoc,
-  updateDoc,
-  increment,
-  serverTimestamp,
-  where,
   onSnapshot,
-  orderBy,
 } from "firebase/firestore";
-import { db, auth } from "../../firebase.config";
-import { handleUserActionLimit } from "../../services/userWriteHandler";
+import { db } from "../../firebase.config";
+import { setVendorFollowState } from "../../services/vendorFollow";
 import { FaStar } from "react-icons/fa";
 import { GoChevronRight } from "react-icons/go";
 import QuickAuthModal from "../../components/PwaModals/AuthModal";
 import SafeImg from "../../services/safeImg";
 import ProductCard from "../../components/Products/ProductCard";
 import { IoMdArrowBack, IoMdArrowForward } from "react-icons/io";
+import { fetchVendorStoreProducts } from "../../services/vendorStoreSearch";
+import { takeAuthIntent } from "../../services/authIntent";
+import { useAuth } from "../../custom-hooks/useAuth";
+import { appHaptics } from "../../services/haptics";
 
 const norm = (v) => String(v || "").trim().toLowerCase();
 
@@ -122,6 +115,8 @@ export default function VendorProfileMoreFromSeller({
   openDisclaimer,
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { currentUser } = useAuth();
 
   const [vendor, setVendor] = useState(null);
   const [vendorLoading, setVendorLoading] = useState(true);
@@ -131,9 +126,10 @@ export default function VendorProfileMoreFromSeller({
 
   const [isFollowing, setIsFollowing] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(true);
+  const followMutationRef = useRef(false);
 
-  const uid = auth.currentUser?.uid || null;
+  const uid = currentUser?.uid || null;
 
   // quick mode (same pattern you used in RelatedProducts)
   const { isActive: quickActive = false, vendorId: quickVendorId = null } =
@@ -166,18 +162,28 @@ export default function VendorProfileMoreFromSeller({
   useEffect(() => {
     if (!uid || !vendorId) {
       setIsFollowing(false);
+      setIsFollowLoading(false);
       return;
     }
+    setIsFollowLoading(true);
     const followRef = doc(db, "follows", `${uid}_${vendorId}`);
     return onSnapshot(
       followRef,
-      (snap) => setIsFollowing(snap.exists()),
-      () => setIsFollowing(false)
+      (snap) => {
+        setIsFollowing(snap.exists());
+        if (!followMutationRef.current) setIsFollowLoading(false);
+      },
+      () => {
+        setIsFollowing(false);
+        if (!followMutationRef.current) setIsFollowLoading(false);
+      }
     );
   }, [uid, vendorId]);
 
-  // ---- fetch vendor products (match storepage rules: published + not deleted)
+  // ---- fetch vendor products from the same server-owned catalogue used by
+  // the store page. OpenSearch already excludes unapproved/deactivated shops.
   useEffect(() => {
+    const controller = new AbortController();
     let alive = true;
 
     (async () => {
@@ -185,22 +191,14 @@ export default function VendorProfileMoreFromSeller({
       setLoadingProducts(true);
 
       try {
-        const productsRef = collection(db, "products");
-
-        // StorePage/RelatedProducts style filters
-        const qy = query(
-          productsRef,
-          where("vendorId", "==", vendorId),
-          where("published", "==", true),
-          where("isDeleted", "==", false),
-          orderBy("createdAt", "desc"),
-          limit(80)
-        );
-
-        const snap = await getDocs(qy);
+        const response = await fetchVendorStoreProducts({
+          vendorId,
+          filters: { sort: "newest" },
+          signal: controller.signal,
+        });
         if (!alive) return;
 
-        const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const rows = response.items;
 
         // exclude current product + basic cleanup
         const cleaned = rows
@@ -209,6 +207,7 @@ export default function VendorProfileMoreFromSeller({
 
         setProducts(cleaned);
       } catch (e) {
+        if (e?.name === "AbortError") return;
         console.error("[VendorProfileMoreFromSeller] products fetch:", e);
         if (alive) setProducts([]);
       } finally {
@@ -218,6 +217,7 @@ export default function VendorProfileMoreFromSeller({
 
     return () => {
       alive = false;
+      controller.abort();
     };
   }, [vendorId, currentProductId]);
 
@@ -232,56 +232,51 @@ export default function VendorProfileMoreFromSeller({
     return (sum / count).toFixed(1);
   }, [vendor]);
 
-  const handleFollowClick = useCallback(async () => {
+  const performFollow = useCallback(async (authUser) => {
     if (!vendorId) return;
 
-    if (!auth.currentUser) {
+    if (!authUser?.uid) {
       setAuthOpen(true);
       return;
     }
 
     if (!vendor?.id) return;
 
+    if (followMutationRef.current) return;
+
     const prevState = isFollowing;
+    followMutationRef.current = true;
+    setIsFollowLoading(true);
     setIsFollowing(!prevState);
+    appHaptics.medium();
 
     try {
-      setIsFollowLoading(true);
-
-      await handleUserActionLimit(
-        auth.currentUser.uid,
-        "follow",
-        {},
-        {
-          collectionName: "usage_metadata",
-          writeLimit: 50,
-          minuteLimit: 8,
-          hourLimit: 40,
-        }
-      );
-
-      const followRef = doc(db, "follows", `${auth.currentUser.uid}_${vendor.id}`);
-      const vendorRef = doc(db, "vendors", vendor.id);
-
-      if (!prevState) {
-        await setDoc(followRef, {
-          userId: auth.currentUser.uid,
-          vendorId: vendor.id,
-          createdAt: serverTimestamp(),
-        });
-
-        await updateDoc(vendorRef, { followersCount: increment(1) });
-      } else {
-        await deleteDoc(followRef);
-        // keep same behavior as StorePage (no decrement)
-      }
+      const result = await setVendorFollowState({
+        userId: authUser.uid,
+        vendorId: vendor.id,
+        shouldFollow: !prevState,
+      });
+      setIsFollowing(result.followed);
     } catch (err) {
       console.error("Follow/unfollow failed:", err?.message);
       setIsFollowing(prevState);
+      appHaptics.error();
     } finally {
+      followMutationRef.current = false;
       setIsFollowLoading(false);
     }
   }, [vendorId, vendor, isFollowing]);
+
+  const handleFollowClick = useCallback(() => {
+    void performFollow(currentUser);
+  }, [currentUser, performFollow]);
+
+  useEffect(() => {
+    if (!uid || !vendor?.id) return;
+    const intent = takeAuthIntent({types: "follow-vendor", pathname: location.pathname});
+    if (!intent || String(intent.payload?.vendorId || "") !== String(vendor.id)) return;
+    void performFollow(currentUser);
+  }, [currentUser, location.pathname, performFollow, uid, vendor?.id]);
 
   const goToStore = () => {
     if (!vendorId) return;
@@ -393,12 +388,17 @@ export default function VendorProfileMoreFromSeller({
       <QuickAuthModal
         open={authOpen}
         onClose={() => setAuthOpen(false)}
-        headerText="Continue to follow"
-        onComplete={() => {
+        headerText="Let’s set you up to follow"
+        onComplete={(user) => {
           setAuthOpen(false);
-          setTimeout(() => handleFollowClick(), 0);
+          void performFollow(user);
         }}
         openDisclaimer={openDisclaimer}
+        authIntent={{
+          type: "follow-vendor",
+          returnTo: `${location.pathname}${location.search}`,
+          payload: {vendorId},
+        }}
       />
     </div>
   );

@@ -1,20 +1,15 @@
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { LiaTimesSolid } from "react-icons/lia";
 import { FcGoogle } from "react-icons/fc";
-import { FaXTwitter } from "react-icons/fa6";
+import { FaApple, FaXTwitter } from "react-icons/fa6";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import toast from "react-hot-toast";
 import { RotatingLines } from "react-loader-spinner";
 
-import {
-  GoogleAuthProvider,
-  TwitterAuthProvider,
-  signInWithPopup,
-  fetchSignInMethodsForEmail,
-} from "firebase/auth";
+import { fetchSignInMethodsForEmail } from "firebase/auth";
 import {
   doc,
   getDoc,
@@ -28,6 +23,17 @@ import {
 import { auth, db } from "../../firebase.config";
 import LocationPicker from "../Location/LocationPicker";
 import { AiOutlineMail } from "react-icons/ai";
+import AppBottomSheet from "../layout/AppBottomSheet";
+import { clearAuthIntent, rememberAuthIntent } from "../../services/authIntent";
+import { fetchAndMergeCart } from "../../services/cartMerge";
+import { useAppExperience } from "../Context/AppExperienceContext";
+import { APP_EXPERIENCE } from "../../services/appExperience";
+import {
+  authenticateBuyerWithProvider,
+  socialAuthErrorMessage,
+} from "../../services/buyerSocialAuth";
+import { appHaptics } from "../../services/haptics";
+import { isNativeApp } from "../../services/platform";
 
 function onlyLetters(s = "") {
   return /^[A-Za-z][A-Za-z\s'-]*$/.test(String(s).trim());
@@ -95,17 +101,27 @@ export default function QuickAuthModal({
   onComplete,
   mergeCart,
   openDisclaimer,
-  headerText = "Let’s set up your order",
+  headerText = "Let’s set up your account",
   vendorId,
+  compactTop = false,
+  returnTo,
+  authIntent = null,
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch();
+  const { selectExperience } = useAppExperience();
+  const safeReturnDestination = () =>
+    typeof returnTo === "string" && returnTo.startsWith("/")
+      ? returnTo
+      : location.pathname;
 
   const [loading, setLoading] = useState(false);
+  const [loadingProvider, setLoadingProvider] = useState(null);
 
   // confirm modal state
   const [showConfirm, setShowConfirm] = useState(false);
-  const [confirmProvider, setConfirmProvider] = useState(null); // "google" | "twitter"
+  const [confirmProvider, setConfirmProvider] = useState(null);
   const [pendingUser, setPendingUser] = useState(null);
 
   const [first, setFirst] = useState("");
@@ -118,8 +134,42 @@ export default function QuickAuthModal({
   const [coords, setCoords] = useState({ lat: null, lng: null });
 
   const [saving, setSaving] = useState(false);
+  const requiresCheckoutDetails = ["cart-checkout", "product-buy-now"].includes(
+    authIntent?.type,
+  );
+  const showAppleAuth =
+    isNativeApp || import.meta.env.VITE_ENABLE_APPLE_WEB_AUTH === "true";
 
-  if (!open) return null;
+  const markBuyerMode = () => {
+    void selectExperience(APP_EXPERIENCE.CUSTOMER);
+  };
+
+  const preserveInitialAction = () => {
+    if (!authIntent?.type) return;
+    rememberAuthIntent({
+      ...authIntent,
+      returnTo: authIntent.returnTo || safeReturnDestination(),
+    });
+  };
+
+  const completeInitialAction = (user, mergeResult) => {
+    clearAuthIntent();
+    onComplete?.(user, mergeResult);
+  };
+
+  // Every completed buyer-auth path must cross the same explicit cart-import
+  // boundary. Several surfaces do not provide a merge callback, so falling
+  // back here prevents a valid login from leaving the device cart stranded.
+  const mergeEligibleCart = async (uid) => {
+    if (!uid) return null;
+    try {
+      if (typeof mergeCart === "function") return await mergeCart(uid);
+      return await fetchAndMergeCart(db, uid, dispatch);
+    } catch (error) {
+      console.warn("Cart merge after buyer authentication failed:", error);
+      return null;
+    }
+  };
 
   /* ─────────────────────────────────────────────
    *   Vendor e-mail hard block (defense in depth)
@@ -140,7 +190,7 @@ export default function QuickAuthModal({
    *   Confirm modal save/skip
    * ───────────────────────────────────────────── */
   const handleConfirmSave = async () => {
-    if (confirmProvider === "twitter" && !isEmail(email)) {
+    if (confirmProvider === "twitter.com" && !isEmail(email)) {
       toast.error("Please enter a valid email to continue.");
       return;
     }
@@ -175,7 +225,7 @@ export default function QuickAuthModal({
       }
 
       // Twitter cross-provider checks
-      if (confirmProvider === "twitter") {
+      if (confirmProvider === "twitter.com") {
         const methods = await fetchSignInMethodsForEmail(auth, e);
         if (methods.includes("password") && !methods.includes("twitter.com")) {
           try {
@@ -186,7 +236,8 @@ export default function QuickAuthModal({
           toast.info(
             "This email is registered with a password. Please log in."
           );
-          navigate("/login", { state: { email: e } });
+          preserveInitialAction();
+          navigate("/login", { state: { email: e, from: safeReturnDestination() } });
           return;
         }
         if (
@@ -201,7 +252,8 @@ export default function QuickAuthModal({
           toast.info(
             "This email is registered with Google. Please log in with Google."
           );
-          navigate("/login", { state: { email: e } });
+          preserveInitialAction();
+          navigate("/login", { state: { email: e, from: safeReturnDestination() } });
           return;
         }
       }
@@ -255,10 +307,7 @@ export default function QuickAuthModal({
         await setDoc(userRef, patch, { merge: true });
       }
 
-      // merge cart (parent-provided)
-      if (typeof mergeCart === "function") {
-        await mergeCart(pendingUser.uid);
-      }
+      const mergeResult = await mergeEligibleCart(pendingUser.uid);
 
       // clean confirm UI
       setShowConfirm(false);
@@ -272,7 +321,9 @@ export default function QuickAuthModal({
       setCoords({ lat: null, lng: null });
 
       Promise.resolve().then(() => {
-        if (typeof onComplete === "function") onComplete(pendingUser);
+        if (typeof onComplete === "function") {
+          completeInitialAction(pendingUser, mergeResult);
+        }
       });
     } catch (err) {
       console.error(err);
@@ -295,74 +346,42 @@ export default function QuickAuthModal({
     setAddress("");
     setCoords({ lat: null, lng: null });
 
-    if (typeof mergeCart === "function" && user?.uid) {
-      try {
-        await mergeCart(user.uid);
-      } catch {}
+    const mergeResult = user?.uid ? await mergeEligibleCart(user.uid) : null;
+    if (typeof onComplete === "function" && user) {
+      completeInitialAction(user, mergeResult);
     }
-    if (typeof onComplete === "function" && user) onComplete(user);
   };
 
-  /* ─────────────────────────────────────────────
-   *   Google Sign-In
-   * ───────────────────────────────────────────── */
-  const handleGoogleSignIn = async () => {
-    const provider = new GoogleAuthProvider();
+  const handleSocialSignIn = async (providerId, providerLabel) => {
+    void appHaptics.medium();
     try {
       setLoading(true);
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
+      setLoadingProvider(providerId);
+      const authResult = await authenticateBuyerWithProvider({
+        auth,
+        db,
+        providerId,
+      });
+      const { user, profile, displayName, email: providerEmail } = authResult;
+      markBuyerMode();
 
-      // Vendor block
-      const clean = (user.email || "").toLowerCase().trim();
-      if (await isVendorEmail(clean)) {
-        localStorage.setItem("BLOCKED_VENDOR_EMAIL", "1");
-        await auth.signOut();
-        toast.error("This email is already used for a Vendor account!");
-        return;
-      }
-
-      // Initialize/patch user doc (non-destructive)
-      const userRef = doc(db, "users", user.uid);
-      const snap = await getDoc(userRef);
-      if (snap.exists() && snap.data().profileComplete) {
+      if (profile?.profileComplete || !requiresCheckoutDetails) {
+        const mergeResult = await mergeEligibleCart(user.uid);
         onClose?.();
-        onComplete(user); // parent shows overlay & merges
+        completeInitialAction(user, mergeResult);
         return;
       }
 
-      if (!snap.exists()) {
-        await setDoc(userRef, {
-          uid: user.uid,
-          email: clean || null,
-          displayName: user.displayName ?? null,
-          username: genUsername(user.displayName),
-          profileComplete: false,
-          walletSetup: false,
-          birthday: "not-set",
-          welcomeEmailSent: false,
-          notificationAllowed: false,
-          role: "user",
-          referrer: localStorage.getItem("referrer") || null,
-          createdAt: new Date(),
-        });
-      } else {
-        const data = snap.data() || {};
-        const patch = {};
-        if (data.displayName == null && user.displayName)
-          patch.displayName = user.displayName;
-        if (!data.username) patch.username = genUsername(user.displayName);
-        if (Object.keys(patch).length)
-          await setDoc(userRef, patch, { merge: true });
-      }
-
-      // Confirm modal
-      const { first: f, last: l } = splitDisplayName(user.displayName || "");
+      // Checkout is the one quick-auth context that can collect missing order
+      // details inline. Ordinary sign-in, follow, offer and review actions are
+      // authentication-only and rely on their existing feature gates.
+      const { first: f, last: l } = splitDisplayName(displayName || "");
+      const resolvedEmail = providerEmail || user.email || "";
       setFirst(f);
       setLast(l);
-      setEmail(user.email || "");
-      setEmailLocked(true); // lock email for Google
-      setConfirmProvider("google");
+      setEmail(resolvedEmail);
+      setEmailLocked(Boolean(resolvedEmail));
+      setConfirmProvider(providerId);
       setPendingUser(user);
       await prefillFromUserDoc(user.uid, {
         setPhoneRaw,
@@ -371,222 +390,84 @@ export default function QuickAuthModal({
       });
       setShowConfirm(true);
     } catch (error) {
-      if (error?.code === "auth/account-exists-with-different-credential") {
-        const em = error?.customData?.email;
-        if (!em) {
-          toast.error("This account already exists. Please log in.");
-          navigate("/login");
-          setLoading(false);
-          return;
-        }
-        try {
-          const methods = await fetchSignInMethodsForEmail(auth, em);
-          // vendor guard
-          if (await isVendorEmail(em.toLowerCase())) {
-            toast.error("This email is already used for a Vendor account!");
-            setLoading(false);
-            return;
-          }
-          if (methods.includes("password") && !methods.includes("google.com")) {
-            toast.info("This email uses a password. Please log in.");
-            navigate("/login", {
-              state: { email: em, linkGoogle: true, from: location.pathname },
-            });
-            setLoading(false);
-            return;
-          }
-          toast.info(
-            "This email is registered. Please use your original method."
-          );
-          navigate("/login", { state: { email: em, from: location.pathname } });
-        } catch (mErr) {
-          console.error("fetchSignInMethodsForEmail:", mErr);
-          toast.error(
-            "Sign-in conflict. Log in first, then link Google in settings."
-          );
-        }
-      } else if (error?.code === "auth/popup-closed-by-user") {
-        toast.error("Popup closed before completing sign-in.");
-      } else {
-        console.error(error);
-        toast.error("Google sign-in failed. Please try again.");
-      }
+      console.error(`[social-auth:${providerId}]`, error);
+      const message = socialAuthErrorMessage(error, providerLabel);
+      if (message) toast.error(message);
     } finally {
       setLoading(false);
+      setLoadingProvider(null);
     }
   };
 
-  const handleTwitterSignIn = async () => {
-    const provider = new TwitterAuthProvider();
-    const TAG = "[TWITTER_SIGNIN]";
-    console.log(`${TAG} init`);
-    try {
-      setLoading(true);
-      console.log(`${TAG} calling signInWithPopup...`);
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
+  const handleGoogleSignIn = () =>
+    handleSocialSignIn("google.com", "Google");
+  const handleAppleSignIn = () => {
+    void appHaptics.light();
+    toast("Apple sign-in is coming soon.");
+  };
+  const handleTwitterSignIn = () =>
+    handleSocialSignIn("twitter.com", "X");
 
-      console.log(`${TAG} popup resolved`);
-      console.log(`${TAG} user.uid=`, user?.uid);
-      console.log(`${TAG} user.displayName=`, user?.displayName);
-      console.log(`${TAG} user.email=`, user?.email || "(empty)");
-
-      // Optional: vendor-email guard, same as Google
-      const clean = (user.email || "").toLowerCase().trim();
-      if (clean) {
-        console.log(`${TAG} vendor email guard check for:`, clean);
-        try {
-          if (await isVendorEmail(clean)) {
-            console.log(`${TAG} vendor email detected -> signOut + block`);
-            localStorage.setItem("BLOCKED_VENDOR_EMAIL", "1");
-            await auth.signOut();
-            toast.error("This email is already used for a Vendor account!");
-            return;
-          }
-        } catch (guardErr) {
-          console.warn(`${TAG} vendor email guard error:`, guardErr);
-        }
-      }
-
-      // Ensure users/{uid} exists BEFORE confirm modal
-      const userRef = doc(db, "users", user.uid);
-      console.log(`${TAG} fetching users/${user.uid}...`);
-      const snap = await getDoc(userRef);
-
-      if (!snap.exists()) {
-        console.log(`${TAG} no user doc -> creating stub`);
-        await setDoc(userRef, {
-          uid: user.uid,
-          email: clean || null, // Twitter may not give email
-          displayName: user.displayName ?? null,
-          username: genUsername(user.displayName),
-          role: "user",
-          referrer: localStorage.getItem("referrer") || null,
-          profileComplete: false,
-          walletSetup: false,
-          birthday: "not-set",
-          welcomeEmailSent: false,
-          notificationAllowed: false,
-          createdAt: new Date(),
-        });
-        console.log(`${TAG} stub user doc created`);
-      } else {
-        console.log(
-          `${TAG} user doc exists -> patch minimal fields if missing`
-        );
-        const data = snap.data() || {};
-        const patch = {};
-        if (data.displayName == null && user.displayName)
-          patch.displayName = user.displayName;
-        if (!data.username) patch.username = genUsername(user.displayName);
-        if (Object.keys(patch).length) {
-          await setDoc(userRef, patch, { merge: true });
-          console.log(`${TAG} patched existing user doc:`, patch);
-        }
-      }
-
-      // If already complete, finish quickly
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists() && userSnap.data()?.profileComplete) {
-        onClose?.();
-        onComplete(user); // parent shows overlay & merges
-        return;
-      }
-
-      // Open confirm modal to collect missing fields (like last name, email)
-      const { first: f, last: l } = splitDisplayName(user.displayName || "");
-      console.log(`${TAG} splitDisplayName ->`, { f, l });
-
-      setFirst(f);
-      setLast(l); // may be empty; user must fill
-      setEmail(user.email || ""); // may be empty; user must fill
-      setEmailLocked(false);
-      setConfirmProvider("twitter");
-      setPendingUser(user);
-      console.log(`${TAG} state set. prefillFromUserDoc...`);
-
-      await prefillFromUserDoc(user.uid, {
-        setPhoneRaw,
-        setAddress,
-        setCoords,
-      });
-      console.log(`${TAG} prefill done. showConfirm=true`);
-      setShowConfirm(true);
-    } catch (error) {
-      console.error(`${TAG} error:`, {
-        code: error?.code,
-        message: error?.message,
-        error,
-      });
-      if (error?.code === "auth/account-exists-with-different-credential") {
-        const em = error?.customData?.email;
-        if (!em) {
-          toast.error("This account already exists. Please log in.");
-          navigate("/login");
-          setLoading(false);
-          return;
-        }
-        try {
-          const methods = await fetchSignInMethodsForEmail(auth, em);
-          if (
-            methods.includes("password") &&
-            !methods.includes("twitter.com")
-          ) {
-            toast.info("This email uses a password. Please log in.");
-            navigate("/login", {
-              state: { email: em, linkTwitter: true, from: location.pathname },
-            });
-            setLoading(false);
-            return;
-          }
-          toast.info(
-            "This email is registered. Please use your original method."
-          );
-          navigate("/login", { state: { email: em, from: location.pathname } });
-        } catch (mErr) {
-          console.error(`${TAG} fetchSignInMethodsForEmail error:`, mErr);
-          toast.error(
-            "Sign-in conflict. Log in first, then link Twitter in settings."
-          );
-        }
-      } else if (error?.code === "auth/popup-closed-by-user") {
-        toast.error("Popup closed before completing sign-in.");
-      } else {
-        console.error(`${TAG} unhandled error:`, error);
-        toast.error("Twitter sign-in failed. Please try again.");
-      }
-    } finally {
-      console.log(`${TAG} finally -> setLoading(false)`);
-      setLoading(false);
-    }
+  const confirmCanClose = !saving;
+  const closeConfirm = () => {
+    if (confirmCanClose) setShowConfirm(false);
   };
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        onClick={() => !loading && onClose?.()}
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60]"
-      />
-
-      {/* Sheet */}
-      <div
-        className="fixed z-[9000] bottom-0 scrollbar-hide h-[65vh] w-full bg-white p-6
-          flex flex-col items-center right-0 left-0 rounded-t-lg shadow-lg overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-        aria-busy={loading}
+      <AppBottomSheet
+        open={open && !showConfirm}
+        onClose={() => !loading && onClose?.()}
+        closeOnBackdrop={!loading}
+        dismissible={!loading}
+        height="65dvh"
+        ariaLabel={headerText}
+        ariaBusy={loading}
+        zIndex={9000}
+        backdropClassName="bg-black/40 backdrop-blur-sm"
+        surfaceClassName={`scrollbar-hide items-center overflow-y-auto p-6 ${
+          compactTop ? "pt-5" : "pt-10"
+        }`}
+        compactTop={compactTop}
       >
         <button
           onClick={() => !loading && onClose?.()}
           disabled={loading}
-          className="absolute bg-gray-200 rounded-full p-1 top-3 right-3 text-2xl"
+          className={`absolute bg-gray-200 rounded-full p-1 right-3 text-2xl ${
+            compactTop ? "top-5" : "top-9"
+          }`}
+          aria-label="Close sign in"
         >
           <LiaTimesSolid />
         </button>
 
-        <h3 className="text-lg font-opensans -translate-y-2 font-semibold mb-4">
+        <h3
+          className={`text-lg font-opensans font-semibold mb-4 ${
+            compactTop ? "" : "-translate-y-2"
+          }`}
+        >
           {headerText}
         </h3>
+
+        {showAppleAuth && (
+          <div className="relative w-full mt-6 max-w-md mx-auto">
+            <button
+              type="button"
+              onClick={handleAppleSignIn}
+              disabled={loading}
+              className="w-full h-11 rounded-full border border-black bg-black text-white flex items-center justify-center gap-2 font-satoshi font-medium disabled:opacity-60"
+            >
+              {loadingProvider === "apple.com" ? (
+                <span className="loader-small" />
+              ) : (
+                <>
+                  <FaApple className="mr-2 text-2xl" />
+                  Continue with Apple
+                </>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* Google */}
         <div className="relative w-full mt-6 max-w-md mx-auto">
@@ -605,7 +486,7 @@ export default function QuickAuthModal({
             className="w-full h-11 rounded-full border flex items-center justify-center
               gap-2 font-opensans font-medium disabled:opacity-60"
           >
-            {loading ? (
+            {loadingProvider === "google.com" ? (
               <span className="loader-small" />
             ) : (
               <>
@@ -624,12 +505,12 @@ export default function QuickAuthModal({
             className="w-full h-11 rounded-full border flex items-center justify-center
               gap-2 font-opensans font-medium disabled:opacity-60"
           >
-            {loading ? (
+            {loadingProvider === "twitter.com" ? (
               <span className="loader-small" />
             ) : (
               <>
                 <FaXTwitter className="mr-2 text-2xl" />
-                Continue with Twitter
+                Continue with X
               </>
             )}
           </button>
@@ -645,7 +526,10 @@ export default function QuickAuthModal({
         {/* Continue with Email -> /login, return to this page after */}
         <button
           onClick={() => {
-            navigate("/login", { state: { from: location.pathname } });
+            markBuyerMode();
+            preserveInitialAction();
+            const destination = safeReturnDestination();
+            navigate("/login", { state: { from: destination } });
             onClose?.();
           }}
           disabled={loading}
@@ -675,42 +559,31 @@ export default function QuickAuthModal({
           </a>
           .
         </p>
-      </div>
+      </AppBottomSheet>
 
-      {/* Confirm Modal */}
-      <AnimatePresence>
-        {showConfirm && (
-          <>
-            <motion.div
-              key="confirm-backdrop"
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9700]"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                if (confirmProvider === "twitter" && !isEmail(email)) return;
-                if (!saving) setShowConfirm(false);
-              }}
-            />
+      {/* Native-style confirm-details sheet */}
+      <AppBottomSheet
+        open={open && showConfirm}
+        onClose={closeConfirm}
+        closeOnBackdrop={confirmCanClose}
+        dismissible={confirmCanClose}
+        height="88dvh"
+        ariaLabel="Confirm your details"
+        ariaBusy={saving}
+        zIndex={9800}
+        backdropClassName="bg-black/50 backdrop-blur-sm"
+        surfaceClassName="px-5 pb-5 pt-5"
+        compactTop
+      >
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pt-2 scrollbar-hide">
+          <h3 className="text-lg font-opensans font-semibold mb-1 text-center">
+            Confirm your details
+          </h3>
+          <p className="text-xs text-gray-600 font-opensans mb-4 text-center">
+            We’ll use these for your orders and updates.
+          </p>
 
-            <motion.div
-              key="confirm-modal"
-              className="fixed inset-0 z-[9800] flex items-center justify-center p-4"
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ type: "spring", stiffness: 260, damping: 20 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="w-[92%] max-w-md bg-white rounded-2xl shadow-xl p-5">
-                <h3 className="text-lg font-opensans font-semibold mb-1 text-center">
-                  Confirm your details
-                </h3>
-                <p className="text-xs text-gray-600 font-opensans mb-4 text-center">
-                  We’ll use these for your orders and updates.
-                </p>
-
-                <div className="space-y-3">
+          <div className="space-y-3">
                   <input
                     type="text"
                     placeholder="First name"
@@ -787,41 +660,40 @@ export default function QuickAuthModal({
                       </p>
                     )}
                   </div>
-                </div>
+          </div>
 
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <button
-                    onClick={handleConfirmSkip}
-                    disabled={saving}
-                    className="h-11 rounded-full text-sm text-customRichBrown border  font-opensans"
-                  >
-                    Skip
-                  </button>
-                  <button
-                    onClick={handleConfirmSave}
-                    disabled={saving}
-                    className="h-11  rounded-full text-sm bg-customOrange text-white font-opensans
-                      font-semibold disabled:opacity-60 flex items-center justify-center"
-                  >
-                    {saving ? (
-                      <RotatingLines
-                        width={24}
-                        strokeColor="#fff"
-                        strokeWidth={4}
-                        visible
-                      />
-                    ) : (
-                      "Save & Continue"
-                    )}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+          <div className="mt-5 grid grid-cols-2 gap-3 pb-1">
+            <button
+              type="button"
+              onClick={handleConfirmSkip}
+              disabled={saving}
+              className="h-11 rounded-full text-sm text-customRichBrown border font-opensans disabled:opacity-60"
+            >
+              Skip
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmSave}
+              disabled={saving}
+              className="h-11 rounded-full text-sm bg-customOrange text-white font-opensans
+                font-semibold disabled:opacity-60 flex items-center justify-center"
+            >
+              {saving ? (
+                <RotatingLines
+                  width={24}
+                  strokeColor="#fff"
+                  strokeWidth={4}
+                  visible
+                />
+              ) : (
+                "Save & Continue"
+              )}
+            </button>
+          </div>
+        </div>
+      </AppBottomSheet>
       {/* Global loading overlay while provider popup is in-flight */}
-      {loading && (
+      {open && loading && (
         <div className="fixed inset-0 z-[9999] bg-white/40 backdrop-blur-sm flex items-center justify-center">
           <RotatingLines
             strokeColor="#f9531e"

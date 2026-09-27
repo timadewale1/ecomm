@@ -3,7 +3,6 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../custom-hooks/useAuth";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import toast from "react-hot-toast";
 
 const ProtectedRoute = ({ requiredRole }) => {
   const { currentUser, currentUserData, loading } = useAuth();
@@ -98,16 +97,19 @@ const ProtectedRoute = ({ requiredRole }) => {
   }
 
   if (requiredRole && currentUserData?.role !== requiredRole) {
-    // User does not have the required role
+    // Send an authenticated principal to its own shell. Never present another
+    // role's login screen to an account that is already authenticated.
     if (currentUserData.role === "vendor") {
-      toast.error("You do not have access to this page.");
-      return <Navigate to="/vendorlogin" />;
+      const destination = currentUserData.profileComplete
+        ? "/vendordashboard"
+        : "/complete-profile";
+      return <Navigate to={destination} replace />;
     } else if (currentUserData.role === "user") {
-      toast.error("You do not have access to this page.");
-      return <Navigate to="/login" />;
+      return <Navigate to="/" replace />;
     } else {
       // If role is undefined or unrecognized
-      return <Navigate to="/login" />;
+      const destination = requiredRole === "vendor" ? "/vendorlogin" : "/login";
+      return <Navigate to={destination} replace state={{ from: location }} />;
     }
   }
 
@@ -115,6 +117,7 @@ const ProtectedRoute = ({ requiredRole }) => {
   const excludePaddingRoutes = [
     "/user-dashboard",
     "/latest-cart",
+    "/my-sizes",
 
     "/online-vendors",
     "/market-vendors",

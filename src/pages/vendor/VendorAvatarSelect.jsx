@@ -12,6 +12,7 @@ import { ChevronRight, ChevronLeft } from "lucide-react";
 import { Navigation } from "swiper/modules";
 import "swiper/swiper-bundle.css";
 import "swiper/css/navigation";
+import NativeImageInput from "../../components/Inputs/NativeImageInput";
 
 const AvatarSelectorModal = ({
   userId,
@@ -143,8 +144,7 @@ const AvatarSelectorModal = ({
 
         <label className="cursor-pointer p-2 flex items-center justify-center border border-customBrown  bg-gray-100 rounded-full w-16 h-16 mt-16 mx-auto ">
           <IoMdImage className="text-gray-500 text-3xl" />
-          <input
-            type="file"
+          <NativeImageInput
             accept="image/*"
             onChange={handleImageUpload}
             className="hidden"

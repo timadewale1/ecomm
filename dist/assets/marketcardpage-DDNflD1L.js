@@ -1,1 +1,0 @@
-import{K as e,j as s}from"./index-TcP3R0OF.js";const t=()=>{const{marketName:t}=e();return s.jsx("div",{className:"p-2",children:s.jsx("h1",{className:"font-ubuntu text-xl flex justify-center",children:t})})};export{t as default};

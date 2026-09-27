@@ -9,6 +9,7 @@ import {
   startAfter,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
+import { isMarketplaceProductEligible } from "../../services/marketplaceVisibility";
 
 const PAGE_SIZE = 40;
 
@@ -42,10 +43,12 @@ export const fetchFeaturedProducts = createAsyncThunk(
       }
 
       const snap = await getDocs(qRef);
-      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const docs = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter(isMarketplaceProductEligible);
       const last = snap.docs.length ? snap.docs[snap.docs.length - 1] : null;
 
-      return { docs, last, reset };
+      return { docs, last, reset, sourceCount: snap.docs.length };
     } catch (e) {
       console.error("[fetchFeaturedProducts] failed:", e);
       return rejectWithValue(e.message || "Failed to load featured products");
@@ -80,7 +83,7 @@ const featuredSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchFeaturedProducts.fulfilled, (state, action) => {
-        const { docs, last, reset } = action.payload;
+        const { docs, last, reset, sourceCount } = action.payload;
 
         // Merge unique (avoid duplicates when user bounces back)
         if (reset) {
@@ -91,7 +94,7 @@ const featuredSlice = createSlice({
         }
 
         state.lastVisible = last;
-        state.hasMore = docs.length === PAGE_SIZE;
+        state.hasMore = sourceCount === PAGE_SIZE;
         state.status = "succeeded";
         state.hydrated = true;
       })

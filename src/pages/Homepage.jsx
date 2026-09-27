@@ -1,4 +1,3 @@
-// src/pages/Homepage.jsx
 import React, {
   useCallback,
   useEffect,
@@ -11,8 +10,6 @@ import { useNavigate } from "react-router-dom";
 import { CiSearch } from "react-icons/ci";
 
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "../firebase.config";
 
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -27,6 +24,14 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import CaughtUp from "../components/Loading/CaughtUp";
 import LoginPrompt from "../components/LoginAssets/LoginPrompt";
+import { getAnonymousIdV2 } from "../services/signals";
+import { appHaptics } from "../services/haptics";
+import {
+  HOME_FEED_REFRESH_EVENT,
+  nativeRefresh,
+} from "../services/nativeRefresh";
+import toast from "react-hot-toast";
+import { selectHasUnreadNotifications } from "../redux/reducers/notificationsRealtimeSlice";
 
 const ProductCardSkeleton = () => {
   return (
@@ -78,7 +83,8 @@ const HomeFeedSkeleton = ({ count = 10 }) => {
 };
 
 const FEED_URL =
-  "https://us-central1-ecommerce-ba520.cloudfunctions.net/getForYouFeedV1";
+  import.meta.env.VITE_PUBLIC_FOR_YOU_FEED_V2_ENDPOINT ||
+  "https://us-central1-ecommerce-ba520.cloudfunctions.net/getForYouFeedV2";
 const PAGE_SIZE = 60;
 
 const FEED_TABS = [
@@ -92,18 +98,6 @@ const FEED_TABS = [
 
 function getTabByKey(key) {
   return FEED_TABS.find((t) => t.key === key) || FEED_TABS[0];
-}
-const GUEST_KEY = "mt_guest_id";
-
-function getGuestId() {
-  let id = localStorage.getItem(GUEST_KEY);
-  if (!id) {
-    id =
-      crypto?.randomUUID?.() ||
-      `${Date.now().toString(36)}_${Math.random().toString(16).slice(2)}`;
-    localStorage.setItem(GUEST_KEY, id);
-  }
-  return id;
 }
 function useSkipSnapshotOnceAfterHardReload() {
   const navType =
@@ -151,10 +145,28 @@ function normalizeProductForCard(raw) {
   };
 }
 
+function attachFeedV2Attribution(items, data) {
+  const feedRequestId =
+    typeof data?.feedRequestId === "string" ? data.feedRequestId : "";
+
+  const algorithmVersion =
+    typeof data?.algorithmVersion === "string" ? data.algorithmVersion : "";
+
+  return (Array.isArray(items) ? items : []).map((item, index) => ({
+    ...item,
+    feedRequestId,
+    algorithmVersion,
+    candidateSource: item?.candidateSource || "unknown",
+    position: Number.isFinite(Number(item?.position))
+      ? Number(item.position)
+      : index,
+  }));
+}
+
 const Homepage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const guestIdRef = useRef(getGuestId());
+  const anonymousIdRef = useRef(getAnonymousIdV2());
 
   const navType =
     performance.getEntriesByType("navigation")[0]?.type || "navigate";
@@ -168,7 +180,7 @@ const Homepage = () => {
   const [uid, setUid] = useState(() => initialUid || null);
 
   const [activeTab, setActiveTab] = useState(() => snapshot?.tab || "all");
-  const guestKey = `guest:${guestIdRef.current}`;
+  const guestKey = `guest:${anonymousIdRef.current}`;
 
   // ---------------------------------------------------------
   // FIX #1: Dynamic Viewer Key (Do not lock this in a ref!)
@@ -197,9 +209,10 @@ const Homepage = () => {
     canHydrate ? Boolean(snapshot.hasMore) : true,
   );
   const [loading, setLoading] = useState(() => !canHydrate);
-  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+  const hasUnreadNotifications = useSelector(selectHasUnreadNotifications);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
+  const [retryNonce, setRetryNonce] = useState(0);
 
   const sentinelRef = useRef(null);
   const uidRef = useRef(uid);
@@ -213,13 +226,36 @@ const Homepage = () => {
     canHydrate ? Number(snapshot.scrollY || 0) : null,
   );
 
-  const prevUidRef = useRef(null);
+  const prevUidRef = useRef(initialUid);
   const feedSeedRef = useRef(
     (!skipSnapshot && snapshot?.seed) ||
       `${Date.now().toString(36)}_${Math.random().toString(16).slice(2)}`,
   );
 
   const loadedKeyRef = useRef(canHydrate ? `${viewerKey}:${activeTab}` : null);
+
+  // Shared request generation prevents an older pagination response from
+  // mutating a newly refreshed feed.
+  const feedGenerationRef = useRef(0);
+  const loadMoreAbortRef = useRef(null);
+  const refreshAbortRef = useRef(null);
+  const refreshInFlightRef = useRef(false);
+  const nativeRefreshHandlerRef = useRef(null);
+  const refreshSessionExcludeIdsRef = useRef([]);
+
+  const invalidateAsyncFeedWork = useCallback(() => {
+    feedGenerationRef.current += 1;
+
+    loadMoreAbortRef.current?.abort();
+    refreshAbortRef.current?.abort();
+
+    loadMoreAbortRef.current = null;
+    refreshAbortRef.current = null;
+    refreshInFlightRef.current = false;
+
+    setLoadingMore(false);
+    void nativeRefresh.endRefresh();
+  }, []);
 
   // keep refs updated
   useEffect(() => {
@@ -246,10 +282,16 @@ const Homepage = () => {
   }, []);
 
   const getExcludeIds = useCallback(() => {
-    const arr = (itemsRef.current || [])
+    const currentIds = (itemsRef.current || [])
       .map((x) => x?.productId || x?.id)
       .filter(Boolean);
-    return arr.slice(-800);
+
+    const combined = [
+      ...(refreshSessionExcludeIdsRef.current || []),
+      ...currentIds,
+    ];
+
+    return [...new Set(combined)].slice(-800);
   }, []);
 
 const normalizedItems = useMemo(() => {
@@ -264,23 +306,26 @@ const normalizedItems = useMemo(() => {
 }, [items]);
 
 
-  const buildFeedPayload = useCallback(({ excludeIds }) => {
-    const tab = getTabByKey(tabRef.current);
-    return {
-      limit: PAGE_SIZE,
-      guestId: guestIdRef.current,
-      seed: feedSeedRef.current,
-      excludeIds: Array.isArray(excludeIds) ? excludeIds : [],
-      ...tab.payload,
-    };
-  }, []);
+  const buildFeedPayload = useCallback(
+    ({ excludeIds, seed = feedSeedRef.current, tabKey = tabRef.current }) => {
+      const tab = getTabByKey(tabKey);
+      return {
+        limit: PAGE_SIZE,
+        anonymousId: anonymousIdRef.current,
+        seed,
+        excludeIds: Array.isArray(excludeIds) ? excludeIds : [],
+        ...tab.payload,
+      };
+    },
+    [],
+  );
 
   const saveSnapshotNow = useCallback(() => {
     const it = itemsRef.current || [];
     if (it.length === 0) return;
 
     // Use current dynamic viewer key for saving
-    const u = uidRef.current || snapshot?.uid || `guest:${guestIdRef.current}`;
+    const u = uidRef.current || snapshot?.uid || `guest:${anonymousIdRef.current}`;
 
     dispatch(
       saveHomeFeedSnapshot({
@@ -302,38 +347,30 @@ const normalizedItems = useMemo(() => {
 
     const unsub = onAuthStateChanged(auth, (user) => {
       const nextUid = user?.uid || null;
+
+      if (prevUidRef.current !== nextUid) {
+        refreshSessionExcludeIdsRef.current = [];
+        invalidateAsyncFeedWork();
+      }
+
       setUid(nextUid);
 
       if (!nextUid && prevUidRef.current) {
         dispatch(clearHomeFeedSnapshot());
       }
+
       prevUidRef.current = nextUid;
     });
     return () => unsub();
-  }, [dispatch]);
-
-  // Notifications
-  useEffect(() => {
-    const fetchUnreadNotifications = async (userId) => {
-      try {
-        const notificationsRef = collection(db, "notifications");
-        const q = query(
-          notificationsRef,
-          where("userId", "==", userId),
-          where("seen", "==", false),
-        );
-        const snap = await getDocs(q);
-        setHasUnreadNotifications(!snap.empty);
-      } catch (err) {}
-    };
-
-    if (uid) fetchUnreadNotifications(uid);
-  }, [uid]);
+  }, [dispatch, invalidateAsyncFeedWork]);
 
   // Tab click
   const onSelectTab = useCallback(
     (key) => {
       if (key === activeTab) return;
+
+      invalidateAsyncFeedWork();
+      refreshSessionExcludeIdsRef.current = [];
       saveSnapshotNow();
       setActiveTab(key);
       feedSeedRef.current = `${Date.now().toString(36)}_${Math.random().toString(16).slice(2)}`;
@@ -349,8 +386,17 @@ const normalizedItems = useMemo(() => {
 
       window.scrollTo(0, 0);
     },
-    [activeTab, saveSnapshotNow],
+    [activeTab, invalidateAsyncFeedWork, saveSnapshotNow],
   );
+
+  const retryFeed = useCallback(() => {
+    invalidateAsyncFeedWork();
+    setError("");
+    setHasMore(true);
+    setLoading(true);
+    loadedKeyRef.current = null;
+    setRetryNonce((value) => value + 1);
+  }, [invalidateAsyncFeedWork]);
 
   // ---------------------------------------------------------
   // FIX #2: Main Fetch Effect
@@ -417,16 +463,28 @@ const normalizedItems = useMemo(() => {
 
         if (cancelled) return;
 
-        const got = Array.isArray(data?.items) ? data.items : [];
-        console.log("[feed sample keys]", got?.[0] ? Object.keys(got[0]) : null);
-console.log("[feed sample condition]", got?.[0]?.condition, got?.[0]?.itemCondition, got?.[0]?.productCondition);
+        const rawItems = Array.isArray(data?.items) ? data.items : [];
+        const got = attachFeedV2Attribution(rawItems, data);
 
+        console.log("[feed:v2]", {
+          algorithmVersion: data?.algorithmVersion,
+          feedRequestId: data?.feedRequestId,
+          returned: got.length,
+          hasMore: Boolean(data?.hasMore),
+        });
+
+        const nextHasMore = Boolean(data?.hasMore) && got.length > 0;
+
+        itemsRef.current = got;
+        hasMoreRef.current = nextHasMore;
         setItems(got);
-        setHasMore(Boolean(data?.hasMore) && got.length > 0);
+        setHasMore(nextHasMore);
         succeeded = true;
       } catch (e) {
         if (cancelled) return;
         setError(e?.message || "Feed failed");
+        itemsRef.current = [];
+        hasMoreRef.current = false;
         setItems([]);
         setHasMore(false);
       } finally {
@@ -446,7 +504,14 @@ console.log("[feed sample condition]", got?.[0]?.condition, got?.[0]?.itemCondit
     // 1. Removed 'snapshot' object (fixes the loop).
     // 2. Added 'snapshot?.uid' (fixes the auth mismatch).
     // 3. Removed 'cacheKey' (replaced with viewerKey).
-  }, [viewerKey, activeTab, buildFeedPayload, skipSnapshot, snapshot?.uid]);
+  }, [
+    viewerKey,
+    activeTab,
+    buildFeedPayload,
+    skipSnapshot,
+    snapshot?.uid,
+    retryNonce,
+  ]);
 
   // Restore scroll
   useLayoutEffect(() => {
@@ -480,19 +545,237 @@ console.log("[feed sample condition]", got?.[0]?.condition, got?.[0]?.itemCondit
     requestAnimationFrame(tick);
   }, [items.length]);
 
+  // Native iOS pull-to-refresh. The visible feed remains in place until the
+  // replacement V2 request succeeds.
+  const refreshFeed = useCallback(async ({ triggerHaptic = true } = {}) => {
+    if (refreshInFlightRef.current || loading) {
+      await nativeRefresh.endRefresh();
+      return;
+    }
+
+    const requestViewer = viewerKeyRef.current;
+    const requestTab = tabRef.current;
+
+    if (!requestViewer) {
+      await nativeRefresh.endRefresh();
+      return;
+    }
+
+    refreshInFlightRef.current = true;
+    if (triggerHaptic) appHaptics.light();
+
+    const generation = feedGenerationRef.current + 1;
+    feedGenerationRef.current = generation;
+
+    loadMoreAbortRef.current?.abort();
+    loadMoreAbortRef.current = null;
+    setLoadingMore(false);
+
+    refreshAbortRef.current?.abort();
+    const controller = new AbortController();
+    refreshAbortRef.current = controller;
+
+    const candidateSeed = `${Date.now().toString(36)}_${Math.random()
+      .toString(16)
+      .slice(2)}`;
+    const excludeIds = getExcludeIds();
+
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      const authUidAtStart = user?.uid || null;
+      const headers = { "Content-Type": "application/json" };
+
+      if (user) {
+        headers.Authorization = `Bearer ${await user.getIdToken()}`;
+      }
+
+      if (
+        controller.signal.aborted ||
+        feedGenerationRef.current !== generation
+      ) {
+        return;
+      }
+
+      const payload = buildFeedPayload({
+        excludeIds,
+        seed: candidateSeed,
+        tabKey: requestTab,
+      });
+
+      const resp = await fetch(FEED_URL, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data?.error || "Refresh failed");
+
+      const authUidNow = getAuth().currentUser?.uid || null;
+      if (
+        controller.signal.aborted ||
+        feedGenerationRef.current !== generation ||
+        viewerKeyRef.current !== requestViewer ||
+        tabRef.current !== requestTab ||
+        authUidNow !== authUidAtStart
+      ) {
+        return;
+      }
+
+      const rawItems = Array.isArray(data?.items) ? data.items : [];
+      const got = attachFeedV2Attribution(rawItems, data);
+
+      if (!got.length) {
+        toast("No new items right now.");
+        return;
+      }
+
+      const nextHasMore = Boolean(data?.hasMore) && got.length > 0;
+
+      // Keep the old visible IDs excluded for the rest of this seed session so
+      // pagination does not immediately reintroduce refreshed-away products.
+      refreshSessionExcludeIdsRef.current = excludeIds;
+      feedSeedRef.current = candidateSeed;
+      loadedKeyRef.current = `${requestViewer}:${requestTab}`;
+
+      restoringRef.current = false;
+      restoreScrollYRef.current = null;
+      scrollYRef.current = 0;
+      itemsRef.current = got;
+      hasMoreRef.current = nextHasMore;
+
+      setItems(got);
+      setHasMore(nextHasMore);
+      setError("");
+      window.scrollTo(0, 0);
+
+      dispatch(
+        saveHomeFeedSnapshot({
+          uid: requestViewer,
+          tab: requestTab,
+          items: got,
+          seed: candidateSeed,
+          hasMore: nextHasMore,
+          scrollY: 0,
+          savedAt: Date.now(),
+        }),
+      );
+
+      console.log("[feed:v2] native refresh", {
+        algorithmVersion: data?.algorithmVersion,
+        feedRequestId: data?.feedRequestId,
+        returned: got.length,
+        excluded: excludeIds.length,
+      });
+    } catch (e) {
+      if (e?.name !== "AbortError") {
+        console.warn("[feed:v2] native refresh failed", e);
+        toast.error("Couldn’t refresh your feed. Please try again.");
+      }
+    } finally {
+      if (refreshAbortRef.current === controller) {
+        refreshAbortRef.current = null;
+      }
+
+      refreshInFlightRef.current = false;
+      await nativeRefresh.endRefresh();
+    }
+  }, [buildFeedPayload, dispatch, getExcludeIds, loading]);
+
+  useEffect(() => {
+    nativeRefreshHandlerRef.current = refreshFeed;
+  }, [refreshFeed]);
+
+  useEffect(() => {
+    if (!nativeRefresh.isAvailable()) return undefined;
+
+    let disposed = false;
+    let listenerHandle = null;
+
+    const setupNativeRefresh = async () => {
+      listenerHandle = await nativeRefresh.addRefreshListener((event) => {
+        if (!disposed) {
+          void nativeRefreshHandlerRef.current?.({
+            triggerHaptic: event?.source !== "home-tab",
+          });
+        }
+      });
+
+      if (disposed) {
+        await listenerHandle?.remove?.();
+        return;
+      }
+
+      await nativeRefresh.setEnabled({
+        enabled: true,
+        tintColor: "#f9531e",
+        verticalOffset: 32,
+      });
+
+      // Handles a route change that occurs while setEnabled is crossing the
+      // native bridge.
+      if (disposed) {
+        await nativeRefresh.setEnabled({ enabled: false });
+      }
+    };
+
+    void setupNativeRefresh().catch((e) => {
+      console.warn("[native-refresh] setup failed", e);
+    });
+
+    return () => {
+      disposed = true;
+      invalidateAsyncFeedWork();
+      void listenerHandle?.remove?.();
+      void nativeRefresh.setEnabled({ enabled: false });
+    };
+  }, [invalidateAsyncFeedWork]);
+
+  // Fallback for a same-tab Home press if the native plugin is temporarily
+  // unavailable while the route is mounting. It uses the exact same V2 flow.
+  useEffect(() => {
+    const onHomeTabRefresh = () => {
+      void nativeRefreshHandlerRef.current?.({ triggerHaptic: false });
+    };
+
+    window.addEventListener(HOME_FEED_REFRESH_EVENT, onHomeTabRefresh);
+    return () => {
+      window.removeEventListener(HOME_FEED_REFRESH_EVENT, onHomeTabRefresh);
+    };
+  }, []);
+
   // Load more
   const loadMore = useCallback(async () => {
-    const vk = viewerKeyRef.current;
-    if (!vk) return;
+    const requestViewer = viewerKeyRef.current;
+    if (!requestViewer) return;
 
-    if (!hasMoreRef.current || loadingMore || loading) return;
+    if (
+      !hasMoreRef.current ||
+      loadingMore ||
+      loading ||
+      refreshInFlightRef.current ||
+      loadMoreAbortRef.current
+    ) {
+      return;
+    }
+
+    const generation = feedGenerationRef.current;
+    const requestTab = tabRef.current;
+    const requestSeed = feedSeedRef.current;
+    const controller = new AbortController();
+    loadMoreAbortRef.current = controller;
 
     try {
       setLoadingMore(true);
-      setError("");
 
       const excludeIds = getExcludeIds();
-      const payload = buildFeedPayload({ excludeIds });
+      const payload = buildFeedPayload({
+        excludeIds,
+        seed: requestSeed,
+        tabKey: requestTab,
+      });
 
       const auth = getAuth();
       const user = auth.currentUser;
@@ -502,16 +785,35 @@ console.log("[feed sample condition]", got?.[0]?.condition, got?.[0]?.itemCondit
         headers.Authorization = `Bearer ${token}`;
       }
 
+      if (
+        controller.signal.aborted ||
+        feedGenerationRef.current !== generation
+      ) {
+        return;
+      }
+
       const resp = await fetch(FEED_URL, {
         method: "POST",
         headers,
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
 
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data?.error || "Load more failed");
 
-      const got = Array.isArray(data?.items) ? data.items : [];
+      if (
+        controller.signal.aborted ||
+        feedGenerationRef.current !== generation ||
+        viewerKeyRef.current !== requestViewer ||
+        tabRef.current !== requestTab ||
+        feedSeedRef.current !== requestSeed
+      ) {
+        return;
+      }
+
+      const rawItems = Array.isArray(data?.items) ? data.items : [];
+      const got = attachFeedV2Attribution(rawItems, data);
 
       const prevSet = new Set(
         (itemsRef.current || [])
@@ -523,15 +825,28 @@ console.log("[feed sample condition]", got?.[0]?.condition, got?.[0]?.itemCondit
         return id && !prevSet.has(id);
       });
 
-      if (next.length) setItems((prev) => [...prev, ...next]);
+      if (next.length) {
+        const merged = [...(itemsRef.current || []), ...next];
+        itemsRef.current = merged;
+        setItems(merged);
+      }
 
-      setHasMore(Boolean(data?.hasMore) && got.length > 0 && next.length > 0);
+      const nextHasMore =
+        Boolean(data?.hasMore) && got.length > 0 && next.length > 0;
+      hasMoreRef.current = nextHasMore;
+      setHasMore(nextHasMore);
     } catch (e) {
-      setError(e?.message || "Load more failed");
+      if (e?.name !== "AbortError") {
+        console.warn("[feed:v2] load more failed", e);
+        toast.error("Couldn’t load more products.");
+      }
     } finally {
-      setLoadingMore(false);
+      if (loadMoreAbortRef.current === controller) {
+        loadMoreAbortRef.current = null;
+        setLoadingMore(false);
+      }
     }
-  }, [activeTab, buildFeedPayload, getExcludeIds, loading, loadingMore]);
+  }, [buildFeedPayload, getExcludeIds, loading, loadingMore]);
 
   // Observer
   useEffect(() => {
@@ -576,10 +891,6 @@ console.log("[feed sample condition]", got?.[0]?.condition, got?.[0]?.itemCondit
               className="w-full bg-transparent py-1.5 font-opensans outline-none text-sm text-gray-800 placeholder:text-gray-600"
               placeholder="Search items, vendors...."
               readOnly
-              onPointerDown={() => {
-                saveSnapshotNow();
-                navigate("/search", { state: { autofocus: true } });
-              }}
             />
           </div>
 
@@ -633,10 +944,10 @@ console.log("[feed sample condition]", got?.[0]?.condition, got?.[0]?.itemCondit
             </p>
             <button
               className="mt-3 px-4 py-2 font-opensans rounded-lg bg-black text-white text-sm"
-              onClick={() => window.location.reload()}
+              onClick={retryFeed}
               type="button"
             >
-              Reload
+              Try again
             </button>
           </div>
         ) : normalizedItems.length === 0 ? (
@@ -649,7 +960,7 @@ console.log("[feed sample condition]", got?.[0]?.condition, got?.[0]?.itemCondit
               <LoginPrompt
                 onLogin={() => {
                   saveSnapshotNow();
-                  navigate("/confirm-user", { state: { from: "/" } });
+                  navigate("/login", { state: { returnTo: "/" } });
                 }}
               />
             )}
@@ -668,7 +979,14 @@ console.log("[feed sample condition]", got?.[0]?.condition, got?.[0]?.itemCondit
                       saveSnapshotNow();
                     }}
                   >
-                    <ProductCard product={product} />
+                    <ProductCard
+                      product={product}
+                      surface="home"
+                      position={product.position}
+                      requestId={product.feedRequestId}
+                      algorithmVersion={product.algorithmVersion}
+                      candidateSource={product.candidateSource}
+                    />
                   </div>
                 );
               })}

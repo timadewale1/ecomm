@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
+import { siteUrls } from "../../config/siteUrls.mjs";
+import { useParams, useNavigate } from "react-router-dom";
+import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase.config";
+import PaystackPop from "@paystack/inline-js";
 import { RiShareForwardBoxLine } from "react-icons/ri";
 import { AiOutlineInfoCircle } from "react-icons/ai";
 import { motion, AnimatePresence } from "framer-motion";
 import Loading from "../../components/Loading/Loading";
 import ExpiredLink from "../../components/Loading/ExpiredLink";
+import PaymentSuccess from "../../components/Loading/PaymentSuccess";
 import SEO from "../../components/Helmet/SEO";
 import { useAuth } from "../../custom-hooks/useAuth";
 
@@ -19,6 +22,10 @@ export default function PayPage() {
   const [error, setError] = useState("");
   const [countdown, setCountdown] = useState("");
   const [expired, setExpired] = useState(false);
+  const [paymentState, setPaymentState] = useState("idle");
+  const [paymentError, setPaymentError] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
+  const isDeliveryDraft = draft?.draftType === "stockpile_delivery";
 
   // stockpile tips and rotating index
   const tips = [
@@ -36,42 +43,157 @@ export default function PayPage() {
   }, []);
 
   useEffect(() => {
-    let interval;
-    (async () => {
-      try {
-        const snap = await getDoc(doc(db, "draftOrders", token));
-        if (!snap.exists()) throw new Error("Link not found");
+    let interval = null;
+
+    const clearCountdown = () => {
+      if (interval) clearInterval(interval);
+      interval = null;
+    };
+
+    const startCountdown = (expires) => {
+      clearCountdown();
+
+      const tick = () => {
+        const diff = expires - Date.now();
+        if (diff <= 0) {
+          clearCountdown();
+          setExpired(true);
+          return;
+        }
+
+        const m = Math.floor(diff / 60000);
+        const s = Math.floor((diff % 60000) / 1000)
+          .toString()
+          .padStart(2, "0");
+        setCountdown(`${m}m ${s}s`);
+      };
+
+      tick();
+      interval = setInterval(tick, 1000);
+    };
+
+    const unsubscribe = onSnapshot(
+      doc(db, "draftOrders", token),
+      (snap) => {
+        if (!snap.exists()) {
+          setError("Link not found");
+          setLoading(false);
+          clearCountdown();
+          return;
+        }
+
         const data = snap.data();
-        const now = Date.now();
-        const expires = data.expiresAt.toDate().getTime();
-        if (now > expires) {
+        setDraft(data);
+
+        if (String(data.status || "").toLowerCase() === "paid") {
+          clearCountdown();
+          setExpired(false);
+          setPaymentError("");
+          setPaymentReference((current) =>
+            current || data.paymentReference || "",
+          );
+          setPaymentState("success");
+          setLoading(false);
+          return;
+        }
+
+        const expires = data.expiresAt?.toDate?.().getTime();
+        if (!expires || Date.now() >= expires) {
+          clearCountdown();
           setExpired(true);
         } else {
-          setDraft(data);
-          interval = setInterval(() => {
-            const diff = expires - Date.now();
-            if (diff <= 0) {
-              setExpired(true);
-              clearInterval(interval);
-            } else {
-              const m = Math.floor(diff / 60000);
-              const s = Math.floor((diff % 60000) / 1000)
-                .toString()
-                .padStart(2, "0");
-              setCountdown(`${m}m ${s}s`);
-            }
-          }, 1000);
+          setExpired(false);
+          startCountdown(expires);
         }
-      } catch (e) {
-        setError(e.message);
-      } finally {
         setLoading(false);
-      }
-    })();
-    return () => clearInterval(interval);
+      },
+      (snapshotError) => {
+        clearCountdown();
+        setError(snapshotError.message || "Unable to load payment link");
+        setLoading(false);
+      },
+    );
+
+    return () => {
+      clearCountdown();
+      unsubscribe();
+    };
   }, [token]);
 
+  const handlePayNow = () => {
+    if (!draft?.access_code || ["opening", "confirming"].includes(paymentState)) {
+      return;
+    }
+
+    setPaymentError("");
+    setPaymentState("opening");
+
+    try {
+      const popup = new PaystackPop();
+      popup.resumeTransaction(draft.access_code, {
+        onSuccess: (transaction) => {
+          setPaymentReference(transaction?.reference || "");
+          setPaymentState((current) =>
+            current === "success" ? current : "confirming",
+          );
+        },
+        onCancel: () => {
+          setPaymentState((current) =>
+            current === "success" ? current : "idle",
+          );
+        },
+        onError: (paystackError) => {
+          setPaymentError(
+            paystackError?.message ||
+              "We couldn’t open Paystack. Please try again.",
+          );
+          setPaymentState((current) =>
+            current === "success" ? current : "idle",
+          );
+        },
+      });
+    } catch (paystackError) {
+      setPaymentError(
+        paystackError?.message || "We couldn’t open Paystack. Please try again.",
+      );
+      setPaymentState("idle");
+    }
+  };
+
   if (loading) return <Loading />;
+  if (paymentState === "success") {
+    return (
+      <main className="min-h-[100dvh] bg-white px-6 flex flex-col items-center justify-center text-center">
+        <SEO
+          title="Payment successful"
+          url={`https://www.shopmythrift.store/pay/${token}`}
+        />
+        <div className="h-52 w-52" aria-hidden="true">
+          <PaymentSuccess />
+        </div>
+        <h1 className="mt-3 text-2xl font-semibold text-slate-950">
+          Payment successful
+        </h1>
+        <p className="mt-3 max-w-sm text-sm leading-6 text-slate-500">
+          {isDeliveryDraft
+            ? "The delivery payment is confirmed. The courier booking is now being arranged for the completed stockpile."
+            : "The order has been created successfully. The person who shared this payment request can now view it in their orders."}
+        </p>
+        {paymentReference && (
+          <p className="mt-4 text-xs text-slate-400">
+            Reference: {paymentReference}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="mt-10 w-full max-w-sm rounded-full bg-customOrange px-5 py-3 text-sm font-semibold text-white"
+        >
+          Continue shopping
+        </button>
+      </main>
+    );
+  }
   if (expired || error) {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-6">
@@ -92,8 +214,6 @@ export default function PayPage() {
       </div>
     );
   }
-
-  const payUrl = draft.authorization_url;
 
   return (
     <>
@@ -169,12 +289,12 @@ export default function PayPage() {
 
         <div className="flex items-center justify-between border border-customRichBrown p-3 rounded mb-4 truncate">
           <span className="text-sm font-opensans">
-            https://www.shopmythrift.store/pay/{token}
+            {siteUrls.appUrl(`/pay/${encodeURIComponent(token)}`)}
           </span>
           <button
             onClick={() =>
               navigator.clipboard.writeText(
-                `https://www.shopmythrift.store/pay/${token}`,
+                siteUrls.appUrl(`/pay/${encodeURIComponent(token)}`),
               )
             }
             className="ml-2"
@@ -185,13 +305,13 @@ export default function PayPage() {
 
         <p className="italic text-xs font-opensans text-gray-500 mt-4">
           {draft.ownerInfo.displayName} will be notified when we confirm payment
-          and the order is created. Thank you! If you have any issues making
-          payment, please{" "}
+          and {isDeliveryDraft ? "arrange the stockpile delivery" : "create the order"}.
+          {" "}Thank you! If you have any issues making payment, please{" "}
           <a
             href={`mailto:hello@shopmythrift.store?subject=Issue Paying for ${encodeURIComponent(
               draft.ownerInfo.displayName,
             )}&body=${encodeURIComponent(
-              `Hey, I am having issues paying for ${draft.ownerInfo.displayName}. The order token is ${token}.`,
+              `Hey, I am having issues paying for ${draft.ownerInfo.displayName}. The payment token is ${token}.`,
             )}`}
             className="underline text-customOrange"
           >
@@ -200,11 +320,38 @@ export default function PayPage() {
           .
         </p>
 
+        {paymentState === "confirming" && (
+          <div
+            className="mt-8 rounded-xl bg-orange-50 px-4 py-3 text-center"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="text-sm font-semibold text-customOrange">
+              Confirming your payment…
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Please keep this page open while we securely confirm the payment.
+            </p>
+          </div>
+        )}
+
+        {paymentError && (
+          <p className="mt-6 text-center text-sm text-red-600" role="alert">
+            {paymentError}
+          </p>
+        )}
+
         <button
-          onClick={() => (window.location.href = payUrl)}
+          type="button"
+          onClick={handlePayNow}
+          disabled={["opening", "confirming"].includes(paymentState)}
           className="w-full py-3 mt-16 bg-customOrange text-white rounded-full font-opensans font-semibold"
         >
-          Pay Now
+          {paymentState === "opening"
+            ? "Opening secure payment…"
+            : paymentState === "confirming"
+              ? "Confirming payment…"
+              : "Pay Now"}
         </button>
       </div>
     </>

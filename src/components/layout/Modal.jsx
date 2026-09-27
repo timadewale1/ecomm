@@ -1,47 +1,45 @@
-import React, { useEffect, useRef } from "react";
-import { LiaTimesSolid } from "react-icons/lia";
-import { gsap } from "gsap";
+import React from "react";
 import { GoChevronLeft } from "react-icons/go";
+import AppBottomSheet from "./AppBottomSheet";
+import { appHaptics } from "../../services/haptics";
 
-const Modal = ({ isOpen, onClose, children }) => {
-  const modalRef = useRef(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      gsap.fromTo(
-        modalRef.current,
-        { opacity: 0, y: 810 },
-        { opacity: 1, y: 0, duration: 1, ease: "power2.out" }
-      );
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
+const Modal = ({ isOpen, onClose, children, busy = false }) => {
   return (
-    <div className="fixed inset-0 flex rounded-t-lg flex-col items-center justify-center w-full bg-gray-300 bg-opacity-70 modal">
-      <div
-        ref={modalRef}
-        className="bg-white rounded-t-lg mx-1 px-2 py-4 flex flex-col items-center w-full md:w-3/4 lg:w-1/2 max-h-screen overflow-y-auto"
-      >
-        <div className="flex items-center justify-between w-full mb-2">
-          <GoChevronLeft
-            className="text-3xl cursor-pointer"
-            onClick={onClose}
-          />
+    <AppBottomSheet
+      open={isOpen}
+      onClose={onClose}
+      variant="fullscreen"
+      ariaLabel="Add Product"
+      ariaBusy={busy}
+      dismissible={!busy}
+      closeOnBackdrop={!busy}
+      zIndex={4200}
+      surfaceClassName="font-satoshi"
+    >
+      <div className="flex min-h-0 flex-1 flex-col bg-white">
+        <header className="relative z-20 flex h-14 shrink-0 items-center justify-between border-b border-gray-100 bg-white px-3">
+          <button
+            type="button"
+            aria-label="Close Add Product"
+            disabled={busy}
+            onClick={() => {
+              void appHaptics.selection();
+              onClose?.();
+            }}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-gray-950 active:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-35"
+          >
+            <GoChevronLeft className="h-7 w-7" />
+          </button>
 
-          <h2 className="text-xl font-opensans text-center font-semibold text-black">
+          <h2 className="absolute left-1/2 -translate-x-1/2 text-[18px] font-medium text-gray-950">
             Add Product
           </h2>
+          <span className="h-10 w-10" aria-hidden="true" />
+        </header>
 
-          <div className="w-3 h-3"></div>
-
-        </div>
-
-        <div className="w-full p-2">{children}</div>
+        <div className="min-h-0 flex-1 overflow-hidden px-2 pt-3">{children}</div>
       </div>
-    </div>
-    
+    </AppBottomSheet>
   );
 };
 

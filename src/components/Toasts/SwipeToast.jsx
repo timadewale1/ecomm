@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import toast, { ToastIcon } from "react-hot-toast";
 
-function titleForType(type) {
+function titleForType(type, title) {
+  if (title) return title;
   if (type === "success") return "Success";
   if (type === "error") return "Something went wrong";
   if (type === "loading") return "Working…";
@@ -12,15 +13,23 @@ export default function SwipeToast({ t }) {
   const startX = useRef(0);
   const dragging = useRef(false);
   const [dx, setDx] = useState(0);
+  const dxRef = useRef(0);
+  const suppressClick = useRef(false);
+  const activating = useRef(false);
 
   useEffect(() => {
     setDx(0);
+    dxRef.current = 0;
     dragging.current = false;
+    suppressClick.current = false;
+    activating.current = false;
   }, [t.id, t.visible]);
 
   const onPointerDown = (e) => {
     dragging.current = true;
     startX.current = e.clientX;
+    suppressClick.current = false;
+    dxRef.current = 0;
     setDx(0);
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
@@ -28,18 +37,46 @@ export default function SwipeToast({ t }) {
   const onPointerMove = (e) => {
     if (!dragging.current) return;
     const next = e.clientX - startX.current;
-    setDx(next > 0 ? 0 : next);
+    if (Math.abs(next) > 8) suppressClick.current = true;
+    dxRef.current = next > 0 ? 0 : next;
+    setDx(dxRef.current);
   };
 
   const end = () => {
     dragging.current = false;
-    if (dx < -80) toast.dismiss(t.id);
-    else setDx(0);
+    if (dxRef.current < -80) toast.dismiss(t.id);
+    else {
+      dxRef.current = 0;
+      setDx(0);
+    }
   };
 
   const opacity = 1 - Math.min(0.65, Math.abs(dx) / 280);
 
   const message = t.message; // string OR JSX (ReactNode)
+  const actionable = typeof t.onPress === "function";
+  const activate = async () => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
+    if (!actionable) {
+      toast.dismiss(t.id);
+      return;
+    }
+    if (activating.current) return;
+    activating.current = true;
+    try {
+      const handled = await t.onPress();
+      // Async actions such as reopening a support conversation can explicitly
+      // return false. Keep the toast available when the destination did not open.
+      if (handled !== false) toast.dismiss(t.id);
+    } catch {
+      // Keep actionable notifications visible so the user can retry.
+    } finally {
+      activating.current = false;
+    }
+  };
 
   return (
     <div
@@ -51,7 +88,15 @@ export default function SwipeToast({ t }) {
         onPointerMove={onPointerMove}
         onPointerUp={end}
         onPointerCancel={end}
-        onClick={() => toast.dismiss(t.id)}
+        onClick={() => {
+          void activate();
+        }}
+        onKeyDown={(event) => {
+          if (actionable && (event.key === "Enter" || event.key === " ")) {
+            event.preventDefault();
+            void activate();
+          }
+        }}
         className="flex items-stretch bg-black/80 backdrop-blur-md shadow-lg select-none overflow-hidden rounded-2xl"
         style={{
           transform: `translateX(${dx}px)`,
@@ -62,7 +107,8 @@ export default function SwipeToast({ t }) {
           width: "min(92vw, 420px)",
           touchAction: "pan-y", // helps scrolling not fight swipe
         }}
-        role="status"
+        role={actionable ? "button" : "status"}
+        tabIndex={actionable ? 0 : undefined}
         aria-live="polite"
       >
         {/* left icon block */}
@@ -75,7 +121,7 @@ export default function SwipeToast({ t }) {
         {/* content */}
         <div className="min-w-0 px-3 py-2">
           <p className="text-sm font-opensans font-semibold text-white leading-tight">
-            {titleForType(t.type)}
+            {titleForType(t.type, t.title)}
           </p>
 
           {typeof message === "string" ? (

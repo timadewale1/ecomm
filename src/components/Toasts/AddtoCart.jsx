@@ -88,7 +88,7 @@ export function toastAddedToCart({ imageUrl, name }) {
   toast.custom(
     (t) => <SwipeLeftToast t={t} imageUrl={imageUrl} name={name} />,
     {
-      duration: 2500,
+      duration: 3500,
       position: "bottom-center",
     },
   );

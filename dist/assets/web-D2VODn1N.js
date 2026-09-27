@@ -1,0 +1,1 @@
+import{W as e,hm as n,hn as t}from"./index-DkE-Ddrm.js";class m extends e{async processImage(e){throw this.createUnimplementedException()}createUnimplementedException(){return new n("This method is not implemented on web.",t.Unimplemented)}}export{m as ImageLabelingWeb};

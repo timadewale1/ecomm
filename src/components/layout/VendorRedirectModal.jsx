@@ -1,6 +1,9 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAppExperience } from "../Context/AppExperienceContext";
+import { APP_EXPERIENCE } from "../../services/appExperience";
+import { appHaptics } from "../../services/haptics";
 
 const backdropVariants = {
   hidden: { opacity: 0 },
@@ -15,6 +18,14 @@ const sheetVariants = {
 
 const VendorRedirectModal = ({ open, onClose }) => {
   const navigate = useNavigate();
+  const { selectExperience } = useAppExperience();
+
+  const continueToVendorLogin = async () => {
+    void appHaptics.medium();
+    await selectExperience(APP_EXPERIENCE.VENDOR);
+    onClose();
+    navigate("/vendorlogin", { replace: true });
+  };
 
   return (
     <AnimatePresence>
@@ -36,7 +47,7 @@ const VendorRedirectModal = ({ open, onClose }) => {
 
           {/* sliding sheet from bottom covering ~50% of viewport, full width, rounded top */}
           <motion.div
-            className="relative w-full h-[40%] rounded-t-2xl bg-white shadow-xl p-6 touch-none"
+            className="relative w-full min-h-[280px] rounded-t-[28px] bg-white shadow-xl px-6 pb-[calc(24px+env(safe-area-inset-bottom,0px))] pt-3 font-satoshi"
             style={{ zIndex: 10000 }}
             variants={sheetVariants}
             initial="hidden"
@@ -48,21 +59,19 @@ const VendorRedirectModal = ({ open, onClose }) => {
             <div className="mx-auto max-w-3xl">
               <div className="w-10 h-1.5 bg-gray-300 rounded-full mx-auto mb-4" />
 
-              <h2 className="text-xl font-bold text-black mb-2 font-lato">
-                Vendor Account Detected ⚠️
+              <h2 className="text-xl font-semibold text-black mb-2">
+                This is a vendor account
               </h2>
-              <p className="text-gray-600 mt-6 mb-6 font-opensans">
-                This is a vendor account. Please sign in on the vendor profile.
+              <p className="text-gray-600 mt-3 mb-6 leading-6">
+                Continue to vendor login to manage your store with the correct
+                My Thrift experience.
               </p>
 
               <div className="flex justify-center gap-3">
            
                 <button
-                  onClick={() => {
-                    navigate("/vendor-login");
-                    onClose();
-                  }}
-                  className="px-4 py-2 w-full bg-customOrange rounded-full text-white font-opensans  hover:bg-orange-600"
+                  onClick={continueToVendorLogin}
+                  className="min-h-12 px-4 py-2 w-full bg-customOrange rounded-md text-white font-semibold hover:bg-orange-600"
                 >
                    Vendor Login
                 </button>

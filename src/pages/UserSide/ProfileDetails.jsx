@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { updateProfile } from "firebase/auth";
 import { auth, db } from "../../firebase.config";
 import toast from "react-hot-toast";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   doc,
   updateDoc,
@@ -37,25 +36,37 @@ import { GoChevronLeft } from "react-icons/go";
 import Waiting from "../../components/Loading/Waiting";
 import Productnotofund from "../../components/Loading/Productnotofund";
 import LocationPicker from "../../components/Location/LocationPicker";
+import {
+  AlertCircle,
+  CheckCircle2,
+  LoaderCircle,
+  Pencil,
+} from "lucide-react";
+import "./account-info.css";
+import AppPageHeader from "../../components/layout/AppPageHeader";
+import AppBottomSheet from "../../components/layout/AppBottomSheet";
+import { useAuth } from "../../custom-hooks/useAuth";
 
 const ProfileDetails = ({
   currentUser,
-
   setShowDetails,
+  onBack,
+  initialEditField = "",
+  highlightIncomplete = false,
 }) => {
   const [loading, setLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(Boolean(initialEditField));
   const dispatch = useDispatch();
+  const { updateCurrentUserData } = useAuth();
   const userData = useSelector((state) => state.user.userData);
   const [locationCoords, setLocationCoords] = useState({
     lat: null,
     lng: null,
   });
-  const [showMap, setShowMap] = useState(false);
-  const mapRef = useRef(null);
 
-  const [editField, setEditField] = useState("");
+  const [editField, setEditField] = useState(initialEditField);
   const [username, setUsername] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState("idle");
   const [displayName, setDisplayName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -67,6 +78,11 @@ const ProfileDetails = ({
 
   const navigate = useNavigate();
   const location = useLocation();
+  const handleBack = () => {
+    if (onBack) onBack();
+    else if (setShowDetails) setShowDetails(false);
+    else navigate(-1);
+  };
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -80,6 +96,10 @@ const ProfileDetails = ({
           setPhoneNumber(data.phoneNumber || "");
           setBirthday(data.birthday || "");
           setAddress(data.address || "");
+          setLocationCoords({
+            lat: data.location?.lat ?? null,
+            lng: data.location?.lng ?? null,
+          });
 
           // Update Redux store with fetched user data
           dispatch(updateUserData(data));
@@ -101,6 +121,10 @@ const ProfileDetails = ({
       setPhoneNumber(userData.phoneNumber || "");
       setBirthday(userData.birthday || "");
       setAddress(userData.address || "");
+      setLocationCoords({
+        lat: userData.location?.lat ?? null,
+        lng: userData.location?.lng ?? null,
+      });
       setLoading(false);
     } else if (!currentUser) {
       setLoading(false);
@@ -108,45 +132,68 @@ const ProfileDetails = ({
       fetchUserData();
     }
   }, [userData, currentUser, dispatch]);
+
   useEffect(() => {
-    if (editField !== "address" || !showMap) return;
+    const candidate = String(username || "").trim();
+    if (!candidate) {
+      setUsernameStatus("idle");
+      return undefined;
+    }
 
-    const input = document.getElementById("autocomplete");
-    const autocomplete = new google.maps.places.Autocomplete(input);
-    const defaultLoc = { lat: 6.5244, lng: 3.3792 };
-    let mapInstance, marker;
+    if (candidate.length < 2 || /[^a-zA-Z0-9]/.test(candidate)) {
+      setUsernameStatus("invalid");
+      return undefined;
+    }
 
-    autocomplete.addListener("place_changed", () => {
-      const place = autocomplete.getPlace();
-      if (!place.geometry) return;
-      const loc = place.geometry.location;
-      setLocationCoords({ lat: loc.lat(), lng: loc.lng() });
-      setAddress(place.formatted_address);
-      if (mapInstance) marker.setPosition(loc);
-      if (mapInstance) mapInstance.setCenter(loc);
-    });
+    let cancelled = false;
+    setUsernameStatus("checking");
 
-    mapInstance = new google.maps.Map(mapRef.current, {
-      center: defaultLoc,
-      zoom: 13,
-    });
+    const timer = window.setTimeout(async () => {
+      try {
+        const formattedUsername =
+          candidate.charAt(0).toUpperCase() + candidate.slice(1).toLowerCase();
+        const snapshot = await getDocs(
+          query(
+            collection(db, "users"),
+            where("username", "==", formattedUsername),
+          ),
+        );
+        if (cancelled) return;
 
-    marker = new google.maps.Marker({
-      map: mapInstance,
-      position: defaultLoc,
-      draggable: true,
-    });
+        const belongsToAnotherUser = snapshot.docs.some(
+          (userDoc) => userDoc.id !== currentUser?.uid,
+        );
+        setUsernameStatus(belongsToAnotherUser ? "taken" : "available");
+      } catch (error) {
+        console.error("Error checking username availability:", error);
+        if (!cancelled) setUsernameStatus("error");
+      }
+    }, 350);
 
-    marker.addListener("dragend", (e) => {
-      setLocationCoords({ lat: e.latLng.lat(), lng: e.latLng.lng() });
-    });
-  }, [editField, showMap]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [username, currentUser?.uid]);
 
   if (loading) {
     return <Loading />;
   }
   const nameParts = (s = "") => String(s).trim().split(/\s+/).filter(Boolean);
-  const hasFullName = (s = "") => nameParts(s).length >= 2;
+  const hasFullName = (s = "") =>
+    nameParts(s).length >= 2 && !/[^a-zA-Z\s]/.test(String(s).trim());
+  const localPhoneNumber = (value = "") => {
+    const digits = String(value).replace(/\D/g, "");
+    if (digits.startsWith("234")) return digits.slice(3);
+    if (digits.startsWith("0")) return digits.slice(1);
+    return digits;
+  };
+  const hasValidPhoneNumber = (value = "") =>
+    /^[1-9]\d{9}$/.test(localPhoneNumber(value));
+  const hasValidLocation =
+    Boolean(address) &&
+    typeof locationCoords.lat === "number" &&
+    typeof locationCoords.lng === "number";
 
   const checkProfileCompletion = async (userId, userData) => {
     const requiredFields = [
@@ -172,7 +219,7 @@ const ProfileDetails = ({
             <GoChevronLeft
               className="text-2xl text-black cursor-pointer"
               onClick={() => {
-                setShowDetails(false);
+                handleBack();
               }}
             />
             <h1 className="text-xl font-medium font-opensans text-black   ">
@@ -207,15 +254,33 @@ const ProfileDetails = ({
       setFirstName(parts[0] || "");
       setLastName(parts.slice(1).join(" ") || "");
     }
+    if (field === "phoneNumber") {
+      setPhoneNumber(localPhoneNumber(phoneNumber));
+    }
     setIsEditing(true);
+  };
+
+  const handleCloseEdit = () => {
+    setUsername(userData?.username || username);
+    setDisplayName(userData?.displayName || displayName);
+    setPhoneNumber(userData?.phoneNumber || phoneNumber);
+    setBirthday(userData?.birthday || birthday);
+    setAddress(userData?.address || address);
+    setLocationCoords({
+      lat: userData?.location?.lat ?? locationCoords.lat,
+      lng: userData?.location?.lng ?? locationCoords.lng,
+    });
+    setIsEditing(false);
   };
 
   const validateFields = () => {
     if (
       editField === "username" &&
-      (!username || /[^a-zA-Z0-9]/.test(username))
+      (!username || username.length < 2 || /[^a-zA-Z0-9]/.test(username))
     ) {
-      toast.error("Username must contain only letters and numbers.");
+      toast.error(
+        "Username must be at least 2 characters and contain only letters and numbers.",
+      );
       return false;
     }
     if (
@@ -229,7 +294,7 @@ const ProfileDetails = ({
       return false;
     }
     if (editField === "phoneNumber") {
-      if (!/^[1-9]\d{9}$/.test(phoneNumber)) {
+      if (!hasValidPhoneNumber(phoneNumber)) {
         toast.error(
           "Phone number must be 10 digits and not start with 0. " +
             "E.g. 8123456789"
@@ -261,7 +326,11 @@ const ProfileDetails = ({
           query(usersRef, where("username", "==", formattedUsername))
         );
 
-        if (!querySnapshot.empty) {
+        const belongsToAnotherUser = querySnapshot.docs.some(
+          (userDoc) => userDoc.id !== currentUser.uid,
+        );
+
+        if (belongsToAnotherUser) {
           toast.error("Username is already taken. Please choose another.");
           setIsLoading(false);
           return;
@@ -287,7 +356,7 @@ const ProfileDetails = ({
         setDisplayName(fullName);
       } else if (editField === "phoneNumber") {
         // at this point we've already validated it doesn't start with 0
-        const formattedNumber = `+234${phoneNumber}`;
+        const formattedNumber = `+234${localPhoneNumber(phoneNumber)}`;
 
         // write to Firestore
         await updateDoc(doc(db, "users", currentUser.uid), {
@@ -327,6 +396,7 @@ const ProfileDetails = ({
 
       // Update Redux store with new user data
       dispatch(updateUserData(updatedFields));
+      updateCurrentUserData(updatedFields);
 
       toast.success("Profile updated successfully");
       await checkProfileCompletion(currentUser.uid, {
@@ -342,170 +412,192 @@ const ProfileDetails = ({
     }
   };
 
+  const usernameIsValid =
+    username.length >= 2 && !/[^a-zA-Z0-9]/.test(username);
+  const usernameVerification = (() => {
+    if (!username) return { kind: "missing", label: "Not verified" };
+    if (usernameStatus === "checking") {
+      return { kind: "checking", label: "Checking" };
+    }
+    if (usernameStatus === "taken") {
+      return { kind: "missing", label: "Unavailable" };
+    }
+    if (usernameStatus === "invalid") {
+      return { kind: "missing", label: "Not verified" };
+    }
+    if (usernameStatus === "error") {
+      return { kind: "neutral", label: "Check unavailable" };
+    }
+    return usernameIsValid
+      ? { kind: "verified", label: "Available" }
+      : { kind: "missing", label: "Not verified" };
+  })();
+
+  const detailFields = [
+    {
+      label: "Username",
+      value: username || "Add Username",
+      field: "username",
+      required: true,
+      complete: usernameIsValid,
+      verification: usernameVerification,
+    },
+    {
+      label: "Account Name",
+      value: displayName || "Add Account Name",
+      field: "displayName",
+      required: true,
+      complete: hasFullName(displayName),
+      verification: hasFullName(displayName)
+        ? { kind: "verified", label: "Verified" }
+        : { kind: "missing", label: "Not verified" },
+    },
+    {
+      label: "Email",
+      value: currentUser.email || "No email available",
+      field: null,
+      required: false,
+      complete: Boolean(currentUser.emailVerified),
+      verification: currentUser.emailVerified
+        ? { kind: "verified", label: "Verified" }
+        : { kind: "missing", label: "Not verified" },
+    },
+    {
+      label: "Phone Number",
+      value: phoneNumber || "Add Phone Number",
+      field: "phoneNumber",
+      required: true,
+      complete: hasValidPhoneNumber(phoneNumber),
+      verification: hasValidPhoneNumber(phoneNumber)
+        ? { kind: "verified", label: "Verified" }
+        : { kind: "missing", label: "Not verified" },
+    },
+    {
+      label: "Birthday",
+      value: birthday && birthday !== "not-set" ? birthday : "Add Birthday",
+      field: "birthday",
+      required: false,
+      complete: true,
+      verification: { kind: "neutral", label: "Optional" },
+    },
+    {
+      label: "Address",
+      value: address || "Add Delivery Address",
+      field: "address",
+      required: true,
+      complete: hasValidLocation,
+      verification: hasValidLocation
+        ? { kind: "verified", label: "Verified" }
+        : { kind: "missing", label: "Not verified" },
+    },
+  ];
+
+  const incompleteRequiredFields = detailFields.filter(
+    ({ required, complete }) => required && !complete,
+  );
+
+  const renderVerification = ({ kind, label }) => (
+    <span className={`account-info-status account-info-status--${kind}`}>
+      {kind === "checking" ? (
+        <LoaderCircle className="account-info-status-spinner" aria-hidden="true" />
+      ) : kind === "verified" ? (
+        <CheckCircle2 aria-hidden="true" />
+      ) : kind === "missing" ? (
+        <AlertCircle aria-hidden="true" />
+      ) : null}
+      <span>{label}</span>
+    </span>
+  );
+
   return (
-    <div className="flex flex-col w-full h-full p-2 items-center">
-      <div className="sticky top-0 bg-white z-10 flex items-center -translate-y-4 justify-between h-24 w-full">
-        <div className="flex items-center space-x-2">
-          <GoChevronLeft
-            className="text-2xl text-black cursor-pointer"
-            onClick={() => {
-              setShowDetails(false);
-            }}
-          />
-          <h1 className="text-xl font-opensans ml-5 font-semibold  ">
-            Profile Details
-          </h1>
-        </div>
-      </div>
+    <main className="account-info-page">
+      <AppPageHeader
+        title="Account info"
+        onBack={handleBack}
+        backLabel="Back to settings"
+      />
 
-      <div className="w-full ">
-        <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full ">
-          <h1 className="text-xs w-full font-opensans translate-y-3 translate-x-6 font-medium text-gray-500">
-            UserName
-          </h1>
-          <div className="flex items-center justify-between w-full px-4 py-3">
-            <PiAtThin className="text-black text-xl mr-4" />
-            <p className="text-sm font-normal font-opensans text-black w-full">
-              {username || "Username"}
+      {highlightIncomplete && (
+        <div className="account-info-warning" role="status">
+          <AlertCircle aria-hidden="true" />
+          <div>
+            <strong>Complete your account information</strong>
+            <p>
+              {incompleteRequiredFields.length
+                ? "Fill in the highlighted required fields before continuing."
+                : "Your required details are filled. Review them and save any correction to refresh your profile status."}
             </p>
-            <MdVerified
-              className={`${
-                username ? "text-green-500" : "text-yellow-500"
-              } text-2xl ml-2`}
-            />
-            <RiEditFill
-              className="text-black cursor-pointer ml-2 text-2xl"
-              onClick={() => handleEdit("username")}
-            />
           </div>
         </div>
+      )}
 
-        <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2  items-center w-full">
-          <h1 className="text-xs w-full font-opensans translate-y-3 translate-x-6 font-medium text-gray-500">
-            Account Name
-          </h1>
-          <div className="flex items-center justify-between w-full px-4 py-3">
-            <FaRegCircleUser className="text-black text-xl mr-4" />
-            <p className="text-sm font-normal font-opensans text-black w-full">
-              {displayName || "Add Account Name"}
-            </p>
-            <MdVerified
-              className={`${
-                hasFullName(displayName) ? "text-green-500" : "text-yellow-500"
-              } text-2xl ml-2`}
-            />
+      <section className="account-info-fields" aria-label="Account information">
+        {detailFields.map(
+          ({ label, value, field, required, complete, verification }) => {
+            const className = [
+              "account-info-field",
+              !field ? "account-info-field--readonly" : "",
+              highlightIncomplete && required && !complete
+                ? "account-info-field--missing"
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+            const contents = (
+              <>
+                <span className="account-info-label">{label}</span>
+                <span className="account-info-value">{value}</span>
+                <span className="account-info-actions">
+                  {renderVerification(verification)}
+                  {field && <Pencil aria-hidden="true" />}
+                </span>
+              </>
+            );
 
-            <RiEditFill
-              className="text-black cursor-pointer ml-2 text-2xl"
-              onClick={() => handleEdit("displayName")}
-            />
-          </div>
-        </div>
+            return field ? (
+              <button
+                type="button"
+                className={className}
+                key={label}
+                onClick={() => handleEdit(field)}
+                aria-label={`Edit ${label}. ${verification.label}`}
+              >
+                {contents}
+              </button>
+            ) : (
+              <div className={className} key={label} aria-label={`${label}. ${verification.label}`}>
+                {contents}
+              </div>
+            );
+          },
+        )}
+      </section>
 
-        <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-          <h1 className="text-xs w-full font-opensans translate-y-3 translate-x-6 font-medium text-gray-500">
-            Email
-          </h1>
-          <div className="flex items-center justify-between w-full px-4 py-3">
-            <MdEmail className="text-black text-xl mr-4" />
-            <p className="text-sm font-normal font-opensans text-black w-full">
-              {currentUser.email}
-            </p>
-            <MdVerified
-              className={`${
-                currentUser.email ? "text-green-500" : "text-yellow-500"
-              } text-2xl ml-2`}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-          <h1 className="text-xs w-full font-opensans translate-y-3 translate-x-6 font-medium text-gray-500">
-            Phone Number
-          </h1>
-          <div className="flex items-center justify-between w-full px-4 py-3">
-            <FaPhone className="text-black text-xl mr-4" />
-            <p className="text-sm font-opensans font-normal text-black w-full">
-              {phoneNumber || "Add Phone Number"}
-            </p>
-            <MdVerified
-              className={`${
-                phoneNumber ? "text-green-500" : "text-yellow-500"
-              } text-2xl ml-2`}
-            />
-            <RiEditFill
-              className="text-black cursor-pointer ml-2 text-2xl"
-              onClick={() => handleEdit("phoneNumber")}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-          <h1 className="text-xs w-full translate-y-3 font-opensans translate-x-6 font-medium text-gray-500">
-            Birthday
-          </h1>
-          <div className="flex items-center justify-between w-full px-4 py-3">
-            <FaCalendarAlt className="text-black text-xl mr-4" />
-            <p className="text-sm font-normal font-opensans text-black w-full">
-              {birthday || "Add Birthday"}
-            </p>
-            <RiEditFill
-              className="text-black cursor-pointer ml-2 text-2xl"
-              onClick={() => handleEdit("birthday")}
-            />
-          </div>
-        </div>
-        <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-          <h1 className="text-xs w-full font-opensans translate-y-3 translate-x-6 font-medium text-gray-500">
-            Address
-          </h1>
-          <div className="flex items-center justify-between w-full px-4 py-3">
-            <CiLocationOn className="text-black text-xl mr-4" />
-            <p className="text-sm font-normal font-opensans text-black w-full">
-              {address || "Add Delivery Address"}
-            </p>
-            <MdVerified
-              className={`${
-                address ? "text-green-500" : "text-yellow-500"
-              } text-2xl ml-2`}
-            />
-            <RiEditFill
-              className="text-black cursor-pointer ml-2 text-2xl"
-              onClick={() => handleEdit("address")}
-            />
-          </div>
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {isEditing && (
-          <>
-            <motion.div
-              key="backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40"
-            />
-            <motion.div
-              key="edit-modal"
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "tween", duration: 0.3 }}
-              className="fixed bottom-0 z-[6000] left-0 right-0 h-[40vh] bg-white rounded-t-2xl shadow-xl flex flex-col"
-            >
+      <AppBottomSheet
+        open={isEditing}
+        onClose={handleCloseEdit}
+        height="min(54dvh, 520px)"
+        ariaLabel={`Edit ${editField || "account information"}`}
+        ariaBusy={isLoading}
+        dismissible={!isLoading}
+        closeOnBackdrop={false}
+        compactTop
+        zIndex={6000}
+        surfaceClassName="account-info-edit-sheet"
+      >
               {/* Close button */}
               <button
-                onClick={() => setIsEditing(false)}
+                type="button"
+                onClick={handleCloseEdit}
+                disabled={isLoading}
                 className="absolute bg-gray-200 rounded-full p-1 top-4 right-4 text-gray-700 text-xl"
+                aria-label="Close editor"
               >
                 <MdClose />
               </button>
 
               {/* Header */}
-              <h2 className="mt-6 text-left ml-6 text-lg font-opensans font-medium">
+              <h2 className="account-info-edit-header text-left text-lg font-opensans font-medium">
                 Edit{" "}
                 {editField === "username"
                   ? "Username"
@@ -519,14 +611,26 @@ const ProfileDetails = ({
               </h2>
 
               {/* Form area */}
-              <div className="px-6 mt-4 overflow-y-auto flex-1">
+              <div className="account-info-edit-body px-6 overflow-y-auto flex-1">
                 {editField === "username" && (
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(formatName(e.target.value))}
-                    className="w-full p-2 font-opensans border border-gray-200 bg-customSoftGray rounded"
-                  />
+                  <div className="account-info-edit-control">
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(formatName(e.target.value))}
+                      className="w-full p-2 font-opensans border border-gray-200 bg-customSoftGray rounded"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      aria-describedby="username-availability"
+                    />
+                    <div
+                      id="username-availability"
+                      className={`account-info-inline-status account-info-inline-status--${usernameVerification.kind}`}
+                      aria-live="polite"
+                    >
+                      {renderVerification(usernameVerification)}
+                    </div>
+                  </div>
                 )}
                 {editField === "displayName" && (
                   <>
@@ -555,8 +659,12 @@ const ProfileDetails = ({
                     </p>
                     <input
                       type="tel"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      value={localPhoneNumber(phoneNumber)}
+                      onChange={(e) =>
+                        setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))
+                      }
+                      inputMode="numeric"
+                      maxLength={10}
                       className="w-full p-2 font-opensans border border-gray-200 bg-customSoftGray rounded"
                     />
                   </>
@@ -580,7 +688,7 @@ const ProfileDetails = ({
               </div>
 
               {/* Save button pinned at bottom-center */}
-              <div className="px-6 pb-6">
+              <div className="account-info-edit-footer px-6">
                 <button
                   onClick={handleSave}
                   disabled={isLoading}
@@ -599,11 +707,8 @@ const ProfileDetails = ({
                   )}
                 </button>
               </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-    </div>
+      </AppBottomSheet>
+    </main>
   );
 };
 

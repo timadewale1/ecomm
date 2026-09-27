@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Permissions used by the existing network, location, pickup-map and
+         courier-route features. Location is still requested at runtime. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <application
         android:allowBackup="true"
@@ -8,6 +15,26 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
+
+        <!-- Makes Android's modern system Photo Picker available on supported
+             older Redmi/Android devices without broad storage permissions. -->
+        <!--suppress AndroidDomInspection -->
+        <service
+            android:name="com.google.android.gms.metadata.ModuleDependencies"
+            android:enabled="false"
+            android:exported="false"
+            tools:ignore="MissingClass">
+            <intent-filter>
+                <action android:name="com.google.android.gms.metadata.MODULE_DEPENDENCIES" />
+            </intent-filter>
+            <meta-data
+                android:name="photopicker_activity:0:required"
+                android:value="" />
+        </service>
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MYTHRIFT_ANDROID_MAPS_API_KEY}" />
 
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
@@ -20,6 +47,30 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Android App Links. Domain verification is completed by the
+                 matching /.well-known/assetlinks.json deployment. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="shopmythrift.store" />
+                <data android:host="www.shopmythrift.store" />
+                <data android:host="app.shopmythrift.com" />
+            </intent-filter>
+
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="mx.shopmythrift.store" />
+                <data android:host="shopmythrift.com" />
+                <data android:host="www.shopmythrift.com" />
+                <data android:pathPrefix="/product/" />
+                <data android:pathPrefix="/store/" />
             </intent-filter>
 
         </activity>
@@ -35,7 +86,4 @@
         </provider>
     </application>
 
-    <!-- Permissions -->
-
-    <uses-permission android:name="android.permission.INTERNET" />
 </manifest>

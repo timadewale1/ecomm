@@ -1,0 +1,29 @@
+.app-scroll-to-top-button {
+  position: fixed;
+  left: max(16px, calc((100vw - 574px) / 2 + 16px));
+  bottom: calc(
+    var(--app-scroll-top-bottom, 20px) +
+      var(--app-safe-bottom, env(safe-area-inset-bottom, 0px))
+  );
+  z-index: var(--app-scroll-top-z, 45);
+  display: grid;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 50%;
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.16);
+}
+
+.app-scroll-to-top-button svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.75;
+}
+
+.app-scroll-to-top-button:active {
+  transform: scale(0.96);
+}

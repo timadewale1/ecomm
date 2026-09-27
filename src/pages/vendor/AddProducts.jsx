@@ -3,143 +3,167 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {
   doc,
   collection,
-  setDoc,
   addDoc,
-  updateDoc,
   serverTimestamp,
-  where,
-  query,
-  getDocs,
   arrayUnion,
   getDoc,
+  writeBatch,
 } from "firebase/firestore";
 import DiscountModal from "./DiscountModal";
-import { IoIosGift } from "react-icons/io";
 import ReactDOM from "react-dom";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getStorage } from "firebase/storage";
 import { db } from "../../firebase.config";
 import toast from "react-hot-toast";
-import { Carousel } from "react-responsive-carousel";
-import { FaImage, FaMinusCircle, FaSmileBeam } from "react-icons/fa";
 import { RotatingLines } from "react-loader-spinner";
-import axios from "axios";
-import { AiOutlineProduct } from "react-icons/ai";
-import Select from "react-select";
-import makeAnimated from "react-select/animated";
-import { GiRegeneration } from "react-icons/gi";
-import notifyFollowers from "../../services/notifyfollowers";
 import { GoTrash } from "react-icons/go";
-import { BiSolidImageAdd } from "react-icons/bi";
-import { TiCameraOutline } from "react-icons/ti";
-import { FiGift, FiPlus } from "react-icons/fi";
+import { FiGift, FiPlus, FiX } from "react-icons/fi";
 import SubProduct from "./SubProduct";
 import productTypes from "./producttype";
-import Modal from "react-modal";
 import productSizes from "./productsizes";
 import everydayType from "./everydayType";
-import DiscountToggle from "../../components/Toggle/DiscountToggle";
-import VariationsToggle from "../../components/Toggle/SubProductToggle";
 import { LuBadgeInfo } from "react-icons/lu";
-import { MdOutlineCancel, MdOutlineClose } from "react-icons/md";
-import { motion, AnimatePresence } from "framer-motion";
-import { IoCloseOutline, IoCheckmark } from "react-icons/io5";
+import { usePostHog } from "posthog-js/react";
 import { PALETTE, PALETTE_ORDER } from "../../services/pallete";
+import NativePickerField from "../../components/Form/NativePickerField";
+import AppBottomSheet from "../../components/layout/AppBottomSheet";
+import { appHaptics } from "../../services/haptics";
+import {
+  IMPLICIT_ONE_SIZE,
+  LISTING_SIZE_KINDS,
+  createSizeRef,
+  createListingSizingMetadata,
+  getLegacyCatalogSizes,
+  getListingSizeOptions,
+  getListingSizingProfile,
+  getSizeSystemLabel,
+  getSizingSpec,
+} from "../../config/sizingV1";
+import {
+  crossesNoSizeProfileBoundary,
+  filterPristineTrailingSizeRows,
+  hasVariantDraft,
+} from "../../services/vendorProductForm";
+import {
+  buildProductTypePickerOptions,
+  filterProductTypeOptionsForAudience,
+  getExplicitAudienceForProductType,
+} from "../../services/productTaxonomyPresentation";
+import {
+  createProductImagePreview,
+  deleteProductImageRefs,
+  prepareProductImage,
+  safeStorageFileName,
+  uploadProductImageBatch,
+} from "../../services/productImagePipeline";
+import {
+  clearAddProductDraft,
+  clearAddProductDraftImages,
+  createAddProductDraft,
+  hasMeaningfulAddProductDraft,
+  loadAddProductDraft,
+  loadAddProductDraftImages,
+  saveAddProductDraft,
+  saveAddProductDraftImages,
+} from "./add-product/addProductDraft";
+import AddProductDraftNotice from "./add-product/AddProductDraftNotice";
+import ProductClassificationFields from "./add-product/ProductClassificationFields";
+import ProductDetailsFields from "./add-product/ProductDetailsFields";
+import ProductImagesSection from "./add-product/ProductImagesSection";
+import ProductPricingFields from "./add-product/ProductPricingFields";
+import ProductPublishProgress from "./add-product/ProductPublishProgress";
+import ProductParcelEstimateField from "./add-product/ProductParcelEstimateField";
+import ProductClassificationSuggestion from "./add-product/ProductClassificationSuggestion";
+import PaletteColorSheet from "./add-product/PaletteColorSheet";
+import {
+  analyzeProductImageLabels,
+  canAnalyzeProductImages,
+} from "../../services/productImageAnalysis";
+import {
+  buildImageLabelTagSuggestions,
+  rankProductTaxonomySuggestions,
+} from "../../services/productTaxonomyInference.mjs";
+import {
+  getProductParcelPresentation,
+  isParcelSizeSelectionSafe,
+} from "../../services/productParcelPresentation";
 
-import Compressor from "compressorjs";
-const animatedComponents = makeAnimated();
-const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
-function PaletteColorSheet({ open, onClose, swatches, selectedKey, onSelect }) {
-  // We use createPortal to move this element to document.body, 
-  // ensuring 'fixed' positioning relates to the viewport, not the parent container.
-  return ReactDOM.createPortal(
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-[2000] bg-black/40 flex justify-center" // added flex justify-center to help with centering on wider screens if needed
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) onClose?.();
-          }}
-        >
-          <motion.div
-            className="absolute inset-x-0 bottom-0 h-[50vh] scrollbar-hide bg-white rounded-t-3xl flex flex-col w-full max-w-md mx-auto" // added max-w-md mx-auto for safety on desktop
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", stiffness: 140, damping: 20 }}
-          >
-            <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-gray-100">
-              <p className="font-opensans font-semibold text-lg text-black">
-                Choose Colour
-              </p>
+const MAX_TAGS = 10;
+const TAG_MEMORY_PREFIX = "mythrift:vendor-tag-memory:";
+const VARIANT_PHOTO_TIP_PREFIX = "mythrift:variant-photo-tip:hidden:";
+const TAG_STOP_WORDS = new Set([
+  "with",
+  "from",
+  "this",
+  "that",
+  "item",
+  "product",
+  "brand",
+  "size",
+  "colour",
+  "color",
+]);
 
-              <button type="button" onClick={onClose} className="p-2 -mr-2">
-                <IoCloseOutline className="text-3xl text-black" />
-              </button>
-            </div>
+const cleanTag = (value) =>
+  String(value || "")
+    .replace(/\s+/g, " ")
+    .replace(/^#+/, "")
+    .trim()
+    .slice(0, 32);
 
-            <div className="flex-1 overflow-y-auto px-4 py-4">
-              <div className="grid grid-cols-4 gap-x-4 gap-y-5">
-                {(swatches || []).map((sw) => {
-                  const selected = sw.key === selectedKey;
+const titleCaseTag = (value) =>
+  cleanTag(value)
+    .toLowerCase()
+    .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 
-                  return (
-                    <button
-                      key={sw.key}
-                      type="button"
-                      onClick={() => onSelect?.(sw.key)}
-                      className="flex flex-col items-center"
-                    >
-                      <div
-                        className={[
-                          "relative w-10 h-10 rounded-full",
-                          sw.needsBorder ? "border border-gray-200" : "",
-                          selected ? "ring-2 ring-black ring-offset-2" : "",
-                        ].join(" ")}
-                        style={{ background: sw.css }}
-                      >
-                        {selected && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <IoCheckmark className="text-white text-xl drop-shadow" />
-                          </div>
-                        )}
-                      </div>
+const waitForBrowserPaint = () =>
+  new Promise((resolve) => {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(resolve));
+  });
 
-                      <span className="mt-1 text-xs font-opensans text-gray-700 whitespace-nowrap">
-                        {sw.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>,
-    document.body // This is the key fix
-  );
-}
-const AddProduct = ({ vendorId, closeModal }) => {
+const waitForPickerDismissal = async () => {
+  await waitForBrowserPaint();
+  await new Promise((resolve) => window.setTimeout(resolve, 180));
+};
+
+const createLocalImageId = () =>
+  globalThis.crypto?.randomUUID?.() ||
+  `image-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+const materializeImplicitSizeVariants = (variants) =>
+  (variants || []).map((variant) => ({
+    ...variant,
+    sizes: [
+      {
+        ...(variant.sizes?.[0] || {}),
+        size: IMPLICIT_ONE_SIZE,
+        sizeRef: null,
+        isActive: true,
+      },
+    ],
+  }));
+
+const AddProduct = ({ vendorId, closeModal, onBusyChange }) => {
+  const posthog = usePostHog();
   const [productName, setProductName] = useState("");
   const [productDescription, setProductDescription] = useState("");
   const [productPrice, setProductPrice] = useState("");
-  const [productCoverImageFile, setProductCoverImageFile] = useState(null);
-  const [productImageFiles, setProductImageFiles] = useState([]);
   const [stockQuantity, setStockQuantity] = useState("");
   const [productCondition, setProductCondition] = useState("");
   const [productDefectDescription, setProductDefectDescription] = useState("");
   const [category, setCategory] = useState("");
-  const [productType, setProductType] = useState("");
-  const [size, setSize] = useState([]);
   const [selectedProductType, setSelectedProductType] = useState(null);
   const [selectedSubType, setSelectedSubType] = useState(null);
+  const sizeTaxonomyOriginRef = useRef(null);
   const [productVariants, setProductVariants] = useState([
     { color: "", sizes: [{ size: "", stock: "" }] },
   ]);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [variantPhotoTipDismissed, setVariantPhotoTipDismissed] =
+    useState(false);
+  const [variantPhotoTipSuppressed, setVariantPhotoTipSuppressed] =
+    useState(false);
+  const [neverShowVariantPhotoTipAgain, setNeverShowVariantPhotoTipAgain] =
+    useState(false);
   const [itemClass, setItemClass] = useState(
     () => localStorage.getItem("matildaItemClass") || "fashion"
   );
@@ -147,33 +171,584 @@ const AddProduct = ({ vendorId, closeModal }) => {
   const [sizeOptions, setSizeOptions] = useState([]);
 
   const [productImages, setProductImages] = useState([]);
+  const productImagesRef = useRef([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const scrollContainerRef = useRef(null);
+  const formScrollContainerRef = useRef(null);
 
-  const [vendorName, setVendorName] = useState("");
-  const MAX_IMAGES = 4; // Max 4 images
+  const [vendorProfile, setVendorProfile] = useState(null);
+  const MAX_IMAGES = 8;
   const [tags, setTags] = useState([]); // State to store tags
   const [tagInput, setTagInput] = useState(""); // State to manage tag input
+  const [learnedTags, setLearnedTags] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [isPreparingImages, setIsPreparingImages] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageTask, setImageTask] = useState(null);
+  const [imageClassification, setImageClassification] = useState({
+    status: "idle",
+    suggestions: [],
+    labels: [],
+    tagSuggestions: [],
+    appliedSuggestion: null,
+    aiSuggestedFields: [],
+    feedback: null,
+  });
+  const imageAnalysisGenerationRef = useRef(0);
+  const imageAnalysisAbortRef = useRef(null);
+  const classificationRevisionRef = useRef(0);
+  const classificationLockedByVendorRef = useRef(false);
+  const publishLockRef = useRef(false);
+  const draftHydratedVendorRef = useRef(null);
+  const skipNextDraftSaveRef = useRef(false);
+  const latestDraftRef = useRef(null);
+  const suppressDraftSaveRef = useRef(false);
+  const restoredImageCountRef = useRef(0);
+  const draftImageSaveChainRef = useRef(Promise.resolve());
+  const [draftImagesHydrated, setDraftImagesHydrated] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [draftRequiresImages, setDraftRequiresImages] = useState(false);
+  const [invalidField, setInvalidField] = useState(null);
   const [hasVariations, setHasVariations] = useState(false);
   const [showSubProductModal, setShowSubProductModal] = useState(false);
   const [availableSizes, setAvailableSizes] = useState([]); // Ensure size dropdown syncs with this
-  const [additionalImages, setAdditionalImages] = useState([]);
   const [subProducts, setSubProducts] = useState([]);
+  const subProductsRef = useRef([]);
   const [runDiscount, setRunDiscount] = useState(false);
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
-  const [discountType, setDiscountType] = useState("");
-  const [discountValue, setDiscountValue] = useState("");
-  const [finalPrice, setFinalPrice] = useState("");
   const [isPriceDisabled, setIsPriceDisabled] = useState(false);
-  const [initialPrice, setInitialPrice] = useState(""); // Replace with actual product price
-  const [inAppDiscounts, setInAppDiscounts] = useState([]); // Stores fetched in-app discounts
-  const [isLoadingDiscounts, setIsLoadingDiscounts] = useState(true); // Tracks loading state for discoun
   const [currentUser, setCurrentUser] = useState(null);
   const [discountDetails, setDiscountDetails] = useState(null); // Store discount details
-  const [isPriceEditable, setIsPriceEditable] = useState(true); // Control productPrice field's editability
+  const [parcelSize, setParcelSize] = useState("");
+  const [parcelSizeSource, setParcelSizeSource] = useState("taxonomy-default");
+  const isProductFlowBusy =
+    isLoading || isPreparingImages || isUploadingImage;
+  useEffect(() => {
+    onBusyChange?.(isProductFlowBusy);
+  }, [isProductFlowBusy, onBusyChange]);
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
+  useEffect(
+    () => () => {
+      imageAnalysisGenerationRef.current += 1;
+      imageAnalysisAbortRef.current?.abort();
+      imageAnalysisAbortRef.current = null;
+    },
+    [],
+  );
+  useEffect(() => {
+    productImagesRef.current = productImages;
+  }, [productImages]);
+  useEffect(() => {
+    subProductsRef.current = subProducts;
+  }, [subProducts]);
+  useEffect(
+    () => () => {
+      productImagesRef.current.forEach(({ preview }) => {
+        if (preview) URL.revokeObjectURL(preview);
+      });
+      subProductsRef.current.forEach((subProduct) => {
+        (subProduct.images || []).forEach((image) => {
+          if (image?.preview) URL.revokeObjectURL(image.preview);
+        });
+      });
+    },
+    [],
+  );
+
+  const resetProductForm = () => {
+    imageAnalysisGenerationRef.current += 1;
+    imageAnalysisAbortRef.current?.abort();
+    imageAnalysisAbortRef.current = null;
+    classificationRevisionRef.current += 1;
+    classificationLockedByVendorRef.current = false;
+    productImagesRef.current.forEach(({ preview }) => {
+      if (preview) URL.revokeObjectURL(preview);
+    });
+    subProductsRef.current.forEach((subProduct) => {
+      (subProduct.images || []).forEach((image) => {
+        if (image?.preview) URL.revokeObjectURL(image.preview);
+      });
+    });
+    productImagesRef.current = [];
+    subProductsRef.current = [];
+
+    setProductName("");
+    setProductDescription("");
+    setProductPrice("");
+    setStockQuantity("");
+    setProductCondition("");
+    setProductDefectDescription("");
+    setCategory(itemClass === "everyday" ? "all" : "");
+    setSelectedProductType(null);
+    setSelectedSubType(null);
+    setProductVariants([
+      { color: "", sizes: [{ size: "", stock: "", isActive: true }] },
+    ]);
+    setProductImages([]);
+    setCurrentImageIndex(0);
+    setTags([]);
+    setTagInput("");
+    setHasVariations(false);
+    setShowSubProductModal(false);
+    setAvailableSizes([]);
+    setSubProducts([]);
+    setRunDiscount(false);
+    setIsDiscountModalOpen(false);
+    setDiscountDetails(null);
+    setIsPriceDisabled(false);
+    setParcelSize("");
+    setParcelSizeSource("taxonomy-default");
+    setDraftRequiresImages(false);
+    restoredImageCountRef.current = 0;
+    setInvalidField(null);
+    setImageClassification({
+      status: "idle",
+      suggestions: [],
+      labels: [],
+      tagSuggestions: [],
+      appliedSuggestion: null,
+      aiSuggestedFields: [],
+      feedback: null,
+    });
+  };
+
+  const markClassificationManual = (fields = []) => {
+    classificationRevisionRef.current += 1;
+    classificationLockedByVendorRef.current = true;
+    if (imageClassification.status === "analyzing") {
+      imageAnalysisGenerationRef.current += 1;
+      imageAnalysisAbortRef.current?.abort();
+      imageAnalysisAbortRef.current = null;
+    }
+    const changed = new Set(fields);
+    setImageClassification((current) => ({
+      ...current,
+      status: current.status === "analyzing" ? "idle" : current.status,
+      aiSuggestedFields: (current.aiSuggestedFields || []).filter(
+        (field) => !changed.has(field),
+      ),
+    }));
+  };
+
+  const analyzeFirstProductImage = async (file) => {
+    if (!canAnalyzeProductImages() || !(file instanceof Blob)) return;
+
+    const generation = imageAnalysisGenerationRef.current + 1;
+    const classificationRevision = classificationRevisionRef.current;
+    const analysisId = `${Date.now()}-${generation}`;
+    const startedAt = performance.now();
+    imageAnalysisGenerationRef.current = generation;
+    imageAnalysisAbortRef.current?.abort();
+    const controller = new AbortController();
+    imageAnalysisAbortRef.current = controller;
+    setImageClassification((current) => ({
+      ...current,
+      status: "analyzing",
+      suggestions: [],
+      labels: [],
+      tagSuggestions: [],
+      appliedSuggestion: null,
+      aiSuggestedFields: [],
+      feedback: null,
+      analysisId,
+    }));
+
+    try {
+      const labels = await analyzeProductImageLabels(file, {
+        signal: controller.signal,
+      });
+      if (
+        controller.signal.aborted ||
+        generation !== imageAnalysisGenerationRef.current
+      ) {
+        return;
+      }
+      const suggestions = rankProductTaxonomySuggestions({
+        labels,
+        fashionTypes: productTypes,
+        everydayTypes: everydayType,
+        limit: 3,
+      });
+      const tagSuggestions = buildImageLabelTagSuggestions(labels, { limit: 8 });
+      const primary = suggestions[0] || null;
+      const inferredAudience =
+        primary?.itemClass === "fashion"
+          ? primary.category ||
+            getExplicitAudienceForProductType(primary.productType)
+          : "all";
+      const enrichedPrimary = primary
+        ? { ...primary, category: inferredAudience }
+        : null;
+      let appliedSuggestion = null;
+      let aiSuggestedFields = [];
+
+      // Manual choices always win. We only commit the result when the vendor
+      // has not changed classification since this image analysis started.
+      if (
+        enrichedPrimary &&
+        classificationRevision === classificationRevisionRef.current &&
+        !classificationLockedByVendorRef.current
+      ) {
+        const accepted = handleClassificationChange({
+          itemClass: enrichedPrimary.itemClass,
+          category:
+            enrichedPrimary.itemClass === "fashion"
+              ? enrichedPrimary.category || ""
+              : "all",
+          productTypeValue: enrichedPrimary.productType,
+          subTypeValue: enrichedPrimary.subType || "",
+          allowIncompleteSubType: true,
+          source: "image-suggestion",
+        });
+        if (accepted) {
+          appliedSuggestion = enrichedPrimary;
+          aiSuggestedFields = ["itemClass", "productType"];
+          if (enrichedPrimary.subType) aiSuggestedFields.push("subType");
+          if (enrichedPrimary.category) aiSuggestedFields.push("category");
+          void appHaptics.success();
+        }
+      }
+
+      setImageClassification({
+        status: suggestions.length ? "ready" : "idle",
+        suggestions,
+        labels,
+        tagSuggestions,
+        appliedSuggestion,
+        aiSuggestedFields,
+        feedback: null,
+        analysisId,
+      });
+      posthog?.capture("product_image_classification_suggested", {
+        analysis_id: analysisId,
+        suggestion_available: Boolean(primary),
+        suggestion_applied: Boolean(appliedSuggestion),
+        suggested_item_class: enrichedPrimary?.itemClass || null,
+        suggested_product_type: enrichedPrimary?.productType || null,
+        suggested_sub_type: enrichedPrimary?.subType || null,
+        suggested_category: enrichedPrimary?.category || null,
+        tag_suggestion_count: tagSuggestions.length,
+        duration_ms: Math.round(performance.now() - startedAt),
+      });
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        console.info("[product-image-analysis] suggestion unavailable", {
+          code: error?.code || "unknown",
+          message: error?.message || String(error),
+        });
+      }
+      if (generation === imageAnalysisGenerationRef.current) {
+        setImageClassification((current) => ({
+          ...current,
+          status: "idle",
+          suggestions: [],
+          labels: [],
+          tagSuggestions: [],
+          appliedSuggestion: null,
+          aiSuggestedFields: [],
+          feedback: null,
+        }));
+      }
+    } finally {
+      if (generation === imageAnalysisGenerationRef.current) {
+        imageAnalysisAbortRef.current = null;
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!vendorId) return;
+
+    let cancelled = false;
+    suppressDraftSaveRef.current = false;
+    draftHydratedVendorRef.current = vendorId;
+    skipNextDraftSaveRef.current = true;
+    setDraftImagesHydrated(false);
+    const draft = loadAddProductDraft(vendorId);
+    const hasDraft = hasMeaningfulAddProductDraft(draft);
+
+    if (!hasDraft) {
+      classificationLockedByVendorRef.current = false;
+      latestDraftRef.current = null;
+      restoredImageCountRef.current = 0;
+      setDraftRestored(false);
+      setDraftRequiresImages(false);
+      setDraftImagesHydrated(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setItemClass(draft.itemClass || "fashion");
+    setProductName(draft.productName || "");
+    setProductDescription(draft.productDescription || "");
+    setProductPrice(draft.productPrice || "");
+    setStockQuantity(draft.stockQuantity || "");
+    setProductCondition(draft.productCondition || "");
+    setProductDefectDescription(draft.productDefectDescription || "");
+    setCategory(
+      (draft.itemClass || "fashion") === "everyday"
+        ? "all"
+        : draft.category || "",
+    );
+    setSelectedProductType(draft.selectedProductType || null);
+    setSelectedSubType(draft.selectedSubType || null);
+    classificationLockedByVendorRef.current = Boolean(
+      draft.selectedProductType?.value || draft.selectedSubType?.value,
+    );
+    setProductVariants(
+      draft.productVariants?.length
+        ? draft.productVariants
+        : [{ color: "", sizes: [{ size: "", stock: "", isActive: true }] }],
+    );
+    setTags(Array.isArray(draft.tags) ? draft.tags.slice(0, MAX_TAGS) : []);
+    setHasVariations(draft.hasVariations === true);
+    setSubProducts(Array.isArray(draft.subProducts) ? draft.subProducts : []);
+    setDiscountDetails(draft.discountDetails || null);
+    setRunDiscount(draft.runDiscount === true || Boolean(draft.discountDetails));
+    setParcelSize(draft.parcelSize || "");
+    setParcelSizeSource(
+      draft.parcelSizeSource === "vendor-confirmed"
+        ? "vendor-confirmed"
+        : "taxonomy-default",
+    );
+    const missingDraftImageCount =
+      Number(draft.productImageCount || 0) +
+      (draft.subProducts || []).reduce(
+        (total, subProduct) =>
+          total + Number(subProduct?.draftImageCount || 0),
+        0,
+      );
+    restoredImageCountRef.current = Number(draft.productImageCount || 0);
+    setDraftRequiresImages(missingDraftImageCount > 0);
+    setDraftRestored(true);
+    latestDraftRef.current = draft;
+
+    void loadAddProductDraftImages(vendorId)
+      .then((savedImages) => {
+        if (cancelled) return;
+        const restoredMainImages = (savedImages?.mainImages || []).map(
+          (entry) => ({
+            ...createProductImagePreview(entry.file),
+            id: createLocalImageId(),
+            status: "ready",
+            originalBytes: entry.originalBytes,
+            storedBytes: entry.storedBytes,
+            wasOptimized: entry.wasOptimized,
+          }),
+        );
+        const variationMap = new Map(
+          (savedImages?.variationImages || []).map((variation) => [
+            variation.subProductId,
+            variation.images,
+          ]),
+        );
+        const restoredSubProducts = (draft.subProducts || []).map(
+          (subProduct) => ({
+            ...subProduct,
+            images: (variationMap.get(subProduct.subProductId) || []).map(
+              (entry) => ({
+                ...createProductImagePreview(entry.file),
+                id: createLocalImageId(),
+                status: "ready",
+                originalBytes: entry.originalBytes,
+                storedBytes: entry.storedBytes,
+                wasOptimized: entry.wasOptimized,
+              }),
+            ),
+          }),
+        );
+        const restoredCount =
+          restoredMainImages.length +
+          restoredSubProducts.reduce(
+            (total, subProduct) => total + (subProduct.images?.length || 0),
+            0,
+          );
+        setProductImages(restoredMainImages);
+        setSubProducts(restoredSubProducts);
+        setDraftRequiresImages(restoredCount < missingDraftImageCount);
+        if (restoredMainImages.length >= Number(draft.productImageCount || 0)) {
+          restoredImageCountRef.current = 0;
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.warn("[AddProductDraft] Draft images could not be restored", {
+            code: error?.name || "storage-unavailable",
+          });
+          setDraftRequiresImages(missingDraftImageCount > 0);
+        }
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setDraftImagesHydrated(true);
+        window.setTimeout(() => void appHaptics.success(), 160);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [vendorId]);
+
+  useEffect(() => {
+    if (!vendorId || draftHydratedVendorRef.current !== vendorId) return;
+
+    const draft = createAddProductDraft({
+      vendorId,
+      itemClass,
+      productName,
+      productDescription,
+      productPrice,
+      stockQuantity,
+      productCondition,
+      productDefectDescription,
+      category,
+      selectedProductType,
+      selectedSubType,
+      productVariants,
+      tags,
+      hasVariations,
+      subProducts,
+      discountDetails,
+      runDiscount,
+      productImageCount: productImages.length,
+      parcelSize,
+      parcelSizeSource,
+    });
+    latestDraftRef.current = draft;
+
+    if (suppressDraftSaveRef.current || isLoading) return;
+    if (skipNextDraftSaveRef.current) {
+      skipNextDraftSaveRef.current = false;
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      saveAddProductDraft(draft);
+    }, 400);
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    category,
+    discountDetails,
+    hasVariations,
+    isLoading,
+    itemClass,
+    productCondition,
+    productDefectDescription,
+    productDescription,
+    productImages.length,
+    productName,
+    productPrice,
+    productVariants,
+    parcelSize,
+    parcelSizeSource,
+    runDiscount,
+    selectedProductType,
+    selectedSubType,
+    stockQuantity,
+    subProducts,
+    tags,
+    vendorId,
+  ]);
+
+  useEffect(() => {
+    if (
+      !vendorId ||
+      !draftImagesHydrated ||
+      suppressDraftSaveRef.current ||
+      isLoading ||
+      productImages.some((image) => image?.status === "preparing")
+    ) {
+      return;
+    }
+
+    const readyProductImages = productImages.filter(
+      (image) => image?.status !== "preparing" && image?.file instanceof Blob,
+    );
+    const readySubProducts = subProducts.map((subProduct) => ({
+      ...subProduct,
+      images: (subProduct.images || []).filter(
+        (image) => image?.file instanceof Blob,
+      ),
+    }));
+    const timeoutId = window.setTimeout(() => {
+      draftImageSaveChainRef.current = draftImageSaveChainRef.current
+        .catch(() => undefined)
+        .then(() =>
+          saveAddProductDraftImages({
+            vendorId,
+            productImages: readyProductImages,
+            subProducts: readySubProducts,
+          }),
+        )
+        .catch((error) => {
+          console.warn("[AddProductDraft] Draft images could not be saved", {
+            code: error?.name || "storage-unavailable",
+          });
+        });
+    }, 900);
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    draftImagesHydrated,
+    isLoading,
+    productImages,
+    subProducts,
+    vendorId,
+  ]);
+
+  useEffect(
+    () => () => {
+      const draft = latestDraftRef.current;
+      if (!suppressDraftSaveRef.current && draft?.vendorId === String(vendorId)) {
+        saveAddProductDraft(draft);
+      }
+    },
+    [vendorId],
+  );
+
+  useEffect(() => {
+    const flushDraft = () => {
+      const draft = latestDraftRef.current;
+      if (
+        !suppressDraftSaveRef.current &&
+        draft?.vendorId === String(vendorId)
+      ) {
+        saveAddProductDraft(draft);
+      }
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flushDraft();
+    };
+
+    window.addEventListener("pagehide", flushDraft);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("pagehide", flushDraft);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [vendorId]);
+
+  const discardSavedDraft = () => {
+    if (
+      !window.confirm(
+        "Discard this saved listing draft? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    clearAddProductDraft(vendorId);
+    void clearAddProductDraftImages(vendorId).catch((error) => {
+      console.warn("[AddProductDraft] Draft images could not be cleared", {
+        code: error?.name || "storage-unavailable",
+      });
+    });
+    latestDraftRef.current = null;
+    skipNextDraftSaveRef.current = true;
+    resetProductForm();
+    setDraftRestored(false);
+    void appHaptics.success();
+    toast.success("Draft discarded");
+  };
 const paletteSwatches = React.useMemo(() => {
   return PALETTE_ORDER.map((key) => ({
     key,
@@ -193,7 +768,54 @@ const colorLabelMap = React.useMemo(() => {
 const [colorSheetOpen, setColorSheetOpen] = useState(false);
 const [activeColorIndex, setActiveColorIndex] = useState(null);
 
+const selectedSizingProfile = React.useMemo(
+  () =>
+    itemClass === "fashion"
+      ? getListingSizingProfile(
+          selectedProductType?.value,
+          selectedSubType?.value,
+        )
+      : null,
+  [itemClass, selectedProductType?.value, selectedSubType?.value],
+);
+const parcelRecommendation = React.useMemo(
+  () =>
+    getProductParcelPresentation({
+      itemClass,
+      productType: selectedProductType?.value,
+      subType: selectedSubType?.value,
+    }),
+  [itemClass, selectedProductType?.value, selectedSubType?.value],
+);
+useEffect(() => {
+  if (!parcelRecommendation) {
+    setParcelSize("");
+    setParcelSizeSource("taxonomy-default");
+    return;
+  }
+  if (
+    !parcelSize ||
+    parcelSizeSource === "taxonomy-default" ||
+    !isParcelSizeSelectionSafe(parcelSize, parcelRecommendation)
+  ) {
+    setParcelSize(parcelRecommendation.key);
+    setParcelSizeSource("taxonomy-default");
+  }
+}, [parcelRecommendation, parcelSize, parcelSizeSource]);
+const isNoSizeProfile =
+  selectedSizingProfile?.kind === LISTING_SIZE_KINDS.NONE;
+const hasSingleConfiguredVariant =
+  productVariants.length === 1 && Boolean(productVariants[0]?.color);
+const hasVariantPhotoWarningCase =
+  itemClass === "fashion" &&
+  productImages.length >= 3 &&
+  hasSingleConfiguredVariant;
+const showVariantPhotoWarning =
+  hasVariantPhotoWarningCase &&
+  !variantPhotoTipDismissed &&
+  !variantPhotoTipSuppressed;
 const openColorSheet = (idx) => {
+  void appHaptics.selection();
   setActiveColorIndex(idx);
   setColorSheetOpen(true);
 };
@@ -206,6 +828,9 @@ const closeColorSheet = () => {
 const selectVariantColor = (paletteKey) => {
   if (activeColorIndex === null) return;
 
+  void appHaptics.selection();
+  clearValidationError(`variant-color-${activeColorIndex}`);
+
   setProductVariants((prev) => {
     const next = [...prev];
     if (!next[activeColorIndex]) return prev;
@@ -217,7 +842,6 @@ const selectVariantColor = (paletteKey) => {
 };
 
   const storage = getStorage();
-  Modal.setAppElement("#root");
   useEffect(() => {
     const fetchVendorName = async () => {
       if (currentUser) {
@@ -226,9 +850,9 @@ const selectVariantColor = (paletteKey) => {
 
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
-          setVendorName(vendorData.shopName || "Unknown Vendor");
+          setVendorProfile(vendorData);
         } else {
-          setVendorName("Unknown Vendor");
+          setVendorProfile(null);
         }
       }
     };
@@ -255,23 +879,59 @@ const selectVariantColor = (paletteKey) => {
     return () => unsubscribe();
   }, []);
   useEffect(() => {
+    if (!vendorId) return;
+    try {
+      const stored = JSON.parse(
+        localStorage.getItem(`${TAG_MEMORY_PREFIX}${vendorId}`) || "{}",
+      );
+      const rankedTags = Object.entries(stored)
+        .filter(([tag, count]) => cleanTag(tag) && Number(count) > 0)
+        .sort((a, b) => Number(b[1]) - Number(a[1]))
+        .slice(0, 20)
+        .map(([tag]) => titleCaseTag(tag));
+      setLearnedTags(rankedTags);
+    } catch (error) {
+      console.warn("[AddProduct] Could not restore learned tags", error);
+      setLearnedTags([]);
+    }
+  }, [vendorId]);
+  useEffect(() => {
+    setVariantPhotoTipDismissed(false);
+    setNeverShowVariantPhotoTipAgain(false);
+    if (!vendorId) {
+      setVariantPhotoTipSuppressed(false);
+      return;
+    }
+
+    try {
+      setVariantPhotoTipSuppressed(
+        localStorage.getItem(`${VARIANT_PHOTO_TIP_PREFIX}${vendorId}`) ===
+          "hidden",
+      );
+    } catch (error) {
+      console.warn("[AddProduct] Could not restore the variant photo tip", error);
+      setVariantPhotoTipSuppressed(false);
+    }
+  }, [vendorId]);
+  useEffect(() => {
+    if (hasVariantPhotoWarningCase) return;
+    setVariantPhotoTipDismissed(false);
+    setNeverShowVariantPhotoTipAgain(false);
+  }, [hasVariantPhotoWarningCase]);
+  useEffect(() => {
     if (selectedProductType && selectedSubType) {
-      // Access the sizes for the selected product type
-      const trimmedProductType = selectedProductType.value.trim();
-      const typeSizesObject = productSizes[trimmedProductType];
-
-      let subTypeSizes = [];
-
-      if (Array.isArray(typeSizesObject)) {
-        subTypeSizes = typeSizesObject;
-      } else if (
-        typeof typeSizesObject === "object" &&
-        typeSizesObject !== null
-      ) {
-        // Map `selectedSubType.value` to a key that matches productSizes format
-        const formattedSubType = selectedSubType.value.replace(/\s+/g, ""); // Remove spaces
-        subTypeSizes = typeSizesObject[formattedSubType] || [];
-      }
+      const productTypeValue = selectedProductType.value.trim();
+      const subTypeValue = selectedSubType.value.trim();
+      const legacySizes = getLegacyCatalogSizes(
+        productSizes,
+        productTypeValue,
+        subTypeValue,
+      );
+      const subTypeSizes = getListingSizeOptions({
+        productType: productTypeValue,
+        subType: subTypeValue,
+        legacySizes,
+      });
 
       if (subTypeSizes && subTypeSizes.length > 0) {
         const options = subTypeSizes.map((size) => ({
@@ -289,6 +949,12 @@ const selectVariantColor = (paletteKey) => {
       setAvailableSizes([]);
     }
   }, [selectedProductType, selectedSubType]);
+  useEffect(() => {
+    if (!isNoSizeProfile) return;
+    setProductVariants((previous) =>
+      materializeImplicitSizeVariants(previous),
+    );
+  }, [isNoSizeProfile, selectedProductType?.value, selectedSubType?.value]);
   const openDiscountModal = () => {
     setIsDiscountModalOpen(true);
   };
@@ -317,22 +983,6 @@ const selectVariantColor = (paletteKey) => {
     localStorage.setItem("matildaItemClass", itemClass);
   }, [itemClass]);
 
-  const handleDiscountTypeChange = (e) => {
-    setDiscountType(e.target.value);
-  };
-  const onDiscountSave = (details) => {
-    setDiscountDetails(details);
-    // Once a discount is saved, hide the discount option
-    setRunDiscount(true);
-  };
-
-  // --- UI Helpers for Discount Summary ---
-  // Returns a truncated version of freebie text (max 20 characters)
-  const truncateText = (text, maxLength = 20) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + "...";
-  };
-
   const handleSaveDiscount = (details) => {
     setDiscountDetails(details);
     setRunDiscount(true);
@@ -347,32 +997,166 @@ const selectVariantColor = (paletteKey) => {
     closeDiscountModal(false);
   };
 
-  // Log the product type and sub-type change
-  const handleProductTypeChange = (selectedOption) => {
-    console.log("Product Type Changed to:", selectedOption);
-    setSelectedProductType(selectedOption);
-    setSelectedSubType(null); // Reset sub-type when product type changes
+  const getVariantSizeEntries = () =>
+    productVariants.flatMap((variant) =>
+      (variant.sizes || []).filter((entry) => entry.size),
+    );
+  const getVariantSizeValues = () =>
+    getVariantSizeEntries().map((entry) => entry.size);
+  const hasVariantSizingDraft = () =>
+    hasVariantDraft(productVariants, subProducts);
+
+  const resetSizesForNewTaxonomy = () => {
+    setProductVariants((previous) =>
+      previous.map((variant) => ({
+        ...variant,
+        sizes: [{ size: "", stock: "", isActive: true }],
+      })),
+    );
+    setHasVariations(false);
+    setSubProducts([]);
   };
-  useEffect(() => {
+
+  const confirmIncompatibleSizeReset = ({
+    nextType,
+    nextSubType,
+    fromType = selectedProductType?.value,
+    fromSubType = selectedSubType?.value,
+  }) => {
+    const currentProfile = getListingSizingProfile(fromType, fromSubType);
+    const nextProfile = getListingSizingProfile(nextType, nextSubType);
+    const hasTaxonomyBoundary = Boolean(
+      String(fromType || "").trim() && String(nextType || "").trim(),
+    );
     if (
-      productName &&
-      category &&
-      selectedProductType &&
-      selectedSubType &&
-      productVariants.length &&
-      productCondition
+      hasTaxonomyBoundary &&
+      crossesNoSizeProfileBoundary(currentProfile, nextProfile)
     ) {
-      generateDescription();
+      const shouldReset = window.confirm(
+        "This change adds or removes size selection. Continue and clear the existing sizes, stock, and variations?",
+      );
+      if (shouldReset) resetSizesForNewTaxonomy();
+      return shouldReset;
     }
-  }, [
-    productName,
-    category,
-    selectedProductType,
-    selectedSubType,
-    productVariants,
-    discountDetails, // reflect price cuts / freebies
-    productCondition,
-  ]);
+
+    if (!hasVariantSizingDraft()) return true;
+    const selectedSizes = getVariantSizeValues();
+    if (!selectedSizes.length) {
+      const shouldReset = window.confirm(
+        "This product type may not support the existing variant details. Continue and reselect the sizes, stock, and variations?",
+      );
+      if (shouldReset) resetSizesForNewTaxonomy();
+      return shouldReset;
+    }
+
+    const sizeEntries = getVariantSizeEntries();
+    const currentRefs = sizeEntries.map(
+      (entry) =>
+        entry.sizeRef ||
+        createSizeRef(entry.size, fromType, fromSubType, { source: "forward" }),
+    );
+    const nextRefs = sizeEntries.map((entry) =>
+      createSizeRef(entry.size, nextType, nextSubType, { source: "forward" }),
+    );
+    const currentSpec = getSizingSpec(fromType, fromSubType);
+    const nextSpec = getSizingSpec(nextType, nextSubType);
+    const sameKnownSizingSystem = Boolean(
+      (currentSpec &&
+        nextSpec &&
+        currentSpec.fitDomain === nextSpec.fitDomain &&
+        currentSpec.system === nextSpec.system) ||
+        (currentProfile?.kind === LISTING_SIZE_KINDS.NONE &&
+          nextProfile?.kind === LISTING_SIZE_KINDS.NONE) ||
+        (currentProfile?.kind === LISTING_SIZE_KINDS.FIT_MODE &&
+          nextProfile?.kind === LISTING_SIZE_KINDS.FIT_MODE),
+    );
+    const nextLegacySizes = new Set(
+      getLegacyCatalogSizes(productSizes, nextType, nextSubType),
+    );
+    const compatible = currentRefs.every(
+      (currentRef, index) => {
+        const nextRef = nextRefs[index];
+        if (currentRef && nextRef) {
+          return (
+            currentRef.fitDomain === nextRef.fitDomain &&
+            currentRef.system === nextRef.system
+          );
+        }
+        // Some legacy labels (for example UK 12 or 12-14) cannot be safely
+        // canonicalised. They are still safe to retain when both taxonomies
+        // explicitly use the same domain/system. Neutral specialist catalogs
+        // retain a value only when the next catalog explicitly contains it.
+        if (!currentRef && !nextRef) {
+          return (
+            sameKnownSizingSystem ||
+            nextLegacySizes.has(sizeEntries[index].size)
+          );
+        }
+        return false;
+      },
+    );
+    if (compatible) return true;
+
+    const shouldReset = window.confirm(
+      "This product type uses a different sizing system. Continue and reselect the sizes and stock for each colour?",
+    );
+    if (shouldReset) resetSizesForNewTaxonomy();
+    return shouldReset;
+  };
+
+  // Product types with a single fit domain can be validated immediately. Mixed
+  // types (for example Corporate Women) are validated when subtype is chosen.
+  const handleProductTypeChange = (selectedOption) => {
+    if (!selectedOption) {
+      setSelectedProductType(null);
+      setSelectedSubType(null);
+      return true;
+    }
+    if (selectedOption.value === selectedProductType?.value) return false;
+    const previousTaxonomy = sizeTaxonomyOriginRef.current || {
+      type: selectedProductType?.value,
+      subType: selectedSubType?.value,
+    };
+    const hasKnownTarget = Boolean(
+      getListingSizingProfile(selectedOption.value, ""),
+    );
+    if (
+      hasKnownTarget &&
+      !confirmIncompatibleSizeReset({
+        nextType: selectedOption.value,
+        nextSubType: "",
+        fromType: previousTaxonomy.type,
+        fromSubType: previousTaxonomy.subType,
+      })
+    ) {
+      return false;
+    }
+    sizeTaxonomyOriginRef.current = hasKnownTarget ? null : previousTaxonomy;
+    setSelectedProductType(selectedOption);
+    setSelectedSubType(null);
+    return true;
+  };
+
+  const handleProductSubTypeChange = (selectedOption) => {
+    if (!selectedOption) {
+      setSelectedSubType(null);
+      return;
+    }
+    if (selectedOption.value === selectedSubType?.value) return;
+    const origin = sizeTaxonomyOriginRef.current;
+    if (
+      !confirmIncompatibleSizeReset({
+        nextType: selectedProductType?.value,
+        nextSubType: selectedOption.value,
+        fromType: origin?.type || selectedProductType?.value,
+        fromSubType: origin?.subType || selectedSubType?.value,
+      })
+    ) {
+      return;
+    }
+    sizeTaxonomyOriginRef.current = null;
+    setSelectedSubType(selectedOption);
+  };
 
   // Log the subTypeOptions array
   const subTypeOptions =
@@ -409,8 +1193,29 @@ const selectVariantColor = (paletteKey) => {
   }, [hasVariations]); // ⚠️ add showSubProductModal to lint if you use eslint
 
   const handleRemoveImage = (index) => {
+    void appHaptics.selection();
+    const removedPreview = productImages[index]?.preview;
+    if (removedPreview) URL.revokeObjectURL(removedPreview);
     const updatedImages = productImages.filter((_, i) => i !== index);
     setProductImages(updatedImages);
+
+    if (index === 0) {
+      imageAnalysisGenerationRef.current += 1;
+      imageAnalysisAbortRef.current?.abort();
+      imageAnalysisAbortRef.current = null;
+      setImageClassification({
+        status: "idle",
+        suggestions: [],
+        labels: [],
+        tagSuggestions: [],
+        appliedSuggestion: null,
+        aiSuggestedFields: [],
+        feedback: null,
+      });
+      if (updatedImages[0]?.file) {
+        void analyzeFirstProductImage(updatedImages[0].file);
+      }
+    }
 
     if (index === currentImageIndex && updatedImages.length > 0) {
       setCurrentImageIndex(0);
@@ -418,6 +1223,7 @@ const selectVariantColor = (paletteKey) => {
   };
 
   const handleDotClick = (index) => {
+    void appHaptics.selection();
     setCurrentImageIndex(index);
     const scrollWidth = scrollContainerRef.current.offsetWidth;
     scrollContainerRef.current.scrollTo({
@@ -425,29 +1231,6 @@ const selectVariantColor = (paletteKey) => {
       behavior: "smooth",
     });
   };
-  useEffect(() => {
-    const fetchInAppDiscounts = async () => {
-      try {
-        const discountsRef = collection(db, "inAppDiscounts");
-        const q = query(discountsRef, where("isActive", "==", true)); // Fetch only active discounts
-        const querySnapshot = await getDocs(q);
-
-        const discounts = querySnapshot.docs.map((doc) => ({
-          id: doc.id, // Include document ID
-          ...doc.data(), // Spread document data
-        }));
-
-        setInAppDiscounts(discounts); // Update state with discounts
-      } catch (error) {
-        console.error("Error fetching in-app discounts:", error);
-      } finally {
-        setIsLoadingDiscounts(false); // Loading completed
-      }
-    };
-
-    fetchInAppDiscounts();
-  }, []);
-
   const handleScroll = () => {
     const scrollLeft = scrollContainerRef.current.scrollLeft;
     const scrollWidth = scrollContainerRef.current.offsetWidth;
@@ -455,23 +1238,86 @@ const selectVariantColor = (paletteKey) => {
     setCurrentImageIndex(newIndex);
   };
 
+  const addTag = (rawTag) => {
+    const nextTag = titleCaseTag(rawTag);
+    if (!nextTag) return false;
+    if (tags.length >= MAX_TAGS) {
+      void appHaptics.warning();
+      toast.error(`You can add up to ${MAX_TAGS} tags.`);
+      return false;
+    }
+    if (tags.some((tag) => tag.toLowerCase() === nextTag.toLowerCase())) {
+      return false;
+    }
+    setTags((current) => [...current, nextTag]);
+    void appHaptics.selection();
+    return true;
+  };
+
+  const removeTag = (tagToRemove) => {
+    setTags((current) => current.filter((tag) => tag !== tagToRemove));
+    void appHaptics.selection();
+  };
+
+  const rememberCurrentTags = () => {
+    if (!vendorId || !tags.length) return;
+    try {
+      const key = `${TAG_MEMORY_PREFIX}${vendorId}`;
+      const stored = JSON.parse(localStorage.getItem(key) || "{}");
+      tags.forEach((tag) => {
+        const normalized = titleCaseTag(tag);
+        if (normalized) stored[normalized] = Number(stored[normalized] || 0) + 1;
+      });
+      const compact = Object.fromEntries(
+        Object.entries(stored)
+          .sort((a, b) => Number(b[1]) - Number(a[1]))
+          .slice(0, 40),
+      );
+      localStorage.setItem(key, JSON.stringify(compact));
+      setLearnedTags(Object.keys(compact).slice(0, 20));
+    } catch (error) {
+      console.warn("[AddProduct] Could not remember product tags", error);
+    }
+  };
+
   const handleTagInputChange = (e) => {
     const value = e.target.value;
     if (value.includes(",")) {
-      const newTag = value.replace(",", "").trim();
-      if (newTag && !tags.includes(newTag)) {
-        setTags([...tags, newTag]);
+      const existing = new Set(tags.map((tag) => tag.toLowerCase()));
+      const batchSeen = new Set();
+      const candidates = value
+        .split(",")
+        .map(titleCaseTag)
+        .filter((tag) => {
+          const key = tag.toLowerCase();
+          if (!tag || existing.has(key) || batchSeen.has(key)) return false;
+          batchSeen.add(key);
+          return true;
+        });
+      const accepted = candidates.slice(0, Math.max(0, MAX_TAGS - tags.length));
+      if (accepted.length) {
+        setTags((current) => [...current, ...accepted]);
+        void appHaptics.selection();
       }
-      setTagInput(""); // Clear input after adding tag
+      if (accepted.length < candidates.length) {
+        void appHaptics.warning();
+        toast.error(`You can add up to ${MAX_TAGS} tags.`);
+      }
+      setTagInput("");
     } else {
-      setTagInput(value); // Update input if no comma detected
+      setTagInput(value);
     }
   };
 
   const handleTagKeyDown = (e) => {
+    if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
+      e.preventDefault();
+      if (addTag(tagInput)) setTagInput("");
+      return;
+    }
     if (e.key === "Backspace" && !tagInput && tags.length > 0) {
-      e.preventDefault(); // Prevent default backspace behavior
-      setTags(tags.slice(0, -1)); // Remove the last tag
+      e.preventDefault();
+      removeTag(tags[tags.length - 1]);
     }
   };
   // const handleMultipleFileChange = (e) => {
@@ -493,13 +1339,28 @@ const selectVariantColor = (paletteKey) => {
     setProductVariants(updatedVariants);
   };
   const openInfoModal = () => {
-    console.log("Opening variations info modal"); // Log when opening the modal
+    void appHaptics.selection();
     setIsInfoModalOpen(true);
   };
 
   const closeInfoModal = () => {
-    console.log("Closing variations info modal"); // Log when closing the modal
+    void appHaptics.selection();
     setIsInfoModalOpen(false);
+  };
+  const dismissVariantPhotoTip = () => {
+    if (neverShowVariantPhotoTipAgain && vendorId) {
+      try {
+        localStorage.setItem(
+          `${VARIANT_PHOTO_TIP_PREFIX}${vendorId}`,
+          "hidden",
+        );
+        setVariantPhotoTipSuppressed(true);
+      } catch (error) {
+        console.warn("[AddProduct] Could not save the variant photo tip", error);
+      }
+    }
+    setVariantPhotoTipDismissed(true);
+    void appHaptics.selection();
   };
   // Remove size entry under the same color
   const removeSize = (colorIndex, sizeIndex) => {
@@ -512,9 +1373,19 @@ const selectVariantColor = (paletteKey) => {
 
   // Add new color with size and stock inputs
   const addNewColor = () => {
+    void appHaptics.selection();
     setProductVariants([
       ...productVariants,
-      { color: "", sizes: [{ size: "", stock: "", isActive: true }] },
+      {
+        color: "",
+        sizes: [
+          {
+            size: isNoSizeProfile ? IMPLICIT_ONE_SIZE : "",
+            stock: "",
+            isActive: true,
+          },
+        ],
+      },
     ]);
   };
 
@@ -525,67 +1396,128 @@ const selectVariantColor = (paletteKey) => {
     );
   };
 
+  const reportValidationError = (field, message) => {
+    setInvalidField(field);
+    void appHaptics.warning();
+    toast.dismiss();
+    toast.error(message);
+
+    window.requestAnimationFrame(() => {
+      const fieldContainer = formScrollContainerRef.current?.querySelector(
+        `[data-add-product-field="${field}"]`,
+      );
+      if (!fieldContainer) return;
+      fieldContainer.scrollIntoView({ behavior: "smooth", block: "center" });
+      window.setTimeout(() => {
+        const focusTarget =
+          fieldContainer.matches?.("input, textarea, select, button")
+            ? fieldContainer
+            : fieldContainer.querySelector(
+                "input:not([type='hidden']), textarea, select, button",
+              );
+        focusTarget?.focus?.({ preventScroll: true });
+      }, 320);
+    });
+    return false;
+  };
+
+  const clearValidationError = (field) => {
+    setInvalidField((current) => (current === field ? null : current));
+  };
+
   const handleAddProduct = async () => {
+    void appHaptics.medium();
+    if (isPreparingImages) {
+      toast.error("Please wait for your images to finish preparing.");
+      return;
+    }
     if (!currentUser || currentUser.uid !== vendorId) {
       toast.error("Unauthorized access or no user is signed in.");
       console.log("Unauthorized access or user not signed in."); // Debugging log
       return;
     }
 
-    // Validate required fields
-    if (
-      !productName ||
-      !productPrice ||
-      productImages.length === 0 ||
-      !productCondition ||
-      !category ||
-      !selectedProductType ||
-      // !selectedSubType ||
-      !productDescription
-    ) {
-      toast.error("Please fill in all required fields!");
-      console.log("Missing required fields!"); // Debugging log
-      return;
+    const variantsWithoutPristineTrailingRows =
+      filterPristineTrailingSizeRows(productVariants);
+    const variantsForSubmit = isNoSizeProfile
+      ? materializeImplicitSizeVariants(variantsWithoutPristineTrailingRows)
+      : variantsWithoutPristineTrailingRows;
+    const subProductsForSubmit = isNoSizeProfile
+      ? subProducts.map((subProduct) => ({
+          ...subProduct,
+          size: IMPLICIT_ONE_SIZE,
+        }))
+      : subProducts;
+
+    if (productImages.length === 0) {
+      return reportValidationError(
+        "images",
+        "Add at least one clear product image.",
+      );
+    }
+    if (!productName.trim()) {
+      return reportValidationError("name", "Enter a product name.");
+    }
+    if (itemClass === "fashion" && !category) {
+      return reportValidationError("category", "Select a product category.");
+    }
+    if (!selectedProductType) {
+      return reportValidationError("product-type", "Select a product type.");
+    }
+    if (!selectedSubType) {
+      return reportValidationError("sub-type", "Select a product subtype.");
+    }
+    const numericPrice = Number(productPrice);
+    if (!Number.isFinite(numericPrice) || numericPrice < 300) {
+      return reportValidationError(
+        "price",
+        "Enter a product price of at least ₦300.",
+      );
     }
 
     // Validate productVariants
-    if (itemClass === "fashion" && productVariants.length === 0) {
-      toast.error("Please add at least one product variant.");
-      return;
-    }
-    if (productCondition === "defect" && !productDefectDescription) {
-      toast.dismiss();
-      toast.error(
-        "Please provide a defect description for the defective product."
+    if (itemClass === "fashion" && variantsForSubmit.length === 0) {
+      return reportValidationError(
+        "variants",
+        "Add at least one product option.",
       );
-      return;
     }
     if (
       itemClass === "everyday" &&
       (!stockQuantity || Number(stockQuantity) <= 0)
     ) {
-      toast.error("Please enter a stock quantity");
-      return;
+      return reportValidationError(
+        "stock",
+        "Enter a stock quantity greater than zero.",
+      );
     }
     if (itemClass === "fashion") {
       // Validate each variant
-      for (const [index, variant] of productVariants.entries()) {
+      for (const [index, variant] of variantsForSubmit.entries()) {
         if (!variant.color) {
-          toast.error(`Please enter a color for variant ${index + 1}.`);
-          return;
+          return reportValidationError(
+            `variant-color-${index}`,
+            `Choose a colour for option ${index + 1}.`,
+          );
         }
         if (variant.sizes.length === 0) {
-          toast.error(`Please add at least one size for variant ${index + 1}.`);
-          return;
+          return reportValidationError(
+            `variant-color-${index}`,
+            `Add at least one size for option ${index + 1}.`,
+          );
         }
         for (const [sizeIndex, sizeStock] of variant.sizes.entries()) {
-          if (!sizeStock.size || !sizeStock.stock) {
-            toast.error(
-              `Please enter size and stock for variant ${index + 1}, size ${
-                sizeIndex + 1
-              }.`
+          if (!sizeStock.size) {
+            return reportValidationError(
+              `variant-size-${index}-${sizeIndex}`,
+              `Choose a size for option ${index + 1}.`,
             );
-            return;
+          }
+          if (!sizeStock.stock || Number(sizeStock.stock) <= 0) {
+            return reportValidationError(
+              `variant-stock-${index}-${sizeIndex}`,
+              `Enter stock greater than zero for option ${index + 1}.`,
+            );
           }
         }
       }
@@ -593,50 +1525,156 @@ const selectVariantColor = (paletteKey) => {
 
     // If variations are enabled, validate sub-products
     if (itemClass === "fashion" && hasVariations) {
-      if (subProducts.length === 0) {
-        toast.error("Please add at least one sub-product.");
-        return;
+      if (subProductsForSubmit.length === 0) {
+        return reportValidationError(
+          "variants",
+          "Add at least one product variation.",
+        );
       }
 
       // Validate each sub-product
-      for (const [index, subProduct] of subProducts.entries()) {
+      for (const [index, subProduct] of subProductsForSubmit.entries()) {
         if (
           subProduct.images.length === 0 ||
           !subProduct.size ||
           !subProduct.color ||
           !subProduct.stock
         ) {
-          toast.error(
-            `Please complete all fields for sub-product ${index + 1}.`
+          return reportValidationError(
+            "variants",
+            `Complete all fields for variation ${index + 1}.`,
           );
-          return;
         }
       }
     }
 
+    if (!productCondition) {
+      return reportValidationError("condition", "Select the item condition.");
+    }
+    if (
+      productCondition === "defect" &&
+      !productDefectDescription.trim()
+    ) {
+      return reportValidationError(
+        "defect",
+        "Describe the defect so buyers know exactly what to expect.",
+      );
+    }
+    if (!productDescription.trim()) {
+      return reportValidationError(
+        "description",
+        "Add a useful product description.",
+      );
+    }
+    if (
+      !parcelRecommendation ||
+      !isParcelSizeSelectionSafe(parcelSize, parcelRecommendation)
+    ) {
+      return reportValidationError(
+        "parcel-size",
+        "Choose a safe packed parcel size for this item.",
+      );
+    }
+
+    // State updates alone do not close the tiny window between two rapid taps.
+    // This synchronous lock guarantees one product ID and one commit per submit.
+    if (publishLockRef.current) return;
+    publishLockRef.current = true;
     setIsLoading(true);
+    const totalImagesToUpload =
+      productImages.length +
+      subProductsForSubmit.reduce(
+        (total, subProduct) => total + (subProduct.images?.length || 0),
+        0,
+      );
+    setIsUploadingImage(true);
+    setImageTask({
+      phase: "uploading",
+      current: totalImagesToUpload > 0 ? 1 : 0,
+      total: totalImagesToUpload,
+      percent: 0,
+    });
+
+    const vendorDocRef = doc(db, "vendors", vendorId);
+    const newProductRef = doc(collection(db, "products"));
+    let uploadedStorageRefs = [];
+    let coreCommitted = false;
 
     try {
-      // Upload main product images
-      const imageUrls = [];
-      for (const imageObj of productImages) {
-        const imageFile = imageObj.file || imageObj; // fallback if structure is mixed
-        if (!imageFile || !imageFile.name) {
-          console.error("Image file or filename is missing:", imageFile);
-          toast.error("One of the images is missing a filename.");
-          continue; // Skip this image
+      let vendorData = vendorProfile;
+      if (!vendorData?.shopName) {
+        const vendorDoc = await getDoc(vendorDocRef);
+        if (!vendorDoc.exists()) {
+          throw new Error("Your store profile could not be found.");
         }
-        const storageRef = ref(
-          storage,
-          `${vendorId}/products/${productName}/${imageFile.name}`
-        );
-        await uploadBytes(storageRef, imageFile);
-        const imageUrl = await getDownloadURL(storageRef);
-        console.log("Uploaded Image URL:", imageUrl); // Log to confirm
-        imageUrls.push(imageUrl);
+        vendorData = vendorDoc.data();
+        setVendorProfile(vendorData);
       }
-      const isFashion = itemClass === "fashion"; // boolean flag
-      // First image is the cover image
+
+      const uploadEntries = [];
+      productImages.forEach((image, index) => {
+        const imageFile = image?.file || image;
+        if (!(imageFile instanceof Blob) || !imageFile.name) {
+          throw new Error(`Product image ${index + 1} is no longer available.`);
+        }
+        uploadEntries.push({
+          key: `main:${index}`,
+          file: imageFile,
+          path: `${vendorId}/products/${newProductRef.id}/image-${index + 1}-${safeStorageFileName(imageFile.name)}`,
+        });
+      });
+
+      subProductsForSubmit.forEach((subProduct, subProductIndex) => {
+        (subProduct.images || []).forEach((image, imageIndex) => {
+          const imageFile = image?.file || image;
+          if (!(imageFile instanceof Blob) || !imageFile.name) {
+            throw new Error(
+              `Variation ${subProductIndex + 1}, image ${imageIndex + 1} is no longer available.`,
+            );
+          }
+          uploadEntries.push({
+            key: `sub:${subProductIndex}:${imageIndex}`,
+            file: imageFile,
+            path: `${vendorId}/products/${newProductRef.id}/subProducts/${subProduct.subProductId}/image-${imageIndex + 1}-${safeStorageFileName(imageFile.name)}`,
+          });
+        });
+      });
+
+      const uploadStartedAt = performance.now();
+      const uploadedImages = await uploadProductImageBatch({
+        storage,
+        entries: uploadEntries,
+        concurrency: 2,
+        onProgress: ({ percent, completed }) => {
+          setImageTask({
+            phase: "uploading",
+            current: Math.min(
+              totalImagesToUpload,
+              Math.max(1, completed + 1),
+            ),
+            total: totalImagesToUpload,
+            percent,
+          });
+        },
+      });
+      uploadedStorageRefs = uploadedImages.map((image) => image.storageRef);
+      console.info("[product-publish] image upload completed", {
+        productId: newProductRef.id,
+        imageCount: uploadedImages.length,
+        durationMs: Math.round(performance.now() - uploadStartedAt),
+      });
+
+      const uploadedUrlByKey = new Map(
+        uploadedImages.map((image) => [image.key, image.url]),
+      );
+      const imageUrls = productImages.map((_, index) =>
+        uploadedUrlByKey.get(`main:${index}`),
+      );
+      if (imageUrls.some((url) => !url)) {
+        throw new Error("One or more product images did not finish uploading.");
+      }
+
+      const isFashion = itemClass === "fashion";
       const coverImageUrl = imageUrls[0];
 
       // Prepare variants data
@@ -647,34 +1685,39 @@ const selectVariantColor = (paletteKey) => {
 
       if (isFashion) {
         /* ── VARIANTS ──────────────────────────────────────────── */
-        variantsData = productVariants.flatMap((variant) => {
+        variantsData = variantsForSubmit.flatMap((variant) => {
           const variantColor = variant.color.trim();
           return variant.sizes.map((sizeStock) => {
             const stock = Number(sizeStock.stock || 0);
             totalStockQuantity += stock;
 
+            const sizeRef = createSizeRef(
+              sizeStock.size,
+              selectedProductType?.value,
+              selectedSubType?.value,
+              { source: "forward" },
+            );
             return {
               color: variantColor,
               size: sizeStock.size,
               stock,
+              ...(sizeRef ? { sizeRef } : {}),
             };
           });
         });
 
         /* ── SUB-PRODUCTS  (only when variations are enabled) ─── */
         if (hasVariations) {
-          for (const subProduct of subProducts) {
-            // upload each sub-product image
-            const subProductImageUrls = [];
-            for (const img of subProduct.images) {
-              const imgRef = ref(
-                storage,
-                `${vendorId}/products/${productName}/subProducts/${subProduct.color}_${subProduct.size}/${img.name}`
+          subProductsForSubmit.forEach((subProduct, subProductIndex) => {
+            const subProductImageUrls = (subProduct.images || []).map(
+              (_, imageIndex) =>
+                uploadedUrlByKey.get(`sub:${subProductIndex}:${imageIndex}`),
+            );
+            if (subProductImageUrls.some((url) => !url)) {
+              throw new Error(
+                `Variation ${subProductIndex + 1} did not finish uploading.`,
               );
-              await uploadBytes(imgRef, img);
-              subProductImageUrls.push(await getDownloadURL(imgRef));
             }
-
             const stock = Number(subProduct.stock || 0);
             totalStockQuantity += stock;
 
@@ -685,30 +1728,19 @@ const selectVariantColor = (paletteKey) => {
               stock,
               images: subProductImageUrls,
             });
-          }
+          });
         }
       } else {
         // Everyday items: quantity comes from the simple input field
         totalStockQuantity = Number(stockQuantity);
       }
-
-      // Fetch vendor's data
-      const vendorDocRef = doc(db, "vendors", vendorId);
-      const vendorDoc = await getDoc(vendorDocRef);
-
-      if (!vendorDoc.exists()) {
-        toast.error("Vendor data not found.");
-        console.log("Vendor data not found!");
-        setIsLoading(false);
-        return;
-      }
-      // if (subProducts.length > 0) {
-      //   product.subProducts = subProductsData;
-      // }
-      const vendorData = vendorDoc.data();
-      const vendorCoverImage = vendorData.coverImageUrl || "";
+      setIsUploadingImage(false);
+      setImageTask(null);
 
       const stockQty = isFashion ? totalStockQuantity : Number(stockQuantity);
+      const discountDocRef = discountDetails
+        ? doc(collection(db, "discounts"))
+        : null;
       // Create the product object
       const product = {
         name: productName.trim(),
@@ -721,10 +1753,24 @@ const selectVariantColor = (paletteKey) => {
         vendorName: vendorData.shopName,
         isFashion, // <-- boolean: true = fashion, false = everyday
         stockQuantity: stockQty,
+        stockAlertBaseline: stockQty,
         condition: productCondition,
-        category: category,
+        // Lifestyle listings do not need a gender prompt, but retaining the
+        // neutral value keeps the existing product/search schema compatible.
+        category: isFashion ? category : "all",
         productType: selectedProductType.value,
         subType: selectedSubType.value,
+        parcelProfile: {
+          profileVersion: "listing-parcel-v1",
+          tier: parcelSize,
+          source: parcelSizeSource,
+          recommendedTier: parcelRecommendation.key,
+          confirmedAt: new Date(),
+        },
+        ...(isFashion &&
+          selectedSizingProfile && {
+            sizing: createListingSizingMetadata(selectedSizingProfile),
+          }),
         createdAt: new Date(),
         tags: tags,
         ...(isFashion && { variants: variantsData }),
@@ -736,6 +1782,7 @@ const selectVariantColor = (paletteKey) => {
         published: true,
         isDeleted: false,
         editCount: 0,
+        ...(discountDocRef && { discountId: discountDocRef.id }),
       };
 
       if (discountDetails) {
@@ -745,20 +1792,15 @@ const selectVariantColor = (paletteKey) => {
         product.defectDescription = productDefectDescription.trim();
       }
 
-      // Add the product to the 'products' collection
-      const productsCollectionRef = collection(db, "products");
-      const newProductRef = doc(productsCollectionRef);
-      await setDoc(newProductRef, product);
-
-      // Add the product ID to the vendor's 'productIds' array
-      await updateDoc(vendorDocRef, {
+      const vendorUpdates = {
         productIds: arrayUnion(newProductRef.id),
-      });
+        ...(discountDocRef && { discountIds: arrayUnion(discountDocRef.id) }),
+      };
+      const firestoreBatch = writeBatch(db);
+      firestoreBatch.set(newProductRef, product);
+      firestoreBatch.update(vendorDocRef, vendorUpdates);
+
       if (discountDetails) {
-        const discountsRef = collection(db, "discounts");
-        const discountDocRef = doc(discountsRef);
-        // Build the discount document data (ensure you save numbers as numbers)
-        // Build the discount document data
         const discountData = {
           vendorId,
           type: discountDetails.discountType.startsWith("inApp")
@@ -796,80 +1838,79 @@ const selectVariantColor = (paletteKey) => {
               }
             : {}),
         };
-
-        await setDoc(discountDocRef, discountData);
-        // Update the vendor's discountIds field
-        await updateDoc(vendorDocRef, {
-          discountIds: arrayUnion(discountDocRef.id),
-        });
-        // Optionally, update the product document with a reference to the discount document
-        await updateDoc(newProductRef, {
-          discountId: discountDocRef.id,
-        });
+        firestoreBatch.set(discountDocRef, discountData);
       }
-      // Log activity and notify followers
-      // Log activity when a discount is applied
-      if (discountDetails) {
-        await logActivity(
-          "Added New Product 📦",
-          `You've added ${productName} to your store! You can now view and feature it in your store products section.`,
-          "Product Update"
-        );
-      }
-      // Log activity when a product is added without a discount
-      await logActivity(
-        "Added New Product 📦",
-        `You've added ${productName} to your store! You can now view and feature it in your store products section.`,
-        "Product Update"
-      );
 
-      await notifyFollowers(vendorId, {
-        name: productName,
-        shopName: vendorData.shopName,
-        id: newProductRef.id,
-        price: parseFloat(productPrice),
-        vendorCoverImage: vendorCoverImage,
-        coverImageUrl: coverImageUrl,
+      const commitStartedAt = performance.now();
+      await firestoreBatch.commit();
+      coreCommitted = true;
+      posthog?.capture("product_image_classification_finalized", {
+        analysis_id: imageClassification.analysisId || null,
+        image_suggestion_applied: Boolean(
+          imageClassification.appliedSuggestion,
+        ),
+        suggestion_feedback: imageClassification.feedback || null,
+        final_item_class: itemClass,
+        final_category: isFashion ? category : "all",
+        final_product_type: selectedProductType.value,
+        final_sub_type: selectedSubType.value,
+      });
+      console.info("[product-publish] product committed", {
+        productId: newProductRef.id,
+        durationMs: Math.round(performance.now() - commitStartedAt),
       });
 
+      // Activity is useful but non-critical; it must never hold up publishing.
+      void logActivity(
+        "Added New Product 📦",
+        `You've added ${productName} to your store! You can now view and feature it in your store products section.`,
+        "Product Update",
+      );
+
       // Show success message and reset form
+      rememberCurrentTags();
+      void appHaptics.success();
       toast.success("Product added successfully");
-      // Reset form fields
-      setProductName("");
-      setProductDescription("");
-      setProductPrice("");
-      setProductImages([]);
-      setProductCondition("");
-      setProductDefectDescription("");
-      setCategory("");
-      setSelectedProductType(null);
-      setSelectedSubType(null);
-      setProductVariants([
-        { color: "", sizes: [{ size: "", stock: "", isActive: true }] },
-      ]);
-      setTags([]);
-      setHasVariations(false);
-      setSubProducts([]);
-      setDiscountDetails(null);
-      setRunDiscount(false);
-      closeModal();
+      suppressDraftSaveRef.current = true;
+      clearAddProductDraft(vendorId);
+      void clearAddProductDraftImages(vendorId).catch((error) => {
+        console.warn("[AddProductDraft] Draft images could not be cleared", {
+          code: error?.name || "storage-unavailable",
+        });
+      });
+      latestDraftRef.current = null;
+      resetProductForm();
+      setDraftRestored(false);
+      closeModal({ force: true });
     } catch (error) {
+      if (!coreCommitted) {
+        const refsToDelete = uploadedStorageRefs.length
+          ? uploadedStorageRefs
+          : error?.storageRefs || [];
+        if (refsToDelete.length) {
+          await deleteProductImageRefs(refsToDelete);
+        }
+      }
       console.error("Error adding product: ", error);
+      void appHaptics.error();
       toast.error("Error adding product: " + error.message);
     } finally {
+      publishLockRef.current = false;
       setIsLoading(false);
+      setIsUploadingImage(false);
+      setImageTask(null);
     }
   };
-  const handleImageUpload = (e) => {
-    const loadingToastId = toast.loading("Uploading image(s)...");
-    let files = Array.from(e.target.files || []);
+  const handleImageUpload = async (event) => {
+    const input = event.currentTarget;
+    let files = Array.from(input.files || []);
+    if (!files.length) return;
 
     // How many more we can take
     const remaining = Math.max(0, MAX_IMAGES - productImages.length);
     if (remaining <= 0) {
-      toast.dismiss(loadingToastId);
       toast.error(`You can only upload a maximum of ${MAX_IMAGES} images.`);
-      e.target.value = "";
+      input.value = "";
       return;
     }
 
@@ -884,61 +1925,291 @@ const selectVariantColor = (paletteKey) => {
       files = files.slice(0, remaining);
     }
 
-    let added = 0;
+    // Reset the native input before expensive work so Android/iOS can dismiss
+    // the picker immediately and the same files remain selectable later.
+    input.value = "";
+    const shouldAnalyzeCover = productImages.length === 0;
+    const pendingImages = files.map((file) => ({
+      ...createProductImagePreview(file),
+      id: createLocalImageId(),
+      status: "preparing",
+    }));
+    setProductImages((previous) =>
+      [...previous, ...pendingImages].slice(0, MAX_IMAGES),
+    );
+    setIsPreparingImages(true);
+    setImageTask({ phase: "optimizing", current: 1, total: files.length });
+    await waitForPickerDismissal();
 
-    for (const file of files) {
-      try {
-        if (!file.type?.startsWith("image/")) {
-          toast.error(`${file.name} is not a valid image file.`);
-          continue;
-        }
-        if (file.size > MAX_FILE_SIZE) {
-          toast.error(`${file.name} exceeds the maximum file size of 3MB.`);
-          continue;
-        }
-
-        const preview = URL.createObjectURL(file);
-
-        // Safely append without exceeding MAX_IMAGES even under rapid adds
-        setProductImages((prev) => {
-          if (prev.length >= MAX_IMAGES) return prev;
-          added += 1;
-          return [...prev, { file, preview }];
+    let acceptedCount = 0;
+    let analysisStarted = false;
+    try {
+      for (const [index, file] of files.entries()) {
+        const pending = pendingImages[index];
+        setImageTask({
+          phase: "optimizing",
+          current: index + 1,
+          total: files.length,
         });
-      } catch (err) {
-        console.error("Upload error:", err);
-        toast.error(`Image upload failed for ${file.name}`);
+
+        try {
+          const prepared = await prepareProductImage(file);
+          const readyImage = {
+            ...createProductImagePreview(prepared.file),
+            id: pending.id,
+            status: "ready",
+            originalBytes: prepared.originalBytes,
+            storedBytes: prepared.storedBytes,
+            wasOptimized: prepared.wasOptimized,
+          };
+          URL.revokeObjectURL(pending.preview);
+          setProductImages((current) =>
+            current.map((image) =>
+              image?.id === pending.id ? readyImage : image,
+            ),
+          );
+          acceptedCount += 1;
+          if (shouldAnalyzeCover && !analysisStarted) {
+            analysisStarted = true;
+            void analyzeFirstProductImage(prepared.file);
+          }
+        } catch (error) {
+          URL.revokeObjectURL(pending.preview);
+          setProductImages((current) =>
+            current.filter((image) => image?.id !== pending.id),
+          );
+          console.error("Image preparation error:", error);
+          toast.error(error.message || `${file.name} could not be prepared.`);
+        }
       }
-    }
 
-    toast.dismiss(loadingToastId);
-    if (added > 0) {
-      toast.success(`${added} image${added > 1 ? "s" : ""} added`);
-    } else {
-      toast.error("No images were added.");
-    }
+      if (acceptedCount) {
+        setProductImages((current) => {
+          const next = current.filter((image) => image?.status !== "preparing");
+          if (
+            restoredImageCountRef.current > 0 &&
+            next.length >= restoredImageCountRef.current
+          ) {
+            setDraftRequiresImages(false);
+            restoredImageCountRef.current = 0;
+          }
+          return next;
+        });
+        clearValidationError("images");
+      }
 
-    // Allow picking the same files again next time
-    e.target.value = "";
+      const added = acceptedCount;
+      if (added > 0) {
+        void appHaptics.success();
+        toast.success(`${added} image${added > 1 ? "s" : ""} added`);
+      } else {
+        void appHaptics.warning();
+        toast.error("No images were added.");
+      }
+    } finally {
+      setIsPreparingImages(false);
+      setImageTask(null);
+    }
   };
 
   const activeList = itemClass === "fashion" ? productTypes : everydayType;
-  const productTypeOptions = activeList.map((item) => ({
-    label: item.type,
-    value: item.type,
-    subTypes: item.subTypes,
-  }));
+  const productTypeOptions = React.useMemo(
+    () => buildProductTypePickerOptions(activeList, itemClass),
+    [activeList, itemClass],
+  );
+  const handleClassificationChange = ({
+    category: nextCategory,
+    productTypeValue,
+    subTypeValue,
+    itemClass: requestedItemClass = itemClass,
+    allowIncompleteSubType = false,
+    source = "manual",
+  }) => {
+    const nextItemClass =
+      requestedItemClass === "everyday" ? "everyday" : "fashion";
+    const nextTypeOptions = buildProductTypePickerOptions(
+      nextItemClass === "fashion" ? productTypes : everydayType,
+      nextItemClass,
+    );
+    const nextType = nextTypeOptions.find(
+      (option) => option.value === productTypeValue,
+    );
+    if (!nextType) return false;
 
-  const handleColorChange = (index, value) => {
-    const updatedVariants = [...productVariants];
-    updatedVariants[index].color = value;
-    setProductVariants(updatedVariants);
+    const nextSubTypeOptions = (nextType.subTypes || [])
+      .map((subType) => {
+        const value =
+          typeof subType === "string"
+            ? subType
+            : String(subType?.name || subType?.value || "");
+        return value ? { label: value, value } : null;
+      })
+      .filter(Boolean);
+    const nextSubType = subTypeValue
+      ? nextSubTypeOptions.find((option) => option.value === subTypeValue)
+      : null;
+
+    // A selector with subtype choices must never commit only its first two
+    // stages. This guard prevents incomplete classifications at the boundary.
+    if (
+      nextSubTypeOptions.length &&
+      !nextSubType &&
+      !allowIncompleteSubType
+    ) {
+      return false;
+    }
+
+    let normalizedCategory =
+      nextItemClass === "fashion" ? nextCategory || "" : "all";
+    if (
+      nextItemClass === "fashion" &&
+      normalizedCategory &&
+      !filterProductTypeOptionsForAudience(
+        nextTypeOptions,
+        normalizedCategory,
+        nextItemClass,
+      ).some((option) => option.value === nextType.value)
+    ) {
+      // Keep the useful type suggestion, but never infer an audience/type
+      // combination that the existing catalogue selector would prohibit.
+      normalizedCategory = "";
+    }
+    const itemClassChanged = nextItemClass !== itemClass;
+    const taxonomyChanged =
+      itemClassChanged ||
+      nextType.value !== selectedProductType?.value ||
+      (nextSubType?.value || "") !== (selectedSubType?.value || "");
+    if (itemClassChanged) {
+      if (
+        hasVariantSizingDraft() &&
+        !window.confirm(
+          "Changing the item class requires you to reselect variant sizes and stock. Continue?",
+        )
+      ) {
+        return false;
+      }
+      // Match the established manual item-class change behaviour so variants
+      // from one catalogue can never leak into the other.
+      resetSizesForNewTaxonomy();
+    } else if (taxonomyChanged) {
+      const origin = sizeTaxonomyOriginRef.current || {
+        type: selectedProductType?.value,
+        subType: selectedSubType?.value,
+      };
+      if (
+        !confirmIncompatibleSizeReset({
+          nextType: nextType.value,
+          nextSubType: nextSubType?.value || "",
+          fromType: origin.type,
+          fromSubType: origin.subType,
+        })
+      ) {
+        return false;
+      }
+    }
+
+    sizeTaxonomyOriginRef.current = null;
+    setItemClass(nextItemClass);
+    if (nextItemClass === "everyday") setHasVariations(false);
+    setCategory(normalizedCategory);
+    setSelectedProductType(nextType);
+    setSelectedSubType(nextSubType);
+    clearValidationError("category");
+    clearValidationError("product-type");
+    clearValidationError("sub-type");
+    if (source === "manual") {
+      markClassificationManual(["productType", "subType"]);
+    }
+    return true;
   };
+
+  const recordProductImageSuggestionFeedback = (feedback) => {
+    setImageClassification((current) => ({ ...current, feedback }));
+    posthog?.capture("product_image_classification_feedback", {
+      analysis_id: imageClassification.analysisId || null,
+      feedback,
+      suggested_item_class:
+        imageClassification.appliedSuggestion?.itemClass || null,
+      suggested_product_type:
+        imageClassification.appliedSuggestion?.productType || null,
+      suggested_sub_type:
+        imageClassification.appliedSuggestion?.subType || null,
+      final_item_class: itemClass,
+      final_product_type: selectedProductType?.value || null,
+      final_sub_type: selectedSubType?.value || null,
+    });
+  };
+  const contextualTagSuggestions = React.useMemo(() => {
+    const productNameWords = productName
+      .split(/[^a-zA-Z0-9]+/)
+      .map(cleanTag)
+      .filter(
+        (word) =>
+          word.length >= 3 && !TAG_STOP_WORDS.has(word.toLowerCase()),
+      );
+    const colourTags = productVariants
+      .map((variant) => colorLabelMap.get(variant.color))
+      .filter(Boolean);
+    const candidates = [
+      selectedProductType?.label,
+      selectedSubType?.label,
+      category && category !== "all" ? category : "",
+      productCondition === "brand new"
+        ? "Brand New"
+        : productCondition === "thrift"
+          ? "Thrifted"
+          : productCondition,
+      ...colourTags,
+      ...productNameWords,
+      discountDetails ? "On Sale" : "",
+      "New Arrival",
+      ...(imageClassification.tagSuggestions || []),
+      ...learnedTags,
+    ];
+    const selected = new Set(tags.map((tag) => tag.toLowerCase()));
+    const seen = new Set();
+
+    return candidates
+      .map(titleCaseTag)
+      .filter((tag) => {
+        const key = tag.toLowerCase();
+        if (!tag || selected.has(key) || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 14);
+  }, [
+    category,
+    colorLabelMap,
+    discountDetails,
+    imageClassification.tagSuggestions,
+    learnedTags,
+    productCondition,
+    productName,
+    productVariants,
+    selectedProductType?.label,
+    selectedSubType?.label,
+    tags,
+  ]);
+  const selectedSizeSystemLabel = getSizeSystemLabel(
+    selectedProductType?.value,
+    selectedSubType?.value,
+  );
+  const selectedSizingFieldLabel = selectedSizingProfile?.fieldLabel || "Size";
 
   // Handle size and stock changes
   const handleSizeStockChange = (colorIndex, sizeIndex, field, value) => {
     const updatedVariants = [...productVariants];
-    updatedVariants[colorIndex].sizes[sizeIndex][field] = value;
+    const current = updatedVariants[colorIndex].sizes[sizeIndex];
+    updatedVariants[colorIndex].sizes[sizeIndex] = { ...current, [field]: value };
+    if (field === "size") {
+      updatedVariants[colorIndex].sizes[sizeIndex].sizeRef = createSizeRef(
+        value,
+        selectedProductType?.value,
+        selectedSubType?.value,
+        { source: "forward" },
+      );
+    }
     setProductVariants(updatedVariants);
   };
 
@@ -950,18 +2221,6 @@ const selectVariantColor = (paletteKey) => {
 
     setProductVariants(updatedVariants);
   };
-  const handleVariationChange = (value) => {
-    setHasVariations(value);
-    if (!value) {
-      setSubProducts([]);
-    }
-  };
-
-  // Function to handle opening the SubProduct modal
-  const openSubProductModal = () => {
-    setShowSubProductModal(true);
-  };
-
   // Handle closing of the sub-product modal
   const closeSubProductModal = (isCancelled = false) => {
     setShowSubProductModal(false);
@@ -994,42 +2253,6 @@ const selectVariantColor = (paletteKey) => {
     }
   };
 
-  const generateDescription = async () => {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_AI;
-    setIsGeneratingDescription(true);
-
-    try {
-      // collect colours and sizes from the variants UI
-      const colours = productVariants
-        .map((v) => v.color.trim())
-        .filter(Boolean); // e.g. ["Black", "Wine"]
-
-      const sizes = productVariants
-        .flatMap((v) => v.sizes.map((s) => s.size))
-        .filter(Boolean); // e.g. ["M", "L"]
-
-      const payload = {
-        name: productName.trim(),
-        category,
-        productType: selectedProductType?.value || "",
-        subType: selectedSubType?.value || "",
-        colours, // ← array, not stock counts
-        sizes, // ← array, not stock counts
-        price: parseFloat(productPrice),
-        condition: productCondition, // brand new / thrift / defect
-        discount: discountDetails ?? null, // include only when set
-      };
-
-      const { data } = await axios.post(`${API_BASE_URL}/description`, payload);
-      setProductDescription(data.description);
-    } catch (err) {
-      console.error("Error generating description:", err);
-      toast.error("Couldn’t generate description 😕");
-    } finally {
-      setIsGeneratingDescription(false);
-    }
-  };
-
   const formatToCurrency = (value) => {
     // Ensure the input is always treated as cents and formatted accordingly
     let numericValue = value.replace(/\D/g, ""); // Remove non-digit characters
@@ -1041,309 +2264,214 @@ const selectVariantColor = (paletteKey) => {
     let inputValue = e.target.value;
     const formattedPrice = formatToCurrency(inputValue);
     setProductPrice(formattedPrice);
+    clearValidationError("price");
   };
 
-  const handleCategoryChange = (e) => {
-    setCategory(e.target.value);
+  const handleCategoryChange = (value) => {
+    setCategory(value);
+    clearValidationError("category");
   };
 
-  const highlightField = (field) => {
-    return field ? "" : "border-red-500";
+  const handleItemClassChange = (mode) => {
+    if (mode === itemClass) return;
+    if (
+      hasVariantSizingDraft() &&
+      !window.confirm(
+        "Changing the item class requires you to reselect variant sizes and stock. Continue?",
+      )
+    ) {
+      return;
+    }
+    resetSizesForNewTaxonomy();
+    void appHaptics.selection();
+    setItemClass(mode);
+    if (mode === "everyday") {
+      setHasVariations(false);
+      setCategory("all");
+    } else {
+      setCategory("");
+    }
+    setSelectedProductType(null);
+    setSelectedSubType(null);
+    clearValidationError("product-type");
+    clearValidationError("sub-type");
   };
-
-  // Console log for tracking the product variations toggle
 
   return (
     <div className="flex flex-col max-h-full  h-full bg-white">
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide px-2 pb-10 space-y-6">
-        {isUploadingImage && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-            <RotatingLines
-              strokeColor="white"
-              strokeWidth="5"
-              animationDuration="0.75"
-              width="96"
-              visible={true}
-            />
-          </div>
-        )}
-        <div className="mb-4">
-          <h3 className="text-md font-semibold mb-2 font-opensans text-black flex items-center">
-            <TiCameraOutline className="w-5 h-5 mr-2 text-xl font-medium text-black" />
-            Upload Image
-          </h3>
+      <div
+        ref={formScrollContainerRef}
+        className="flex-1 min-h-0 overflow-y-auto scrollbar-hide px-2 pb-10 space-y-6"
+      >
+        <ProductPublishProgress
+          active={isPreparingImages || isUploadingImage}
+          imageTask={imageTask}
+        />
+        <AddProductDraftNotice
+          visible={draftRestored}
+          requiresImages={draftRequiresImages}
+          onDiscard={discardSavedDraft}
+        />
+        <ProductImagesSection
+          images={productImages}
+          currentIndex={currentImageIndex}
+          carouselRef={scrollContainerRef}
+          disabled={isPreparingImages || isUploadingImage}
+          invalid={invalidField === "images"}
+          maxImages={MAX_IMAGES}
+          onScroll={handleScroll}
+          onRemove={handleRemoveImage}
+          onDotClick={handleDotClick}
+          onUpload={handleImageUpload}
+          onPick={() => {
+            if (isPreparingImages || isUploadingImage) return;
+            void appHaptics.selection();
+            const inputId = productImages.length
+              ? "imageUpload"
+              : "coverFileInput";
+            document.getElementById(inputId)?.click();
+          }}
+        />
 
-          <div className="flex flex-col items-center">
-            <div
-              ref={scrollContainerRef}
-              className="relative w-full h-80 flex overflow-x-scroll snap-x snap-mandatory space-x-4"
-              style={{ scrollBehavior: "smooth" }}
-              onScroll={handleScroll}
-            >
-              {productImages.length > 0 ? (
-                productImages.map((image, index) => {
-                  const src =
-                    image.preview ??
-                    (image instanceof File
-                      ? URL.createObjectURL(image)
-                      : image);
+        <ProductClassificationSuggestion
+          suggestion={imageClassification.appliedSuggestion}
+          feedback={imageClassification.feedback}
+          onFeedback={recordProductImageSuggestionFeedback}
+        />
 
-                  return (
-                    <div
-                      key={index}
-                      className={`relative flex-shrink-0 w-full h-full border-2 border-dashed border-customBrown border-opacity-30 rounded-md snap-center ${
-                        index === currentImageIndex
-                          ? "opacity-100"
-                          : "opacity-65"
-                      } transition-opacity duration-300`}
-                    >
-                      <img
-                        src={src}
-                        alt={`Product ${index + 1}`}
-                        className="w-full h-full object-cover rounded-md"
-                      />
-                      <button
-                        type="button"
-                        className="absolute top-2 right-2 bg-customBrown text-white rounded-full p-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveImage(index);
-                        }}
-                      >
-                        <GoTrash className="h-4 w-4 text-white" />
-                      </button>
-                    </div>
-                  );
-                })
-              ) : (
-                <div
-                  className="w-full h-full border-opacity-30 border-2 border-dashed border-customBrown rounded-md flex items-center flex-col justify-center cursor-pointer"
-                  onClick={() =>
-                    document.getElementById("coverFileInput").click()
-                  }
-                >
-                  <BiSolidImageAdd className="h-16 w-16 text-customOrange opacity-20" />
-                  <h2 className="font-opensans px-10 text-center font-light text-xs text-customOrange opacity-90">
-                    Upload product image here. Image must not be more than 3MB
-                  </h2>
-                </div>
-              )}
-
-              <input
-                id="coverFileInput"
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                multiple
-                className="hidden"
-              />
-            </div>
-          </div>
-
-          {/* Carousel Dots (only shown when there are multiple images) */}
-          {productImages.length > 1 && (
-            <div className="flex justify-center mt-2">
-              {productImages.map((_, index) => (
-                <div
-                  key={index}
-                  className={`cursor-pointer mx-0.5 rounded-full transition-all duration-300 ${
-                    index === currentImageIndex
-                      ? "bg-customOrange h-2.5 w-2.5"
-                      : "bg-orange-300 h-2 w-2"
-                  }`}
-                  onClick={() => handleDotClick(index)}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Add another image button */}
-          <div className="flex justify-end mt-2">
-            {productImages.length < 4 && (
-              <button
-                onClick={() => document.getElementById("imageUpload").click()}
-                className="flex items-center font-semibold text-customOrange"
-              >
-                <FiPlus className="text-xl" />
-                <span className="ml-1 font-opensans text-sm">
-                  Add Another Image
-                </span>
-              </button>
-            )}
-            <input
-              id="imageUpload"
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleImageUpload}
-              className="hidden"
-            />
-          </div>
-        </div>
-
-        <div
-          className="w-full max-w-md mx-auto flex justify-between items-center
-                rounded-full bg-gray-200 px-1 py-1 mb-6"
-        >
-          {["fashion", "everyday"].map((mode) => {
-            const active = itemClass === mode;
-            return (
-              <button
-                key={mode}
-                onClick={() => {
-                  setItemClass(mode);
-
-                  // when switching to everyday we also clear variations
-                  if (mode === "everyday") setHasVariations(false);
-
-                  // reset dropdowns
-                  setSelectedProductType(null);
-                  setSelectedSubType(null);
-                }}
-                className={[
-                  "w-1/2 py-2 rounded-full text-xs  font-opensans font-semibold",
-                  "transition-all duration-200",
-                  active ? "bg-white text-customOrange" : "text-gray-800",
-                ].join(" ")}
-              >
-                {mode === "fashion" ? "Fashion / Wardrobe" : "Lifestyle Items"}
-              </button>
+        <ProductClassificationFields
+          itemClass={itemClass}
+          onItemClassChange={(mode) => {
+            markClassificationManual([
+              "itemClass",
+              "category",
+              "productType",
+              "subType",
+            ]);
+            handleItemClassChange(mode);
+          }}
+          productName={productName}
+          onProductNameChange={(value) => {
+            setProductName(value);
+            clearValidationError("name");
+          }}
+          category={category}
+          onCategoryChange={(value) => {
+            markClassificationManual(["category"]);
+            handleCategoryChange(value);
+          }}
+          productTypeOptions={productTypeOptions}
+          selectedProductType={selectedProductType}
+          onProductTypeChange={(value) => {
+            const selectedOption = productTypeOptions.find(
+              (option) => option.value === value,
             );
-          })}
-        </div>
-        <div className="mb-4">
-          <label className="font-opensans font-medium mb-1 text-sm text-black">
-            Product Name
-          </label>
-          <input
-            type="text"
-            value={productName}
-            onChange={(e) => setProductName(e.target.value)}
-            className="w-full h-12 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="font-opensans font-medium mb-1 text-sm text-black">
-            Product Category
-          </label>
-          <select
-            value={category}
-            onChange={handleCategoryChange}
-            className="w-full h-12 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-black font-opensans text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange"
-            style={{
-              backgroundImage:
-                "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 01 1.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0l-5.015-5.015a.75.75 0 01-1.06-1.06z%22 /></svg>')",
-              backgroundPosition: "right 1rem center",
-              backgroundRepeat: "no-repeat",
-              backgroundSize: "1rem",
-            }}
-            required
-          >
-            <option value="">Select Category</option>
-            <option value="Mens">Men</option>
-            <option value="Womens">Women</option>
-            <option value="Kids">Kids</option>
-            <option value="all">All</option>
-          </select>
-        </div>
-
-        <div className="mb-4">
-          <label className="font-opensans font-medium mb-1 text-sm text-black ">
-            Product Type
-          </label>
-          <Select
-            options={productTypeOptions}
-            value={selectedProductType}
-            onChange={handleProductTypeChange}
-            className="w-full font-opensans text-sm"
-            classNamePrefix="custom-select"
-            placeholder="Select Product Type"
-            isSearchable
-            styles={{
-              control: (provided) => ({
-                ...provided,
-                height: "3rem", // h-12 equivalent
-                borderColor: "#D1D5DB", // Equivalent to border-gray-300
-                borderRadius: "0.5rem", // Equivalent to rounded-lg
-                fontFamily: "Open Sans, sans-serif", // Equivalent to font-opensans
-                fontSize: "1rem", // Equivalent to text-sm
-                color: "black", // Equivalent to text-black
-                paddingLeft: "0.75rem", // px-4
-              }),
-              input: (provided) => ({
-                ...provided,
-                fontFamily: "Open Sans, sans-serif",
-                fontSize: "1rem",
-                color: "black",
-              }),
-              placeholder: (provided) => ({
-                ...provided,
-                fontFamily: "Open Sans, sans-serif",
-                fontSize: "1rem",
-                color: "#6B7280", // Equivalent to text-gray-500
-              }),
-            }}
-          />
-        </div>
-
-        {/* Sub Type Select */}
-        {selectedProductType && (
-          <div className="mb-4">
-            <label className="font-opensans mb-1 text-sm text-black block">
-              Sub Type
-            </label>
-            <Select
-              options={selectedProductType?.subTypes.map(
-                (subType) =>
-                  typeof subType === "string"
-                    ? { label: subType, value: subType } // Handle string subType
-                    : { label: subType.name, value: subType.name } // Handle object subType
-              )}
-              value={selectedSubType}
-              onChange={setSelectedSubType}
-              className="w-full font-opensans text-sm "
-              classNamePrefix="custom-select"
-              placeholder="Select Sub Type"
-              isSearchable
-              styles={{
-                control: (provided) => ({
-                  ...provided,
-                  height: "3rem",
-                  borderColor: "#D1D5DB",
-                  borderRadius: "0.5rem",
-                  fontFamily: "Open Sans, sans-serif",
-                  fontSize: "1rem",
-                  color: "black",
-                  paddingLeft: "0.75rem",
-                }),
-                input: (provided) => ({
-                  ...provided,
-                  fontFamily: "Open Sans, sans-serif",
-                  fontSize: "1rem",
-                  color: "black",
-                }),
-                placeholder: (provided) => ({
-                  ...provided,
-                  fontFamily: "Open Sans, sans-serif",
-                  fontSize: "1rem",
-                  color: "#6B7280",
-                }),
-              }}
-            />
-          </div>
-        )}
+            if (selectedOption?.value === selectedProductType?.value) {
+              clearValidationError("product-type");
+              return true;
+            }
+            const accepted = handleProductTypeChange(selectedOption || null);
+            if (accepted) {
+              markClassificationManual(["productType", "subType"]);
+              clearValidationError("product-type");
+            }
+            return accepted;
+          }}
+          subTypeOptions={subTypeOptions}
+          selectedSubType={selectedSubType}
+          onSubTypeChange={(value) => {
+            const selectedOption = subTypeOptions.find(
+              (option) => option.value === value,
+            );
+            handleProductSubTypeChange(selectedOption || null);
+            if (selectedOption) {
+              markClassificationManual(["subType"]);
+              clearValidationError("sub-type");
+            }
+          }}
+          onClassificationChange={handleClassificationChange}
+          invalidField={invalidField}
+          analysisStatus={imageClassification.status}
+          aiSuggestedFields={imageClassification.aiSuggestedFields}
+        />
         {itemClass === "fashion" && (
-          <div className="mb-4">
+          <div data-add-product-field="variants" className="mb-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-satoshi text-sm font-semibold text-gray-950">
+                Product options
+              </h3>
+              <button
+                type="button"
+                onClick={openInfoModal}
+                className="flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-gray-600 active:bg-gray-100"
+                aria-label="How product options work"
+              >
+                <LuBadgeInfo className="h-4 w-4 text-customOrange" />
+                How it works
+              </button>
+            </div>
+            {isNoSizeProfile && (
+              <p className="mb-3 text-xs font-satoshi text-gray-600">
+                This category does not need a size. Add stock for each colour.
+              </p>
+            )}
+            {showVariantPhotoWarning && (
+              <aside
+                className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 font-satoshi"
+                aria-label="Product photo and option reminder"
+              >
+                <div className="flex items-start gap-2.5">
+                  <LuBadgeInfo className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-amber-950">
+                      Multiple photos, one option?
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-amber-900/80">
+                      We noticed you added 3 or more photos but only one colour
+                      option. If these are different views of the same item,
+                      you’re all set. If they show other colours or options,
+                      add each one below so buyers see accurate availability.
+                    </p>
+                    <label className="mt-2.5 flex items-center gap-2 text-xs font-medium text-amber-950">
+                      <input
+                        type="checkbox"
+                        checked={neverShowVariantPhotoTipAgain}
+                        onChange={(event) => {
+                          setNeverShowVariantPhotoTipAgain(event.target.checked);
+                          void appHaptics.selection();
+                        }}
+                        className="h-4 w-4 accent-customOrange"
+                      />
+                      Don’t show this reminder again
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={dismissVariantPhotoTip}
+                    aria-label="Dismiss product option reminder"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-amber-900 active:bg-amber-100"
+                  >
+                    <FiX className="h-4 w-4" />
+                  </button>
+                </div>
+              </aside>
+            )}
             {productVariants.map((variant, colorIndex) => (
-              <div key={colorIndex} className="mb-4 relative">
-                <label className="block text-black mb-1 font-opensans text-sm">
+              <div
+                key={colorIndex}
+                data-add-product-field={`variant-color-${colorIndex}`}
+                className="mb-4 relative"
+              >
+                <label className="block text-black mb-1 font-satoshi text-sm font-semibold">
                   Color
                 </label>
 <button
   type="button"
   onClick={() => openColorSheet(colorIndex)}
-  className="w-full h-12 px-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange flex items-center justify-between"
+  aria-invalid={invalidField === `variant-color-${colorIndex}`}
+  className={`w-full h-12 px-3 border-2 font-satoshi text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange flex items-center justify-between ${
+    invalidField === `variant-color-${colorIndex}` ? "border-red-500" : ""
+  }`}
 >
   <div className="flex items-center gap-3">
     <div
@@ -1379,7 +2507,7 @@ const selectVariantColor = (paletteKey) => {
                   return (
                     <div key={sizeIndex} className="relative mt-2">
                       {/* Remove size button (only for additional sizes) */}
-                      {sizeIndex > 0 && (
+                      {!isNoSizeProfile && sizeIndex > 0 && (
                         <button
                           type="button"
                           onClick={() => removeSize(colorIndex, sizeIndex)}
@@ -1388,71 +2516,59 @@ const selectVariantColor = (paletteKey) => {
                           <GoTrash />
                         </button>
                       )}
-                      <div className="flex space-x-4">
-                        <div className="flex-1 mt-2">
-                          <label className="block text-black mb-1 font-opensans text-sm">
-                            Size
+                      <div className="flex items-stretch space-x-4">
+                        {!isNoSizeProfile && (
+                        <div
+                          data-add-product-field={`variant-size-${colorIndex}-${sizeIndex}`}
+                          className="mt-2 flex min-w-0 flex-1 flex-col"
+                        >
+                          <label className="block text-black mb-1 font-satoshi text-sm font-semibold">
+                            {selectedSizingFieldLabel}{selectedSizeSystemLabel ? ` (${selectedSizeSystemLabel})` : ""}
                           </label>
-                          <Select
-                            options={availableSizeOptions} // Use filtered options
-                            value={{
-                              label: sizeStock.size,
-                              value: sizeStock.size,
-                            }}
-                            onChange={(selectedOption) => {
+                          <NativePickerField
+                            title={`${selectedSizingFieldLabel}${selectedSizeSystemLabel ? ` (${selectedSizeSystemLabel})` : ""}`}
+                            options={availableSizeOptions}
+                            value={sizeStock.size || ""}
+                            onChange={(selectedValue) => {
+                              activateNextSizeInput(colorIndex, sizeIndex);
                               handleSizeStockChange(
                                 colorIndex,
                                 sizeIndex,
                                 "size",
-                                selectedOption.value
+                                selectedValue,
+                              );
+                              clearValidationError(
+                                `variant-size-${colorIndex}-${sizeIndex}`,
                               );
                               if (
                                 sizeIndex === variant.sizes.length - 1 &&
-                                selectedOption.value !== ""
+                                selectedValue !== ""
                               ) {
-                                // Add a new greyed-out input when user selects in the last one
                                 addSizeUnderColor(colorIndex);
                               }
                             }}
-                            onFocus={() =>
-                              activateNextSizeInput(colorIndex, sizeIndex)
-                            }
                             placeholder="Select Size"
-                            isSearchable
-                            className="w-full"
-                            classNamePrefix="custom-select"
-                            styles={{
-                              control: (provided) => ({
-                                ...provided,
-                                height: "3rem",
-                                borderColor: "#D1D5DB",
-                                borderRadius: "0.5rem",
-                                fontFamily: "Open Sans, sans-serif",
-                                fontSize: "1rem",
-                                color: "black",
-                                paddingLeft: "0.75rem",
-                              }),
-                              input: (provided) => ({
-                                ...provided,
-                                fontFamily: "Open Sans, sans-serif",
-                                fontSize: "1rem",
-                                color: "black",
-                              }),
-                              placeholder: (provided) => ({
-                                ...provided,
-                                fontFamily: "Open Sans, sans-serif",
-                                fontSize: "1rem",
-                                color: "#6B7280",
-                              }),
-                            }}
+                            className={`mt-auto h-12 rounded-lg border-2 px-3 font-satoshi text-sm focus:outline-none focus:ring-2 focus:ring-customOrange ${
+                              invalidField ===
+                              `variant-size-${colorIndex}-${sizeIndex}`
+                                ? "border-red-500"
+                                : "border-gray-300"
+                            }`}
                           />
                         </div>
-                        <div className="flex-1 mt-2">
-                          <label className="block text-black mb-1 font-opensans text-sm">
+                        )}
+                        <div
+                          data-add-product-field={`variant-stock-${colorIndex}-${sizeIndex}`}
+                          className="mt-2 flex min-w-0 flex-1 flex-col"
+                        >
+                          <label className="block text-black mb-1 font-satoshi text-sm font-semibold">
                             Stock Quantity
                           </label>
                           <input
                             type="number"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            min={1}
                             value={sizeStock.stock}
                             onChange={(e) => {
                               const stockValue = e.target.value;
@@ -1461,6 +2577,9 @@ const selectVariantColor = (paletteKey) => {
                                 sizeIndex,
                                 "stock",
                                 stockValue
+                              );
+                              clearValidationError(
+                                `variant-stock-${colorIndex}-${sizeIndex}`,
                               );
                             }}
                             onBlur={(e) => {
@@ -1477,9 +2596,18 @@ const selectVariantColor = (paletteKey) => {
                                 );
                               }
                             }}
-                            className={`w-full h-12 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange ${
+                            aria-invalid={
+                              invalidField ===
+                              `variant-stock-${colorIndex}-${sizeIndex}`
+                            }
+                            className={`mt-auto w-full h-12 p-3 border-2 font-satoshi text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange ${
                               !sizeStock.isActive
                                 ? "bg-gray-200 cursor-pointer"
+                                : ""
+                            } ${
+                              invalidField ===
+                              `variant-stock-${colorIndex}-${sizeIndex}`
+                                ? "border-red-500"
                                 : ""
                             }`}
                             required
@@ -1511,7 +2639,7 @@ const selectVariantColor = (paletteKey) => {
               <button
                 type="button"
                 onClick={addNewColor}
-                className="text-customOrange font-opensans text-sm flex items-center"
+                className="text-customOrange font-satoshi text-sm flex items-center"
               >
                 <FiPlus className="text-lg mr-1" />
                 Add Another Option
@@ -1519,262 +2647,92 @@ const selectVariantColor = (paletteKey) => {
             </div>
           </div>
         )}
-        {discountDetails ? (
-          // If discount exists, show discount summary with delete icon
-          <div className="flex items-center justify-between p-2 rounded-lg my-2 bg-gray-50 border border-customRichBrown">
-            <div className="flex items-center">
-              <span className="font-opensans text-sm text-customRichBrown font-semibold">
-                {discountDetails.discountType.startsWith("inApp")
-                  ? "In‑App Discount"
-                  : "Personal Discount"}
-              </span>
-              <span
-                className={`ml-20 font-opensans text-xs px-1 text-center py-1 rounded-md font-semibold ${
-                  discountDetails.discountType.startsWith("inApp") ||
-                  discountDetails.discountType === "personal-monetary"
-                    ? "bg-green-600 text-white"
-                    : "bg-customOrange text-white"
-                }`}
-              >
-                {discountDetails.discountType.startsWith("inApp") ||
-                discountDetails.discountType === "personal-monetary"
-                  ? `${discountDetails.percentageCut}% Off`
-                  : discountDetails.discountType === "personal-freebies"
-                  ? truncateText(discountDetails.freebieText)
-                  : ""}
-              </span>
-            </div>
-            <button
-              onClick={() => {
-                setDiscountDetails(null);
-                setRunDiscount(false);
-              }}
-              title="Remove Discount"
-            >
-              <GoTrash className="text-red-600 text-lg" />
-            </button>
-          </div>
-        ) : (
-          // Otherwise, show the discount option radio buttons
-          <div className="mb-4">
-            <DiscountToggle
-              runDiscount={runDiscount}
-              setRunDiscount={(val) => {
-                setRunDiscount(val);
-                if (val) {
-                  openDiscountModal();
-                } else {
-                  setDiscountDetails(null);
-                  setIsDiscountModalOpen(false);
-                }
-              }}
-              discountDetails={discountDetails}
-              onClearDiscount={() => {
-                setRunDiscount(false);
-                setDiscountDetails(null);
-                setIsDiscountModalOpen(false);
-                setIsPriceDisabled(false);
-                setProductPrice(""); // reset if needed
-              }}
-            />
-          </div>
-        )}
+        <ProductPricingFields
+          itemClass={itemClass}
+          discountDetails={discountDetails}
+          runDiscount={runDiscount}
+          productPrice={productPrice}
+          stockQuantity={stockQuantity}
+          priceDisabled={isPriceDisabled}
+          invalidField={invalidField}
+          onRemoveDiscount={() => {
+            void appHaptics.selection();
+            setDiscountDetails(null);
+            setRunDiscount(false);
+            setIsPriceDisabled(false);
+          }}
+          onToggleDiscount={(value) => {
+            setRunDiscount(value);
+            if (value) {
+              openDiscountModal();
+              return;
+            }
+            setDiscountDetails(null);
+            setIsDiscountModalOpen(false);
+            setIsPriceDisabled(false);
+          }}
+          onClearDiscount={() => {
+            setRunDiscount(false);
+            setDiscountDetails(null);
+            setIsDiscountModalOpen(false);
+            setIsPriceDisabled(false);
+            setProductPrice("");
+          }}
+          onPriceChange={handlePriceChange}
+          onStockChange={(event) => {
+            setStockQuantity(event.target.value);
+            clearValidationError("stock");
+          }}
+        />
 
-        <div className="mb-4">
-          <label className="font-opensans font-medium mb-1 text-sm text-black">
-            Product Price
-          </label>
-          <input
-            type="text"
-            value={productPrice}
-            onChange={handlePriceChange}
-            disabled={isPriceDisabled}
-            className="w-full h-12 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
-            required
-          />
-          {parseFloat(productPrice) < 300 && productPrice !== "" && (
-            <p className="text-red-500 font-ubuntu text-xs mt-1">
-              Minimum product price is 300 naira.
-            </p>
-          )}
-        </div>
-        {itemClass === "everyday" && (
-          <div className="mb-4">
-            <label className="font-opensans text-sm text-black">
-              Stock Quantity
-            </label>
-            <input
-              type="number"
-              min={1}
-              value={stockQuantity}
-              onChange={(e) => setStockQuantity(e.target.value)}
-              className="w-full h-12 p-3 border-2 rounded-lg focus:border-customOrange"
-              required
-            />
-          </div>
-        )}
+        <ProductDetailsFields
+          condition={productCondition}
+          defectDescription={productDefectDescription}
+          description={productDescription}
+          tags={tags}
+          tagInput={tagInput}
+          tagSuggestions={contextualTagSuggestions}
+          invalidField={invalidField}
+          onConditionChange={(event) => {
+            setProductCondition(event.target.value);
+            clearValidationError("condition");
+          }}
+          onDefectDescriptionChange={(event) => {
+            setProductDefectDescription(event.target.value);
+            clearValidationError("defect");
+          }}
+          onDescriptionChange={(event) => {
+            if (event.target.value.length <= 700) {
+              setProductDescription(event.target.value);
+              clearValidationError("description");
+            }
+          }}
+          onAddTag={addTag}
+          onRemoveTag={removeTag}
+          onTagInputChange={handleTagInputChange}
+          onTagKeyDown={handleTagKeyDown}
+        />
 
-        <div className="mb-4">
-          <label className="font-opensans mb-1 font-medium text-sm text-black">
-            Product Condition
-          </label>
-
-          <select
-            value={productCondition}
-            onChange={(e) => setProductCondition(e.target.value)}
-            className="w-full h-12 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-black font-opensans text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange"
-            style={{
-              backgroundImage:
-                "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 01 1.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0l-5.015-5.015a.75.75 0 01-1.06-1.06z%22 /></svg>')",
-              backgroundPosition: "right 1rem center",
-              backgroundRepeat: "no-repeat",
-              backgroundSize: "1rem",
-            }}
-            required
-          >
-            <option value="">Select Condition</option>
-            <option value="brand new">Brand New</option>
-            <option value="thrift">Thrift</option>
-
-            <option value="defect">Defect</option>
-          </select>
-
-          {productCondition === "defect" && (
-            <div className="mt-4">
-              <label className="block font-medium text-black text-sm font-opensans">
-                Defect Description
-              </label>
-              <input
-                type="text"
-                value={productDefectDescription}
-                onChange={(e) => setProductDefectDescription(e.target.value)}
-                className="w-full h-10 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-black font-opensans text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange"
-                required
-              />
-            </div>
-          )}
-        </div>
+        <ProductParcelEstimateField
+          itemClass={itemClass}
+          productType={selectedProductType?.value}
+          subType={selectedSubType?.value}
+          value={parcelSize}
+          source={parcelSizeSource}
+          invalid={invalidField === "parcel-size"}
+          onChange={(value) => {
+            if (!isParcelSizeSelectionSafe(value, parcelRecommendation)) {
+              void appHaptics.warning();
+              toast.error("Choose a packed parcel size available for this item.");
+              return;
+            }
+            setParcelSize(value);
+            setParcelSizeSource("vendor-confirmed");
+            clearValidationError("parcel-size");
+          }}
+        />
 
 
-  <div className="mb-3">
-          <label className="mb-1 text-black font-medium font-opensans text-sm">
-            Product Description
-          </label>
-          <div
-            className={`relative ${
-              isGeneratingDescription
-                ? "breathing-gradient thinking-border"
-                : ""
-            }`}
-          >
-            <textarea
-              value={productDescription}
-              onChange={(e) => {
-                if (e.target.value.length <= 700)
-                  setProductDescription(e.target.value);
-              }}
-              className="mt-1 block w-full px-4 py-2 border-2 text-sm rounded-lg focus:outline-none focus:border-customOrange font-opensans hover:border-customOrange h-24 resize-none"
-            />
-
-            {/* live counter */}
-            <div className="absolute bottom-2 right-2 font-opensans text-gray-500 text-xs">
-              {productDescription.length}/700
-            </div>
-
-            {/* thinking overlay */}
-            {isGeneratingDescription && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-sm rounded-lg z-20">
-                <p className="text-customOrange font-ubuntu text-sm animate-pulse text-center px-4">
-                  Matilda is thinking…
-                  <br />
-                  getting the right words for you…
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Disclaimer / Pro Tip */}
-          <p className="mt-1.5 text-xs text-customOrange font-opensans font-medium flex items-center">
-            <span className="mr-1.5">🚀</span>
-            Pro Tip: 98% of Products with proper descriptions get sold ASAP!
-          </p>
-
-          {/* <div className="flex justify-end mt-2">
-            <button
-              type="button"
-              onClick={generateDescription}
-              className="px-2 py-2 bg-customOrange text-white rounded-md shadow-sm hover:bg-orange-700 focus:ring focus:ring-orange-600 focus:outline-none flex items-center"
-              disabled={isGeneratingDescription}
-            >
-              {isGeneratingDescription ? (
-                <RotatingLines
-                  strokeColor="white"
-                  strokeWidth="5"
-                  animationDuration="0.75"
-                  width="24"
-                  visible={true}
-                />
-              ) : (
-                <GiRegeneration />
-              )}
-            </button>
-          </div> */}
-        </div>
-        <div className="mb-4">
-          <label className="font-opensans mb-1 text-sm font-medium text-black">
-            Tags
-          </label>
-
-          {/* Suggestions Bar */}
-          <div
-            className="relative overflow-x-auto whitespace-nowrap mb-2 flex space-x-4 no-scrollbar"
-            style={{
-              maxWidth: "100%", // Ensures the container width limits the content for scrolling
-            }}
-          >
-            {[
-              "Jeans",
-              "Tees",
-              "Nike",
-              "Adidas",
-              "Sports",
-              "Discounts",
-              "New Arrival",
-              "Cargos",
-              "Trending",
-              "Limited Edition",
-              
-            ].map((suggestion, index) => (
-              <span
-                key={index}
-                onClick={() => setTags((prev) => [...prev, suggestion])} // Add tag on click
-                className="bg-transparent animate-pulse border border-customOrange font-medium text-customBrown px-4 font-opensans py-1 text-xs rounded-full cursor-pointer hover:bg-orange-600 transition-all whitespace-nowrap"
-              >
-                {suggestion}
-              </span>
-            ))}
-          </div>
-
-          {/* Tag Input */}
-          <div className="flex flex-wrap items-center border-2 border-gray-300 rounded-lg p-2">
-            {tags.map((tag, index) => (
-              <div
-                key={index}
-                className="bg-gray-100 text-xs text-black font-opensans rounded-lg px-2 py-1 mr-2 mb-2"
-              >
-                {tag}
-              </div>
-            ))}
-            <input
-              type="text"
-              value={tagInput}
-              onChange={handleTagInputChange}
-              onKeyDown={handleTagKeyDown}
-              placeholder="Type tag and press comma"
-              className="flex-grow outline-none border-none font-opensans text-sm text-black"
-            />
-          </div>
-        </div>
         {/* {itemClass === "fashion" && (
           <div className="mb-4">
             <VariationsToggle
@@ -1834,19 +2792,76 @@ const selectVariantColor = (paletteKey) => {
   }
   onSelect={selectVariantColor}
 />
+      <AppBottomSheet
+        open={isInfoModalOpen}
+        onClose={closeInfoModal}
+        height="46dvh"
+        ariaLabel="How product options work"
+        compactTop
+        zIndex={5100}
+        surfaceClassName="font-satoshi"
+      >
+        <div className="flex min-h-0 flex-1 flex-col pt-4">
+          <header className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 pb-3">
+            <div>
+              <p className="text-xs font-medium text-customOrange">
+                Listing guide
+              </p>
+              <h2 className="mt-0.5 text-[19px] font-semibold text-gray-950">
+                Product options
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={closeInfoModal}
+              aria-label="Close product options guide"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-900"
+            >
+              <FiX className="h-5 w-5" />
+            </button>
+          </header>
+
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-5 pt-3 text-sm leading-6 text-gray-600">
+            <div>
+              <h3 className="font-semibold text-gray-950">One colour per option</h3>
+              <p>
+                Add another option when the same product is available in a
+                different colour.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-950">Size controls stock</h3>
+              <p>
+                Each size has its own quantity, so customers can only choose an
+                option that is actually available.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-950">Photos are one gallery</h3>
+              <p>
+                Use multiple photos for different views of this listing. If
+                they show other colours, add those colour options too. Unrelated
+                products should be separate listings.
+              </p>
+            </div>
+          </div>
+        </div>
+      </AppBottomSheet>
       <button
         type="button"
         onClick={handleAddProduct}
-        className={`w-full h-12 font-opensans text-lg rounded-full
+        className={`add-product-publish-bar w-full h-12 font-satoshi text-lg rounded-full
           flex items-center justify-center focus:outline-none focus:ring
           ${
-            isLoading || parseFloat(productPrice) < 300
+            isLoading || isPreparingImages || parseFloat(productPrice) < 300
               ? "bg-gray-400 text-gray-200 cursor-not-allowed"
               : discountDetails
               ? "bg-green-600 text-white hover:bg-green-700 focus:ring-green-500"
               : "bg-customOrange text-white hover:bg-customOrange focus:ring-customOrange"
           }`}
-        disabled={isLoading || parseFloat(productPrice) < 300}
+        disabled={
+          isLoading || isPreparingImages || parseFloat(productPrice) < 300
+        }
       >
         {isLoading ? (
           <RotatingLines

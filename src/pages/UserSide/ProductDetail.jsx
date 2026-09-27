@@ -1,4 +1,5 @@
 /* eslint-disable jsx-a11y/img-redundant-alt */
+import { siteUrls } from "../../config/siteUrls.mjs";
 import React, {
   useEffect,
   useState,
@@ -6,31 +7,53 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import {
+  useParams,
+  useNavigate,
+  useNavigationType,
+  useLocation,
+} from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart, removeFromCart } from "../../redux/actions/action";
-import { fetchProduct } from "../../redux/actions/productaction";
-import { mergeCarts } from "../../services/cartMerge";
+import {
+  fetchProductFailure,
+  fetchProductRequest,
+  fetchProductSuccess,
+} from "../../redux/actions/productaction";
+import { fetchAndMergeCart } from "../../services/cartMerge";
 import QuickAuthModal from "../../components/PwaModals/AuthModal";
 import { useTawk } from "../../components/Context/TawkProvider";
 import Loading from "../../components/Loading/Loading";
 import { PiShoppingCartBold } from "react-icons/pi";
-import { FaExclamationTriangle, FaSmileBeam, FaStar } from "react-icons/fa";
+import { FaExclamationTriangle, FaStar } from "react-icons/fa";
 import { CiCircleInfo } from "react-icons/ci";
-import { IoMdArrowBack } from "react-icons/io";
 import { TbInfoOctagon } from "react-icons/tb";
 import { TbInfoTriangle } from "react-icons/tb";
 import {
   getProductColorSwatches,
   getSwatchFromRawColor,
-  normalizeColorKeyForSwatch,
 } from "../../services/colorutils";
+import {
+  getSwatchSelectionKey,
+  getVariantSwatchSelectionKey,
+  hasPurchasableVariantForSize,
+  hasPurchasableVariantForSwatch,
+  isVariantInStock,
+  isVariantSizeHidden,
+  resolvePurchasableVariantChoice,
+  resolveSinglePurchasableVariant,
+  resolveSinglePurchasableVariantForSwatch,
+  resolveVariantByRawSelection,
+  shouldInitializeProductVariantSelection,
+} from "../../services/productVariantSelection";
 
 import LoadProducts from "../../components/Loading/LoadProducts";
 import { GoChevronLeft, GoChevronRight, GoDotFill } from "react-icons/go";
 import { LuCopyCheck, LuCopy } from "react-icons/lu";
 import toast from "react-hot-toast";
-import Modal from "react-modal";
+import { shareContent } from "../../services/nativeLinks";
+import { appHaptics } from "../../services/haptics";
+import { takeAuthIntent } from "../../services/authIntent";
 import { FiPlus } from "react-icons/fi";
 import { buildCartKey } from "../../services/cartKey";
 import { FiMinus } from "react-icons/fi";
@@ -45,7 +68,6 @@ import {
 import "swiper/css/free-mode";
 import { TbFileDescription } from "react-icons/tb";
 import "swiper/css/autoplay";
-import { useLocation } from "react-router-dom";
 import { Swiper, SwiperSlide } from "swiper/react";
 import Select from "react-select";
 import "swiper/css";
@@ -63,13 +85,17 @@ import {
   getFirestore,
   collection,
   serverTimestamp,
-  addDoc,
-  updateDoc,
   runTransaction,
-  deleteDoc,
-  setDoc,
-  increment,
 } from "firebase/firestore";
+import {
+  marketplaceActionErrorMessage,
+} from "../../services/marketplaceActions";
+import {
+  createAuthenticatedProductQuestion,
+  createClientQuestionId,
+  getGuestQuestionDeviceId,
+  requestGuestProductQuestion,
+} from "../../services/productQuestions";
 import {
   selectQuickMode,
   activateQuickMode,
@@ -81,14 +107,15 @@ import { usePriceLock } from "../../services/usePriceLock";
 import Productnotofund from "../../components/Loading/Productnotofund";
 import { decreaseQuantity, increaseQuantity } from "../../redux/actions/action";
 import { AiOutlineHome } from "react-icons/ai";
-import { auth, db } from "../../firebase.config";
+import { db } from "../../firebase.config";
 import { IoShareSocialOutline } from "react-icons/io5";
 import IkImage from "../../services/IkImage";
 import SEO from "../../components/Helmet/SEO";
 import QuestionandA from "../../components/Loading/QuestionandA";
-import { LiaHomeSolid, LiaShareSolid, LiaTimesSolid } from "react-icons/lia";
+import { LiaHomeSolid, LiaShareSolid } from "react-icons/lia";
 import { handleUserActionLimit } from "../../services/userWriteHandler";
 import SafeImg from "../../services/safeImg";
+import AppBackButton from "../../components/layout/AppBackButton";
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
 import { useFavorites } from "../../components/Context/FavoritesContext";
 import { BsBadgeHdFill } from "react-icons/bs";
@@ -108,8 +135,16 @@ import { toastOfferSent } from "../../components/Toasts/OfferSent";
 import { flush, track } from "../../services/signals";
 import ScanningEffect from "../../components/Products/ScanningEffect";
 import ProductReportModal from "../../components/Reports/ProductReportModal";
+import NavigationHistorySheet from "../../components/layout/NavigationHistorySheet";
+import AppBottomSheet from "../../components/layout/AppBottomSheet";
+import ProductConditionInfoSheet from "../../components/Products/ProductConditionInfoSheet";
+import { useProductJourneyHistory } from "../../custom-hooks/useProductJourney";
+import { updateCurrentProductJourneyLabel } from "../../services/productJourney";
+import useProductDetailScrollRestoration from "../../custom-hooks/useProductDetailScrollRestoration";
+import AppScrollToTopButton from "../../components/layout/AppScrollToTopButton";
+import { isProductSoldOut } from "../../services/productAvailability";
+import { useAuth } from "../../custom-hooks/useAuth";
 
-Modal.setAppElement("#root");
 
 const debounce = (func, delay) => {
   let timeoutId;
@@ -133,26 +168,33 @@ export const useDoubleTap = (cb, delay = 300) => {
 
 export const useHdLoader =
   (hdImages, loadedHd, setLoadedHd, loadingHd, setLoadingHd) => (idx) => {
-    if (!hdImages[idx] || loadedHd.has(idx) || loadingHd.has(idx)) return;
+    if (!hdImages[idx]) return Promise.reject(new Error("HD image unavailable"));
+    if (loadedHd.has(idx)) return Promise.resolve("already-loaded");
+    if (loadingHd.has(idx)) return Promise.resolve("already-loading");
 
     setLoadingHd((p) => new Set(p).add(idx));
 
-    const img = new Image();
-    img.src = hdImages[idx];
-    img.onload = () => {
-      setLoadedHd((p) => new Set(p).add(idx));
-      setLoadingHd((p) => {
-        const n = new Set(p);
-        n.delete(idx);
-        return n;
-      });
-    };
-    img.onerror = () =>
-      setLoadingHd((p) => {
-        const n = new Set(p);
-        n.delete(idx);
-        return n;
-      });
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        setLoadedHd((p) => new Set(p).add(idx));
+        setLoadingHd((p) => {
+          const n = new Set(p);
+          n.delete(idx);
+          return n;
+        });
+        resolve("loaded");
+      };
+      img.onerror = () => {
+        setLoadingHd((p) => {
+          const n = new Set(p);
+          n.delete(idx);
+          return n;
+        });
+        reject(new Error("HD image failed to load"));
+      };
+      img.src = hdImages[idx];
+    });
   };
 const makeDoubleTap = (cb, delay = 300) => {
   let last = 0;
@@ -163,33 +205,28 @@ const makeDoubleTap = (cb, delay = 300) => {
   };
 };
 
-const HD_HINT_KEY = "hdHintMeta";
+const HD_HINT_KEY = "mythrift.product-hd-hint.v2";
 
 const useHdHint = (productId) => {
   const [show, setShow] = useState(false);
+  const recordedRef = useRef(false);
 
   /* ── decide WHEN the hint should appear ─────────────────────── */
   useEffect(() => {
-    const now = Date.now();
-    const meta = JSON.parse(localStorage.getItem(HD_HINT_KEY) || "{}");
-    const { shownIds = [], totalShown = 0, lastShown = 0 } = meta;
-
-    const msSince = now - lastShown;
-    const canShow =
-      totalShown < 2 || // first 2 products
-      (totalShown === 2 && msSince > 3 * 864e5) || // +3 days
-      (totalShown === 3 && msSince > 7 * 864e5); // +1 week
-
-    if (canShow && !shownIds.includes(productId)) {
-      setShow(true);
-      localStorage.setItem(
-        HD_HINT_KEY,
-        JSON.stringify({
-          shownIds: [...shownIds, productId],
-          totalShown: totalShown + 1,
-          lastShown: now,
-        }),
+    if (!productId || recordedRef.current) return;
+    recordedRef.current = true;
+    try {
+      const totalShown = Math.max(
+        0,
+        Number(localStorage.getItem(HD_HINT_KEY) || 0),
       );
+      if (totalShown >= 2) return;
+      setShow(true);
+      localStorage.setItem(HD_HINT_KEY, String(totalShown + 1));
+    } catch {
+      // Storage can be unavailable in private browsing. Showing the hint is
+      // still better than breaking the product image interaction.
+      setShow(true);
     }
   }, [productId]);
 
@@ -217,7 +254,7 @@ const HdHintOverlay = () => (
       transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }}
       className="px-3 py-1.5 bg-black bg-opacity-60 rounded-full backdrop-blur text-xs font-opensans text-white tracking-wide"
     >
-      Double‑tap for HD version
+      Double-tap to view image in HD
     </motion.div>
   </motion.div>
 );
@@ -479,6 +516,9 @@ function useProductViewQuality({
       },
       { surface },
     );
+    // A product open is an all-time view. Flush the durable start event now;
+    // the later end event still carries dwell/engagement quality for ranking.
+    void flush?.({ reason: "product_view_start" });
 
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -544,8 +584,16 @@ const [reportOpen, setReportOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
   const location = useLocation();
+  const navigationType = useNavigationType();
   const searchParams = new URLSearchParams(location.search);
   const isShared = searchParams.has("shared");
+  const {
+    journeyOptions,
+    historyFallbackOpen,
+    closeHistoryFallback,
+    openProductJourneyHistory,
+    returnToJourneyOption,
+  } = useProductJourneyHistory(location.pathname);
 
   const productVendorId = product?.vendorId;
   const [subProducts, setSubProducts] = useState([]);
@@ -566,7 +614,6 @@ const [variantSheetMode, setVariantSheetMode] = useState("add"); // "add" | "buy
   const [selectedImage, setSelectedImage] = useState("");
   const { isActive, vendorId } = useSelector((state) => state.stockpile);
   const [isSending, setIsSending] = useState(false);
-  const [isThankYouOpen, setIsThankYouOpen] = useState(false);
   const [offerModalOpen, setOfferModalOpen] = useState(false);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
 
@@ -583,10 +630,22 @@ const [variantSheetMode, setVariantSheetMode] = useState("add"); // "add" | "buy
   const [allImages, setAllImages] = useState([]);
   const [isLinkCopied, setIsLinkCopied] = useState(false);
   const [showQuickAuth, setShowQuickAuth] = useState(false);
-  const currentUser = auth.currentUser;
+  const [quickAuthIntent, setQuickAuthIntent] = useState("offer");
+  const pendingBuyNowRef = useRef(null);
+  const authResumeHandledRef = useRef(false);
+  const variantSelectionInitializedForRef = useRef(null);
+  const { currentUser } = useAuth();
   const userData = useSelector((state) => state.user.userData);
   const [isAskModalOpen, setIsAskModalOpen] = useState(false);
+  const [conditionInfoOpen, setConditionInfoOpen] = useState(false);
   const [questionText, setQuestionText] = useState("");
+  const [guestQuestionEmail, setGuestQuestionEmail] = useState(() => {
+    try {
+      return localStorage.getItem("mythrift:guest-question-email:v1") || "";
+    } catch {
+      return "";
+    }
+  });
   // Inside your ProductDetailPage component
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [disclaimerUrl, setDisclaimerUrl] = useState("");
@@ -623,6 +682,17 @@ const hdToastShownRef = useRef(new Set());
   const priceLock = usePriceLock(db, uid, product?.id);
 const favBusyRef = useRef(false);
 
+  const loadedProductId = product?.id || product?.productId;
+  useProductDetailScrollRestoration({
+    productId: id,
+    locationKey: location.key,
+    ready:
+      !loading &&
+      Boolean(loadedProductId) &&
+      String(loadedProductId) === String(id),
+    shouldRestore: navigationType === "POP",
+  });
+
   // Derive the price to show
   const effectivePrice = priceLock?.effectivePrice
     ? Number(priceLock.effectivePrice)
@@ -634,16 +704,42 @@ const openVariantSheet = useCallback((mode) => {
   setVariantSheetMode(mode);
   setAddSheetOpen(true);
 }, []);
+
+  useEffect(() => {
+    // Route changes must never inherit a selection or pending checkout from
+    // the product that was previously mounted in the shared Redux slot.
+    variantSelectionInitializedForRef.current = null;
+    pendingBuyNowRef.current = null;
+    setPendingBuyNow(false);
+    setQuickAuthIntent("offer");
+    setShowQuickAuth(false);
+    setAddSheetOpen(false);
+    setVariantSheetMode("add");
+    setSelectedSubProduct(null);
+    setSelectedSwatchKey("");
+    setSelectedColor("");
+    setSelectedSize("");
+    setAvailableColors([]);
+    setAvailableSizes([]);
+    setSelectedVariantStock(0);
+    setQuantity(1);
+    authResumeHandledRef.current = false;
+  }, [id]);
+
   // Local Favorites Context
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const favorite = isFavorite(product?.id);
   const { isActive: quickMode = false, vendorId: basketVendorId = null } =
     useSelector((state) => selectQuickMode(state) ?? {});
   const offerPriceFromState = location.state?.offerPrice;
+  const offerActionFromState = location.state?.offerAction;
 
-  // NEW: show one-time toast after arriving via shared link with price
+  // Offers can deep-link into the existing product actions. Consume the state
+  // once so returning to, refreshing, or revisiting this product cannot reopen
+  // a sheet unexpectedly.
   useEffect(() => {
-    if (!isShared) return;
+    if (!product || String(product.id) !== String(id)) return;
+
     if (
       typeof offerPriceFromState === "number" &&
       !Number.isNaN(offerPriceFromState)
@@ -654,14 +750,23 @@ const openVariantSheet = useCallback((mode) => {
         maximumFractionDigits: 0,
       });
       toast.success(`You can now buy this item for ${priceText}`);
-      // clear state so toast doesn’t repeat on re-renders/navigation
+    }
+
+    if (offerActionFromState === "buy") openVariantSheet("buy");
+    if (offerActionFromState === "offer") {
+      setOfferModalOpen(true);
+      viewSignals?.markOfferOpen?.();
+    }
+
+    if (offerActionFromState || offerPriceFromState != null) {
+      const { offerAction, offerPrice, ...remainingState } = location.state || {};
       navigate(location.pathname + location.search, {
         replace: true,
-        state: {},
+        state: remainingState,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isShared, offerPriceFromState]);
+  }, [product?.id, id, offerActionFromState, offerPriceFromState]);
   useEffect(() => {
     const handleScroll = () => {
       const currentPos = window.scrollY;
@@ -678,29 +783,77 @@ const openVariantSheet = useCallback((mode) => {
 
   useEffect(() => {
     const fetchProductDetails = async () => {
+      dispatch(fetchProductRequest());
+      setVendorLoading(true);
       try {
         const productRef = doc(db, "products", id); // Fetch product by ID
         const productSnap = await getDoc(productRef);
 
         if (productSnap.exists()) {
           const productData = productSnap.data();
-          if (!productData.published) {
+          const vendorId = String(productData.vendorId || "").trim();
+          const vendorSnap = vendorId
+            ? await getDoc(doc(db, "vendors", vendorId))
+            : null;
+          const vendorData = vendorSnap?.exists() ? vendorSnap.data() : null;
+          const ownerPreview = Boolean(
+            currentUser?.uid &&
+              currentUser.uid === vendorId &&
+              vendorData?.isDeactivated !== true,
+          );
+          const productStructurallyAvailable =
+            productData.isDeleted !== true &&
+            productData.isDeactivated !== true &&
+            productData.deactivated !== true;
+          const productPubliclyAvailable =
+            productStructurallyAvailable &&
+            productData.published === true &&
+            productData.vendorEligible === true;
+          const vendorAvailable =
+            vendorData?.isApproved === true &&
+            vendorData?.isDeactivated !== true;
+          if (
+            ownerPreview &&
+            productStructurallyAvailable &&
+            (!productPubliclyAvailable || !vendorAvailable)
+          ) {
+            setVendor({ id: vendorId, ...vendorData });
+            dispatch(
+              fetchProductSuccess({
+                id: productSnap.id,
+                ...productData,
+                __ownerPreview: true,
+              }),
+            );
+            return;
+          }
+
+          if (!productPubliclyAvailable || !vendorAvailable) {
             toast.dismiss();
-            toast.error("This product is no longer available.");
+            toast.error("This item is not currently available.");
+            setVendor(null);
+            dispatch(fetchProductFailure("This product is not available."));
           } else {
-            dispatch(fetchProduct(id));
+            setVendor({ id: vendorId, ...vendorData });
+            dispatch(
+              fetchProductSuccess({ id: productSnap.id, ...productData }),
+            );
           }
         } else {
-          // toast.error("Product not found.");
+          dispatch(fetchProductFailure("No such product found!"));
         }
       } catch (err) {
         console.error("Error fetching product details:", err);
-        toast.error("Failed to load product details.");
+        dispatch(
+          fetchProductFailure(err?.message || "Failed to load product details."),
+        );
+      } finally {
+        setVendorLoading(false);
       }
     };
 
     fetchProductDetails();
-  }, [id, dispatch, navigate, db]);
+  }, [id, dispatch, currentUser?.uid, db]);
   useEffect(() => {
     if (isGuestShared && productVendorId) {
       dispatch(activateQuickMode(productVendorId));
@@ -708,29 +861,6 @@ const openVariantSheet = useCallback((mode) => {
       //   dispatch(deactivateQuickMode());
     }
   }, [isGuestShared, productVendorId, dispatch]);
-  useEffect(() => {
-    if (product && product.variants) {
-      const uniqueColors = Array.from(
-        new Set(product.variants.map((v) => v.color)),
-      );
-      const uniqueSizes = Array.from(
-        new Set(product.variants.map((v) => v.size)),
-      );
-
-      // Initialize state variables
-      setAvailableColors(uniqueColors);
-      setAvailableSizes(uniqueSizes);
-      setSelectedColor("");
-      setSelectedSize("");
-    } else {
-      // Reset state variables if product is null or undefined
-      setAvailableColors([]);
-      setAvailableSizes([]);
-      setSelectedColor("");
-      setSelectedSize("");
-    }
-  }, [product]);
-
   useEffect(() => {
     const onDocClick = (e) => {
       if (!menuRef.current) return;
@@ -750,17 +880,20 @@ const returnTo = React.useMemo(
 );
 
 // ✅ Same behaviour as Cart: block checkout if profile/location missing
-const ensureProfileCompleteBeforeCheckout = React.useCallback(async () => {
+const ensureProfileCompleteBeforeCheckout = React.useCallback(async (authUser = currentUser) => {
   // If not signed in, let your existing auth flow handle it (don’t block here)
-  if (!currentUser?.uid) return true;
+  if (!authUser?.uid) return true;
 
-  let profileComplete = userData?.profileComplete;
-  let userLoc = userData?.location;
+  const canUseCurrentProfileState = authUser.uid === currentUser?.uid;
+  let profileComplete = canUseCurrentProfileState
+    ? userData?.profileComplete
+    : undefined;
+  let userLoc = canUseCurrentProfileState ? userData?.location : undefined;
 
   // If we don’t have it locally, fetch from Firestore like Cart does
   if (profileComplete === undefined || userLoc === undefined) {
     try {
-      const userSnap = await getDoc(doc(db, "users", currentUser.uid));
+      const userSnap = await getDoc(doc(db, "users", authUser.uid));
       if (userSnap.exists()) {
         const data = userSnap.data();
         profileComplete = data.profileComplete;
@@ -775,7 +908,9 @@ const ensureProfileCompleteBeforeCheckout = React.useCallback(async () => {
 
   if (!profileComplete) {
     toast.error("Please complete your profile before proceeding to checkout.");
-    navigate("/profile?incomplete=true", { state: { returnTo } });
+    navigate("/account-info", {
+      state: { highlightIncomplete: true, returnTo },
+    });
     return false;
   }
 
@@ -784,12 +919,14 @@ const ensureProfileCompleteBeforeCheckout = React.useCallback(async () => {
     typeof userLoc?.lng !== "number"
   ) {
     toast.error("Please update your delivery address before checking out.");
-    navigate("/profile?incomplete=true", { state: { returnTo } });
+    navigate("/account-info", {
+      state: { highlightIncomplete: true, returnTo },
+    });
     return false;
   }
 
   return true;
-}, [currentUser?.uid, userData, db, navigate, returnTo]);
+}, [currentUser, userData, db, navigate, returnTo]);
   const isFashion = product?.isFashion; // boolean – AddProduct already writes it
   const hasVariants = Boolean(
     isFashion &&
@@ -800,6 +937,60 @@ const ensureProfileCompleteBeforeCheckout = React.useCallback(async () => {
     () => (Array.isArray(product?.variants) ? product.variants : []),
     [product],
   );
+  const productSoldOut = isProductSoldOut(product);
+  const hideVariantSize = isVariantSizeHidden(product);
+
+  useEffect(() => {
+    const routeProductId = String(id || "");
+    const resolvedProductId = String(loadedProductId || "");
+
+    if (
+      !shouldInitializeProductVariantSelection({
+        loading,
+        routeProductId,
+        loadedProductId: resolvedProductId,
+        hasVariants,
+        initializedProductId: variantSelectionInitializedForRef.current,
+      })
+    ) {
+      return;
+    }
+
+    variantSelectionInitializedForRef.current = routeProductId;
+
+    setAvailableColors(
+      Array.from(
+        new Set(variants.map((variant) => variant?.color).filter(Boolean)),
+      ),
+    );
+    setAvailableSizes(
+      Array.from(
+        new Set(variants.map((variant) => variant?.size).filter(Boolean)),
+      ),
+    );
+
+    const automatic = resolveSinglePurchasableVariant(variants);
+    if (!automatic) return;
+
+    setSelectedSwatchKey(automatic.swatchKey);
+    setSelectedColor(automatic.color);
+    setSelectedSize(automatic.size);
+    setSelectedVariantStock(automatic.stock);
+    setAvailableSizes(
+      Array.from(
+        new Set(
+          variants
+            .filter(
+              (variant) =>
+                getVariantSwatchSelectionKey(variant?.color) ===
+                automatic.swatchKey,
+            )
+            .map((variant) => variant?.size)
+            .filter(Boolean),
+        ),
+      ),
+    );
+  }, [hasVariants, id, loadedProductId, loading, variants]);
 useEffect(() => {
   if (!product) return;
 
@@ -1006,6 +1197,7 @@ const handleFavoriteToggle = async (e) => {
 
   try {
     // ✅ Optimistic UI + favorites context
+    appHaptics.favorite(!wasFavorite);
     if (wasFavorite) {
       removeFavorite(productId);
       bumpUI(-1);
@@ -1032,41 +1224,12 @@ const handleFavoriteToggle = async (e) => {
     );
 
     const favDocRef = doc(db, "users", uid, "favorites", productId);
-    const vendorDocRef = doc(db, "vendors", vendorId);
-    const productDocRef = doc(db, "products", productId);
-
-    // We'll set this based on DB truth (not UI truth)
-    let didLike = null;
+    // Write the explicit UI intent. A cloud hydration racing this tap must not
+    // invert the action by toggling against an older Firestore snapshot.
+    const didLike = !wasFavorite;
 
     await runTransaction(db, async (tx) => {
-      const [favSnap, vendorSnap, productSnap] = await Promise.all([
-        tx.get(favDocRef),
-        tx.get(vendorDocRef),
-        tx.get(productDocRef),
-      ]);
-
-      const currentWish = Number(productSnap.data()?.wishCount || 0);
-      const currentVendorLikes = Number(vendorSnap.data()?.likesCount || 0);
-
-      if (favSnap.exists()) {
-        // UNLIKE
-        didLike = false;
-
-        tx.delete(favDocRef);
-
-        // clamp to 0 so it never goes negative
-        if (productSnap.exists()) {
-          tx.update(productDocRef, { wishCount: Math.max(0, currentWish - 1) });
-        }
-        if (vendorSnap.exists()) {
-          tx.update(vendorDocRef, {
-            likesCount: Math.max(0, currentVendorLikes - 1),
-          });
-        }
-      } else {
-        // LIKE
-        didLike = true;
-
+      if (didLike) {
         tx.set(favDocRef, {
           productId,
           vendorId,
@@ -1074,13 +1237,8 @@ const handleFavoriteToggle = async (e) => {
           price: Number(product?.price || 0),
           createdAt: serverTimestamp(),
         });
-
-        if (productSnap.exists()) {
-          tx.update(productDocRef, { wishCount: currentWish + 1 });
-        }
-        if (vendorSnap.exists()) {
-          tx.update(vendorDocRef, { likesCount: currentVendorLikes + 1 });
-        }
+      } else {
+        tx.delete(favDocRef);
       }
     });
 
@@ -1151,26 +1309,8 @@ const handleFavoriteToggle = async (e) => {
     // use your existing canonical product link if you already have it
     return window.location.href;
   };
-  useEffect(() => {
-    setSelectedSubProduct(null);
-    setSelectedSwatchKey("");
-    setSelectedColor("");
-    setSelectedSize("");
-
-    if (Array.isArray(product?.variants)) {
-      setAvailableColors(
-        Array.from(new Set(product.variants.map((v) => v.color))),
-      );
-      setAvailableSizes(
-        Array.from(new Set(product.variants.map((v) => v.size))),
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
   const nativeShareProduct = async () => {
-    // ✅ mx link (same one you want)
-    const shareableLink = `https://mx.shopmythrift.store/product/${id}?shared=true`;
+    const shareableLink = siteUrls.productShareUrl(id);
 
     // ✅ same message as your copy function
     const message = `Hey, check out this item I saw on ${
@@ -1178,19 +1318,12 @@ const handleFavoriteToggle = async (e) => {
     }'s store on My Thrift: ${shareableLink}`;
 
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: product?.name || "My Thrift product",
-          text: message, // 👈 full message
-          url: shareableLink, // 👈 mx link
-        });
-
-        return;
-      }
-
-      // fallback: copy the same message
-      await navigator.clipboard.writeText(message);
-      toast.success("Link copied!");
+      const result = await shareContent({
+        title: product?.name || "My Thrift product",
+        text: message,
+        url: shareableLink,
+      });
+      if (result === "copied") toast.success("Link copied!");
     } catch (err) {
       console.log("Share failed:", err);
       toast.error("Failed to share. Please try again.");
@@ -1206,6 +1339,17 @@ const handleTopLeftBack = () => {
       navigate(-1);
     }
   };
+
+  useEffect(() => {
+    const loadedProductId = product?.id || product?.productId;
+    if (!loadedProductId || String(loadedProductId) !== String(id)) return;
+
+    updateCurrentProductJourneyLabel({
+      pathname: location.pathname,
+      productId: loadedProductId,
+      productName: product?.name,
+    });
+  }, [id, location.pathname, product?.id, product?.name, product?.productId]);
 
   const handleMenuPrimaryAction = () => {
     setIsMenuOpen(false);
@@ -1269,39 +1413,6 @@ const handleTopLeftBack = () => {
   //   }
   // }, [product]);
 
-const handleMainProductClick = () => {
-  setSelectedSubProduct(null);
-  setSelectedSwatchKey("");
-  setSelectedColor("");
-  setSelectedSize("");
-
-  const rawImages = (Array.isArray(product?.imageUrls) ? product.imageUrls : [])
-    .map((u) => String(u || "").trim())
-    .filter(Boolean);
-
-  const cover = String(product?.coverImageUrl || "").trim();
-  const images = rawImages.length ? rawImages : cover ? [cover] : [];
-
-  setAllImages(images);
-
-  // ✅ keep HD aligned to `images` (what you render)
-  const rawHd = Array.isArray(product?.hdImageUrls) ? product.hdImageUrls : [];
-  const singleHd = String(product?.hdImageUrl || "").trim() || null;
-
-  const hd = images.map((_, i) => rawHd[i] || (i === 0 ? singleHd : null));
-  setHdImages(hd);
-
-  setCurrentImageIndex(0);
-  setSelectedImage(images[0] || "");
-  setMainImage(images[0] || "");
-
-  // Reset available colors/sizes like you already do
-  const mainColors = Array.from(new Set((product?.variants || []).map((v) => v.color)));
-  const mainSizes = Array.from(new Set((product?.variants || []).map((v) => v.size)));
-  setAvailableColors(mainColors);
-  setAvailableSizes(mainSizes);
-};
-
   const norm = (v) =>
     String(v || "")
       .trim()
@@ -1322,12 +1433,6 @@ const handleMainProductClick = () => {
       setSelectedVariantStock(variant ? variant.stock : 0);
     }
   }, [product, selectedColor, selectedSize]);
-  useEffect(() => {
-    dispatch(fetchProduct(id)).catch((err) => {
-      console.error("Failed to fetch product:", err);
-      toast.error("Failed to load product details.");
-    });
-  }, [dispatch, id]);
 useEffect(() => {
   if (!product) return;
   const first =
@@ -1337,29 +1442,6 @@ useEffect(() => {
   setMainImage(first);
   setInitialImage(first);
 }, [product]);
-
-
-  useEffect(() => {
-    if (product && product.vendorId) {
-      fetchVendorData(product.vendorId);
-    }
-  }, [product]);
-
-  const fetchVendorData = async (vendorId) => {
-    try {
-      const vendorRef = doc(db, "vendors", vendorId);
-      const vendorSnap = await getDoc(vendorRef);
-      if (vendorSnap.exists()) {
-        setVendor(vendorSnap.data());
-      } else {
-        console.error("Vendor not found");
-      }
-    } catch (err) {
-      console.error("Error fetching vendor data:", err);
-    } finally {
-      setVendorLoading(false);
-    }
-  };
 
   // Dynamically generate meta tag data
   const metaTitle = product?.name
@@ -1395,8 +1477,11 @@ useEffect(() => {
   // wait until cart count is non-zero for this vendor
   if (checkoutCount <= 0) return;
 
+  let cancelled = false;
+
   (async () => {
     const ok = await ensureProfileCompleteBeforeCheckout();
+    if (cancelled) return;
     if (!ok) {
       setPendingBuyNow(false);
       return;
@@ -1405,7 +1490,12 @@ useEffect(() => {
     basketRef.current?.openCheckoutAuth?.();
     setPendingBuyNow(false);
   })();
+
+  return () => {
+    cancelled = true;
+  };
 }, [
+  id,
   pendingBuyNow,
   quickMode,
   product?.vendorId,
@@ -1414,7 +1504,7 @@ useEffect(() => {
   ensureProfileCompleteBeforeCheckout,
 ]);
   const handleAddToCart = useCallback(
-    (override = {}) => {
+    async (override = {}) => {
       // ✅ ADDED: allow modal (or any caller) to pass values immediately
       const finalSize = override.size ?? selectedSize;
       const finalColor = override.color ?? selectedColor;
@@ -1431,11 +1521,22 @@ useEffect(() => {
         console.error("Product is missing. Cannot add to cart.");
         return;
       }
+      if (productSoldOut) {
+        toast.error("This item has sold.");
+        return;
+      }
 
       // Ask for size / colour ONLY when it’s a fashion item
       if (isFashion) {
-        if (!finalSize) return toast.error("Please select a size first!");
-        if (!finalColor) return toast.error("Please select a color first!");
+        if (hideVariantSize) {
+          if (!finalColor) return toast.error("Please select a color first!");
+          if (!finalSize) {
+            return toast.error("This color option is not available.");
+          }
+        } else {
+          if (!finalSize) return toast.error("Please select a size first!");
+          if (!finalColor) return toast.error("Please select a color first!");
+        }
       }
 
       if (!product.id || !product.vendorId) {
@@ -1499,11 +1600,13 @@ useEffect(() => {
 
       const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
 
-      if (existingCartItem) {
-        dispatch(addToCart({ ...existingCartItem, quantity: finalQty }, true));
-      } else {
-        dispatch(addToCart(productToAdd, true));
-      }
+      const syncPromise = existingCartItem
+        ? dispatch(
+            addToCart({ ...existingCartItem, quantity: finalQty }, true),
+          )
+        : dispatch(addToCart(productToAdd, true));
+
+      appHaptics.addToCart();
 
       setIsAddedToCart(true);
       // ✅ PostHog: add_to_cart
@@ -1539,6 +1642,13 @@ useEffect(() => {
           navigate("/latest-cart", { state: { fromProductDetail: true } });
         },
       });
+      const synced = await syncPromise;
+      if (!synced) {
+        console.warn(
+          "Cart addition is queued locally and will retry in the background.",
+        );
+      }
+      return synced;
     },
     [
       product,
@@ -1556,6 +1666,8 @@ useEffect(() => {
       isUser, // ✅
       surface, // ✅
       displayPrice, // ✅
+      hideVariantSize,
+      productSoldOut,
     ],
   );
 
@@ -1568,65 +1680,119 @@ useEffect(() => {
   }, [navigate]);
 
   const handleSendQuestion = useCallback(async () => {
-    console.log("[Q&A] send button clicked, questionText:", questionText);
     const q = questionText.trim();
     if (!q) {
-      console.log("[Q&A] no text, aborting");
       return toast.error("Please enter a question.");
     }
+    const email = String(
+      currentUser?.email ||
+        (currentUser?.uid ? userData?.email : "") ||
+        guestQuestionEmail ||
+        "",
+    ).trim();
+    if (!currentUser?.uid && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return toast.error("Enter a valid email so the vendor can answer you.");
+    }
 
-    // Immediately show spinner/disable UI
     setIsSending(true);
-
-    // 1) Enforce a daily limit of 3 questions
     try {
-      await handleUserActionLimit(
-        currentUser.uid,
-        "askQuestion",
-        {}, // no extra userData
-        { dayLimit: 20 }, // cap at 3 per 24 hours
-      );
-    } catch (limitError) {
-      // Rate limit hit: hide spinner and show error instantly
-      setIsSending(false);
-      return toast.error(limitError.message);
-    }
-
-    // build your object so you can inspect it
-    const inquiryPayload = {
-      productId: id,
-      productName: product.name,
-      vendorId: product.vendorId,
-      customerId: currentUser.uid,
-      question: q,
-      status: "open",
-      createdAt: serverTimestamp(),
-      hasRead: false,
-      customerHasRead: false,
-      uid: currentUser.uid,
-      email: currentUser.email,
-    };
-
-    console.log("[Q&A] payload to write:", inquiryPayload);
-
-    try {
-      console.log("[Q&A] writing to Firestore…");
-      await addDoc(collection(db, "inquiries"), inquiryPayload);
-      console.log("[Q&A] write succeeded");
-      setIsAskModalOpen(false);
-      setIsThankYouOpen(true);
+      const clientQuestionId = createClientQuestionId();
+      if (currentUser?.uid) {
+        const result = await createAuthenticatedProductQuestion({
+          productId: id,
+          vendorId: product.vendorId,
+          question: q,
+          clientQuestionId,
+        });
+        setQuestionText("");
+        setIsAskModalOpen(false);
+        appHaptics.success();
+        const chatPath = `/offer-conversations/${result.conversationId}?focusQuestion=${encodeURIComponent(
+          result.questionId || "",
+        )}`;
+        if (result.firstQuestionInConversation) {
+          const chatListPath = "/offers?view=chats";
+          // Replace the product entry with the chat list, then push the
+          // conversation. Both the header back button and native iOS swipe-back
+          // now reveal the list instead of bouncing between product and chat.
+          navigate(chatListPath, {replace: true});
+          window.setTimeout(() => {
+            navigate(chatPath, {
+              state: {returnTo: chatListPath, backMode: "pop"},
+            });
+          }, 0);
+        } else {
+          toast.custom(
+            (record) => (
+              <div className="flex w-[min(92vw,390px)] items-center gap-3 rounded-2xl bg-gray-950 px-4 py-3 font-satoshi text-white shadow-xl">
+                <span className="min-w-0 flex-1">
+                  <strong className="block text-sm font-semibold">Question sent</strong>
+                  <span className="block truncate text-xs text-white/70">
+                    The vendor will see it in your chat.
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className="rounded-xl bg-customOrange px-3 py-2 text-xs font-semibold"
+                  onClick={() => {
+                    toast.dismiss(record.id);
+                    navigate(chatPath);
+                  }}
+                >
+                  View chat
+                </button>
+              </div>
+            ),
+            {duration: 3500, position: "top-center"},
+          );
+        }
+      } else {
+        await requestGuestProductQuestion({
+          productId: id,
+          vendorId: product.vendorId,
+          question: q,
+          email,
+          clientQuestionId,
+          deviceId: getGuestQuestionDeviceId(),
+        });
+        try {
+          localStorage.setItem("mythrift:guest-question-email:v1", email);
+        } catch {}
+        setGuestQuestionEmail(email);
+        setQuestionText("");
+        setIsAskModalOpen(false);
+        appHaptics.success();
+        toast.success(
+          "Check your email to verify and send your question to the vendor.",
+        );
+      }
     } catch (err) {
-      console.error("[Q&A] write failed:", err);
-      toast.error("Failed to send. Please try again.");
+      appHaptics.error();
+      toast.error(
+        marketplaceActionErrorMessage(err, "Failed to send. Please try again."),
+      );
     } finally {
-      console.log("[Q&A] send handler complete");
       setIsSending(false);
     }
-  }, [questionText, id, product, currentUser, db]);
+  }, [
+    currentUser?.email,
+    currentUser?.uid,
+    guestQuestionEmail,
+    id,
+    location.pathname,
+    location.search,
+    navigate,
+    product?.vendorId,
+    questionText,
+    userData?.email,
+  ]);
 
   const viewLoggedRef = useRef(new Set());
   const viewSignals = useProductViewQuality({
-    enabled: isUser && !!product?.id && !!product?.vendorId,
+    enabled:
+      !!product?.id &&
+      !!product?.vendorId &&
+      currentUser?.uid !== product?.vendorId,
     product,
     vendorId: product?.vendorId,
     surface,
@@ -1640,7 +1806,7 @@ useEffect(() => {
   });
 
   const { openChat } = useTawk();
-  const handleIncreaseQuantity = useCallback(() => {
+  const handleIncreaseQuantity = useCallback(async () => {
     console.log("Increase Quantity Triggered");
     console.log("Product:", product);
     console.log("Selected Size:", selectedSize);
@@ -1650,10 +1816,15 @@ useEffect(() => {
 
     if (!product) return console.error("Product not found.");
 
-    // Fashion items still need size + colour picked
+    // Size-hidden products still carry their internal variant size, but the
+    // buyer should only be prompted for the visible colour choice.
     if (isFashion && (!selectedSize || !selectedColor)) {
       return toast.error(
-        "Please select a size and color before adjusting quantity.",
+        hideVariantSize
+          ? selectedColor
+            ? "This color option is not available."
+            : "Please select a color before adjusting quantity."
+          : "Please select a size and color before adjusting quantity.",
       );
     }
 
@@ -1706,8 +1877,13 @@ useEffect(() => {
       return toast.error("Product not found in cart");
     }
 
-    dispatch(increaseQuantity({ vendorId: product.vendorId, productKey }));
+    const syncPromise = dispatch(
+      increaseQuantity({ vendorId: product.vendorId, productKey }),
+    );
     setQuantity(updatedQuantity);
+    // Cart persistence retries silently; changing quantity should never expose
+    // sync implementation details as a second notification.
+    return await syncPromise;
   }, [
     product,
     quantity,
@@ -1718,9 +1894,11 @@ useEffect(() => {
     cart,
     selectedSubProduct,
     isFashion,
+    hideVariantSize,
+    variants,
   ]);
 
-  const handleDecreaseQuantity = useCallback(() => {
+  const handleDecreaseQuantity = useCallback(async () => {
     console.log("Decrease Quantity Triggered");
     console.log("Product:", product);
     console.log("Selected Size:", selectedSize);
@@ -1732,7 +1910,11 @@ useEffect(() => {
 
     if (isFashion && (!selectedSize || !selectedColor)) {
       return toast.error(
-        "Please select a size and color before adjusting quantity.",
+        hideVariantSize
+          ? selectedColor
+            ? "This color option is not available."
+            : "Please select a color before adjusting quantity."
+          : "Please select a size and color before adjusting quantity.",
       );
     }
 
@@ -1758,8 +1940,13 @@ useEffect(() => {
       return toast.error("Product not found in cart");
     }
 
-    dispatch(decreaseQuantity({ vendorId: product.vendorId, productKey }));
+    const syncPromise = dispatch(
+      decreaseQuantity({ vendorId: product.vendorId, productKey }),
+    );
     setQuantity(updatedQuantity);
+    // Cart persistence retries silently; changing quantity should never expose
+    // sync implementation details as a second notification.
+    return await syncPromise;
   }, [
     product,
     quantity,
@@ -1768,6 +1955,7 @@ useEffect(() => {
     dispatch,
     cart,
     selectedSubProduct,
+    hideVariantSize,
   ]);
 
   // ✅ max stock for current selection (same rules used everywhere)
@@ -1810,7 +1998,15 @@ useEffect(() => {
 
   // ✅ single handlers used by the new UI
   const handleQtyDecrease = useCallback(() => {
-    if (!canAdjustQty) return toast.error("Please select size and color first");
+    if (!canAdjustQty) {
+      return toast.error(
+        hideVariantSize
+          ? selectedColor
+            ? "This color option is not available."
+            : "Please select a color first"
+          : "Please select size and color first",
+      );
+    }
     if (decDisabled) return;
 
     // if already in cart -> update cart
@@ -1818,15 +2014,37 @@ useEffect(() => {
 
     // before adding -> local state only
     setQuantity((q) => Math.max(1, q - 1));
-  }, [canAdjustQty, decDisabled, isAddedToCart, handleDecreaseQuantity]);
+  }, [
+    canAdjustQty,
+    decDisabled,
+    isAddedToCart,
+    handleDecreaseQuantity,
+    hideVariantSize,
+    selectedColor,
+  ]);
 
   const handleQtyIncrease = useCallback(() => {
-    if (!canAdjustQty) return toast.error("Please select size and color first");
+    if (!canAdjustQty) {
+      return toast.error(
+        hideVariantSize
+          ? selectedColor
+            ? "This color option is not available."
+            : "Please select a color first"
+          : "Please select size and color first",
+      );
+    }
     if (incDisabled) return;
 
     if (isAddedToCart) return handleIncreaseQuantity();
     setQuantity((q) => q + 1);
-  }, [canAdjustQty, incDisabled, isAddedToCart, handleIncreaseQuantity]);
+  }, [
+    canAdjustQty,
+    incDisabled,
+    isAddedToCart,
+    handleIncreaseQuantity,
+    hideVariantSize,
+    selectedColor,
+  ]);
 
   const handleThumbClick = (index) => {
     setCurrentImageIndex(index);
@@ -1923,6 +2141,74 @@ useEffect(() => {
 
   const getSizeValue = (s) => (typeof s === "object" && s ? s.size : s);
 
+  const getSizesForSwatch = (swatchKey) =>
+    Array.from(
+      new Set(
+        variants
+          .filter(
+            (variant) =>
+              getVariantSwatchSelectionKey(variant?.color) === swatchKey,
+          )
+          .map((variant) => variant?.size)
+          .filter(Boolean),
+      ),
+    );
+
+  const handleVariantSwatchClick = (swatch) => {
+    const nextSwatchKey = getSwatchSelectionKey(swatch);
+    if (!nextSwatchKey) return;
+
+    viewSignals?.markVariantChange?.();
+
+    if (selectedSwatchKey === nextSwatchKey) {
+      setSelectedSwatchKey("");
+      setSelectedColor("");
+      setSelectedSize("");
+      setSelectedVariantStock(0);
+      setAvailableSizes(
+        Array.from(
+          new Set(variants.map((variant) => variant?.size).filter(Boolean)),
+        ),
+      );
+      return;
+    }
+
+    if (hideVariantSize) {
+      const automatic = resolveSinglePurchasableVariantForSwatch(
+        variants,
+        nextSwatchKey,
+      );
+      if (!automatic) return;
+
+      setSelectedSwatchKey(nextSwatchKey);
+      setSelectedColor(automatic.color);
+      setSelectedSize(automatic.size);
+      setSelectedVariantStock(automatic.stock);
+      setAvailableSizes(getSizesForSwatch(nextSwatchKey));
+      setQuantity((current) =>
+        Math.min(Math.max(1, current), automatic.stock),
+      );
+      return;
+    }
+
+    setSelectedSwatchKey(nextSwatchKey);
+    setSelectedColor("");
+    setSelectedSize("");
+    setSelectedVariantStock(0);
+    setAvailableSizes(getSizesForSwatch(nextSwatchKey));
+  };
+
+  const isVariantSwatchAvailable = (swatch) => {
+    const swatchKey = getSwatchSelectionKey(swatch);
+    if (!swatchKey) return false;
+
+    return hideVariantSize
+      ? Boolean(
+          resolveSinglePurchasableVariantForSwatch(variants, swatchKey),
+        )
+      : hasPurchasableVariantForSwatch(variants, swatchKey);
+  };
+
   const isSizeInStock = (sizeLike) => {
     const size = getSizeValue(sizeLike);
 
@@ -1935,53 +2221,55 @@ useEffect(() => {
       );
     }
 
-    // ✅ KEY CHANGE: no color picked yet → never show “Out of Stock”
-    const hasColorContext = Boolean(selectedColor || selectedSwatchKey);
-    if (!hasColorContext) return true;
-
-    // ✅ swatch-mode stock check (only after swatch selected)
     if (selectedSwatchKey) {
-      return (variants || []).some(
-        (v) =>
-          String(v?.size) === String(size) &&
-          normalizeColorKeyForSwatch(v?.color) === selectedSwatchKey &&
-          Number(v?.stock) > 0,
+      return Boolean(
+        resolvePurchasableVariantChoice(variants, {
+          swatchKey: selectedSwatchKey,
+          size,
+        }),
       );
     }
 
-    // ✅ raw-color mode (only after color selected)
     if (selectedColor) {
-      const v = findVariant({ variants }, size, selectedColor);
-      return !!v && Number(v?.stock) > 0;
+      const match = resolveVariantByRawSelection(variants, {
+        color: selectedColor,
+        size,
+      });
+      return Boolean(match && isVariantInStock(match.variant));
     }
 
-    return true;
+    return hasPurchasableVariantForSize(variants, size);
   };
 
   const handleSizeClick = (size) => {
     if (!isSizeInStock(size)) return;
     viewSignals?.markVariantChange?.();
-    if (selectedSize === size) {
+    if (Object.is(selectedSize, size)) {
       setSelectedSize("");
       // if main product swatch mode: clear raw color too
-      if (!selectedSubProduct) setSelectedColor("");
+      if (!selectedSubProduct) {
+        setSelectedColor("");
+        setSelectedVariantStock(0);
+      }
+      return;
+    }
+
+    // If main product swatch is chosen, resolve RAW DB color from the variant row
+    if (!selectedSubProduct && selectedSwatchKey) {
+      const match = resolvePurchasableVariantChoice(variants, {
+        swatchKey: selectedSwatchKey,
+        size,
+      });
+      if (!match) return;
+
+      setSelectedSize(match.size);
+      setSelectedColor(match.color);
+      setSelectedVariantStock(match.stock);
+      setQuantity((current) => Math.min(Math.max(1, current), match.stock));
       return;
     }
 
     setSelectedSize(size);
-
-    // If main product swatch is chosen, resolve RAW DB color from the variant row
-    if (!selectedSubProduct && selectedSwatchKey) {
-      const match = (variants || []).find(
-        (v) =>
-          String(v?.size) === String(size) &&
-          normalizeColorKeyForSwatch(v?.color) === selectedSwatchKey,
-      );
-
-      if (match?.color) {
-        setSelectedColor(match.color); // ✅ RAW Firestore string
-      }
-    }
   };
 
   // Check if size is available for the selected color
@@ -2024,7 +2312,7 @@ useEffect(() => {
     }
   };
 
-  const handleRemoveFromCart = useCallback(() => {
+  const handleRemoveFromCart = useCallback(async () => {
     console.log("Remove from Cart Triggered");
     console.log("Product:", product);
     console.log("Selected Size:", selectedSize);
@@ -2045,7 +2333,10 @@ useEffect(() => {
       subProductId: selectedSubProduct?.subProductId,
     });
 
-    dispatch(removeFromCart({ vendorId: product.vendorId, productKey }));
+    const syncPromise = dispatch(
+      removeFromCart({ vendorId: product.vendorId, productKey }),
+    );
+    appHaptics.removeFromCart();
     setIsAddedToCart(false);
     setQuantity(1);
     // ✅ PostHog: remove_from_cart
@@ -2069,6 +2360,8 @@ useEffect(() => {
     }
 
     toast.success(`${product.name} removed from cart!`);
+    const synced = await syncPromise;
+    return synced;
   }, [
     dispatch,
     product,
@@ -2096,7 +2389,7 @@ useEffect(() => {
 
   const copyProductLink = async () => {
     try {
-      const shareableLink = `https://mx.shopmythrift.store/product/${id}?shared=true`;
+      const shareableLink = siteUrls.productShareUrl(id);
 
       await navigator.clipboard.writeText(
         `Hey, check out this item I saw on ${vendor.shopName}'s store on My Thrift: ${shareableLink}`,
@@ -2117,8 +2410,9 @@ useEffect(() => {
     setShowDisclaimerModal(true);
   };
 
-const handleBuyNow = useCallback(async (override = {}) => {
+const handleBuyNow = useCallback(async (override = {}, authUser = currentUser) => {
   if (!product) return;
+  if (productSoldOut) return toast.error("This item has sold.");
 
   const finalSize = override.size ?? selectedSize;
   const finalColor = override.color ?? selectedColor;
@@ -2127,8 +2421,13 @@ const handleBuyNow = useCallback(async (override = {}) => {
 
   // ✅ Require selection ONLY when variants exist (same as your UI)
   if (hasVariants && !selectedSubProduct) {
-    if (!finalSize) return toast.error("Please select a size first!");
-    if (!finalColor) return toast.error("Please select a color first!");
+    if (hideVariantSize) {
+      if (!finalColor) return toast.error("Please select a color first!");
+      if (!finalSize) return toast.error("This color option is not available.");
+    } else {
+      if (!finalSize) return toast.error("Please select a size first!");
+      if (!finalColor) return toast.error("Please select a color first!");
+    }
   }
 
   // ✅ stock guard (compute from the FINAL selection, not maxQty)
@@ -2147,6 +2446,21 @@ const handleBuyNow = useCallback(async (override = {}) => {
   if (stock <= 0) return toast.error("This item is out of stock.");
   if (finalQty > stock)
     return toast.error("Selected quantity exceeds stock availability!");
+
+  // Keep the exact Buy Now selection while the user authenticates. Do this
+  // before mutating the cart so the post-auth resume adds the item only once.
+  if (!authUser?.uid) {
+    pendingBuyNowRef.current = {
+      productId: product.id,
+      size: finalSize,
+      color: finalColor,
+      qty: finalQty,
+      imageUrl: finalImage,
+    };
+    setQuickAuthIntent("checkout");
+    setShowQuickAuth(true);
+    return;
+  }
 
   // ✅ build cart payload (same as Add to Cart)
   const productToAdd = {
@@ -2170,11 +2484,11 @@ const handleBuyNow = useCallback(async (override = {}) => {
 
   const existingCartItem = cart?.[product.vendorId]?.products?.[productKey];
 
-  if (existingCartItem) {
-    dispatch(addToCart({ ...existingCartItem, quantity: finalQty }, true));
-  } else {
-    dispatch(addToCart(productToAdd, true));
-  }
+  const cartSyncPromise = existingCartItem
+    ? dispatch(addToCart({ ...existingCartItem, quantity: finalQty }, true))
+    : dispatch(addToCart(productToAdd, true));
+
+  appHaptics.addToCart();
 
   setIsAddedToCart(true);
 
@@ -2191,12 +2505,31 @@ const handleBuyNow = useCallback(async (override = {}) => {
   );
 
   // ✅ PROFILE COMPLETENESS GUARD (same as Cart)
-  const ok = await ensureProfileCompleteBeforeCheckout();
+  const ok = await ensureProfileCompleteBeforeCheckout(authUser);
   if (!ok) return;
+
+  const cartSynced = await cartSyncPromise;
+  if (!cartSynced) {
+    console.warn(
+      "Buy Now cart addition is queued locally and will retry in the background.",
+    );
+  }
 
   // ✅ QUICK MODE: use StoreBasket flow (auth + delivery)
   if (quickMode && product.vendorId === basketVendorId) {
     setPendingBuyNow(true);
+    return;
+  }
+
+  // A Buy Now action must use the same cross-vendor repile guard as Cart.
+  // Cart owns the warning and can safely resume checkout after the user chooses.
+  if (isActive && vendorId !== product.vendorId) {
+    navigate("/latest-cart", {
+      state: {
+        fromProductDetail: true,
+        checkoutVendorId: product.vendorId,
+      },
+    });
     return;
   }
 
@@ -2220,7 +2553,44 @@ const handleBuyNow = useCallback(async (override = {}) => {
   isFashion,
   variants,
   ensureProfileCompleteBeforeCheckout,
+  currentUser,
+  hideVariantSize,
+  isActive,
+  vendorId,
+  productSoldOut,
 ]);
+
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      authResumeHandledRef.current = false;
+      return;
+    }
+    if (authResumeHandledRef.current || !currentUser?.uid || !product?.id) return;
+    const intent = takeAuthIntent({
+      types: ["product-offer", "product-buy-now"],
+      pathname: location.pathname,
+    });
+    if (!intent) return;
+    if (String(intent.payload?.productId || "") !== String(product.id)) return;
+    authResumeHandledRef.current = true;
+
+    if (intent.type === "product-offer") {
+      setOfferModalOpen(true);
+      viewSignals?.markOfferOpen?.();
+      return;
+    }
+
+    void handleBuyNow(
+      {
+        size: intent.payload?.size,
+        color: intent.payload?.color,
+        qty: intent.payload?.qty,
+        imageUrl: intent.payload?.imageUrl,
+      },
+      currentUser,
+    );
+  }, [currentUser?.uid, handleBuyNow, location.pathname, product?.id, viewSignals]);
+
   if (loading) {
     return <Loading />;
   }
@@ -2248,14 +2618,17 @@ const requestHd = async (idx) => {
     return;
   }
 
+  if (loadedHd.has(idx) || loadingHd.has(idx)) return;
+
   try {
     viewSignals?.markHdLoad?.();
+    appHaptics.light();
 
-    // loadHd might be sync or async depending on your hook.
-    // Awaiting it is safe either way.
-    await Promise.resolve(loadHd(idx));
+    const result = await loadHd(idx);
+    if (result === "loaded") appHaptics.success();
   } catch (err) {
     console.error("HD load failed:", err);
+    appHaptics.error();
 
     if (!hdToastShownRef.current.has(`err-${idx}`)) {
       hdToastShownRef.current.add(`err-${idx}`);
@@ -2270,6 +2643,7 @@ const requestHd = async (idx) => {
 
   const getSizeText = (product) => {
     if (!product) return "";
+    if (isVariantSizeHidden(product)) return "";
 
     // 1) If product.size exists (string like "S, UK 38, 47")
     if (product.size) {
@@ -2347,7 +2721,7 @@ const requestHd = async (idx) => {
       </div>
     );
   }
-  if (!product?.published) {
+  if (!product?.published && !product?.__ownerPreview) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
         <Productnotofund />
@@ -2355,8 +2729,7 @@ const requestHd = async (idx) => {
           Product Not Found
         </h1>
         <p className="text-lg text-gray-700 font-opensans mb-4">
-          It looks like this product has been removed or unpublished by the
-          vendor.
+          This item is not currently available.
         </p>
         <button
           className="w-32 bg-customOrange font-opensans text-xs px-2 h-10 text-white rounded-lg mt-12"
@@ -2373,85 +2746,6 @@ const requestHd = async (idx) => {
       ? (vendor.rating / vendor.ratingCount).toFixed(1)
       : "No ratings";
 
-  const shouldShowAlikeProducts = subProducts && subProducts.length > 0;
-
-  const AlikeProducts = () => (
-    <div className="alike-products p-3 mt-1">
-      <h2 className="text-lg font-semibold font-opensans mb-2">
-        Similar Products
-      </h2>
-      <div className="flex gap-4 overflow-x-scroll">
-        <div
-          className="w-48 min-w-48 cursor-pointer"
-          onClick={handleMainProductClick}
-        >
-          <div className="relative mb-2">
-            <img
-              src={mainImage} // Ensures this is always the main product image
-              alt="Original image"
-              className="h-52 w-full object-cover rounded-lg"
-            />
-          </div>
-          <p className="text-sm font-opensans text-black font-normal">
-            Original
-          </p>
-          <p className="text-lg font-opensans font-bold text-black">
-            ₦{formatPrice(product.price)}
-          </p>
-          {product.discount &&
-            product.discount.initialPrice &&
-            product.discount.discountType !== "personal-freebies" && (
-              <p className="text-sm font-opensans text-gray-500 line-through">
-                ₦{formatPrice(product.discount.initialPrice)}
-              </p>
-            )}
-        </div>
-
-        {/* Map through Sub-Products */}
-        {subProducts.map((subProduct, index) => {
-          const isOutOfStock = subProduct.stock <= 0;
-
-          return (
-            <div
-              key={index}
-              className={`w-48 min-w-48 ${
-                isOutOfStock
-                  ? "opacity-50 cursor-not-allowed"
-                  : "cursor-pointer"
-              }`}
-              onClick={() => {
-                if (!isOutOfStock) {
-                  handleSubProductClick(subProduct);
-                }
-              }}
-            >
-              <div className="relative mb-2">
-                <img
-                  src={subProduct.images[0]}
-                  alt={`Sub-product ${index + 1}`}
-                  className="h-52 w-full object-cover rounded-lg"
-                />
-              </div>
-              <p className="text-sm font-opensans text-black font-normal">
-                {isOutOfStock ? "Out of Stock" : product.name}
-              </p>
-              <p className="text-lg font-opensans font-bold text-black">
-                ₦{formatPrice(product.price)}
-              </p>
-              {product.discount &&
-                product.discount.initialPrice &&
-                product.discount.discountType !== "personal-freebies" && (
-                  <p className="text-sm font-opensans text-gray-500 line-through">
-                    ₦{formatPrice(product.discount.initialPrice)}
-                  </p>
-                )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-
   return (
     <>
       <SEO
@@ -2461,6 +2755,13 @@ const requestHd = async (idx) => {
         url={`https://www.shopmythrift.store/product/${product.id}`}
       />
       <div className="relative px-2 pb-20">
+        {product.__ownerPreview && (
+          <div className="mb-2 rounded-xl bg-amber-50 px-3 py-2 text-center font-satoshi text-xs text-amber-900">
+            {product.published === true
+              ? "Private preview — customers cannot see or purchase this item until your store is approved."
+              : "Private preview — customers cannot see or purchase this item until it is published."}
+          </div>
+        )}
         {/* --- IMAGE SWIPER SECTION --- */}
 
         <div
@@ -2469,26 +2770,21 @@ const requestHd = async (idx) => {
         >
           {/* OVERLAY CONTROLS (Back Button) */}
          {/* OVERLAY CONTROLS (Back/Home Button) */}
-          <div className="fixed top-5 left-4 z-[9000]">
-            <button
-              onClick={handleTopLeftBack}
-              aria-label={isShared ? "Home" : "Back"}
-              className={[
-                "w-11 h-11 rounded-xl backdrop-blur-md flex items-center justify-center",
-                "transition-all duration-200 active:scale-95",
-                isSticky
-                  ? "bg-black/25 opacity-70 shadow-none"
-                  : "bg-black/50 opacity-100 shadow-sm",
-              ].join(" ")}
-            >
-              {/* If shared, show Home icon, else show Back arrow */}
-              {isShared ? (
-                <LiaHomeSolid className="text-xl text-white" />
-              ) : (
-                <IoMdArrowBack className="text-xl text-white" />
-              )}
-            </button>
-          </div>
+          <AppBackButton
+            onClick={handleTopLeftBack}
+            onLongPress={
+              journeyOptions.length ? openProductJourneyHistory : undefined
+            }
+            hintText={
+              journeyOptions.length ? "Hold to see browsing history" : ""
+            }
+            hintMaxShows={2}
+            label={isShared ? "Home" : "Back"}
+            variant="overlay"
+            fixed
+            scrolled={isSticky}
+            icon={isShared ? <LiaHomeSolid aria-hidden="true" /> : null}
+          />
 
           <ProductSocialProofPill productId={id} />
           {/* SWIPER COMPONENT */}
@@ -2636,6 +2932,13 @@ const requestHd = async (idx) => {
   {showHdHint && <HdHintOverlay />}
 </div>
           )}
+          {productSoldOut && (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-slate-900/45">
+              <span className="rounded-full bg-black/75 px-5 py-2 font-satoshi text-base font-medium text-white">
+                Sold
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="px-2 mt-2">
@@ -2667,33 +2970,32 @@ const requestHd = async (idx) => {
                 </span>
               </button>
 
-              <AskQuestionNudge
-                variant="inline"
-                onAskClick={() => {
-                  if (!currentUser) {
-                    navigate("/login", { state: { from: location.pathname } });
-                  } else {
-                    setIsAskModalOpen(true);
-                    viewSignals?.markAskOpen?.();
-                  }
-                }}
-              />
-              <button
-              onClick={() => {
-  if (!currentUser) {
-    toast.error("Please sign in to report this product.");
-    return;
-  }
-  setReportOpen(true);
-}}
-
-                className="flex-shrink-0 flex items-center gap-1.5 bg-gray-100 px-4 py-2 rounded-full hover:bg-gray-200 transition-colors"
-              >
-                <IoFlagOutline className="text-black text-lg" />
-                <span className="text-sm font-opensans font-medium text-black">
-                  Report
-                </span>
-              </button>
+              {!product.__ownerPreview && (
+                <>
+                  <AskQuestionNudge
+                    variant="inline"
+                    onAskClick={() => {
+                      setIsAskModalOpen(true);
+                      viewSignals?.markAskOpen?.();
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      if (!currentUser) {
+                        toast.error("Please sign in to report this product.");
+                        return;
+                      }
+                      setReportOpen(true);
+                    }}
+                    className="flex-shrink-0 flex items-center gap-1.5 bg-gray-100 px-4 py-2 rounded-full hover:bg-gray-200 transition-colors"
+                  >
+                    <IoFlagOutline className="text-black text-lg" />
+                    <span className="text-sm font-opensans font-medium text-black">
+                      Report
+                    </span>
+                  </button>
+                </>
+              )}
               {/* Report Button */}
             </div>
           </div>
@@ -2718,7 +3020,22 @@ const requestHd = async (idx) => {
                     <GoDotFill className="mx-1 dot-size text-gray-300" />
                   )}
 
-                  {conditionText && <span>{conditionText}</span>}
+                  {conditionText && (
+                    <span className="inline-flex items-center gap-1">
+                      <span>{conditionText}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          appHaptics.selection();
+                          setConditionInfoOpen(true);
+                        }}
+                        className="inline-grid h-6 w-6 place-items-center p-0 text-gray-400"
+                        aria-label={`About ${conditionText} condition`}
+                      >
+                        <CiCircleInfo className="text-base" />
+                      </button>
+                    </span>
+                  )}
                 </div>
               );
             })()}
@@ -2811,11 +3128,12 @@ const requestHd = async (idx) => {
             </p>
           )} */}
           <ProductSellingFastPill productId={id} className="mb-2" />
-          {showMakeOffer && (
+          {showMakeOffer && !product.__ownerPreview && !productSoldOut && (
             <div className="mt-4">
               <button
                 onClick={() => {
                   if (!currentUser) {
+                    setQuickAuthIntent("offer");
                     setShowQuickAuth(true);
                     return;
                   }
@@ -2869,51 +3187,21 @@ const requestHd = async (idx) => {
                     return (
                       <div className="flex gap-4  overflow-x-auto no-scrollbar py-1">
                         {swatches.map((sw) => {
-                          const isSelected = selectedSwatchKey === sw.key;
+                          const swatchKey = getSwatchSelectionKey(sw);
+                          const isSelected = selectedSwatchKey === swatchKey;
+                          const inStock = isVariantSwatchAvailable(sw);
 
                           return (
                             <button
-                              key={sw.key + sw.label}
+                              key={swatchKey}
                               type="button"
-                              onClick={() => {
-                                viewSignals?.markVariantChange?.();
-                                setSelectedSwatchKey((prev) => {
-                                  const next = prev === sw.key ? "" : sw.key;
-
-                                  setSelectedColor("");
-                                  setSelectedSize("");
-
-                                  if (!next) {
-                                    // swatch cleared -> show all sizes
-                                    const all = Array.from(
-                                      new Set(
-                                        (variants || [])
-                                          .map((v) => v?.size)
-                                          .filter(Boolean),
-                                      ),
-                                    );
-                                    setAvailableSizes(all);
-                                  } else {
-                                    // swatch selected -> sizes for that swatch
-                                    const sizesForSwatch = (variants || [])
-                                      .filter(
-                                        (v) =>
-                                          normalizeColorKeyForSwatch(
-                                            v?.color,
-                                          ) === next,
-                                      )
-                                      .map((v) => v?.size)
-                                      .filter(Boolean);
-
-                                    setAvailableSizes(
-                                      Array.from(new Set(sizesForSwatch)),
-                                    );
-                                  }
-
-                                  return next;
-                                });
-                              }}
-                              className="flex flex-col items-center shrink-0"
+                              disabled={!inStock}
+                              onClick={() => handleVariantSwatchClick(sw)}
+                              className={`flex flex-col items-center shrink-0 ${
+                                inStock
+                                  ? ""
+                                  : "cursor-not-allowed opacity-35"
+                              }`}
                             >
                               <div
                                 className={[
@@ -2940,7 +3228,7 @@ const requestHd = async (idx) => {
           )}
 
           {/* Size Selection */}
-          {isFashion && (
+          {isFashion && !hideVariantSize && (
             <div className="mt-3">
               <p className="text-sm font-normal text-black font-satoshi mb-2">
                 Size
@@ -3014,7 +3302,15 @@ const requestHd = async (idx) => {
             </div>
           </div>
 
-          <AboutThisItem product={product} onOpenDefect={handleOpenModal} />
+          <AboutThisItem
+            product={product}
+            showSize={!hideVariantSize}
+            onOpenDefect={handleOpenModal}
+            onOpenCondition={() => {
+              appHaptics.selection();
+              setConditionInfoOpen(true);
+            }}
+          />
 
           <VendorProfileMoreFromSeller
             vendorId={product?.vendorId}
@@ -3026,84 +3322,95 @@ const requestHd = async (idx) => {
               vendorId={basketVendorId}
               quickMode
               ref={basketRef}
-              onQuickFlow={() => setShowFastDrawer(true)}
             />
           )}
 
-          <AnimatePresence>
-            {isAskModalOpen && (
-              <>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 0.8 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  onClick={() => setIsAskModalOpen(false)}
-                  className="fixed inset-0 bg-black z-[8000]"
-                />
-                <motion.div
-                  initial={{ y: "100%" }}
-                  animate={{ y: 0 }}
-                  exit={{ y: "100%" }}
-                  onClick={(e) => e.stopPropagation()}
-                  transition={{ type: "tween", duration: 0.3 }}
-                  className="fixed bottom-0 left-0 h-60% right-0 z-[8100]  bg-white rounded-t-xl p-6 shadow-lg"
-                >
-                  <div>
-                    <QuestionandA />
-                  </div>
-                  <h2 className="text-xl font-semibold font-ubuntu mb-2">
-                    One-off question
-                  </h2>
-                  <p className="text-xs font-opensans text-gray-600 mb-4">
-                    This is a single ask use it if you’re unsure of product
-                    details or want to know more before buying. The vendor will
-                    reply as soon as possible.
-                  </p>
+          <AppBottomSheet
+            open={isAskModalOpen}
+            onClose={() => !isSending && setIsAskModalOpen(false)}
+            height="60dvh"
+            ariaLabel="Ask about this item"
+            zIndex={8100}
+            backdropClassName="bg-black/80"
+            compactTop
+            dismissible={!isSending}
+            keyboardAware
+          >
+            <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto p-6 pt-5 font-satoshi">
+              <div>
+                <QuestionandA />
+              </div>
+              <h2 className="mb-2 text-xl font-semibold">
+                Ask about this item
+              </h2>
+              <p id="question-help" className="mb-4 text-xs leading-5 text-gray-600">
+                Ask the vendor anything you need to know before buying.
+              </p>
 
-                  <label className="block text-xs font-medium font-opensans text-gray-700 mb-1">
-                    Your email (We will send the response here)
+              {!currentUser?.uid && (
+                <>
+                  <label
+                    htmlFor="product-question-email"
+                    className="mb-1 block text-xs font-medium text-gray-700"
+                  >
+                    Your email
                   </label>
                   <input
+                    id="product-question-email"
                     type="email"
-                    value={currentUser.email}
-                    readOnly
-                    className="w-full mb-4 px-3 py-2 border font-opensans rounded bg-gray-100 text-sm"
+                    inputMode="email"
+                    autoComplete="email"
+                    value={guestQuestionEmail}
+                    onChange={(event) => setGuestQuestionEmail(event.target.value)}
+                    aria-describedby="question-help"
+                    className="mb-4 w-full rounded-xl border bg-white px-3 py-3 text-base outline-none focus:border-customOrange"
                   />
+                </>
+              )}
 
-                  <label className="block text-xs font-medium font-opensans text-gray-700 mb-1">
-                    Ask question here
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="what do you wanna know?..."
-                    value={questionText}
-                    onChange={(e) => setQuestionText(e.target.value)}
-                    maxLength={700}
-                    className="w-full mb-4 px-3 py-2 border rounded resize-none font-opensans focus:outline-none text-base"
-                  />
+              <label
+                htmlFor="product-question-text"
+                className="mb-1 block text-xs font-medium text-gray-700"
+              >
+                Your question
+              </label>
+              <textarea
+                id="product-question-text"
+                rows={3}
+                placeholder="What would you like to know?"
+                value={questionText}
+                onChange={(e) => setQuestionText(e.target.value)}
+                maxLength={700}
+                aria-describedby="question-help"
+                className="mb-4 w-full resize-none rounded-xl border px-3 py-3 text-base outline-none focus:border-customOrange"
+              />
 
-                  <div className="flex px-4 justify-center ">
-                    <button
-                      onClick={handleSendQuestion}
-                      disabled={isSending}
-                      className="px-4 py-2 bg-customOrange w-full font-opensans text-white rounded-full text-base font-semibold flex justify-center items-center"
-                    >
-                      {isSending ? (
-                        <RotatingLines
-                          width="24"
-                          strokeColor="#fff"
-                          strokeWidth="5"
-                        />
-                      ) : (
-                        "Send"
-                      )}
-                    </button>
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+              {!currentUser?.uid && (
+                <p className="mb-4 rounded-xl bg-orange-50 px-3 py-2 text-xs leading-5 text-orange-900">
+                  We’ll send a verification link to this email.
+                </p>
+              )}
+
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleSendQuestion}
+                  disabled={isSending || !questionText.trim()}
+                  className="flex min-h-12 w-full items-center justify-center rounded-xl bg-customOrange px-4 py-2 text-base font-semibold text-white disabled:opacity-50"
+                >
+                  {isSending ? (
+                    <RotatingLines
+                      width="24"
+                      strokeColor="#fff"
+                      strokeWidth="5"
+                    />
+                  ) : (
+                    "Send"
+                  )}
+                </button>
+              </div>
+            </div>
+          </AppBottomSheet>
         <AddToCartVariantSheet
   open={addSheetOpen}
   onClose={() => setAddSheetOpen(false)}
@@ -3146,14 +3453,16 @@ const requestHd = async (idx) => {
   }}
 />
 
-          <Modal
-            isOpen={isOfferInfoOpen}
-            onRequestClose={() => setOfferInfoOpen(false)}
-            className="modal-content-offer"
-            overlayClassName="offer-overlay backdrop-blur-md"
-            ariaHideApp={false}
+          <AppBottomSheet
+            open={isOfferInfoOpen}
+            onClose={() => setOfferInfoOpen(false)}
+            height="50dvh"
+            ariaLabel="About offers"
+            zIndex={9000}
+            backdropClassName="bg-black/20 backdrop-blur-md"
+            compactTop
           >
-            <div className="p-3 relative">
+            <div className="min-h-0 flex-1 overflow-y-auto p-3 pt-5 relative">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -3183,7 +3492,7 @@ const requestHd = async (idx) => {
                 <div className="bg-gray-50 border border-gray-200 rounded-md p-2.5">
                   <p className="text-xs font-opensans text-gray-700">
                     <b>How long is it valid?</b> Offers lock the price for up to{" "}
-                    <span className="font-semibold">6 hours</span>.
+                    <span className="font-semibold">24 hours</span>.
                     {priceLock?.validUntil && (
                       <>
                         {" "}
@@ -3233,7 +3542,7 @@ const requestHd = async (idx) => {
                 </button>
               </div>
             </div>
-          </Modal>
+          </AppBottomSheet>
         </div>
 <ProductReportModal
   isOpen={reportOpen}
@@ -3253,111 +3562,116 @@ const requestHd = async (idx) => {
 />
 
         <RelatedProducts product={product} />
-        <Modal
-          isOpen={isThankYouOpen}
-          onRequestClose={() => setIsThankYouOpen(false)}
-          overlayClassName="fixed  inset-0 bg-black p-12 bg-opacity-50 z-[9000]"
-          className="absolute inset-x-4 top-1/4   py-6 px-4 bg-white rounded-lg  shadow-lg"
-          closeTimeoutMS={300}
-          ariaHideApp={false}
+        <AppBottomSheet
+          open={showModal}
+          onClose={handleCloseModal}
+          height="auto"
+          ariaLabel="Product defect details"
+          zIndex={10000}
+          compactTop
         >
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            exit={{ scale: 0 }}
-            transition={{ type: "spring", stiffness: 300 }}
-            className="flex flex-col "
-          >
-            <div className="flex items-center  ">
-              <FaSmileBeam className="text-xl mr-2 text-customRichBrown " />
-              <h2 className="text-base font-medium font-opensans ">
-                Message Sent!
-              </h2>
-            </div>
-            <LiaTimesSolid
-              onClick={() => setIsThankYouOpen(false)}
-              className="absolute top-4 right-4"
-            />
-            <p className="text-sm mt-5 text-gray-800 font-opensans">
-              <span className="text-customOrange font-medium">
-                {vendorLoading ? (
-                  /* make sure this loader renders inline or wrap it in a span */
-                  <span className="inline-block">
-                    <LoadProducts />
-                  </span>
-                ) : vendor ? (
-                  /* use <span> instead of <div> */
-                  <span>{vendor.shopName}</span>
-                ) : (
-                  /* use <span> instead of <p> */
-                  <span className="text-xs text-gray-500">
-                    Vendor information not available
-                  </span>
-                )}
-              </span>{" "}
-              has your question and will reply within 6 hours or less. Please
-              check your spam folder if you don’t see their answer in your email
-              inbox.
-            </p>
-          </motion.div>
-        </Modal>
-
-        <Modal
-          isOpen={showModal}
-          onRequestClose={handleCloseModal}
-          contentLabel="Product Defect Details"
-          ariaHideApp={false}
-          className="modal-content-defect"
-          overlayClassName="modal-overlay-defect"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-7 h-7 bg-red-100 flex justify-center items-center rounded-full">
-                <FaExclamationTriangle className="text-red-600" />
+          <div className="overflow-y-auto px-5 pb-5 pt-5">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-7 h-7 bg-red-100 flex justify-center items-center rounded-full">
+                  <FaExclamationTriangle className="text-red-600" />
+                </div>
+                <h2 className="font-opensans text-base font-semibold">
+                  Defect Details
+                </h2>
               </div>
-              <h2 className="font-opensans text-base font-semibold">
-                Defect Details
-              </h2>
+            </div>
+
+            {/* Defect description */}
+            <p className="text-sm text-gray-800 font-opensans mb-4">
+              {product.defectDescription}
+            </p>
+
+            {/* Important Disclaimer */}
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 px-1 py-2 rounded-md shadow-sm">
+              <h3 className="text-sm font-semibold font-opensans text-yellow-700 mb-1">
+                Important Disclaimer
+              </h3>
+              <p className="text-xs text-yellow-800 font-opensans">
+                By purchasing this product, you acknowledge the disclosed
+                defects. By proceeding, you accept the product as-is.
+              </p>
+            </div>
+
+            {/* Close button */}
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={handleCloseModal}
+                className="bg-customOrange text-white font-opensans py-2 px-6 rounded-full"
+              >
+                Got it
+              </button>
             </div>
           </div>
-
-          {/* Defect description */}
-          <p className="text-sm text-gray-800 font-opensans mb-4">
-            {product.defectDescription}
-          </p>
-
-          {/* Important Disclaimer */}
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 px-1 py-2 rounded-md shadow-sm">
-            <h3 className="text-sm font-semibold font-opensans text-yellow-700 mb-1">
-              Important Disclaimer
-            </h3>
-            <p className="text-xs text-yellow-800 font-opensans">
-              By purchasing this product, you acknowledge the disclosed defects.{" "}
-              By proceeding, you accept the product as-is.
-            </p>
-          </div>
-
-          {/* Close button */}
-          <div className="flex justify-end mt-6">
-            <button
-              onClick={handleCloseModal}
-              className="bg-customOrange text-white font-opensans py-2 px-6 rounded-full"
-            >
-              Got it
-            </button>
-          </div>
-        </Modal>
+        </AppBottomSheet>
+        <ProductConditionInfoSheet
+          open={conditionInfoOpen}
+          onClose={() => setConditionInfoOpen(false)}
+          condition={product?.condition}
+          defectDescription={product?.defectDescription}
+        />
         <QuickAuthModal
           open={showQuickAuth}
-          onClose={() => setShowQuickAuth(false)}
-          onComplete={(user) => {
+          onClose={() => {
+            pendingBuyNowRef.current = null;
+            setPendingBuyNow(false);
+            setQuickAuthIntent("offer");
             setShowQuickAuth(false);
-            setOfferModalOpen(true); // Open offer sheet after successful auth
           }}
-          mergeCart={mergeCarts}
+          onComplete={async (user) => {
+            const completedIntent = quickAuthIntent;
+            const pendingSelection = pendingBuyNowRef.current || {};
+            pendingBuyNowRef.current = null;
+            setQuickAuthIntent("offer");
+            setShowQuickAuth(false);
+            if (completedIntent === "checkout") {
+              if (
+                !pendingSelection.productId ||
+                String(pendingSelection.productId) !== String(id)
+              ) {
+                return;
+              }
+              await handleBuyNow(
+                {
+                  size: pendingSelection.size,
+                  color: pendingSelection.color,
+                  qty: pendingSelection.qty,
+                  imageUrl: pendingSelection.imageUrl,
+                },
+                user,
+              );
+              return;
+            }
+
+            setOfferModalOpen(true);
+          }}
+          mergeCart={(uid) => fetchAndMergeCart(db, uid, dispatch)}
           openDisclaimer={openDisclaimer}
-          headerText="Sign in to send an offer"
+          headerText={
+            quickAuthIntent === "checkout"
+              ? "Let’s set up your order"
+              : "Let’s set up your offer"
+          }
+          compactTop
+          authIntent={{
+            type:
+              quickAuthIntent === "checkout"
+                ? "product-buy-now"
+                : "product-offer",
+            returnTo: `${location.pathname}${location.search}`,
+            payload: {
+              productId: product?.id || id,
+              ...(quickAuthIntent === "checkout"
+                ? pendingBuyNowRef.current || {}
+                : {}),
+            },
+          }}
         />
         <OfferSheet
           isOpen={offerModalOpen}
@@ -3375,20 +3689,49 @@ const requestHd = async (idx) => {
           navigate={navigate}
           location={location}
         />
+        <NavigationHistorySheet
+          open={historyFallbackOpen}
+          options={journeyOptions}
+          onClose={closeHistoryFallback}
+          onSelect={returnToJourneyOption}
+        />
+
+        <AppScrollToTopButton bottomOffset={88} zIndex={7800} />
 
         <div
           className="fixed bottom-0 left-0 right-0 z-[7900] bg-white border-t border-gray-100 p-4"
           onClick={(e) => e.stopPropagation()}
         >
+          {product.__ownerPreview ? (
+            <button
+              type="button"
+              disabled
+              className="h-12 w-full rounded-lg bg-gray-100 font-satoshi font-medium text-gray-500"
+            >
+              Private preview
+            </button>
+          ) : productSoldOut ? (
+            <button
+              type="button"
+              disabled
+              className="h-12 w-full rounded-lg bg-gray-200 font-satoshi font-medium text-gray-600"
+            >
+              Sold
+            </button>
+          ) : (
           <div className="flex w-full gap-3">
             <button
               onClick={() => {
                 // If already in cart -> checkout
                 if (isAddedToCart) {
-                  // choose what your checkout route should be
-                  // 1) cart page:
+                  const routeState = isStockpileForThisVendor
+                    ? {
+                        fromProductDetail: true,
+                        openPileVendorId: product.vendorId,
+                      }
+                    : { fromProductDetail: true };
                   return navigate("/latest-cart", {
-                    state: { fromProductDetail: true },
+                    state: routeState,
                   });
                 }
 
@@ -3406,7 +3749,11 @@ const requestHd = async (idx) => {
               }}
               className="flex-1 h-12 rounded-lg bg-gray-100 text-gray-900 font-opensans font-medium shadow-sm active:scale-[0.98] transition-transform"
             >
-              {isAddedToCart ? "View in Cart" : "Add to Cart"}
+              {isAddedToCart
+                ? isStockpileForThisVendor
+                  ? "View Pile"
+                  : "View in Cart"
+                : "Add to Cart"}
             </button>
 
             {/* Buy Now (UNCHANGED) */}
@@ -3426,6 +3773,7 @@ const requestHd = async (idx) => {
               Buy Now
             </button>
           </div>
+          )}
         </div>
       </div>
     </>

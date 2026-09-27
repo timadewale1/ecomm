@@ -17,6 +17,7 @@ import { NavigationProvider } from "./components/Context/Bottombarcontext";
 import { HelmetProvider } from "react-helmet-async";
 
 import { AuthProvider } from "./custom-hooks/useAuth";
+import { AppExperienceProvider } from "./components/Context/AppExperienceContext.jsx";
 import { TawkProvider } from "./components/Context/TawkProvider.jsx";
 
 import { PostHogProvider } from "posthog-js/react";
@@ -40,17 +41,18 @@ createRoot(document.getElementById("root")).render(
           {" "}
           <Provider store={store}>
             <PersistGate loading={null} persistor={persistor}>
-              <AuthProvider>
-                <NavigationProvider>
-                  <VendorProvider>
-                    <TawkProvider>
-                      <FavoritesProvider>
+              <AppExperienceProvider>
+                <AuthProvider>
+                  <NavigationProvider>
+                    <VendorProvider>
+                      <TawkProvider>
+                        <FavoritesProvider>
                      <Toaster
   position="bottom-center"
   reverseOrder={false}
   gutter={10}
   toastOptions={{
-    duration: 2500,
+    duration: 3500,
     style: {
       background: "transparent",
       boxShadow: "none",
@@ -62,11 +64,12 @@ createRoot(document.getElementById("root")).render(
 </Toaster>
 
                         <App />
-                      </FavoritesProvider>
-                    </TawkProvider>
-                  </VendorProvider>
-                </NavigationProvider>
-              </AuthProvider>
+                        </FavoritesProvider>
+                      </TawkProvider>
+                    </VendorProvider>
+                  </NavigationProvider>
+                </AuthProvider>
+              </AppExperienceProvider>
             </PersistGate>
           </Provider>
         </PostHogProvider>

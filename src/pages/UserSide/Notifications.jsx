@@ -1,275 +1,425 @@
-import React, { useState, useEffect } from "react";
-import { db, auth } from "../../firebase.config";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  doc,
-  updateDoc,
-  deleteDoc,
-} from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
-import { GoChevronLeft } from "react-icons/go";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { ChevronLeft, Search, X } from "lucide-react";
 import moment from "moment";
-import Loading from "../../components/Loading/Loading";
-import NotificationItem from "../../components/Notificationtab";
+import toast from "react-hot-toast";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { auth, db } from "../../firebase.config";
 import notifspic from "../../Images/Notifs.svg";
 import SEO from "../../components/Helmet/SEO";
+import NotificationItem from "../../components/Notificationtab";
+import AppBottomSheet from "../../components/layout/AppBottomSheet";
+import AppPageHeader from "../../components/layout/AppPageHeader";
+import { isNativeApp } from "../../services/platform";
+import { useAuth } from "../../custom-hooks/useAuth";
+import useNativePageRefresh from "../../custom-hooks/useNativePageRefresh";
+import {
+  notificationPatched,
+  notificationRemoved,
+  notificationRestored,
+  selectNotifications,
+  selectNotificationsStatus,
+} from "../../redux/reducers/notificationsRealtimeSlice";
+import { refreshNotificationsFromServer } from "../../services/realtime/userRealtimeSync";
+import "./notifications.css";
+
+const INITIAL_VISIBLE_NOTIFICATIONS = 32;
+const VISIBLE_NOTIFICATIONS_BATCH = 32;
+
+const notificationDate = (createdAt) => {
+  if (typeof createdAt?.toDate === "function") return createdAt.toDate();
+  if (typeof createdAt?.seconds === "number") {
+    return new Date(createdAt.seconds * 1000);
+  }
+  const parsed = createdAt instanceof Date ? createdAt : new Date(createdAt);
+  return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
+};
+
+const NotificationsSkeleton = () => (
+  <div
+    className="notifications-skeleton"
+    aria-label="Loading notifications"
+    aria-busy="true"
+  >
+    <span className="notifications-skeleton-heading" />
+    {[0, 1, 2, 3, 4].map((item) => (
+      <div className="notifications-skeleton-row" key={item}>
+        <span className="notifications-skeleton-dot" />
+        <span className="notifications-skeleton-avatar" />
+        <span className="notifications-skeleton-copy">
+          <span />
+          <span />
+          <span />
+        </span>
+        {item === 0 || item === 3 ? (
+          <span className="notifications-skeleton-product" />
+        ) : null}
+        <span className="notifications-skeleton-menu" />
+      </div>
+    ))}
+  </div>
+);
 
 const NotificationsPage = () => {
-  const [notifications, setNotifications] = useState([]);
-  const [loadingAuth, setLoadingAuth] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState(null);
+  const notifications = useSelector(selectNotifications);
+  const notificationsStatus = useSelector(selectNotificationsStatus);
   const [activeTab, setActiveTab] = useState("all");
+  const [optionsNotification, setOptionsNotification] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(
+    INITIAL_VISIBLE_NOTIFICATIONS,
+  );
+  const loadMoreRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch();
+  const { currentUser, loading: authLoading } = useAuth();
+  const authenticatedUid = currentUser?.uid || auth.currentUser?.uid || null;
 
-  useEffect(() => {
-    const fetchNotifications = async (userId) => {
-      try {
-        const notificationsRefDB = collection(db, "notifications");
-        const q = query(notificationsRefDB, where("userId", "==", userId));
-        const querySnapshot = await getDocs(q);
+  const refreshNotifications = useCallback(async () => {
+    if (!authenticatedUid) return;
+    await refreshNotificationsFromServer(authenticatedUid);
+  }, [authenticatedUid]);
 
-        const notificationsList = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+  useNativePageRefresh(refreshNotifications, {
+    enabled: Boolean(authenticatedUid),
+    verticalOffset: 112,
+  });
 
-        notificationsList.sort(
-          (a, b) => b.createdAt.seconds - a.createdAt.seconds
-        );
+  const markAsRead = useCallback(async (notificationId) => {
+    dispatch(notificationPatched({ id: notificationId, changes: { seen: true } }));
 
-        setNotifications(notificationsList);
-      } catch (error) {
-        console.error("Error fetching notifications:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setLoadingAuth(false); // Auth check completed
-      if (user) {
-        setCurrentUser(user);
-        fetchNotifications(user.uid);
-      } else {
-        setCurrentUser(null);
-        setLoading(false); // Stop loading when user is not logged in
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  if (loadingAuth || loading) {
-    return (
-      <div>
-        <Loading />
-      </div>
-    );
-  }
-
-  const markAsRead = async (notificationId) => {
     try {
-      const notificationRef = doc(db, "notifications", notificationId);
-      await updateDoc(notificationRef, { seen: true });
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notificationId ? { ...n, seen: true } : n))
-      );
+      await updateDoc(doc(db, "notifications", notificationId), { seen: true });
     } catch (error) {
+      dispatch(notificationPatched({ id: notificationId, changes: { seen: false } }));
       console.error("Error marking notification as read:", error);
     }
-  };
+  }, [dispatch]);
 
   const deleteNotification = async (notificationId) => {
+    const previous = notifications.find((item) => item.id === notificationId);
+    dispatch(notificationRemoved(notificationId));
     try {
-      const notificationRef = doc(db, "notifications", notificationId);
-      await deleteDoc(notificationRef);
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+      await deleteDoc(doc(db, "notifications", notificationId));
     } catch (error) {
-      console.error("Error deleting notification:", error);
+      if (previous) dispatch(notificationRestored(previous));
+      throw error;
     }
   };
 
-  const groupNotifications = (filter = null) => {
-    const todayNotifications = [];
-    const thisWeekNotifications = [];
-    const thisMonthNotifications = [];
-    const olderNotifications = [];
+  const filteredNotifications = useMemo(
+    () =>
+      activeTab === "all"
+        ? notifications
+        : notifications.filter(
+            (notification) => notification.type === activeTab,
+          ),
+    [activeTab, notifications],
+  );
 
-    notifications.forEach((notification) => {
-      if (filter && notification.type !== filter) return;
+  const visibleNotifications = useMemo(
+    () => filteredNotifications.slice(0, visibleCount),
+    [filteredNotifications, visibleCount],
+  );
 
-      const createdAt = moment(notification.createdAt.seconds * 1000);
+  const groupedNotifications = useMemo(() => {
+    const grouped = {
+      today: [],
+      thisWeek: [],
+      thisMonth: [],
+      older: [],
+    };
+    const now = moment();
 
-      if (createdAt.isSame(moment(), "day")) {
-        todayNotifications.push(notification);
-      } else if (createdAt.isSame(moment(), "week")) {
-        thisWeekNotifications.push(notification);
-      } else if (createdAt.isSame(moment(), "month")) {
-        thisMonthNotifications.push(notification);
+    visibleNotifications.forEach((notification) => {
+      const createdAt = moment(notificationDate(notification.createdAt));
+      if (createdAt.isSame(now, "day")) {
+        grouped.today.push(notification);
+      } else if (createdAt.isSame(now, "week")) {
+        grouped.thisWeek.push(notification);
+      } else if (createdAt.isSame(now, "month")) {
+        grouped.thisMonth.push(notification);
       } else {
-        olderNotifications.push(notification);
+        grouped.older.push(notification);
       }
     });
 
-    return {
-      today: todayNotifications,
-      thisWeek: thisWeekNotifications,
-      thisMonth: thisMonthNotifications,
-      older: olderNotifications,
-    };
-  };
+    return grouped;
+  }, [visibleNotifications]);
 
-  const groupedNotifications =
-    activeTab === "vendor"
-      ? groupNotifications("vendor")
-      : activeTab === "order"
-      ? groupNotifications("order")
-      : groupNotifications();
+  const filteredCount = filteredNotifications.length;
+  const hasMoreNotifications = visibleCount < filteredCount;
 
-  const renderNotificationItem = (notification) => (
-    <NotificationItem
-      key={notification.id}
-      notification={notification}
-      markAsRead={markAsRead}
-      deleteNotification={deleteNotification}
-    />
-  );
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE_NOTIFICATIONS);
+  }, [authenticatedUid]);
 
-  const renderNotificationsSection = (title, notificationsList) => {
-    return notificationsList.length > 0 ? (
-      <>
-        <h2 className="font-semibold text-sm font-opensans text-gray-500 mb-2">
-          {title}
-        </h2>
-        <ul>{notificationsList.map(renderNotificationItem)}</ul>
-      </>
+  const handleTabChange = useCallback((value) => {
+    // Reset in the same React event as the filter change. Waiting for an
+    // effect would briefly render the new tab with the previous tab's much
+    // larger visible count.
+    setVisibleCount(INITIAL_VISIBLE_NOTIFICATIONS);
+    setActiveTab(value);
+  }, []);
+
+  useEffect(() => {
+    if (!hasMoreNotifications) return undefined;
+
+    const target = loadMoreRef.current;
+    if (!target) return undefined;
+
+    if (!("IntersectionObserver" in window)) {
+      setVisibleCount(filteredCount);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setVisibleCount((currentCount) =>
+          Math.min(
+            currentCount + VISIBLE_NOTIFICATIONS_BATCH,
+            filteredCount,
+          ),
+        );
+      },
+      { rootMargin: "320px 0px" },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [filteredCount, hasMoreNotifications]);
+
+  const renderNotificationsSection = (title, notificationsList) =>
+    notificationsList.length > 0 ? (
+      <section className="notifications-group" aria-labelledby={`group-${title}`}>
+        <h2 id={`group-${title}`}>{title}</h2>
+        <ul>
+          {notificationsList.map((notification) => (
+            <NotificationItem
+              key={notification.id}
+              notification={notification}
+              markAsRead={markAsRead}
+              onOpenOptions={setOptionsNotification}
+            />
+          ))}
+        </ul>
+      </section>
     ) : null;
+
+  const handleDeleteSelected = async () => {
+    if (!optionsNotification || deleting) return;
+
+    setDeleting(true);
+    try {
+      await deleteNotification(optionsNotification.id);
+      setOptionsNotification(null);
+      toast.success("Notification deleted", { position: "bottom-center" });
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      toast.error("We couldn't delete this notification. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
   };
+
+  const handleNotificationSettings = async () => {
+    setOptionsNotification(null);
+
+    if (isNativeApp) {
+      toast("Manage notifications in your iPhone Settings.", {
+        position: "bottom-center",
+      });
+      return;
+    }
+
+    if (typeof window.Notification === "undefined") {
+      toast("Notification settings aren't available in this browser.");
+      return;
+    }
+
+    if (window.Notification.permission === "default") {
+      const permission = await window.Notification.requestPermission();
+      toast(
+        permission === "granted"
+          ? "Notifications enabled"
+          : "Enable notifications in your browser settings.",
+      );
+      return;
+    }
+
+    toast(
+      window.Notification.permission === "granted"
+        ? "Notifications are already enabled."
+        : "Enable notifications in your browser settings.",
+    );
+  };
+
+  const notificationStateResolved =
+    notifications.length > 0 ||
+    notificationsStatus === "ready" ||
+    notificationsStatus === "refreshing" ||
+    notificationsStatus === "error";
+  const showSkeleton =
+    !notificationStateResolved &&
+    (authLoading ||
+      (Boolean(authenticatedUid) &&
+        (notificationsStatus === "idle" ||
+          notificationsStatus === "connecting")));
 
   return (
     <>
       <SEO
-        title={`Notifications - My Thrift`}
-        description={`View your notifications on My Thrift`}
-        url={`https://www.shopmythrift.store/notifications`}
+        title="Notifications - My Thrift"
+        description="View your notifications on My Thrift"
+        url="https://www.shopmythrift.store/notifications"
       />
-      <div className="relative">
-        {/* Sticky Header Section */}
-        <div className="sticky top-0 z-20 bg-white w-full">
-          {/* Navigation Header */}
-          <div className="px-2 py-3 bg-white">
-            <div className="flex items-center mb-3 pb-2">
-              <GoChevronLeft
-                className="text-3xl cursor-pointer"
-                onClick={() => navigate(-1)}
-              />
-              <h1 className="text-xl font-opensans ml-4 font-semibold">
-                Notifications
-              </h1>
-            </div>
-            <div className="border-b border-gray-300 w-full"></div>
-          </div>
 
-          {/* Tabs for All, Vendors, and Orders */}
-          <div className="flex space-x-3 mt-2 mb-4 px-2 bg-white">
+      <main className="notifications-page">
+        <AppPageHeader
+          title="Notifications"
+          alignment="center"
+          onBack={() => navigate(-1)}
+          rightAction={
             <button
-              onClick={() => setActiveTab("all")}
-              className={`py-2.5 px-3 text-xs font-normal rounded-full ${
-                activeTab === "all"
-                  ? "bg-customOrange text-white"
-                  : "bg-transparent border text-black font-opensans"
-              }`}
+              type="button"
+              aria-label="Search"
+              onClick={() => navigate("/search")}
             >
-              All
+              <Search aria-hidden="true" />
             </button>
-            <button
-              onClick={() => setActiveTab("vendor")}
-              className={`py-2.5 px-3 text-xs font-normal rounded-full ${
-                activeTab === "vendor"
-                  ? "bg-customOrange text-white"
-                  : "bg-transparent border text-black font-opensans"
-              }`}
-            >
-              Vendors
-            </button>
-            <button
-              onClick={() => setActiveTab("order")}
-              className={`py-2.5 px-3 font-normal text-xs rounded-full ${
-                activeTab === "order"
-                  ? "bg-customOrange text-white"
-                  : "bg-transparent border text-black font-opensans"
-              }`}
-            >
-              Orders
-            </button>
-          </div>
-        </div>
+          }
+        >
+          <nav className="notifications-tabs" aria-label="Notification filters">
+            {[
+              ["all", "All"],
+              ["vendor", "Vendors"],
+              ["order", "Orders"],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={activeTab === value ? "is-active" : ""}
+                aria-pressed={activeTab === value}
+                onClick={() => handleTabChange(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+        </AppPageHeader>
 
-        {/* Scrollable Notification List */}
-        <div className="overflow-y-auto h-[calc(100vh-150px)] pb-16 px-2">
-          {!currentUser ? (
-            // User not logged in
-            <div className="flex flex-col px-3 items-center justify-center h-full mt-20">
-              <img
-                src={notifspic}
-                alt="Not logged in"
-                className="w-36 h-32 mb-4"
-              />
-              <h2 className="text-lg font-opensans font-semibold">
-                You are not logged in
-              </h2>
-              <p className="text-gray-500 text-xs font-opensans text-center mt-2">
-                Hey there, we can see you are not logged in, so you can't view
-                notifications from vendors you follow or check order status.
+        <div className="notifications-scroll">
+          {showSkeleton ? (
+            <NotificationsSkeleton />
+          ) : !authenticatedUid ? (
+            <div className="notifications-empty">
+              <img src={notifspic} alt="" />
+              <h2>You are not logged in</h2>
+              <p>
+                Log in to view notifications from vendors you follow and track
+                your order updates.
               </p>
               <button
-                onClick={() => {
-                  navigate("/login", { state: { from: location.pathname } });
-                }}
-                className="mt-4 bg-customOrange text-white text-xs font-opensans py-2 px-4 rounded-full"
+                type="button"
+                onClick={() =>
+                  navigate("/login", { state: { from: location.pathname } })
+                }
               >
-                Login
+                Log in
               </button>
             </div>
           ) : notifications.length === 0 ? (
-            // User is logged in but no notifications
-            <div className="flex flex-col items-center justify-center h-full mt-20">
-              <img
-                src={notifspic}
-                alt="No notifications"
-                className="w-36 h-32 mb-4"
-              />
-              <h2 className="text-lg font-opensans font-semibold">
-                Your notifications will show here
-              </h2>
-              <p className="text-gray-500 text-xs font-opensans text-center mt-2">
-                You’ll get important alerts about vendors <br /> you follow and
-                your orders here and <br /> through your email.
+            <div className="notifications-empty">
+              <img src={notifspic} alt="" />
+              <h2>Your notifications will show here</h2>
+              <p>
+                You’ll get important alerts about vendors you follow and your
+                orders here and through your email.
               </p>
             </div>
+          ) : filteredCount === 0 ? (
+            <div className="notifications-empty notifications-empty--filtered">
+              <h2>No {activeTab === "vendor" ? "vendor" : "order"} notifications</h2>
+              <p>New updates will show here.</p>
+            </div>
           ) : (
-            // User is logged in and has notifications
-            <div>
+            <div className="notifications-list">
               {renderNotificationsSection("Today", groupedNotifications.today)}
               {renderNotificationsSection(
-                "This Week",
-                groupedNotifications.thisWeek
+                "This week",
+                groupedNotifications.thisWeek,
               )}
               {renderNotificationsSection(
-                "This Month",
-                groupedNotifications.thisMonth
+                "This month",
+                groupedNotifications.thisMonth,
               )}
               {renderNotificationsSection("Older", groupedNotifications.older)}
+              {hasMoreNotifications ? (
+                <div
+                  ref={loadMoreRef}
+                  className="notifications-progressive-sentinel"
+                  aria-hidden="true"
+                />
+              ) : null}
             </div>
           )}
         </div>
-      </div>
+      </main>
+
+      <AppBottomSheet
+        open={Boolean(optionsNotification)}
+        onClose={() => !deleting && setOptionsNotification(null)}
+        height="206px"
+        ariaLabel="Notification options"
+        dismissible={!deleting}
+      >
+        <div className="notification-options-sheet">
+          <div className="notification-options-header">
+            <button
+              type="button"
+              aria-label="Close notification options"
+              onClick={() => setOptionsNotification(null)}
+              disabled={deleting}
+            >
+              <ChevronLeft aria-hidden="true" />
+            </button>
+            <h2>Options</h2>
+            <button
+              type="button"
+              aria-label="Close notification options"
+              onClick={() => setOptionsNotification(null)}
+              disabled={deleting}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </div>
+          <button
+            type="button"
+            className="notification-options-action"
+            onClick={handleDeleteSelected}
+            disabled={deleting}
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
+          <button
+            type="button"
+            className="notification-options-action notification-options-action--bordered"
+            onClick={handleNotificationSettings}
+            disabled={deleting}
+          >
+            Notification settings
+          </button>
+        </div>
+      </AppBottomSheet>
     </>
   );
 };

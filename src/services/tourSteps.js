@@ -1,19 +1,24 @@
-// src/tourSteps.js
-export const steps = [
+export const createPendingApprovalTourSteps = () => [
   {
-    target: '.add-product-btn',
-    title: 'Add a New Product',
-    content: 'Click here to add a new product to your store catalog.',
+    target: '[data-vendor-tour="approval-status"]',
+    title: "Build your store while we review it",
+    content:
+      "You can prepare your catalogue now. Your listings stay private and cannot be purchased until your store is approved.",
+    placement: "bottom",
   },
   {
-    target: '.settings-menu',
-    title: 'Settings Menu',
-    content: 'Access your vendor settings here—profile, payout methods, and more.',
+    target: '[data-vendor-tour="inventory-summary"]',
+    title: "Your catalogue is saved safely",
+    content:
+      "Draft and published listings both appear in your inventory. Approval automatically unlocks eligible published items for customers.",
+    placement: "top",
   },
   {
-    target: '.analytics-chart',
-    title: 'Sales Analytics',
-    content: 'Here you can see your daily and monthly sales performance.',
+    target: '[data-vendor-tour="add-product"]',
+    title: "Add your first item",
+    content:
+      "Start listing now. You can edit, unpublish or delete your items from Inventory at any time.",
+    placement: "top-end",
+    floaterProps: { hideArrow: true },
   },
-  // …add more steps as needed
-]
+];

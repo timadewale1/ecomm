@@ -1,44 +1,58 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import toast from "react-hot-toast";
-import { BsEye, BsEyeSlash } from "react-icons/bs";
-import { GoChevronLeft } from "react-icons/go";
-import { MdOutlineContentPasteSearch } from "react-icons/md";
-import { GoArrowUpRight, GoArrowDownRight } from "react-icons/go";
-
-import { doc, updateDoc, onSnapshot } from "firebase/firestore";
-import { db } from "../../firebase.config";
 import { useTawk } from "../../components/Context/TawkProvider";
 import { useAuth } from "../../custom-hooks/useAuth";
 import Loading from "../../components/Loading/Loading";
 import SEO from "../../components/Helmet/SEO";
-import WalletAnim from "../../components/Loading/WalletAnim";
 import WalletSetup from "../../components/Loading/WalletSetup";
-import { TbXxx } from "react-icons/tb";
-import { LuCopy, LuCopyCheck } from "react-icons/lu";
 import { FcOnlineSupport } from "react-icons/fc";
+import {
+  WalletDashboard,
+  WalletHistory,
+  WalletTransactionSheet,
+} from "./WalletUserViews";
+import "./wallet-user.css";
+import AppPageHeader from "../../components/layout/AppPageHeader";
+import useNativePageRefresh from "../../custom-hooks/useNativePageRefresh";
+import { appHaptics } from "../../services/haptics";
+import { fetchUserWalletTransactions } from "../../services/walletTransactions";
+import {
+  selectUserWallet,
+  userWalletEntryAnimationCompleted,
+} from "../../redux/reducers/userWalletSlice";
+import {
+  createWallet as createWalletOnServer,
+  getWalletApiErrorMessage,
+} from "../../services/walletApi";
 
 export default function UserWalletPage() {
   const {
+    currentUser,
     currentUserData,
     loading: authLoading,
     accountDeactivated,
   } = useAuth();
-  const [balance, setBalance] = useState(0);
-  const [accountNumber, setAccountNumber] = useState("");
-  const [bankName, setBankName] = useState("");
-  const [walletSetup, setWalletSetup] = useState(
-    currentUserData?.walletSetup ?? false
-  );
-
-  const [history, setHistory] = useState(() => {
-    try {
-      const cached = localStorage.getItem("userWalletHistory");
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
-  });
+  const dispatch = useDispatch();
+  const walletState = useSelector(selectUserWallet);
+  const walletUid = currentUser?.uid || currentUserData?.uid || null;
+  const walletStateMatchesUser = walletState.ownerUid === walletUid;
+  const hasLiveWalletSnapshot =
+    walletStateMatchesUser && walletState.initialSnapshotReceived;
+  const balance = hasLiveWalletSnapshot
+    ? walletState.balance
+    : Number(currentUserData?.balance) || 0;
+  const accountNumber = hasLiveWalletSnapshot
+    ? walletState.accountNumber
+    : currentUserData?.accountNumber || "";
+  const bankName = hasLiveWalletSnapshot
+    ? walletState.bankName
+    : currentUserData?.preferredBank || "";
+  const walletSetup = hasLiveWalletSnapshot
+    ? walletState.walletSetup
+    : currentUserData?.walletSetup === true;
+  const history = walletStateMatchesUser ? walletState.transactions : [];
   const [hideBalance, setHideBalance] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("hideBalance") || "false");
@@ -47,12 +61,30 @@ export default function UserWalletPage() {
     }
   });
   const [walletCreating, setWalletCreating] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const isHistoryView = location.pathname === "/wallet-transactions";
   const [copied, setCopied] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const { openChat } = useTawk();
+  const balanceImpactHandled = useRef(false);
+  const automaticHistoryAttemptUid = useRef(null);
+
+  useEffect(() => {
+    document.documentElement.classList.add("wallet-page-active");
+    document.documentElement.classList.toggle(
+      "wallet-history-active",
+      isHistoryView,
+    );
+
+    return () => {
+      document.documentElement.classList.remove(
+        "wallet-page-active",
+        "wallet-history-active",
+      );
+    };
+  }, [isHistoryView]);
 
   const copyToClipboard = async () => {
     if (!accountNumber) return;
@@ -71,51 +103,11 @@ export default function UserWalletPage() {
     return Math.floor(1000 + Math.random() * 9000).toString();
   };
 
-  // Fetch transaction history
-  const fetchHistory = async (id) => {
-    try {
-      const token = import.meta.env.VITE_RESOLVE_TOKEN;
-      const url = `${
-        import.meta.env.VITE_API_BASE_URL
-      }/wallet-transactions/${id}`;
-
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      if (!json.status) throw new Error(json.message);
-
-      const transactions = json.data
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .map((t) => ({
-          id: t.id,
-          type: t.amountSlug.startsWith("+") ? "paid" : "withdrawal",
-          amount: t.amount,
-          date: new Intl.DateTimeFormat("en-US", {
-            month: "short",
-            day: "2-digit",
-            year: "numeric",
-          }).format(new Date(t.createdAt)),
-        }));
-
-      setHistory(transactions);
-      localStorage.setItem("userWalletHistory", JSON.stringify(transactions));
-      return transactions;
-    } catch (err) {
-      console.error("⚠️ fetchHistory error:", err);
-      toast.error(err.message || "Failed to load history");
-      return [];
-    }
-  };
-
   // Create wallet with normalized phone number
   const createWallet = async () => {
     if (walletCreating) return;
     setWalletCreating(true);
     try {
-      const token = import.meta.env.VITE_RESOLVE_TOKEN;
-      const url = `${import.meta.env.VITE_API_BASE_URL}/create-wallet`;
       const randomPin = generateRandomPin();
 
       // Split displayName into firstName and lastName
@@ -145,6 +137,7 @@ export default function UserWalletPage() {
       }
 
       const payload = {
+        accountType: "user",
         firstName: firstName || "",
         lastName: lastName,
         email: currentUserData.email,
@@ -153,116 +146,114 @@ export default function UserWalletPage() {
         phoneNumber: phoneNumber,
       };
 
-      console.log("📤 createWallet payload:", {
-        ...payload,
-        walletPin: "****",
-      });
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      console.log("📥 API Response Status:", res.status, res.statusText);
-      const result = await res.json();
-      console.log("📥 API Response Body:", result);
+      const result = await createWalletOnServer(payload);
 
       if (!result.status) throw new Error(result.message);
-      const d = result.data;
 
-      // Update Firestore
-      await updateDoc(doc(db, "users", currentUserData.uid), {
-        walletSetup: true,
-        accountName: d.accountName,
-        balance: d.balance,
-        walletId: String(d.walletId),
-        preferredBank: d.preferredBank,
-        accountNumber: d.accountNumber,
-      });
-
+      void appHaptics.success();
       toast.success("Wallet created successfully");
     } catch (e) {
       console.error("❌ createWallet error:", e);
-      toast.error(e.message || "Failed to create wallet");
+      toast.error(getWalletApiErrorMessage(e, "Failed to create wallet"));
     } finally {
       setWalletCreating(false);
     }
   };
 
-  // Fetch wallet data
-  useEffect(() => {
-    if (!currentUserData?.uid) {
-      if (!authLoading) {
-        setError("User not authenticated");
-        setIsLoading(false);
-      }
-      return;
-    }
-
-    if (accountDeactivated) {
-      setError("Account is deactivated. Please contact support.");
-      setIsLoading(false);
-      return;
-    }
-
-    if (currentUserData.role !== "user") {
-      setError("Access restricted to users only.");
-      setIsLoading(false);
-      return;
-    }
-
-    // Hydrate UI with cached history
+  const refreshWalletHistory = useCallback(async () => {
+    if (!walletUid) return;
     try {
-      const cached = localStorage.getItem("userWalletHistory");
-      if (cached) setHistory(JSON.parse(cached));
-    } catch {}
+      await dispatch(fetchUserWalletTransactions(walletUid, { force: true }));
+    } catch (error) {
+      toast.error(error.message || "Failed to load history");
+      throw error;
+    }
+  }, [dispatch, walletUid]);
 
-    // **Combined real-time listener for balance, account details & walletSetup**
-    const unsub = onSnapshot(
-      doc(db, "users", currentUserData.uid),
-      (snap) => {
-        if (!snap.exists()) {
-          setError("User document not found");
-          setIsLoading(false);
-          return;
-        }
+  useNativePageRefresh(refreshWalletHistory, {
+    enabled: Boolean(walletUid && walletSetup && hasLiveWalletSnapshot),
+    verticalOffset: 112,
+  });
 
-        const d = snap.data();
-        setBalance(d.balance ?? 0);
-        setAccountNumber(d.accountNumber ?? "");
-        setBankName(d.preferredBank ?? "");
-        setWalletSetup(d.walletSetup ?? false); // ← NEW
+  // Transaction history is fetched once per signed-in user and then remains in
+  // Redux. Later updates happen only through the explicit native refresh flow.
+  useEffect(() => {
+    if (!walletUid || !walletSetup || !hasLiveWalletSnapshot) return;
+    const emptyReadyCache =
+      walletState.transactionsStatus === "ready" && history.length === 0;
+    if (
+      !["idle", "error"].includes(walletState.transactionsStatus) &&
+      !emptyReadyCache
+    ) return;
+    // One automatic attempt per mounted page/user. If a transient native
+    // failure occurs, leaving and reopening the wallet retries once without
+    // creating an in-place retry loop; pull-to-refresh remains available too.
+    if (automaticHistoryAttemptUid.current === walletUid) return;
+    automaticHistoryAttemptUid.current = walletUid;
 
-        // only flip off loading the first time we get data
-        setIsLoading(false);
-
-        // keep history fresh
-        fetchHistory(currentUserData.uid);
-      },
-      (err) => {
-        console.error("Firestore error:", err);
-        setError("Failed to fetch wallet data");
-        setIsLoading(false);
-      }
-    );
-
-    return () => unsub();
+    void dispatch(
+      fetchUserWalletTransactions(walletUid, {force: emptyReadyCache}),
+    ).catch((error) => {
+      toast.error(error.message || "Failed to load history");
+    });
   }, [
-    currentUserData?.uid,
-    authLoading,
-    accountDeactivated,
-    currentUserData?.role,
+    dispatch,
+    hasLiveWalletSnapshot,
+    walletSetup,
+    walletState.transactionsStatus,
+    walletUid,
+    history.length,
   ]);
 
-  if (authLoading || isLoading) return <Loading />;
-  if (error) {
+  useEffect(() => {
+    balanceImpactHandled.current = false;
+  }, [walletUid]);
+
+  const shouldAnimateBalance = Boolean(
+    !isHistoryView &&
+      walletUid &&
+      walletSetup &&
+      hasLiveWalletSnapshot &&
+      !walletState.entryAnimationPlayed,
+  );
+
+  const handleBalanceAnimationEnd = useCallback(() => {
+    if (!walletUid || balanceImpactHandled.current) return;
+    balanceImpactHandled.current = true;
+    appHaptics.medium();
+    dispatch(userWalletEntryAnimationCompleted(walletUid));
+  }, [dispatch, walletUid]);
+
+  const walletSnapshotErroredForUser =
+    walletStateMatchesUser && walletState.snapshotStatus === "error";
+
+  let pageError = null;
+  if (!authLoading && !walletUid) pageError = "User not authenticated";
+  else if (accountDeactivated) {
+    pageError = "Account is deactivated. Please contact support.";
+  } else if (currentUserData?.role && currentUserData.role !== "user") {
+    pageError = "Access restricted to users only.";
+  } else if (
+    walletStateMatchesUser &&
+    walletSnapshotErroredForUser &&
+    !hasLiveWalletSnapshot
+  ) {
+    pageError = walletState.snapshotError || "Failed to fetch wallet data";
+  }
+
+  const isInitialWalletLoading = Boolean(
+    authLoading ||
+      (walletUid &&
+        currentUserData?.role === "user" &&
+        !hasLiveWalletSnapshot &&
+        !walletSnapshotErroredForUser),
+  );
+
+  if (isInitialWalletLoading) return <Loading />;
+  if (pageError) {
     return (
       <div className="p-4 w-full mx-auto font-opensans text-center">
-        <p className="text-red-600">{error}</p>
+        <p className="text-red-600">{pageError}</p>
         <button
           onClick={() => navigate("/login")}
           className="mt-4 bg-customOrange text-white rounded-full py-2.5 px-6 font-opensans font-medium"
@@ -283,22 +274,25 @@ export default function UserWalletPage() {
           url="https://www.shopmythrift.store/user-wallet"
         />
         <div className="p-4 w-full mx-auto font-opensans">
-          <div className="relative flex items-center justify-center mb-6">
-            <button
-              onClick={() => navigate(-1)}
-              className="absolute left-0 p-1"
-            >
-              <GoChevronLeft className="text-2xl text-gray-800" />
-            </button>
-            <h2 className="text-lg font-opensans font-semibold">
-              Create Wallet
-            </h2>
-            <FcOnlineSupport
-              onClick={openChat}
-              className="absolute right-0 text-2xl text-customOrange cursor-pointer"
-              title="Customer Care"
-            />
-          </div>
+          <AppPageHeader
+            title="Create Wallet"
+            onBack={() => navigate(-1)}
+            className="-mx-4 w-auto mb-6"
+            rightAction={
+              <button
+                type="button"
+                onClick={() =>
+                  openChat({
+                    "support-entry": "wallet-setup",
+                    screen: "wallet",
+                  })
+                }
+                aria-label="Customer Care"
+              >
+                <FcOnlineSupport aria-hidden="true" />
+              </button>
+            }
+          />
           <WalletSetup />
           <div className="flex flex-col items-center justify-center text-center space-y-4">
             <p className="text-sm text-gray-600 font-opensans -translate-y-16 px-4">
@@ -326,140 +320,61 @@ export default function UserWalletPage() {
         description="View your balance and account details in your My Thrift wallet."
         url="https://www.shopmythrift.store/user-wallet"
       />
-      <div className="p-4 w-full mx-auto font-opensans">
-        {/* Header */}
-        <div className="relative flex items-center justify-center mb-6">
-          <button onClick={() => navigate(-1)} className="absolute left-0 p-1">
-            <GoChevronLeft className="text-2xl text-gray-800" />
-          </button>
-          <h2 className="text-lg font-opensans font-semibold">Wallet</h2>
-          <FcOnlineSupport
-            onClick={openChat}
-            className="absolute right-0 text-2xl text-customOrange cursor-pointer"
-            title="Customer Care"
-          />
-        </div>
+      {isHistoryView ? (
+        <WalletHistory
+          history={history}
+          historyLoading={
+            history.length === 0 &&
+            ["loading", "refreshing"].includes(walletState.transactionsStatus)
+          }
+          onBack={() => navigate("/your-wallet", { replace: true })}
+          onSelectTransaction={setSelectedTransaction}
+        />
+      ) : (
+        <WalletDashboard
+          balance={balance}
+          hideBalance={hideBalance}
+          onToggleBalance={() => {
+            const next = !hideBalance;
+            setHideBalance(next);
+            localStorage.setItem("hideBalance", JSON.stringify(next));
+          }}
+          accountNumber={accountNumber}
+          bankName={bankName}
+          copied={copied}
+          onCopy={copyToClipboard}
+          history={history}
+          historyLoading={
+            history.length === 0 &&
+            ["loading", "refreshing"].includes(walletState.transactionsStatus)
+          }
+          onBack={() => navigate(-1)}
+          onSeeAll={() => navigate("/wallet-transactions")}
+          onSelectTransaction={setSelectedTransaction}
+          animateBalance={shouldAnimateBalance}
+          onBalanceAnimationEnd={handleBalanceAnimationEnd}
+        />
+      )}
 
-        {/* Balance Card */}
-        <div className="relative z-10 pb-12 bg-customDeepOrange rounded-2xl p-4 text-white overflow-hidden">
-          <div className="absolute top-0 -right-2">
-            <img src="./Vector.png" alt="" className="w-16 h-24" />
-          </div>
-          <div className="absolute bottom-0 left-0">
-            <img src="./Vector2.png" alt="" className="w-16 h-16" />
-          </div>
-          <h2 className="text-xs font-opensans font-light mb-1">
-            My Thrift Balance
-          </h2>
-          <div className="flex items-center justify-start mb-4 space-x-2">
-            {hideBalance ? (
-              <TbXxx className="text-4xl" />
-            ) : (
-              <p className="text-3xl font-opensans font-bold">
-                ₦{balance.toLocaleString()}
-              </p>
-            )}
-            <button
-              onClick={() => {
-                const next = !hideBalance;
-                setHideBalance(next);
-                localStorage.setItem("hideBalance", JSON.stringify(next));
-              }}
-            >
-              {hideBalance ? (
-                <BsEye className="text-sm" />
-              ) : (
-                <BsEyeSlash className="text-sm" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Account Details */}
-        <div className="bg-gray-50 rounded-2xl px-4 py-2 -translate-y-5">
-          <div className="mb-6"></div>
-          <div className="flex justify-between mb-3">
-            <span className="font-opensans text-sm text-gray-600">
-              Bank Name
-            </span>
-            <span className="text-sm font-opensans font-semibold uppercase">
-              {bankName || "N/A"}
-            </span>
-          </div>
-          <div className="flex justify-between items-center mb-2">
-            <span className="font-opensans text-sm text-gray-600">
-              Account Number
-            </span>
-            <span className="flex items-center space-x-2">
-              <span className="text-sm font-opensans font-semibold">
-                {accountNumber || "N/A"}
-              </span>
-              {accountNumber && (
-                <button
-                  onClick={copyToClipboard}
-                  className="text-gray-600 hover:text-black"
-                >
-                  {copied ? (
-                    <LuCopyCheck className="w-4 h-4 text-customOrange" />
-                  ) : (
-                    <LuCopy className="w-4 h-4 text-customOrange" />
-                  )}
-                </button>
-              )}
-            </span>
-          </div>
-        </div>
-
-        {/* Transaction History */}
-        <div className="border border-gray-200 mt-4 rounded-2xl p-4 bg-white">
-          <h3 className="text-xs font-opensans font-medium mb-2">
-            Transaction History
-          </h3>
-          {history.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8">
-              <MdOutlineContentPasteSearch className="text-5xl text-customOrange" />
-              <p className="text-xs text-center text-gray-500 mt-2">
-                Your recent transactions will appear here
-              </p>
-            </div>
-          ) : (
-            <ul className="space-y-2">
-              {history.map((tx) => (
-                <li
-                  key={tx.id}
-                  className="flex justify-between border-b border-gray-200 py-3 last:border-0 hover:bg-gray-50"
-                >
-                  {/* icon + label */}
-                  <span className="flex items-center space-x-2">
-                    {tx.type === "withdrawal" ? (
-                      <GoArrowUpRight className="text-xl text-gray-600" />
-                    ) : (
-                      <GoArrowDownRight className="text-xl text-gray-600" />
-                    )}
-                    <span className="text-sm font-semibold">
-                      {tx.type === "withdrawal" ? "Paid" : "Deposit"}
-                    </span>
-                  </span>
-
-                  {/* amount & date */}
-                  <div className="text-right">
-                    <p
-                      className={`font-bold font-opensans text-base ${
-                        tx.type === "withdrawal"
-                          ? "text-gray-700"
-                          : "text-green-600"
-                      }`}
-                    >
-                      ₦{tx.amount.toLocaleString()}
-                    </p>
-                    <p className="text-xs text-gray-500">{tx.date}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+      <WalletTransactionSheet
+        transaction={selectedTransaction}
+        onClose={() => setSelectedTransaction(null)}
+        onReportIssue={() => {
+          const paymentReference = selectedTransaction?.reference;
+          const orderId = selectedTransaction?.orderId;
+          const vendorId = selectedTransaction?.vendorId;
+          setSelectedTransaction(null);
+          openChat({
+            "support-entry": "wallet-transaction",
+            screen: isHistoryView ? "wallet-transactions" : "wallet",
+            ...(orderId ? { "order-id": orderId } : {}),
+            ...(vendorId ? { "vendor-id": vendorId } : {}),
+            ...(paymentReference
+              ? { "payment-reference": paymentReference }
+              : {}),
+          });
+        }}
+      />
     </>
   );
 }

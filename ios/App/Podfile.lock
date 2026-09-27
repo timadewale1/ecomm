@@ -1,0 +1,321 @@
+PODS:
+  - AppAuth (2.1.0):
+    - AppAuth/Core (= 2.1.0)
+    - AppAuth/ExternalUserAgent (= 2.1.0)
+  - AppAuth/Core (2.1.0)
+  - AppAuth/ExternalUserAgent (2.1.0):
+    - AppAuth/Core
+  - AppCheckCore (11.3.2):
+    - GoogleUtilities/Environment (~> 8.0)
+    - GoogleUtilities/UserDefaults (~> 8.0)
+    - PromisesObjC (~> 2.4)
+    - PromisesSwift (~> 2.4)
+    - RecaptchaInterop (~> 101.0)
+  - Capacitor (8.5.2):
+    - CapacitorCordova
+  - CapacitorActionSheet (8.1.1):
+    - Capacitor
+  - CapacitorApp (8.1.1):
+    - Capacitor
+  - CapacitorBrowser (8.0.4):
+    - Capacitor
+  - CapacitorCamera (8.2.4):
+    - Capacitor
+    - IONCameraLib (~> 2.0.0)
+  - CapacitorCordova (8.5.2)
+  - CapacitorFilesystem (8.1.3):
+    - Capacitor
+    - IONFilesystemLib (~> 1.1.1)
+  - CapacitorFirebaseAuthentication (8.5.2):
+    - Capacitor
+    - CapacitorFirebaseAuthentication/Lite (= 8.5.2)
+    - FirebaseAuth (~> 12.7)
+  - CapacitorFirebaseAuthentication/Google (8.5.2):
+    - Capacitor
+    - FirebaseAuth (~> 12.7)
+    - GoogleSignIn (~> 9.0)
+  - CapacitorFirebaseAuthentication/Lite (8.5.2):
+    - Capacitor
+    - FirebaseAuth (~> 12.7)
+  - CapacitorGeolocation (8.2.2):
+    - Capacitor
+    - IONGeolocationLib (= 2.1.0)
+  - CapacitorGoogleMaps (8.0.1):
+    - Capacitor
+    - Google-Maps-iOS-Utils (= 6.1.0)
+    - GoogleMaps (~> 9.4)
+  - CapacitorHaptics (8.0.2):
+    - Capacitor
+  - CapacitorKeyboard (8.0.5):
+    - Capacitor
+  - CapacitorMlkitImageLabeling (8.2.1):
+    - Capacitor
+    - GoogleMLKit/ImageLabeling (~> 8.0.0)
+  - CapacitorPreferences (8.0.1):
+    - Capacitor
+  - CapacitorShare (8.0.2):
+    - Capacitor
+  - CapacitorSplashScreen (8.0.2):
+    - Capacitor
+  - CapacitorStatusBar (8.0.3):
+    - Capacitor
+  - FirebaseAppCheckInterop (12.19.0)
+  - FirebaseAuth (12.19.0):
+    - FirebaseAppCheckInterop (~> 12.19.0)
+    - FirebaseAuthInterop (~> 12.19.0)
+    - FirebaseCore (~> 12.19.0)
+    - FirebaseCoreExtension (~> 12.19.0)
+    - GoogleUtilities/AppDelegateSwizzler (~> 8.1)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GTMSessionFetcher/Core (< 6.0, >= 3.4)
+    - RecaptchaInterop (~> 101.0)
+  - FirebaseAuthInterop (12.19.0)
+  - FirebaseCore (12.19.0):
+    - FirebaseCoreInternal (~> 12.19.0)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GoogleUtilities/Logger (~> 8.1)
+  - FirebaseCoreExtension (12.19.0):
+    - FirebaseCore (~> 12.19.0)
+  - FirebaseCoreInternal (12.19.0):
+    - "GoogleUtilities/NSData+zlib (~> 8.1)"
+  - Google-Maps-iOS-Utils (6.1.0):
+    - GoogleMaps (~> 9.0)
+  - GoogleDataTransport (10.1.1):
+    - nanopb (~> 3.30910.0)
+    - PromisesObjC (~> 2.4)
+  - GoogleMaps (9.4.0):
+    - GoogleMaps/Maps (= 9.4.0)
+  - GoogleMaps/Maps (9.4.0)
+  - GoogleMLKit/ImageLabeling (8.0.0):
+    - GoogleMLKit/MLKitCore
+    - MLKitImageLabeling (~> 7.0.0)
+  - GoogleMLKit/MLKitCore (8.0.0):
+    - MLKitCommon (~> 13.0.0)
+  - GooglePlaces (9.4.1)
+  - GoogleSignIn (9.2.0):
+    - AppAuth (~> 2.1)
+    - AppCheckCore (~> 11.0)
+    - GTMAppAuth (~> 5.0)
+    - GTMSessionFetcher/Core (~> 3.3)
+  - GoogleToolboxForMac/Defines (4.2.1)
+  - GoogleToolboxForMac/Logger (4.2.1):
+    - GoogleToolboxForMac/Defines (= 4.2.1)
+  - "GoogleToolboxForMac/NSData+zlib (4.2.1)":
+    - GoogleToolboxForMac/Defines (= 4.2.1)
+  - GoogleUtilities/AppDelegateSwizzler (8.1.3):
+    - GoogleUtilities/Environment
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Network
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Environment (8.1.3):
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Logger (8.1.3):
+    - GoogleUtilities/Environment
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Network (8.1.3):
+    - GoogleUtilities/Logger
+    - "GoogleUtilities/NSData+zlib"
+    - GoogleUtilities/Privacy
+    - GoogleUtilities/Reachability
+  - "GoogleUtilities/NSData+zlib (8.1.3)":
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Privacy (8.1.3)
+  - GoogleUtilities/Reachability (8.1.3):
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/UserDefaults (8.1.3):
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Privacy
+  - GTMAppAuth (5.0.0):
+    - AppAuth/Core (~> 2.0)
+    - GTMSessionFetcher/Core (< 4.0, >= 3.3)
+  - GTMSessionFetcher/Core (3.5.0)
+  - IONCameraLib (2.0.0)
+  - IONFilesystemLib (1.1.4)
+  - IONGeolocationLib (2.1.0)
+  - MLImage (1.0.0-beta7)
+  - MLKitCommon (13.0.0):
+    - GoogleDataTransport (~> 10.0)
+    - GoogleToolboxForMac/Logger (< 5.0, >= 4.2.1)
+    - "GoogleToolboxForMac/NSData+zlib (< 5.0, >= 4.2.1)"
+    - GoogleUtilities/Logger (~> 8.0)
+    - GoogleUtilities/UserDefaults (~> 8.0)
+    - GTMSessionFetcher/Core (< 4.0, >= 3.3.2)
+  - MLKitImageLabeling (7.0.0):
+    - MLKitCommon (~> 13.0)
+    - MLKitImageLabelingCommon (~> 9.0)
+    - MLKitVision (~> 9.0)
+    - MLKitVisionKit (~> 10.0)
+  - MLKitImageLabelingCommon (9.0.0):
+    - MLKitCommon (~> 13.0)
+    - MLKitVision (~> 9.0)
+  - MLKitObjectDetectionCommon (9.0.0):
+    - MLKitCommon (~> 13.0)
+    - MLKitVision (~> 9.0)
+  - MLKitVision (9.0.0):
+    - GoogleToolboxForMac/Logger (< 5.0, >= 4.2.1)
+    - "GoogleToolboxForMac/NSData+zlib (< 5.0, >= 4.2.1)"
+    - GTMSessionFetcher/Core (< 4.0, >= 3.3.2)
+    - MLImage (= 1.0.0-beta7)
+    - MLKitCommon (~> 13.0)
+  - MLKitVisionKit (10.0.0):
+    - MLKitCommon (~> 13.0)
+    - MLKitImageLabelingCommon (~> 9.0)
+    - MLKitObjectDetectionCommon (~> 9.0)
+    - MLKitVision (~> 9.0)
+  - nanopb (3.30910.0):
+    - nanopb/decode (= 3.30910.0)
+    - nanopb/encode (= 3.30910.0)
+  - nanopb/decode (3.30910.0)
+  - nanopb/encode (3.30910.0)
+  - PromisesObjC (2.4.1)
+  - PromisesSwift (2.4.1):
+    - PromisesObjC (= 2.4.1)
+  - RecaptchaInterop (101.0.0)
+
+DEPENDENCIES:
+  - "Capacitor (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorActionSheet (from `../../node_modules/@capacitor/action-sheet`)"
+  - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
+  - "CapacitorBrowser (from `../../node_modules/@capacitor/browser`)"
+  - "CapacitorCamera (from `../../node_modules/@capacitor/camera`)"
+  - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorFilesystem (from `../../node_modules/@capacitor/filesystem`)"
+  - "CapacitorFirebaseAuthentication (from `../../node_modules/@capacitor-firebase/authentication`)"
+  - "CapacitorFirebaseAuthentication/Google (from `../../node_modules/@capacitor-firebase/authentication`)"
+  - "CapacitorGeolocation (from `../../node_modules/@capacitor/geolocation`)"
+  - "CapacitorGoogleMaps (from `../../node_modules/@capacitor/google-maps`)"
+  - "CapacitorHaptics (from `../../node_modules/@capacitor/haptics`)"
+  - "CapacitorKeyboard (from `../../node_modules/@capacitor/keyboard`)"
+  - "CapacitorMlkitImageLabeling (from `../../node_modules/@capacitor-mlkit/image-labeling`)"
+  - "CapacitorPreferences (from `../../node_modules/@capacitor/preferences`)"
+  - "CapacitorShare (from `../../node_modules/@capacitor/share`)"
+  - "CapacitorSplashScreen (from `../../node_modules/@capacitor/splash-screen`)"
+  - "CapacitorStatusBar (from `../../node_modules/@capacitor/status-bar`)"
+  - GooglePlaces (~> 9.4)
+
+SPEC REPOS:
+  trunk:
+    - AppAuth
+    - AppCheckCore
+    - FirebaseAppCheckInterop
+    - FirebaseAuth
+    - FirebaseAuthInterop
+    - FirebaseCore
+    - FirebaseCoreExtension
+    - FirebaseCoreInternal
+    - Google-Maps-iOS-Utils
+    - GoogleDataTransport
+    - GoogleMaps
+    - GoogleMLKit
+    - GooglePlaces
+    - GoogleSignIn
+    - GoogleToolboxForMac
+    - GoogleUtilities
+    - GTMAppAuth
+    - GTMSessionFetcher
+    - IONCameraLib
+    - IONFilesystemLib
+    - IONGeolocationLib
+    - MLImage
+    - MLKitCommon
+    - MLKitImageLabeling
+    - MLKitImageLabelingCommon
+    - MLKitObjectDetectionCommon
+    - MLKitVision
+    - MLKitVisionKit
+    - nanopb
+    - PromisesObjC
+    - PromisesSwift
+    - RecaptchaInterop
+
+EXTERNAL SOURCES:
+  Capacitor:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorActionSheet:
+    :path: "../../node_modules/@capacitor/action-sheet"
+  CapacitorApp:
+    :path: "../../node_modules/@capacitor/app"
+  CapacitorBrowser:
+    :path: "../../node_modules/@capacitor/browser"
+  CapacitorCamera:
+    :path: "../../node_modules/@capacitor/camera"
+  CapacitorCordova:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorFilesystem:
+    :path: "../../node_modules/@capacitor/filesystem"
+  CapacitorFirebaseAuthentication:
+    :path: "../../node_modules/@capacitor-firebase/authentication"
+  CapacitorGeolocation:
+    :path: "../../node_modules/@capacitor/geolocation"
+  CapacitorGoogleMaps:
+    :path: "../../node_modules/@capacitor/google-maps"
+  CapacitorHaptics:
+    :path: "../../node_modules/@capacitor/haptics"
+  CapacitorKeyboard:
+    :path: "../../node_modules/@capacitor/keyboard"
+  CapacitorMlkitImageLabeling:
+    :path: "../../node_modules/@capacitor-mlkit/image-labeling"
+  CapacitorPreferences:
+    :path: "../../node_modules/@capacitor/preferences"
+  CapacitorShare:
+    :path: "../../node_modules/@capacitor/share"
+  CapacitorSplashScreen:
+    :path: "../../node_modules/@capacitor/splash-screen"
+  CapacitorStatusBar:
+    :path: "../../node_modules/@capacitor/status-bar"
+
+SPEC CHECKSUMS:
+  AppAuth: ef4da5a3fc2e10b90c09a0a94a9baeaedc0341d5
+  AppCheckCore: be8fce5469f68d7f6a29aa94b25f097409ff7fdc
+  Capacitor: 89067779e14fb7ea56af07b4817f45d1f0c2a269
+  CapacitorActionSheet: c3394c32eb29990e73e9c6c5677e3b31eb46ad3f
+  CapacitorApp: 305bd13c44f6f9d164e2ee66a4faa956ed8c0e06
+  CapacitorBrowser: 752e0208aa07c7aa63d1f7cde895a3e9519b2656
+  CapacitorCamera: 4299fe8cf9b2b15e6ad602bce68d063b2008e8be
+  CapacitorCordova: 5bec5648cbd09a176ce34ce5e7b6cdabb2c8a327
+  CapacitorFilesystem: b2bbd84bb91c177906c9dbc252864cb71ab9957b
+  CapacitorFirebaseAuthentication: 826e1dae433819492daff947f3d674d1579a6ee7
+  CapacitorGeolocation: 327f18983c8f8a55e191fcf7dee80b9294f1ab78
+  CapacitorGoogleMaps: 33b110f185f8bddaac473d6639c785fdb4d8923c
+  CapacitorHaptics: 296f771ecd89c7a1bd92a7b6826a7d268e2e70f5
+  CapacitorKeyboard: b6b0744890cdb1d9a96e2cafcc9253fdcc55de3b
+  CapacitorMlkitImageLabeling: be1121c50d6916882adbb9864cfb8d97530f672e
+  CapacitorPreferences: cca2021f386efb75947c850334447d9ff22b14f1
+  CapacitorShare: 2fde721d06a6f83ff5c7578e6a91b190d341ac6a
+  CapacitorSplashScreen: 7bf61c2001557ff9e195e601c6b87344480d3c65
+  CapacitorStatusBar: eca7bc2b58d9f886f1ef9edb66e57a9b29c121af
+  FirebaseAppCheckInterop: bd4b791ffaed7ae719304af6369d243ddee5e4a0
+  FirebaseAuth: 8c38236f67e5e3dd6aacf3e0c46b3eed31e9c820
+  FirebaseAuthInterop: f1ad187a0052276ad49a990538accfdf36fc595d
+  FirebaseCore: c990214798d7c568ad436a15ba7da25c7a278c9a
+  FirebaseCoreExtension: 201c78d7491a273d61d8afbf491214276a951e6d
+  FirebaseCoreInternal: 656b1c2fd5a1c5976183dc54b73deda78fb26ee3
+  Google-Maps-iOS-Utils: 0a484b05ed21d88c9f9ebbacb007956edd508a96
+  GoogleDataTransport: a24e58982ab3ba2f64d79613e027fe7f57e88539
+  GoogleMaps: 0608099d4870cac8754bdba9b6953db543432438
+  GoogleMLKit: ddd51d7dff36ff28defa69afedd9cdce684fd857
+  GooglePlaces: 8afca6c4e946472e91298589d1640d614b51749a
+  GoogleSignIn: e449a40a92e9f2eea56e98b5214d13725dc5a00a
+  GoogleToolboxForMac: d1a2cbf009c453f4d6ded37c105e2f67a32206d8
+  GoogleUtilities: 4e0c2ad9fa0d0d18b5c4df8bf57b461cba35b0bb
+  GTMAppAuth: 217a876b249c3c585a54fd6f73e6b58c4f5c4238
+  GTMSessionFetcher: 5aea5ba6bd522a239e236100971f10cb71b96ab6
+  IONCameraLib: 729cae576e1a952602ce750a9790b6dc7d7e2e95
+  IONFilesystemLib: e6610c2b260d15e4b9cb9d5e37a87095479b669e
+  IONGeolocationLib: 6a7b6f76063fb1b01cfb14fae7d0f526e3c9b271
+  MLImage: 2ab9c968e75f57911c16f4c9d9e8a8e9604a86a1
+  MLKitCommon: 26b779f072a182c1603d4c88a101c350cac837b1
+  MLKitImageLabeling: b486a127450efab9ed86e633f9a12fe7d9dbc493
+  MLKitImageLabelingCommon: 30fb7c613cd8dfd281f0456cb1c58758743cccb6
+  MLKitObjectDetectionCommon: 90b0e94db1c66f51196b487befa01f195106fa15
+  MLKitVision: fa8dea9012ac59497c79ddbe9ebf32051047ac4c
+  MLKitVisionKit: e8244baf4d19cf7669c65da7907662c402adcb05
+  nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
+  PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
+  PromisesSwift: 217dea0fd5d2ad65222a109c48698add13cc1c5b
+  RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
+
+PODFILE CHECKSUM: cab6d10c67bc486f8857b1b49bb68a4196d31019
+
+COCOAPODS: 1.17.0

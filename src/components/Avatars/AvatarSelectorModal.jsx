@@ -3,12 +3,14 @@ import { useSelector } from "react-redux"; // <-- for Redux
 import { updateDoc, doc } from "firebase/firestore";
 import { db, storage } from "../../firebase.config";
 import toast from "react-hot-toast";
-import { FaRegTimesCircle } from "react-icons/fa";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { RotatingLines } from "react-loader-spinner";
 import { IoMdImage } from "react-icons/io";
+import { IoCloseOutline } from "react-icons/io5";
 import { createAvatar } from "@dicebear/core";
 import { adventurer } from "@dicebear/collection";
+import { appHaptics } from "../../services/haptics";
+import NativeImageInput from "../Inputs/NativeImageInput";
 
 const diceBearNames = [
   "Liliana",
@@ -62,6 +64,15 @@ const AvatarSelectorModal = ({
     }
   }, [userData]);
 
+  useEffect(
+    () => () => {
+      if (selectedFilePreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(selectedFilePreview);
+      }
+    },
+    [selectedFilePreview],
+  );
+
   // Helper to check if the avatar is a known DiceBear URI:
   const findDiceBearNameByUri = (avatarUri) => {
     for (const name of diceBearNames) {
@@ -85,6 +96,7 @@ const AvatarSelectorModal = ({
 
   // Called when the user selects a DiceBear avatar
   const handleSelectDiceBearAvatar = (dataUri, name) => {
+    appHaptics.selection();
     setSelectedFile(null);
     setSelectedFilePreview(null);
     setSelectedName(name);
@@ -106,13 +118,14 @@ const AvatarSelectorModal = ({
         });
         return;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSelectedFilePreview(reader.result);
-        setSelectedAvatar(reader.result);
-        setSelectedName(null); // No DiceBear name overlay for a custom file
-      };
-      reader.readAsDataURL(file);
+      appHaptics.selection();
+      const previewUrl = URL.createObjectURL(file);
+      setSelectedFilePreview((previous) => {
+        if (previous?.startsWith("blob:")) URL.revokeObjectURL(previous);
+        return previewUrl;
+      });
+      setSelectedAvatar(previewUrl);
+      setSelectedName(null); // No DiceBear name overlay for a custom file
       setSelectedFile(file);
     }
   };
@@ -181,10 +194,17 @@ const AvatarSelectorModal = ({
   return (
     <div className="fixed inset-0 modal flex items-center justify-center bg-black bg-opacity-50 z-50">
       <div className="bg-white  rounded-lg  w-full h-full relative font-opensans">
-        <FaRegTimesCircle
-          className="absolute text-xl top-4 right-4 z-20 text-black cursor-pointer"
+        <button
+          type="button"
           onClick={onClose}
-        />
+          className="absolute right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-black shadow-sm active:bg-gray-100"
+          style={{
+            top: "calc(var(--app-safe-top, env(safe-area-inset-top, 0px)) + 12px)",
+          }}
+          aria-label="Close avatar selection"
+        >
+          <IoCloseOutline className="text-[28px]" aria-hidden="true" />
+        </button>
         <div className="flex items-center p2 justify-center ">
           {selectedAvatar ? (
             <div className="w-full h-96 relative">
@@ -205,9 +225,8 @@ const AvatarSelectorModal = ({
             </div>
           )}
         </div>
-        <input
+        <NativeImageInput
           ref={fileInputRef}
-          type="file"
           accept="image/*"
           className="hidden"
           onChange={handleFileSelect}

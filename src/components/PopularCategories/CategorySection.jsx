@@ -10,6 +10,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 import SEO from "../Helmet/SEO";
 import { RotatingLines } from "react-loader-spinner";
 import IkImage from "../../services/IkImage";
+import AppBackButton from "../layout/AppBackButton";
 
 const CategoryProducts = () => {
   const location = useLocation();
@@ -162,16 +163,12 @@ const CategoryProducts = () => {
         <div className=" h-full">
           {/* Back Icon (visible at top or when scrolling up) */}
           <div className="bg-blue-50 py-4">
-            <div
-              className={`fixed top-4 left-4 z-50 bg-white/50 backdrop-blur-md p-2 rounded-full shadow-md border border-gray-200 transition-opacity duration-300 ${
-                showBackIcon ? "opacity-100" : "opacity-0 pointer-events-none"
-              }`}
-            >
-              <GoChevronLeft
-                className="text-2xl cursor-pointer text-gray-800"
-                onClick={() => navigate(-1)}
-              />
-            </div>
+            <AppBackButton
+              onClick={() => navigate(-1)}
+              variant="overlay"
+              fixed
+              scrolled={!showBackIcon}
+            />
 
             {/* Category Header Section */}
             <div className="pb-12">

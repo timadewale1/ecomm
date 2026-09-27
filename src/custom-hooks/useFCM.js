@@ -4,6 +4,7 @@ import { getToken, onMessage } from "firebase/messaging";
 import { httpsCallable } from "firebase/functions";
 import { doc, getDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
+import { isNativeApp } from "../services/platform";
 
 /* ------------------------------------------------------------------ */
 /* ⏰  How long (in hours) before we re-validate the token in Firestore */
@@ -45,12 +46,19 @@ export function useFCM(currentUser, currentUserData) {
   const [enabling, setEnabling] = useState(false);
   const [hasToken, setHasToken] = useState(false);
   const [isPWA, setIsPWA] = useState(
-    window.matchMedia("(display-mode: standalone)").matches ||
+    !isNativeApp &&
+      (window.matchMedia("(display-mode: standalone)").matches ||
       window.navigator.standalone === true
+      )
   );
 
   /* ───────────────────────── PWA detection listener ───────────────────── */
   useEffect(() => {
+    if (isNativeApp) {
+      setIsPWA(false);
+      return;
+    }
+
     const mq = window.matchMedia("(display-mode: standalone)");
     const onChange = () =>
       setIsPWA(mq.matches || window.navigator.standalone === true);
@@ -93,6 +101,7 @@ export function useFCM(currentUser, currentUserData) {
   /* ───────────────────────────── SW registration ───────────────────────── */
   const registerServiceWorker = useCallback(async () => {
     try {
+      if (isNativeApp) return false;
       if (!("serviceWorker" in navigator)) return false;
 
       const existing = await navigator.serviceWorker.getRegistration(
@@ -116,6 +125,8 @@ export function useFCM(currentUser, currentUserData) {
 
   /* ───────────────────── enable-notifications button ───────────────────── */
   const handleEnableNotifs = useCallback(() => {
+    if (isNativeApp) return;
+
     setShowBanner(false);
 
     (async () => {
@@ -159,6 +170,12 @@ export function useFCM(currentUser, currentUserData) {
 
   /* ─────────────────────── Initial setup for a user ────────────────────── */
   useEffect(() => {
+    if (isNativeApp) {
+      setShowBanner(false);
+      setHasToken(false);
+      return;
+    }
+
     if (!currentUser) {
       setShowBanner(false);
       setHasToken(false);
@@ -258,6 +275,7 @@ export function useFCM(currentUser, currentUserData) {
 
   /* ─────────────────── Permission revoked → clean tokens ───────────────── */
   useEffect(() => {
+    if (isNativeApp) return;
     if (!currentUser || !currentUserData?.notificationAllowed) return;
     if (
       typeof Notification !== "undefined" &&

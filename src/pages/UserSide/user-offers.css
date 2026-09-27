@@ -1,0 +1,52 @@
+.offers-page { min-height: 100dvh; max-width: 574px; margin: 0 auto; background: #fff; color: #111827; font-family: "Satoshi", sans-serif; }
+.offers-header { border-bottom: 1px solid #e5e7eb; }
+.offers-navigation { background: #fff; }
+.offers-primary-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 4px 16px 2px; padding: 4px; border-radius: 14px; background: #f3f4f6; }
+.offers-primary-tabs button { position: relative; min-height: 38px; border: 0; border-radius: 11px; background: transparent; color: #687182; font: 600 14px/18px "Satoshi", sans-serif; }
+.offers-primary-tabs button.is-active { background: #fff; color: #111827; box-shadow: 0 1px 5px rgba(17, 24, 39, 0.08); }
+.offers-chat-unread { position: absolute; top: 8px; margin-left: 5px; width: 7px; height: 7px; border-radius: 50%; background: #f9531e; }
+.native-ios .offers-header { top: 0; }
+.offers-titlebar { display: grid; grid-template-columns: 32px 1fr 32px; align-items: center; height: 48px; }
+.offers-titlebar button { display: grid; width: 32px; height: 32px; place-items: center; border: 0; border-radius: 999px; background: transparent; color: #111827; }
+.offers-titlebar svg { width: 24px; height: 24px; stroke-width: 1.5; }
+.offers-titlebar h1 { font-size: 21px; font-weight: 500; line-height: 25px; text-align: center; }
+.offers-tabs { display: flex; height: 48px; align-items: flex-end; justify-content: space-between; padding: 0 16px; }
+.offers-tabs button { position: relative; height: 40px; padding: 8px 0; border: 0; background: transparent; color: #4b5563; font: 500 16px/20px "Satoshi", sans-serif; }
+.offers-tabs button.is-active { color: #111827; }
+.offers-tabs button.is-active::after { position: absolute; right: 0; bottom: 0; left: 0; height: 4px; border-radius: 999px; background: #f9531e; content: ""; }
+.offers-list { padding: 8px 16px 32px; }
+.offers-chat-list { margin: -8px -16px 0; }
+.offers-empty { display: grid; min-height: 55dvh; place-items: center; color: #6b7280; font-size: 14px; }
+.offer-list-item { display: flex; width: 100%; min-height: 136px; gap: 12px; padding: 8px 0; cursor: pointer; outline: none; }
+.offer-list-item:focus-visible { border-radius: 10px; box-shadow: 0 0 0 2px #f9531e; }
+.offer-list-image { width: 96px; height: 120px; flex: 0 0 96px; border-radius: 8px; object-fit: cover; }
+.offer-list-content { position: relative; display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 12px; }
+.offer-list-opening { position: absolute; z-index: 2; inset: 0; display: flex; align-items: center; justify-content: center; gap: 7px; border-radius: 12px; background: rgba(255, 255, 255, 0.9); color: #4b5563; font: 600 12px/16px "Satoshi", sans-serif; }
+.offer-list-opening svg { width: 17px; height: 17px; animation: offers-opening-spin 0.8s linear infinite; }
+.offer-list-copy { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.offer-list-copy h2 { overflow: hidden; color: #111827; font-size: 16px; font-weight: 500; line-height: 20px; text-overflow: ellipsis; white-space: nowrap; }
+.offer-list-prices { display: flex; height: 18px; align-items: center; gap: 6px; white-space: nowrap; }
+.offer-list-prices s { color: #4b5563; font-size: 14px; font-weight: 400; line-height: 18px; }
+.offer-list-prices strong { color: #111827; font-size: 16px; font-weight: 500; line-height: 20px; }
+.offer-list-prices svg { width: 20px; height: 20px; stroke-width: 1.4; }
+.offer-list-meta { display: flex; min-width: 0; align-items: center; gap: 6px; color: #4b5563; font-size: 14px; font-weight: 400; line-height: 18px; white-space: nowrap; }
+.offer-list-meta span { overflow: hidden; max-width: 110px; text-overflow: ellipsis; }
+.offer-list-meta i { width: 4px; height: 4px; flex: 0 0 4px; border-radius: 50%; background: #4b5563; }
+.offer-list-meta time { font-style: normal; }
+.offer-action { height: 40px; border-radius: 12px; font: 500 14px/18px "Satoshi", sans-serif; }
+.offer-action-wide { width: 100%; }
+.offer-action-primary { border: 1px solid #f9531e; background: #f9531e; color: #fff; }
+.offer-action-secondary { border: 1px solid #f3f4f6; background: #f3f4f6; color: #111827; }
+.offer-actions-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.offer-expired { display: grid; width: fit-content; min-width: 100px; height: 34px; padding: 0 12px; place-items: center; border-radius: 12px; background: #f3f4f6; color: #4b5563; font-size: 14px; font-weight: 500; line-height: 18px; }
+.offer-expired-actions { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; }
+.offers-redux-skeleton-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 16px; padding: 8px 0; }
+.offers-redux-skeleton-row span { display: block; background: linear-gradient(90deg, #f1f2f4 25%, #fafafa 50%, #f1f2f4 75%); background-size: 200% 100%; animation: offers-redux-shimmer 1.25s ease-in-out infinite; }
+.offers-redux-skeleton-image { width: 96px; height: 120px; border-radius: 8px; }
+.offers-redux-skeleton-lines { display: flex !important; flex-direction: column; gap: 10px; padding-top: 6px; background: transparent !important; animation: none !important; }
+.offers-redux-skeleton-lines span { width: 88%; height: 16px; border-radius: 5px; }
+.offers-redux-skeleton-lines span:nth-child(2) { width: 62%; }
+.offers-redux-skeleton-lines span:nth-child(3) { width: 74%; height: 40px; margin-top: auto; border-radius: 12px; }
+@keyframes offers-redux-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes offers-opening-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .offers-redux-skeleton-row span { animation: none; } }

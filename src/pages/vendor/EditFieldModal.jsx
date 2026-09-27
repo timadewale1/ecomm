@@ -1,461 +1,117 @@
 import React, { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import Lottie from "lottie-react";
-import { MdClose } from "react-icons/md";
-import LoadState from "../../Animations/loadinganimation.json";
-import LocationPicker from "../../components/Location/LocationPicker";
+import { Info, X } from "lucide-react";
+import { RotatingLines } from "react-loader-spinner";
+import AppBottomSheet from "../../components/layout/AppBottomSheet";
+import NativePickerField from "../../components/Form/NativePickerField";
+import "./vendor-edit-field.css";
 
-/* ------------------------------------------------------------------ */
-/*  Constants                                                          */
-/* ------------------------------------------------------------------ */
-const DAYS_OF_WEEK = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
-const PREDEFINED_OPTIONS = [
-  { label: "All Days", value: "ALL" },
-  { label: "Only Weekdays", value: "WK" },
-  { label: "Only Weekends", value: "WE" },
-];
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const SOURCING_OPTIONS = [
-  "Yaba Market",
-  "Tejuosho Market",
-  "My closet",
-  "SHEIN",
-  "Alibaba",
-
-  "Katangua Market",
-  "Aswani Market",
-  "Oshodi Market",
-  "Balogun Market",
-  "Bali Market",
-  "Mushin Market",
-  "Ajah Market",
-  "Badagry Market",
-  "Dugbe Market",
-  "Ahia Ohuru (New Market)",
-  "Ariaria International Market",
-  "Onitsha Main Market",
-  "Ogbete Main Market",
-  "Oil Mill Market",
-  "Mile One Market",
-  "Mile Three Market",
-  "Mile Two Market",
-  "Choba Market",
-  "Itam Market",
-  "Akpan Andem Market",
-  "Wuse Market",
-  "Karimo Market",
-  "Mararaba Market",
-  "Sabon Gari Market",
-  "Kantin Kwari Market",
-  "Kasuwar Barci Market",
-  "Tudun Wada Market",
-  "Monday Market",
+  "Yaba Market", "Tejuosho Market", "My closet", "SHEIN", "Alibaba",
+  "Katangua Market", "Aswani Market", "Oshodi Market", "Balogun Market",
+  "Bali Market", "Mushin Market", "Ajah Market", "Badagry Market",
+  "Dugbe Market", "Ahia Ohuru (New Market)", "Ariaria International Market",
+  "Onitsha Main Market", "Ogbete Main Market", "Oil Mill Market",
+  "Mile One Market", "Mile Three Market", "Mile Two Market", "Choba Market",
+  "Itam Market", "Akpan Andem Market", "Wuse Market", "Karimo Market",
+  "Mararaba Market", "Sabon Gari Market", "Kantin Kwari Market",
+  "Kasuwar Barci Market", "Tudun Wada Market", "Monday Market",
 ];
+const RESTOCK_OPTIONS = ["Daily", "Every 3 days", "Every 4 days", "Weekly", "Every 2 weeks", "Monthly"];
+const TIME_OPTIONS = Array.from({length: 48}, (_, index) => {
+  const hour = Math.floor(index / 2).toString().padStart(2, "0");
+  return `${hour}:${index % 2 ? "30" : "00"}`;
+});
+const POLICY_OPTIONS = [
+  ["NO_RETURNS", "All sales final — no returns"],
+  ["NO_RETURNS_AFTER_24HRS", "No returns after 24 hours of delivery"],
+  ["NO_RETURNS_IF_CORRECT_ITEM", "No returns if the item matches the order"],
+  ["NO_RETURNS_SIZE_COLOR", "No returns for buyer size or colour mistakes"],
+  ["RETURNS_EXCHANGE_ONLY", "Returns accepted — exchange only"],
+  ["RETURNS_REFUND_IF_DEFECT", "Return and refund if defective or misdescribed"],
+  ["RETURNS_REFUND_FLEX", "Flexible returns and refunds"],
+].map(([value, label]) => ({value, label}));
 
-const RESTOCK_OPTIONS = ["Daily", "Weekly", "Bi‑Weekly", "Monthly"];
-const TIME_OPTS = Array.from({ length: 24 }, (_, h) => [
-  `${h.toString().padStart(2, "0")}:00`,
-  `${h.toString().padStart(2, "0")}:30`,
-]).flat();
-
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
-const EditFieldModal = ({
-  show,
-  handleClose,
-  field,
-  currentValue,
-  processing,
-  onSave,
-}) => {
-  /* ------------ local state ------------ */
-  const [value, setValue] = useState(currentValue);
-  const [coords, setCoords] = useState({ lat: null, lng: null });
-
-  /* ------------ reset when open -------- */
-  useEffect(() => {
-    setValue(currentValue);
-    if (field === "Address") setCoords({ lat: null, lng: null });
-  }, [currentValue, field]);
-  const ratingLocked = field === "wearReadinessRating" && currentValue;
-
-  /* ------------ helpers ---------------- */
-  const titleMap = {
-    openTime: "Opening Time",
-    closeTime: "Closing Time",
-    daysAvailability: "Days of Availability",
-    complexNumber: "Complex Number",
-    Address: "Address",
-    sourcingMarket: "Sourcing Market",
-    returnPolicy: "Return / Refund Policy",
-    restockFrequency: "Restock Frequency",
-    wearReadinessRating: "Wear‑Readiness Rating",
-    description: "Description",
-  };
-  const title = titleMap[field] ?? "Edit";
-
-  const predefinedHandler = (code) => {
-    if (code === "ALL") setValue([...DAYS_OF_WEEK]);
-    else if (code === "WK") setValue(DAYS_OF_WEEK.slice(0, 5));
-    else setValue(DAYS_OF_WEEK.slice(5));
-  };
-
-  const toggleDay = (day) =>
-    setValue((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    );
-  const orangeChip = (active) =>
-    `inline-block rounded-full px-3 py-1 text-xs font-medium 
-   border ${
-     active
-       ? "bg-customOrange text-white border-customOrange"
-       : "border-gray-300"
-   }`;
-  const RESTOCK_OPTIONS = [
-    "Daily",
-    "Every 3 days",
-    "Every 4 days",
-    "Weekly",
-    "Every 2 weeks",
-  ];
-  /* ------------ validation + save ------ */
-  const save = () => {
-    if (field === "daysAvailability" && (!value || value.length === 0))
-      return alert("Pick at least one day.");
-    if (field === "Address" && (!coords.lat || !coords.lng))
-      return alert("Choose a location on the map.");
-    if (field === "wearReadinessRating") {
-      const num = Number(value);
-      if (Number.isNaN(num) || num < 1 || num > 10)
-        return alert("Rating must be 1 – 10");
-      onSave(field, num);
-    } else if (field === "Address") {
-      onSave(field, value, coords);
-    } else {
-      onSave(field, value);
-    }
-    handleClose();
-  };
-  const helperText = {
-    sourcingMarket:
-      "Shoppers love to know where you thrift from, makes them feel involved in the process.",
-    restockFrequency:
-      "Let your customers know when to check in- encourage them to also follow your store.",
-    wearReadinessRating:
-      "This field is how wear ready your clothes are, if Ade buys your item can he use it immediately without washing? this field input is allowed only once you cant edit and it is subject to reduction if feedback from customers say otherwise.",
-  }[field];
-
-  /* ------------ field‑specific UI ------ */
-  const inputUI = () => {
-    if (field === "openTime" || field === "closeTime")
-      return (
-        <select
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          className="w-full px-3 py-2 border rounded-lg focus:ring-customOrange"
-        >
-          {TIME_OPTS.map((t) => (
-            <option key={t}>{t}</option>
-          ))}
-        </select>
-      );
-
-    if (field === "daysAvailability")
-      return (
-        <>
-          <div className="mb-4 space-x-2">
-            {PREDEFINED_OPTIONS.map((o) => (
-              <button
-                key={o.value}
-                onClick={() => predefinedHandler(o.value)}
-                className={`text-xs px-2 py-1 rounded-lg ${
-                  (o.value === "ALL" && value?.length === 7) ||
-                  (o.value === "WK" &&
-                    JSON.stringify(value) ===
-                      JSON.stringify(DAYS_OF_WEEK.slice(0, 5))) ||
-                  (o.value === "WE" &&
-                    JSON.stringify(value) ===
-                      JSON.stringify(DAYS_OF_WEEK.slice(5)))
-                    ? "bg-customOrange text-white"
-                    : "bg-gray-200"
-                }`}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {DAYS_OF_WEEK.map((d) => (
-              <button
-                key={d}
-                onClick={() => toggleDay(d)}
-                className={`text-xs px-3 py-2 rounded-lg ${
-                  value?.includes(d)
-                    ? "bg-customOrange text-white"
-                    : "bg-gray-200"
-                }`}
-              >
-                {d}
-              </button>
-            ))}
-          </div>
-        </>
-      );
-    if (field === "returnPolicy") {
-      const POLICY_CHOICES = [
-        { value: "NO_RETURNS", label: "All sales final – no returns" },
-        {
-          value: "NO_RETURNS_AFTER_24HRS",
-          label: "No returns after 24 hrs of delivery",
-        },
-        {
-          value: "NO_RETURNS_IF_CORRECT_ITEM",
-          label: "No returns if item matches order",
-        },
-        {
-          value: "NO_RETURNS_SIZE_COLOR",
-          label: "No returns for buyer size / colour mistakes",
-        },
-        {
-          value: "RETURNS_EXCHANGE_ONLY",
-          label: "Returns accepted – exchange only",
-        },
-     
-        {
-          value: "RETURNS_REFUND_IF_DEFECT",
-          label: "Return & refund if defective / mis‑described",
-        },
-        {
-          value: "RETURNS_REFUND_FLEX",
-          label: "Returns & refund – flexible policy",
-        },
-      ];
-
-      return (
-        <>
-          <select
-            value={value?.type || "NO_RETURNS"}
-            onChange={(e) => setValue({ ...value, type: e.target.value })}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-customOrange mb-3"
-          >
-            {POLICY_CHOICES.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-
-          <textarea
-            rows={3}
-            placeholder="Optional extra notes (max 200 chars)"
-            maxLength={200}
-            value={value?.notes || ""}
-            onChange={(e) => setValue({ ...value, notes: e.target.value })}
-            className="w-full px-3 py-2 border rounded-lg resize-none"
-          />
-
-          {/* disclaimer */}
-          <p className="mt-4 text-[11px] text-customRichBrown leading-snug">
-            <strong>Heads‑up for vendors:</strong> My Thrift’s platform‑wide
-            policy <em>always</em> overrides individual store rules in the
-            following situations:
-            <br />• item arrives badly damaged or unusable, <br />• item is
-            materially different from photos / description, <br />• obvious
-            vendor mis‑representation (e.g.&nbsp;“Nike” photo sent as “Neki”).
-            <br />
-            In such cases the buyer may be eligible for a full refund even if
-            your store policy says otherwise.
-          </p>
-        </>
-      );
-    }
-
-    if (field === "restockFrequency") {
-      return (
-        <select
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          className="w-full px-3 py-2 border rounded-lg focus:ring-customOrange"
-        >
-          <option value="">How often do you restock?</option>
-          {RESTOCK_OPTIONS.map((opt) => (
-            <option key={opt}>{opt}</option>
-          ))}
-        </select>
-      );
-    }
-    if (field === "Address")
-      return (
-        <LocationPicker
-          initialAddress={value}
-          onLocationSelect={({ address, lat, lng }) => {
-            setValue(address);
-            setCoords({ lat, lng });
-          }}
-        />
-      );
-    if (field === "sourcingMarket") {
-      const max = 4;
-
-      return (
-        <>
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] text-gray-500">
-              Pick up to <strong>{max}</strong> markets you usually thrift from.
-            </p>
-
-            {/* CLEAR button */}
-            {Array.isArray(value) && value.length > 0 && (
-              <button
-                onClick={() => setValue([])}
-                className="text-[11px] text-customOrange font-semibold hover:underline"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {SOURCING_OPTIONS.map((opt) => {
-              const active = Array.isArray(value) && value.includes(opt);
-              const disabled =
-                !active && Array.isArray(value) && value.length >= max;
-
-              return (
-                <button
-                  key={opt}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => {
-                    if (active) {
-                      setValue((prev) => prev.filter((o) => o !== opt));
-                    } else if (!disabled) {
-                      setValue((prev = []) => [...prev, opt]);
-                    }
-                  }}
-                  className={`inline-block rounded-full px-3 py-1 text-xs font-medium border
-                ${
-                  active
-                    ? "bg-customOrange text-white border-customOrange"
-                    : disabled
-                    ? "bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed"
-                    : "border-gray-300"
-                }`}
-                >
-                  {opt}
-                </button>
-              );
-            })}
-          </div>
-        </>
-      );
-    }
-
-    if (field === "wearReadinessRating")
-      return ratingLocked ? (
-        <p className="text-sm text-gray-700">{currentValue} / 10 (locked)</p>
-      ) : (
-        <input
-          type="number"
-          min="1"
-          max="10"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          className="w-full px-3 py-2 border rounded-lg focus:ring-customOrange"
-        />
-      );
-
-    /* description / fallback */
-    return (
-      <textarea
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        rows={5}
-        className="w-full px-3 py-2 resize-none focus:outline-none border rounded-lg scrollbar-hide"
-        style={{ scrollbarWidth: "none" }}
-      />
-    );
-  };
-
-  /* ------------ animation shell -------- */
-  return (
-    <AnimatePresence>
-      {show && (
-        <>
-          {/* dimmed backdrop */}
-          <motion.div
-            key="backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.5 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black z-40"
-            onClick={handleClose}
-          />
-
-          {/* sliding sheet */}
-          <motion.div
-            key="sheet"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "tween", duration: 0.3 }}
-            className="fixed bottom-0 left-0 right-0 z-[5000] bg-white rounded-t-2xl p-6 pb-8 shadow-2xl"
-          >
-            {/* close icon */}
-            <button
-              onClick={handleClose}
-              className="absolute top-4 right-4 bg-gray-200 p-1 rounded-full text-xl text-gray-600"
-            >
-              <MdClose />
-            </button>
-
-            <h3 className="text-lg font-semibold mb-4">{`Edit ${title}`}</h3>
-            {inputUI()}
-            {helperText && (
-              <>
-                <hr className="border-gray-100 my-2 " />
-                <p className="text-[11px] font-opensans text-customRichBrown mb-4">
-                  {helperText}
-                </p>
-              </>
-            )}
-
-            <div className="flex justify-end gap-4 mt-6">
-              <button
-                onClick={save}
-                disabled={
-                  processing ||
-                  ratingLocked ||
-                  (field === "Address" && (!coords.lat || !coords.lng))
-                }
-                className={`px-4 py-2 rounded-lg text-white flex items-center justify-center ${
-                  processing ||
-                  (field === "Address" && (!coords.lat || !coords.lng))
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-customOrange"
-                }`}
-              >
-                {processing ? (
-                  <Lottie className="w-6 h-6" animationData={LoadState} loop />
-                ) : (
-                  "Save"
-                )}
-              </button>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
+const TITLES = {
+  description: "Store description",
+  returnPolicy: "Return / refund policy",
+  sourcingMarket: "Sourcing markets",
+  restockFrequency: "Restock frequency",
+  wearReadinessRating: "Wear readiness",
+  complexNumber: "Complex number",
+  daysAvailability: "Available days",
+  openTime: "Opening time",
+  closeTime: "Closing time",
 };
 
-export default EditFieldModal;
+export default function EditFieldModal({show, handleClose, field, currentValue, processing, onSave}) {
+  const [value, setValue] = useState(currentValue);
+
+  useEffect(() => {
+    setValue(currentValue);
+  }, [currentValue, field, show]);
+
+  const save = async () => {
+    if (processing || !TITLES[field]) return;
+    await onSave(field, value);
+  };
+
+  const renderInput = () => {
+    if (field === "returnPolicy") {
+      return (
+        <>
+          <NativePickerField title="Return policy" value={value?.type || "NO_RETURNS"} options={POLICY_OPTIONS} onChange={(type) => setValue((current) => ({...(current || {}), type}))} className="vendor-edit-picker" />
+          <label className="vendor-edit-policy-notes" htmlFor="vendor-return-policy-notes">
+            <span>Policy notes <small>(optional)</small></span>
+            <textarea id="vendor-return-policy-notes" rows={3} maxLength={200} value={value?.notes || ""} onChange={(event) => setValue((current) => ({...(current || {}), notes: event.target.value}))} placeholder="Add any store-specific return instructions buyers should know" />
+          </label>
+          <div className="vendor-edit-notice"><Info /><div><strong>How returns work on My Thrift</strong><p>Your store policy tells buyers when you normally accept a return, exchange or refund. It does not replace My Thrift Buyer Protection. A buyer can still report an order that arrives damaged, unusable, incomplete, counterfeit, or materially different from the listing. My Thrift will review the order details and available evidence before deciding the appropriate resolution. Buyers should raise an issue from their order or contact support instead of arranging a return outside the app.</p></div></div>
+        </>
+      );
+    }
+    if (field === "sourcingMarket") {
+      return <NativePickerField title="Sourcing markets" value={Array.isArray(value) ? value : []} options={SOURCING_OPTIONS} onChange={setValue} multiple searchable className="vendor-edit-picker" />;
+    }
+    if (field === "daysAvailability") {
+      return <NativePickerField title="Available days" value={Array.isArray(value) ? value : []} options={DAYS} onChange={setValue} multiple className="vendor-edit-picker" />;
+    }
+    if (field === "restockFrequency") {
+      return <NativePickerField title="Restock frequency" value={value} options={RESTOCK_OPTIONS} onChange={setValue} className="vendor-edit-picker" />;
+    }
+    if (field === "openTime" || field === "closeTime") {
+      return <NativePickerField title={TITLES[field]} value={value} options={TIME_OPTIONS} onChange={setValue} className="vendor-edit-picker" />;
+    }
+    if (field === "wearReadinessRating") {
+      return <NativePickerField title="Wear readiness" value={String(value || "")} options={Array.from({length: 10}, (_, index) => ({value: String(index + 1), label: `${index + 1}/10`}))} onChange={setValue} className="vendor-edit-picker" />;
+    }
+    if (field === "complexNumber") {
+      return <input value={value || ""} maxLength={100} onChange={(event) => setValue(event.target.value)} placeholder="Complex or stall number" />;
+    }
+    return (
+      <>
+        <textarea rows={6} maxLength={1000} value={value || ""} onChange={(event) => setValue(event.target.value)} placeholder="Tell buyers what makes your store special" />
+        <small className="vendor-edit-count">{String(value || "").length}/1000</small>
+      </>
+    );
+  };
+
+  const saveDisabled = processing || !TITLES[field] ||
+    (field === "description" && String(value || "").trim().length < 20) ||
+    (field === "daysAvailability" && !value?.length) ||
+    (field === "sourcingMarket" && value?.length > 4);
+
+  if (!TITLES[field]) return null;
+
+  return (
+    <AppBottomSheet open={show} onClose={handleClose} dismissible={!processing} closeOnBackdrop={!processing} height="62dvh" compactTop keyboardAware ariaLabel={TITLES[field] || "Edit profile"} ariaBusy={processing}>
+      <div className="vendor-edit-head">
+        <div><h2>{TITLES[field] || "Edit profile"}</h2><p>Changes are saved securely to your store.</p></div>
+        <button type="button" onClick={handleClose} disabled={processing} aria-label="Close"><X /></button>
+      </div>
+      <div className="vendor-edit-body">{renderInput()}</div>
+      <div className="vendor-edit-footer">
+        <button type="button" onClick={save} disabled={saveDisabled}>{processing ? <RotatingLines strokeColor="#fff" width="20" /> : "Save changes"}</button>
+      </div>
+    </AppBottomSheet>
+  );
+}

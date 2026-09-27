@@ -1,111 +1,95 @@
 // src/pages/VendorChatList.jsx
 import React, { useEffect, useState } from "react";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-} from "firebase/firestore";
-import { auth, db } from "../../firebase.config";
-import ChatListItem from "../../components/Chats/ChatListItem";
-import OfferListItem from "../../components/Chats/OfferListItem"; // <- NEW
-import { useNavigate } from "react-router-dom";
+import OfferListItem from "../../components/Chats/OfferListItem";
+import { useLocation, useNavigate } from "react-router-dom";
 import { CiSearch } from "react-icons/ci";
 import NoMessage from "../../components/Loading/NoMessage";
 import SEO from "../../components/Helmet/SEO";
+import { useSelector } from "react-redux";
+import {
+  selectOfferConversations,
+  selectOfferConversationsStatus,
+} from "../../redux/reducers/offerConversationsSlice";
+import { appHaptics } from "../../services/haptics";
+import { hydrateMyOfferConversations } from "../../services/offerConversations";
+import AppPageHeader from "../../components/layout/AppPageHeader";
+import { useAuth } from "../../custom-hooks/useAuth";
+
+const EMPTY_CONVERSATIONS = [];
+
+const OfferConversationSkeleton = () => (
+  <div className="animate-pulse" aria-label="Loading conversations" aria-busy="true">
+    {[0, 1, 2, 3].map((row) => (
+      <div className="flex items-center gap-3 border-b border-gray-100 p-3" key={row}>
+        <span className="h-12 w-12 flex-none rounded-full bg-gray-200" />
+        <span className="min-w-0 flex-1 space-y-2">
+          <span className="block h-3.5 w-2/5 rounded bg-gray-200" />
+          <span className="block h-3 w-3/4 rounded bg-gray-100" />
+        </span>
+      </div>
+    ))}
+  </div>
+);
 
 export default function VendorChatList() {
-  const [inquiries, setInquiries] = useState([]);
-  const [offers, setOffers] = useState([]); // <- NEW
+  const { currentUser, loading: authLoading } = useAuth();
+  const uid = currentUser?.uid;
+  const offerConversations = useSelector(selectOfferConversations);
+  const offerConversationsStatus = useSelector(selectOfferConversationsStatus);
+  const ownsInbox = useSelector((state) =>
+    Boolean(uid && state.offerConversations.ownerUid === uid && state.offerConversations.ownerRole === "vendor"),
+  );
+  const conversations = ownsInbox ? offerConversations : EMPTY_CONVERSATIONS;
+  const inboxStatus = ownsInbox ? offerConversationsStatus : "connecting";
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTab, setSelectedTab] = useState("offers"); // <- default to Offers
+  const [now, setNow] = useState(Date.now());
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    if (!auth.currentUser) {
-      navigate("/login");
-      return;
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (authLoading || !uid || inboxStatus !== "ready") return;
+    const key = `mythrift:offer-conversations-hydrated:v2:${uid}:vendor`;
+    try {
+      if (sessionStorage.getItem(key) === "1") return;
+      sessionStorage.setItem(key, "1");
+    } catch {
+      // Chat remains usable when WebView storage is unavailable.
     }
-
-    const vendorUid = auth.currentUser.uid;
-
-    // Inquiries subscription (unchanged)
-    const qInq = query(
-      collection(db, "inquiries"),
-      where("vendorId", "==", vendorUid),
-      orderBy("createdAt", "desc")
-    );
-    const unsubInq = onSnapshot(qInq, (snap) => {
-      setInquiries(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    hydrateMyOfferConversations().catch((error) => {
+      try { sessionStorage.removeItem(key); } catch { /* Best-effort session cache. */ }
+      console.warn("[vendor-offers] historical hydration failed", error);
     });
+  }, [authLoading, uid, inboxStatus]);
 
-    // Offers subscription (NEW)
-    const qOff = query(
-      collection(db, "offers"),
-      where("vendorId", "==", vendorUid),
-      orderBy("createdAt", "desc")
-    );
-    const unsubOff = onSnapshot(qOff, (snap) => {
-      setOffers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-
-    return () => {
-      unsubInq();
-      unsubOff();
-    };
-  }, [navigate]);
-
-  // Filter logic
-  const filteredInquiries = inquiries
-    .filter((inq) => inq.status === selectedTab || selectedTab === "offers")
-    .filter((inq) =>
-      (inq.question || "").toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-  const groupedOffers = React.useMemo(() => {
-    const byThread = new Map();
-    for (const off of offers) {
-      const tid = `${off.buyerId}__${off.productId}`;
-      const cur = byThread.get(tid);
-      if (!cur) {
-        byThread.set(tid, {
-          threadKey: tid,
-          buyerId: off.buyerId,
-          productId: off.productId,
-          vendorId: off.vendorId,
-          productName: off.productName,
-          productCover: off.productCover,
-          unread: off.vendorRead ? 0 : 1,
-          latest: off,
-        });
-      } else {
-        // latest by updatedAt
-        const curTs = cur.latest?.updatedAt?.toMillis?.() ?? 0;
-        const offTs = off?.updatedAt?.toMillis?.() ?? 0;
-        if (offTs > curTs) cur.latest = off;
-        if (!off.vendorRead) cur.unread += 1;
-      }
+  useEffect(() => {
+    if (!authLoading && !uid) {
+      navigate("/vendorlogin", {
+        replace: true,
+        state: {returnTo: `${location.pathname}${location.search}`},
+      });
     }
-    // turn to array & search
-    const arr = Array.from(byThread.values());
-    return arr
-      .filter((t) => {
-        const hay = `${t.productName || ""} ${
-          t.latest?.amount
-            ? `i want to get this item for ₦${t.latest.amount}`
-            : ""
-        }`.toLowerCase();
-        return hay.includes(searchTerm.toLowerCase());
-      })
-      .sort(
-        (a, b) =>
-          (b.latest?.updatedAt?.toMillis?.() ?? 0) -
-          (a.latest?.updatedAt?.toMillis?.() ?? 0)
-      );
-  }, [offers, searchTerm]);
+  }, [authLoading, uid, location.pathname, location.search, navigate]);
 
-  // then use groupedOffers only when selectedTab === "offers"
+  const filteredConversations = React.useMemo(() => {
+    const needle = searchTerm.trim().toLowerCase();
+    if (!needle) return conversations;
+    return conversations.filter((conversation) =>
+      [
+        conversation?.buyer?.displayName,
+        conversation?.latestEvent?.preview,
+        conversation?.latestProduct?.name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(needle),
+    );
+  }, [conversations, searchTerm]);
 
   return (
     <>
@@ -115,28 +99,21 @@ export default function VendorChatList() {
         url={`https://www.shopmythrift.store/vchats`}
       />
 
-      <div className="max-w-xl mx-auto h-full flex flex-col">
-        {/* HEADER */}
-        <header className="sticky top-0 bg-white z-10 p-4 relative">
-          <h1 className="text-2xl font-medium font-ubuntu text-gray-800">
-            Message Box
-          </h1>
-          <span className="absolute top-3 right-48 bg-customOrange text-[10px] text-white px-1 rounded-md font-bold">
-            Beta
-          </span>
-        </header>
+      <div className="mx-auto flex h-[100dvh] w-full max-w-xl flex-col bg-white pb-[calc(78px+env(safe-area-inset-bottom))] font-satoshi">
+        <AppPageHeader
+          title="Messages"
+          showBack={false}
+          className="vendor-section-header"
+        />
 
         {/* SEARCH */}
         <div className="px-4 py-2 bg-white border-gray-100 border-b">
           <div className="relative">
             <input
               type="text"
-              placeholder={
-                selectedTab === "offers"
-                  ? "Search offers..."
-                  : "Search messages..."
-              }
-              className="w-full border border-gray-200 rounded-full px-4 py-2 pr-10 text-base font-opensans focus:outline-none focus:ring-2 focus:ring-customOrange"
+              placeholder="Search chats..."
+              aria-label="Search chats"
+              className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 pr-11 text-[15px] outline-none transition focus:border-customOrange focus:bg-white focus:ring-2 focus:ring-orange-100"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -144,88 +121,36 @@ export default function VendorChatList() {
           </div>
         </div>
 
-        {/* TABS (Offers first, then Open / Closed) */}
-        <div className="px-4 py-2 bg-white ">
-          <div className="inline-flex space-x-2">
-            <button
-              onClick={() => setSelectedTab("offers")}
-              className={`px-4 py-1 rounded-full text-sm font-medium font-opensans transition ${
-                selectedTab === "offers"
-                  ? "bg-customOrange text-white"
-                  : "border border-gray-300 text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              Offers
-            </button>
-            <button
-              onClick={() => setSelectedTab("open")}
-              className={`px-4 py-1 rounded-full text-sm font-medium font-opensans transition ${
-                selectedTab === "open"
-                  ? "bg-customOrange text-white"
-                  : "border border-gray-300 text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              Open
-            </button>
-            <button
-              onClick={() => setSelectedTab("closed")}
-              className={`px-4 py-1 rounded-full text-sm font-opensans transition ${
-                selectedTab === "closed"
-                  ? "bg-customOrange text-white"
-                  : "border border-gray-300 font-medium text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              Closed
-            </button>
-          </div>
-        </div>
-
         {/* LIST */}
-        <div className="flex-1 overflow-auto ">
-          {selectedTab === "offers" ? (
-            groupedOffers.length === 0 ? (
+        <div className="min-h-0 flex-1 overflow-auto">
+          {filteredConversations.length === 0 &&
+            ["idle", "connecting"].includes(inboxStatus) ? (
+              <OfferConversationSkeleton />
+            ) : filteredConversations.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center p-8 text-gray-500">
                 <NoMessage />
-                <p className="font-opensans text-xs text-center text-gray-600">
-                  You don’t have any offers yet. When a customer submits or
-                  responds to an offer, you’ll see it here.
+                <p className="font-satoshi text-xs text-center text-gray-600">
+                  {inboxStatus === "error"
+                    ? "We couldn’t load your chats. Check your connection and try again."
+                    : searchTerm.trim()
+                      ? "No chats match your search."
+                      : "You don’t have any chats yet. Offers and verified product questions will appear here."}
                 </p>
               </div>
             ) : (
-              groupedOffers.map((t) => (
+              filteredConversations.map((conversation) => (
                 <OfferListItem
-                  key={t.threadKey}
-                  offer={t.latest}
-                  unreadCount={t.unread}
-                  onClick={() =>
-                    navigate(
-                      `/vchats/thread?type=offerThread&buyerId=${t.buyerId}&productId=${t.productId}`
-                    )
-                  }
+                  key={conversation.id}
+                  conversation={conversation}
+                  now={now}
+                  onClick={() => {
+                    appHaptics.selection();
+                    navigate(`/offer-conversations/${conversation.id}`);
+                  }}
                 />
               ))
             )
-          ) : filteredInquiries.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center p-8 text-gray-500">
-              <NoMessage />
-              {selectedTab === "open" ? (
-                <p className="font-opensans text-xs text-center text-gray-600">
-                  You don’t have any open chats right now. When a customer wants
-                  to know more about one of your products, you’ll see it here.
-                  Please check your email spams as notifications may be there
-                </p>
-              ) : (
-                <p className="font-opensans text-xs text-center text-gray-600">
-                  You don’t have any closed chats yet. Once you reply to a
-                  question, it will appear here.
-                </p>
-              )}
-            </div>
-          ) : (
-            filteredInquiries.map((inq) => (
-              <ChatListItem key={inq.id} inquiry={inq} />
-            ))
-          )}
+          }
         </div>
       </div>
     </>

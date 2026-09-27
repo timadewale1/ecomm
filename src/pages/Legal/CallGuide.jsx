@@ -1,7 +1,7 @@
 import React from "react";
-import { GoChevronLeft } from "react-icons/go";
 import { useNavigate } from "react-router-dom";
 import SEO from "../../components/Helmet/SEO";
+import AppPageHeader from "../../components/layout/AppPageHeader";
 
 const CallGuide = () => {
   const navigate = useNavigate();
@@ -14,17 +14,7 @@ const CallGuide = () => {
       />
     <div className="flex flex-col items-center bg-gray-50 min-h-screen pb-4 font-opensans text-gray-800">
       {/* Header */}
-      <div className="sticky top-0 bg-white z-10 flex items-center justify-between w-full px-3 py-4 border-b shadow-sm">
-        <div className="flex items-center space-x-2">
-          <GoChevronLeft
-            className="text-2xl text-black cursor-pointer"
-            onClick={() => navigate(-1)}
-          />
-          <h1 className="text-lg font-semibold text-gray-900">
-            Call Guidelines
-          </h1>
-        </div>
-      </div>
+      <AppPageHeader title="Call Guidelines" onBack={() => navigate(-1)} />
 
       {/* Content */}
       <div className="w-full max-w-3xl bg-white rounded-lg shadow-md p-2">

@@ -12,6 +12,7 @@ import {
 import { db } from "../../firebase.config";
 import moment from "moment";
 import toast from "react-hot-toast";
+import { getStockpileOrderMembership } from "../../services/stockpileOrderStatus";
 
 /**
  * fetchStockpileData:
@@ -43,7 +44,7 @@ export const fetchStockpileData = createAsyncThunk(
       if (spSnap.empty) {
         console.log("[stockpileSlice] No active pile found for this vendor.");
         toast("No active pile found for this vendor.");
-        return { pileItems: [], stockpileExpiry: null };
+        return { pileItems: [], pileOrders: [], stockpileExpiry: null };
       }
 
       const spDoc = spSnap.docs[0];
@@ -56,7 +57,7 @@ export const fetchStockpileData = createAsyncThunk(
           "[stockpileSlice] No orders array found in this stockpile."
         );
         toast("No orders in this stockpile yet.");
-        return { pileItems: [], stockpileExpiry: null };
+        return { pileItems: [], pileOrders: [], stockpileExpiry: null };
       }
 
       // If there's an endDate (Timestamp), parse it
@@ -66,7 +67,8 @@ export const fetchStockpileData = createAsyncThunk(
         console.log("[stockpileSlice] Stockpile endDate:", expiry);
       }
 
-      let allItems = [];
+      const allItems = [];
+      const pileOrders = [];
 
       // For each order
       for (const oid of spData.orderIds) {
@@ -78,42 +80,52 @@ export const fetchStockpileData = createAsyncThunk(
         }
 
         const orderData = orderSnap.data();
-        if (orderData.progressStatus === "Declined") {
-          console.log(`[stockpileSlice] Skipping declined order: ${oid}`);
-          continue;
-        }
+        const membershipStatus = getStockpileOrderMembership(orderData);
+        const orderItems = [];
         if (!Array.isArray(orderData.cartItems)) {
           console.warn(
             "[stockpileSlice] orderData.cartItems is missing or not an array for order:",
             oid
           );
+          pileOrders.push({
+            id: oid,
+            orderId: orderData.orderId || oid,
+            progressStatus: orderData.progressStatus || "Pending",
+            vendorStatus: orderData.vendorStatus || null,
+            membershipStatus,
+            declineReason: orderData.declineReason || null,
+            createdAt: orderData.createdAt || null,
+            items: [],
+          });
           continue;
         }
 
         // For each cartItem, fetch product doc
         for (const item of orderData.cartItems) {
-          if (!item.productId) {
-            console.warn(
-              "[stockpileSlice] cartItem is missing productId:",
-              item
-            );
-            continue;
-          }
-
-          console.log(
-            "[stockpileSlice] Fetching product doc for:",
-            item.productId
-          );
-          const productSnap = await getDoc(doc(db, "products", item.productId));
-          if (!productSnap.exists()) {
-            console.warn(
-              "[stockpileSlice] Product doc not found for ID:",
+          let productData = item.productSnapshot || {};
+          if (item.productId) {
+            console.log(
+              "[stockpileSlice] Fetching product doc for:",
               item.productId
             );
-            continue;
+            const productSnap = await getDoc(
+              doc(db, "products", item.productId)
+            );
+            if (productSnap.exists()) {
+              productData = productSnap.data();
+            } else {
+              console.warn(
+                "[stockpileSlice] Product doc not found; using order snapshot:",
+                item.productId
+              );
+            }
+          } else {
+            // Historical order lines can predate productId snapshots. Keep the
+            // paid order line visible instead of silently deleting it.
+            console.warn(
+              "[stockpileSlice] cartItem has no productId; using order snapshot",
+            );
           }
-
-          const productData = productSnap.data();
           console.log("[stockpileSlice] Product data fetched:", productData);
 
           // --------------------------
@@ -121,6 +133,14 @@ export const fetchStockpileData = createAsyncThunk(
           // --------------------------
           let itemImages = [];
           let variantImages = [];
+
+          // Prefer the immutable order-time image. A live listing can change
+          // after the item has already joined the customer's pile.
+          if (item.selectedImageUrl) {
+            itemImages.push(item.selectedImageUrl);
+          } else if (item.productSnapshot?.imageUrl) {
+            itemImages.push(item.productSnapshot.imageUrl);
+          }
 
           // 1) Check for subProductId
           let subProduct = null;
@@ -178,16 +198,59 @@ export const fetchStockpileData = createAsyncThunk(
           // Build the final cart item
           const finalItem = {
             ...item,
-            name: productData.name || "Unknown",
+            orderId: oid,
+            displayOrderId: orderData.orderId || oid,
+            orderProgressStatus: orderData.progressStatus || "Pending",
+            orderVendorStatus: orderData.vendorStatus || null,
+            stockpileMembershipStatus: membershipStatus,
+            declineReason: orderData.declineReason || null,
+            name:
+              item.name ||
+              item.productSnapshot?.name ||
+              productData.name ||
+              "Item",
             imageUrl: finalImage,
+            selectedImageUrl: finalImage,
+            unitPrice:
+              item.unitPrice ??
+              item.productSnapshot?.price ??
+              item.price ??
+              productData.price ??
+              null,
+            selectedSize:
+              item.selectedSize || item.size || item.variantAttributes?.size,
+            selectedColor:
+              item.selectedColor || item.color || item.variantAttributes?.color,
+            condition:
+              item.condition ||
+              item.productSnapshot?.condition ||
+              productData.condition ||
+              null,
+            isFashion:
+              item.isFashion ??
+              item.productSnapshot?.isFashion ??
+              productData.isFashion ??
+              false,
           };
 
           console.log(
             "[stockpileSlice] Final cart item with product data:",
             finalItem
           );
+          orderItems.push(finalItem);
           allItems.push(finalItem);
         }
+
+        pileOrders.push({
+          id: oid,
+          orderId: orderData.orderId || oid,
+          progressStatus: orderData.progressStatus || "Pending",
+          vendorStatus: orderData.vendorStatus || null,
+          membershipStatus,
+          declineReason: orderData.declineReason || null,
+          createdAt: orderData.createdAt || null,
+          items: orderItems,
+        });
       }
 
       console.log(
@@ -197,6 +260,7 @@ export const fetchStockpileData = createAsyncThunk(
 
       return {
         pileItems: allItems,
+        pileOrders,
         stockpileExpiry: expiry,
       };
     } catch (error) {
@@ -215,6 +279,7 @@ const initialState = {
   isActive: false,
   vendorId: null,
   pileItems: [],
+  pileOrders: [],
   stockpileExpiry: null,
   loading: false,
   error: null,
@@ -239,6 +304,7 @@ const stockpileSlice = createSlice({
       state.isActive = false;
       state.vendorId = null;
       state.pileItems = [];
+      state.pileOrders = [];
       state.stockpileExpiry = null;
       state.error = null;
     },
@@ -249,6 +315,8 @@ const stockpileSlice = createSlice({
         console.log("[stockpileSlice] fetchStockpileData.pending");
         state.loading = true;
         state.error = null;
+        state.pileItems = [];
+        state.pileOrders = [];
       })
       .addCase(fetchStockpileData.fulfilled, (state, action) => {
         console.log(
@@ -258,6 +326,7 @@ const stockpileSlice = createSlice({
         state.loading = false;
         if (action.payload) {
           state.pileItems = action.payload.pileItems;
+          state.pileOrders = action.payload.pileOrders || [];
           state.stockpileExpiry = action.payload.stockpileExpiry;
         }
       })

@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { db } from "../../firebase.config";
 import { collection, query, where, getDocs } from "firebase/firestore";
+import { isMarketplaceProductEligible } from "../../services/marketplaceVisibility";
 
 export const fetchDiscountProducts = createAsyncThunk(
   "discountProducts/fetchDiscountProducts",
@@ -20,6 +21,7 @@ export const fetchDiscountProducts = createAsyncThunk(
       // Filter for in‑app discount products (discount.discountType starts with "inApp")
       const inAppProducts = allProducts.filter(
         (product) =>
+          isMarketplaceProductEligible(product) &&
           product.discount &&
           product.discount.discountType &&
           product.discount.discountType.startsWith("inApp")

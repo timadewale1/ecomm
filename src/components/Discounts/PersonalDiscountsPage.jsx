@@ -12,6 +12,7 @@ import { GoChevronLeft } from "react-icons/go";
 import { RotatingLines } from "react-loader-spinner";
 import SEO from "../Helmet/SEO";
 import { RiDiscountPercentFill } from "react-icons/ri";
+import AppBackButton from "../layout/AppBackButton";
 
 const PersonalDiscountsPage = () => {
   const navigate = useNavigate();
@@ -71,15 +72,10 @@ const PersonalDiscountsPage = () => {
       <div className="px-4 py-6">
         {/* Sticky Header */}
         <div
-          className={`fixed top-0 left-0 w-full bg-white z-10 px-2 py-6 shadow-md transition-transform duration-300 ${
-            showHeader ? "translate-y-0" : "-translate-y-full"
-          }`}
+          className="fixed top-0 left-0 w-full bg-white z-10 px-2 py-2"
         >
           <div className="flex items-center">
-            <GoChevronLeft
-              className="text-2xl cursor-pointer mr-2"
-              onClick={() => navigate(-1)}
-            />
+            <AppBackButton className="mr-1" onClick={() => navigate(-1)} />
             <div className="flex items-center">
               <h2 className="text-lg font-opensans font-semibold">
                 Discounts

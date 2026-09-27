@@ -12,6 +12,7 @@ import BrandNewHeader from "./icons/BrandNewHeader";
 import ProductCard from "../Products/ProductCard";
 import { RotatingLines } from "react-loader-spinner";
 import { GoChevronLeft } from "react-icons/go";
+import AppBackButton from "../layout/AppBackButton";
 import SEO from "../Helmet/SEO";
 import { fetchConditionCategories } from "../../redux/reducers/conditionCategoriesSlice";
 import { BsFilterRight } from "react-icons/bs";
@@ -394,10 +395,7 @@ function ConditionProducts() {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <GoChevronLeft
-                className="text-2xl cursor-pointer mr-2"
-                onClick={() => navigate(-1)}
-              />
+              <AppBackButton className="mr-1" onClick={() => navigate(-1)} />
               <h2 className="text-sm font-opensans font-semibold">
                 {condition.charAt(0).toUpperCase() + condition.slice(1)} Items
               </h2>

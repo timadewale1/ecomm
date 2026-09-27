@@ -1,0 +1,201 @@
+.review-order-picker {
+  position: fixed;
+  z-index: 115;
+  inset: 0;
+  overflow-y: auto;
+  background: #f7f7f7;
+  color: #111827;
+  font-family: "Satoshi", sans-serif;
+  font-synthesis: none;
+  overscroll-behavior: contain;
+}
+
+.review-order-picker > header {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  display: grid;
+  height: 56px;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.native-ios .review-order-picker > header {
+  height: calc(56px + var(--app-safe-top, env(safe-area-inset-top, 0px)));
+  padding-top: var(--app-safe-top, env(safe-area-inset-top, 0px));
+}
+
+.review-order-picker > header button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: start;
+  align-content: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #111827;
+}
+
+.review-order-picker > header button svg {
+  width: 24px;
+  height: 24px;
+}
+
+.review-order-picker > header h1 {
+  margin: 0;
+  font: 500 21px/25px "Satoshi", sans-serif;
+  text-align: center;
+}
+
+.review-order-picker-copy {
+  padding: 24px 16px 16px;
+  background: #fff;
+}
+
+.review-order-picker-copy h2,
+.review-order-picker-copy p {
+  margin: 0;
+}
+
+.review-order-picker-copy h2 {
+  font: 500 18px/22px "Satoshi", sans-serif;
+}
+
+.review-order-picker-copy p {
+  margin-top: 6px;
+  color: #4b5563;
+  font: 400 14px/20px "Satoshi", sans-serif;
+}
+
+.review-order-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0 32px;
+}
+
+.review-order-picker-card {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 104px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  padding: 16px;
+  background: #fff;
+  color: #111827;
+  text-align: left;
+}
+
+.review-order-picker-images {
+  display: flex;
+  height: 72px;
+  align-items: center;
+}
+
+.review-order-picker-images img {
+  width: 52px;
+  height: 64px;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  background: #f3f4f6;
+  object-fit: cover;
+}
+
+.review-order-picker-images img + img {
+  margin-left: -26px;
+}
+
+.review-order-picker-card-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.review-order-picker-card-copy strong,
+.review-order-picker-card-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-order-picker-card-copy strong {
+  font: 500 16px/20px "Satoshi", sans-serif;
+}
+
+.review-order-picker-card-copy span {
+  color: #4b5563;
+  font: 400 13px/18px "Satoshi", sans-serif;
+}
+
+.review-order-picker-card > svg {
+  width: 20px;
+  height: 20px;
+  color: #4b5563;
+}
+
+.review-order-picker-empty {
+  padding: 64px 24px;
+  background: #fff;
+  text-align: center;
+}
+
+.review-order-picker-empty h2 {
+  margin: 0;
+  font: 500 18px/22px "Satoshi", sans-serif;
+}
+
+.review-order-picker-empty p {
+  margin: 6px 0 0;
+  color: #4b5563;
+  font: 400 14px/20px "Satoshi", sans-serif;
+}
+
+.review-order-picker-skeleton {
+  display: flex;
+  height: 104px;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #fff;
+}
+
+.review-order-picker-skeleton > span,
+.review-order-picker-skeleton i {
+  display: block;
+  border-radius: 8px;
+  background: #eceff3;
+  animation: review-picker-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.review-order-picker-skeleton > span {
+  width: 104px;
+  height: 72px;
+}
+
+.review-order-picker-skeleton > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.review-order-picker-skeleton i:first-child {
+  width: 70%;
+  height: 18px;
+}
+
+.review-order-picker-skeleton i:last-child {
+  width: 48%;
+  height: 14px;
+}
+
+@keyframes review-picker-pulse {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}

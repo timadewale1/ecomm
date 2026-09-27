@@ -14,8 +14,10 @@ import {
 import { GoChevronLeft } from "react-icons/go";
 import { IoMdContact } from "react-icons/io";
 import SEO from "../../components/Helmet/SEO";
+import AppBackButton from "../../components/layout/AppBackButton";
 import toast from "react-hot-toast";
 import Loading from "../../components/Loading/Loading";
+import { isOfferExpired } from "../../services/offerExpiry";
 
 const NGN = (n) =>
   Number(n || 0).toLocaleString("en-NG", {
@@ -148,17 +150,24 @@ export default function UserOfferDetail() {
         })
       : "";
 
+  const offerExpired = isOfferExpired(offer);
   const honoredPrice =
-    offer?.status === "countered"
+    !offerExpired && offer?.status === "countered"
       ? offer?.counterAmount
-      : offer?.status === "accepted"
+      : !offerExpired && offer?.status === "accepted"
       ? offer?.amount
       : null;
 
   const goToProductWithOffer = () => {
-    if (!offer?.productId || honoredPrice == null) return;
-    navigate(`/product/${offer.productId}?shared=true`, {
-      state: { offerPrice: Number(honoredPrice) },
+    if (!offer?.productId) return;
+    navigate(`/product/${offer.productId}`, {
+      state: {
+        ...(honoredPrice == null
+          ? {}
+          : { offerPrice: Number(honoredPrice) }),
+        offerAction: "buy",
+        returnTo: "/offers",
+      },
     });
   };
 
@@ -185,8 +194,8 @@ export default function UserOfferDetail() {
       <div className="flex flex-col h-[100dvh] bg-white">
         {/* Top bar */}
         <div className="sticky top-0 z-10 bg-white border-b px-4 py-3 flex items-center">
-          <GoChevronLeft
-            className="text-2xl text-gray-700 cursor-pointer mr-4"
+          <AppBackButton
+            className="mr-1"
             onClick={() => navigate("/offers")}
           />
           <div className="flex-1">
@@ -340,7 +349,9 @@ export default function UserOfferDetail() {
               },
             };
 
-            const key = String(offer?.status || "pending").toLowerCase();
+            const key = offerExpired
+              ? "expired"
+              : String(offer?.status || "pending").toLowerCase();
             const sc = STATUS_CONFIG[key] || STATUS_CONFIG.pending;
 
             return (
@@ -373,7 +384,7 @@ export default function UserOfferDetail() {
               <p className="text-xs text-gray-800 font-opensans leading-relaxed">
                 Offers that are <b>accepted</b> or <b>countered</b> with a lower
                 price than your initial offer will have their price{" "}
-                <b className="text-customOrange">locked for 6 hours</b>. After
+                <b className="text-customOrange">locked for 24 hours</b>. After
                 this window, the item returns to its initial price. Offers are{" "}
                 <b>unique to your account</b>.
               </p>

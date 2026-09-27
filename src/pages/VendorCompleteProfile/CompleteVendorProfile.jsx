@@ -1,87 +1,93 @@
-import React, { useEffect, useState } from "react";
-import { getAuth } from "firebase/auth";
+import React, { useContext, useEffect, useRef, useState } from "react";
+import { Capacitor, registerPlugin } from "@capacitor/core";
+import { getAuth, signOut } from "firebase/auth";
+import { deleteField, doc, setDoc } from "firebase/firestore";
 import {
-  doc,
-  setDoc,
-  updateDoc,
-  query,
-  where,
-  collection,
-  getDocs,
-} from "firebase/firestore";
-import { db } from "../../firebase.config";
+  deleteObject,
+  getDownloadURL,
+  getStorage,
+  ref,
+  uploadBytes,
+} from "firebase/storage";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Container, Row, Form } from "reactstrap";
-import { AnimatePresence, motion } from "framer-motion";
-import { FiChevronLeft } from "react-icons/fi"; // Back icon
-import Loading from "../../components/Loading/Loading";
-import MarketVendor from "./marketVendor";
-import VirtualVendor from "./virtualVendor";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Form, Row } from "reactstrap";
 import { GoChevronLeft } from "react-icons/go";
-import { RotatingLines } from "react-loader-spinner";
+import { FiChevronRight, FiHelpCircle, FiLogOut, FiX } from "react-icons/fi";
+import Loading from "../../components/Loading/Loading";
+import AppBottomSheet from "../../components/layout/AppBottomSheet";
 import SEO from "../../components/Helmet/SEO";
-import { makeSlug } from "../../services/makeSlug";
+import { db } from "../../firebase.config";
+import { appHaptics } from "../../services/haptics";
 import { useTawk } from "../../components/Context/TawkProvider";
-import { FcOnlineSupport } from "react-icons/fc";
+import { VendorContext } from "../../components/Context/Vendorcontext";
+import { useAuth } from "../../custom-hooks/useAuth";
+import banks from "../../services/banks";
+import { validateVendorImage } from "../../services/imageUploadValidation";
+import {
+  completeVendorProfile,
+  deleteVendorIdImage,
+  getVendorOnboardingDraft,
+  getVendorOnboardingErrorMessage,
+  saveVendorOnboardingDraft,
+} from "../../services/vendorOnboarding";
+import VirtualVendor from "./virtualVendor";
+import "./vendor.css";
+
+const NativeFormPicker = registerPlugin("NativeFormPicker");
+
+const EMPTY_SOCIALS = {
+  instagram: "",
+  twitter: "",
+  tiktok: "",
+  facebook: "",
+};
+
+const INITIAL_VENDOR_DATA = {
+  shopName: "",
+  categories: [],
+  description: "",
+  marketPlaceType: "virtual",
+  coverImage: null,
+  coverImageUrl: "",
+  socialMediaHandle: EMPTY_SOCIALS,
+  location: { lat: null, lng: null },
+  Address: "",
+  marketPlace: "",
+  complexNumber: "",
+  daysAvailability: [],
+  openTime: "",
+  closeTime: "",
+  pickupAddress: "",
+  pickupLat: null,
+  pickupLng: null,
+  idVerification: "",
+  idUploaded: false,
+  deliveryPreference: "self",
+  needsDeliveryPreference: true,
+  stockpile: null,
+  state: "",
+};
+
+const EMPTY_BANK = {
+  bankName: "",
+  bankCode: "",
+  accountNumber: "",
+  accountName: "",
+  error: "",
+};
+
+const hasSocialLink = (social = {}) => Object.values(social).some(Boolean);
+
 const CompleteProfile = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(2);
   const [showDropdown, setShowDropdown] = useState(false);
-
-  const [vendorData, setVendorData] = useState({
-    shopName: "",
-    categories: [],
-    description: "",
-    marketPlaceType: "virtual",
-    // Virtual vendor specific fields
-    coverImage: null,
-    coverImageUrl: "",
-    socialMediaHandle: {
-      instagram: "", // Instagram link
-      twitter: "", // Twitter link
-      tiktok: "", // TikTok link
-      facebook: "", // Facebook link
-    },
-    location: { lat: null, lng: null },
-    Address: "", // Vendor's address (could be for personal or business)
-
-    // Market vendor specific fields
-    marketPlace: "", // Marketplace name (e.g., Yaba)
-    complexNumber: "", // Store number in the marketplace
-    daysAvailability: [], // Days of the week when the shop is open
-    openTime: "", // Opening time for the shop
-    closeTime: "", // Closing time for the shop
-    pickupAddress: "",
-    pickupLat: null,
-    pickupLng: null,
-    // Fields common for ID verification (for both market and virtual vendors)
-    idVerification: "", // Type of verification document (NIN, Passport, CAC)
-    idImage: null, // File for the ID image
-    idImageUrl: "", // URL for the ID image (if applicable)
-    deliveryPreference: "self", // "self" | "platform"
-    needsDeliveryPreference: true, // show the modal later until they choose
-
-    // Bank details (for both market and virtual vendors)
-    bankDetails: {
-      bankName: "", // Name of the bank
-      accountNumber: "", // Vendor's bank account number
-      accountName: "", // Vendor's bank account name
-    },
-    stockpile: null, // Stockpile setup object
-  });
-
-  const [bankDetails, setBankDetails] = useState({
-    bankName: "",
-    accountNumber: "",
-    accountName: "",
-  });
-  const vendorType = "market"; // or 'virtual', based on logic
-  const activeStep = 2;
-  const [deliveryMode, setDeliveryMode] = useState(""); // Delivery Mode state
-  const [idVerification, setIdVerification] = useState(""); // ID Verification type
-  const [idImage, setIdImage] = useState(null); // ID Image
+  const [vendorData, setVendorData] = useState(INITIAL_VENDOR_DATA);
+  const [bankDetails, setBankDetails] = useState(EMPTY_BANK);
+  const [deliveryMode, setDeliveryMode] = useState("");
+  const [idVerification, setIdVerification] = useState("");
+  const [idImage, setIdImage] = useState(null);
   const [stockpileStep, setStockpileStep] = useState(1);
   const [stockpile, setStockpile] = useState(null);
   const [isIdImageUploading, setIsIdImageUploading] = useState(false);
@@ -89,505 +95,559 @@ const CompleteProfile = () => {
   const [showBankDropdown, setShowBankDropdown] = useState(false);
   const [selectedBank, setSelectedBank] = useState(null);
   const [duration, setDuration] = useState(null);
-  const [loading, setLoading] = useState(false); // Updated loading state
+  const [loading, setLoading] = useState(true);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const hydratedRef = useRef(false);
+  const completingRef = useRef(false);
+  const idPreviewRef = useRef(null);
   const navigate = useNavigate();
-  const { openChat } = useTawk();
+  const { openChat, logoutChat } = useTawk();
+  const { updateCurrentUserData } = useAuth();
+  const { markVendorProfileComplete, refreshVendorData } =
+    useContext(VendorContext);
+
+  const categories = [
+    "Thrifts", "Mens", "Womens", "Books", "Dairies", "Underwears",
+    "Y2K", "Jewelry", "Kids", "Trads", "Dresses", "Gowns", "Shoes",
+    "Accessories", "Bags", "Sportswear", "Formal", "Casual", "Vintage",
+    "Brands", "Perfumes", "Watches", "Denim", "Hoodies", "Sweaters",
+    "Scarves", "Sneakers", "Caps", "Athletic Wear", "Belts", "Earrings",
+    "Bracelets", "Handcrafted Jewelry", "Coats", "Trench Coats",
+    "Loungewear", "Leather Goods", "Sunglasses", "Necklaces",
+    "Statement Pieces", "Oversized Clothing", "Graphic Tees",
+    "Patchwork Denim", "Handbags", "Brogues", "Sandals", "Fragrances",
+    "Essential Oils", "Luxury Jewelry", "Heels", "Crossbody Bags", "Rings",
+  ];
+
+  useEffect(() => {
+    let cancelled = false;
+    const restoreDraft = async () => {
+      try {
+        const { draft = {} } = await getVendorOnboardingDraft();
+        if (cancelled) return;
+        const restoredStockpile = draft.stockpile || null;
+        const restoredBank = { ...EMPTY_BANK, ...(draft.bankDetails || {}) };
+        setVendorData((current) => ({
+          ...current,
+          ...draft,
+          socialMediaHandle: {
+            ...EMPTY_SOCIALS,
+            ...(draft.socialMediaHandle || {}),
+          },
+          location: { ...current.location, ...(draft.location || {}) },
+          stockpile: restoredStockpile,
+          idUploaded: draft.idUploaded === true,
+        }));
+        setStep(Math.min(6, Math.max(2, Number(draft.step) || 2)));
+        setBankDetails(restoredBank);
+        setSelectedBank(
+          banks.find((bank) => bank.code === restoredBank.bankCode) || null
+        );
+        setDeliveryMode(draft.deliveryMode || "");
+        setIdVerification(draft.idVerification || "");
+        setStockpile(restoredStockpile);
+        setDuration(restoredStockpile?.durationInWeeks || null);
+        setStockpileStep(restoredStockpile?.enabled ? 2 : 1);
+      } catch (error) {
+        console.error("[VendorOnboarding] Draft restore failed", {
+          code: error?.code || "unknown",
+        });
+        toast.error(
+          getVendorOnboardingErrorMessage(
+            error,
+            "We couldn’t restore your saved setup. You can still continue."
+          )
+        );
+      } finally {
+        if (!cancelled) {
+          hydratedRef.current = true;
+          setLoading(false);
+        }
+      }
+    };
+    void restoreDraft();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hydratedRef.current || completingRef.current) return undefined;
+    const timeout = window.setTimeout(() => {
+      const draft = {
+        ...vendorData,
+        step,
+        bankDetails: {
+          bankName: bankDetails.bankName,
+          bankCode: bankDetails.bankCode,
+          accountNumber: bankDetails.accountNumber,
+          accountName: bankDetails.accountName,
+        },
+        deliveryMode,
+        idVerification,
+        idUploaded: vendorData.idUploaded === true,
+        stockpile,
+        coverImage: undefined,
+      };
+      saveVendorOnboardingDraft(draft).catch((error) => {
+        console.error("[VendorOnboarding] Draft save failed", {
+          code: error?.code || "unknown",
+        });
+      });
+    }, 800);
+    return () => window.clearTimeout(timeout);
+  }, [vendorData, bankDetails, deliveryMode, idVerification, stockpile, step]);
+
+  useEffect(() => () => {
+    if (idPreviewRef.current) URL.revokeObjectURL(idPreviewRef.current);
+  }, []);
+
+  const handleNextStep = () => {
+    setStep((current) => current + 1);
+    void appHaptics.selection();
+  };
 
   const handleStockpileChoice = (enabled, weeks = null) => {
     if (!enabled) {
-      setStockpile({ enabled: false });
-      setVendorData((prev) => ({
-        ...prev,
-        stockpile: { enabled: false, durationInWeeks: null },
-      }));
+      const choice = { enabled: false, durationInWeeks: null };
+      setStockpile(choice);
+      setVendorData((current) => ({ ...current, stockpile: choice }));
       handleNextStep();
       return;
     }
-
-    // enable immediately so vendorData.stockpile exists
-    setStockpile((prev) => ({
-      ...prev,
+    const choice = {
       enabled: true,
-      durationInWeeks: weeks ?? prev?.durationInWeeks ?? null,
-    }));
-
-    setVendorData((prev) => ({
-      ...prev,
-      stockpile: {
-        enabled: true,
-        durationInWeeks: weeks ?? prev?.stockpile?.durationInWeeks ?? null,
-      },
-    }));
-
-    // move to "choose weeks" view if weeks not provided yet
-    if (weeks == null) setStockpileStep(2);
-  };
-
-  const categories = [
-    "Thrifts",
-    "Mens",
-    "Womens",
-    "Books",
-    "Dairies",
-    "Underwears",
-    "Y2K",
-    "Jewelry",
-    "Kids",
-    "Trads",
-    "Dresses",
-    "Gowns",
-    "Shoes",
-    "Accessories",
-    "Bags",
-    "Sportswear",
-    "Formal",
-    "Casual",
-    "Vintage",
-    "Brands",
-    "Perfumes",
-    "Watches",
-    "Denim",
-    "Hoodies",
-    "Sweaters",
-    "Scarves",
-    "Sneakers",
-    "Caps",
-    "Athletic Wear",
-    "Belts",
-    "Earrings",
-    "Bracelets",
-    "Handcrafted Jewelry",
-    "Coats",
-    "Trench Coats",
-    "Loungewear",
-    "Leather Goods",
-    "Sunglasses",
-    "Necklaces",
-    "Statement Pieces",
-    "Oversized Clothing",
-    "Graphic Tees",
-    "Patchwork Denim",
-    "Handbags",
-    "Brogues",
-    "Sandals",
-    "Fragrances",
-    "Essential Oils",
-    "Luxury Jewelry",
-    "Heels",
-    "Crossbody Bags",
-    "Rings",
-  ];
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-
-    if (!file) {
-      toast.error("No file selected. Please choose an image.");
-      return;
+      durationInWeeks: weeks ?? stockpile?.durationInWeeks ?? null,
+    };
+    setStockpile(choice);
+    setVendorData((current) => ({ ...current, stockpile: choice }));
+    if (weeks == null) {
+      setStockpileStep(2);
+      void appHaptics.selection();
     }
-
-    if (file.size > 3 * 1024 * 1024) {
-      toast.error("File size exceeds 3MB. Please upload a smaller image.");
-      return;
-    }
-
-    try {
-      setIsCoverImageUploading(true); // Start loading
-
-      const auth = getAuth();
-      const user = auth.currentUser;
-
-      if (!user) {
-        throw new Error("User is not authenticated");
-      }
-
-      const vendorId = user.uid; // Assuming vendorId is the same as user ID
-
-      console.log("Starting image upload for vendor:", vendorId);
-
-      const storage = getStorage();
-      const storageRef = ref(storage, `vendorImages/${vendorId}/coverImage`);
-
-      // Upload file
-      await uploadBytes(storageRef, file);
-      console.log("File uploaded to Firebase Storage.");
-
-      // Get download URL
-      const downloadURL = await getDownloadURL(storageRef);
-      console.log("File available at:", downloadURL);
-
-      // Update local state with the new image URL
-      setVendorData((prevData) => ({
-        ...prevData,
-        coverImageUrl: downloadURL,
-      }));
-
-      // Update Firestore document with the new image URL
-      const vendorDocRef = doc(db, "vendors", vendorId); // Reference to vendor document
-      await updateDoc(vendorDocRef, {
-        coverImageUrl: downloadURL,
-      });
-
-      console.log("Firestore document updated with image URL:", downloadURL);
-      toast.success("Image uploaded successfully!");
-    } catch (error) {
-      console.error("Error during image upload ", error);
-      toast.error(`Error uploading image: ${error.message}`);
-    } finally {
-      setIsCoverImageUploading(false); // End loading
-    }
-  };
-
-  const handleVendorTypeSelection = (type) => {
-    setVendorData({ ...vendorData, marketPlaceType: type });
-  };
-
-  const handleNextStep = () => {
-    setStep(step + 1);
   };
 
   const handlePreviousStep = () => {
-    // If we're on Step 5 (Stockpile) and currently on the "weeks" sub-step,
-    // go back to the Yes/No screen instead of leaving Step 5.
-    if (
-      step === 5 &&
-      vendorData.marketPlaceType === "virtual" &&
-      stockpileStep === 2
-    ) {
+    if (step === 5 && stockpileStep === 2) {
       setStockpileStep(1);
+      void appHaptics.selection();
       return;
     }
-
-    setStep((prev) => Math.max(2, prev - 1));
+    setStep((current) => Math.max(2, current - 1));
+    void appHaptics.selection();
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setVendorData({ ...vendorData, [name]: value });
+  const handleInputChange = ({ target: { name, value } }) => {
+    setVendorData((current) => ({ ...current, [name]: value }));
   };
 
-  const handleSocialMediaChange = (e) => {
-    const { name, value } = e.target;
-
-    let formattedValue = value;
-    if (
-      value &&
-      !value.startsWith("http://") &&
-      !value.startsWith("https://")
-    ) {
-      formattedValue = "https://" + value;
-    }
-
-    setVendorData({
-      ...vendorData,
+  const handleSocialMediaChange = ({ target: { name, value } }) => {
+    const formattedValue = value && !/^https?:\/\//i.test(value)
+      ? `https://${value}`
+      : value;
+    setVendorData((current) => ({
+      ...current,
       socialMediaHandle: {
-        ...vendorData.socialMediaHandle,
+        ...current.socialMediaHandle,
         [name]: formattedValue,
       },
-    });
+    }));
   };
 
-  const handleBankDetailsChange = (e) => {
-    console.log("Event triggered:", e.target.name, e.target.value);
-    const { name, value } = e.target;
-    setBankDetails({ ...bankDetails, [name]: value });
+  const handleBankDetailsChange = ({ target: { name, value } }) => {
+    setBankDetails((current) => ({ ...current, [name]: value }));
   };
 
   const handleDeliveryModeChange = (mode) => {
     setDeliveryMode(mode);
-    setVendorData({ ...vendorData, deliveryMode: mode });
+    setVendorData((current) => ({ ...current, deliveryMode: mode }));
+    void appHaptics.selection();
   };
 
-  const handleIdVerificationChange = (e) => {
-    const value = e.target.value;
+  const handleIdVerificationChange = (valueOrEvent) => {
+    const value = typeof valueOrEvent === "string"
+      ? valueOrEvent
+      : valueOrEvent?.target?.value || "";
     setIdVerification(value);
-    setVendorData({ ...vendorData, idVerification: value });
+    setVendorData((current) => ({ ...current, idVerification: value }));
   };
 
-  const handleIdImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (file && file.size > 3 * 1024 * 1024) {
-      // 3MB size limit
-      toast.error("File size exceeds 3MB. Please upload a smaller image.");
-      return;
-    }
+  const handleImageUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
     try {
-      setIsIdImageUploading(true); // Start loading
-      console.log("Selected ID image file:", file);
-
-      const auth = getAuth();
-      const user = auth.currentUser;
-
-      if (!user) {
-        throw new Error("User is not authenticated");
-      }
-
-      const storage = getStorage();
-      const storageRef = ref(storage, `vendorImages/${user.uid}/idImage`);
-
-      // Upload the file
-      await uploadBytes(storageRef, file);
-      console.log("ID image file uploaded to storage.");
-
-      // Get the download URL
-      const downloadURL = await getDownloadURL(storageRef);
-      console.log("ID image uploaded successfully. URL:", downloadURL);
-
-      // Update the idImage state with the download URL
-      setIdImage(downloadURL);
-
-      // Update vendorData with the ID image URL
-      setVendorData({ ...vendorData, idImage: downloadURL });
+      await validateVendorImage(file, { label: "shop cover image" });
+      setIsCoverImageUploading(true);
+      const user = getAuth().currentUser;
+      if (!user) throw new Error("Sign in as a vendor to upload an image.");
+      const storageRef = ref(getStorage(), `vendorImages/${user.uid}/coverImage`);
+      await uploadBytes(storageRef, file, { contentType: file.type });
+      const coverImageUrl = await getDownloadURL(storageRef);
+      setVendorData((current) => ({ ...current, coverImageUrl }));
+      await setDoc(doc(db, "vendors", user.uid), { coverImageUrl }, { merge: true });
+      void appHaptics.success();
+      toast.success("Shop image uploaded.");
     } catch (error) {
-      console.error("Error uploading ID image:", error);
-      toast.error("Error uploading ID image: " + error.message);
+      toast.error(error?.message || "We couldn’t upload that image.");
     } finally {
-      setIsIdImageUploading(false); // End loading
+      event.target.value = "";
+      setIsCoverImageUploading(false);
     }
   };
 
-  const toTitleCase = (str) => {
-    return str
-      .toLowerCase()
-      .split(" ")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
-  };
-
-  const handleProfileCompletion = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    const missingFields = [];
-
-    // Check for missing fields
-    if (!vendorData.marketPlaceType) missingFields.push("Marketplace Type");
-
-    if (vendorData.marketPlaceType === "virtual") {
-      if (!vendorData.shopName) missingFields.push("Shop Name");
-      if (!vendorData.categories.length) missingFields.push("Categories");
-      if (!vendorData.description) missingFields.push("Description");
-      if (
-        !vendorData.socialMediaHandle.instagram &&
-        !vendorData.socialMediaHandle.facebook &&
-        !vendorData.socialMediaHandle.tiktok &&
-        !vendorData.socialMediaHandle.twitter
-      ) {
-        missingFields.push("Social Media Handles");
+  const handleRemoveCoverImage = async () => {
+    const user = getAuth().currentUser;
+    setVendorData((current) => ({ ...current, coverImageUrl: "" }));
+    if (!user) return;
+    try {
+      await deleteObject(ref(getStorage(), `vendorImages/${user.uid}/coverImage`));
+    } catch (error) {
+      if (error?.code !== "storage/object-not-found") {
+        console.error("[VendorOnboarding] Cover removal failed", {
+          code: error?.code || "unknown",
+        });
       }
-      if (!vendorData.coverImageUrl) missingFields.push("Cover Image");
-      if (!vendorData.deliveryMode) missingFields.push("Delivery Mode");
-      if (!vendorData.stockpile) missingFields.push("Stockpile Setup");
-      if (!vendorData.idVerification) missingFields.push("ID Verification");
-      if (!vendorData.idImage) missingFields.push("ID Image");
     }
+    await setDoc(
+      doc(db, "vendors", user.uid),
+      { coverImageUrl: deleteField() },
+      { merge: true }
+    );
+  };
 
-    // If any missing fields are found, show a toast and return early
-    if (missingFields.length) {
+  const handleIdImageUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      await validateVendorImage(file, { label: "ID image" });
+      setIsIdImageUploading(true);
+      const user = getAuth().currentUser;
+      if (!user) throw new Error("Sign in as a vendor to upload your ID.");
+      await uploadBytes(
+        ref(getStorage(), `vendorImages/${user.uid}/idImage`),
+        file,
+        { contentType: file.type, cacheControl: "private,no-store,max-age=0" }
+      );
+      if (idPreviewRef.current) URL.revokeObjectURL(idPreviewRef.current);
+      idPreviewRef.current = URL.createObjectURL(file);
+      setIdImage(idPreviewRef.current);
+      setVendorData((current) => ({
+        ...current,
+        idUploaded: true,
+        idImage: undefined,
+        idImageUrl: undefined,
+      }));
+      void appHaptics.success();
+      toast.success("ID uploaded securely for review.");
+    } catch (error) {
+      toast.error(error?.message || "We couldn’t upload that ID image.");
+    } finally {
+      event.target.value = "";
+      setIsIdImageUploading(false);
+    }
+  };
+
+  const handleRemoveIdImage = async () => {
+    try {
+      await deleteVendorIdImage();
+      if (idPreviewRef.current) URL.revokeObjectURL(idPreviewRef.current);
+      idPreviewRef.current = null;
+      setIdImage(null);
+      setVendorData((current) => ({ ...current, idUploaded: false }));
+      void appHaptics.selection();
+    } catch (error) {
       toast.error(
-        `Please complete the following fields: ${missingFields.join(", ")}`,
-        {
-          className: "custom-toast",
-        }
+        getVendorOnboardingErrorMessage(error, "We couldn’t remove that ID. Try again.")
       );
+    }
+  };
+
+  const handleProfileCompletion = async (event) => {
+    event?.preventDefault?.();
+    if (completingRef.current) return;
+    const missing = [];
+    if (!vendorData.shopName) missing.push("shop name");
+    if (!vendorData.Address ||
+        !Number.isFinite(Number(vendorData.location?.lat)) ||
+        !Number.isFinite(Number(vendorData.location?.lng))) {
+      missing.push("delivery address");
+    }
+    if (!vendorData.state) missing.push("state");
+    if (!vendorData.categories?.length) missing.push("category");
+    if (!vendorData.description?.trim()) missing.push("description");
+    if (!hasSocialLink(vendorData.socialMediaHandle)) missing.push("social link");
+    if (!vendorData.coverImageUrl) missing.push("cover image");
+    if (!bankDetails.accountName) missing.push("verified bank account");
+    if (!deliveryMode) missing.push("delivery mode");
+    if (!stockpile) missing.push("stockpile preference");
+    if (!idVerification) missing.push("ID type");
+    if (!vendorData.idUploaded) missing.push("ID image");
+    if (missing.length) {
+      toast.error(`Complete these details first: ${missing.join(", ")}.`);
+      return;
+    }
+
+    completingRef.current = true;
+    setIsLoading(true);
+    try {
+      const completion = await completeVendorProfile({
+        ...vendorData,
+        bankDetails,
+        deliveryMode,
+        idVerification,
+        idUploaded: true,
+        stockpile,
+        step,
+        idImage: undefined,
+        idImageUrl: undefined,
+      });
+      if (completion?.success !== true) {
+        throw new Error("Profile completion was not confirmed.");
+      }
+
+      // The callable only returns success after its Firestore batch commits.
+      // Publish that committed state locally before mounting the dashboard so
+      // a previous cached `profileComplete: false` cannot redirect backwards.
+      markVendorProfileComplete({
+        shopName: vendorData.shopName,
+        coverImageUrl: vendorData.coverImageUrl,
+      });
+      updateCurrentUserData({ profileComplete: true, role: "vendor" });
+
+      void refreshVendorData()
+        .then((confirmedVendor) => {
+          if (confirmedVendor?.profileComplete === true) {
+            updateCurrentUserData({
+              ...confirmedVendor,
+              role: "vendor",
+            });
+          }
+        })
+        .catch((refreshError) => {
+          // Completion is already committed. A follow-up read failure must not
+          // send the vendor back to onboarding; the live listener reconciles.
+          console.warn("[VendorOnboarding] Post-completion refresh deferred", {
+            code: refreshError?.code || "unknown",
+          });
+        });
+
+      void appHaptics.success();
+      toast.success("Profile completed successfully!");
+      navigate("/vendordashboard", {
+        replace: true,
+        state: { vendorProfileCompletion: "confirmed" },
+      });
+    } catch (error) {
+      completingRef.current = false;
+      console.error("[VendorOnboarding] Completion failed", {
+        code: error?.code || "unknown",
+      });
+      toast.error(
+        getVendorOnboardingErrorMessage(
+          error,
+          "We couldn’t complete your profile. Review your details and try again."
+        )
+      );
+    } finally {
       setIsLoading(false);
+    }
+  };
+
+  const openOnboardingSupport = () => {
+    const vendorId = getAuth().currentUser?.uid;
+    openChat({
+      "support-entry": "vendor-onboarding",
+      screen: "complete-vendor-profile",
+      ...(vendorId ? { "vendor-id": vendorId } : {}),
+    });
+  };
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    setActionsOpen(false);
+    try {
+      void appHaptics.warning();
+      try {
+        await logoutChat();
+      } catch (supportError) {
+        // A support-widget failure must never prevent the vendor signing out.
+        console.warn("[VendorOnboarding] Support logout cleanup failed", {
+          code: supportError?.code || "unknown",
+        });
+      }
+      await signOut(getAuth());
+      toast.success("Successfully logged out.");
+      navigate("/vendorlogin", { replace: true });
+    } catch (error) {
+      console.error("[VendorOnboarding] Logout failed", {
+        code: error?.code || "unknown",
+      });
+      toast.error("We couldn’t log you out. Please try again.");
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
+  const runOnboardingAction = (action) => {
+    if (action === "support") {
+      openOnboardingSupport();
+      return;
+    }
+    if (action === "logout") void handleLogout();
+  };
+
+  const handleOpenActions = async () => {
+    void appHaptics.selection();
+    if (Capacitor.getPlatform() !== "ios") {
+      setActionsOpen(true);
       return;
     }
 
     try {
-      const auth = getAuth();
-      const user = auth.currentUser;
-
-      if (!user) {
-        throw new Error("User is not authenticated");
-      }
-
-      // Format the shopName to title case before saving
-      const formattedShopName = toTitleCase(vendorData.shopName);
-      const slug = makeSlug(vendorData.shopName);
-      // Check shop name availability
-      console.log("Validating shop name availability...");
-      const shopNameQuery = query(
-        collection(db, "vendors"),
-        where("shopName", "==", formattedShopName)
-      );
-      const querySnapshot = await getDocs(shopNameQuery);
-
-      if (!querySnapshot.empty) {
-        toast.error("Shop name is already taken. Please choose another one.", {
-          className: "custom-toast",
-        });
-        setIsLoading(false);
-        return; // Stop execution if shop name is not available
-      }
-
-      console.log("Shop name is available.");
-
-      // Make POST request to createTransferRec
-      const createTransferRecData = {
-        vendorId: user.uid,
-        name: formattedShopName,
-        accountNumber: bankDetails.accountNumber,
-        bankCode: bankDetails.bankCode, // Include bankCode in camel case
-      };
-
-      console.log(
-        "Data being sent to createTransferRec API:",
-        createTransferRecData
-      );
-
-      let recipientCode = null;
-      const token = import.meta.env.VITE_RESOLVE_TOKEN;
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-      try {
-        const response = await fetch(`${API_BASE_URL}/transfer-recipient`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(createTransferRecData),
-        });
-
-        const result = await response.json();
-        console.log("API Response from createTransferRec:", result);
-
-        // extract from the nested data object first
-        const extractedCode = result.data?.recipientCode;
-        console.log("Extracted recipientCode:", extractedCode);
-
-        if (!response.ok || !extractedCode) {
-          throw new Error(
-            result.message || "Failed to create transfer recipient"
-          );
-        }
-
-        // assign to our outer variable
-        recipientCode = extractedCode;
-      } catch (error) {
-        console.error("Error during createTransferRec API call:", error);
-        toast.error(error.message, {
-          className: "custom-toast",
-        });
-        setIsLoading(false);
-        return; // Stop further execution if the recipient creation fails
-      }
-
-      // Prepare the data to store in Firestore
-      const dataToStore = {
-        ...vendorData,
-        shopName: formattedShopName, // Save the formatted shop name
-        profileComplete: true,
-        isDeactivated: false,
-        slug,
-        bankDetails: {
-          ...bankDetails,
-        },
-        recipientCode: recipientCode,
-        walletSetup: false,
-        badge: "Newbie",
-      };
-
-      console.log("Data being saved to Firestore:", dataToStore);
-
-      // Save the vendor data to Firestore
-      await setDoc(doc(db, "vendors", user.uid), dataToStore, { merge: true });
-
-      toast.success("Profile completed successfully!", {
-        className: "custom-toast",
+      const result = await NativeFormPicker.present({
+        title: "Vendor setup actions",
+        labels: ["Need help? Contact support", "Log out"],
+        values: ["support", "logout"],
+        selectedValues: [],
+        destructiveValues: ["logout"],
+        multiple: false,
       });
-      navigate("/vendordashboard");
+      if (!result?.cancelled) {
+        runOnboardingAction(result?.selectedValues?.[0]);
+      }
     } catch (error) {
-      console.error("Error during profile completion:", error);
-      toast.error("Error completing profile: " + error.message, {
-        className: "custom-toast",
+      console.warn("[VendorOnboarding] Native actions unavailable", {
+        code: error?.code || "unknown",
       });
-    } finally {
-      setIsLoading(false);
+      setActionsOpen(true);
     }
   };
 
   return (
     <>
       <SEO
-        title={`Complete Your Profile - My Thrift`}
-        description={`Complete your vendor profile on My Thrift`}
-        url={`https://www.shopmythrift.store/complete-profile`}
+        title="Complete Your Profile - My Thrift"
+        description="Complete your vendor profile on My Thrift"
+        url="https://www.shopmythrift.store/complete-profile"
       />
-      <section className="">
-        <div>
-          <div
-            className="flex items-center justify-end space-x-2"
-            onClick={() => {
-              openChat();
-            }}
-          >
-            <h2 className="text-xs  font-normal  underline font-opensans text-customOrange capitalize">
-              Having issues?{" "}
-              <span className="no-underline">Contact support</span>
-            </h2>
-          </div>
-        </div>
+      <section className="vendor-onboarding font-satoshi">
+        <button
+          type="button"
+          className="ml-auto flex min-h-10 items-center rounded-md px-2 text-sm font-medium text-customOrange"
+          onClick={handleOpenActions}
+          aria-haspopup="dialog"
+        >
+          Actions
+          <FiChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
+        </button>
         <Row>
           {loading ? (
             <Loading />
           ) : (
-            <Form className="" onSubmit={handleProfileCompletion}>
-              {/* Back Button */}
+            <Form className="font-satoshi" onSubmit={handleProfileCompletion}>
               {step > 2 && (
                 <button
-                  type="button" // Prevent this button from submitting the form
+                  type="button"
                   onClick={handlePreviousStep}
-                  className=" text-gray-800 mt-4"
+                  className="mt-4 rounded-md p-2 text-gray-800"
+                  aria-label="Go to the previous setup step"
                 >
                   <GoChevronLeft size={25} />
                 </button>
               )}
-
-              {/* Render the appropriate vendor component based on marketPlaceType */}
-              {vendorData.marketPlaceType === "virtual" && (
-                <VirtualVendor
-                  vendorData={vendorData}
-                  setVendorData={setVendorData}
-                  step={step}
-                  setStep={setStep}
-                  handleInputChange={handleInputChange}
-                  handleNextStep={handleNextStep}
-                  setShowDropdown={setShowDropdown}
-                  showDropdown={showDropdown}
-                  categories={categories}
-                  bankDetails={bankDetails}
-                  handleBankDetailsChange={handleBankDetailsChange}
-                  deliveryMode={deliveryMode}
-                  handleDeliveryModeChange={handleDeliveryModeChange}
-                  stockpile={stockpile}
-                  stockpileStep={stockpileStep}
-                  setStockpileStep={setStockpileStep}
-                  handleStockpileChoice={handleStockpileChoice}
-                  duration={duration}
-                  setDuration={setDuration}
-                  idVerification={idVerification}
-                  handleIdVerificationChange={handleIdVerificationChange}
-                  idImage={idImage}
-                  setIdImage={setIdImage}
-                  isIdImageUploading={isIdImageUploading}
-                  isCoverImageUploading={isCoverImageUploading}
-                  handleIdImageUpload={handleIdImageUpload}
-                  handleImageUpload={handleImageUpload}
-                  handleSocialMediaChange={handleSocialMediaChange}
-                  isLoading={isLoading}
-                  handleProfileCompletion={handleProfileCompletion}
-                  setBankDetails={setBankDetails}
-                  showBankDropdown={showBankDropdown}
-                  setShowBankDropdown={setShowBankDropdown}
-                  selectedBank={selectedBank}
-                  setSelectedBank={setSelectedBank}
-                />
-              )}
+              <VirtualVendor
+                vendorData={vendorData}
+                setVendorData={setVendorData}
+                step={step}
+                setStep={setStep}
+                handleInputChange={handleInputChange}
+                handleNextStep={handleNextStep}
+                setShowDropdown={setShowDropdown}
+                showDropdown={showDropdown}
+                categories={categories}
+                bankDetails={bankDetails}
+                handleBankDetailsChange={handleBankDetailsChange}
+                deliveryMode={deliveryMode}
+                handleDeliveryModeChange={handleDeliveryModeChange}
+                stockpile={stockpile}
+                stockpileStep={stockpileStep}
+                setStockpileStep={setStockpileStep}
+                handleStockpileChoice={handleStockpileChoice}
+                duration={duration}
+                setDuration={setDuration}
+                idVerification={idVerification}
+                handleIdVerificationChange={handleIdVerificationChange}
+                idImage={idImage}
+                setIdImage={setIdImage}
+                isIdImageUploading={isIdImageUploading}
+                isCoverImageUploading={isCoverImageUploading}
+                handleIdImageUpload={handleIdImageUpload}
+                handleRemoveIdImage={handleRemoveIdImage}
+                handleImageUpload={handleImageUpload}
+                handleRemoveCoverImage={handleRemoveCoverImage}
+                handleSocialMediaChange={handleSocialMediaChange}
+                isLoading={isLoading}
+                handleProfileCompletion={handleProfileCompletion}
+                setBankDetails={setBankDetails}
+                showBankDropdown={showBankDropdown}
+                setShowBankDropdown={setShowBankDropdown}
+                selectedBank={selectedBank}
+                setSelectedBank={setSelectedBank}
+              />
             </Form>
           )}
         </Row>
       </section>
+
+      <AppBottomSheet
+        open={actionsOpen}
+        onClose={() => setActionsOpen(false)}
+        height="36dvh"
+        ariaLabel="Vendor setup actions"
+        compactTop
+        zIndex={5200}
+      >
+        <div className="flex min-h-0 flex-1 flex-col pt-5 font-satoshi">
+          <header className="flex items-center justify-between border-b border-gray-100 px-4 pb-3">
+            <span className="h-9 w-9" aria-hidden="true" />
+            <h2 className="text-base font-semibold text-gray-950">Actions</h2>
+            <button
+              type="button"
+              onClick={() => setActionsOpen(false)}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-800"
+              aria-label="Close actions"
+            >
+              <FiX className="h-5 w-5" />
+            </button>
+          </header>
+
+          <div className="px-4 py-2">
+            <button
+              type="button"
+              onClick={() => {
+                setActionsOpen(false);
+                openOnboardingSupport();
+              }}
+              className="flex min-h-14 w-full items-center border-b border-gray-100 py-3 text-left text-[15px] text-gray-900"
+            >
+              <FiHelpCircle className="mr-3 h-5 w-5 text-gray-600" />
+              <span className="flex-1">Need help? Contact support</span>
+              <FiChevronRight className="h-5 w-5 text-gray-400" />
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="flex min-h-14 w-full items-center py-3 text-left text-[15px] font-medium text-red-600 disabled:opacity-60"
+            >
+              <FiLogOut className="mr-3 h-5 w-5" />
+              {isLoggingOut ? "Logging out…" : "Log out"}
+            </button>
+          </div>
+        </div>
+      </AppBottomSheet>
     </>
   );
 };

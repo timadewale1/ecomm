@@ -27,11 +27,15 @@ import {
   ReCaptchaEnterpriseProvider,
 } from "firebase/app-check";
 import { isNativeApp } from "./services/platform";
+import { WEB_AUTH_HOSTS } from "./services/webAuthRedirectState.mjs";
 
 /* 1) Firebase config */
 const firebaseConfig = {
   apiKey: "AIzaSyC7pOCYSGpYMUDiRxRN4nV4UUfd2tdx1Jg",
-  authDomain: "ecommerce-ba520.firebaseapp.com",
+  authDomain: !isNativeApp && window.location.pathname === "/auth/google" &&
+    WEB_AUTH_HOSTS.has(window.location.hostname)
+    ? window.location.hostname
+    : "ecommerce-ba520.firebaseapp.com",
   projectId: "ecommerce-ba520",
   storageBucket: "ecommerce-ba520.appspot.com",
   messagingSenderId: "620187458799",

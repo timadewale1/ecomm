@@ -35,6 +35,7 @@ import {
   updateUserData,
 } from "../redux/actions/useractions";
 import { takeAuthIntent } from "../services/authIntent";
+import { beginAuthTransition } from "../services/authTransition.mjs";
 import { useAppExperience } from "../components/Context/AppExperienceContext";
 import { APP_EXPERIENCE } from "../services/appExperience";
 import "./profile.css";
@@ -224,7 +225,9 @@ const Profile = () => {
     const intent = takeAuthIntent({types: "profile-action", pathname: location.pathname});
     if (!intent) return;
     authResumeHandledRef.current = true;
-    void resumeProfileAction(intent.payload?.action, intent.payload?.destination);
+    const transition = beginAuthTransition();
+    void resumeProfileAction(intent.payload?.action, intent.payload?.destination)
+      .finally(() => transition.finish());
   }, [currentUser?.uid, location.pathname, resumeProfileAction]);
 
   const handleAvatarChange = (newAvatar) => {

@@ -179,13 +179,17 @@ const Signup = () => {
 
   const handleSocialSignUp = async (providerId, providerLabel) => {
     void appHaptics.medium();
+    let transition;
     try {
       setLoading(true);
-      const { user, isNewUser } = await authenticateBuyerWithProvider({
+      const authResult = await authenticateBuyerWithProvider({
         auth,
         db,
         providerId,
+        redirectContext: { source: "signup", returnTo: "/" },
       });
+      const { user, isNewUser } = authResult;
+      transition = authResult.transition;
       await fetchAndMergeCart(db, user.uid, dispatch);
       await selectExperience(APP_EXPERIENCE.CUSTOMER);
       toast.success(
@@ -199,6 +203,7 @@ const Signup = () => {
       const message = socialAuthErrorMessage(error, providerLabel);
       if (message) toast.error(message);
     } finally {
+      transition?.finish();
       setLoading(false);
     }
   };

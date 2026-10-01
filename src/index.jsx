@@ -24,6 +24,8 @@ import { TawkProvider } from "./components/Context/TawkProvider.jsx";
 
 import { PostHogProvider } from "posthog-js/react";
 import SwipeToast from "./components/Toasts/SwipeToast.jsx";
+import WebGoogleReturnGate from "./components/Auth/WebGoogleReturnGate";
+import AuthTransitionOverlay from "./components/Auth/AuthTransitionOverlay";
 
 installCrashReporting();
 const posthogOptions = {
@@ -45,7 +47,9 @@ createRoot(document.getElementById("root")).render(
           <Provider store={store}>
             <PersistGate loading={null} persistor={persistor}>
               <AppExperienceProvider>
+                <WebGoogleReturnGate>
                 <AuthProvider>
+                  <AuthTransitionOverlay />
                   <OperationalJourney />
                   <NavigationProvider>
                     <VendorProvider>
@@ -73,6 +77,7 @@ createRoot(document.getElementById("root")).render(
                     </VendorProvider>
                   </NavigationProvider>
                 </AuthProvider>
+                </WebGoogleReturnGate>
               </AppExperienceProvider>
             </PersistGate>
           </Provider>

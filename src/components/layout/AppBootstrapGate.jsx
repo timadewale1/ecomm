@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { useAuth } from "../../custom-hooks/useAuth";
@@ -9,6 +9,7 @@ import {
 } from "../../services/appExperience";
 import { isNativeApp } from "../../services/platform";
 import Loading from "../Loading/Loading";
+import { authTransitionSnapshot, subscribeAuthTransition } from "../../services/authTransition.mjs";
 
 const ENTRY_ROUTES = new Set([
   "/",
@@ -50,6 +51,7 @@ const AppBootstrapGate = ({ children }) => {
     useAppExperience();
   const [settled, setSettled] = useState(!isNativeApp);
   const hiddenSplashRef = useRef(false);
+  const authTransition = useSyncExternalStore(subscribeAuthTransition, authTransitionSnapshot);
 
   const isAnonymous = Boolean(currentUser?.isAnonymous);
   const accountRole = !isAnonymous ? currentUserData?.role || null : null;
@@ -86,6 +88,7 @@ const AppBootstrapGate = ({ children }) => {
 
   useEffect(() => {
     if (!isNativeApp || !experienceReady || authLoading) return;
+    if (authTransition && !authTransition.finishing) return;
     if (currentUser && !isAnonymous && !currentUserData?.role) {
       if (!profileUnavailable) return;
       setSettled(true);
@@ -183,6 +186,7 @@ const AppBootstrapGate = ({ children }) => {
     };
   }, [
     accountRole,
+    authTransition,
     authLoading,
     currentUser,
     currentUserData,

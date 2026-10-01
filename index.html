@@ -272,6 +272,24 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+    <!-- Immediate OAuth-return feedback, before the JavaScript bundle loads. -->
+    <div id="auth-return-boot" role="status" aria-live="polite" style="display:none;position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.72);color:white;align-items:center;justify-content:center;flex-direction:column;gap:18px;text-align:center;font-family:Satoshi,sans-serif;padding:24px">
+      <span aria-hidden="true" style="width:36px;height:36px;border:3px solid rgba(255,255,255,.25);border-top-color:white;border-radius:50%;animation:auth-boot-spin .8s linear infinite"></span>
+      <span>Finishing sign-in…</span>
+      <button id="auth-return-boot-retry" type="button" style="display:none;color:white;text-decoration:underline;min-height:44px;background:none;border:0">Reload and try again</button>
+    </div>
+    <style>@keyframes auth-boot-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){#auth-return-boot span{animation-duration:2.5s!important}}</style>
+    <script>
+      try {
+        const attempt = JSON.parse(sessionStorage.getItem("mythrift:web-google-redirect:v1") || "null");
+        if (location.pathname === "/auth/google" || (attempt && Date.now() - attempt.createdAt < 900000)) {
+          document.getElementById("auth-return-boot").style.display = "flex";
+          const retry = document.getElementById("auth-return-boot-retry");
+          retry.addEventListener("click", () => location.reload());
+          setTimeout(() => { retry.style.display = "block"; }, 20000);
+        }
+      } catch (_) { /* Normal application startup remains available. */ }
+    </script>
     <script type="module" src="/src/index.jsx"></script>
     <div id="custom-loading-screen">
       <img
@@ -294,7 +312,9 @@
         window.addEventListener("resize", setViewportHeight);
         const loadingScreen = document.getElementById("custom-loading-screen");
         if (loadingScreen) {
-          loadingScreen.style.display = isPWA ? "flex" : "none";
+          const returningFromAuth = location.pathname === "/auth/google" ||
+            document.getElementById("auth-return-boot")?.style.display === "flex";
+          loadingScreen.style.display = isPWA && !returningFromAuth ? "flex" : "none";
         }
       });
       setTimeout(() => {

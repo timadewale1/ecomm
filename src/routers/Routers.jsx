@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import { Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
 import Loading from "../components/Loading/Loading.jsx";
+import { AuthRoutePending, AuthRouteReady } from "../components/Auth/AuthRouteProgress";
 import StockpileNudge from "../components/StockpileNudge.jsx";
 // Non-lazy loaded components (bottom bar routes, Checkout, StorePage)
 import Checkout from "../pages/NewCheckout.jsx";
@@ -124,7 +125,7 @@ const LegacyVendorReviewsRedirect = () => {
 
 const Routers = () => {
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<AuthRoutePending />}>
       <Routes>
         {/* Default Route */}
         <Route
@@ -478,6 +479,7 @@ const Routers = () => {
         {/* Catch-all Route for NotFound */}
         <Route path="*" element={<Navigate to="/not-found" />} />
       </Routes>
+      <AuthRouteReady />
     </Suspense>
   );
 };

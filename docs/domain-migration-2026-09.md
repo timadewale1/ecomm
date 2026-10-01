@@ -1,85 +1,72 @@
-# My Thrift .com migration — staged rollout
+# My Thrift .com migration
 
-Status at 25 September 2026: prepared and preview-tested; production cutover is NOT complete. The user has explicitly paused publishing and chosen the normal Git-to-Vercel workflow for the eventual release. Do not push a deployment-connected branch or deploy directly until asked to resume publishing.
+Updated 1 October 2026. Publishing was resumed with the owner's approval. This supersedes the September publishing hold and temporary homepage-redirect plan.
 
-## Intended routing
+## Live routing
 
-| Address | Purpose |
+| Address | Behaviour |
 | --- | --- |
-| `app.shopmythrift.com` | React marketplace app |
-| `shopmythrift.com/product/:id` | Next.js product preview; normal browser redirects to matching app route |
-| `shopmythrift.com/:vendorSlug` | Next.js vendor preview; resolves slug to vendor ID before redirecting |
-| `shopmythrift.com/store/:vendorId` | Vendor fallback share route |
-| `shopmythrift.com/` | Temporary redirect to the app; informational website is deferred |
+| `shopmythrift.com/` | Marketing/landing website |
+| `www.shopmythrift.com/…` | Temporary 307 redirect to the matching apex URL |
+| `app.shopmythrift.com/…` | React marketplace, including direct auth, payment, order and chat routes |
+| `shopmythrift.com/product/:id` | Rich product preview for crawlers; browser redirects to the matching app product |
+| `shopmythrift.com/store/:id` | Rich vendor preview; browser redirects to the matching app store |
+| `shopmythrift.com/:vendorSlug` | Resolves the public vendor slug, renders rich metadata or redirects to app `/store/:id` |
 
-Keep existing `.store`, `www.shopmythrift.store`, `mx.shopmythrift.store`, mail records and existing deployments. No user data/schema migration is required. Payment/delivery/search API hosts and email sender addresses are not part of this migration.
+Existing `.store`, `www.shopmythrift.store` and `mx.shopmythrift.store` remain attached and usable. Old rich links now direct browsers to the new app origin. Already-issued URLs have not been deleted.
 
-## Completed
+## Hosting and DNS
 
-- Created the `.com` zone on Cloudflare Free and retained all eight scanned DNS records: apex A, www CNAME, five mail-forwarding MX records and SPF TXT. Apex/www remain DNS-only.
-- Changed only `.com` nameservers at Namecheap to `fred.ns.cloudflare.com` and `nadia.ns.cloudflare.com`; saved values verified. DNS lookup returns those nameservers. Cloudflare's dashboard was still waiting for activation at the last check.
-- Added opt-in frontend, Next.js and Cloud Functions URL helpers. Without activation variables, existing URLs remain the defaults.
-- Updated relevant app shares, email/action links, payment sharing and native link recognition. Added new Android hosts without removing old hosts.
-- Kept query parameters when rich links redirect. Added no-store/User-Agent variance to avoid serving a cached browser redirect to a preview crawler (or vice versa).
-- Limited publicly serialized Next preview data to public product/vendor metadata. Previously, full Firestore documents were serialized into preview HTML.
-- Built React with both legacy and new-domain configuration. Built Next locally and on Vercel.
-- Deployed a PREVIEW to existing Next project `mythriftnextjs`: `https://mythriftnextjs-42659c5oo-timadewale1s-projects.vercel.app` (deployment `dpl_4nSpKPTWLcdnGVjPVh9uuGTY3A9P`). Browser redirect and crawler metadata were verified there.
-- Passed 13 frontend/Next URL tests and 20 backend regression tests, including payment checkout, signup, question and email modules. Backend tests also passed with migration configuration enabled.
-- Added and verified all three approved Firebase Authentication authorized domains: `app.shopmythrift.com`, `shopmythrift.com`, `www.shopmythrift.com`. The existing six entries (Firebase defaults, localhost, 127.0.0.1, `.store` and `www.store`) were retained. The previously empty settings table loaded correctly after refreshing the console.
-- Rechecked local environment files: no migration activation settings are enabled. Existing development/mobile builds therefore continue generating legacy URLs unless explicitly built with new-domain variables. Reran the combined frontend, Next and backend URL suites: 18 tests passed.
+Vercel team: `my-thrift`. Marketplace project `mythrift` and legacy rich-link project `mythriftnextjs` remain connected to `timadewale1/ecomm`, branch `main`. The app release merged through PR #492, commit `4186c2951fa2fda8246a086d76ad1ce3b4551dcd`.
 
-## Not completed / decisions pending
+The landing site was deployed directly to existing project `mythrift-landing` with explicit owner approval because the signed-in GitHub account cannot access `mythrift/mythrift-landing`. Source is committed locally: `ed0916d`; verification/ignore follow-up `097c779`. Reconnecting Git publication still requires repository access.
 
-1. Publishing is on hold. User approved keeping `.store` available and wants the eventual release through Git -> Vercel, not a direct CLI production deployment. Existing `mythrift` production is from May, while local source includes subsequent app work. Before any push, choose the branch/project arrangement that preserves the old deployment; both existing Vercel projects are connected to the repository. Do not silently promote unrelated local changes or trigger the old production project.
-2. Firebase Authentication domain authorization is complete. Actual sign-in, verification/reset links, OAuth popup returns and app action continuation still need testing on the deployed `.com` origin; adding domains alone does not establish end-to-end correctness.
-3. Verify Cloudflare zone activation; attach `.com`/www to Next and `app` to the chosen SPA deployment. Read the actual Vercel DNS targets and then update ONLY the new zone's web records, retaining the mail records. At this checkpoint, no `.com` Vercel domains have been attached and web DNS still has the imported parking values.
-4. Configure and test SPA route fallback for direct product, store, auth, payment and chat links. Preserve existing security headers and static assets. Make robots/sitemap targets match the deployment; the checked-in robots file currently references the old sitemap.
-5. Verify TLS on all new hosts, authentication/reCAPTCHA allowed domains and any Maps referrer restrictions that apply. Do not weaken authentication/App Check to bypass a migration error.
-6. Set persistent activation variables, deploy and verify on the actual hosts. One-off preview deployment variables do not configure future Git deployments.
-7. Selectively deploy the affected Cloud Functions only AFTER new hosts and sign-in work. The local functions directory contains pre-existing changes; review deployment scope first. Do not use an unreviewed all-functions deployment or accept deletion prompts.
-8. Build/sync the mobile apps with new URL variables when ready. Android URL recognition has been extended; verified Android App Links and iOS Universal Links still need the correct signing/domain association setup and physical-device verification. No iOS associated-domain capability or signing change was made here.
+Cloudflare `.com` records are DNS-only:
 
-No Firebase functions, production SPA or production Next deployment was deployed during this preparation. No Git push was performed. Firebase authorized domains were added as described above, but App Check enforcement/provider settings, auth persistence and account-linking behavior were not changed. No mobile build/sync was run for this migration.
+| Record | Target |
+| --- | --- |
+| Apex CNAME | `435cddb435dc760a.vercel-dns-016.com` |
+| `www` CNAME | `435cddb435dc760a.vercel-dns-016.com` |
+| `app` CNAME | `047261564b92c1d8.vercel-dns-017.com` |
 
-## Activation variables
+Previous apex: A `162.255.119.155`. Previous www: CNAME `parkingpage.namecheap.com`. App was added during cutover. Mail MX/TXT records and the old domain's DNS were not modified. TLS and the www redirect were verified.
 
-Frontend Vite build:
+## Security and compatibility
 
-```text
-VITE_APP_ORIGIN=https://app.shopmythrift.com
-VITE_SHARE_ORIGIN=https://shopmythrift.com
-```
+- Firebase Auth already authorizes apex, www and app `.com`. The existing Firebase authDomain and sign-in logic remain unchanged.
+- Added the three exact hosts to existing reCAPTCHA and browser Maps referrer allowlists; retained all legacy entries and API restrictions.
+- Landing previews read only publicProducts/publicVendors anonymously through existing Firestore rules, with field masks and bounded slug queries. No service-account credential or private vendor-document access was added.
+- Share redirects retain query parameters. Crawler responses use no-store/User-Agent variance; missing public products/slugs return 404.
+- Frontend, legacy Next and backend URL helpers now default to `.com`; incoming old-host recognition remains.
+- Sitemap generation uses eligible public vendors, not all private vendor records.
+- Email addresses such as `hello@shopmythrift.store`, the blog host, provider API domains, database rules and schema are intentionally unchanged.
 
-Next runtime AND build environment:
+## Backend rollout
 
-```text
-MYTHRIFT_APP_ORIGIN=https://app.shopmythrift.com
-MYTHRIFT_PUBLIC_ORIGIN=https://shopmythrift.com
-MYTHRIFT_REDIRECT_PUBLIC_HOME=true
-```
+Only outbound-link consumers are included, not an all-functions deployment. Each release uses that function's exact downloaded deployed source. Existing helpers receive the new default destinations; older source receives mechanical URL-string-only changes. CORS allowlists retain legacy origins. All other files/packages/business logic are byte-identical to the prior source.
 
-Cloud Functions runtime (only after verification):
+Function environment variables, runtime, IAM, triggers, schedules, payment amounts and order state transitions are unchanged. `processProductFollowerFanoutJobs` was not previously deployed and was deliberately not introduced.
 
-```text
-MYTHRIFT_APP_ORIGIN=https://app.shopmythrift.com
-MYTHRIFT_PUBLIC_ORIGIN=https://shopmythrift.com
-```
+See sibling `verification/rollouts/2026-10-01-com-domain-cutover.json` for final function verification and deployment evidence. Do not deploy the entire unrelated dirty backend working tree to repeat this migration.
 
-These are public URL settings, not secrets. Do not copy service-account keys or provider credentials into frontend variables or deploy directories.
+## Verification
 
-## Cutover checks
+- 21 landing unit tests, typecheck and production build passed.
+- 13 live .com HTTP checks passed: landing, route forwarding, query preservation, missing records, robots and sitemap.
+- Real product/store/slug previews and browser redirects passed.
+- 14 frontend/legacy-Next routing tests passed.
+- 30 backend URL/email/signup/delivery-checkout regression tests passed.
+- The new app product page rendered at mobile size, including seller products and actions, with no captured runtime errors. Login entry rendered correctly.
+- React production build, Capacitor iOS/Android sync, Android debug/unit-test tasks and unsigned iOS device build passed.
 
-- Apex homepage redirects to app; product/store shares never incorrectly fall back to homepage.
-- Known and unknown vendor slugs/products behave correctly; query parameters and payment/auth tokens are preserved.
-- Browser GET returns the correct app redirect, while preview crawlers receive title/image/canonical metadata without private vendor fields.
-- Direct React routes survive refresh; static assets return correct content types rather than index.html.
-- Login, logout, password reset, verification, guest question verification and existing auth intents work.
-- Test delivery, pickup, stockpile and Pay-for-me return paths without changing API/payment behavior.
-- Existing `.store` and `mx` links remain usable; do not invalidate already-issued emails or payment links.
-- Check mobile internal link handling separately from OS-level verified links; passing one does not prove the other.
+## Acceptance limits
 
-## User-visible difference and rollback
+Actual account sign-in/OAuth, verification/reset emails and a paid end-to-end checkout still need owner testing on the new origin and installed mobile builds. No test purchase or wallet charge was made.
 
-Browser sign-in and local guest state belong to the origin: users may need to sign in again on `.com`. Server-stored carts, favorites and profile data are not deleted or migrated. Do not promise automatic cross-domain local-storage transfer.
+OS-level Android verified App Links and iOS Universal Links still require correct release signing/domain associations and physical-device validation. Internal URL handling and successful builds do not prove OS-level association. No signing capability or certificate was invented or changed.
 
-Keep the old deployment as a fallback. Roll back the new-domain deployment/activation settings if verification fails; do not delete old domains, records, functions or data. DNS rollback must use the recorded prior values and preserve mail records.
+Browser sessions/guest local storage belong to their origin, so users may need to sign in on the new app domain. Server-stored carts, favourites and profiles were not deleted or migrated. Old web remains available; automatic cross-domain guest local-storage transfer is not promised. Native apps retain their existing local origin.
+
+## Recovery
+
+Retain old domains and deployments. Roll back the relevant Vercel deployment or function's recorded previous source if needed; do not delete accounts, records, functions or mail DNS. Prior source archives and release receipts were retained locally. Restoring parking DNS is not a substitute for an app rollback.

@@ -1,6 +1,7 @@
 import { db } from "../../firebase.config";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
+import { isMarketplaceProductEligible } from "../../services/marketplaceVisibility";
 
 export const FETCH_PRODUCT_REQUEST = 'FETCH_PRODUCT_REQUEST';
 export const FETCH_PRODUCT_SUCCESS = 'FETCH_PRODUCT_SUCCESS';
@@ -20,10 +21,10 @@ export const fetchProductsFailure = (error) => ({ type: FETCH_PRODUCTS_FAILURE, 
 export const fetchProduct = (id) => async (dispatch) => {
   dispatch(fetchProductRequest()); // Dispatching initial request action
   try {
-    const productRef = doc(db, "products", id); // Fetch from centralized products collection
+    const productRef = doc(db, "publicProducts", id); // Fetch from centralized products collection
     const productDoc = await getDoc(productRef); // Fetch the product
 
-    if (productDoc.exists()) {
+    if (productDoc.exists() && isMarketplaceProductEligible(productDoc.data())) {
       const productData = productDoc.data();
       dispatch(fetchProductSuccess({ id: productDoc.id, ...productData })); // Dispatch success with product data
     } else {
@@ -41,12 +42,14 @@ export const fetchProducts = () => async (dispatch) => {
   dispatch(fetchProductsRequest()); // Dispatch request action
 
   try {
-    const productsSnapshot = await getDocs(collection(db, "products")); // Fetch all products from the centralized collection
+    const productsSnapshot = await getDocs(collection(db, "publicProducts")); // Fetch all products from the centralized collection
 
-    const products = productsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const products = productsSnapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+      .filter(isMarketplaceProductEligible);
 
     dispatch(fetchProductsSuccess(products)); // Dispatch success action with products
   } catch (error) {

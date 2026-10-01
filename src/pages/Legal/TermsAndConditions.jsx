@@ -1,11 +1,11 @@
-import { GoChevronLeft, GoDotFill } from "react-icons/go";
+import { GoDotFill } from "react-icons/go";
 import ScrollToTop from "../../components/layout/ScrollToTop";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
 import SEO from "../../components/Helmet/SEO";
+import AppPageHeader from "../../components/layout/AppPageHeader";
 
 const TermsAndConditions = () => {
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
 
   // //Basically, this logic checks if there's any previous history in the browser that also comes from this domain, if both checks return false then the handleBack function redirects to the login page, else it goes to the previous page
   // const [checkOne, setCheckOne] = useState(false);
@@ -34,6 +34,7 @@ const TermsAndConditions = () => {
         url={`https://www.shopmythrift.store/terms-and-conditions`}
       />
       <div className="flex flex-col items-center bg-gray-50 min-h-screen pb-4 font-opensans text-gray-800">
+        <AppPageHeader title="Terms and Conditions" onBack={() => navigate(-1)} />
         {/* Header */}
         {/* <div
         id="header"

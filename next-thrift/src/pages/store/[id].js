@@ -1,15 +1,9 @@
 // src/pages/store/[id].js
 import Head from "next/head";
-import dynamic from "next/dynamic";
 import { initAdmin } from "lib/firebaseAdmin.js";
-import { AuthProvider } from "@/custom-hooks/useAuth";
-import { FavoritesProvider } from "@/components/context/FavoritesContext";
 import { Timestamp } from "firebase-admin/firestore";
 import { getOgImageUrl } from "lib/imageKit";
-
-const StorePage = dynamic(() => import("../../app/store/StorePage"), {
-  ssr: false,
-});
+import shareRouting from "lib/shareRouting.cjs";
 
 function toJSON(value) {
   if (value == null) return value;
@@ -23,13 +17,12 @@ function toJSON(value) {
   return value;
 }
 
-export async function getServerSideProps({ req, params }) {
+export async function getServerSideProps({ req, res, params, resolvedUrl }) {
+  shareRouting.prepareShareResponse(res);
   const ua = req.headers["user-agent"] || "";
 
   // 1️⃣ Only the true crawlers:
-  const isBot = /(facebookexternalhit|Twitterbot|Slackbot|WhatsApp|SnapchatExternalHit)/i.test(
-    ua
-  );
+  const isBot = shareRouting.isPreviewCrawler(ua);
 
   // 2️⃣ But the **mobile** Snapchat app:
   const isSnapchatApp = /Snapchat(?!ExternalHit)/i.test(ua);
@@ -38,7 +31,7 @@ export async function getServerSideProps({ req, params }) {
   if (!isBot || isSnapchatApp) {
     return {
       redirect: {
-        destination: `https://shopmythrift.store/store/${params.id}?shared=true`,
+        destination: shareRouting.appDestination("store", params.id, resolvedUrl),
         permanent: false,
       },
     };
@@ -47,16 +40,16 @@ export async function getServerSideProps({ req, params }) {
   // 4️⃣ True bots get the SSR meta + OG tags
   const db = initAdmin();
   const snap = await db.collection("vendors").doc(params.id).get();
-  if (!snap.exists) return { notFound: true };
-  const vendor = toJSON({ id: snap.id, ...snap.data() });
-  return { props: { vendor } };
+  if (!snap.exists || !shareRouting.isPublicVendor(snap.data())) return { notFound: true };
+  const vendor = toJSON(shareRouting.previewVendor(snap.id, snap.data()));
+  return { props: { vendor, canonicalUrl: shareRouting.canonicalUrl("store", vendor) } };
 }
 
-export default function StoreSSR({ vendor }) {
+export default function StoreSSR({ vendor, canonicalUrl }) {
   const title = vendor.shopName;
   const description =
     vendor.description || "Check out this vendor on My Thrift!";
-  const url = `https://shopmythrift.store/store/${vendor.id}`;
+  const url = canonicalUrl;
 
   // proxy + crop via your ImageKit endpoint
   const image = getOgImageUrl(vendor.coverImageUrl);
@@ -65,6 +58,7 @@ export default function StoreSSR({ vendor }) {
     <>
       <Head>
         <title>{title}</title>
+        <link rel="canonical" href={url} />
 
         {/* ——— Open Graph ——— */}
         <meta property="og:type" content="website" key="og:type" />
@@ -91,11 +85,12 @@ export default function StoreSSR({ vendor }) {
         <meta name="twitter:image" content={image} key="tw:image" />
       </Head>
 
-      <FavoritesProvider>
-        <AuthProvider>
-          <StorePage vendorId={vendor.id} />
-        </AuthProvider>
-      </FavoritesProvider>
+      {/* Humans already redirect to the SPA. Crawlers need only this public
+          preview, not a second client storefront reading private profiles. */}
+      <main>
+        <h1>{title}</h1>
+        <p>{description}</p>
+      </main>
     </>
   );
 }

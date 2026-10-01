@@ -1,19 +1,22 @@
+import VendorReviewNotice from "./VendorReviewNotice";
+import { siteUrls } from "../../config/siteUrls.mjs";
 import React, {
   useEffect,
   useState,
   useContext,
   useCallback,
+  useMemo,
   useRef,
+  useSyncExternalStore,
 } from "react";
 import {
   collection,
   query,
   where,
-  updateDoc,
   onSnapshot,
-  doc,
 } from "firebase/firestore";
-import { db } from "../../firebase.config";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "../../firebase.config";
 
 import toast from "react-hot-toast";
 import Modal from "../../components/layout/Modal";
@@ -23,21 +26,77 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import {
   fetchRecentActivities,
+  RECENT_ACTIVITY_CACHE_TTL_MS,
   resetActivities,
 } from "../../redux/recentActivitiesSlice.js";
 import { VendorContext } from "../../components/Context/Vendorcontext";
 import { FiPlus } from "react-icons/fi";
-import { BsBoxSeam, BsEye, BsEyeSlash } from "react-icons/bs";
-import { LuCopy, LuCopyCheck, LuListFilter } from "react-icons/lu";
+import { BsEye, BsEyeSlash } from "react-icons/bs";
+import { LuCopy, LuCopyCheck, LuGauge, LuListFilter } from "react-icons/lu";
+import {
+  CheckCheck,
+  ClipboardList,
+  Clock3,
+  Package,
+} from "lucide-react";
 import NotApproved from "../../components/Infos/NotApproved";
 import Skeleton from "react-loading-skeleton";
 import ScrollToTop from "../../components/layout/ScrollToTop";
 import SEO from "../../components/Helmet/SEO";
 import Lottie from "lottie-react";
 import LoadState from "../../Animations/loadinganimation.json";
-import StockpileSetupModal from "../../components/StockPile.jsx";
-import MissingLocationModal from "../../components/Location/MissingLocationModal.jsx";
+import VendorDeliveryLocationNotice from "../../components/Location/VendorDeliveryLocationNotice.jsx";
 import TipChat from "../../components/TipsMaltilda.jsx";
+import { getVendorDashboardRevenue } from "../../services/walletApi";
+import VendorTour from "../../components/Tours/VendorTour";
+import { appHaptics } from "../../services/haptics";
+import NativePickerField from "../../components/Form/NativePickerField";
+import {
+  loadVendorWalletTransactions,
+  readCachedVendorWalletTransactions,
+} from "../../services/vendorWalletTransactions";
+import { nativePlatform } from "../../services/platform";
+import { vendorOrderStatistics } from "../../services/vendorOrderStatistics.mjs";
+import { readRevenueHidden, toggleRevenueHidden, subscribeRevenueVisibility } from "../../services/vendorRevenueVisibility.mjs";
+
+const isAndroidNative = nativePlatform === "android";
+
+const ACTIVITY_FILTER_OPTIONS = [
+  { value: "All", label: "All activity" },
+  { value: "transactions", label: "Recent transactions" },
+  { value: "order", label: "Orders" },
+  { value: "Product Update", label: "Product updates" },
+  { value: "profile", label: "Profile updates" },
+];
+
+const walletActivityTimestamp = (value) => {
+  const parsed = new Date(value || 0).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const walletActivityMoney = new Intl.NumberFormat("en-NG", {
+  style: "currency",
+  currency: "NGN",
+  maximumFractionDigits: 2,
+});
+
+const walletTransactionToActivity = (transaction) => ({
+  id: `wallet:${transaction.id}`,
+  type: "transactions",
+  title: transaction.type === "credit" ? "Wallet credited" : "Wallet debited",
+  note: `${transaction.title || transaction.description || "Wallet transaction"} · ${walletActivityMoney.format(Number(transaction.amount || 0))}${transaction.status ? ` · ${transaction.status}` : ""}`,
+  timestampMs: walletActivityTimestamp(transaction.createdAt),
+  reference: transaction.reference || null,
+});
+
+const formatPerformanceDuration = (value) => {
+  const totalMinutes = Math.max(1, Math.round(Number(value || 0) / 60000));
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  if (days) return `${days}d ${hours ? `${hours}h` : ""}`.trim();
+  if (hours) return `${hours}h ${totalMinutes % 60 ? `${totalMinutes % 60}m` : ""}`.trim();
+  return `${totalMinutes}m`;
+};
 
 const VendorDashboard = () => {
   const defaultImageUrl =
@@ -45,75 +104,287 @@ const VendorDashboard = () => {
   const { vendorData, loading } = useContext(VendorContext);
   // console.log("VendorDashboard render:", { vendorData, loading });
 
-  const [totalFulfilledOrders, setTotalFulfilledOrders] = useState(0);
-  const [hide, setHide] = useState(false);
+  const visibilityVendorId = vendorData?.vendorId;
+  const subscribeVisibility = useCallback(
+    (callback) => subscribeRevenueVisibility(visibilityVendorId, callback),
+    [visibilityVendorId],
+  );
+  const hide = useSyncExternalStore(
+    subscribeVisibility,
+    () => readRevenueHidden(visibilityVendorId),
+    () => true,
+  );
+  const toggleRevenue = () => toggleRevenueHidden(visibilityVendorId);
   // const [coverImageUrl, setCoverImageUrl] = useState(defaultImageUrl);
   const [filterOptions, setFilterOptions] = useState("All");
-  const [viewOptions, setViewOptions] = useState(false);
-  const [totalUnfulfilledOrders, setTotalUnfulfilledOrders] = useState(0);
-  const [totalOrders, setTotalOrders] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [revenueReadyVendorId, setRevenueReadyVendorId] = useState(null);
+  const [productsReadyVendorId, setProductsReadyVendorId] = useState(null);
+  const [completionPerformance, setCompletionPerformance] = useState(null);
+  const [walletActivities, setWalletActivities] = useState([]);
   // const [recentActivities, setRecentActivities] = useState([]);
   // const [activityLoading, setActivityLoading] = useState(false);
   const [isModalOpen, setModalOpen] = useState(false);
-
-  const [showMissingLocationModal, setShowMissingLocationModal] =
-    useState(false);
-  const [locationFixing, setLocationFixing] = useState(false);
+  const [isAddProductBusy, setIsAddProductBusy] = useState(false);
+  const canManageCatalogue = Boolean(
+    (vendorData?.isApproved === true ||
+      vendorData?.profileComplete === true) &&
+      vendorData?.isDeactivated !== true,
+  );
 
   // const [lastDoc, setLastDoc] = useState(null);
   // const [hasMore, setHasMore] = useState(true); // If there are more activities to load
   const navigate = useNavigate();
   const location = useLocation();
   const redirectedRef = useRef(false);
+  const revenueRequestRef = useRef(0);
+  const performanceRequestRef = useRef(0);
+  const fulfilledBaselineRef = useRef({ vendorId: null, count: null });
   const dispatch = useDispatch();
   const {
     activities,
     lastDoc,
-    loading: activitiesLoading,
+    status: activitiesStatus,
+    error: activitiesError,
     hasMore,
+    paginationReady,
+    ownerVendorId: activitiesOwnerVendorId,
+    lastFetchedAt: activitiesLastFetchedAt,
   } = useSelector((state) => state.activities);
+  const vendorOrdersState = useSelector((state) => state.orders);
+  const orderStatistics = useMemo(() => vendorOrderStatistics(
+    vendorData?.vendorId && vendorOrdersState?.ownerVendorId === vendorData.vendorId
+      ? vendorOrdersState.orders : [],
+  ), [vendorData?.vendorId, vendorOrdersState?.ownerVendorId, vendorOrdersState?.orders]);
+  const {total: totalOrders, fulfilled: totalFulfilledOrders, unfulfilled: totalUnfulfilledOrders} = orderStatistics;
+
+  const fetchVendorRevenue = useCallback(async (vendorId) => {
+    const requestId = ++revenueRequestRef.current;
+    const cacheKey = `vendorRevenue_${vendorId}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached != null && Number.isFinite(Number(cached))) {
+      setTotalRevenue(Number(cached));
+      setRevenueReadyVendorId(vendorId);
+    }
+
+    try {
+      const { data } = await getVendorDashboardRevenue(vendorId);
+      const revenue = Number(data?.vendorRevenue || 0);
+      if (requestId !== revenueRequestRef.current) return;
+      localStorage.setItem(cacheKey, revenue.toString());
+      setTotalRevenue(revenue);
+    } catch (error) {
+      // Keep a cached figure on screen, but leave a useful diagnostic for
+      // genuine API failures rather than silently swallowing them.
+      console.warn("[VendorDashboard] Revenue refresh failed", {
+        vendorId,
+        code: error?.code || "unknown",
+      });
+    } finally {
+      if (requestId === revenueRequestRef.current) {
+        // A provider failure must not leave the page skeleton mounted forever.
+        // Cached/zero revenue remains the graceful fallback for this visit.
+        setRevenueReadyVendorId(vendorId);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    if (vendorData?.vendorId) {
-      dispatch(resetActivities()); // optional: clear previous state if needed
-      dispatch(
-        fetchRecentActivities({
-          vendorId: vendorData.vendorId,
-          nextPage: false,
-        })
-      );
+    const vendorId = vendorData?.vendorId;
+    if (!vendorId) {
+      setCompletionPerformance(null);
+      return undefined;
     }
-  }, [vendorData, dispatch]);
+    const requestId = ++performanceRequestRef.current;
+    let active = true;
+    const getPerformance = httpsCallable(
+      functions,
+      "getMyVendorCompletionPerformanceV1",
+    );
+    const backfill = httpsCallable(
+      functions,
+      "backfillMyVendorCompletionMetricsV1",
+    );
+    const backfillKey = `vendorCompletionMetricsBackfillV1_${vendorId}`;
+
+    const load = async () => {
+      try {
+        const initial = await getPerformance({});
+        if (active && requestId === performanceRequestRef.current) {
+          setCompletionPerformance(initial.data || null);
+        }
+
+        if (localStorage.getItem(backfillKey) === "complete") return;
+        let cursor = null;
+        do {
+          const response = await backfill({cursor, pageSize: 100});
+          cursor = response?.data?.complete
+            ? null
+            : response?.data?.nextCursor || null;
+        } while (active && cursor);
+        if (!active) return;
+        localStorage.setItem(backfillKey, "complete");
+        const refreshed = await getPerformance({});
+        if (active && requestId === performanceRequestRef.current) {
+          setCompletionPerformance(refreshed.data || null);
+        }
+      } catch (error) {
+        // Performance is supplementary; an unavailable metric must never
+        // block the dashboard or produce a customer-facing error toast.
+        console.warn("[VendorDashboard] Completion benchmark unavailable", {
+          code: error?.code || "unknown",
+        });
+      }
+    };
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [vendorData?.vendorId]);
 
   useEffect(() => {
-    if (vendorData) {
-      fetchStatistics(vendorData.vendorId);
-      fetchVendorRevenue(vendorData.vendorId);
-      fetchInfo(vendorData.vendorId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vendorData]);
-  useEffect(() => {
-    if (!loading && vendorData && vendorData.profileComplete === false) {
-      toast("Please complete your profile.");
-      navigate("/complete-profile");
-    }
-  }, [vendorData, loading, navigate]);
-  useEffect(() => {
+    const vendorId = vendorData?.vendorId;
+    if (!vendorId) return;
+
+    const ownsCache = activitiesOwnerVendorId === vendorId;
+    const cacheIsFresh =
+      ownsCache &&
+      activitiesLastFetchedAt &&
+      Date.now() - activitiesLastFetchedAt < RECENT_ACTIVITY_CACHE_TTL_MS;
+    const requestInFlight = ["loading", "refreshing", "loadingMore"].includes(
+      activitiesStatus,
+    );
+    const automaticAttemptAlreadyFailed = ownsCache && Boolean(activitiesError);
+
+    // Persisted activity deliberately has no Firestore cursor. Revalidate once
+    // in the background to recreate it before infinite scrolling is enabled.
     if (
-      vendorData &&
-      (!vendorData.location?.lat || !vendorData.location?.lng)
+      (!cacheIsFresh || !paginationReady) &&
+      !requestInFlight &&
+      !automaticAttemptAlreadyFailed
     ) {
-      setShowMissingLocationModal(true);
+      dispatch(fetchRecentActivities({ vendorId, nextPage: false }));
     }
-  }, [vendorData]);
+  }, [
+    activitiesLastFetchedAt,
+    activitiesOwnerVendorId,
+    activitiesError,
+    activitiesStatus,
+    dispatch,
+    paginationReady,
+    vendorData?.vendorId,
+  ]);
+
+  useEffect(() => {
+    if (!loading && !vendorData && activitiesOwnerVendorId) {
+      dispatch(resetActivities());
+    }
+  }, [activitiesOwnerVendorId, dispatch, loading, vendorData]);
+
+  useEffect(() => {
+    const vendorId = vendorData?.vendorId;
+    if (!vendorId) {
+      setProductsReadyVendorId(null);
+      return undefined;
+    }
+
+    setTotalProducts(0);
+    setProductsReadyVendorId(null);
+
+    const productsQuery = query(
+      collection(db, "products"),
+      where("vendorId", "==", vendorId),
+      where("isDeleted", "==", false),
+    );
+    const unsubscribeProducts = onSnapshot(
+      productsQuery,
+      (snapshot) => {
+        setTotalProducts(snapshot.size);
+        setProductsReadyVendorId(vendorId);
+      },
+      (error) => {
+        console.warn("[VendorDashboard] Product count listener failed", {
+          vendorId,
+          code: error?.code || "unknown",
+        });
+        // Render the recoverable dashboard state instead of an endless loader.
+        setProductsReadyVendorId(vendorId);
+      },
+    );
+
+    return unsubscribeProducts;
+  }, [vendorData?.vendorId]);
+
+  useEffect(() => {
+    const vendorId = vendorData?.vendorId;
+    const fulfilledCount = totalFulfilledOrders;
+
+    if (!vendorId) {
+      fulfilledBaselineRef.current = {vendorId: null, count: null};
+      return;
+    }
+    const baseline = fulfilledBaselineRef.current;
+    if (baseline.vendorId !== vendorId || baseline.count == null) {
+      fulfilledBaselineRef.current = {vendorId, count: fulfilledCount};
+    } else if (baseline.count !== fulfilledCount) {
+      fulfilledBaselineRef.current = {vendorId, count: fulfilledCount};
+      void fetchVendorRevenue(vendorId);
+    }
+  }, [fetchVendorRevenue, vendorData?.vendorId, totalFulfilledOrders]);
+
+  useEffect(() => {
+    const vendorId = vendorData?.vendorId;
+    if (!vendorId) {
+      setWalletActivities([]);
+      return undefined;
+    }
+    let cancelled = false;
+    const cached = readCachedVendorWalletTransactions(vendorId);
+    if (cached.length) {
+      setWalletActivities(cached.map(walletTransactionToActivity));
+    }
+    void loadVendorWalletTransactions(vendorId)
+      .then((transactions) => {
+        if (!cancelled) {
+          setWalletActivities(transactions.map(walletTransactionToActivity));
+        }
+      })
+      .catch((error) => {
+        console.warn("[VendorDashboard] Wallet activity refresh failed", {
+          code: error?.code || "unknown",
+        });
+      });
+    return () => { cancelled = true; };
+  }, [vendorData?.vendorId]);
+
+  useEffect(() => {
+    const vendorId = vendorData?.vendorId;
+    if (!vendorId) return undefined;
+    void fetchVendorRevenue(vendorId);
+    return () => {
+      revenueRequestRef.current += 1;
+    };
+  }, [fetchVendorRevenue, vendorData?.vendorId]);
+  useEffect(() => {
+    const completionWasJustConfirmed =
+      location.state?.vendorProfileCompletion === "confirmed";
+    if (
+      !loading &&
+      vendorData &&
+      vendorData.profileComplete === false &&
+      !completionWasJustConfirmed
+    ) {
+      toast("Please complete your profile.");
+      navigate("/complete-profile", { replace: true });
+    }
+  }, [vendorData, loading, navigate, location.state]);
   useEffect(() => {
     const blocked = localStorage.getItem("BLOCKED_VENDOR_EMAIL") === "1";
     if (!blocked) return;
     localStorage.removeItem("BLOCKED_VENDOR_EMAIL");
-    navigate("/login", { replace: true, state: { from: location.pathname } });
+    navigate("/vendorlogin", { replace: true, state: { returnTo: location.pathname } });
   }, [navigate, location.pathname]);
   // If we can't read a vendorId once loading finishes, go back to where the user came from.
   useEffect(() => {
@@ -149,114 +420,54 @@ const VendorDashboard = () => {
     });
   };
 
-  useEffect(() => {
-    if (vendorData?.vendorId == null) return;
-    fetchVendorRevenue(vendorData.vendorId);
-  }, [vendorData?.vendorId, totalFulfilledOrders]);
-
-  // 3) The revenue fetcher with localStorage cache
-  async function fetchVendorRevenue(vendorId) {
-    const cacheKey = `vendorRevenue_${vendorId}`;
-    const cached = localStorage.getItem(cacheKey);
-    if (cached != null) {
-      // show stale data immediately
-      setTotalRevenue(Number(cached));
-    }
-
-    try {
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-      const token = import.meta.env.VITE_RESOLVE_TOKEN;
-
-      const res = await fetch(`${API_BASE_URL}/vendor-revenue/${vendorId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (!res.ok) {
-        console.error("Revenue API failed:", res.status);
-        return;
-      }
-      const { data } = await res.json();
-      const revenue = data.vendorRevenue;
-
-      // cache & state
-      localStorage.setItem(cacheKey, revenue.toString());
-      setTotalRevenue(revenue);
-    } catch (err) {
-     
-    }
-  }
-
-  const filteredActivities = activities.filter((activity) => {
+  const visibleActivities = useMemo(() => {
+    const savedActivities = activitiesOwnerVendorId === vendorData?.vendorId
+      ? activities
+      : [];
+    // Provider wallet history is the authoritative transaction source. When
+    // it is available, suppress older hand-written transaction notes so a
+    // single credit or withdrawal is not shown twice.
+    const nonDuplicateSaved = walletActivities.length
+      ? savedActivities.filter((activity) => activity.type !== "transactions")
+      : savedActivities;
+    const byId = new Map();
+    [...nonDuplicateSaved, ...walletActivities].forEach((activity) => {
+      if (activity?.id) byId.set(activity.id, activity);
+    });
+    return [...byId.values()].sort(
+      (left, right) =>
+        Number(right.timestampMs || 0) - Number(left.timestampMs || 0),
+    );
+  }, [activities, activitiesOwnerVendorId, vendorData?.vendorId, walletActivities]);
+  const filteredActivities = visibleActivities.filter((activity) => {
     if (filterOptions === "All") return true;
     return activity.type === filterOptions;
   });
-
-  const fetchInfo = (vendorId) => {
-    const productsRef = collection(db, "products");
-    const productsQuery = query(
-      productsRef,
-      where("vendorId", "==", vendorId),
-      where("isDeleted", "==", false) // Exclude deleted products
+  const isInitialActivityLoading =
+    visibleActivities.length === 0 &&
+    ["idle", "loading"].includes(activitiesStatus);
+  const isLoadingMoreActivities = activitiesStatus === "loadingMore";
+  const dashboardVendorId = vendorData?.vendorId || null;
+  const initialOrdersReady =
+    !dashboardVendorId ||
+    (vendorOrdersState?.ownerVendorId === dashboardVendorId &&
+      !["idle", "connecting"].includes(vendorOrdersState?.status));
+  const initialActivitiesReady =
+    !dashboardVendorId ||
+    (activitiesOwnerVendorId === dashboardVendorId &&
+      !["idle", "loading"].includes(activitiesStatus));
+  const isInitialDashboardLoading =
+    loading ||
+    Boolean(
+      dashboardVendorId &&
+        (revenueReadyVendorId !== dashboardVendorId ||
+          productsReadyVendorId !== dashboardVendorId ||
+          !initialOrdersReady ||
+          !initialActivitiesReady),
     );
 
-    const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
-      setTotalProducts(snapshot.docs.length);
-    });
-
-    return () => unsubscribe();
-  };
-  const handleLocationUpdate = async ({ lat, lng, Address }) => {
-    setLocationFixing(true);
-    try {
-      await updateDoc(doc(db, "vendors", vendorData.vendorId), {
-        Address,
-        location: { lat, lng },
-      });
-      toast.success("Address updated successfully!");
-      setShowMissingLocationModal(false);
-    } catch (err) {
-      console.error("Failed to update address:", err);
-      toast.error("Error updating address.");
-    } finally {
-      setLocationFixing(false);
-    }
-  };
-
-  const fetchStatistics = (vendorId) => {
-    const ordersRef = collection(db, "orders");
-    const ordersQuery = query(ordersRef, where("vendorId", "==", vendorId));
-
-    const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
-      let fulfilledCount = 0;
-      let unfulfilledCount = 0;
-      let totalCount = 0;
-
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const { progressStatus } = data;
-
-        if (progressStatus === "Delivered") {
-          fulfilledCount++;
-        } else if (
-          ["In Progress", "Shipped", "Pending"].includes(progressStatus)
-        ) {
-          unfulfilledCount++;
-        }
-        totalCount++;
-      });
-
-      setTotalOrders(totalCount);
-      setTotalFulfilledOrders(fulfilledCount);
-      setTotalUnfulfilledOrders(unfulfilledCount);
-    });
-
-    return () => unsubscribe();
-  };
-
   const textToCopy = vendorData?.slug
-    ? `https://mx.shopmythrift.store/${vendorData.slug}`
+    ? siteUrls.storeShareUrl({ slug: vendorData.slug })
     : "";
 
   const [copied, setCopied] = useState(false);
@@ -267,16 +478,19 @@ const VendorDashboard = () => {
         (await navigator.clipboard.writeText(textToCopy)) &&
           console.log("copied"); // Ensure the text is copied
         setCopied(true);
+        void appHaptics.success();
         setTimeout(() => setCopied(false), 3000);
       } catch (err) {
+        void appHaptics.error();
         toast.error("Failed to copy!"); // Handle any errors during copy
         console.error("Failed to copy text: ", err);
       }
     }
   };
 
-  const formatDateOrTime = (timestamp) => {
-    const eventDate = new Date(timestamp.toDate()); // Convert Firestore timestamp to JS Date
+  const formatDateOrTime = (timestampMs) => {
+    const eventDate = new Date(Number(timestampMs || 0));
+    if (Number.isNaN(eventDate.getTime())) return "";
     const today = new Date();
 
     // Check if the event happened today by comparing year, month, and day
@@ -314,82 +528,20 @@ const VendorDashboard = () => {
   // Example usage:
   const greeting = getGreeting();
 
-  // Fetch vendor's recent activities in real-time
-  // const fetchRecentActivities = (vendorId, nextPage = false) => {
-  //   const activityRef = collection(db, "vendors", vendorId, "activityNotes");
-  //   let recentActivityQuery;
-
-  //   if (!nextPage || !lastDoc) {
-  //     // INITIAL REAL‑TIME FETCH (first 15 items)
-  //     recentActivityQuery = query(
-  //       activityRef,
-  //       orderBy("timestamp", "desc"),
-  //       limit(PAGE_SIZE)
-  //     );
-
-  //     const unsubscribe = onSnapshot(recentActivityQuery, (querySnapshot) => {
-  //       const activities = querySnapshot.docs.map((doc) => ({
-  //         id: doc.id,
-  //         ...doc.data(),
-  //       }));
-  //       setRecentActivities(activities);
-
-  //       // Update last document for pagination
-  //       if (querySnapshot.docs.length === PAGE_SIZE) {
-  //         setLastDoc(querySnapshot.docs[querySnapshot.docs.length - 1]);
-  //       }
-  //       // If fewer than PAGE_SIZE items, then there is no more data
-  //       if (querySnapshot.docs.length < PAGE_SIZE) {
-  //         setHasMore(false);
-  //       }
-  //     });
-
-  //     return () => unsubscribe();
-  //   } else {
-  //     // PAGINATION: Fetch next 15 items (non real‑time)
-  //     // (Make sure lastDoc exists before calling this)
-  //     if (!lastDoc) return;
-
-  //     setActivityLoading(true);
-  //     recentActivityQuery = query(
-  //       activityRef,
-  //       orderBy("timestamp", "desc"),
-  //       startAfter(lastDoc),
-  //       limit(PAGE_SIZE)
-  //     );
-
-  //     getDocs(recentActivityQuery).then((querySnapshot) => {
-  //       const activities = querySnapshot.docs.map((doc) => ({
-  //         id: doc.id,
-  //         ...doc.data(),
-  //       }));
-  //       // Append the new activities to the existing list
-  //       setRecentActivities((prevActivities) => [
-  //         ...prevActivities,
-  //         ...activities,
-  //       ]);
-
-  //       // Update lastDoc
-  //       if (querySnapshot.docs.length === PAGE_SIZE) {
-  //         setLastDoc(querySnapshot.docs[querySnapshot.docs.length - 1]);
-  //       }
-  //       // If fewer than PAGE_SIZE items, mark no more data
-  //       if (querySnapshot.docs.length < PAGE_SIZE) {
-  //         setHasMore(false);
-  //       }
-  //       setActivityLoading(false);
-  //     });
-  //   }
-  // };
-
   const observer = useRef();
   const lastActivityRef = useCallback(
     (node) => {
-      if (activitiesLoading) return;
+      if (isLoadingMoreActivities) return;
       if (observer.current) observer.current.disconnect();
 
       observer.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && hasMore && vendorData?.vendorId) {
+        if (
+          entries[0].isIntersecting &&
+          paginationReady &&
+          hasMore &&
+          lastDoc &&
+          vendorData?.vendorId
+        ) {
           dispatch(
             fetchRecentActivities({
               vendorId: vendorData.vendorId,
@@ -402,15 +554,32 @@ const VendorDashboard = () => {
 
       if (node) observer.current.observe(node);
     },
-    [activitiesLoading, hasMore, vendorData?.vendorId, lastDoc, dispatch]
+    [
+      dispatch,
+      hasMore,
+      isLoadingMoreActivities,
+      lastDoc,
+      paginationReady,
+      vendorData?.vendorId,
+    ],
   );
 
-  const openModal = () => setModalOpen(true);
-  const closeModal = () => setModalOpen(false);
+  const openModal = () => {
+    void appHaptics.medium();
+    setIsAddProductBusy(false);
+    setModalOpen(true);
+  };
+  const closeModal = useCallback(
+    ({ force = false } = {}) => {
+      if (isAddProductBusy && !force) return;
+      setModalOpen(false);
+    },
+    [isAddProductBusy],
+  );
 
-  if (loading) {
+  if (isInitialDashboardLoading) {
     return (
-      <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-1 font-opensans">
+      <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-1 font-satoshi">
         <div className="flex justify-between items-center">
           <div className="flex items-center">
             <div className="overflow-hidden w-11 h-11 rounded-full flex justify-center items-center mr-1">
@@ -423,13 +592,11 @@ const VendorDashboard = () => {
         </div>
 
         <div className="flex flex-col justify-center items-center mt-4">
-          <div className="relative bg-customDeepOrange w-full h-36 rounded-2xl flex flex-col justify-between px-4 py-2">
-            <div className="flex flex-col justify-center items-center space-y-4">
-              <Skeleton width={120} height={20} />
-              <Skeleton width={100} height={30} />
-            </div>
-            <div>
-              <Skeleton width={"80%"} height={20} />
+          <div className="relative flex h-36 w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl bg-customSoftGray px-4 py-3">
+            <Skeleton width={120} height={16} />
+            <Skeleton width={150} height={34} />
+            <div className="absolute inset-x-4 bottom-3">
+              <Skeleton width="75%" height={14} />
             </div>
           </div>
         </div>
@@ -443,13 +610,14 @@ const VendorDashboard = () => {
             {[...Array(4)].map((_, i) => (
               <div
                 key={i}
-                className="flex flex-col justify-between w-custVCard h-20 rounded-xl bg-customSoftGray p-2"
+                className="flex flex-col justify-between w-full min-h-[5.5rem] rounded-xl bg-customSoftGray p-3"
               >
                 <div className="flex justify-between items-center">
                   <Skeleton width={30} height={30} />
                   <Skeleton width={100} height={15} />
                 </div>
                 <Skeleton width={40} height={20} />
+                {i === 0 && <Skeleton width={112} height={11} />}
               </div>
             ))}
           </div>
@@ -485,25 +653,36 @@ const VendorDashboard = () => {
       <p className="">Unable to load vendor data. Please try again later.</p>
     );
   }
+  const comparableCompletionStats = [
+    completionPerformance?.byKind?.delivery,
+    completionPerformance?.byKind?.pickup,
+  ].filter((stats) => Number(stats?.sampleCount) > 0);
+  const comparableCompletionCount = comparableCompletionStats.reduce(
+    (sum, stats) => sum + Number(stats.sampleCount || 0),
+    0,
+  );
+  const comparableCompletionAverage = comparableCompletionCount
+    ? comparableCompletionStats.reduce(
+        (sum, stats) => sum + Number(stats.totalDurationMs || 0),
+        0,
+      ) / comparableCompletionCount
+    : null;
+  const strongestComparableSample = comparableCompletionStats.reduce(
+    (max, stats) => Math.max(max, Number(stats.sampleCount || 0)),
+    0,
+  );
+  const completionSamplesRemaining = Math.max(
+    0,
+    3 - strongestComparableSample,
+  );
   return (
     <>
-      {vendorData && !vendorData.stockpile && (
-        <StockpileSetupModal vendorId={vendorData.vendorId} />
-      )}
-      {showMissingLocationModal && (
-        <MissingLocationModal
-          onLocationUpdate={handleLocationUpdate}
-          isLoading={locationFixing}
-          closeModal={() => setShowMissingLocationModal(false)}
-        />
-      )}
-
       <SEO
         title={`Vendor Dashboard - My Thrift`}
         description={`Manage your store on My Thrift`}
         url={`https://www.shopmythrift.store/vendordashboard`}
       />
-      <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-1 font-opensans bg-white">
+      <div className="mb-40 mx-3 my-7 flex flex-col justify-center space-y-1 font-satoshi bg-white">
         <ScrollToTop />
         <div className="flex justify-between items-center">
           <div className="flex items-center">
@@ -525,14 +704,52 @@ const VendorDashboard = () => {
           </div>
         </div>
 
-        {!vendorData.isApproved && (
+        <VendorDeliveryLocationNotice key={vendorData.vendorId} vendor={vendorData}/>
+
+      {["changes_required", "declined"].includes(vendorData.applicationReview?.status) ? (
+        <VendorReviewNotice vendorId={vendorData.vendorId} summary={vendorData.applicationReview}/>
+      ) : !vendorData.isApproved && (
           <div className="flex flex-col justify-center items-center">
-            <NotApproved />
+            <NotApproved allowCatalogue={canManageCatalogue} />
             {/* <img src="info.png" alt="" className="w-full h-28" /> */}
           </div>
         )}
 
         <div className="flex flex-col justify-center items-center mt-4">
+          {isAndroidNative ? (
+            <div className="relative flex h-36 w-full items-center justify-center overflow-hidden rounded-2xl bg-[#ff4d22] text-center text-white">
+              <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full border-[18px] border-white/10" />
+              <div className="absolute inset-x-4 top-5 flex flex-col items-center text-white">
+                <div className="flex items-center justify-center text-[13px] font-medium text-white/90">
+                  <span className="mr-1.5">Total Revenue</span>
+                  <button
+                    type="button"
+                    onClick={toggleRevenue}
+                    className="inline-flex h-6 w-6 items-center justify-center text-white"
+                    aria-label={hide ? "Show total revenue" : "Hide total revenue"}
+                  >
+                    {!hide ? <BsEye aria-hidden="true" /> : <BsEyeSlash aria-hidden="true" />}
+                  </button>
+                </div>
+                <p className="mt-1 text-[34px] font-bold leading-none text-white">
+                  {hide ? "**.**" : `₦${formatRevenue(totalRevenue)}`}
+                </p>
+              </div>
+              <div className="absolute inset-x-4 bottom-3 flex min-w-0 items-center gap-2 text-left">
+                <p className="min-w-0 flex-1 truncate text-xs font-normal text-white/90">
+                  {textToCopy}
+                </p>
+                <button
+                  type="button"
+                  onClick={copyToClipboard}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/80"
+                  aria-label="Copy store link"
+                >
+                  {!copied ? <LuCopy aria-hidden="true" /> : <LuCopyCheck aria-hidden="true" />}
+                </button>
+              </div>
+            </div>
+          ) : (
           <div className="relative bg-customDeepOrange w-full h-36 rounded-2xl flex flex-col justify-between px-4 py-2">
             <div className="absolute top-0 right-0">
               <img src="./Vector.png" alt="" className="w-16 h-24" />
@@ -541,22 +758,21 @@ const VendorDashboard = () => {
               <img src="./Vector2.png" alt="" className="w-16 h-16" />
             </div>
             <div className="flex flex-col justify-center items-center space-y-4">
-              <p className="text-white text-lg flex justify-between items-center">
-                <p className="text-white mr-2">Total Revenue </p>
-                <p>
+              <div className="flex items-center justify-center text-lg text-white">
+                <span className="mr-2">Total Revenue</span>
+                <button
+                  type="button"
+                  onClick={toggleRevenue}
+                  className="inline-flex h-7 w-7 items-center justify-center text-white"
+                  aria-label={hide ? "Show total revenue" : "Hide total revenue"}
+                >
                   {!hide ? (
-                    <BsEye
-                      onClick={() => setHide(!hide)}
-                      className="text-white"
-                    />
+                    <BsEye className="text-white" />
                   ) : (
-                    <BsEyeSlash
-                      onClick={() => setHide(!hide)}
-                      className="text-white"
-                    />
+                    <BsEyeSlash className="text-white" />
                   )}
-                </p>
-              </p>
+                </button>
+              </div>
               <p className="text-white text-3xl font-bold">
                 {hide ? "**.**" : `₦${formatRevenue(totalRevenue)}`}
               </p>
@@ -573,12 +789,13 @@ const VendorDashboard = () => {
                   {!copied ? (
                     <LuCopy className="text-white" />
                   ) : (
-                    <LuCopyCheck className="text-[#28a745]" />
+                    <LuCopyCheck className="text-white" />
                   )}
                 </button>
               </div>
             </div>
           </div>
+          )}
         </div>
         <TipChat />
     <div className="flex flex-col justify-center translate-y-4">
@@ -594,7 +811,7 @@ const VendorDashboard = () => {
             <div className="flex flex-col justify-between w-full min-h-[5.5rem] rounded-xl bg-customSoftGray p-3">
               <div className="flex justify-between items-start gap-2">
                 <div className="rounded-md bg-white w-7 h-7 min-w-[28px] flex justify-center items-center shrink-0">
-                  <BsBoxSeam className="text-sm text-customOrange" />
+                  <ClipboardList className="h-4 w-4 text-customOrange" aria-hidden="true" />
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-customRichBrown font-medium leading-tight">
@@ -608,10 +825,13 @@ const VendorDashboard = () => {
             </div>
 
             {/* CARD 2: Total Products */}
-            <div className="flex flex-col justify-between w-full min-h-[5.5rem] rounded-xl bg-customSoftGray p-3">
+            <div
+              className="flex flex-col justify-between w-full min-h-[5.5rem] rounded-xl bg-customSoftGray p-3"
+              data-vendor-tour="inventory-summary"
+            >
               <div className="flex justify-between items-start gap-2">
                 <div className="rounded-md bg-white w-7 h-7 min-w-[28px] flex justify-center items-center shrink-0">
-                  <BsBoxSeam className="text-sm text-customOrange" />
+                  <Package className="h-4 w-4 text-customOrange" aria-hidden="true" />
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-customRichBrown font-medium leading-tight">
@@ -628,7 +848,7 @@ const VendorDashboard = () => {
             <div className="flex flex-col justify-between w-full min-h-[5.5rem] rounded-xl bg-customSoftGray p-3">
               <div className="flex justify-between items-start gap-2">
                 <div className="rounded-md bg-white w-7 h-7 min-w-[28px] flex justify-center items-center shrink-0">
-                  <BsBoxSeam className="text-sm text-customOrange" />
+                  <Clock3 className="h-4 w-4 text-customOrange" aria-hidden="true" />
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-customRichBrown font-medium leading-tight">
@@ -645,7 +865,7 @@ const VendorDashboard = () => {
             <div className="flex flex-col justify-between w-full min-h-[5.5rem] rounded-xl bg-customSoftGray p-3">
               <div className="flex justify-between items-start gap-2">
                 <div className="rounded-md bg-white w-7 h-7 min-w-[28px] flex justify-center items-center shrink-0">
-                  <BsBoxSeam className="text-sm text-customOrange" />
+                  <CheckCheck className="h-4 w-4 text-customOrange" aria-hidden="true" />
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-customRichBrown font-medium leading-tight">
@@ -660,89 +880,99 @@ const VendorDashboard = () => {
 
           </div>
         </div>
+        {completionPerformance && comparableCompletionCount > 0 && (
+          <div className="mt-3 rounded-xl bg-[#fff5f1] p-4">
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-customOrange">
+                <LuGauge aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-[#111827]">
+                      Fulfilment speed
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-[#697386]">
+                      Your completed delivery and pickup orders are compared
+                      only with stores using the same fulfilment method.
+                    </p>
+                  </div>
+                  {comparableCompletionAverage && (
+                    <strong className="shrink-0 text-sm text-[#111827]">
+                      {formatPerformanceDuration(comparableCompletionAverage)} avg
+                    </strong>
+                  )}
+                </div>
+                {completionPerformance.overallPercentile != null &&
+                Number.isFinite(
+                  Number(completionPerformance.overallPercentile),
+                ) ? (
+                  <p className="mt-3 text-sm font-bold text-customOrange">
+                    Faster than {completionPerformance.overallPercentile}% of
+                    comparable stores
+                  </p>
+                ) : (
+                  <p className="mt-3 text-xs font-medium text-[#7a4a0a]">
+                    {completionSamplesRemaining > 0
+                      ? `Complete ${completionSamplesRemaining} more ${
+                          completionSamplesRemaining === 1 ? "order" : "orders"
+                        } in one fulfilment method to unlock your percentile.`
+                      : "Your percentile is being prepared in the next benchmark update."}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
         <div className="flex flex-col justify-center translate-y-8 ">
           <div className="flex justify-between mb-3">
             <p className="text-black text-lg font-semibold">Recent activity</p>
 
-            <div className="relative">
-              {viewOptions && (
-                <div className="z-50 absolute bg-white w-44 h-40 rounded-2.5xl shadow-[0_0_10px_rgba(0,0,0,0.1)] -left-44 top-2 p-3 flex flex-col justify-between">
-                  <span
-                    className={`${
-                      filterOptions === "All"
-                        ? "text-customOrange"
-                        : "text-black"
-                    } text-xs ml-2 cursor-pointer`}
-                    onClick={() => {
-                      setFilterOptions("All");
-                      setViewOptions(!viewOptions);
-                    }}
-                  >
-                    All
-                  </span>
-                  <hr className="text-slate-300" />
-                  <span
-                    className={`${
-                      filterOptions === "transactions"
-                        ? "text-customOrange"
-                        : "text-black"
-                    } text-xs ml-2 cursor-pointer`}
-                    onClick={() => {
-                      setFilterOptions("transactions");
-                      setViewOptions(!viewOptions);
-                    }}
-                  >
-                    Recent Transactions
-                  </span>
-                  <hr className="text-slate-300" />
-                  <span
-                    className={`${
-                      filterOptions === "order"
-                        ? "text-customOrange"
-                        : "text-black"
-                    } text-xs ml-2 cursor-pointer`}
-                    onClick={() => {
-                      setFilterOptions("order");
-                      setViewOptions(!viewOptions);
-                    }}
-                  >
-                    Orders
-                  </span>
-                  <hr className="text-slate-300" />
-                  <span
-                    className={`${
-                      filterOptions === "Product Update"
-                        ? "text-customOrange"
-                        : "text-black"
-                    } text-xs ml-2 cursor-pointer`}
-                    onClick={() => {
-                      setFilterOptions("Product Update");
-                      setViewOptions(!viewOptions);
-                    }}
-                  >
-                    Product Update
-                  </span>
-                </div>
-              )}
+            <div className="relative w-[9.75rem]">
               <LuListFilter
-                className="text-customOrange cursor-pointer"
-                onClick={() => setViewOptions(!viewOptions)}
+                className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-customOrange"
+                aria-hidden="true"
+              />
+              <NativePickerField
+                title="Filter recent activity"
+                ariaLabel="Filter recent activity"
+                options={ACTIVITY_FILTER_OPTIONS}
+                value={filterOptions}
+                onChange={(nextFilter) => {
+                  if (!nextFilter || nextFilter === filterOptions) return;
+                  setFilterOptions(nextFilter);
+                  void appHaptics.selection();
+                }}
+                className="h-9 rounded-xl bg-customSoftGray pl-9 pr-3 font-satoshi text-xs font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-customOrange/30"
               />
             </div>
           </div>
 
           <div className="flex flex-col space-y-2 text-black">
-            {activities && filteredActivities.length > 0 && !loading ? (
+            {activitiesError && visibleActivities.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  void appHaptics.selection();
+                  dispatch(
+                    fetchRecentActivities({
+                      vendorId: vendorData.vendorId,
+                      nextPage: false,
+                    }),
+                  );
+                }}
+                className="rounded-xl border border-orange-100 bg-orange-50 px-3 py-2 text-left text-xs text-gray-700"
+              >
+                Showing saved activity. Tap to retry the latest update.
+              </button>
+            )}
+            {filteredActivities.length > 0 ? (
               <>
                 {Object.entries(
                   filteredActivities.reduce((groups, activity) => {
-                    // Convert Firestore Timestamp to JavaScript Date
-                    const timestamp = new Date(
-                      activity.timestamp.seconds * 1000 +
-                        activity.timestamp.nanoseconds / 1e6
-                    );
+                    const timestamp = new Date(activity.timestampMs || 0);
                     const now = new Date();
 
                     // Determine the section (Today, Yesterday, Last 7 Days, Older)
@@ -800,7 +1030,7 @@ const VendorDashboard = () => {
                             {activity.title}
                           </p>
                           <p className="text-black font-semibold text-xs">
-                            {formatDateOrTime(activity.timestamp)}
+                            {formatDateOrTime(activity.timestampMs)}
                           </p>
                         </div>
                         <p className="text-black text-xs">{activity.note}</p>
@@ -809,14 +1039,30 @@ const VendorDashboard = () => {
                   </div>
                 ))}
               </>
-            ) : loading ? (
+            ) : isInitialActivityLoading ? (
               <>
                 <Skeleton square={true} height={84} className="w-full mb-2" />
                 <Skeleton square={true} height={84} className="w-full mb-2" />
                 <Skeleton square={true} height={84} className="w-full mb-2" />
                 <Skeleton square={true} height={84} className="w-full mb-2" />
               </>
-            ) : filteredActivities.length < 1 && !loading ? (
+            ) : activitiesError && visibleActivities.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void appHaptics.selection();
+                  dispatch(
+                    fetchRecentActivities({
+                      vendorId: vendorData.vendorId,
+                      nextPage: false,
+                    }),
+                  );
+                }}
+                className="my-4 w-full rounded-2xl bg-customSoftGray px-3 py-4 text-center text-xs text-gray-700"
+              >
+                Recent activity could not be loaded. Tap to try again.
+              </button>
+            ) : filteredActivities.length < 1 ? (
               filterOptions === "All" ? (
                 <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
                   🕘 No actions taken yet. Your recent activities will appear
@@ -834,6 +1080,10 @@ const VendorDashboard = () => {
                 <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
                   📦 You have no product updates yet...
                 </div>
+              ) : filterOptions === "profile" ? (
+                <div className="text-center my-4 px-2 py-4 rounded-2xl bg-customSoftGray text-xs">
+                  👤 You have no recent profile updates yet...
+                </div>
               ) : (
                 <div>
                   <img src="./Note.png" alt="" />
@@ -844,7 +1094,7 @@ const VendorDashboard = () => {
                 Nothing to show here...
               </div>
             )}
-            {activitiesLoading && (
+            {isLoadingMoreActivities && (
               <div className="flex justify-center items-center">
                 <Lottie
                   className="w-10 h-10"
@@ -854,26 +1104,44 @@ const VendorDashboard = () => {
                 />
               </div>
             )}
-            {<div ref={lastActivityRef} />}
+            <div ref={lastActivityRef} />
           </div>
         </div>
       </div>
       <button
         onClick={openModal}
-        className={`fixed bottom-24 right-5 flex justify-center items-center ${
-          vendorData?.isApproved
-            ? "bg-customOrange"
+        className={`fixed right-5 z-[1000] flex justify-center items-center ${
+          canManageCatalogue
+            ? "bg-customOrange shadow-md active:scale-95"
             : "bg-customOrange opacity-35 cursor-not-allowed"
-        } text-white rounded-full w-11 h-11 shadow-lg focus:outline-none`}
-        disabled={!vendorData?.isApproved}
+        } text-white rounded-full w-11 h-11 transition-transform focus:outline-none`}
+        style={{
+          bottom:
+            "calc(5.5rem + var(--app-safe-bottom, env(safe-area-inset-bottom, 0px)))",
+        }}
+        disabled={!canManageCatalogue}
+        aria-label="Add product"
+        data-vendor-tour="add-product"
       >
         <span className="text-3xl">
           <FiPlus />
         </span>
       </button>
-      <Modal isOpen={isModalOpen} onClose={closeModal}>
-        <AddProduct vendorId={vendorData?.vendorId} closeModal={closeModal} />
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        busy={isAddProductBusy}
+      >
+        <AddProduct
+          vendorId={vendorData?.vendorId}
+          closeModal={closeModal}
+          onBusyChange={setIsAddProductBusy}
+        />
       </Modal>
+      <VendorTour
+        vendorId={vendorData?.vendorId}
+        enabled={canManageCatalogue && vendorData?.isApproved !== true}
+      />
     </>
   );
 };

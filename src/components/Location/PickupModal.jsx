@@ -1,38 +1,27 @@
 // src/components/Pickup/PickupInfo.jsx
-import React, { useEffect, useState } from "react";
-import Modal from "react-modal";
-import { AnimatePresence, motion } from "framer-motion";
-import { MdDeliveryDining } from "react-icons/md";
+import React from "react";
 import { GoChevronRight } from "react-icons/go";
 import Pickup from "../Loading/Pickup";
+import AppBottomSheet from "../layout/AppBottomSheet";
 
 /* ----------------------------------------------------------------
    The pickup‑intro modal used in StorePage
 ---------------------------------------------------------------- */
 const PickupInfoModal = ({
-  vendor, // full vendor doc (must include pickupAddress)
+  vendor, // public store details only; exact location is order-authorized
 
   isOpen,
   onClose,
 }) => {
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <Modal
-          isOpen
-          onRequestClose={onClose}
-          ariaHideApp={false}
-          overlayClassName="fixed inset-0 bg-black/50 flex items-end z-50"
-          className="bg-white w-full  h-[60vh] rounded-t-3xl shadow-xl p-4 flex flex-col"
-        >
-          <motion.div
-            initial={{ y: 60, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 60, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="flex-1 flex flex-col"
-          >
+    <AppBottomSheet
+      open={isOpen}
+      onClose={onClose}
+      height="60dvh"
+      ariaLabel={`${vendor?.shopName || "This vendor"} pickup information`}
+    >
+          <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-6 font-satoshi">
             {/* ─── header ─────────────────────────────────────────────── */}
             <div className="flex flex-col items-center mb-4">
               <Pickup />
@@ -43,12 +32,9 @@ const PickupInfoModal = ({
 
             {/* ─── body ───────────────────────────────────────────────── */}
             <div className="flex-1 overflow-y-auto pr-0.5">
-              {/* always show the pick‑up address */}
               <p className="text-sm font-opensans text-gray-800 mb-2">
-                Pick‑up address:&nbsp;
-                <span className="font-semibold text-customOrange">
-                  {vendor?.pickupAddress || "—"}
-                </span>
+                The exact pickup address and directions will be available in
+                your order details after you place a pickup order.
               </p>
 
 
@@ -57,7 +43,7 @@ const PickupInfoModal = ({
               <ul className="mt-4 text-xs font-opensans space-y-1">
                 <li className="flex items-start">
                   <GoChevronRight className="text-customOrange mt-0.5 mr-1" />
-                  Exact pick‑up point and route shown on the map.
+                  Your vendor will confirm when your order is ready to collect.
                 </li>
                 <li className="flex items-start">
                   <GoChevronRight className="text-customOrange mt-0.5 mr-1" />
@@ -75,10 +61,8 @@ const PickupInfoModal = ({
                 Close
               </button>
             </div>
-          </motion.div>
-        </Modal>
-      )}
-    </AnimatePresence>
+          </div>
+    </AppBottomSheet>
   );
 };
 

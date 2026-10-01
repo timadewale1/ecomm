@@ -1,133 +1,210 @@
-import React, { useEffect, useState } from "react";
-import { db } from "../../firebase.config";
-import { doc, getDoc } from "firebase/firestore";
+import React, { useEffect, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import ProductCard from "../../components/Products/ProductCard";
-import { useFavorites } from "../../components/Context/FavoritesContext";
-import Faves from "../../components/Loading/Faves";
-import Loading from "../../components/Loading/Loading";
-import { GoChevronLeft } from "react-icons/go";
+import { FiSearch } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import SEO from "../../components/Helmet/SEO";
+import "./favorites.css";
+import AppPageHeader from "../../components/layout/AppPageHeader";
+import { appHaptics } from "../../services/haptics";
+import { useFavorites } from "../../components/Context/FavoritesContext";
+import {
+  refreshFavoriteProducts,
+  selectFavoriteIds,
+  selectFavoriteProducts,
+  selectFavoritesCloudError,
+  selectFavoritesCloudHydrated,
+  selectFavoritesCloudStatus,
+  selectFavoritesError,
+  selectFavoritesStatus,
+} from "../../redux/reducers/favoritesSlice";
+
+const FAVORITES_REVEAL_COUNT = 4;
+
+const FavoritesSkeleton = () => (
+  <section
+    className="favorites-grid favorites-skeleton-grid"
+    aria-label="Loading favourite products"
+    aria-busy="true"
+  >
+    {Array.from({ length: 6 }).map((_, index) => (
+      <div className="favorites-skeleton-card" key={index} aria-hidden="true">
+        <span className="favorites-skeleton-block is-image" />
+        <span className="favorites-skeleton-block is-title" />
+        <span className="favorites-skeleton-block is-price" />
+      </div>
+    ))}
+  </section>
+);
 
 const FavoritesPage = () => {
-  const { favorites: contextFavorites } = useFavorites(); // From Context
-  const [favoriteProducts, setFavoriteProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const favoriteIds = useSelector(selectFavoriteIds);
+  const favoriteProducts = useSelector(selectFavoriteProducts);
+  const favoritesStatus = useSelector(selectFavoritesStatus);
+  const favoritesError = useSelector(selectFavoritesError);
+  const favoritesCloudStatus = useSelector(selectFavoritesCloudStatus);
+  const favoritesCloudHydrated = useSelector(selectFavoritesCloudHydrated);
+  const favoritesCloudError = useSelector(selectFavoritesCloudError);
+  const { retryCloudSync } = useFavorites();
+  const hadCachedProductsOnMountRef = useRef(favoriteProducts.length > 0);
+  const initialRevealCompleteRef = useRef(favoriteProducts.length > 0);
+  const shownErrorRef = useRef(null);
+  const [visibleCount, setVisibleCount] = useState(favoriteProducts.length);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchFavoriteProducts = async () => {
-      setLoading(true);
+    if (favoriteIds.length > 0) {
+      dispatch(refreshFavoriteProducts());
+    }
+  }, [dispatch, favoriteIds]);
 
-      try {
-        const contextFavoriteIds = contextFavorites.map(
-          (favorite) => favorite.id
-        );
+  useEffect(() => {
+    if (!favoritesError || favoritesError === shownErrorRef.current) return;
+    shownErrorRef.current = favoritesError;
 
-        // Fetch from Firestore
-        const firestoreFavorites = await fetchFirestoreFavorites();
-        const firestoreFavoriteIds = firestoreFavorites.map(
-          (product) => product.id
-        );
+    // Cached products remain usable if a silent refresh fails.
+    if (favoriteProducts.length > 0) {
+      toast.error("Could not refresh favourites. Showing saved products.");
+    }
+  }, [favoritesError, favoriteProducts.length]);
 
-        // Combine Firestore favorites with Context favorites
-        const combinedIds = Array.from(
-          new Set([...contextFavoriteIds, ...firestoreFavoriteIds])
-        ); // Remove duplicates
+  useEffect(() => {
+    const isInitialLoading =
+      favoriteIds.length > 0 &&
+      favoriteProducts.length === 0 &&
+      (favoritesStatus === "idle" || favoritesStatus === "loading");
+    if (isInitialLoading) return;
 
-        // Fetch all products by IDs
-        const productPromises = combinedIds.map((productId) =>
-          getDoc(doc(db, "products", productId))
-        );
-        const productSnapshots = await Promise.all(productPromises);
+    if (favoriteProducts.length === 0) {
+      setVisibleCount(0);
+      return;
+    }
 
-        const products = productSnapshots
-          .map((productDoc) => {
-            if (productDoc.exists()) {
-              const productData = productDoc.data();
-              return { id: productDoc.id, ...productData };
-            } else {
-              console.error(`No product found with ID: ${productDoc.id}`);
-              return null;
-            }
-          })
-          .filter((product) => product !== null);
+    if (
+      initialRevealCompleteRef.current ||
+      hadCachedProductsOnMountRef.current
+    ) {
+      setVisibleCount(favoriteProducts.length);
+      return;
+    }
 
-        setFavoriteProducts(products);
-      } catch (error) {
-        console.error("Error fetching favorite products:", error);
-        toast.error("Error fetching favorite products. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
+    initialRevealCompleteRef.current = true;
+    const staggeredCount = Math.min(
+      FAVORITES_REVEAL_COUNT,
+      favoriteProducts.length
+    );
+    const timers = [];
+    setVisibleCount(1);
+    appHaptics.selection();
 
-    const fetchFirestoreFavorites = async () => {
-      const currentUser = JSON.parse(localStorage.getItem("currentUser")); // Or use a hook if available
-      if (!currentUser) return []; // If not logged in, skip Firestore
+    for (let index = 2; index <= staggeredCount; index += 1) {
+      timers.push(
+        window.setTimeout(() => {
+          setVisibleCount(index);
+          appHaptics.selection();
 
-      try {
-        // Simulate fetching favorites from Firestore
-        const favoritesCollection = await getFavoritesFromFirestore(
-          currentUser.uid
-        );
-        return favoritesCollection; // Assuming an array of product objects
-      } catch (error) {
-        console.error("Error fetching Firestore favorites:", error);
-        return [];
-      }
-    };
+          if (index === staggeredCount) {
+            setVisibleCount(favoriteProducts.length);
+          }
+        }, (index - 1) * 110)
+      );
+    }
 
-    const getFavoritesFromFirestore = async (userId) => {
-      // Firestore favorites collection path: /users/{userId}/favorites
-      const favoriteDocs = []; // Simulate Firestore read logic here
-      // Loop through your favorites docs and extract the products or IDs
-      return favoriteDocs; // Return as an array of objects or IDs
-    };
+    if (staggeredCount === 1) {
+      setVisibleCount(favoriteProducts.length);
+    }
 
-    fetchFavoriteProducts();
-  }, [contextFavorites]);
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [favoriteIds.length, favoriteProducts.length, favoritesStatus]);
+
+  const showInitialSkeleton =
+    (!favoritesCloudHydrated &&
+      favoritesCloudStatus === "connecting" &&
+      favoriteProducts.length === 0) ||
+    (favoriteIds.length > 0 &&
+      favoriteProducts.length === 0 &&
+      (favoritesStatus === "idle" || favoritesStatus === "loading"));
+  const showBlockingError =
+    favoriteProducts.length === 0 &&
+    ((favoriteIds.length > 0 && favoritesStatus === "failed") ||
+      (!favoritesCloudHydrated && favoritesCloudStatus === "error"));
 
   return (
     <>
-    <SEO 
-        title={`Favorites - My Thrift`} 
-        description={`Your favorite products on My Thrift`}
-        url={`https://www.shopmythrift.store/favorites`} 
+      <SEO
+        title="Favourites - My Thrift"
+        description="Your favourite products on My Thrift"
+        url="https://www.shopmythrift.store/favorites"
       />
-    <div className="p-2">
-      <div className="sticky top-0 bg-white z-10 flex items-center justify-between h-24">
-        <div className="flex items-center space-x-2">
-          <GoChevronLeft
-            className="text-2xl text-black cursor-pointer"
-            onClick={() => navigate(-1)}
-          />
-          <h1 className="text-xl font-opensans ml-5 font-semibold">Favorites</h1>
-        </div>
-      </div>
-      {loading ? (
-        <Loading />
-      ) : favoriteProducts.length > 0 ? (
-        <div className="grid grid-cols-2 gap-4">
-          {favoriteProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              isFavorite={true}
-              onFavoriteToggle={() => {}} // No toggle needed in FavoritesPage
+
+      <main className="favorites-page">
+        <AppPageHeader
+          title="Favourites"
+          onBack={() => navigate(-1)}
+          rightAction={
+            <button
+              type="button"
+              onClick={() => navigate("/search")}
+              aria-label="Search products"
+            >
+              <FiSearch aria-hidden="true" />
+            </button>
+          }
+        />
+
+        {showInitialSkeleton ? (
+          <FavoritesSkeleton />
+        ) : showBlockingError ? (
+          <section className="favorites-empty" role="alert">
+            <div className="favorites-empty-copy">
+              <h2>Favourites could not load</h2>
+              <p>
+                {favoritesCloudError || favoritesError ||
+                  "Please check your connection and try again."}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="favorites-continue"
+              onClick={() => {
+                retryCloudSync();
+                dispatch(refreshFavoriteProducts({ force: true }));
+              }}
+            >
+              Try Again
+            </button>
+          </section>
+        ) : favoriteProducts.length > 0 ? (
+          <section className="favorites-grid" aria-label="Saved products">
+            {favoriteProducts.slice(0, visibleCount).map((product) => (
+              <div className="favorites-card-reveal" key={product.id}>
+                <ProductCard product={product} surface="favorites" />
+              </div>
+            ))}
+          </section>
+        ) : (
+          <section className="favorites-empty">
+            <img
+              src="/figma-assets/favourites-empty.svg"
+              alt=""
+              className="favorites-empty-illustration"
             />
-          ))}
-        </div>
-      ) : (
-        <>
-          <Faves />
-          <p className="font-opensans text-center text-sm text-gray-800">
-            Your liked items would show here!
-          </p>
-        </>
-      )}
-    </div>
+            <div className="favorites-empty-copy">
+              <h2>No favourites yet</h2>
+              <p>Tap the heart to save items here</p>
+            </div>
+            <button
+              type="button"
+              className="favorites-continue"
+              onClick={() => navigate("/")}
+            >
+              Continue Shopping
+            </button>
+          </section>
+        )}
+      </main>
     </>
   );
 };

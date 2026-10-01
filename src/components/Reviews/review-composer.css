@@ -1,0 +1,265 @@
+.review-composer {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  overflow-y: auto;
+  background: #fff;
+  color: #111827;
+  font-family: "Satoshi", sans-serif;
+  font-synthesis: none;
+  overscroll-behavior: contain;
+}
+
+.review-composer-header {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  display: grid;
+  width: 100%;
+  height: 56px;
+  grid-template-columns: 72px minmax(0, 1fr) 72px;
+  align-items: center;
+  padding: 0 16px;
+  background: #fff;
+}
+
+.native-ios .review-composer-header {
+  top: 0;
+  height: calc(56px + var(--app-safe-top, env(safe-area-inset-top, 0px)));
+  padding-top: var(--app-safe-top, env(safe-area-inset-top, 0px));
+}
+
+.review-composer-header button {
+  display: flex;
+  height: 40px;
+  align-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.review-composer-header button:first-child {
+  justify-content: flex-start;
+  color: #111827;
+}
+
+.review-composer-header button:first-child svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2;
+}
+
+.review-composer-header h1 {
+  overflow: hidden;
+  margin: 0;
+  font: 500 21px/25px "Satoshi", sans-serif;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-composer-header .review-composer-post {
+  justify-content: flex-end;
+  color: #f9531e;
+  font: 500 16px/20px "Satoshi", sans-serif;
+}
+
+.review-composer-header .review-composer-post:disabled {
+  opacity: 0.56;
+}
+
+.review-composer-vendor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 39px;
+}
+
+.review-composer-vendor img,
+.review-composer-vendor > span {
+  display: grid;
+  width: 80px;
+  height: 80px;
+  place-items: center;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: #4b5563;
+  font: 500 28px/32px "Satoshi", sans-serif;
+  object-fit: cover;
+}
+
+.review-composer-vendor h2 {
+  margin: 12px 0 0;
+  font: 500 18px/22px "Satoshi", sans-serif;
+}
+
+.review-composer-stars {
+  display: flex;
+  justify-content: center;
+  gap: 17px;
+  margin-top: 32px;
+}
+
+.review-composer-stars button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #9ca3af;
+}
+
+.review-composer-stars svg {
+  width: 40px;
+  height: 40px;
+  stroke-width: 1.5;
+}
+
+.review-composer-stars svg.is-filled {
+  fill: #fbbf24;
+  color: #fbbf24;
+}
+
+.review-composer-field-wrap {
+  width: calc(100% - 32px);
+  max-width: 520px;
+  margin: 32px auto 32px;
+}
+
+.review-composer-field {
+  position: relative;
+  display: flex;
+  min-height: 100px;
+  flex-direction: column;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 15px 15px 14px;
+}
+
+.review-composer-field textarea {
+  width: 100%;
+  min-height: 48px;
+  flex: 1 1 auto;
+  border: 0;
+  outline: 0;
+  padding: 0 0 34px;
+  background: transparent;
+  color: #111827;
+  font: 400 16px/20px "Satoshi", sans-serif;
+  resize: none;
+}
+
+.review-composer-field textarea::placeholder {
+  color: #4b5563;
+  opacity: 1;
+}
+
+.review-composer-attachments {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 34px;
+  scrollbar-width: none;
+}
+
+.review-composer-attachments::-webkit-scrollbar {
+  display: none;
+}
+
+.review-composer-attachment {
+  position: relative;
+  width: 64px;
+  height: 80px;
+  flex: 0 0 64px;
+}
+
+.review-composer-attachment > img {
+  width: 64px;
+  height: 80px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  object-fit: cover;
+}
+
+.review-composer-attachment > button {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  padding: 0;
+  background: #111827;
+  color: #fff;
+}
+
+.review-composer-attachment > button svg {
+  width: 13px;
+  height: 13px;
+}
+
+.review-composer-image-button {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #111827;
+}
+
+.review-composer-image-button svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.75;
+}
+
+.review-composer-field-wrap > p {
+  margin: 16px 0 0;
+  color: #4b5563;
+  font: 400 14px/18px "Satoshi", sans-serif;
+  text-align: right;
+}
+
+@media (max-width: 374px) {
+  .review-composer-stars {
+    gap: 12px;
+  }
+
+  .review-composer-stars button,
+  .review-composer-stars svg {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+.vendor-review-media {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-top: 10px;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.vendor-review-media::-webkit-scrollbar {
+  display: none;
+}
+
+.vendor-review-media img {
+  width: 64px;
+  height: 80px;
+  flex: 0 0 64px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  object-fit: cover;
+}

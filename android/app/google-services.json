@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "620187458799",
+    "project_id": "ecommerce-ba520",
+    "storage_bucket": "ecommerce-ba520.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:620187458799:android:d9ff870e7643b93556cf1a",
+        "android_client_info": {
+          "package_name": "com.mythrift.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "620187458799-cc99nner0ae82ggshdme2mhph498r4gp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mythrift.app",
+            "certificate_hash": "299f3ea72db87113b147b1a33184a04ade28b369"
+          }
+        },
+        {
+          "client_id": "620187458799-b94uccoj4pvti2sr121i5407iap0ohma.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAr_EDsd4-_b0E_92nJ59qYZYGgxIJwqhM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "620187458799-73volh821j8epq5dfe0cdtmt0d5r9151.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "620187458799-qrg57akab93bloiftmk8ul8lithpf011.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mythrift.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

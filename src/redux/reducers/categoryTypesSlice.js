@@ -2,13 +2,11 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   collection,
-  collectionGroup,
-  doc,
-  getDoc,
   getDocs,
   orderBy,
   limit,
   query,
+  where,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 
@@ -26,9 +24,8 @@ function canonicalCategory(input) {
 
 /**
  * Fetch distinct product types for a category using the index:
- * - Try doc('categories', cat).sample[]
- * - Probe first N items (desc by createdAt) to broaden coverage
- * - For "All", read from collectionGroup('items')
+ * - Probe current public items (desc by createdAt), not stale raw samples.
+ * - For "All", probe the eligible top-level catalogue, never private 'items'.
  */
 export const fetchCategoryProductTypes = createAsyncThunk(
   "categoryTypes/fetch",
@@ -41,31 +38,25 @@ export const fetchCategoryProductTypes = createAsyncThunk(
         // Global: probe recent items from all categories
         const snap = await getDocs(
           query(
-            collectionGroup(db, "items"),
+            collection(db, "publicProducts"),
+            where("vendorEligible", "==", true),
+            where("published", "==", true),
             orderBy("createdAt", "desc"),
             limit(probeLimit)
           )
         );
         snap.forEach((d) => {
+          const item = d.data();
+          if (item.isDeleted === true || item.isUnpublished === true || item.isDeactivated === true || item.deactivated === true) return;
           const t = d.data()?.productType;
           if (t) types.add(String(t));
         });
       } else {
-        // 1) sample on the category doc
-        const catSnap = await getDoc(doc(db, "categories", cat));
-        if (catSnap.exists()) {
-          const sample = Array.isArray(catSnap.data()?.sample)
-            ? catSnap.data().sample
-            : [];
-          for (const s of sample) {
-            if (s?.productType) types.add(String(s.productType));
-          }
-        }
-
-        // 2) probe first N items to broaden
+        // Only current public listings may contribute category previews.
         const itemsSnap = await getDocs(
           query(
-            collection(db, "categories", cat, "items"),
+            collection(db, "publicProducts"),
+            where("browseCategory", "==", cat),
             orderBy("createdAt", "desc"),
             limit(probeLimit)
           )

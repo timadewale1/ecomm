@@ -28,12 +28,20 @@ import {
   query,
   where,
   orderBy,
+  getDocs,
+  limit,
 } from "firebase/firestore";
 import Loading from "../../components/Loading/Loading";
 import SEO from "../../components/Helmet/SEO";
 import { GiCheckMark } from "react-icons/gi";
+import { ensureOfferConversation } from "../../services/offerConversations";
+import {updateLegacyInquiry} from "../../services/legacyInquiryAccess";
+import {useAuth} from "../../custom-hooks/useAuth";
+
+const EMPTY_LEGACY_CHAT = {inquiry: null, product: null, customer: null, loading: true, error: null};
 
 export default function VendorChat() {
+  const {currentUser} = useAuth();
   const { inquiryId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -54,17 +62,17 @@ export default function VendorChat() {
   const [offerError, setOfferError] = useState(null);
   // ── 1) Fetch the full inquiry/product/customer payload as before ─────────────
   const { inquiry, product, customer, loading, error } = useSelector(
-    (state) => state.chat
+    (state) => state.chat.ownerUid === currentUser?.uid ? state.chat : EMPTY_LEGACY_CHAT
   );
   const buyerId = IS_OFFER ? offerDoc?.buyerId : inquiry?.customerId;
   const customerData = useSelector((state) =>
-    buyerId ? state.vendorChats.profiles[buyerId] : null
+    buyerId && state.vendorChats.ownerUid === auth.currentUser?.uid ? state.vendorChats.profiles[buyerId] : null
   );
   React.useEffect(() => {
-    if (buyerId && !customerData) {
-      dispatch(fetchCustomerProfile(buyerId));
+    if (buyerId && !customerData && !IS_OFFER && !isOfferThread) {
+      dispatch(fetchCustomerProfile({customerId: buyerId, inquiryId}));
     }
-  }, [dispatch, buyerId, customerData]);
+  }, [dispatch, buyerId, customerData, inquiryId, IS_OFFER, isOfferThread]);
 
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
@@ -80,9 +88,54 @@ export default function VendorChat() {
   const [showAlreadyReportedModal, setShowAlreadyReportedModal] =
     useState(false);
 
+  // Preserve old offer links, but move them into the secure buyer/vendor
+  // conversation rather than maintaining a second product-scoped offer UI.
+  useEffect(() => {
+    if (!IS_OFFER && !isOfferThread) return undefined;
+    let cancelled = false;
+    const redirectOffer = async () => {
+      try {
+        let sourceOfferId = IS_OFFER ? inquiryId : null;
+        if (!sourceOfferId && buyerIdParam && productIdParam && auth.currentUser?.uid) {
+          const snapshot = await getDocs(
+            query(
+              collection(db, "offers"),
+              where("vendorId", "==", auth.currentUser.uid),
+              where("buyerId", "==", buyerIdParam),
+              where("productId", "==", productIdParam),
+              orderBy("createdAt", "desc"),
+              limit(1),
+            ),
+          );
+          sourceOfferId = snapshot.docs[0]?.id || null;
+        }
+        if (!sourceOfferId) throw new Error("Offer unavailable");
+        const conversationId = await ensureOfferConversation(sourceOfferId);
+        if (!conversationId) throw new Error("Conversation unavailable");
+        if (!cancelled) {
+          navigate(
+            `/offer-conversations/${conversationId}?focusOffer=${encodeURIComponent(sourceOfferId)}`,
+            {replace: true},
+          );
+        }
+      } catch (error) {
+        console.error("[vendor-offers] legacy redirect failed", error);
+        if (!cancelled) {
+          toast.error("This offer conversation could not be opened.");
+          navigate("/vchats", {replace: true});
+        }
+      }
+    };
+    redirectOffer();
+    return () => {
+      cancelled = true;
+    };
+  }, [IS_OFFER, buyerIdParam, inquiryId, isOfferThread, navigate, productIdParam]);
+
   // ── 3) On mount: fetch inquiry/product/customer once, then subscribe ─────────
   useEffect(() => {
     if (!inquiryId) return;
+    if (IS_OFFER || isOfferThread) return;
 
     if (isOfferThread) {
       // subscribe to all offers in this (vendor, buyer, product) thread
@@ -170,9 +223,13 @@ export default function VendorChat() {
       );
       return () => unsub();
     } else {
-      dispatch(fetchInquiryDetails(inquiryId));
-      dispatch(subscribeToInquiry(inquiryId));
-      return () => dispatch(clearChat());
+      let active = true;
+      const session = auth.currentUser;
+      dispatch(clearChat());
+      dispatch(fetchInquiryDetails(inquiryId)).unwrap().then(() => {
+        if (active && auth.currentUser === session) dispatch(subscribeToInquiry(inquiryId));
+      }).catch(() => {}); // The reducer presents the load error.
+      return () => {active = false; dispatch(clearChat());};
     }
   }, [
     dispatch,
@@ -182,6 +239,7 @@ export default function VendorChat() {
     buyerIdParam,
     productIdParam,
     offerProduct,
+    currentUser?.uid,
   ]);
 
   const chatCustomerName = useMemo(() => {
@@ -368,12 +426,7 @@ export default function VendorChat() {
     }
     setSending(true);
     try {
-      const inquiryRef = doc(db, "inquiries", inquiryId);
-      await updateDoc(inquiryRef, {
-        vendorReply: replyText.trim(),
-        repliedAt: serverTimestamp(),
-        status: "closed",
-      });
+      await updateLegacyInquiry(inquiryId, "reply", {reply: replyText.trim()});
       toast.success("Reply sent.");
       setTimeout(() => navigate("/vchats"), 500);
     } catch (err) {
@@ -958,18 +1011,11 @@ export default function VendorChat() {
                   onClick={async () => {
                     setSubmittingReport(true);
                     try {
-                      const inquiryRef = doc(db, "inquiries", inquiryId);
-                      await updateDoc(inquiryRef, {
-                        reported: true,
-                        reportReason:
+                      await updateLegacyInquiry(inquiryId, "report", {
+                        reason:
                           selectedReason === "Other"
                             ? otherReason.trim()
                             : selectedReason,
-                        status:
-                          inquiry?.status === "open"
-                            ? "closed"
-                            : inquiry?.status,
-                        reportedAt: serverTimestamp(),
                       });
                       setIsReportModalOpen(false);
                       setAckOpen(true);

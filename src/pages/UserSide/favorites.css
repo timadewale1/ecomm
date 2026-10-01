@@ -1,0 +1,218 @@
+.favorites-page {
+  min-height: 100dvh;
+  background: #fff;
+  color: #111827;
+  font-family: "Satoshi", sans-serif;
+}
+
+.favorites-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 64px;
+  padding: 0 16px;
+  background: #fff;
+}
+
+.favorites-header h1 {
+  color: #111827;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 25px;
+}
+
+.favorites-header-action {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: #111827;
+}
+
+.favorites-header-action svg {
+  width: 24px;
+  height: 24px;
+}
+
+.favorites-back {
+  left: 6px;
+}
+
+.favorites-search {
+  right: 6px;
+}
+
+.favorites-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 11px 16px 32px;
+}
+
+.favorites-empty-illustration {
+  display: block;
+  width: 104px;
+  height: 104px;
+}
+
+.favorites-empty-copy {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.favorites-empty-copy h2 {
+  color: #111827;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.favorites-empty-copy p {
+  margin-top: 4px;
+  color: #4b5563;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 18px;
+}
+
+.favorites-continue {
+  width: 100%;
+  height: 40px;
+  margin-top: 16px;
+  border: 0;
+  border-radius: 12px;
+  background: #f9531e;
+  color: #fff;
+  font: 500 14px/18px "Satoshi", sans-serif;
+}
+
+.favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 9px;
+  padding: 16px;
+}
+
+.favorites-skeleton-card,
+.favorites-card-reveal {
+  min-width: 0;
+}
+
+.favorites-skeleton-block {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #eceff3;
+}
+
+.favorites-skeleton-block::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(255 255 255 / 72%) 50%,
+    transparent 100%
+  );
+  content: "";
+  transform: translateX(-100%);
+  animation: favorites-skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+.favorites-skeleton-block.is-image {
+  width: 100%;
+  aspect-ratio: 1 / 1.28;
+  border-radius: 16px;
+}
+
+.favorites-skeleton-block.is-title {
+  width: 78%;
+  height: 14px;
+  margin: 10px 8px 0;
+}
+
+.favorites-skeleton-block.is-price {
+  width: 48%;
+  height: 14px;
+  margin: 8px 8px 0;
+}
+
+.favorites-card-reveal {
+  animation: favorites-card-enter 220ms ease-out both;
+}
+
+@keyframes favorites-skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes favorites-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .favorites-skeleton-block::after,
+  .favorites-card-reveal {
+    animation: none;
+  }
+}
+
+.favorites-grid .product-card {
+  min-width: 0;
+  font-family: "Satoshi", sans-serif;
+}
+
+.favorites-grid .product-card img.h-52 {
+  height: 220px;
+  border-radius: 16px;
+}
+
+.favorites-grid .product-card > div + div {
+  margin-top: 8px;
+  padding: 0 8px;
+}
+
+.favorites-grid .product-card h3 {
+  color: #111827;
+  font-family: "Satoshi", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.favorites-grid .product-card h3 + div,
+.favorites-grid .product-card h3 + div span {
+  font-family: "Satoshi", sans-serif;
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.favorites-grid .product-card h3 + div + div span {
+  font-family: "Satoshi", sans-serif;
+  font-size: 14px;
+  line-height: 18px;
+}
+
+@media (min-width: 394px) {
+  .favorites-page {
+    max-width: 574px;
+    margin: 0 auto;
+  }
+}

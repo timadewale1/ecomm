@@ -1,396 +1,200 @@
-import React, { useEffect, useState } from "react";
-import { GoChevronLeft } from "react-icons/go";
-import Skeleton from "react-loading-skeleton";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../custom-hooks/useAuth";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "../../firebase.config";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  collection,
+  getCountFromServer,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  startAfter,
+  where,
+} from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
+import { AlertCircle, ArrowUpRight, Flag, Star, UserRound, X } from "lucide-react";
+import { RotatingLines } from "react-loader-spinner";
+import toast from "react-hot-toast";
 import { useSelector } from "react-redux";
-import { FaStar } from "react-icons/fa";
-import { ProgressBar } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
+import { db, functions } from "../../firebase.config";
+import { useAuth } from "../../custom-hooks/useAuth";
+import AppBottomSheet from "../../components/layout/AppBottomSheet";
+import AppPageHeader from "../../components/layout/AppPageHeader";
+import NativePickerField from "../../components/Form/NativePickerField";
 import SEO from "../../components/Helmet/SEO";
+import { appHaptics } from "../../services/haptics";
+import { reviewVersion } from "../../services/reviewClient.mjs";
+import "./store-reviews.css";
 
-const StoreReviews = () => {
+const PAGE_SIZE = 20;
+const FILTERS = ["All", 5, 4, 3, 2, 1];
+const DISPUTE_REASONS = [
+  {value: "not-my-customer", label: "This person did not buy from me"},
+  {value: "incorrect-order-details", label: "The review describes the wrong order"},
+  {value: "abusive-or-harassing", label: "Abusive or harassing content"},
+  {value: "spam-or-irrelevant", label: "Spam or unrelated content"},
+  {value: "other", label: "Something else"},
+];
+
+const toDate = (value) => {
+  if (typeof value?.toDate === "function") return value.toDate();
+  if (value?.seconds) return new Date(value.seconds * 1000);
+  const parsed = new Date(value || 0);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+const formatDate = (value) => {
+  const date = toDate(value);
+  return date ? new Intl.DateTimeFormat("en-GB", {day: "numeric", month: "short", year: "numeric"}).format(date) : "Date unavailable";
+};
+
+function ReviewSkeleton() {
+  return <div className="store-review-skeleton" aria-label="Loading reviews" aria-busy="true">{[0,1,2].map((row) => <div key={row}><span/><i/><i/><i/></div>)}</div>;
+}
+
+export default function StoreReviews() {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
-  const { data: userData } = useSelector((state) => state.vendorProfile);
-  const [isLoading, setIsLoading] = useState(false);
+  const {currentUser} = useAuth();
+  const vendorProfile = useSelector((state) => state.vendorProfile.data) || {};
   const [selectedRating, setSelectedRating] = useState("All");
   const [reviews, setReviews] = useState([]);
-  const [filterReviews, setFilterReviews] = useState([]);
-  const [ratingBreakdown, setRatingBreakdown] = useState({
-    5: 0,
-    4: 0,
-    3: 0,
-    2: 0,
-    1: 0,
-  });
+  const [counts, setCounts] = useState({1: 0, 2: 0, 3: 0, 4: 0, 5: 0});
+  const [lastDocument, setLastDocument] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [disputeStatuses, setDisputeStatuses] = useState({});
+  const [disputeReview, setDisputeReview] = useState(null);
+  const [disputeReason, setDisputeReason] = useState("");
+  const [disputeDetails, setDisputeDetails] = useState("");
+  const [submittingDispute, setSubmittingDispute] = useState(false);
 
-  const { ratingCount, rating } = userData || {};
-
-  const totalRatings = Object.values(ratingBreakdown).reduce(
-    (acc, value) => acc + value,
-    0
+  const reviewsRef = useMemo(
+    () => currentUser?.uid ? collection(db, "vendors", currentUser.uid, "reviews") : null,
+    [currentUser?.uid],
   );
 
-  const calculatePercentage = (count) => (count / totalRatings) * 100;
+  const loadDisputeStatuses = useCallback(async (reviewIds) => {
+    if (!reviewIds.length) return;
+    try {
+      const callable = httpsCallable(functions, "getMyReviewDisputeStatusesV1");
+      const response = await callable({reviewIds});
+      setDisputeStatuses((current) => ({...current, ...(response.data?.statuses || {})}));
+    } catch (error) {
+      console.warn("Review dispute status lookup failed:", error);
+    }
+  }, []);
 
-  const defaultImageUrl =
-    "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
+  const fetchPage = useCallback(async ({append = false} = {}) => {
+    if (!reviewsRef) return;
+    append ? setLoadingMore(true) : setLoading(true);
+    try {
+      const constraints = [];
+      if (selectedRating !== "All") constraints.push(where("rating", "==", Number(selectedRating)));
+      constraints.push(orderBy("createdAt", "desc"));
+      if (append && lastDocument) constraints.push(startAfter(lastDocument));
+      constraints.push(limit(PAGE_SIZE));
+      const snapshot = await getDocs(query(reviewsRef, ...constraints));
+      const page = snapshot.docs.map((review) => ({id: review.id, ...review.data()}));
+      setReviews((current) => append ? [...current, ...page] : page);
+      setLastDocument(snapshot.docs.at(-1) || null);
+      setHasMore(snapshot.size === PAGE_SIZE);
+      void loadDisputeStatuses(page.map((review) => review.id));
+    } catch (error) {
+      console.error("Store reviews load failed:", error);
+      toast.error("Reviews could not be loaded. Please try again.");
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [lastDocument, loadDisputeStatuses, reviewsRef, selectedRating]);
 
   useEffect(() => {
-    const fetchReviews = async () => {
-      if (!currentUser.uid) {
-        console.error("User not logged in or UID missing");
-        return; // Exit the function early if currentUser or UID is not available
-      }
-      setIsLoading(true);
-      try {
-        const reviewsRef = collection(
-          db,
-          "vendors",
-          currentUser.uid,
-          "reviews"
-        );
-        const reviewsSnapshot = await getDocs(reviewsRef);
-        const reviewsList = reviewsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+    setLastDocument(null);
+    setReviews([]);
+    void fetchPage({append: false});
+    // A filter change intentionally starts a new cursor chain.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.uid, selectedRating]);
 
-        // Apply filter based on selectedRating
-        // Filter reviews based on selectedRating
-        const filteredReviews =
-          selectedRating === "All"
-            ? reviewsList
-            : reviewsList.filter((review) => review.rating === selectedRating);
+  useEffect(() => {
+    if (!reviewsRef) return;
+    let cancelled = false;
+    void Promise.all([1,2,3,4,5].map(async (rating) => {
+      const snapshot = await getCountFromServer(query(reviewsRef, where("rating", "==", rating)));
+      return [rating, snapshot.data().count];
+    })).then((entries) => {
+      if (!cancelled) setCounts(Object.fromEntries(entries));
+    }).catch((error) => console.warn("Rating breakdown failed:", error));
+    return () => { cancelled = true; };
+  }, [reviewsRef]);
 
-        setFilterReviews(filteredReviews); // Update filtered reviews
-        setReviews(reviewsList); // Update all reviews
+  const totalRatings = Object.values(counts).reduce((sum, count) => sum + count, 0);
+  const average = Number(vendorProfile.ratingCount || totalRatings) > 0
+    ? Number(vendorProfile.rating || 0) / Number(vendorProfile.ratingCount || totalRatings)
+    : 0;
 
-        // Separate text and non-text reviews
-        const textReviews = filteredReviews.filter(
-          (review) => review.reviewText
-        );
-        setReviews(textReviews);
+  const openDispute = (review) => {
+    setDisputeReview(review);
+    setDisputeReason("");
+    setDisputeDetails("");
+    void appHaptics.selection();
+  };
 
-        // Calculate rating breakdown including all reviews (with and without text)
-        const allReviews = reviewsList;
-        const breakdown = {
-          5: reviewsList.filter((r) => r.rating === 5).length,
-          4: reviewsList.filter((r) => r.rating === 4).length,
-          3: reviewsList.filter((r) => r.rating === 3).length,
-          2: reviewsList.filter((r) => r.rating === 2).length,
-          1: reviewsList.filter((r) => r.rating === 1).length,
-        };
+  const submitDispute = async () => {
+    if (!disputeReview || !disputeReason || submittingDispute) return;
+    setSubmittingDispute(true);
+    try {
+      const callable = httpsCallable(functions, "submitReviewDisputeV1");
+      const response = await callable({reviewId: disputeReview.id, version: reviewVersion(disputeReview), reason: disputeReason, details: disputeDetails});
+      setDisputeStatuses((current) => ({...current, [disputeReview.id]: response.data?.status || "open"}));
+      setDisputeReview(null);
+      void appHaptics.success();
+      toast.success(response.data?.alreadySubmitted ? "This review is already under review." : "Review dispute submitted");
+    } catch (error) {
+      console.error("Review dispute failed:", error);
+      void appHaptics.error();
+      toast.error(error?.message || "Your dispute could not be submitted.");
+    } finally { setSubmittingDispute(false); }
+  };
 
-        setRatingBreakdown(breakdown); // Update the rating breakdown
-      } catch (error) {
-        console.error("Error fetching reviews:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchReviews();
-  }, [currentUser, selectedRating]); // Trigger on `selectedRating` change
-
-  const averageRating = ratingCount > 0 ? rating / ratingCount : 0;
+  const openOrder = (review) => {
+    const orderId = review?.orderId || review?.orderIds?.[0];
+    if (!orderId) return;
+    void appHaptics.selection();
+    navigate("/vendor-orders", {state: {focusOrderId: orderId}});
+  };
 
   return (
     <>
-    <SEO 
-        title={`Reviews - My Thrift`} 
-        description={`Reviews on your My Thrift store`} 
-        url={`https://www.shopmythrift.store/store-reviews`} 
-      />
-    <div className="px-2 py-4">
-      <div className="sticky py-3 top-0 bg-white z-10">
-        <div className="flex items-center justify-between mb-3 pb-2">
-          <GoChevronLeft
-            className="text-3xl cursor-pointer"
-            onClick={() => navigate(-1)}
-          />
-          <h1 className="text-xl font-opensans font-semibold">Reviews</h1>
+      <SEO title="Store reviews - My Thrift" description="Reviews from verified My Thrift buyers." url="https://www.shopmythrift.store/store-reviews" />
+      <main className="store-reviews-page">
+        <AppPageHeader title="Ratings and reviews" onBack={() => navigate(-1)} />
+        <section className="store-rating-summary">
+          <div><strong>{average.toFixed(1)}</strong><span>{[1,2,3,4,5].map((star) => <Star key={star} className={star <= Math.round(average) ? "is-filled" : ""}/>)}</span><small>{totalRatings.toLocaleString()} ratings</small></div>
+          <div>{[5,4,3,2,1].map((star) => <span key={star}><small>{star}</small><i><b style={{width: `${totalRatings ? (counts[star] / totalRatings) * 100 : 0}%`}}/></i></span>)}</div>
+        </section>
+        <nav className="store-review-tabs" aria-label="Filter reviews by rating">{FILTERS.map((filter) => <button type="button" key={filter} className={selectedRating === filter ? "is-active" : ""} onClick={() => { setSelectedRating(filter); void appHaptics.selection(); }}>{filter === "All" ? "All" : `${filter} star`}</button>)}</nav>
+        <section className="store-review-list">
+          {loading ? <ReviewSkeleton/> : !reviews.length ? <div className="store-review-empty"><AlertCircle/><p>No {selectedRating === "All" ? "" : `${selectedRating}-star `}reviews yet.</p></div> : reviews.map((review) => {
+            const images = [...(review.productSnapshots || []).map((item) => item.productImageUrl), ...(review.reviewImageUrls || [])].filter(Boolean);
+            const status = disputeStatuses[review.id];
+            const orderId = review.orderId || review.orderIds?.[0] || "";
+            return <article key={review.id} className="store-review-card">
+              <header><span className="store-review-avatar">{review.userPhotoURL ? <img src={review.userPhotoURL} alt=""/> : <UserRound/>}</span><div><strong>{review.userName || "My Thrift shopper"}</strong><small>{formatDate(review.createdAt)}</small></div><button type="button" disabled={Boolean(status)} onClick={() => openDispute(review)}>{status ? <span>{status}</span> : <><Flag/>Dispute</>}</button></header>
+              <div className="store-review-stars">{[1,2,3,4,5].map((star) => <Star key={star} className={star <= Number(review.rating) ? "is-filled" : ""}/>)}</div>
+              {review.reviewText && <p>{review.reviewText}</p>}
+              {images.length > 0 && <div className="store-review-images">{images.map((image, index) => <img key={`${image}-${index}`} src={image} alt={`Review attachment ${index + 1}`}/>)}</div>}
+              {orderId && <div className="store-review-order"><span><small>Order</small><strong title={orderId}>{orderId}</strong></span><button type="button" onClick={() => openOrder(review)}>Go to order<ArrowUpRight/></button></div>}
+            </article>;
+          })}
+          {hasMore && !loading && <button type="button" className="store-review-load-more" onClick={() => fetchPage({append: true})} disabled={loadingMore}>{loadingMore ? <RotatingLines strokeColor="#f9531e" width="20"/> : "Load more reviews"}</button>}
+        </section>
+      </main>
 
-          {/*This empty div gives the illusion that the text above is centered */}
-          <div></div>
-        </div>
-
-        <div className="flex justify-between mb-3 w-full overflow-x-auto space-x-2 scrollbar-hide">
-          {["All", 5, 4, 3, 2, 1].map((star) => (
-            <button
-              key={star}
-              onClick={() => setSelectedRating(star)} // This correctly updates selectedRating
-              className={`flex-shrink-0 h-12 px-3 py-2 text-xs font-bold font-opensans text-black border border-gray-200 rounded-full ${
-                selectedRating === star
-                  ? "bg-customOrange text-white"
-                  : "bg-transparent"
-              }`}
-            >
-              {star === "All" ? star : `${star} stars`}
-            </button>
-          ))}
-        </div>
-
-        <div className="border-b border-gray-300 w-screen translate-y-3 relative left-1/2 transform -translate-x-1/2"></div>
-      </div>
-      <div className="flex space-x-6">
-        <div className="flex items-center justify-start my-4">
-          <div className=" rounded-full flex flex-col ">
-            {isLoading ? (
-              <div className="flex flex-col">
-                <Skeleton square={true} height={80} width={80} />
-                <Skeleton square={true} height={15} width={80} />
-                <Skeleton square={true} height={15} width={20} />
-              </div>
-            ) : (
-              <>
-                <span className="text-5xl font-opensans font-semibold">
-                  {averageRating.toFixed(1)}
-                </span>
-                <div className="flex text-xs mt-2">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <FaStar
-                      key={i}
-                      className={
-                        i < Math.floor(averageRating)
-                          ? "text-yellow-500"
-                          : "text-gray-300"
-                      }
-                    />
-                  ))}
-                </div>
-                <span className="text-xs mt-1 font-poppins  text-gray-600">
-                  {ratingCount}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="my-4  w-full">
-          {isLoading ? (
-            <div>
-              <Skeleton
-                square={true}
-                height={20}
-                width={300}
-                className="my-1 ml-3"
-              />
-              <Skeleton
-                square={true}
-                height={20}
-                width={300}
-                className="my-1 ml-3"
-              />
-              <Skeleton
-                square={true}
-                height={20}
-                width={300}
-                className="my-1 ml-3"
-              />
-              <Skeleton
-                square={true}
-                height={20}
-                width={300}
-                className="my-1 ml-3"
-              />
-              <Skeleton
-                square={true}
-                height={20}
-                width={300}
-                className="my-1 ml-3"
-              />
-            </div>
-          ) : (
-            [5, 4, 3, 2, 1].map((star) => (
-              <div key={star} className="flex items-center mb-2">
-                <span className="w-6 text-xs  font-opensans font-light">
-                  {star}
-                </span>
-                <ProgressBar
-                  now={calculatePercentage(ratingBreakdown[star])}
-                  className="flex-1 mx-2"
-                  style={{
-                    height: "14px",
-                    backgroundColor: "#f5f3f2",
-                    borderRadius: "10px",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      backgroundColor: "#f9531e",
-                      height: "100%",
-                      width: `${calculatePercentage(ratingBreakdown[star])}%`,
-                      borderRadius: "10px",
-                    }}
-                  />
-                </ProgressBar>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="p-2">
-        {filterReviews.length > 0 && !isLoading ? (
-          filterReviews.map((review) => (
-            <div key={review.id} className="mb-4">
-              <div className="flex items-center mb-1">
-                <img
-                  src={review.userPhotoURL || defaultImageUrl}
-                  alt={review.userName}
-                  className="w-11 h-11 rounded-full mr-3"
-                />
-                <div>
-                  <h2 className="font-semibold text-xs">{review.userName}</h2>
-                </div>
-              </div>
-              <div className="flex space-x-3 items-center">
-                <div className="flex space-x-1">
-                  {Array.from({ length: review.rating }).map((_, index) => (
-                    <FaStar key={index} className="text-yellow-500" />
-                  ))}
-                </div>
-                <span className="ratings-text font-medium font-opensans text-gray-500">
-                  {new Date(
-                    review.createdAt.seconds * 1000
-                  ).toLocaleDateString()}
-                </span>
-              </div>
-              <p className="mt-2 text-black font-opensans text-sm">
-                {review.reviewText}
-              </p>
-            </div>
-          ))
-        ) : isLoading ? (
-          <>
-            <div>
-              <div className="w-full mb-4">
-                <div className="w-full flex items-center mb-1">
-                  <Skeleton
-                    circle={true}
-                    width={44}
-                    height={44}
-                    className=" rounded-full mr-3"
-                  />
-                  <div>
-                    <Skeleton square={true} width={50} height={20} />
-                  </div>
-                </div>
-                <div className="w-full flex space-x-3 items-center">
-                  <Skeleton square={true} width={70} height={30} />
-                  <Skeleton square={true} width={50} height={20} />
-                </div>
-                <Skeleton square={true} width={330} height={20} />
-              </div>
-              <div className="w-full mb-4">
-                <div className="w-full flex items-center mb-1">
-                  <Skeleton
-                    circle={true}
-                    width={44}
-                    height={44}
-                    className=" rounded-full mr-3"
-                  />
-                  <div>
-                    <Skeleton square={true} width={50} height={20} />
-                  </div>
-                </div>
-                <div className="w-full flex space-x-3 items-center">
-                  <Skeleton square={true} width={90} height={30} />
-                  <Skeleton square={true} width={50} height={20} />
-                </div>
-                <Skeleton square={true} width={330} height={20} />
-                <Skeleton square={true} width={110} height={20} />
-              </div>
-              <div className="w-full mb-4">
-                <div className="w-full flex items-center mb-1">
-                  <Skeleton
-                    circle={true}
-                    width={44}
-                    height={44}
-                    className=" rounded-full mr-3"
-                  />
-                  <div>
-                    <Skeleton square={true} width={50} height={20} />
-                  </div>
-                </div>
-                <div className="w-full flex space-x-3 items-center">
-                  <Skeleton square={true} width={60} height={30} />
-                  <Skeleton square={true} width={50} height={20} />
-                </div>
-                <Skeleton square={true} width={330} height={20} />
-                <Skeleton square={true} width={330} height={20} />
-                <Skeleton square={true} width={90} height={20} />
-              </div>
-              <div className="w-full mb-4">
-                <div className="w-full flex items-center mb-1">
-                  <Skeleton
-                    circle={true}
-                    width={44}
-                    height={44}
-                    className=" rounded-full mr-3"
-                  />
-                  <div>
-                    <Skeleton square={true} width={65} height={20} />
-                  </div>
-                </div>
-                <div className="w-full flex space-x-3 items-center">
-                  <Skeleton square={true} width={65} height={30} />
-                  <Skeleton square={true} width={50} height={20} />
-                </div>
-                <Skeleton square={true} width={230} height={20} />
-              </div>
-              <div className="w-full mb-4">
-                <div className="w-full flex items-center mb-1">
-                  <Skeleton
-                    circle={true}
-                    width={44}
-                    height={44}
-                    className=" rounded-full mr-3"
-                  />
-                  <div>
-                    <Skeleton square={true} width={90} height={20} />
-                  </div>
-                </div>
-                <div className="w-full flex space-x-3 items-center">
-                  <Skeleton square={true} width={70} height={30} />
-                  <Skeleton square={true} width={50} height={20} />
-                </div>
-                <Skeleton square={true} width={330} height={20} />
-                <Skeleton square={true} width={200} height={20} />
-              </div>
-              <div className="w-full mb-4">
-                <div className="w-full flex items-center mb-1">
-                  <Skeleton
-                    circle={true}
-                    width={44}
-                    height={44}
-                    className=" rounded-full mr-3"
-                  />
-                  <div>
-                    <Skeleton square={true} width={40} height={20} />
-                  </div>
-                </div>
-                <div className="w-full flex space-x-3 items-center">
-                  <Skeleton square={true} width={70} height={30} />
-                  <Skeleton square={true} width={50} height={20} />
-                </div>
-                <Skeleton square={true} width={330} height={20} />
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="text-xs font-opensans text-gray-800 text-center mt-8">
-            No reviews here yet. Reviews will appear here when customers post
-            them 🌟...
-          </div>
-        )}
-      </div>
-    </div>
+      <AppBottomSheet open={Boolean(disputeReview)} onClose={() => !submittingDispute && setDisputeReview(null)} height="68dvh" compactTop keyboardAware dismissible={!submittingDispute} closeOnBackdrop={!submittingDispute} ariaLabel="Dispute review">
+        <div className="store-review-dispute-head"><div><h2>Dispute this review</h2><p>Our support team will compare it with the verified order.</p></div><button type="button" onClick={() => setDisputeReview(null)} disabled={submittingDispute}><X/></button></div>
+        <div className="store-review-dispute-body"><NativePickerField title="Reason" value={disputeReason} options={DISPUTE_REASONS} onChange={setDisputeReason} placeholder="Choose a reason" className="store-review-reason-picker"/><textarea rows={5} maxLength={1000} value={disputeDetails} onChange={(event) => setDisputeDetails(event.target.value)} placeholder="Add context for our support team (optional)"/><p>Disputing does not immediately remove a review. Support will review the order and contact you if more information is needed.</p></div>
+        <div className="store-review-dispute-footer"><button type="button" onClick={submitDispute} disabled={!disputeReason || submittingDispute || (disputeReason === "other" && disputeDetails.trim().length < 10)}>{submittingDispute ? <RotatingLines strokeColor="#fff" width="20"/> : "Submit dispute"}</button></div>
+      </AppBottomSheet>
     </>
   );
-};
-
-export default StoreReviews;
+}

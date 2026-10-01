@@ -1,0 +1,38 @@
+.store-reviews-page { min-height:100dvh; padding-bottom:calc(88px + env(safe-area-inset-bottom,0px)); background:#fff; color:#111827; font-family:"Satoshi",sans-serif; }
+.store-rating-summary { display:grid; grid-template-columns:108px 1fr; gap:22px; align-items:center; padding:22px 16px 18px; }
+.store-rating-summary>div:first-child { display:flex; flex-direction:column; }
+.store-rating-summary>div:first-child>strong { font-size:44px; font-weight:650; line-height:1; }
+.store-rating-summary>div:first-child>span { display:flex; gap:2px; margin-top:8px; }
+.store-rating-summary svg,.store-review-stars svg { width:14px; height:14px; fill:transparent; color:#d5d8dd; stroke-width:1.7; }
+.store-rating-summary svg.is-filled,.store-review-stars svg.is-filled { fill:#e3aa1b; color:#e3aa1b; }
+.store-rating-summary>div:first-child>small { margin-top:5px; color:#64748b; font-size:12px; }
+.store-rating-summary>div:last-child { display:flex; flex-direction:column; gap:6px; }
+.store-rating-summary>div:last-child>span { display:grid; grid-template-columns:14px 1fr; align-items:center; gap:7px; }
+.store-rating-summary>div:last-child small { color:#64748b; font-size:11px; }
+.store-rating-summary i { display:block; height:7px; overflow:hidden; border-radius:99px; background:#f0f1f3; }
+.store-rating-summary b { display:block; height:100%; border-radius:99px; background:#f9531e; }
+.store-review-tabs { display:flex; gap:22px; overflow-x:auto; padding:0 16px; border-bottom:1px solid #eceff2; scrollbar-width:none; }
+.store-review-tabs::-webkit-scrollbar{display:none}.store-review-tabs button { position:relative; flex:0 0 auto; min-height:48px; padding:0 2px; border:0; background:transparent; color:#64748b; font:500 14px "Satoshi",sans-serif; }
+.store-review-tabs button.is-active { color:#111827; }.store-review-tabs button.is-active::after { position:absolute; right:0; bottom:-1px; left:0; height:3px; border-radius:3px 3px 0 0; background:#f9531e; content:""; }
+.store-review-list { padding:4px 16px 30px; }
+.store-review-card { padding:20px 0; border-bottom:1px solid #edf0f2; }
+.store-review-card header { display:grid; grid-template-columns:42px minmax(0,1fr) auto; align-items:center; gap:10px; }
+.store-review-avatar { display:grid; width:42px; height:42px; place-items:center; overflow:hidden; border-radius:999px; background:#f3f4f6; color:#64748b; }
+.store-review-avatar img { width:100%; height:100%; object-fit:cover; }.store-review-avatar svg { width:22px; height:22px; stroke-width:1.5; }
+.store-review-card header>div { display:flex; min-width:0; flex-direction:column; }.store-review-card header strong { overflow:hidden; font-size:14px; font-weight:600; text-overflow:ellipsis; white-space:nowrap; }.store-review-card header small { color:#64748b; font-size:11px; }
+.store-review-card header button { display:flex; min-width:64px; height:34px; align-items:center; justify-content:center; gap:5px; border:0; border-radius:10px; background:#f6f7f8; color:#475569; font:500 11px "Satoshi",sans-serif; text-transform:capitalize; }.store-review-card header button:disabled{color:#8a93a1}.store-review-card header button svg{width:14px;height:14px;stroke-width:1.5}
+.store-review-stars { display:flex; gap:3px; margin:12px 0 8px 52px; }.store-review-card>p { margin:0 0 0 52px; color:#374151; font-size:14px; line-height:1.55; }
+.store-review-images { display:flex; gap:8px; overflow-x:auto; margin:12px 0 0 52px; }.store-review-images img { width:86px; height:86px; flex:0 0 86px; border-radius:12px; object-fit:cover; }
+.store-review-order { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:14px 0 0 52px; padding:11px 12px; border-radius:12px; background:#f7f8f9; }
+.store-review-order>span { display:flex; min-width:0; flex-direction:column; gap:1px; }
+.store-review-order small { color:#64748b; font-size:10px; }
+.store-review-order strong { overflow:hidden; max-width:150px; color:#111827; font-size:12px; font-weight:600; text-overflow:ellipsis; white-space:nowrap; }
+.store-review-order>button { display:flex; min-height:34px; align-items:center; gap:5px; padding:0 10px; border:0; border-radius:9px; background:#fff; color:#f9531e; font:650 11px "Satoshi",sans-serif; box-shadow:0 1px 3px rgba(15,23,42,.08); }
+.store-review-order>button svg { width:14px; height:14px; stroke-width:1.7; }
+.store-review-empty { display:flex; min-height:300px; flex-direction:column; align-items:center; justify-content:center; gap:12px; color:#64748b; }.store-review-empty svg{width:38px;height:38px;stroke-width:1.3}.store-review-empty p{font-size:14px}
+.store-review-load-more { display:flex; min-height:46px; align-items:center; justify-content:center; margin:20px auto 0; padding:0 22px; border:1px solid #e2e5e9; border-radius:12px; background:#fff; color:#111827; font:600 13px "Satoshi",sans-serif; }
+.store-review-skeleton { padding-top:12px; }.store-review-skeleton>div { display:grid; grid-template-columns:42px 1fr; gap:10px; min-height:120px; padding:12px 0; }.store-review-skeleton span,.store-review-skeleton i { display:block; border-radius:8px; background:linear-gradient(90deg,#f0f1f3 25%,#fafafa 50%,#f0f1f3 75%); background-size:200% 100%; animation:store-review-shimmer 1.2s infinite; }.store-review-skeleton span{width:42px;height:42px;border-radius:999px}.store-review-skeleton i{grid-column:2;height:12px;margin-top:-36px}.store-review-skeleton i:nth-of-type(2){width:80%;margin-top:-11px}.store-review-skeleton i:nth-of-type(3){width:55%;margin-top:-11px}@keyframes store-review-shimmer{to{background-position:-200% 0}}
+.store-review-dispute-head { display:flex; min-height:82px; align-items:center; justify-content:space-between; gap:12px; padding:22px 18px 10px; font-family:"Satoshi",sans-serif; }.store-review-dispute-head h2{margin:0;font-size:20px}.store-review-dispute-head p{margin:2px 0 0;color:#64748b;font-size:12px}.store-review-dispute-head button{display:grid;width:36px;height:36px;place-items:center;border:0;border-radius:999px;background:#f3f4f6}.store-review-dispute-head svg{width:20px;stroke-width:1.5}
+.store-review-dispute-body { min-height:0; flex:1; overflow-y:auto; padding:10px 18px; font-family:"Satoshi",sans-serif; }.store-review-reason-picker{min-height:52px;padding:0 14px;border:1px solid #dfe3e8;border-radius:14px}.store-review-dispute-body textarea{width:100%;margin-top:12px;padding:14px;border:1px solid #dfe3e8;border-radius:14px;background:#fafafa;font:inherit;outline:none}.store-review-dispute-body>p{color:#64748b;font-size:11px;line-height:1.45}
+.store-review-dispute-footer{padding:10px 18px 18px}.store-review-dispute-footer button{display:flex;width:100%;min-height:50px;align-items:center;justify-content:center;border:0;border-radius:12px;background:#f9531e;color:#fff;font:650 15px "Satoshi",sans-serif}.store-review-dispute-footer button:disabled{background:#d8dbe0;color:#8b93a1}
+@media(min-width:394px){.store-reviews-page{max-width:574px;margin:0 auto}}

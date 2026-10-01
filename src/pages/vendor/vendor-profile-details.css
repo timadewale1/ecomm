@@ -1,0 +1,17 @@
+.vendor-detail-page { height: 100dvh; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: env(safe-area-inset-bottom,0px); background: #fff; color: #111827; font-family: "Satoshi",sans-serif; -webkit-overflow-scrolling: touch; }
+.vendor-detail-page>.app-page-header { border-bottom:1px solid #f3f4f6; background:#fff; }
+.native-ios .vendor-detail-page>.app-page-header.is-sticky,
+.native-android .vendor-detail-page>.app-page-header.is-sticky { top:0 !important; }
+.vendor-detail-content { padding: 6px 16px 24px; }
+.vendor-detail-content section { padding: 22px 0 12px; }
+.vendor-detail-content h2 { margin: 0 0 8px; font-size: 18px; font-weight: 650; }
+.vendor-detail-row { display: grid; min-height: 68px; grid-template-columns: 24px minmax(0,1fr) 38px; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid #eff1f3; }
+.vendor-detail-row>svg { width: 20px; height: 20px; color: #64748b; stroke-width: 1.45; }
+.vendor-detail-copy { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.vendor-detail-copy>span { color: #64748b; font-size: 12px; }
+.vendor-detail-copy strong { overflow-wrap: anywhere; font-size: 15px; font-weight: 500; line-height: 1.4; }
+.vendor-detail-copy small { color: #64748b; font-size: 11px; line-height: 1.35; }
+.vendor-detail-row button { display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 999px; background: #f6f7f8; color: #475569; }
+.vendor-detail-row button svg { width: 17px; height: 17px; stroke-width: 1.5; }
+.vendor-detail-loading { display: grid; min-height: 100dvh; place-items: center; }
+@media(min-width:394px){.vendor-detail-page{max-width:574px;margin:0 auto;}}

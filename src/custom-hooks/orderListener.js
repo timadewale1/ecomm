@@ -1,10 +1,36 @@
-import { onSnapshot, query, where, collection } from 'firebase/firestore';
-import { db } from '../firebase.config';
+import {
+  collection,
+  getDocsFromServer,
+  onSnapshot,
+  query,
+  where,
+} from 'firebase/firestore';
+import { httpsCallable } from "firebase/functions";
+import { db, auth } from '../firebase.config';
+import { functions } from "../firebase.config";
 import store from '../redux/store';
-import { setOrders, clearOrders } from '../redux/actions/orderaction';
+import {
+  setOrders,
+  clearOrders,
+  orderListenerFailed,
+  orderListenerReady,
+  orderListenerStarted,
+} from '../redux/actions/orderaction';
 
 let currentVendorId = null; // Tracks the current vendor ID to avoid stale listeners
 let unsubscribe = null; // Keeps track of the active listener
+let generation = 0;
+
+const backfillVendorOrderViews = async (isCurrent) => {
+  const backfill = httpsCallable(functions, "backfillMyVendorOrderViewsV1");
+  let cursor = null;
+
+  do {
+    if (!isCurrent()) return;
+    const response = await backfill({ cursor, pageSize: 100 });
+    cursor = response?.data?.complete ? null : response?.data?.nextCursor || null;
+  } while (cursor && isCurrent());
+};
 
 export const initializeOrderListener = (vendorId) => {
   // Check if the listener is already set up for this vendor
@@ -20,6 +46,10 @@ export const initializeOrderListener = (vendorId) => {
 
   // Update the current vendor ID
   currentVendorId = vendorId;
+  const requestGeneration = ++generation;
+  const session = auth.currentUser;
+  const isCurrent = () => generation === requestGeneration &&
+    currentVendorId === vendorId && auth.currentUser === session && session?.uid === vendorId;
 
   // If no vendor ID is provided (e.g., user logged out), clear orders and exit
   if (!vendorId) {
@@ -27,26 +57,65 @@ export const initializeOrderListener = (vendorId) => {
     return;
   }
 
-  // Set up a new Firestore listener for the current vendor ID
-  const q = query(collection(db, 'orders'), where('vendorId', '==', vendorId));
+  store.dispatch(orderListenerStarted(vendorId));
+
+  // Vendors subscribe only to the server-owned, contact-safe projection.
+  // Existing raw orders are projected lazily in the background on first use.
+  const q = query(
+    collection(db, 'vendorOrderViews'),
+    where('vendorId', '==', vendorId),
+  );
   unsubscribe = onSnapshot(
     q,
     (snapshot) => {
+      if (!isCurrent()) return;
       const updatedOrders = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
 
       // Dispatch updated orders to the Redux store
-      store.dispatch(setOrders(updatedOrders));
+      store.dispatch(setOrders(updatedOrders, vendorId));
+      store.dispatch(orderListenerReady(vendorId));
     },
     (error) => {
+      if (!isCurrent()) return;
       console.error(`Error fetching orders for vendor ${vendorId}:`, error);
+      store.dispatch(orderListenerFailed(vendorId, error));
     }
   );
+
+  void backfillVendorOrderViews(isCurrent)
+    .catch((error) => {
+      // The live listener remains authoritative. A failed compatibility
+      // backfill must not discard an already-cached order list.
+      console.warn("Vendor order compatibility sync failed:", error);
+    });
 };
 
-export const removeOrderListener = () => {
+// Pull-to-refresh should verify the current server projection, not run the
+// compatibility backfill across the vendor's entire order history. The live
+// listener remains authoritative and will continue receiving later changes.
+export const refreshVendorOrders = async (vendorId) => {
+  const requestGeneration = generation;
+  const session = auth.currentUser;
+  if (!vendorId || currentVendorId !== vendorId || session?.uid !== vendorId) return [];
+  const snapshot = await getDocsFromServer(query(
+    collection(db, 'vendorOrderViews'),
+    where('vendorId', '==', vendorId),
+  ));
+  if (generation !== requestGeneration || currentVendorId !== vendorId || auth.currentUser !== session) return [];
+  const updatedOrders = snapshot.docs.map((document) => ({
+    id: document.id,
+    ...document.data(),
+  }));
+  store.dispatch(setOrders(updatedOrders, vendorId));
+  store.dispatch(orderListenerReady(vendorId));
+  return updatedOrders;
+};
+
+export const removeOrderListener = ({ clear = true } = {}) => {
+  generation += 1;
   // Remove the listener and reset tracking variables
   if (unsubscribe) {
     unsubscribe();
@@ -55,5 +124,5 @@ export const removeOrderListener = () => {
   currentVendorId = null;
 
   // Clear orders from the Redux store
-  store.dispatch(clearOrders());
+  if (clear) store.dispatch(clearOrders());
 };

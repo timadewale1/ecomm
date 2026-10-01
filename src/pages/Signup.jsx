@@ -1,26 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  GoogleAuthProvider,
-  TwitterAuthProvider,
-  getAdditionalUserInfo,
-  signInWithPopup,
-  onAuthStateChanged,
-  signOut,
-} from "firebase/auth";
-import { emailBelongsToVendor } from "../services/authHelper";
 import { FcGoogle } from "react-icons/fc";
 import { auth, db, functions } from "../firebase.config";
-import {
-  setDoc,
-  doc,
-  getDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-} from "firebase/firestore";
+import { isBuyerUsernameAvailable } from "../services/accountLookups";
 import { motion } from "framer-motion";
 import Typewriter from "typewriter-effect";
 import toast from "react-hot-toast";
@@ -39,11 +22,20 @@ import {
   MdOutlineLock,
 } from "react-icons/md";
 import { Oval, RotatingLines } from "react-loader-spinner";
-import { useAuth } from "../custom-hooks/useAuth";
 import { httpsCallable } from "firebase/functions"; // import from Firebase functions
 import Modal from "react-modal";
 import SEO from "../components/Helmet/SEO";
-import { FaXTwitter } from "react-icons/fa6";
+import { FaApple, FaXTwitter } from "react-icons/fa6";
+import { useDispatch } from "react-redux";
+import { fetchAndMergeCart } from "../services/cartMerge";
+import { useAppExperience } from "../components/Context/AppExperienceContext";
+import { APP_EXPERIENCE } from "../services/appExperience";
+import { appHaptics } from "../services/haptics";
+import {
+  authenticateBuyerWithProvider,
+  socialAuthErrorMessage,
+} from "../services/buyerSocialAuth";
+import { isNativeApp } from "../services/platform";
 const Signup = () => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -57,11 +49,16 @@ const Signup = () => {
   const [isUsernameAvailable, setIsUsernameAvailable] = useState(false);
   const [showPasswordCriteria, setShowPasswordCriteria] = useState(false);
 
-  const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { selectExperience } = useAppExperience();
+  const showAppleAuth =
+    isNativeApp || import.meta.env.VITE_ENABLE_APPLE_WEB_AUTH === "true";
   const [modalOpen, setModalOpen] = useState(false); // State to manage modal visibility
+  const [verificationEmailSent, setVerificationEmailSent] = useState(true);
 
-  const handleSignupSuccess = () => {
+  const handleSignupSuccess = (emailWasSent = true) => {
+    setVerificationEmailSent(emailWasSent);
     setModalOpen(true); // Open the modal on successful signup
   };
 
@@ -74,73 +71,27 @@ const Signup = () => {
     navigate("/login"); // Redirect to login page
   };
 
+  // Debounced hint only; no private profile is downloaded or cached.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        console.log("User is already logged in after popup:", user);
-        navigate("/");
-      }
-    });
-    return () => unsubscribe();
-  }, [navigate]);
-
-  // Check if username is available
-  useEffect(() => {
-    const checkUsername = async () => {
-      if (username.trim().length >= 2) {
-        setUsernameLoading(true);
-        const formattedUsername = formatUsername(username);
-        const q = query(
-          collection(db, "users"),
-          where("username", "==", formattedUsername),
-        );
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-          setIsUsernameTaken(true);
-          setIsUsernameAvailable(false);
-        } else {
-          setIsUsernameTaken(false);
-          setIsUsernameAvailable(true);
+    let cancelled = false;
+    setIsUsernameTaken(false);
+    setIsUsernameAvailable(false);
+    setUsernameLoading(false);
+    if (username.trim().length < 2) return;
+    setUsernameLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const available = await isBuyerUsernameAvailable(formatUsername(username));
+        if (!cancelled) {
+          setIsUsernameTaken(!available);
+          setIsUsernameAvailable(available);
         }
-        setUsernameLoading(false);
-      } else {
-        setIsUsernameTaken(false);
-        setIsUsernameAvailable(false);
-      }
-    };
-    checkUsername();
+      } catch {
+        // A failed availability check is neither "taken" nor "available".
+      } finally { if (!cancelled) setUsernameLoading(false); }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [username]);
-
-  useEffect(() => {
-    const handleFocus = () => {
-      document.body.classList.add("scroll-lock");
-    };
-    const handleBlur = () => {
-      document.body.classList.remove("scroll-lock");
-    };
-    const inputs = document.querySelectorAll("input");
-    inputs.forEach((input) => {
-      input.addEventListener("focus", handleFocus);
-      input.addEventListener("blur", handleBlur);
-    });
-    return () => {
-      inputs.forEach((input) => {
-        input.removeEventListener("focus", handleFocus);
-        input.removeEventListener("blur", handleBlur);
-      });
-    };
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        console.log("User is already logged in after redirect:", user);
-        navigate("/");
-      }
-    });
-    return () => unsubscribe();
-  }, [navigate]);
 
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -198,17 +149,26 @@ const Signup = () => {
 
       const data = response.data;
       if (data.success) {
-        handleSignupSuccess();
+        handleSignupSuccess(data.verificationEmailSent !== false);
       }
     } catch (error) {
       console.error("Signup error from Cloud Function:", error);
       let errorMessage = "Cannot sign up at the moment. Please try again.";
-      if (error.code === "already-exists") {
+      if (
+        error.code === "already-exists" ||
+        error.code === "functions/already-exists"
+      ) {
         errorMessage =
-          "This email is already in use. Please use a different email.";
-      } else if (error.code === "invalid-argument") {
+          "An account already exists for this email. Please sign in to continue or resend verification.";
+      } else if (
+        error.code === "invalid-argument" ||
+        error.code === "functions/invalid-argument"
+      ) {
         errorMessage = "Missing required fields.";
-      } else if (error.code === "unknown") {
+      } else if (
+        error.code === "unknown" ||
+        error.code === "functions/unknown"
+      ) {
         errorMessage = error.message || errorMessage;
       }
       toast.error(errorMessage);
@@ -217,190 +177,40 @@ const Signup = () => {
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    const provider = new GoogleAuthProvider();
-
+  const handleSocialSignUp = async (providerId, providerLabel) => {
+    void appHaptics.medium();
     try {
       setLoading(true);
-
-      // 1) Open Google popup
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      const info = getAdditionalUserInfo(result);
-      const isNewUser = !!info?.isNewUser;
-
-      const emailLower = (user.email || "").toLowerCase().trim();
-
-      // 2) Vendor guard
-      if (await emailBelongsToVendor(emailLower)) {
-        try {
-          if (isNewUser) await user.delete();
-        } catch {}
-        try {
-          await signOut(auth);
-        } catch {}
-        toast.error("This email is already used for a Vendor account!");
-        setLoading(false);
-        return;
-      }
-
-      // 3) Also block if any "users" doc with role=vendor
-      const usersRef = collection(db, "users");
-      const sameEmailUsers = await getDocs(
-        query(usersRef, where("emailLower", "==", emailLower)),
+      const { user, isNewUser } = await authenticateBuyerWithProvider({
+        auth,
+        db,
+        providerId,
+      });
+      await fetchAndMergeCart(db, user.uid, dispatch);
+      await selectExperience(APP_EXPERIENCE.CUSTOMER);
+      toast.success(
+        isNewUser
+          ? `Signed up with ${providerLabel} successfully!`
+          : `Signed in with ${providerLabel} successfully!`,
       );
-      if (
-        !sameEmailUsers.empty &&
-        sameEmailUsers.docs[0].data()?.role === "vendor"
-      ) {
-        try {
-          if (isNewUser) await user.delete();
-        } catch {}
-        try {
-          await signOut(auth);
-        } catch {}
-        toast.error("This email is already used for a Vendor account!");
-        setLoading(false);
-        return;
-      }
-
-      // 4) Create (or keep) user doc
-      const userRef = doc(db, "users", user.uid);
-      const userSnap = await getDoc(userRef);
-
-      const baseData = {
-        uid: user.uid,
-        username: user.displayName || "",
-        email: user.email,
-        emailLower, // 👈 add this so future lookups work
-        role: "user",
-        referrer: localStorage.getItem("referrer") || null,
-        walletSetup: false,
-        profileComplete: false,
-        welcomeEmailSent: false,
-        notificationAllowed: false,
-        createdAt: new Date(),
-      };
-
-      if (!userSnap.exists()) {
-        await setDoc(userRef, baseData);
-      }
-
-      toast.success("Signed up with Google successfully!");
-      navigate("/");
+      navigate("/", { replace: true });
     } catch (error) {
-      console.error("Google Sign-Up Error:", error);
-      let msg = "Google Sign-Up failed. Please try again.";
-      if (error.code === "auth/account-exists-with-different-credential") {
-        msg =
-          "An account with the same email already exists. Please use your original sign-in method.";
-      } else if (error.code === "auth/popup-closed-by-user") {
-        msg = "Popup closed before completing sign-up.";
-      }
-      toast.error(msg);
+      console.error(`${providerLabel} Sign-Up Error:`, error);
+      const message = socialAuthErrorMessage(error, providerLabel);
+      if (message) toast.error(message);
     } finally {
       setLoading(false);
     }
   };
-  const handleTwitterSignUp = async () => {
-    const provider = new TwitterAuthProvider();
 
-    try {
-      setLoading(true);
-
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      const info = getAdditionalUserInfo(result);
-      const isNewUser = !!info?.isNewUser;
-
-      const emailLower = (user.email || "").toLowerCase().trim();
-
-      // Twitter may not return an email — abort in that case
-      if (!emailLower) {
-        try {
-          if (isNewUser) await user.delete();
-        } catch {}
-        try {
-          await signOut(auth);
-        } catch {}
-        toast.error(
-          "We couldn’t get your email from Twitter. Please use Google or Email.",
-        );
-        setLoading(false);
-        return;
-      }
-
-      // Vendor guard
-      if (await emailBelongsToVendor(emailLower)) {
-        try {
-          if (isNewUser) await user.delete();
-        } catch {}
-        try {
-          await signOut(auth);
-        } catch {}
-        toast.error("This email is already used for a Vendor account!");
-        setLoading(false);
-        return;
-      }
-
-      // Also block if any 'users' doc has role=vendor
-      const usersRef = collection(db, "users");
-      const sameEmailUsers = await getDocs(
-        query(usersRef, where("emailLower", "==", emailLower)),
-      );
-      if (
-        !sameEmailUsers.empty &&
-        sameEmailUsers.docs[0].data()?.role === "vendor"
-      ) {
-        try {
-          if (isNewUser) await user.delete();
-        } catch {}
-        try {
-          await signOut(auth);
-        } catch {}
-        toast.error("This email is already used for a Vendor account!");
-        setLoading(false);
-        return;
-      }
-
-      // Create (or keep) user doc
-      const userRef = doc(db, "users", user.uid);
-      const snap = await getDoc(userRef);
-
-      const baseData = {
-        uid: user.uid,
-        username: user.displayName || "",
-        email: user.email,
-        emailLower, // 👈 keep lowercased index field
-        role: "user",
-        referrer: localStorage.getItem("referrer") || null,
-        walletSetup: false,
-        profileComplete: false,
-        welcomeEmailSent: false,
-        notificationAllowed: false,
-        createdAt: new Date(),
-      };
-
-      if (!snap.exists()) {
-        await setDoc(userRef, baseData);
-      }
-
-      toast.success(`Signed up with Twitter successfully!`);
-      navigate("/");
-    } catch (error) {
-      console.error("Twitter Sign-Up Error:", error);
-      let msg = "Twitter Sign-Up failed. Please try again.";
-      if (error?.code === "auth/account-exists-with-different-credential") {
-        msg =
-          "This email is already registered with a different method. Please use your original sign-in method.";
-      } else if (error?.code === "auth/popup-closed-by-user") {
-        msg = "Popup closed before completing sign-up.";
-      }
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
+  const handleGoogleSignUp = () =>
+    handleSocialSignUp("google.com", "Google");
+  const handleAppleSignUp = () => {
+    void appHaptics.light();
+    toast("Apple sign-in is coming soon.");
   };
+  const handleTwitterSignUp = () =>
+    handleSocialSignUp("twitter.com", "X");
 
   return (
     <>
@@ -409,10 +219,10 @@ const Signup = () => {
         description={`Get started with an amazing shopping experience on My Thrift!`}
         url={`https://www.shopmythrift.store/signup`}
       />
-      <Container>
-        <Row>
+      <Container className="mx-auto w-full max-w-[574px] px-0">
+        <Row className="mx-0 w-full">
           <>
-            <div className="flex items-center mb-4">
+            <div className="flex w-full items-center mb-4">
               <div className="flex flex-col items-center flex-grow transform text-customOrange -translate-y-2 font-opensans">
                 <SignUpAnimation />
                 <Typewriter
@@ -424,7 +234,7 @@ const Signup = () => {
                 />
               </div>
             </div>
-            <div className="font-opensans">
+            <div className="w-full font-opensans">
               <div className="px-4">
                 <h1 className="text-3xl font-extrabold font-lato text-black mb-1">
                   Create an account
@@ -596,26 +406,14 @@ const Signup = () => {
                 <div className="text-gray-600  font-opensans text-xs mt-2 -mx-1 leading-relaxed">
                   By signing up you agree to our{" "}
                   <span
-                    onClick={() =>
-                      window.open(
-                        "/terms-and-conditions",
-                        "_blank",
-                        "noopener,noreferrer",
-                      )
-                    }
+                    onClick={() => navigate("/terms-and-conditions")}
                     className="text-customOrange font-medium hover:underline cursor-pointer mr-1"
                   >
                     Terms & Conditions
                   </span>
                   and
                   <span
-                    onClick={() =>
-                      window.open(
-                        "/privacy-policy",
-                        "_blank",
-                        "noopener,noreferrer",
-                      )
-                    }
+                    onClick={() => navigate("/privacy-policy")}
                     className="text-customOrange font-medium hover:underline cursor-pointer ml-1"
                   >
                     Privacy Policy
@@ -648,11 +446,24 @@ const Signup = () => {
                   <div className="flex-grow border-t border-gray-300"></div>
                 </div>
 
+                {showAppleAuth && (
+                  <motion.button
+                    type="button"
+                    className="w-full h-12 mt-2 bg-black border-2 border-black font-satoshi text-white font-medium rounded-xl flex justify-center items-center disabled:opacity-60"
+                    onClick={handleAppleSignUp}
+                    disabled={loading}
+                  >
+                    <FaApple className="mr-2 text-2xl" />
+                    Sign up with Apple
+                  </motion.button>
+                )}
+
                 {/* Google Sign-Up button */}
                 <motion.button
                   type="button"
                   className="w-full h-12 mt-2 bg-white border-2  font-opensans border-gray-100 text-black font-medium rounded-xl flex justify-center items-center"
                   onClick={handleGoogleSignUp}
+                  disabled={loading}
                 >
                   <FcGoogle className="mr-2  text-2xl" />
                   Sign up with Google
@@ -661,9 +472,10 @@ const Signup = () => {
                   type="button"
                   className="w-full h-12 mt-2 bg-white border-2 border-gray-100 font-opensans text-black font-medium rounded-xl flex justify-center items-center"
                   onClick={handleTwitterSignUp}
+                  disabled={loading}
                 >
                   <FaXTwitter className="mr-2 text-xl" />
-                  Sign up with Twitter
+                  Sign up with X
                 </motion.button>
                 <div className="text-center text-sm font-normal font-lato mt-2 pb-4 flex justify-center">
                   <p className="text-gray-700 text-sm">
@@ -712,7 +524,9 @@ const Signup = () => {
                 <MdOutlineDomainVerification className="text-customRichBrown text-lg" />
               </div>
               <h2 className="font-opensans text-lg font-semibold text-customRichBrown">
-                Verify Your Email
+                {verificationEmailSent
+                  ? "Verify Your Email"
+                  : "Your Account Is Ready"}
               </h2>
             </div>
             <MdOutlineClose
@@ -721,15 +535,26 @@ const Signup = () => {
             />
           </div>
 
-          <p className="font-opensans mt-1 text-base text-black text-center font-medium leading-6">
-            Email sent successfully! Please check your inbox for the
-            verification link.
-            <br />
-            <span className="font-light text-xs font-opensans">
-              P.S. If you didn’t receive it, please check your spam or junk
-              folder.
-            </span>
-          </p>
+          {verificationEmailSent ? (
+            <p className="font-opensans mt-1 text-base text-black text-center font-medium leading-6">
+              Email sent successfully! Please check your inbox for the
+              verification link.
+              <br />
+              <span className="font-light text-xs font-opensans">
+                P.S. If you didn’t receive it, please check your spam or junk
+                folder.
+              </span>
+            </p>
+          ) : (
+            <p className="font-opensans mt-1 text-base text-black text-center font-medium leading-6">
+              Your account was created successfully, but we couldn’t send the
+              verification email just now.
+              <br />
+              <span className="font-light text-xs font-opensans">
+                Continue to sign in and request a fresh verification email.
+              </span>
+            </p>
+          )}
         </div>
       </Modal>
     </>

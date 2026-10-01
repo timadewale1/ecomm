@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import NativeImageInput from '../Inputs/NativeImageInput';
 
 const Product = () => {
   const [productImgCover, setProductImgCover] = useState(null);
@@ -22,15 +23,15 @@ const Product = () => {
       <form onSubmit={handleSubmit}>
         <div>
           <label>Product Image Cover:</label>
-          <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setProductImgCover)} required />
+          <NativeImageInput accept="image/*" onChange={(e) => handleFileChange(e, setProductImgCover)} required />
         </div>
         <div>
           <label>Additional Image 1:</label>
-          <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setAdditionalImg1)} />
+          <NativeImageInput accept="image/*" onChange={(e) => handleFileChange(e, setAdditionalImg1)} />
         </div>
         <div>
           <label>Additional Image 2:</label>
-          <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setAdditionalImg2)} />
+          <NativeImageInput accept="image/*" onChange={(e) => handleFileChange(e, setAdditionalImg2)} />
         </div>
         <div>
           <label>Product Name:</label>

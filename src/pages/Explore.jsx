@@ -20,6 +20,7 @@ import { AdvancedImage } from "@cloudinary/react";
 import productTypes from "../pages/vendor/producttype";
 import everydayTypers from "./vendor/everydayTypers";
 import { GoChevronLeft, GoChevronRight } from "react-icons/go";
+import AppBackButton from "../components/layout/AppBackButton";
 import { MdTrendingUp } from "react-icons/md";
 import { motion, AnimatePresence } from "framer-motion";
 import ProductCard from "../components/Products/ProductCard";
@@ -339,10 +340,7 @@ const Explore = () => {
             <div className="flex items-center">
               
               {(selectedProductType || selectedSubType) && (
-                <GoChevronLeft
-                  className="text-3xl cursor-pointer mr-2"
-                  onClick={handleBackClick}
-                />
+                <AppBackButton className="mr-1" onClick={handleBackClick} />
               )}
               <h1 className="text-lg text-black font-semibold font-opensans">
                 {selectedSubType

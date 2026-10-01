@@ -1,518 +1,272 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { setVendorProfile, setLoading } from "../../redux/vendorProfileSlice";
-import { FaShop } from "react-icons/fa6";
 import {
-  MdDescription,
-  MdEmail,
-  MdOutlineDryCleaning,
-  MdVerified,
-} from "react-icons/md";
-import { User } from "lucide-react";
-
-import { useAuth } from "../../custom-hooks/useAuth";
-import { db } from "../../firebase.config";
-import { updateDoc } from "firebase/firestore";
+  Banknote,
+  Building2,
+  CalendarDays,
+  Clock3,
+  Edit3,
+  Info,
+  LockKeyhole,
+  Mail,
+  MapPin,
+  PackageCheck,
+  RotateCcw,
+  ShoppingBag,
+  Store,
+  Tags,
+  UserRound,
+} from "lucide-react";
 import { toast } from "react-hot-toast";
-import { doc, getDoc } from "firebase/firestore";
+import { VendorContext } from "../../components/Context/Vendorcontext";
+import { AccessContext } from "../../components/Context/AccesContext";
+import { useTawk } from "../../components/Context/TawkProvider";
 import Loading from "../../components/Loading/Loading";
-import { BsBank2 } from "react-icons/bs";
-import { BiSolidCategoryAlt } from "react-icons/bi";
-import { CiClock1, CiClock2, CiLocationOn } from "react-icons/ci";
-import { FaBuilding, FaRegCalendarAlt, FaShippingFast } from "react-icons/fa";
-import { MdEdit } from "react-icons/md";
-import EditFieldModal from "./EditFieldModal"; // Import the modal component
-import { GoChevronLeft } from "react-icons/go";
-import { RiEditFill } from "react-icons/ri";
+import AppPageHeader from "../../components/layout/AppPageHeader";
+import { setVendorProfile } from "../../redux/vendorProfileSlice";
+import { appHaptics } from "../../services/haptics";
+import {
+  updateVendorProfileField,
+  vendorProfileErrorMessage,
+} from "../../services/vendorProfileManagement";
+import EditFieldModal from "./EditFieldModal";
+import "./vendor-profile-details.css";
 
-const VprofileDetails = ({ showDetails, setShowDetails }) => {
-  const dispatch = useDispatch();
-  const { currentUser } = useAuth();
+const POLICY_TEXT = {
+  NO_RETURNS: "All sales final — no returns",
+  NO_RETURNS_AFTER_24HRS: "No returns after 24 hours",
+  NO_RETURNS_IF_CORRECT_ITEM: "No returns if the item matches the order",
+  NO_RETURNS_SIZE_COLOR: "No returns for buyer size or colour errors",
+  RETURNS_EXCHANGE_ONLY: "Returns accepted — exchange only",
+  RETURNS_REFUND_IF_DEFECT: "Return and refund if defective",
+  RETURNS_REFUND_FLEX: "Flexible returns and refunds",
+  NONE: "Not set",
+};
 
-  // Access state from Redux
-  const { data: userData, loading } = useSelector(
-    (state) => state.vendorProfile
+const asMillis = (value) => {
+  if (typeof value?.toMillis === "function") return value.toMillis();
+  if (value?.seconds) return value.seconds * 1000;
+  const parsed = Date.parse(value || "");
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+const maskAccount = (value) => {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (!digits) return [];
+  return digits.split("").map((digit, index) =>
+    index < digits.length - 4 ? "•" : digit,
   );
+};
+const readableDate = (value) => new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+}).format(new Date(value));
 
-  const [editingField, setEditingField] = useState(null); // Track the field being edited
+function DetailRow({icon: Icon, label, value, note, onEdit, actionLabel, locked = false}) {
+  return (
+    <div className="vendor-detail-row">
+      <Icon aria-hidden="true" />
+      <div className="vendor-detail-copy">
+        <span>{label}</span>
+        <strong>{value || "Not set"}</strong>
+        {note && <small>{note}</small>}
+      </div>
+      {onEdit && (
+        <button type="button" onClick={onEdit} aria-label={actionLabel || `Edit ${label}`}>
+          {locked ? <LockKeyhole /> : <Edit3 />}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export default function VprofileDetails({onBack}) {
+  const dispatch = useDispatch();
+  const reduxProfile = useSelector((state) => state.vendorProfile.data);
+  const {vendorData, loading} = useContext(VendorContext);
+  const {setHideBottomBar} = useContext(AccessContext);
+  const {openChat} = useTawk();
+  const [profile, setProfile] = useState(vendorData || reduxProfile || {});
+  const [editingField, setEditingField] = useState(null);
   const [processing, setProcessing] = useState(false);
 
-  // Fetch user data on mount if not already in Redux
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (currentUser) {
-        dispatch(setLoading(true)); // Set loading state
-        try {
-          const vendorDoc = await getDoc(doc(db, "vendors", currentUser.uid)); // Replace with actual UID
-          if (vendorDoc.exists()) {
-            dispatch(setVendorProfile(vendorDoc.data())); // Save data in Redux
-          } else {
-            console.error("No such document!");
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-          toast.error("Failed to fetch user data.", {
-            className: "custom-toast",
-          });
-        } finally {
-          dispatch(setLoading(false)); // Stop loading
-        }
-      }
-    };
+  // Details shares /vendor-profile with the parent menu, so route-based hiding
+  // cannot distinguish it. Restore navigation when the detail view unmounts.
+  useLayoutEffect(() => {
+    setHideBottomBar(true);
+    return () => setHideBottomBar(false);
+  }, [setHideBottomBar]);
 
-    fetchUserData();
-  }, [dispatch, currentUser]);
-  // If user data is loading, show a loader
-  if (loading && !userData) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-transparent">
-        <Loading />
-      </div>
-    );
+  useEffect(() => {
+    if (vendorData) {
+      setProfile(vendorData);
+      dispatch(setVendorProfile({...vendorData}));
+    }
+  }, [dispatch, vendorData]);
+
+  const descriptionNextAt = asMillis(profile.descriptionUpdatedAt) + 7 * 86400000;
+  const descriptionLocked = asMillis(profile.descriptionUpdatedAt) > 0 && descriptionNextAt > Date.now();
+  const policyLocked = Boolean(profile.returnPolicySelfServiceUpdatedAt);
+  const maskedAccount = useMemo(
+    () => maskAccount(profile.bankDetails?.accountNumber).join(""),
+    [profile.bankDetails?.accountNumber],
+  );
+
+  if (loading && !vendorData && !reduxProfile) {
+    return <div className="vendor-detail-loading"><Loading /></div>;
   }
 
-  const {
-    firstName = "",
-    lastName = "",
-    shopName = "",
-    email = "",
-    bankDetails = {},
-    returnPolicy = { type: "NONE", notes: "" },
-    categories = [],
-    Address = "",
-    location = { lat: null, lng: null },
-    sourcingMarket = "",
-    restockFrequency = "",
-    wearReadinessRating = 0,
-    complexNumber = "",
-    description = "",
-    marketPlaceType = "",
-    daysAvailability = [],
-    closeTime = "",
-    openTime = "",
-    deliveryMode = "",
-  } = userData || {}; // Fallback to an empty object if userData is null
+  const openSupport = (topic) => openChat({
+    "support-entry": "vendor-profile-details",
+    screen: "vendor-profile-details",
+    topic,
+    "vendor-id": profile.vendorId || profile.uid,
+  });
 
-  const { accountName, accountNumber, bankName } = bankDetails;
-  const categoriesList = categories.map((category) => category).join(", ");
-  const daysAvailabilityList = daysAvailability.map((day) => day).join(", ");
-  const sourcingOptions = [
-    "Yaba Main Market",
-    "Tejuosho Bulk",
-    "UK/US Thrift Bale",
-    "Personal Closet",
-  ];
-  const restockOptions = ["Daily", "Weekly", "Bi‑Weekly", "Monthly"];
-  const handleEdit = async (field, value, coords) => {
-    if (!currentUser) {
-      toast.error("User not authenticated");
+  const edit = (field, value, locked, message) => {
+    if (locked) {
+      toast(message);
       return;
     }
+    void appHaptics.selection();
+    setEditingField({field, value});
+  };
+
+  const handleSave = async (field, value) => {
+    if (processing) return false;
     setProcessing(true);
     try {
-      const vendorDocRef = doc(db, "vendors", currentUser.uid);
-
-      let updateObj;
-      let newProfile;
-
-      if (field === "Address" && coords) {
-        // update both the string and the coords
-        updateObj = {
-          Address: value,
-          location: {
-            lat: coords.lat,
-            lng: coords.lng,
-          },
-        };
-        newProfile = {
-          ...userData,
-          Address: value,
-          location: { lat: coords.lat, lng: coords.lng },
-        };
-      } else if (field === "wearReadinessRating") {
-        const num = Number(value);
-        if (Number.isNaN(num) || num < 1 || num > 10) {
-          toast.error("Rating must be between 1 and 10");
-          setProcessing(false);
-          return;
-        }
-        updateObj = { wearReadinessRating: num };
-        newProfile = { ...userData, wearReadinessRating: num };
-      } else if (field === "returnPolicy") {
-        updateObj = { returnPolicy: value };
-        newProfile = { ...userData, returnPolicy: value };
-      } else {
-        // every other field
-        updateObj = { [field]: value };
-        newProfile = { ...userData, [field]: value };
-      }
-
-      // write to Firestore
-      await updateDoc(vendorDocRef, updateObj);
-
-      // update Redux once
-      dispatch(setVendorProfile(newProfile));
-
-      toast.success(`profile updated successfully!`, {
-        className: "custom-toast",
-      });
+      const result = await updateVendorProfileField(field, value);
+      const patch = {
+        [field]: result.value,
+        ...(field === "description" ? {descriptionUpdatedAt: result.committedAt} : {}),
+        ...(field === "returnPolicy" ? {returnPolicySelfServiceUpdatedAt: result.committedAt} : {}),
+      };
+      setProfile((current) => ({...current, ...patch}));
+      dispatch(setVendorProfile({...profile, ...patch}));
+      setEditingField(null);
+      void appHaptics.success();
+      toast.success("Profile updated");
+      return true;
     } catch (error) {
-      console.error("Error updating field:", error);
-      toast.error("Failed to update. Please try again later.", {
-        className: "custom-toast",
-      });
+      console.error("Vendor profile update failed:", error);
+      void appHaptics.error();
+      toast.error(vendorProfileErrorMessage(error));
+      return false;
     } finally {
       setProcessing(false);
     }
   };
-  const policyText = {
-    NO_RETURNS: { heading: "All sales final – no returns" },
-    NO_RETURNS_AFTER_24HRS: { heading: "No returns after 24 hrs" },
-    NO_RETURNS_IF_CORRECT_ITEM: { heading: "No returns if item matches order" },
-    NO_RETURNS_SIZE_COLOR: {
-      heading: "No returns for buyer size/colour errors",
-    },
-    RETURNS_EXCHANGE_ONLY: { heading: "Returns – exchange only" },
 
-    RETURNS_REFUND_IF_DEFECT: { heading: "Return & refund if defective" },
-    RETURNS_REFUND_FLEX: { heading: "Returns & refund – flexible" },
-    NONE: { heading: "Not set" }, // fallback
-  };
-  const sourcingMarketDisplay = Array.isArray(sourcingMarket)
-    ? sourcingMarket.join(", ")
-    : sourcingMarket;
+  const returnPolicy = profile.returnPolicy || {type: "NONE", notes: ""};
+  const sourcingMarket = Array.isArray(profile.sourcingMarket)
+    ? profile.sourcingMarket.join(", ")
+    : profile.sourcingMarket;
 
   return (
-    <div className="flex flex-col px-3   pb-12 font-opensans">
-      <div className="flex flex-col font-opensans  items-center">
-        {/* Header */}
-        <div className="sticky  bg-white  flex items-center z-10 justify-between h-24 w-full">
-          <div className="flex items-center space-x-2">
-            <GoChevronLeft
-              className="text-2xl text-black cursor-pointer"
-              onClick={() => {
-                setShowDetails(false);
-              }}
-            />
-            <h1 className="text-lg font-medium text-black   ">
-              Profile Details
-            </h1>
-          </div>
-        </div>
+    <main className="vendor-detail-page">
+      <AppPageHeader title="Profile details" onBack={onBack} />
 
-        {/* Profile Information */}
-        <div className="w-full space-y-4 ">
-          {/* Display Name */}
-          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full ">
-            <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-              Display Name
-            </h1>
-            <div className="flex items-center mt-1 justify-between w-full px-4 py-3">
-              <User className="text-black text-xl mr-4" />
-              <p className="text-sm font-normal font-poppins text-black w-full">
-                {firstName + " " + lastName}
-              </p>
-              <MdVerified
-                className={`${
-                  firstName && lastName ? "text-green-500" : "text-yellow-500"
-                } text-2xl ml-2`}
-              />
-            </div>
-          </div>
+      <div className="vendor-detail-content">
+        <section>
+          <h2>Store identity</h2>
+          <DetailRow icon={UserRound} label="Owner" value={`${profile.firstName || ""} ${profile.lastName || ""}`.trim()} />
+          <DetailRow icon={Store} label="Store name" value={profile.shopName} />
+          <DetailRow icon={Mail} label="Email" value={profile.email} />
+          <DetailRow
+            icon={ShoppingBag}
+            label="Store description"
+            value={profile.description}
+            note={descriptionLocked ? `Editable again ${readableDate(descriptionNextAt)}` : "You can update this once every 7 days."}
+            locked={descriptionLocked}
+            onEdit={() => edit("description", profile.description || "", descriptionLocked, `Your description can be edited again ${readableDate(descriptionNextAt)}.`)}
+          />
+          <DetailRow icon={Tags} label="Categories" value={(profile.categories || []).join(", ")} />
+        </section>
 
-          {/* Store Name */}
-          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-            <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-              Store Name
-            </h1>
-            <div className="flex items-center mt-1 justify-between w-full px-4 py-3">
-              <FaShop className="text-black text-xl mr-4" />
-              <p className="text-sm font-normal font-poppins text-black w-full">
-                {shopName}
-              </p>
-              <MdVerified
-                className={`${
-                  shopName ? "text-green-500" : "text-yellow-500"
-                } text-2xl ml-2`}
-              />
-            </div>
-          </div>
+        <section>
+          <h2>Addresses</h2>
+          <DetailRow
+            icon={MapPin}
+            label="Main delivery address"
+            value={profile.Address}
+            note="Used by My Thrift and courier partners for order collection. Contact support to change it."
+            locked
+            actionLabel="Contact support to change main delivery address"
+            onEdit={() => openSupport("change-main-delivery-address")}
+          />
+          <DetailRow
+            icon={PackageCheck}
+            label="Buyer pickup address"
+            value={profile.pickupAddress}
+            note="Contact support to change your buyer pickup address."
+            locked
+            actionLabel="Contact support to change buyer pickup address"
+            onEdit={() => openSupport("change-buyer-pickup-address")}
+          />
+        </section>
 
-          {/* Store Description */}
-          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-            <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-              Store Description
-            </h1>
-            <div className="flex items-center mt-1 justify-between w-full px-4 py-3">
-              <MdDescription className="text-black text-xl mr-4" />
-              <p className="text-sm font-normal font-poppins text-black w-full">
-                {description}
-              </p>
-              <RiEditFill
-                className="text-black cursor-pointer ml-2 text-2xl"
-                onClick={() =>
-                  setEditingField({ field: "description", value: description })
-                }
-              />
-            </div>
-          </div>
-          <div className="flex flex-col bg-customGrey rounded mb-2 w-full">
-            <h1 className="text-xs text-gray-500 pl-6 pt-2">Address</h1>
-            <div className="flex items-center justify-between px-4 py-3">
-              <CiLocationOn className="text-xl mr-4" />
-              <p className="flex-1 text-sm">{Address || "Not set"}</p>
-              <RiEditFill
-                className="text-xl cursor-pointer"
-                onClick={() =>
-                  setEditingField({ field: "Address", value: Address })
-                }
-              />
-            </div>
-          </div>
-          {/* Conditional Render for Marketplace */}
-          {marketPlaceType === "marketplace" && (
-            <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-              <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-                Complex Number
-              </h1>
-              <div className="flex items-center justify-between w-full px-4 py-3">
-                <FaBuilding className="text-black text-xl mr-4" />
-                <p className="text-size font-normal font-poppins text-black w-full">
-                  {complexNumber}
-                </p>
-                <RiEditFill
-                  className="text-black cursor-pointer ml-2 text-2xl"
-                  onClick={() =>
-                    setEditingField({
-                      field: "complexNumber",
-                      value: complexNumber,
-                    })
-                  }
-                />
-              </div>
-            </div>
-          )}
+        <section>
+          <h2>Payout account</h2>
+          <DetailRow
+            icon={Banknote}
+            label="Bank"
+            value={profile.bankDetails?.bankName}
+          />
+          <DetailRow
+            icon={UserRound}
+            label="Account name"
+            value={profile.bankDetails?.accountName}
+          />
+          <DetailRow
+            icon={LockKeyhole}
+            label="Account number"
+            value={maskedAccount}
+            note="Withdrawals are paid only to this verified account. Contact support if it needs to change."
+          />
+        </section>
 
-          {/* Email */}
-          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-            <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-              Email
-            </h1>
-            <div className="flex mt-1 items-center justify-between w-full px-4 py-3">
-              <MdEmail className="text-black text-xl mr-4" />
-              <p className="text-sm font-normal font-poppins text-black w-full">
-                {email}
-              </p>
-              <MdVerified
-                className={`${
-                  email ? "text-green-500" : "text-yellow-500"
-                } text-2xl ml-2`}
-              />
-            </div>
-          </div>
+        <section>
+          <h2>Store preferences</h2>
+          <DetailRow
+            icon={RotateCcw}
+            label="Return / refund policy"
+            value={POLICY_TEXT[returnPolicy.type] || "Not set"}
+            note={policyLocked ? "Your self-service change has been used. Contact support for another update." : "You have one self-service policy change."}
+            locked={policyLocked}
+            onEdit={() => policyLocked
+              ? openSupport("change-return-policy")
+              : edit("returnPolicy", returnPolicy, false)}
+          />
+          <DetailRow icon={ShoppingBag} label="Sourcing markets" value={sourcingMarket} onEdit={() => edit("sourcingMarket", Array.isArray(profile.sourcingMarket) ? profile.sourcingMarket : [], false)} />
+          <DetailRow icon={Clock3} label="Restock frequency" value={profile.restockFrequency} onEdit={() => edit("restockFrequency", profile.restockFrequency || "", false)} />
+          <DetailRow icon={Info} label="Wear readiness" value={profile.wearReadinessRating ? `${profile.wearReadinessRating}/10` : "Not set"} locked={Boolean(profile.wearReadinessRating)} onEdit={() => edit("wearReadinessRating", profile.wearReadinessRating || "", Boolean(profile.wearReadinessRating), "Wear readiness can only be set once. Contact support if it needs correcting.")} />
+          <DetailRow icon={PackageCheck} label="Delivery mode" value={profile.deliveryMode} />
+        </section>
 
-          {/* Bank Details */}
-          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-            <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-              Bank Details
-            </h1>
-            <div className="flex items-center mt-1 justify-between w-full px-4 py-3">
-              <BsBank2 className="text-black text-xl mr-4" />
-              <div className=" font-normal space-y-1 font-poppins text-black w-full">
-                <p className="text-sm">{bankName}</p>
-                <p className="text-sm">{accountName}</p>
-                <p className="text-sm">{accountNumber}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Categories */}
-          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-            <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-              Categories
-            </h1>
-            <div className="flex items-center mt-1 justify-between w-full px-4 py-3">
-              <BiSolidCategoryAlt className="text-black text-xl mr-4" />
-              <p className="text-sm font-normal font-poppins text-black w-full">
-                {categoriesList}
-              </p>
-            </div>
-          </div>
-
-          {/* Conditional Render for Marketplace Times */}
-          {marketPlaceType === "marketplace" && (
-            <>
-              <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-                <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-                  Opening Time
-                </h1>
-                <div className="flex items-center justify-between w-full px-4 py-3">
-                  <CiClock1 className="text-black text-xl mr-4" />
-                  <p className="text-size font-normal font-poppins text-black w-full">
-                    {openTime}
-                  </p>
-                  <RiEditFill
-                    className="text-black cursor-pointer ml-2 text-xl"
-                    onClick={() =>
-                      setEditingField({ field: "openTime", value: openTime })
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-                <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-                  Closing Time
-                </h1>
-                <div className="flex items-center justify-between w-full px-4 py-3">
-                  <CiClock2 className="text-black text-xl mr-4" />
-                  <p className="text-size font-normal font-poppins text-black w-full">
-                    {closeTime}
-                  </p>
-                  <RiEditFill
-                    className="text-black cursor-pointer ml-2 text-2xl"
-                    onClick={() =>
-                      setEditingField({ field: "closeTime", value: closeTime })
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-                <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-                  Days of Availability
-                </h1>
-                <div className="flex items-center justify-between w-full px-4 py-3">
-                  <FaRegCalendarAlt className="text-black text-xl mr-4" />
-                  <p className="text-size font-normal font-poppins text-black w-full">
-                    {daysAvailabilityList}
-                  </p>
-                  <RiEditFill
-                    className="text-black cursor-pointer ml-2 text-2xl"
-                    onClick={() =>
-                      setEditingField({
-                        field: "daysAvailability",
-                        value: daysAvailability,
-                      })
-                    }
-                  />
-                </div>
-              </div>
-            </>
-          )}
-          {/* Return / Refund Policy */}
-          <div className="flex flex-col bg-customGrey rounded mb-2 w-full">
-            <h1 className="text-xs text-gray-500 pl-6 pt-2">
-              Return / Refund Policy
-            </h1>
-            <div className="flex items-center justify-between px-4 py-3">
-              <MdOutlineDryCleaning className="text-xl mr-4" />
-              <p className="flex-1 text-sm font-poppins">
-                {policyText[returnPolicy?.type ?? "NONE"].heading}
-              </p>
-              <RiEditFill
-                className="text-xl cursor-pointer"
-                onClick={() =>
-                  setEditingField({
-                    field: "returnPolicy",
-                    value: userData.returnPolicy ?? { type: "NONE", notes: "" },
-                  })
-                }
-              />
-            </div>
-          </div>
-
-          {/* Sourcing market */}
-          <div className="flex flex-col bg-customGrey rounded mb-2 w-full">
-            <h1 className="text-xs text-gray-500 pl-6 pt-2">Sourcing Market</h1>
-            <div className="flex items-center justify-between px-4 py-3">
-              <FaShop className="text-xl mr-4" />
-              <p className="flex-1 font-poppins text-sm">
-                {sourcingMarketDisplay || "Not set"}
-              </p>
-              <RiEditFill
-                className="text-xl cursor-pointer"
-                onClick={() =>
-                  setEditingField({
-                    field: "sourcingMarket",
-                    value: sourcingMarket,
-                  })
-                }
-              />
-            </div>
-          </div>
-
-          {/* Restock frequency */}
-          <div className="flex flex-col bg-customGrey rounded mb-2 w-full">
-            <h1 className="text-xs text-gray-500 pl-6 pt-2">
-              Restock Frequency
-            </h1>
-            <div className="flex items-center justify-between px-4 py-3">
-              <CiClock1 className="text-xl mr-4" />
-              <p className="flex-1 font-poppins text-sm">
-                {restockFrequency || "Not set"}
-              </p>
-              <RiEditFill
-                className="text-xl cursor-pointer"
-                onClick={() =>
-                  setEditingField({
-                    field: "restockFrequency",
-                    value: restockFrequency,
-                  })
-                }
-              />
-            </div>
-          </div>
-
-          {/* Wear‑readiness rating */}
-          <div className="flex flex-col bg-customGrey rounded mb-2 w-full">
-            <h1 className="text-xs text-gray-500 pl-6 pt-2">
-              Wear‑Readiness Rating&nbsp;( /10 )
-            </h1>
-            <div className="flex items-center justify-between px-4 py-3">
-              <MdOutlineDryCleaning className="text-xl mr-4" />
-              <p className="flex-1 font-poppins text-sm">
-                {wearReadinessRating ? `${wearReadinessRating}/10` : "Not set"}
-              </p>
-              <RiEditFill
-                className="text-xl cursor-pointer"
-                onClick={() =>
-                  setEditingField({
-                    field: "wearReadinessRating",
-                    value: wearReadinessRating,
-                  })
-                }
-              />
-            </div>
-          </div>
-
-          {/* Delivery Mode */}
-          <div className="flex flex-col border-none rounded-xl bg-customGrey mb-2 items-center w-full">
-            <h1 className="text-xs w-full translate-y-3 translate-x-6 font-medium text-gray-500">
-              Delivery Mode
-            </h1>
-            <div className="flex items-center mt-1 justify-between w-full px-4 py-3">
-              <FaShippingFast className="text-black text-xl mr-4" />
-              <p className="text-sm font-normal font-poppins text-black w-full">
-                {deliveryMode}
-              </p>
-            </div>
-          </div>
-        </div>
+        {profile.marketPlaceType === "marketplace" && (
+          <section>
+            <h2>Marketplace schedule</h2>
+            <DetailRow icon={Building2} label="Complex number" value={profile.complexNumber} onEdit={() => edit("complexNumber", profile.complexNumber || "", false)} />
+            <DetailRow icon={CalendarDays} label="Available days" value={(profile.daysAvailability || []).join(", ")} onEdit={() => edit("daysAvailability", profile.daysAvailability || [], false)} />
+            <DetailRow icon={Clock3} label="Opening time" value={profile.openTime} onEdit={() => edit("openTime", profile.openTime || "", false)} />
+            <DetailRow icon={Clock3} label="Closing time" value={profile.closeTime} onEdit={() => edit("closeTime", profile.closeTime || "", false)} />
+          </section>
+        )}
       </div>
-      {/* Edit Modal */}
+
       {editingField && (
         <EditFieldModal
-          show={!!editingField}
-          handleClose={() => setEditingField(null)}
+          show
+          handleClose={() => !processing && setEditingField(null)}
           field={editingField.field}
           currentValue={editingField.value}
-          onSave={handleEdit}
+          onSave={handleSave}
           processing={processing}
         />
       )}
-    </div>
+    </main>
   );
-};
-
-export default VprofileDetails;
+}

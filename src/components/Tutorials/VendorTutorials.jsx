@@ -20,77 +20,6 @@ function useInView(threshold = 0.35) {
   return [ref, inView];
 }
 
-// ------------------ cache poster in localStorage ------------------
-function useCachedPoster(id, remotePosterUrl, fallbackSvg) {
-  const [poster, setPoster] = useState(null);
-
-  useEffect(() => {
-    let alive = true;
-    const key = `tutorialPoster:${id}`;
-
-    const cached = localStorage.getItem(key);
-    if (cached) {
-      setPoster(cached);
-      return;
-    }
-
-    if (!remotePosterUrl) {
-      setPoster(fallbackSvg);
-      return;
-    }
-
-    (async () => {
-      try {
-        const res = await fetch(remotePosterUrl, { cache: "force-cache" });
-        if (!res.ok) throw new Error("Poster fetch failed");
-        const blob = await res.blob();
-
-        if (blob.size <= 1.5 * 1024 * 1024) {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            if (!alive) return;
-            const dataUrl = reader.result;
-            try {
-              localStorage.setItem(key, dataUrl);
-            } catch {}
-            setPoster(dataUrl);
-          };
-          reader.readAsDataURL(blob);
-        } else {
-          if (alive) setPoster(remotePosterUrl);
-        }
-      } catch {
-        if (alive) setPoster(remotePosterUrl || fallbackSvg);
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [id, remotePosterUrl, fallbackSvg]);
-
-  return poster || fallbackSvg;
-}
-
-// ------------------------------ helpers ------------------------------
-async function requestFullscreenStrong(video) {
-  try {
-    if (video.webkitEnterFullscreen) {
-      video.webkitEnterFullscreen();
-      return true;
-    }
-    if (video.requestFullscreen) {
-      await video.requestFullscreen();
-      return true;
-    }
-    if (video.parentElement && video.parentElement.requestFullscreen) {
-      await video.parentElement.requestFullscreen();
-      return true;
-    }
-  } catch (_) {}
-  return false;
-}
-
 // ------------------------------ card ------------------------------
 function TutorialCard({ t }) {
   const [ref, inView] = useInView();
@@ -98,7 +27,6 @@ function TutorialCard({ t }) {
   const videoRef = useRef(null);
   const lastSavedRef = useRef(0);
   const progressKey = `tutorialProgress:${t.id}`;
-  const [needsFirstGesture, setNeedsFirstGesture] = useState(true);
 
   const svgFallback =
     `data:image/svg+xml;utf8,` +
@@ -109,12 +37,14 @@ function TutorialCard({ t }) {
         </linearGradient></defs>
         <rect fill='url(#g)' width='100%' height='100%'/>
         <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle'
-              fill='white' font-size='36' font-family='Arial' opacity='0.9'>
+              fill='white' font-size='36' font-family='Satoshi, Arial, sans-serif' opacity='0.9'>
           ${(t.title || "Tutorial").slice(0, 34)}
         </text>
       </svg>`);
 
-  const poster = useCachedPoster(t.id, t.posterURL, svgFallback);
+  // Do not copy remote posters into localStorage. Browser/native HTTP caching
+  // already handles them and avoids filling the app's small preference store.
+  const poster = t.posterURL || svgFallback;
   const shouldMountSources = inView;
 
   const sources = useMemo(() => {
@@ -219,28 +149,29 @@ function TutorialCard({ t }) {
     };
   }, [shouldMountSources, progressKey]);
 
-  const handleFirstGesture = async () => {
+  useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    try {
-      v.muted = false;
-      await v.play().catch(() => {});
-      await requestFullscreenStrong(v);
-    } finally {
-      setNeedsFirstGesture(false);
-    }
-  };
+    if (!inView && !v.paused) v.pause();
+  }, [inView]);
 
   useEffect(() => {
-    if (!shouldMountSources) return;
     const v = videoRef.current;
     if (!v) return;
-    const onFirstPlay = async () => {
-      await requestFullscreenStrong(v);
+    const eventName = "mythrift:tutorial-play";
+    const stopForAnotherVideo = (event) => {
+      if (event.detail !== t.id && !v.paused) v.pause();
     };
-    v.addEventListener("play", onFirstPlay, { once: true });
-    return () => v.removeEventListener("play", onFirstPlay);
-  }, [shouldMountSources]);
+    const announcePlayback = () => window.dispatchEvent(
+      new CustomEvent(eventName, {detail: t.id}),
+    );
+    window.addEventListener(eventName, stopForAnotherVideo);
+    v.addEventListener("play", announcePlayback);
+    return () => {
+      window.removeEventListener(eventName, stopForAnotherVideo);
+      v.removeEventListener("play", announcePlayback);
+    };
+  }, [t.id]);
 
   const showMp4Sources = shouldMountSources && (useMp4Fallback || !t.hlsUrl);
 
@@ -255,28 +186,27 @@ function TutorialCard({ t }) {
         rounded-2xl overflow-hidden shadow-sm bg-black/5 border border-black/10
       "
     >
-      {/** one-time gesture catcher */}
-      {needsFirstGesture && (
-        <button
-          type="button"
-          aria-label="Play video"
-          onPointerUp={handleFirstGesture}
-          className="absolute inset-0 z-10 bg-transparent"
-        />
-      )}
-
       <video
         ref={videoRef}
         className="w-full h-full object-cover"
         poster={poster}
-        preload="metadata"
+        preload={shouldMountSources ? "metadata" : "none"}
         playsInline
         controls
         muted={false}
         controlsList="nodownload"
+        aria-label={t.title ? `Tutorial: ${t.title}` : "Vendor tutorial"}
       >
         {showMp4Sources &&
           sources.map((s, i) => <source key={i} src={s.src} type={s.type} />)}
+        {(t.captionsUrl || t.subtitleURL) && (
+          <track
+            kind="captions"
+            src={t.captionsUrl || t.subtitleURL}
+            srcLang={t.captionLanguage || "en"}
+            label={t.captionLabel || "English"}
+          />
+        )}
       </video>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent" />
@@ -323,7 +253,7 @@ export default function VendorTutorials() {
 
   return (
     <section>
-      <h2 className="font-semibold text-base md:text-lg mb-3">
+      <h2 className="font-satoshi font-semibold text-base md:text-lg mb-3">
         Vendor Tutorials
       </h2>
 

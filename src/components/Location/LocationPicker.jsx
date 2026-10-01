@@ -1,67 +1,107 @@
 import React, { useState, useEffect, useRef } from "react";
 import { CiSearch } from "react-icons/ci";
-import { CiLocationOn } from "react-icons/ci";
 import { FaLocationArrow } from "react-icons/fa";
+import toast from "react-hot-toast";
+import {
+  createPlacesSessionId,
+  getAddressPlaceDetails,
+  getCurrentCoordinates,
+  getMapsErrorMessage,
+  isNativeIOSMaps,
+  reverseGeocodeAddress,
+  searchAddressPredictions,
+  selectNativeAddress,
+} from "../../services/maps/platformMaps";
 
 export default function LocationPicker({
   onLocationSelect,
   initialAddress = "",
   initialCoords = null,
 }) {
-  const [inputValue, setInputValue] = useState("");
+  const [inputValue, setInputValue] = useState(initialAddress || "");
   const [predictions, setPredictions] = useState([]);
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [serviceError, setServiceError] = useState("");
   const wrapperRef = useRef();
-  const autoSvcRef = useRef();
-  const geoCoderRef = useRef();
+  const sessionIdRef = useRef(createPlacesSessionId());
+  const searchGenerationRef = useRef(0);
+  const suppressNextSearchRef = useRef(Boolean(initialAddress));
+  const nativeIOS = isNativeIOSMaps();
 
   useEffect(() => {
-    if (window.google && window.google.maps.places) {
-      autoSvcRef.current = new window.google.maps.places.AutocompleteService();
-      geoCoderRef.current = new window.google.maps.Geocoder();
-    }
-  }, []);
-  useEffect(() => {
-    // 1) if address provided, show it
     if (initialAddress) {
+      suppressNextSearchRef.current = true;
       setInputValue(initialAddress);
     }
-    // 2) if only coords provided, reverse-geocode them
-    if (
-      !initialAddress &&
-      initialCoords?.lat &&
-      initialCoords?.lng &&
-      geoCoderRef.current
-    ) {
-      geoCoderRef.current.geocode(
-        { location: { lat: initialCoords.lat, lng: initialCoords.lng } },
-        (results, status) => {
-          if (status === "OK" && results?.[0]) {
-            setInputValue(results[0].formatted_address);
-          }
-        }
-      );
-    }
-  }, [initialAddress, initialCoords]);
+  }, [initialAddress]);
 
   useEffect(() => {
-    const svc = autoSvcRef.current;
-    if (!svc || inputValue.length < 3) {
+    if (initialAddress || !initialCoords) return undefined;
+    const lat = Number(initialCoords.lat);
+    const lng = Number(initialCoords.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
+
+    let cancelled = false;
+    reverseGeocodeAddress({ lat, lng })
+      .then(({ address }) => {
+        if (!cancelled && address) {
+          suppressNextSearchRef.current = true;
+          setInputValue(address);
+        }
+      })
+      .catch(() => {
+        // Existing saved coordinates remain valid even if display lookup fails.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialAddress, initialCoords?.lat, initialCoords?.lng]);
+
+  useEffect(() => {
+    if (nativeIOS) return undefined;
+    const query = inputValue.trim();
+    const generation = ++searchGenerationRef.current;
+
+    if (suppressNextSearchRef.current) {
+      suppressNextSearchRef.current = false;
       setPredictions([]);
-      return;
+      setSearching(false);
+      setServiceError("");
+      return undefined;
     }
 
-    svc.getPlacePredictions(
-      { input: inputValue, componentRestrictions: { country: "ng" } },
-      (res, status) => {
-        if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-          setPredictions(res);
-        } else {
+    if (query.length < 3) {
+      setPredictions([]);
+      setSearching(false);
+      setServiceError("");
+      return undefined;
+    }
+
+    setSearching(true);
+    setServiceError("");
+    const timeoutId = window.setTimeout(() => {
+      searchAddressPredictions({
+        input: query,
+        sessionId: sessionIdRef.current,
+      })
+        .then((results) => {
+          if (generation !== searchGenerationRef.current) return;
+          setPredictions(results);
+        })
+        .catch((error) => {
+          if (generation !== searchGenerationRef.current) return;
           setPredictions([]);
-        }
-      }
-    );
-  }, [inputValue]);
+          setServiceError(getMapsErrorMessage(error));
+        })
+        .finally(() => {
+          if (generation === searchGenerationRef.current) setSearching(false);
+        });
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [inputValue, nativeIOS]);
 
   useEffect(() => {
     const onClick = (e) => {
@@ -73,61 +113,59 @@ export default function LocationPicker({
     return () => document.removeEventListener("click", onClick);
   }, []);
 
-  const handleSelect = (pred) => {
-    const ps = new window.google.maps.places.PlacesService(
-      document.createElement("div")
-    );
-    ps.getDetails(
-      {
-        placeId: pred.place_id,
-        fields: ["formatted_address", "geometry"],
-      },
-      (place, status) => {
-        if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-          const lat = place.geometry.location.lat();
-          const lng = place.geometry.location.lng();
-          const address = place.formatted_address;
-          setInputValue(address);
-          setPredictions([]);
-          onLocationSelect({ lat, lng, address });
-        }
-      }
-    );
+  const handleSelect = async (prediction) => {
+    setSearching(true);
+    setServiceError("");
+    try {
+      const location = await getAddressPlaceDetails({
+        placeId: prediction.place_id,
+        sessionId: sessionIdRef.current,
+      });
+      suppressNextSearchRef.current = true;
+      setInputValue(location.address);
+      setPredictions([]);
+      sessionIdRef.current = createPlacesSessionId();
+      onLocationSelect(location);
+    } catch (error) {
+      toast.error(getMapsErrorMessage(error));
+    } finally {
+      setSearching(false);
+    }
   };
 
-  const handleUseCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Geolocation not supported");
-      return;
-    }
-
+  const handleUseCurrentLocation = async () => {
     setLoadingLocation(true);
+    setServiceError("");
+    try {
+      const { lat, lng } = await getCurrentCoordinates();
+      const { address } = await reverseGeocodeAddress({ lat, lng });
+      suppressNextSearchRef.current = true;
+      setInputValue(address);
+      setPredictions([]);
+      sessionIdRef.current = createPlacesSessionId();
+      onLocationSelect({ lat, lng, address });
+    } catch (error) {
+      toast.error(getMapsErrorMessage(error));
+    } finally {
+      setLoadingLocation(false);
+    }
+  };
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-
-        geoCoderRef.current.geocode(
-          { location: { lat, lng } },
-          (results, status) => {
-            setLoadingLocation(false);
-            if (status === "OK" && results[0]) {
-              const address = results[0].formatted_address;
-              setInputValue(address);
-              onLocationSelect({ lat, lng, address });
-            } else {
-              alert("Could not reverse geocode your location");
-            }
-          }
-        );
-      },
-      (err) => {
-        setLoadingLocation(false);
-        console.error("🛰 geolocation error:", err);
-        alert("Failed to get your location");
-      }
-    );
+  const handleNativeAddressSelection = async () => {
+    setSearching(true);
+    setServiceError("");
+    try {
+      const location = await selectNativeAddress();
+      if (!location) return;
+      setInputValue(location.address);
+      onLocationSelect(location);
+    } catch (error) {
+      const message = getMapsErrorMessage(error);
+      setServiceError(message);
+      toast.error(message);
+    } finally {
+      setSearching(false);
+    }
   };
 
   return (
@@ -143,16 +181,41 @@ export default function LocationPicker({
             fontSize: "20px",
           }}
         />
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Enter your address"
-          className="w-full h-12 pl-10 pr-4 border border-gray-300 font-opensans rounded-md focus:outline-none focus:ring-2 focus:ring-customOrange"
-        />
+        {nativeIOS ? (
+          <button
+            type="button"
+            onClick={handleNativeAddressSelection}
+            className="flex h-12 w-full items-center rounded-md border border-gray-300 bg-white pl-10 pr-10 text-left font-satoshi focus:outline-none focus:ring-2 focus:ring-customOrange"
+            aria-label={inputValue ? `Change address, currently ${inputValue}` : "Choose an address"}
+          >
+            <span className={inputValue ? "truncate text-gray-900" : "text-gray-400"}>
+              {inputValue || "Enter your address"}
+            </span>
+          </button>
+        ) : (
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="Enter your address"
+            className="w-full h-12 pl-10 pr-4 border border-gray-300 font-satoshi rounded-md focus:outline-none focus:ring-2 focus:ring-customOrange"
+          />
+        )}
+        {searching && !loadingLocation && (
+          <span
+            aria-label="Searching addresses"
+            className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-gray-300 border-t-customOrange"
+          />
+        )}
       </div>
 
-      {predictions.length > 0 && (
+      {serviceError && (
+        <p className="mt-1 text-xs font-opensans text-red-500" role="status">
+          {serviceError}
+        </p>
+      )}
+
+      {!nativeIOS && predictions.length > 0 && (
         <ul
           style={{
             position: "absolute",
@@ -168,25 +231,24 @@ export default function LocationPicker({
             padding: 0,
             listStyle: "none",
             zIndex: 1000,
-            fontFamily: "Open Sans, sans-serif",
+            fontFamily: "Satoshi, sans-serif",
           }}
         >
-          {predictions.map((p) => (
-            <li
-              key={p.place_id}
-              onClick={() => handleSelect(p)}
-              style={{
-                padding: "10px",
-                cursor: "pointer",
-                borderBottom: "1px solid #eee",
-              }}
-              onMouseEnter={(e) => (e.target.style.background = "#f97316")}
-              onMouseLeave={(e) => (e.target.style.background = "#fff")}
-              className="flex items-center font-opensans text-sm gap-2"
-            >
-              <FaLocationArrow className="text-customOrange" /> {p.description}
+          {predictions.map((prediction) => (
+            <li key={prediction.place_id}>
+              <button
+                type="button"
+                onClick={() => handleSelect(prediction)}
+                className="flex w-full items-center gap-2 border-b border-gray-100 px-3 py-2.5 text-left font-opensans text-sm active:bg-gray-50"
+              >
+                <FaLocationArrow className="shrink-0 text-customOrange" />
+                <span>{prediction.description}</span>
+              </button>
             </li>
           ))}
+          <li className="px-3 py-1.5 text-right font-opensans text-[10px] text-gray-400">
+            Powered by Google
+          </li>
         </ul>
       )}
 

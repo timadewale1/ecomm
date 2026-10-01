@@ -117,18 +117,24 @@ export default function AskQuestionNudge({
               Still not sure?
             </p>
 
-            {/* overlay: keep your orange link; inline: black text */}
-            <button
-              type="button"
-              onClick={onAskClick}
-              className={
-                isOverlay
-                  ? "text-sm font-semibold font-opensans text-customOrange hover:underline focus:outline-none"
-                  : "text-sm font-semibold font-opensans text-black hover:underline focus:outline-none"
-              }
-            >
-              Ask a question
-            </button>
+            {/*
+              The inline wrapper is already a button, so its label must not be
+              another button. The overlay variant uses a div wrapper and keeps
+              a real button for the action.
+            */}
+            {isOverlay ? (
+              <button
+                type="button"
+                onClick={onAskClick}
+                className="text-sm font-semibold font-opensans text-customOrange hover:underline focus:outline-none"
+              >
+                Ask a question
+              </button>
+            ) : (
+              <span className="text-sm font-semibold font-opensans text-black">
+                Ask a question
+              </span>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

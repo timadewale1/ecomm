@@ -1,113 +1,261 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { auth, db } from "../../firebase.config";
-import {
-  collection,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { Search } from "lucide-react";
+import AppPageHeader from "../../components/layout/AppPageHeader";
 import OfferListItem from "./UserOfferListItem";
+import ConversationListItem from "../../components/Chats/OfferListItem";
 import SEO from "../../components/Helmet/SEO";
-import { CiSearch } from "react-icons/ci";
-import { GoChevronLeft } from "react-icons/go";
+import { useAuth } from "../../custom-hooks/useAuth";
+import useNativePageRefresh from "../../custom-hooks/useNativePageRefresh";
+import {
+  selectBuyerOffers,
+  selectBuyerOffersStatus,
+} from "../../redux/reducers/buyerOffersSlice";
+import {
+  selectOfferConversations,
+  selectOfferConversationsStatus,
+} from "../../redux/reducers/offerConversationsSlice";
+import { refreshBuyerOffersFromServer } from "../../services/realtime/userRealtimeSync";
+import { appHaptics } from "../../services/haptics";
+import { isOfferExpired } from "../../services/offerExpiry";
+import useHorizontalTabSwipe from "../../custom-hooks/useHorizontalTabSwipe";
+import {
+  ensureOfferConversation,
+  hydrateMyOfferConversations,
+} from "../../services/offerConversations";
+import toast from "react-hot-toast";
+import "./user-offers.css";
+
+const TABS = [
+  ["pending", "Pending"],
+  ["accepted", "Accepted"],
+  ["countered", "Countered"],
+  ["declined", "Declined"],
+];
+const EMPTY_ITEMS = [];
+
+const offerActivityTime = (offer) =>
+  Number(
+    offer?.updatedAt ||
+      offer?.counteredAt ||
+      offer?.acceptedAt ||
+      offer?.declinedAt ||
+      offer?.createdAt ||
+      0
+  );
+
+const offerRound = (offer) => {
+  const value = Number(offer?.round || 0);
+  return Number.isFinite(value) ? value : 0;
+};
+
+const shouldReplaceThreadOffer = (current, candidate) => {
+  const currentRound = offerRound(current);
+  const candidateRound = offerRound(candidate);
+  if (candidateRound !== currentRound) return candidateRound > currentRound;
+
+  const currentSuperseded =
+    String(current?.status || "").toLowerCase() === "superseded";
+  const candidateSuperseded =
+    String(candidate?.status || "").toLowerCase() === "superseded";
+  if (currentSuperseded !== candidateSuperseded) return !candidateSuperseded;
+
+  return offerActivityTime(candidate) > offerActivityTime(current);
+};
+
+const offerDisplayTab = (offer) => {
+  const status = String(offer?.status || "pending").toLowerCase();
+  if (status === "expired" || status === "sold") {
+    const previousStatus = String(offer?.previousStatus || "").toLowerCase();
+    return ["pending", "accepted", "countered", "declined"].includes(
+      previousStatus,
+    )
+      ? previousStatus
+      : "pending";
+  }
+  if (status === "superseded") return "pending";
+  return status;
+};
+
+const OffersListSkeleton = () => (
+  <div className="offers-redux-skeleton" aria-label="Loading offers" aria-busy="true">
+    {[0, 1, 2].map((item) => (
+      <div className="offers-redux-skeleton-row" key={item}>
+        <span className="offers-redux-skeleton-image" />
+        <span className="offers-redux-skeleton-lines">
+          <span />
+          <span />
+          <span />
+        </span>
+      </div>
+    ))}
+  </div>
+);
 
 export default function UserOffers() {
-  const [offers, setOffers] = useState([]);
-  const [search, setSearch] = useState("");
-
-  // Restore the most recently selected tab on load; fall back to "action".
+  const location = useLocation();
+  const cachedOffers = useSelector(selectBuyerOffers);
+  const cachedOffersStatus = useSelector(selectBuyerOffersStatus);
+  const cachedConversations = useSelector(selectOfferConversations);
+  const cachedConversationsStatus = useSelector(selectOfferConversationsStatus);
+  const offerOwner = useSelector(state => state.buyerOffers.ownerUid);
+  const conversationOwner = useSelector(state => state.offerConversations.ownerUid);
+  const [view, setView] = useState(() => {
+    const requestedView = new URLSearchParams(location.search).get("view");
+    if (requestedView === "chats") return "chats";
+    return localStorage.getItem("userOffersView") === "chats" ? "chats" : "offers";
+  });
+  const [now, setNow] = useState(Date.now());
+  const [openingThreadKey, setOpeningThreadKey] = useState(null);
+  const openingThreadRef = useRef(false);
   const [tab, setTab] = useState(() => {
     const saved = localStorage.getItem("userOffersTab");
-    return saved &&
-      ["action", "pending", "accepted", "declined"].includes(saved)
-      ? saved
-      : "action";
+    return TABS.some(([key]) => key === saved) ? saved : "countered";
   });
-
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const uid = currentUser?.uid;
+  const offers = uid && offerOwner === uid ? cachedOffers : EMPTY_ITEMS;
+  const offersStatus = uid && offerOwner === uid ? cachedOffersStatus : "connecting";
+  const conversations = uid && conversationOwner === uid ? cachedConversations : EMPTY_ITEMS;
+  const conversationsStatus = uid && conversationOwner === uid ? cachedConversationsStatus : "connecting";
 
-  // Persist tab whenever it changes
   useEffect(() => {
     localStorage.setItem("userOffersTab", tab);
   }, [tab]);
 
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) {
+    localStorage.setItem("userOffersView", view);
+  }, [view]);
+
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("view") === "chats") {
+      setView("chats");
+    }
+  }, [location.search]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) {
       navigate("/login");
-      return;
     }
-    const qRef = query(
-      collection(db, "offers"),
-      where("buyerId", "==", user.uid),
-      orderBy("createdAt", "desc")
-    );
-    const unsub = onSnapshot(qRef, (snap) => {
-      const arr = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setOffers(arr);
-    });
-    return () => unsub();
-  }, [navigate]);
+  }, [currentUser, navigate]);
 
-  // Group offers into threads: one row per (vendorId × productId)
+  useEffect(() => {
+    if (
+      !currentUser?.uid ||
+      conversationsStatus !== "ready"
+    ) return;
+    const key = `mythrift:offer-conversations-hydrated:v2:${currentUser.uid}:buyer`;
+    if (sessionStorage.getItem(key) === "1") return;
+    sessionStorage.setItem(key, "1");
+    hydrateMyOfferConversations().catch((error) => {
+      sessionStorage.removeItem(key);
+      console.warn("[buyer-offers] historical hydration failed", error);
+    });
+  }, [conversationsStatus, currentUser?.uid]);
+
+  const refreshOffers = useCallback(async () => {
+    if (!currentUser?.uid) return;
+    await refreshBuyerOffersFromServer(currentUser.uid);
+  }, [currentUser?.uid]);
+
+  useNativePageRefresh(refreshOffers, {
+    enabled: Boolean(currentUser?.uid),
+    verticalOffset: 112,
+  });
+
   const groupedThreads = useMemo(() => {
-    const map = new Map();
-    for (const o of offers) {
-      const tid = `${o.vendorId || "v"}__${o.productId || "p"}`;
-      const cur = map.get(tid);
-      if (!cur) {
-        map.set(tid, {
-          threadKey: tid,
-          vendorId: o.vendorId,
-          productId: o.productId,
-          productName: o.productName,
-          productCover: o.productCover,
-          vendorShopName: o.vendorShopName,
-          unread: o.buyerRead ? 0 : 1,
-          latest: o, // will be replaced as we iterate
+    const threads = new Map();
+    for (const offer of offers) {
+      const key = `${offer.vendorId || "v"}__${offer.productId || "p"}`;
+      const current = threads.get(key);
+      if (!current) {
+        threads.set(key, {
+          threadKey: key,
+          vendorId: offer.vendorId,
+          productId: offer.productId,
+          latest: offer,
         });
-      } else {
-        // pick the latest by createdAt
-        const a = cur.latest?.createdAt?.toMillis?.() ?? 0;
-        const b = o?.createdAt?.toMillis?.() ?? 0;
-        if (b > a) cur.latest = o;
-        if (!o.buyerRead) cur.unread += 1;
+        continue;
       }
+      if (shouldReplaceThreadOffer(current.latest, offer)) current.latest = offer;
     }
-    // search + sort by latest createdAt desc
-    const needle = search.trim().toLowerCase();
-    return Array.from(map.values())
-      .filter((t) => {
-        if (!needle) return true;
-        const A = (t.productName || "").toLowerCase();
-        const B = (t.vendorShopName || "").toLowerCase();
-        const msg = t.latest?.amount
-          ? `i want to get this item for ₦${t.latest.amount}`.toLowerCase()
-          : "";
-        return A.includes(needle) || B.includes(needle) || msg.includes(needle);
-      })
-      .sort(
-        (x, y) =>
-          (y.latest?.createdAt?.toMillis?.() ?? 0) -
-          (x.latest?.createdAt?.toMillis?.() ?? 0)
-      );
-  }, [offers, search]);
 
-  // Tab filter applied at the thread level using the latest status
-  const filtered = useMemo(() => {
-    if (!groupedThreads.length) return [];
-    const statusFilter = (st) => st?.toLowerCase?.() || "";
-    return groupedThreads.filter((t) => {
-      const s = statusFilter(t.latest?.status);
-      if (tab === "action") return s === "countered";
-      if (tab === "pending") return s === "pending";
-      if (tab === "accepted") return s === "accepted";
-      if (tab === "declined") return s === "declined";
-      return true;
+    return Array.from(threads.values()).sort(
+      (a, b) => offerActivityTime(b.latest) - offerActivityTime(a.latest)
+    );
+  }, [offers]);
+
+  const filtered = useMemo(
+    () => groupedThreads.filter(({ latest }) => offerDisplayTab(latest) === tab),
+    [groupedThreads, tab],
+  );
+
+  const openThread = async (thread) => {
+    if (!thread?.latest?.id || openingThreadRef.current) return;
+    openingThreadRef.current = true;
+    setOpeningThreadKey(thread.threadKey);
+    appHaptics.selection();
+    try {
+      const conversationId = await ensureOfferConversation(thread.latest.id, {
+        vendorId: thread.latest.vendorId,
+        buyerId: currentUser?.uid,
+      });
+      if (!conversationId) throw new Error("Conversation unavailable");
+      navigate(
+        `/offer-conversations/${conversationId}?focusOffer=${encodeURIComponent(thread.latest.id)}`,
+      );
+    } catch (error) {
+      console.error("[offers] conversation open failed", error);
+      toast.error("This offer conversation could not be opened. Please try again.");
+    } finally {
+      openingThreadRef.current = false;
+      setOpeningThreadKey(null);
+    }
+  };
+
+  const openProductAction = (offer, action) => {
+    if (!offer?.productId) return;
+    const expired = isOfferExpired(offer);
+    const status = String(offer.status || "").toLowerCase();
+    const offerPrice =
+      !expired && status === "countered"
+        ? Number(offer.counterAmount)
+        : !expired && status === "accepted"
+          ? Number(offer.amount)
+          : null;
+    navigate(`/product/${offer.productId}`, {
+      state: {
+        ...(Number.isFinite(offerPrice) ? { offerPrice } : {}),
+        offerAction: action,
+        returnTo: "/offers",
+      },
     });
-  }, [groupedThreads, tab]);
+  };
+
+  const handleTabChange = useCallback((nextTab) => {
+    if (tab === nextTab) return;
+    appHaptics.selection();
+    setTab(nextTab);
+  }, [tab]);
+
+  const handleViewChange = useCallback((nextView) => {
+    if (view === nextView) return;
+    appHaptics.selection();
+    setView(nextView);
+  }, [view]);
+
+  const offerTabSwipeHandlers = useHorizontalTabSwipe({
+    tabs: TABS.map(([key]) => key),
+    activeTab: tab,
+    onChange: handleTabChange,
+  });
 
   return (
     <>
@@ -116,84 +264,102 @@ export default function UserOffers() {
         description="Track your offers and vendor responses."
         url="https://www.shopmythrift.store/offers"
       />
-      <div className="max-w-xl mx-auto h-[100dvh] flex flex-col bg-white">
-        {/* Header */}
-        <header className="p-4 border-b">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate("/profile")}
-              aria-label="Go back"
-              className="p-1 -ml-1 rounded-full hover:bg-gray-100 active:scale-95 transition"
-            >
-              <GoChevronLeft className="text-2xl text-gray-700" />
+      <main
+        {...(view === "offers" ? offerTabSwipeHandlers : {})}
+        className="offers-page app-horizontal-tab-swipe"
+      >
+        <AppPageHeader
+          title="My Offers"
+          onBack={() => navigate("/profile")}
+          className="offers-header"
+          rightAction={
+            <button type="button" onClick={() => navigate("/search")} aria-label="Search">
+              <Search aria-hidden="true" />
             </button>
-            <h1 className="text-xl font-ubuntu font-medium text-gray-900">
-              My Offers
-            </h1>
-          </div>
-        </header>
-
-        {/* Search */}
-        <div className="px-4 py-2 border-b">
-          <div className="relative">
-            <input
-              className="w-full border border-gray-200 rounded-full px-4 py-2 pr-10 text-base font-opensans focus:outline-none focus:ring-2 focus:ring-customOrange"
-              placeholder="Search product or vendor…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <CiSearch className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="px-4 py-2">
-          <div className="inline-flex gap-2">
-            {[
-              ["pending", "Pending"],
-              ["accepted", "Accepted"],
-              ["action", "Countered"],
-              ["declined", "Declined"],
-            ].map(([key, label]) => (
+          }
+        >
+          <div className="offers-navigation">
+            <nav className="offers-primary-tabs" aria-label="Offers and chats">
               <button
-                key={key}
-                onClick={() => setTab(key)}
-                className={`px-4 py-1 rounded-full text-xs font-opensans ${
-                  tab === key
-                    ? "bg-customOrange text-white"
-                    : "border border-gray-300 text-gray-700 hover:bg-gray-50"
-                }`}
+                type="button"
+                className={view === "offers" ? "is-active" : ""}
+                onClick={() => handleViewChange("offers")}
               >
-                {label}
+                Offers
               </button>
-            ))}
+              <button
+                type="button"
+                className={view === "chats" ? "is-active" : ""}
+                onClick={() => handleViewChange("chats")}
+              >
+                Chats
+                {conversations.reduce(
+                  (total, item) => total + Number(item.buyerUnreadCount || 0),
+                  0,
+                ) > 0 && <span className="offers-chat-unread" aria-label="Unread chats" />}
+              </button>
+            </nav>
+            {view === "offers" && (
+              <nav className="offers-tabs" aria-label="Offer status">
+                {TABS.map(([key, label]) => (
+                  <button
+                    type="button"
+                    key={key}
+                    className={tab === key ? "is-active" : ""}
+                    onClick={() => handleTabChange(key)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </nav>
+            )}
           </div>
-        </div>
+        </AppPageHeader>
 
-        {/* List */}
-        <div className="flex-1 overflow-auto">
-          {filtered.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-sm text-gray-500 font-opensans px-6 text-center">
-              Nothing here yet.
-            </div>
+        <section className="offers-list" aria-live="polite">
+          {view === "chats" ? (
+            conversations.length === 0 &&
+            ["idle", "connecting"].includes(conversationsStatus) ? (
+              <OffersListSkeleton />
+            ) : conversations.length === 0 ? (
+              <div className="offers-empty">Your vendor chats and product questions will appear here.</div>
+            ) : (
+              <div className="offers-chat-list">
+                {conversations.map((conversation) => (
+                  <ConversationListItem
+                    key={conversation.id}
+                    conversation={conversation}
+                    audience="buyer"
+                    now={now}
+                    onClick={() => {
+                      appHaptics.selection();
+                      navigate(`/offer-conversations/${conversation.id}`);
+                    }}
+                  />
+                ))}
+              </div>
+            )
+          ) : offers.length === 0 &&
+          (offersStatus === "idle" || offersStatus === "connecting") ? (
+            <OffersListSkeleton />
+          ) : filtered.length === 0 ? (
+            <div className="offers-empty">Nothing here yet.</div>
           ) : (
-            filtered.map((t) => (
+            filtered.map((thread) => (
               <OfferListItem
-                key={t.threadKey}
-                // Show the latest doc in the thread in your existing row UI
-                offer={t.latest}
-                // Optional: if your row supports it, show unread badge
-                unreadCount={t.unread}
-                onClick={() =>
-                  navigate(
-                    `/offers/thread?type=offerThread&vendorId=${t.vendorId}&productId=${t.productId}`
-                  )
-                }
+                key={thread.threadKey}
+                offer={thread.latest}
+                now={now}
+                loading={openingThreadKey === thread.threadKey}
+                disabled={Boolean(openingThreadKey)}
+                onClick={() => openThread(thread)}
+                onBuyNow={() => openProductAction(thread.latest, "buy")}
+                onSendOffer={() => openProductAction(thread.latest, "offer")}
               />
             ))
           )}
-        </div>
-      </div>
+        </section>
+      </main>
     </>
   );
 }

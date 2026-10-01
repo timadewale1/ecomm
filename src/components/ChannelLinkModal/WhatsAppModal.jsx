@@ -2,6 +2,7 @@ import React from "react";
 import Modal from "react-modal";
 import { MdOutlineClose } from "react-icons/md";
 import { FaWhatsapp } from "react-icons/fa6";
+import { openExternalUrl } from "../../services/nativeLinks";
 
 Modal.setAppElement("#root"); // Accessibility compliance
 
@@ -70,9 +71,13 @@ const WhatsAppModal = ({ isOpen, onClose }) => {
             href="https://whatsapp.com/channel/0029VavGIkL0AgW26yJ5KV2B" // Replace with your WhatsApp link
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => {
+            onClick={(event) => {
+              event.preventDefault();
               localStorage.setItem("hasWhatsAppModalShown", true);
               onClose();
+              void openExternalUrl(
+                "https://whatsapp.com/channel/0029VavGIkL0AgW26yJ5KV2B",
+              );
             }} // Mark as interacted
             className="px-6 py-2 bg-customOrange text-white text-sm font-medium rounded-full"
           >

@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from "react";
+import React, { useEffect, useCallback, useRef, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import {
   removeFromCart,
@@ -27,12 +27,14 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { db } from "../firebase.config";
+import { appHaptics } from "../services/haptics";
+import usePriceLockExpiryClock from "../custom-hooks/usePriceLockExpiryClock";
+import { resolveEffectiveUnitPrice } from "../services/priceLocks";
 import EmptyCart from "../components/Loading/EmptyCart";
 import { useAuth } from "../custom-hooks/useAuth";
 import { CiLogin } from "react-icons/ci";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
-  GoChevronLeft,
   GoChevronUp,
   GoChevronRight,
   GoDotFill,
@@ -46,13 +48,31 @@ import { BsPlus } from "react-icons/bs";
 import { Bars, RotatingLines } from "react-loader-spinner";
 import SEO from "../components/Helmet/SEO";
 import { ImSad2 } from "react-icons/im";
-import { FcPaid } from "react-icons/fc";
-import { MdClose } from "react-icons/md";
+import {
+  MdCancel,
+  MdClose,
+  MdOutlineSchedule,
+  MdVerified,
+} from "react-icons/md";
 import { IoMdClose } from "react-icons/io";
 import { CiCircleInfo } from "react-icons/ci";
 import IkImage from "../services/IkImage";
 import { LuDot } from "react-icons/lu";
 import { track } from "../services/signals";
+import "./cart-note-modal.css";
+import AppPageHeader from "../components/layout/AppPageHeader";
+import AppBottomSheet from "../components/layout/AppBottomSheet";
+import { isVariantSizeHidden } from "../services/productVariantSelection";
+import { cartOwnerKey } from "../services/cartPersistence";
+import { pendingAuthIntent, takeAuthIntent } from "../services/authIntent";
+import {
+  isMarketplaceProductEligible,
+  isMarketplaceVendorEligible,
+} from "../services/marketplaceVisibility";
+import {
+  getStockpileOrderMembership,
+  STOCKPILE_ORDER_MEMBERSHIP,
+} from "../services/stockpileOrderStatus";
 const debounce = (func, delay) => {
   let timeoutId;
   return (...args) => {
@@ -65,8 +85,17 @@ const debounce = (func, delay) => {
   };
 };
 
+import { getPublicVendor } from "../services/publicVendors";
+const sameEntityId = (left, right) =>
+  left !== null &&
+  left !== undefined &&
+  right !== null &&
+  right !== undefined &&
+  String(left) === String(right);
+
 const Cart = () => {
   const cart = useSelector((state) => state.cart || {});
+  const cartSync = useSelector((state) => state.cartSync);
   const dispatch = useDispatch();
   const [showHeadsUp, setShowHeadsUp] = useState(false);
 
@@ -77,6 +106,9 @@ const Cart = () => {
   };
   const navigate = useNavigate();
   const { currentUser, loading } = useAuth();
+  const expectedCartOwner = cartOwnerKey(currentUser?.uid);
+  const cartIsHydrating =
+    cartSync?.ownerKey !== expectedCartOwner || !cartSync?.hydrated;
   const [selectedVendorId, setSelectedVendorId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
@@ -84,12 +116,21 @@ const Cart = () => {
   const [vendorsInfo, setVendorsInfo] = useState({});
   const location = useLocation();
   const [checkoutLoading, setCheckoutLoading] = useState({});
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [showExitStockpileModal, setShowExitStockpileModal] = useState(false);
+  // Separate from `pendingVendorForCheckout`, which belongs to the auth flow.
+  // This vendor is held while an active repile customer decides whether to
+  // leave repile mode and continue with a different store.
+  const [pendingCheckoutVendor, setPendingCheckoutVendor] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
+  const authResumeHandledRef = useRef(false);
+  const requestCheckoutRef = useRef(null);
+  const [authCheckoutResume, setAuthCheckoutResume] = useState(null);
   const [pendingVendorForCheckout, setPendingVendorForCheckout] =
     useState(null);
-  const { pileItems } = useSelector((state) => state.stockpile);
+  const {
+    pileOrders,
+    loading: stockpileLoading,
+  } = useSelector((state) => state.stockpile);
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
   const [disclaimerUrl, setDisclaimerUrl] = useState("");
   const { isActive, vendorId: stockpileVendorId } = useSelector(
@@ -103,6 +144,9 @@ const Cart = () => {
   const vendorIds = Object.keys(cart);
   const firstVendorId = vendorIds.length > 0 ? vendorIds[0] : null;
   const [locksByProduct, setLocksByProduct] = useState({});
+  const [liveProductPrices, setLiveProductPrices] = useState({});
+  const cartValidationRunRef = useRef(0);
+  const priceLockNow = usePriceLockExpiryClock(locksByProduct);
 
   useEffect(() => {
     // no user → no locks
@@ -130,6 +174,7 @@ const Cart = () => {
       },
       (err) => {
         console.error("priceLocks onSnapshot error:", err);
+        setLocksByProduct({});
       },
     );
 
@@ -160,35 +205,20 @@ const Cart = () => {
     setIsVisible(false);
   };
 
-  useEffect(() => {
-    if (isModalOpen || isNoteModalOpen || authOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isModalOpen, isNoteModalOpen, authOpen]);
   const formatPrice = (price) => {
     if (typeof price !== "number" || isNaN(price)) return "0.00";
     return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
   const mergeCartFor = async (uid) => {
-    try {
-      const res = await fetchAndMergeCart(db, uid, dispatch, {
-        localCart: JSON.parse(localStorage.getItem("cart") || "{}"),
-        clearLocal: true,
-      });
-      return res; // { mergedCart, addedByVendor, conflicts }
-    } catch (e) {
-      console.warn("mergeCart failed:", e);
-      return null;
-    }
+    const res = await fetchAndMergeCart(db, uid, dispatch);
+    return res; // { mergedCart, addedByVendor, conflicts }
   };
   useEffect(() => {
-    if (isActive && selectedVendorId === stockpileVendorId && currentUser) {
+    if (
+      isActive &&
+      sameEntityId(selectedVendorId, stockpileVendorId) &&
+      currentUser
+    ) {
       dispatch(
         fetchStockpileData({
           userId: currentUser.uid,
@@ -199,11 +229,35 @@ const Cart = () => {
   }, [selectedVendorId, isActive, stockpileVendorId, currentUser, dispatch]);
 
   const checkCartProducts = useCallback(async () => {
+    const validationRun = ++cartValidationRunRef.current;
+    const nextLivePrices = {};
+
     try {
       const vendorIds = Object.keys(cart);
 
       for (const vendorId of vendorIds) {
         const vendor = cart[vendorId];
+
+        try {
+          const liveVendor = await getPublicVendor(vendorId);
+          if (!isMarketplaceVendorEligible(liveVendor)) {
+            const synced = await dispatch(clearCart(vendorId));
+            if (!synced) {
+              console.warn("Cart vendor removal is pending cloud sync", {
+                vendorId,
+              });
+            }
+            toast.dismiss();
+            toast("Items from this store are not currently available.", {
+              icon: "ℹ️",
+            });
+            continue;
+          }
+        } catch (error) {
+          // A temporary network failure must not destroy a valid cart. The
+          // checkout callable performs the final server-side eligibility gate.
+          console.error(`Error validating vendor ${vendorId}:`, error);
+        }
 
         for (const productKey in vendor.products) {
           const product = vendor.products[productKey];
@@ -212,16 +266,16 @@ const Cart = () => {
               `Invalid product found for key ${productKey}:`,
               product,
             );
-            dispatch(removeFromCart({ vendorId, productKey }));
+            await dispatch(removeFromCart({ vendorId, productKey }));
             continue;
           }
 
           const { id } = product;
 
           try {
-            const productDoc = await getDoc(doc(db, `products`, id));
+            const productDoc = await getDoc(doc(db, "publicProducts", id));
             if (!productDoc.exists()) {
-              dispatch(removeFromCart({ vendorId, productKey }));
+              await dispatch(removeFromCart({ vendorId, productKey }));
               toast.dismiss();
               toast(
                 `Product ${product.name} has been removed as it is no longer available.`,
@@ -229,23 +283,28 @@ const Cart = () => {
               );
             } else {
               const productData = productDoc.data();
-              if (!productData.published || productData.isDeleted) {
-                dispatch(removeFromCart({ vendorId, productKey }));
+              const livePrice = Number(productData.price);
+              nextLivePrices[id] = Number.isFinite(livePrice)
+                ? livePrice
+                : Number(product.price || 0);
+
+              if (!isMarketplaceProductEligible(productData)) {
+                await dispatch(removeFromCart({ vendorId, productKey }));
                 toast.dismiss();
-                toast(
-                  `Product ${product.name} has been removed as it is ${
-                    productData.isDeleted
-                      ? "deleted by the vendor"
-                      : "unpublished by the vendor"
-                  }.`,
-                  { icon: "ℹ️" },
-                );
+                toast(`${product.name} is not currently available.`, {
+                  icon: "ℹ️",
+                });
               }
             }
           } catch (err) {
             console.error(`Error fetching product ${id}:`, err);
+            nextLivePrices[id] = Number(product.price || 0);
           }
         }
+      }
+
+      if (validationRun === cartValidationRunRef.current) {
+        setLiveProductPrices(nextLivePrices);
       }
     } catch (error) {
       console.error("Error checking cart products:", error);
@@ -316,18 +375,6 @@ const Cart = () => {
 
   const fromProductDetail = location.state?.fromProductDetail || false;
   useEffect(() => {
-    if (isModalOpen || isNoteModalOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isModalOpen, isNoteModalOpen]);
-
-  useEffect(() => {
     const fetchVendorInfo = async () => {
       try {
         // Build a unique set of IDs: whatever’s in the cart plus the stockpile vendor
@@ -340,9 +387,9 @@ const Cart = () => {
         for (const vendorId of ids) {
           // only fetch if we don’t already have it
           if (!newVendorsInfo[vendorId]) {
-            const vendorDoc = await getDoc(doc(db, "vendors", vendorId));
-            if (vendorDoc.exists()) {
-              newVendorsInfo[vendorId] = vendorDoc.data();
+            const publicVendor = await getPublicVendor(vendorId);
+            if (publicVendor) {
+              newVendorsInfo[vendorId] = publicVendor;
             } else {
               console.warn(`Vendor with ID ${vendorId} does not exist.`);
             }
@@ -359,22 +406,29 @@ const Cart = () => {
   }, [cart, stockpileVendorId]);
 
   useEffect(() => {
-    if (cart && Object.keys(cart).length > 0) {
+    if (!cartIsHydrating && cart && Object.keys(cart).length > 0) {
       checkCartProducts();
     } else {
+      cartValidationRunRef.current += 1;
+      setLiveProductPrices({});
     }
-  }, [cart, checkCartProducts]);
+  }, [cart, cartIsHydrating, checkCartProducts]);
 
   const handleRemoveFromCart = useCallback(
-    (vendorId, productKey, meta = {}) => {
+    async (vendorId, productKey, meta = {}) => {
       const product = cart?.[vendorId]?.products?.[productKey];
       if (!product) return;
 
       // ✅ log BEFORE dispatch so we still have product data
       logRemoveFromCart(vendorId, product, meta);
 
-      dispatch(removeFromCart({ vendorId, productKey }));
+      const syncPromise = dispatch(removeFromCart({ vendorId, productKey }));
+      appHaptics.removeFromCart();
       toast(`Removed ${product.name} from cart!`, { icon: "ℹ️" });
+      // Persistence remains queued/retried in the background. The optimistic
+      // removal toast above is sufficient feedback; avoid a duplicate sync
+      // implementation-detail toast when the device is offline.
+      await syncPromise;
     },
     [cart, dispatch],
   );
@@ -385,14 +439,18 @@ const Cart = () => {
       currency: "NGN",
       maximumFractionDigits: 0,
     });
-  const getEffectiveUnitPrice = (product) => {
-    const lock = product?.id ? locksByProduct[product.id] : null;
-    const lockPrice = lock?.effectivePrice ? Number(lock.effectivePrice) : null;
-    // fall back to the product’s normal price if no lock
-    return typeof lockPrice === "number"
-      ? lockPrice
-      : Number(product.price || 0);
-  };
+  const getEffectiveUnitPrice = useCallback(
+    (product) => {
+      const lock = product?.id ? locksByProduct[product.id] : null;
+      return resolveEffectiveUnitPrice({
+        product,
+        lock,
+        basePrice: product?.id ? liveProductPrices[product.id] : undefined,
+        now: priceLockNow,
+      }).unitPrice;
+    },
+    [liveProductPrices, locksByProduct, priceLockNow],
+  );
   const openProduct = (productId) => {
     if (!productId) return;
     setIsModalOpen(false);
@@ -410,12 +468,13 @@ const Cart = () => {
     }
   };
 
-  const handleClearSelection = (vendorId) => {
+  const handleClearSelection = async (vendorId) => {
     const confirmClear = window.confirm(
       `Are you sure you want to clear the cart?`,
     );
     if (confirmClear) {
-      dispatch(clearCart(vendorId));
+      const syncPromise = dispatch(clearCart(vendorId));
+      appHaptics.warning();
       toast.success(`Cleared cart for ${cart[vendorId].vendorName}!`);
       setIsModalOpen(false);
 
@@ -424,6 +483,10 @@ const Cart = () => {
         delete updatedNotes[vendorId];
         return updatedNotes;
       });
+
+      // The success toast above is the complete user-facing feedback. The
+      // persistence layer retains and retries an offline write silently.
+      await syncPromise;
     }
   };
   const openDisclaimer = (path) => (e) => {
@@ -433,13 +496,14 @@ const Cart = () => {
     setDisclaimerUrl(abs);
     setShowDisclaimerModal(true);
   };
-  const handleCheckout = async (vendorId, authUser = currentUser) => {
-    setCheckoutLoading((prev) => ({ ...prev, [vendorId]: true }));
-
+  const handleCheckout = async (
+    vendorId,
+    authUser = currentUser,
+    { skipRepileGuard = false } = {},
+  ) => {
     const vendorCart = cart[vendorId];
     if (!vendorCart || Object.keys(vendorCart.products).length === 0) {
       toast.error("No products to checkout for this vendor.");
-      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
 
@@ -447,7 +511,6 @@ const Cart = () => {
     if (!authUser) {
       setPendingVendorForCheckout(vendorId);
       setAuthOpen(true);
-      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
 
@@ -468,32 +531,47 @@ const Cart = () => {
 
     if (needsEmailVerification) {
       toast.error("Please verify your email before proceeding to checkout.");
-      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
 
     /* ───── 3 – Stockpile exit guard ───── */
-    if (isActive && vendorId !== stockpileVendorId) {
+    if (
+      !skipRepileGuard &&
+      isActive &&
+      !sameEntityId(vendorId, stockpileVendorId)
+    ) {
+      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+      // Avoid stacking this decision over Review Order/Review Pile. Competing
+      // sheet focus/body locks can present as a blank surface in the iOS
+      // WebView.
+      setIsModalOpen(false);
+      setIsNoteModalOpen(false);
       setPendingCheckoutVendor(vendorId);
       setShowExitStockpileModal(true);
-      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+      void appHaptics.warning();
       return;
     }
 
+    // A repile conflict is a decision, not a network operation. Only show the
+    // Checkout loader after that decision has been resolved so the button can
+    // never get trapped behind the disclaimer.
+    setCheckoutLoading((prev) => ({ ...prev, [vendorId]: true }));
+
     /* ───── 4 – Profile completeness check ───── */
     let profileComplete = authUser.profileComplete;
-    let location = authUser.location;
+    let userLocation = authUser.location;
 
-    if (profileComplete === undefined || location === undefined) {
+    if (profileComplete === undefined || userLocation === undefined) {
       try {
         const userDoc = await getDoc(doc(db, "users", authUser.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
           profileComplete = userData.profileComplete;
-          location = userData.location;
+          userLocation = userData.location;
         }
       } catch (error) {
         console.error("Error fetching user profile from Firestore:", error);
+        toast.error("We couldn't check your account details. Please try again.");
         setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
         return;
       }
@@ -503,32 +581,40 @@ const Cart = () => {
       toast.error(
         "Please complete your profile before proceeding to checkout.",
       );
-      navigate("/profile?incomplete=true");
+      navigate("/account-info", {
+        state: {
+          highlightIncomplete: true,
+          returnTo: `${location.pathname}${location.search || ""}`,
+        },
+      });
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
     if (
-      typeof location?.lat !== "number" ||
-      typeof location?.lng !== "number"
+      typeof userLocation?.lat !== "number" ||
+      typeof userLocation?.lng !== "number"
     ) {
       toast.error("Please update your delivery address before checking out.");
-      navigate("/profile?incomplete=true");
+      navigate("/account-info", {
+        state: {
+          highlightIncomplete: true,
+          returnTo: `${location.pathname}${location.search || ""}`,
+        },
+      });
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       return;
     }
 
     /* ───── 5 – Vendor active? ───── */
     try {
-      const vendorDocRef = doc(db, "vendors", vendorId);
-      const vendorDocSnap = await getDoc(vendorDocRef);
-
-      if (!vendorDocSnap.exists()) {
+      const publicVendor = await getPublicVendor(vendorId);
+      if (!publicVendor) {
         toast.error("Vendor not found.");
         setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
         return;
       }
-      if (vendorDocSnap.data().isDeactivated) {
-        toast.error("This vendor is currently not active.");
+      if (!isMarketplaceVendorEligible(publicVendor)) {
+        toast.error("This store is not currently available.");
         setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
         return;
       }
@@ -541,41 +627,49 @@ const Cart = () => {
 
     /* ───── 6 – Out-of-stock scan ───── */
     const outOfStockItems = [];
-    for (const productKey in vendorCart.products) {
-      const product = vendorCart.products[productKey];
-      const productRef = doc(db, "products", product.id);
-      const productDoc = await getDoc(productRef);
+    try {
+      for (const productKey in vendorCart.products) {
+        const product = vendorCart.products[productKey];
+        const productRef = doc(db, "publicProducts", product.id);
+        const productDoc = await getDoc(productRef);
 
-      if (!productDoc.exists()) {
-        console.warn(`Product with ID ${product.id} not found.`);
-        continue;
-      }
-      const productData = productDoc.data();
-
-      if (product.subProductId) {
-        const sp = productData.subProducts?.find(
-          (p) => p.subProductId === product.subProductId,
-        );
-        if (!sp || sp.stock < product.quantity)
+        if (!productDoc.exists()) {
+          console.warn(`Product with ID ${product.id} not found.`);
           outOfStockItems.push(product.name);
-      } else if (product.selectedColor && product.selectedSize) {
-        const variant = productData.variants?.find(
-          (v) =>
-            v.color === product.selectedColor &&
-            v.size === product.selectedSize,
-        );
-        if (!variant || variant.stock < product.quantity)
-          outOfStockItems.push(
-            `${product.name} (${product.selectedColor}, ${product.selectedSize})`,
+          continue;
+        }
+        const productData = productDoc.data();
+
+        if (product.subProductId) {
+          const sp = productData.subProducts?.find(
+            (p) => p.subProductId === product.subProductId,
           );
-      } else if (
-        (typeof productData.stockQuantity === "number" &&
-          productData.stockQuantity < product.quantity) ||
-        (typeof productData.stock === "number" &&
-          productData.stock < product.quantity)
-      ) {
-        outOfStockItems.push(product.name);
+          if (!sp || sp.stock < product.quantity)
+            outOfStockItems.push(product.name);
+        } else if (product.selectedColor && product.selectedSize) {
+          const variant = productData.variants?.find(
+            (v) =>
+              v.color === product.selectedColor &&
+              v.size === product.selectedSize,
+          );
+          if (!variant || variant.stock < product.quantity)
+            outOfStockItems.push(
+              `${product.name} (${product.selectedColor}, ${product.selectedSize})`,
+            );
+        } else if (
+          (typeof productData.stockQuantity === "number" &&
+            productData.stockQuantity < product.quantity) ||
+          (typeof productData.stock === "number" &&
+            productData.stock < product.quantity)
+        ) {
+          outOfStockItems.push(product.name);
+        }
       }
+    } catch (error) {
+      console.error("Error checking cart stock before checkout:", error);
+      toast.error("We couldn't check this order right now. Please try again.");
+      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+      return;
     }
 
     if (outOfStockItems.length) {
@@ -591,6 +685,57 @@ const Cart = () => {
     navigate(`/newcheckout/${vendorId}?note=${note}`);
     setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
   };
+  const requestCheckout = (
+    vendorId,
+    authUser = currentUser,
+    options = undefined,
+  ) => {
+    void handleCheckout(vendorId, authUser, options).catch((error) => {
+      console.error("Checkout could not be started:", error);
+      setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+      toast.error("We couldn't start checkout. Please try again.");
+    });
+  };
+  requestCheckoutRef.current = requestCheckout;
+
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      authResumeHandledRef.current = false;
+      return;
+    }
+    if (authResumeHandledRef.current || !currentUser?.uid) return;
+    const pending = pendingAuthIntent();
+    if (
+      pending?.type !== "cart-checkout" ||
+      pending.returnTo?.split(/[?#]/)[0] !== location.pathname
+    ) return;
+    const vendorId = pending.payload?.vendorId;
+    const vendorCart = vendorId ? cart[vendorId] : null;
+    if (!vendorCart || !Object.keys(vendorCart.products || {}).length) return;
+
+    const intent = takeAuthIntent({
+      types: "cart-checkout",
+      pathname: location.pathname,
+    });
+    if (!intent) return;
+    authResumeHandledRef.current = true;
+    setPendingVendorForCheckout(null);
+    requestCheckoutRef.current?.(vendorId, currentUser);
+  }, [cart, currentUser?.uid, location.pathname]);
+
+  useEffect(() => {
+    if (!authCheckoutResume || cartIsHydrating) return;
+    const vendorId = authCheckoutResume.vendorId;
+    const vendorCart = vendorId ? cart[vendorId] : null;
+    if (!vendorCart || !Object.keys(vendorCart.products || {}).length) return;
+
+    setAuthCheckoutResume(null);
+    setAuthTransitioning(false);
+    requestCheckoutRef.current?.(
+      vendorId,
+      authCheckoutResume.user || currentUser,
+    );
+  }, [authCheckoutResume, cart, cartIsHydrating, currentUser]);
   const toTitleCase = (str = "") =>
     String(str)
       .trim()
@@ -610,50 +755,40 @@ const Cart = () => {
 
     return toTitleCase(label);
   };
-  const handleAuthComplete = async (user) => {
+  const handleAuthComplete = async (user, completedMerge = null) => {
     // Show a clear “working” state as we merge + maybe open modal or navigate
     setAuthTransitioning(true);
     setAuthOpen(false); // close the auth modal immediately
 
-    // Merge device cart -> Firestore cart and get what changed
-    const mergeMeta = await mergeCartFor(user.uid);
+    let mergeMeta = completedMerge;
+    if (!mergeMeta) {
+      try {
+        mergeMeta = await mergeCartFor(user.uid);
+      } catch (mergeError) {
+        // The owner-scoped local cart remains usable and the persistence queue
+        // retries later. Never expose background sync state as a cart toast.
+        console.warn("Cart merge will retry after sign-in:", mergeError);
+      }
+    }
 
-    const addedVendors = mergeMeta?.addedByVendor
-      ? Object.keys(mergeMeta.addedByVendor).filter(
-          (vid) => (mergeMeta.addedByVendor[vid] || []).length > 0,
-        )
-      : [];
-
-    if (addedVendors.length > 0) {
-      const targetVendor =
-        pendingVendorForCheckout &&
-        addedVendors.includes(pendingVendorForCheckout)
-          ? pendingVendorForCheckout
-          : addedVendors[0];
-
-      setSelectedVendorId(targetVendor);
-      setIsModalOpen(true);
-      toast.success(
-        "We merged your items. Review your selection before checkout.",
-      );
-      setPendingVendorForCheckout(null);
+    const vendorId = pendingVendorForCheckout;
+    setPendingVendorForCheckout(null);
+    if (!vendorId) {
       setAuthTransitioning(false);
       return;
     }
 
-    const v = pendingVendorForCheckout;
-    setPendingVendorForCheckout(null);
-
-    if (v) {
-      await handleCheckout(v, user);
-    }
-
-    setAuthTransitioning(false);
+    // The cart merge dispatch has completed, but this render can still hold
+    // the pre-auth cart closure. Resume from an effect after Redux renders the
+    // merged cart so checkout never validates stale products.
+    setAuthCheckoutResume({vendorId, user});
   };
   const calculateVendorTotal = (vendorId) => {
     const vendorCart = cart[vendorId]?.products || {};
     return Object.values(vendorCart).reduce(
-      (total, product) => total + product.price * product.quantity,
+      (total, product) =>
+        total +
+        getEffectiveUnitPrice(product) * Number(product.quantity || 1),
       0,
     );
   };
@@ -673,47 +808,71 @@ const Cart = () => {
     setShowNoteBadge(false);
     setSelectedVendorId(vendorId);
     setIsModalOpen(true);
+    if (
+      currentUser?.uid &&
+      isActive &&
+      sameEntityId(vendorId, stockpileVendorId)
+    ) {
+      // Reopening the same pile must still observe a vendor decision made
+      // since the previous open; selectedVendorId alone may not change.
+      dispatch(
+        fetchStockpileData({
+          userId: currentUser.uid,
+          vendorId,
+        }),
+      );
+    }
   };
+
+  useEffect(() => {
+    if (loading || cartIsHydrating) return;
+
+    const openPileVendorId = location.state?.openPileVendorId;
+    const checkoutVendorId = location.state?.checkoutVendorId;
+    if (!openPileVendorId && !checkoutVendorId) return;
+
+    const { openPileVendorId: _openPile, checkoutVendorId: _checkout, ...rest } =
+      location.state || {};
+    navigate(`${location.pathname}${location.search || ""}`, {
+      replace: true,
+      state: rest,
+    });
+
+    if (
+      openPileVendorId &&
+      isActive &&
+      String(openPileVendorId) === String(stockpileVendorId)
+    ) {
+      handleViewSelection(openPileVendorId);
+      return;
+    }
+
+    if (checkoutVendorId) {
+      requestCheckout(checkoutVendorId);
+    }
+    // This effect intentionally consumes a one-shot navigation instruction.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, cartIsHydrating, location.key]);
 
   const handleAddToSelection = (vendorId) => {
     const vendorInfo = vendorsInfo[vendorId];
     if (vendorInfo) {
-      const marketPlaceType = vendorInfo.marketPlaceType;
-      if (marketPlaceType === "virtual") {
-        navigate(`/store/${vendorId}`);
-      } else {
-        navigate(`/marketstorepage/${vendorId}`);
-      }
+      navigate(`/store/${vendorId}`);
     } else {
       // Vendor info not available
       console.warn(`Vendor info not available for vendorId ${vendorId}`);
     }
   };
 
-  const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget) {
-      setIsModalOpen(false);
-    }
-  };
-  const handleLoginOverlayClick = (e) => {
-    if (e.target === e.currentTarget) {
-      setIsLoginModalOpen(false);
-    }
-  };
   const exitVendorName =
     cart[stockpileVendorId]?.vendorName ||
     vendorsInfo[stockpileVendorId]?.shopName ||
     "this vendor";
 
-  const handleNoteOverlayClick = (e) => {
-    if (e.target === e.currentTarget) {
-      setIsNoteModalOpen(false);
-    }
-  };
   const hasVendorNote = (vendorId) =>
     Boolean((vendorNotes?.[vendorId] || "").trim());
 
-  if (loading) {
+  if (loading || cartIsHydrating) {
     return (
       <div>
         <Loading />
@@ -743,19 +902,13 @@ const Cart = () => {
         </div>
       )}
 
-      <div className="flex flex-col h-full justify-between pb-20 px-2 py-8 bg-white">
-        <div className=" top-0 bg-white w-full  flex items-center  py-2                           mb-4  z-10 relative">
-          {fromProductDetail && (
-            <GoChevronLeft
-              className="text-3xl cursor-pointer z-20"
-              onClick={() => navigate(-1)}
-            />
-          )}
-
-          <h1 className="font-opensans font-semibold text-xl text-black absolute left-1/2 -translate-x-1/2">
-            My Cart
-          </h1>
-        </div>
+      <div className="flex flex-col h-full justify-between pb-20 px-2 bg-white">
+        <AppPageHeader
+          title="My Cart"
+          onBack={() => navigate(-1)}
+          showBack={fromProductDetail}
+          className="-mx-2 w-auto"
+        />
         <div className="p-2 overflow-y-auto flex-grow">
           {Object.keys(cart).length === 0 ? (
             <div>
@@ -919,13 +1072,17 @@ const Cart = () => {
                                 // SINGLE PRODUCT VIEW
                                 <div className="flex flex-col gap-0.5">
                                   <span className="text-[12px] text-gray-600 font-opensans flex items-center flex-wrap">
-                                    <span>
-                                      {firstProduct.selectedSize ||
-                                        firstProduct.size ||
-                                        "Size N/A"}
-                                    </span>
+                                    {!isVariantSizeHidden(firstProduct) && (
+                                      <>
+                                        <span>
+                                          {firstProduct.selectedSize ||
+                                            firstProduct.size ||
+                                            "Size N/A"}
+                                        </span>
 
-                                    <GoDotFill className="mx-1 text-[7px] text-gray-200 translate-y-[0.5px]" />
+                                        <GoDotFill className="mx-1 text-[7px] text-gray-200 translate-y-[0.5px]" />
+                                      </>
+                                    )}
 
                                     <span>
                                       {formatColorText(
@@ -953,7 +1110,7 @@ const Cart = () => {
 
                           {/* Bottom Row: Checkout Button */}
                           <button
-                            onClick={() => handleCheckout(vendorId)}
+                            onClick={() => requestCheckout(vendorId)}
                             disabled={checkoutLoading[vendorId]}
                             className={`mt-2 w-full py-2.5 rounded-xl text-white font-medium font-opensans text-[13px] transition-colors flex items-center justify-center ${
                               checkoutLoading[vendorId]
@@ -983,28 +1140,42 @@ const Cart = () => {
           )}
         </div>
 
-        {/* Modal for viewing all products */}
-        {isModalOpen && selectedVendorId && (
-          <div
-            className="fixed inset-0 modal bg-black bg-opacity-50 flex items-end justify-center"
-            onClick={handleOverlayClick}
-          >
-            <div
-              className="bg-white w-full h-4/5 rounded-t-xl px-2 py-6  flex flex-col animate-modal-slide-up"
-              onClick={(e) => e.stopPropagation()}
-            >
+        {/* Native-feel sheet for reviewing all products */}
+        <AppBottomSheet
+          open={Boolean(isModalOpen && selectedVendorId)}
+          onClose={() => setIsModalOpen(false)}
+          height="80dvh"
+          ariaLabel={
+            isActive && sameEntityId(selectedVendorId, stockpileVendorId)
+              ? "Review pile"
+              : "Review order"
+          }
+          zIndex={5000}
+          compactTop
+          surfaceClassName="mx-auto max-w-[574px] px-4 pt-7 font-satoshi"
+          surfaceStyle={{
+            paddingBottom:
+              "calc(24px + var(--app-safe-bottom, env(safe-area-inset-bottom, 0px)))",
+          }}
+        >
+          {selectedVendorId && (
+            <>
               {/* Modal Header */}
               <div className="relative flex justify-center pb-2 items-center">
                 <h2 className="text-lg font-opensans font-semibold">
-                  {isActive && selectedVendorId === stockpileVendorId
+                  {isActive && sameEntityId(selectedVendorId, stockpileVendorId)
                     ? "Review Pile"
                     : "Review Order"}
                 </h2>
 
-                <LiaTimesSolid
+                <button
+                  type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="absolute right-3 top-1 text-black text-xl cursor-pointer"
-                />
+                  className="absolute right-3 top-0 grid h-8 w-8 place-items-center rounded-full bg-gray-100 text-black"
+                  aria-label="Close order review"
+                >
+                  <LiaTimesSolid className="text-xl" aria-hidden="true" />
+                </button>
               </div>
 
               {/* Precompute items + loading flag */}
@@ -1017,19 +1188,16 @@ const Cart = () => {
                   __productKey: key,
                 }));
 
-                const pileEntries =
-                  isActive && selectedVendorId === stockpileVendorId
-                    ? pileItems.map((item, index) => ({
-                        ...item,
-                        selectedImageUrl: item.imageUrl || "",
-                        quantity: item.quantity || 1,
-                        __isCart: false,
-                        __index: index,
-                      }))
-                    : [];
-
-                const items = [...pileEntries, ...cartEntries];
-                const isLoadingSelection = items.length === 0;
+                const isReviewingPile =
+                  isActive &&
+                  sameEntityId(selectedVendorId, stockpileVendorId);
+                const visiblePileOrders = isReviewingPile
+                  ? pileOrders || []
+                  : [];
+                const hasSelection =
+                  visiblePileOrders.length > 0 || cartEntries.length > 0;
+                const isLoadingSelection =
+                  isReviewingPile && stockpileLoading && !hasSelection;
                 const checkoutTotal = Object.values(
                   cart[selectedVendorId]?.products || {},
                 ).reduce(
@@ -1037,11 +1205,10 @@ const Cart = () => {
                     sum + getEffectiveUnitPrice(p) * (p.quantity ?? 1),
                   0,
                 );
-
                 return (
                   <>
                     {/* Scrollable Products List */}
-                    <div className="overflow-y-auto scrollbar-hide mt-4 flex-grow">
+                    <div className="mt-3 min-h-0 flex-grow overflow-y-auto scrollbar-hide">
                       {isLoadingSelection ? (
                         <div className="h-full w-full flex items-center justify-center py-10">
                           <RotatingLines
@@ -1051,10 +1218,151 @@ const Cart = () => {
                             visible
                           />
                         </div>
+                      ) : !hasSelection ? (
+                        <p className="py-10 text-center text-sm text-gray-500">
+                          No items found in this selection.
+                        </p>
                       ) : (
-                        items.map((item, index) => {
+                        <>
+                          {visiblePileOrders.map((order, orderIndex) => {
+                            const isAccepted =
+                              order.membershipStatus ===
+                              STOCKPILE_ORDER_MEMBERSHIP.READY;
+                            const isDeclined =
+                              order.membershipStatus ===
+                              STOCKPILE_ORDER_MEMBERSHIP.DECLINED;
+                            const statusLabel = isAccepted
+                              ? "Accepted"
+                              : isDeclined
+                                ? "Declined"
+                                : "Pending";
+                            const statusColor = isAccepted
+                              ? "bg-emerald-500"
+                              : isDeclined
+                                ? "bg-red-500"
+                                : "bg-amber-500";
+
+                            return (
+                              <section
+                                key={order.id}
+                                className={orderIndex > 0 ? "border-t border-gray-200 pt-3" : ""}
+                                aria-label={`Order ${order.orderId}: ${statusLabel}`}
+                              >
+                                <div className="flex items-center justify-between gap-3 py-2">
+                                  <p className="min-w-0 truncate text-xs font-medium text-gray-500">
+                                    Order {order.orderId}
+                                  </p>
+                                  <span className="inline-flex shrink-0 items-center gap-2 text-xs font-medium text-gray-600">
+                                    <span
+                                      className={`h-2 w-2 rounded-full ${statusColor}`}
+                                      aria-hidden="true"
+                                    />
+                                    {statusLabel}
+                                  </span>
+                                </div>
+
+                                <div>
+                                  {(order.items || []).map((item, itemIndex) => {
+                                    const recordedUnitPrice = Number(
+                                      item.unitPrice ??
+                                        item.productSnapshot?.price ??
+                                        item.productPrice ??
+                                        item.price,
+                                    );
+                                    const size =
+                                      item.selectedSize ||
+                                      item.size ||
+                                      item.variantAttributes?.size;
+                                    const color =
+                                      item.selectedColor ||
+                                      item.color ||
+                                      item.variantAttributes?.color;
+                                    const condition =
+                                      item.condition ||
+                                      item.productSnapshot?.condition;
+                                    const details = [
+                                      size && !isVariantSizeHidden(item)
+                                        ? size
+                                        : null,
+                                      color ? formatColorText(color) : null,
+                                      condition
+                                        ? getConditionLabel(condition)
+                                        : null,
+                                    ].filter(Boolean);
+
+                                    return (
+                                      <button
+                                        type="button"
+                                        key={`${order.id}-${item.productKey || item.productId || itemIndex}`}
+                                        onClick={() => {
+                                          const pid = item?.id || item?.productId;
+                                          if (pid) openProduct(pid);
+                                        }}
+                                        className="flex w-full items-stretch gap-3 py-3 text-left"
+                                      >
+                                        <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+                                          <IkImage
+                                            src={
+                                              item.selectedImageUrl ||
+                                              item.imageUrl ||
+                                              item.productSnapshot?.imageUrl ||
+                                              item.productSnapshot?.coverImageUrl
+                                            }
+                                            alt={item.name}
+                                            className="h-full w-full object-cover"
+                                          />
+                                          {Number(item.quantity || 1) > 1 && (
+                                            <span className="absolute right-1 top-1 grid h-6 min-w-6 place-items-center rounded-full bg-black/60 px-1 text-[10px] text-white">
+                                              ×{Number(item.quantity || 1)}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="min-w-0 flex-1 self-center">
+                                          <p className="line-clamp-2 text-sm font-medium text-gray-950">
+                                            {item.name}
+                                          </p>
+                                          {Number.isFinite(recordedUnitPrice) &&
+                                            recordedUnitPrice >= 0 && (
+                                              <p className="mt-1 text-sm font-semibold text-black">
+                                                {NGN(recordedUnitPrice)}
+                                              </p>
+                                            )}
+                                          {details.length > 0 && (
+                                            <p className="mt-1 text-xs text-gray-500">
+                                              {details.join(" · ")}
+                                            </p>
+                                          )}
+                                          <p className="mt-1 text-xs text-gray-500">
+                                            Qty: {Number(item.quantity || 1)}
+                                          </p>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </section>
+                            );
+                          })}
+
+                          {cartEntries.length > 0 && (
+                            <section>
+                              {cartEntries.map((item, index) => {
                           const isCartItem = item.__isCart;
-                          const isLast = index === items.length - 1;
+                          const isLast = index === cartEntries.length - 1;
+                          const pileMembership = isCartItem
+                            ? null
+                            : item.stockpileMembershipStatus ||
+                              getStockpileOrderMembership({
+                                progressStatus: item.orderProgressStatus,
+                                vendorStatus: item.orderVendorStatus,
+                              });
+                          const pileStatusLabel =
+                            pileMembership === STOCKPILE_ORDER_MEMBERSHIP.READY
+                              ? "Accepted into your pile"
+                              : pileMembership ===
+                                  STOCKPILE_ORDER_MEMBERSHIP.DECLINED
+                                ? "Declined"
+                                : "Pending vendor acceptance";
 
                           return (
                             <div
@@ -1064,7 +1372,7 @@ const Cart = () => {
                             >
                               <div
                                 className={[
-                                  "flex items-stretch justify-between gap-3 py-3",
+                                  "flex min-h-[112px] items-stretch justify-between gap-3 py-3",
                                   !isLast ? "" : "",
                                 ].join(" ")}
                                 onClick={() => {
@@ -1075,11 +1383,16 @@ const Cart = () => {
                                 role="button"
                               >
                                 {/* Product Image */}
-                                <div className="relative flex-shrink-0 w-16 self-stretch">
+                                <div className="relative h-28 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100">
                                   <IkImage
-                                    src={item.selectedImageUrl}
+                                    src={
+                                      item.selectedImageUrl ||
+                                      item.imageUrl ||
+                                      item.productSnapshot?.imageUrl ||
+                                      item.productSnapshot?.coverImageUrl
+                                    }
                                     alt={item.name}
-                                    className="w-16 h-full object-cover rounded-lg"
+                                    className="h-full w-full object-cover"
                                   />
                                   {item.quantity > 1 && (
                                     <div className="absolute -top-1 text-xs -right-2 bg-gray-900 bg-opacity-40 text-white rounded-full w-7 h-7 flex items-center justify-center backdrop-blur-md">
@@ -1094,42 +1407,90 @@ const Cart = () => {
                                     {item.name}
                                   </h3>
 
-                                  {isCartItem && (
-                                    <>
-                                      <p className="font-opensans text-sm mt-1 text-black font-semibold">
-                                        {NGN(getEffectiveUnitPrice(item))}
-                                      </p>
+                                  {(() => {
+                                    const recordedUnitPrice = Number(
+                                      item.unitPrice ??
+                                        item.productSnapshot?.price ??
+                                        item.productPrice ??
+                                        item.price,
+                                    );
+                                    const unitPrice = isCartItem
+                                      ? getEffectiveUnitPrice(item)
+                                      : recordedUnitPrice;
+                                    const size =
+                                      item.selectedSize ||
+                                      item.size ||
+                                      item.variantAttributes?.size;
+                                    const color =
+                                      item.selectedColor ||
+                                      item.color ||
+                                      item.variantAttributes?.color;
+                                    const condition =
+                                      item.condition ||
+                                      item.productSnapshot?.condition;
+                                    const details = [
+                                      size && !isVariantSizeHidden(item)
+                                        ? size
+                                        : null,
+                                      color ? formatColorText(color) : null,
+                                      condition
+                                        ? getConditionLabel(condition)
+                                        : null,
+                                    ].filter(Boolean);
 
-                                      {/* size • color • condition */}
-                                      {item.isFashion && (
-                                        <div className="mt-1 text-xs font-opensans text-gray-600 flex items-center flex-wrap">
-                                          <span>
-                                            {item.selectedSize ||
-                                              item.size ||
-                                              "Size N/A"}
-                                          </span>
+                                    return (
+                                      <>
+                                        {Number.isFinite(unitPrice) &&
+                                          unitPrice >= 0 && (
+                                            <p className="mt-1 text-sm font-semibold text-black">
+                                              {NGN(unitPrice)}
+                                            </p>
+                                          )}
 
-                                          <GoDotFill className="mx-1 text-[7px] text-gray-200 translate-y-[0.5px]" />
+                                        {details.length > 0 && (
+                                          <div className="mt-1 flex flex-wrap items-center text-xs text-gray-600">
+                                            {details.map((detail, detailIndex) => (
+                                              <React.Fragment
+                                                key={`${detail}-${detailIndex}`}
+                                              >
+                                                {detailIndex > 0 && (
+                                                  <GoDotFill className="mx-1 text-[7px] text-gray-300" />
+                                                )}
+                                                <span>{detail}</span>
+                                              </React.Fragment>
+                                            ))}
+                                          </div>
+                                        )}
 
-                                          <span>
-                                            {formatColorText(
-                                              item.selectedColor || item.color,
-                                            ) || "Color N/A"}
-                                          </span>
-
-                                          <GoDotFill className="mx-1 text-[7px] text-gray-200 translate-y-[0.5px]" />
-
-                                          <span>
-                                            {getConditionLabel(item.condition)}
-                                          </span>
-                                        </div>
-                                      )}
-
-                                      <p className="text-xs font-opensans text-gray-600 mt-1">
-                                        Qty: {item.quantity ?? 1}
-                                      </p>
-                                    </>
-                                  )}
+                                        <p className="mt-1 text-xs text-gray-600">
+                                          Qty: {item.quantity ?? 1}
+                                        </p>
+                                        {!isCartItem && (
+                                          <p
+                                            className={`mt-1 text-[11px] font-medium ${
+                                              pileMembership ===
+                                              STOCKPILE_ORDER_MEMBERSHIP.READY
+                                                ? "text-emerald-700"
+                                                : pileMembership ===
+                                                    STOCKPILE_ORDER_MEMBERSHIP.DECLINED
+                                                  ? "text-red-600"
+                                                  : "text-amber-700"
+                                            }`}
+                                          >
+                                            {pileStatusLabel}
+                                          </p>
+                                        )}
+                                        {!isCartItem &&
+                                          pileMembership ===
+                                            STOCKPILE_ORDER_MEMBERSHIP.DECLINED &&
+                                          item.declineReason && (
+                                            <p className="mt-1 line-clamp-2 text-[11px] text-red-600">
+                                              {item.declineReason}
+                                            </p>
+                                          )}
+                                      </>
+                                    );
+                                  })()}
                                 </div>
 
                                 {/* Right-side Action */}
@@ -1153,13 +1514,38 @@ const Cart = () => {
                                       <RiDeleteBin7Line size={18} />
                                     </button>
                                   ) : (
-                                    <FcPaid className="text-2xl mt-2" />
+                                    <span
+                                      className={`mt-2 grid h-8 w-8 place-items-center rounded-full ${
+                                        pileMembership ===
+                                        STOCKPILE_ORDER_MEMBERSHIP.READY
+                                          ? "bg-emerald-50 text-emerald-600"
+                                          : pileMembership ===
+                                              STOCKPILE_ORDER_MEMBERSHIP.DECLINED
+                                            ? "bg-red-50 text-red-600"
+                                            : "bg-amber-50 text-amber-600"
+                                      }`}
+                                      aria-label={pileStatusLabel}
+                                      title={pileStatusLabel}
+                                    >
+                                      {pileMembership ===
+                                      STOCKPILE_ORDER_MEMBERSHIP.READY ? (
+                                        <MdVerified className="text-xl" />
+                                      ) : pileMembership ===
+                                        STOCKPILE_ORDER_MEMBERSHIP.DECLINED ? (
+                                        <MdCancel className="text-xl" />
+                                      ) : (
+                                        <MdOutlineSchedule className="text-xl" />
+                                      )}
+                                    </span>
                                   )}
                                 </div>
                               </div>
                             </div>
                           );
-                        })
+                              })}
+                            </section>
+                          )}
+                        </>
                       )}
                     </div>
 
@@ -1170,7 +1556,7 @@ const Cart = () => {
                       {/* "Proceed to Checkout" and "Clear Order" Buttons */}
                       <div className="flex flex-col justify-between space-y-4 mt-4">
                         <button
-                          onClick={() => handleCheckout(selectedVendorId)}
+                          onClick={() => requestCheckout(selectedVendorId)}
                           disabled={checkoutLoading[selectedVendorId]}
                           className={`rounded-full flex justify-center items-center h-12 w-full font-opensans font-medium text-white px-4 py-2 ${
                             checkoutLoading[selectedVendorId]
@@ -1190,7 +1576,7 @@ const Cart = () => {
                             <span className="flex items-center text-sm gap-2">
                               <span>Checkout</span>
 
-                              <span className="">({NGN(checkoutTotal)})</span>
+                              <span>({NGN(checkoutTotal)})</span>
                             </span>
                           )}
                         </button>
@@ -1199,63 +1585,83 @@ const Cart = () => {
                   </>
                 );
               })()}
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </AppBottomSheet>
 
-        {/* Modal for  a note */}
-        {isNoteModalOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center modal1"
-            onClick={handleNoteOverlayClick}
-          >
-            <div
-              className="bg-white w-full h-3/5 rounded-t-xl p-4 flex flex-col z-50 animate-modal-slide-up"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-opensans text-black font-semibold">
-                  Note for Vendor
-                </h2>
-                <LiaTimesSolid
-                  onClick={() => setIsNoteModalOpen(false)}
-                  className="text-black text-xl cursor-pointer"
-                />
+        {/* Native-feel note sheet */}
+        <AppBottomSheet
+          open={isNoteModalOpen}
+          onClose={() => setIsNoteModalOpen(false)}
+          height="44dvh"
+          ariaLabel="Leave a note"
+          zIndex={5100}
+          compactTop
+          surfaceClassName="mx-auto max-w-[574px] justify-between gap-5 px-4 pt-7"
+          surfaceStyle={{
+            minHeight: "332px",
+            paddingBottom:
+              "calc(24px + var(--app-safe-bottom, env(safe-area-inset-bottom, 0px)))",
+          }}
+        >
+              <div className="cart-note-content">
+                <div className="cart-note-titlebar">
+                  <span aria-hidden="true" />
+                  <h2>Leave a note</h2>
+                  <button
+                    type="button"
+                    onClick={() => setIsNoteModalOpen(false)}
+                    aria-label="Close note"
+                  >
+                    <LiaTimesSolid aria-hidden="true" />
+                  </button>
+                </div>
+
+                <div className="cart-note-field-group">
+                  <textarea
+                    maxLength={200}
+                    value={vendorNotes[selectedVendorId] || ""}
+                    onChange={(e) =>
+                      setVendorNotes({
+                        ...vendorNotes,
+                        [selectedVendorId]: e.target.value,
+                      })
+                    }
+                    className="cart-note-textarea"
+                    placeholder="Type note here"
+                    aria-describedby="cart-note-counter"
+                  />
+                  <p id="cart-note-counter" className="cart-note-counter">
+                    {(vendorNotes[selectedVendorId] || "").length}/200
+                  </p>
+                </div>
               </div>
-              {/* Text input area */}
-              <textarea
-                maxLength={50}
-                value={vendorNotes[selectedVendorId] || ""}
-                onChange={(e) =>
-                  setVendorNotes({
-                    ...vendorNotes,
-                    [selectedVendorId]: e.target.value,
-                  })
-                }
-                className="w-full mt-4 p-2 border bg-gray-200 h-44 rounded-md"
-                placeholder=""
-              />
-              {/* Send Note button */}
+
               <button
+                type="button"
                 onClick={() => {
                   setIsNoteModalOpen(false);
                   // Note is already saved in vendorNotes
                 }}
-                className="bg-customOrange w-full text-white font-opensans font-semibold py-3 mt-4 h-12 translate-y-10 rounded-full"
+                className="cart-note-save"
               >
-                Send Note
+                Save
               </button>
-            </div>
-          </div>
-        )}
+        </AppBottomSheet>
         <QuickAuthModal
           open={authOpen}
           onClose={() => setAuthOpen(false)}
           onComplete={handleAuthComplete}
+          mergeCart={mergeCartFor}
           openDisclaimer={openDisclaimer}
-          headerText="Continue to checkout"
+          headerText="Let’s set up your order"
           vendorId={pendingVendorForCheckout}
+          compactTop
+          authIntent={{
+            type: "cart-checkout",
+            returnTo: `${location.pathname}${location.search}`,
+            payload: {vendorId: pendingVendorForCheckout},
+          }}
         />
         <IframeModal
           show={showDisclaimerModal}
@@ -1263,56 +1669,83 @@ const Cart = () => {
           url={disclaimerUrl}
         />
 
-        {showExitStockpileModal && (
-          <div
-            className="fixed inset-0 px-4 bg-black bg-opacity-50 flex items-center justify-center z-50"
-            onClick={() => setShowExitStockpileModal(false)}
-          >
-            <div
-              className="bg-white rounded-lg p-6 max-w-sm w-full shadow-lg"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex  items-center mb-4">
-                <ImSad2 className="text-2xl text-customRichBrown mr-2" />
-                <h2 className="text-lg font-semibold  font-opensans">
-                  Exit Stockpiling?
-                </h2>
-              </div>
+        <AppBottomSheet
+          open={showExitStockpileModal}
+          onClose={() => {
+            setShowExitStockpileModal(false);
+            setPendingCheckoutVendor(null);
+          }}
+          height="42dvh"
+          ariaLabel="Leave repile mode"
+          zIndex={9000}
+          compactTop
+          surfaceClassName="font-satoshi"
+          surfaceStyle={{ minHeight: "360px" }}
+        >
+          <div className="flex h-full flex-col px-5 pb-5 pt-4 font-satoshi">
+            <div className="flex items-center gap-2">
+              <ImSad2 className="shrink-0 text-2xl text-customRichBrown" />
+              <h2 className="text-lg font-medium text-gray-950">
+                Leave repile mode?
+              </h2>
+            </div>
 
-              <p className="text-sm text-gray-800 font-opensans">
-                You're currently repiling from{" "}
-                <span className="font-semibold text-customOrange">
-                  {exitVendorName}
-                </span>
-                . Checking out with another vendor will exit this pile and clear
-                your cart. Continue?
-              </p>
+            <p className="mt-4 text-sm leading-5 text-gray-700">
+              You’re currently repiling from{" "}
+              <span className="font-medium text-customOrange">
+                {exitVendorName}
+              </span>
+              . Continuing will leave repile mode and clear its unpurchased
+              basket. Your existing stockpile will stay active.
+            </p>
 
-              <div className="mt-6 flex justify-end space-x-4">
-                <button
-                  onClick={() => setShowExitStockpileModal(false)}
-                  className="px-4 py-2 bg-transparent border border-customRichBrown text-sm rounded-full font-opensans"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    // Immediately close the modal.
-                    setShowExitStockpileModal(false);
-                    // Clear only the cart for the stockpiled vendor.
-                    dispatch(clearCart(stockpileVendorId));
-                    // Exit stockpiling mode.
-                    dispatch(exitStockpileMode());
-                    setPendingCheckoutVendor(null);
-                  }}
-                  className="px-4 py-2 bg-customOrange text-white text-sm rounded-full font-opensans"
-                >
-                  Yes, Exit
-                </button>
-              </div>
+            <div className="mt-auto grid gap-3 pt-5">
+              <button
+                type="button"
+                onClick={() => {
+                  const nextVendorId = pendingCheckoutVendor;
+                  void appHaptics.selection();
+                  setShowExitStockpileModal(false);
+                  setPendingCheckoutVendor(null);
+                  setIsModalOpen(false);
+
+                  // The repile basket is frontend cart state. Clear it in the
+                  // background; never touch the persisted stockpile document.
+                  void Promise.resolve(
+                    dispatch(clearCart(stockpileVendorId)),
+                  ).then((synced) => {
+                    if (!synced) {
+                      console.warn(
+                        "Repile basket cleared locally; cloud sync will retry.",
+                      );
+                    }
+                  });
+                  dispatch(exitStockpileMode());
+
+                  if (nextVendorId) {
+                    requestCheckout(nextVendorId, currentUser, {
+                      skipRepileGuard: true,
+                    });
+                  }
+                }}
+                className="h-12 w-full rounded-xl bg-customOrange text-sm font-medium text-white"
+              >
+                Leave &amp; continue
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void appHaptics.selection();
+                  setShowExitStockpileModal(false);
+                  setPendingCheckoutVendor(null);
+                }}
+                className="h-12 w-full rounded-xl border border-gray-300 bg-white text-sm font-medium text-gray-900"
+              >
+                Stay in repile mode
+              </button>
             </div>
           </div>
-        )}
+        </AppBottomSheet>
       </div>
     </>
   );

@@ -1,7 +1,9 @@
+import { publicVendorsQuery } from "../../services/publicVendors";
 // src/redux/slices/personalDiscountsPageSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { db } from "../../firebase.config";
 import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
+import { isMarketplaceProductEligible } from "../../services/marketplaceVisibility";
 
 /** How many products to fetch per batch */
 const BATCH_SIZE_INCREMENT = 20;
@@ -42,10 +44,7 @@ export const fetchPersonalDiscountsPage = createAsyncThunk(
 
       // 1) Fetch all approved & active vendors
       const vendorsSnap = await getDocs(
-        query(
-          collection(db, "vendors"),
-          where("isApproved", "==", true),
-          where("isDeactivated", "==", false)
+        publicVendorsQuery(
         )
       );
       const approvedVendorIDs = vendorsSnap.docs.map((doc) => doc.id);
@@ -63,7 +62,7 @@ export const fetchPersonalDiscountsPage = createAsyncThunk(
       // Query each vendor chunk
       for (const chunk of vendorIDChunks) {
         const qProd = query(
-          collection(db, "products"),
+          collection(db, "publicProducts"),
           where("isDeleted", "==", false),
           where("published", "==", true),
           where("vendorId", "in", chunk),
@@ -86,7 +85,9 @@ export const fetchPersonalDiscountsPage = createAsyncThunk(
       }
 
       // 3) Combine & sort
-      let allDocs = Array.from(docMap.values());
+      let allDocs = Array.from(docMap.values()).filter(
+        isMarketplaceProductEligible,
+      );
       allDocs.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
 
       // 4) Decide how many to show

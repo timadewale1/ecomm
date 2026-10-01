@@ -1,108 +1,93 @@
 // src/components/Chats/OfferListItem.jsx
 import React from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "../../firebase.config";
-import { fetchCustomerProfile } from "../../redux/reducers/vendorChatSlice";
-import { IoMdContact } from "react-icons/io";
+import ChatAvatar from "./ChatAvatar";
+import useConversationAvatar from "../../custom-hooks/useConversationAvatar";
 
-const NGN = (n) =>
-  Number(n || 0).toLocaleString("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    maximumFractionDigits: 0,
-  });
-
-const StatusPill = ({ status }) => {
+const statusFromEvent = (type) => {
   const map = {
-    pending: "bg-yellow-100 text-yellow-800",
-    countered: "bg-blue-100 text-blue-800",
-    accepted: "bg-green-100 text-green-800",
-    declined: "bg-red-100 text-red-800",
+    offer_placed: ["Pending", "bg-amber-50 text-amber-800"],
+    offer_revised: ["Pending", "bg-amber-50 text-amber-800"],
+    offer_countered: ["Countered", "bg-sky-50 text-sky-800"],
+    offer_accepted: ["Accepted", "bg-emerald-50 text-emerald-800"],
+    offer_declined: ["Declined", "bg-rose-50 text-rose-800"],
+    offer_expired: ["Expired", "bg-slate-100 text-slate-700"],
+    offer_superseded: ["Updated", "bg-slate-100 text-slate-700"],
+    text: ["Message", "bg-orange-50 text-orange-700"],
+    question_asked: ["Question", "bg-violet-50 text-violet-700"],
   };
-  const cls = map[status] || "bg-gray-100 text-gray-700";
-  return (
-    <span className={`text-[10px] px-2 py-0.5 rounded-full font-opensans font-semibold ${cls}`}>
-      {status}
-    </span>
-  );
+  return map[type] || ["Offer", "bg-gray-100 text-gray-700"];
 };
 
-export default function OfferListItem({ offer }) {
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
+const formatActivityTime = (value) => {
+  const millis = typeof value?.toMillis === "function" ? value.toMillis() : Number(value || 0);
+  if (!millis) return "";
+  return new Date(millis).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
-  // Reuse your customer profile fetcher (buyer is a user)
-  const buyer = useSelector(
-    (s) => s.vendorChats.profiles[offer.buyerId]
+export default function OfferListItem({
+  conversation,
+  onClick,
+  now = Date.now(),
+  audience = "vendor",
+}) {
+  const avatarSource = useConversationAvatar(conversation, audience);
+  const counterpart =
+    audience === "buyer" ? conversation?.vendor || {} : conversation?.buyer || {};
+  const latestEvent = conversation?.latestEvent || {};
+  const latestExpired =
+    ["offer_countered", "offer_accepted"].includes(latestEvent.type) &&
+    Number(latestEvent.validUntilMs || 0) > 0 &&
+    Number(latestEvent.validUntilMs) <= now;
+  const [statusLabel, statusClass] = statusFromEvent(
+    latestExpired ? "offer_expired" : latestEvent.type,
   );
-  React.useEffect(() => {
-    if (!buyer) dispatch(fetchCustomerProfile(offer.buyerId));
-  }, [buyer, offer.buyerId, dispatch]);
-
-  const createdAt = offer.createdAt
-    ? offer.createdAt.toDate().toLocaleString([], {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "";
-
-  const defaultMsg = `I want to get this item for ${NGN(offer.amount)}`;
-
-  const handleClick = () => {
-    // Go to your vendor offer detail page (adjust route if different)
-    navigate(`/vchats/${offer.id}?type=offer`);
-
-    // mark as read (vendor side) in the background
-    if (!offer.vendorRead) {
-      updateDoc(doc(db, "offers", offer.id), { vendorRead: true }).catch((e) =>
-        console.error("mark vendorRead failed:", e)
-      );
-    }
-  };
+  const unreadCount = Number(
+    audience === "buyer"
+      ? conversation?.buyerUnreadCount || 0
+      : conversation?.vendorUnreadCount || 0,
+  );
+  const preview =
+    conversation?.latestEvent?.preview ||
+    conversation?.latestProduct?.name ||
+    "Offer activity";
 
   return (
-    <div
-      className="flex items-center p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors"
-      onClick={handleClick}
+    <button
+      type="button"
+      className="flex w-full items-center border-b border-gray-100 bg-white p-3 text-left transition-colors hover:bg-gray-50"
+      onClick={onClick}
     >
-      {/* Avatar */}
-      {buyer?.photoURL ? (
-        <img
-          src={buyer.photoURL}
-          alt="avatar"
-          className="w-12 h-12 rounded-full object-cover mr-4"
-        />
-      ) : (
-        <IoMdContact className="w-12 h-12 text-gray-400 mr-4" />
-      )}
+      <ChatAvatar src={avatarSource} className="mr-3 h-12 w-12" />
 
-      {/* Product + message */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <div className="font-semibold font-opensans text-gray-800 truncate">
-            {buyer?.displayName || "Loading…"}
-          </div>
-          <StatusPill status={offer.status} />
-        </div>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <strong className="truncate font-satoshi text-[15px] font-semibold text-gray-900">
+            {counterpart.displayName || (audience === "buyer" ? "Vendor" : "Buyer")}
+          </strong>
+          <span className={`rounded-full px-2 py-0.5 font-satoshi text-[10px] font-semibold ${statusClass}`}>
+            {statusLabel}
+          </span>
+        </span>
+        <span className="mt-0.5 block truncate font-satoshi text-[13px] text-gray-600">
+          {preview}
+        </span>
+      </span>
 
-        <div className="text-sm font-opensans text-gray-600 truncate mt-0.5">
-          {offer.productName || "Product"} • {defaultMsg}
-        </div>
-      </div>
-
-      {/* Time + unread dot */}
-      <div className="flex items-center ml-4">
-        <div className="text-xs text-gray-400 font-opensans whitespace-nowrap">
-          {createdAt}
-        </div>
-        {!offer.vendorRead && (
-          <span className="w-3 h-3 bg-customOrange rounded-full ml-2" />
+      <span className="ml-3 flex flex-col items-end gap-1">
+        <time className="whitespace-nowrap font-satoshi text-[11px] text-gray-400">
+          {formatActivityTime(conversation?.latestActivityAt)}
+        </time>
+        {unreadCount > 0 && (
+          <span className="grid min-h-5 min-w-5 place-items-center rounded-full bg-customOrange px-1 font-satoshi text-[10px] font-semibold text-white">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
         )}
-      </div>
-    </div>
+      </span>
+    </button>
   );
 }

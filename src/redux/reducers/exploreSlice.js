@@ -1,3 +1,4 @@
+import { publicVendorsQuery } from "../../services/publicVendors";
 // src/redux/reducers/exploreSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
@@ -30,10 +31,7 @@ export const fetchExploreProducts = createAsyncThunk(
     try {
       // 1) approved vendors
       const vendorSnap = await getDocs(
-        query(
-          collection(db, "vendors"),
-          where("isApproved", "==", true),
-          where("isDeactivated", "==", false)
+        publicVendorsQuery(
         )
       );
       const approved = vendorSnap.docs.map((d) => d.id);
@@ -48,7 +46,7 @@ export const fetchExploreProducts = createAsyncThunk(
       const snaps = await Promise.all(
         vendorChunks.map((chunkIds) => {
           let q = query(
-            collection(db, "products"),
+            collection(db, "publicProducts"),
             where("published", "==", true),
             where("isDeleted", "==", false),
             where("productType", "==", productType),

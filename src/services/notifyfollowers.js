@@ -1,3 +1,4 @@
+import { siteUrls } from "../config/siteUrls.mjs";
 import {
   collection,
   query,
@@ -79,7 +80,7 @@ const notifyFollowers = async (vendorId, productDetails) => {
         name: productDetails.name,
         image: productDetails.coverImageUrl || "",
         price: productDetails.price,
-        link: `https://www.shopmythrift.store/product/${productDetails.id}?shared=true`,
+        link: siteUrls.productShareUrl(productDetails.id),
         createdAt: new Date(),
       };
       console.log("New product entry for email batch:", newProductEntry);

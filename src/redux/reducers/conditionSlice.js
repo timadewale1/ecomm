@@ -1,3 +1,4 @@
+import { publicVendorsQuery } from "../../services/publicVendors";
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   collection,
@@ -27,10 +28,7 @@ export const fetchConditionProducts = createAsyncThunk(
   ) => {
     try {
       // 1) Get "approved" + "active" vendors
-      const vendorsQuery = query(
-        collection(db, "vendors"),
-        where("isApproved", "==", true),
-        where("isDeactivated", "==", false),
+      const vendorsQuery = publicVendorsQuery(
       );
       const vendorSnapshot = await getDocs(vendorsQuery);
       const approvedVendors = vendorSnapshot.docs.map((doc) => doc.id);
@@ -64,7 +62,7 @@ export const fetchConditionProducts = createAsyncThunk(
       const snaps = await Promise.all(
         vendorChunks.map((chunkIds) => {
           let q = query(
-            collection(db, "products"),
+            collection(db, "publicProducts"),
             where("vendorId", "in", chunkIds),
             ...common,
             limit(batchSize),

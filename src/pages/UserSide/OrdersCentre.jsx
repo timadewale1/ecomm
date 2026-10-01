@@ -1,28 +1,27 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { canUseBuyerContactEmail, CONTACT_SIGN_IN_MESSAGE } from "../../services/accountLookups";
 import { GoChevronLeft, GoChevronRight } from "react-icons/go";
 import { addToCart } from "../../redux/actions/action";
 import { useNavigate, useLocation } from "react-router-dom";
 import { deactivateQuickMode } from "../../redux/reducers/quickModeSlice";
 import { db, auth } from "../../firebase.config";
-import Modal from "react-modal";
+import { getOwnedPickupDetails } from "../../services/pickupOrderAccess";
+import PrivateDeliveryProof from "../../components/Orders/PrivateDeliveryProof";
 import {
   collection,
   query,
   where,
   getDocs,
-  onSnapshot,
   doc,
   setDoc,
   getDoc,
   updateDoc,
-  Timestamp,
   limit,
   documentId,
 } from "firebase/firestore";
 import { FcOnlineSupport } from "react-icons/fc";
 import { TbBasketPlus, TbBasketX, TbBasketQuestion } from "react-icons/tb";
 import { FaClipboardCheck } from "react-icons/fa";
-import { onAuthStateChanged } from "firebase/auth";
 import {
   MdCancel,
   MdClose,
@@ -34,18 +33,19 @@ import moment from "moment";
 import { useTawk } from "../../components/Context/TawkProvider";
 import { TbTruckDelivery } from "react-icons/tb";
 import { enrichWithProductInfo } from "../../services/enrichWithProductInfo";
+import {getOrderProductSnapshots} from "../../services/orderProductSnapshots";
+import { isVariantSizeHidden } from "../../services/productVariantSelection";
 import { FaTimes } from "react-icons/fa";
 import { IoCopyOutline, IoTimeOutline } from "react-icons/io5";
 import { MdOutlinePendingActions } from "react-icons/md";
 // import { GoChevronLeft } from "react-icons/go";
-import { useDispatch } from "react-redux";
-import Loading from "../../components/Loading/Loading";
+import { useDispatch, useSelector } from "react-redux";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import { BsFillBoxSeamFill, BsFillFileEarmarkTextFill } from "react-icons/bs";
 import Orderpic from "../../Images/orderpic.svg";
-import RelatedProducts from "./SimilarProducts";
 import ScrollToTop from "../../components/layout/ScrollToTop";
+import AppPageHeader from "../../components/layout/AppPageHeader";
 import OrderStepper from "../../components/Order/OrderStepper";
 import SEO from "../../components/Helmet/SEO";
 import toast from "react-hot-toast";
@@ -57,50 +57,529 @@ import {
   exitStockpileMode,
 } from "../../redux/reducers/stockpileSlice";
 
-import { httpsCallable } from "firebase/functions";
-import { functions } from "../../firebase.config";
+import { getOwnedOrderVendorSummaries } from "../../services/orderVendorSummaries";
 import {
   EmailAuthProvider,
   linkWithCredential,
   fetchSignInMethodsForEmail,
+  sendEmailVerification,
 } from "firebase/auth";
 
 import { clearCart } from "../../redux/actions/action";
 import { RiShareForwardBoxLine } from "react-icons/ri";
 import LinkAccountModal from "../../components/QuickMode/LinkAccountModal";
 import AccountLinkBanner from "../../components/QuickMode/AccountLinkBanner";
-const ConfirmShippingModal = ({ isOpen, onClose, onConfirm }) => {
-  if (!isOpen) return null;
+import { appHaptics } from "../../services/haptics";
+import { openExternalUrl } from "../../services/nativeLinks";
+import { isNativeApp } from "../../services/platform";
+import useNativePageRefresh from "../../custom-hooks/useNativePageRefresh";
+import useHorizontalTabSwipe from "../../custom-hooks/useHorizontalTabSwipe";
+import {
+  displayOrderPatched,
+  displayOrderReplaced,
+  draftsProjectionReceived,
+  ordersProjectionReceived,
+  selectBuyerDisplayDrafts,
+  selectBuyerDisplayOrders,
+  selectBuyerDraftsRevision,
+  selectBuyerOrdersRevision,
+  selectBuyerProjectedDraftsRevision,
+  selectBuyerProjectedOrdersRevision,
+  selectRawBuyerDrafts,
+  selectRawBuyerOrders,
+} from "../../redux/reducers/buyerOrdersSlice";
+import { refreshBuyerOrdersFromServer } from "../../services/realtime/userRealtimeSync";
+import { firestoreValueToSerializable } from "../../services/realtime/serializeFirestore";
+import StockpileDeliverySheet from "../../components/Order/StockpileDeliverySheet";
+import DeliveryTrackingCard from "../../components/Order/DeliveryTrackingCard";
+import CourierReviewSheet from "../../components/Order/CourierReviewSheet";
+import { refreshDeliveryTracking } from "../../services/deliveryTracking";
+import {
+  LuBookOpen,
+  LuCheckCircle,
+  LuChevronRight,
+  LuClock3,
+  LuCopy,
+  LuHelpCircle,
+  LuMapPin,
+  LuMessageCircle,
+  LuPackage,
+  LuPackageCheck,
+  LuRefreshCw,
+  LuSearch,
+  LuStar,
+  LuTruck,
+  LuXCircle,
+} from "react-icons/lu";
+import "./order-history.css";
+
+const ORDER_KNOWLEDGE_BASE_URL = "";
+const PRODUCT_QUERY_BATCH_SIZE = 30;
+const PICKUP_ACTIVE_STATUSES = new Set([
+  "In Progress",
+  "Shipped",
+  "Ready for Pickup",
+  "Ready for Pick-up",
+]);
+
+const toOrderDate = (value) => {
+  if (!value) return null;
+  if (typeof value.toDate === "function") return value.toDate();
+  if (typeof value.seconds === "number") return new Date(value.seconds * 1000);
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatOrderDate = (value) => {
+  const date = toOrderDate(value);
+  return date ? moment(date).format("DD/MM/YYYY, HH:mm") : "Date unavailable";
+};
+
+const formatCompletionDuration = (startedAt, completedAt) => {
+  const started = toOrderDate(startedAt);
+  const completed = toOrderDate(completedAt);
+  if (!started || !completed || completed <= started) return null;
+
+  const totalMinutes = Math.max(
+    1,
+    Math.round((completed.getTime() - started.getTime()) / 60000),
+  );
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days) {
+    return `${days} day${days === 1 ? "" : "s"}${
+      hours ? ` ${hours} hr${hours === 1 ? "" : "s"}` : ""
+    }`;
+  }
+  if (hours) {
+    return `${hours} hr${hours === 1 ? "" : "s"}${
+      minutes ? ` ${minutes} min` : ""
+    }`;
+  }
+  return `${minutes} min`;
+};
+
+const getOrderTime = (value) => toOrderDate(value)?.getTime() || 0;
+
+const chunkValues = (values, size) => {
+  const chunks = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
+};
+
+const getOrderProgress = (order) =>
+  order?.isStockpile
+    ? order.firstOrderStatus || order.progressStatus
+    : order?.progressStatus;
+
+const getOrderDetailHistoryKey = (order) => {
+  if (!order) return null;
+  if (order.isStockpile && order.stockpileDocId) {
+    return `stockpile:${order.stockpileDocId}`;
+  }
+  if (order._isDraft && order.id) return `draft:${order.id}`;
+  return order.id ? `order:${order.id}` : null;
+};
+
+const orderContainsOrderId = (order, orderId) => {
+  const target = String(orderId || "").trim();
+  if (!target) return false;
+  if (String(order?.id || "") === target) return true;
+  if (Array.isArray(order?.orderIds) && order.orderIds.some((id) => String(id) === target)) {
+    return true;
+  }
+  return Array.isArray(order?._relatedOrders) &&
+    order._relatedOrders.some((related) => String(related?.id || "") === target);
+};
+
+const isOrderReviewable = (order) => {
+  if (!order || order._isDraft) return false;
+  if (!order.isStockpile) {
+    return order.progressStatus === "Delivered";
+  }
+  const relatedOrders = order._relatedOrders || [];
+  const fulfilledOrders = relatedOrders.filter(
+    (item) => item.progressStatus !== "Declined"
+  );
+  return (
+    fulfilledOrders.length > 0 &&
+    fulfilledOrders.every((item) => item.progressStatus === "Delivered")
+  );
+};
+
+const getOrderIdentifier = (order) =>
+  order?.isStockpile && order?.stockpileDocId
+    ? order.stockpileDocId
+    : order?.id || "Unavailable";
+
+const getOrderIdentifierLabel = (order) =>
+  order?.isStockpile ? "Stockpile" : "Order";
+
+const compactOrderIdentifier = (value) => {
+  const identifier = String(value || "");
+  if (identifier.length <= 14) return identifier;
+  return `${identifier.slice(0, 7)}…${identifier.slice(-4)}`;
+};
+
+const getVisibleOrderIdentifier = (order) => {
+  if (order?._isDraft) return "---";
+  return compactOrderIdentifier(getOrderIdentifier(order));
+};
+
+const getVisibleStockpileIdentifier = compactOrderIdentifier;
+
+const canUsePickupDetails = (order) =>
+  Boolean(
+    order?.isPickup &&
+      order?.pickupCode &&
+      PICKUP_ACTIVE_STATUSES.has(getOrderProgress(order))
+  );
+
+const isGroupedStockpile = (order) =>
+  Boolean(order?.isStockpile && Array.isArray(order?._relatedOrders));
+
+const getStockpileStatusView = (order) => {
+  const lifecycleStatus = String(order?.stockpileStatus || "")
+    .trim()
+    .toLowerCase();
+  const allOrdersDeclined = Boolean(
+    order?._relatedOrders?.length &&
+      order._relatedOrders.every(
+        (entry) =>
+          String(entry?.vendorStatus || "").toLowerCase() === "declined" ||
+          entry?.progressStatus === "Declined",
+      ),
+  );
+
+  if (allOrdersDeclined && order?.isActive === false) {
+    return {label: "Closed", color: "#6b7280"};
+  }
+
+  const statusViews = {
+    active: {label: "Active stockpile", color: "#f05a2a"},
+    awaiting_delivery_request: {label: "Delivery required", color: "#d97706"},
+    closing: {label: "Preparing delivery", color: "#d97706"},
+    preparing_quote: {label: "Preparing delivery", color: "#d97706"},
+    quote_retry: {label: "Delivery needs attention", color: "#dc2626"},
+    awaiting_delivery_payment: {label: "Awaiting delivery payment", color: "#d97706"},
+    payment_processing: {label: "Processing delivery payment", color: "#d97706"},
+    booking: {label: "Booking courier", color: "#2563eb"},
+    booking_retry: {label: "Booking courier", color: "#2563eb"},
+    booking_outcome_unknown: {label: "Confirming courier", color: "#2563eb"},
+    booked: {label: "Courier assigned", color: "#2563eb"},
+    courier_assigned: {label: "Courier assigned", color: "#2563eb"},
+    ready_for_collection: {label: "Courier assigned", color: "#2563eb"},
+    in_transit: {label: "In transit", color: "#2563eb"},
+    completed: {label: "Delivered", color: "#16a34a"},
+    delivered: {label: "Delivered", color: "#16a34a"},
+    cancelled: {label: "Closed", color: "#6b7280"},
+  };
+
+  return statusViews[lifecycleStatus] ||
+    (order?.isActive === true
+      ? statusViews.active
+      : order?.isActive === false
+        ? {label: "Preparing delivery", color: "#d97706"}
+        : {label: "Status unavailable", color: "#6b7280"});
+};
+
+const getOrderStatusView = (order) => {
+  if (order?._isDraft) {
+    return { label: "Awaiting payment", color: "#d97706" };
+  }
+
+  // A grouped stockpile owns its own lifecycle. The status of its newest (or
+  // first) order must only appear inside that order's row, never as the pile's
+  // overall status.
+  if (isGroupedStockpile(order)) {
+    return getStockpileStatusView(order);
+  }
+
+  const progress = getOrderProgress(order);
+  const vendorStatus = String(order?.vendorStatus || "").toLowerCase();
+  if (progress === "Declined" || vendorStatus === "declined") {
+    return { label: "Declined", color: "#dc2626" };
+  }
+  if (progress === "Delivered") {
+    return {
+      label: order?.isPickup ? "Collected" : "Delivered",
+      color: "#16a34a",
+    };
+  }
+  if (progress === "Shipped") {
+    return {
+      label: order?.isPickup ? "Ready for pick-up" : "Shipped",
+      color: "#2563eb",
+    };
+  }
+  if (order?.isStockpile && vendorStatus === "accepted") {
+    return { label: "Accepted", color: "#16a34a" };
+  }
+  if (progress === "In Progress") {
+    return {
+      label: order?.isStockpile ? "Accepted" : "Processing",
+      color: "#16a34a",
+    };
+  }
+  if (progress === "Pending") {
+    return { label: "Pending", color: "#d97706" };
+  }
+  return {
+    label: progress || "Status unavailable",
+    color: "#6b7280",
+  };
+};
+
+const getOrderTotal = (order) =>
+  Number(
+    order?._isDraft
+      ? order.amount || 0
+      : order?.isStockpile
+      ? order.combinedTotal ?? order.total ?? 0
+      : order?.total || 0
+  );
+
+const getStockpileDaysLeft = (order) => {
+  const endDate = toOrderDate(order?.endDate);
+  if (!endDate || order?.isActive === false) return null;
+  return Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / 86400000));
+};
+
+const OrderStatus = ({ order }) => {
+  const status = getOrderStatusView(order);
+  return (
+    <span className="order-status" style={{ "--status-color": status.color }}>
+      <span className="order-status-dot" aria-hidden="true" />
+      {status.label}
+    </span>
+  );
+};
+
+const PickupCode = ({ code }) => (
+  <div className="pickup-code-block" aria-label={`Pickup code ${code}`}>
+    {String(code || "")
+      .split("")
+      .map((digit, index) => (
+        <span key={`${digit}-${index}`}>{digit}</span>
+      ))}
+  </div>
+);
+
+const SkeletonLine = ({ className = "" }) => (
+  <span className={`orders-skeleton-block ${className}`} aria-hidden="true" />
+);
+
+const OrderCardsSkeleton = () => (
+  <section
+    className="orders-content orders-card-skeletons"
+    aria-label="Loading orders"
+    aria-busy="true"
+  >
+    {[0, 1, 2].map((card) => (
+      <article className="order-history-card order-card-skeleton" key={card}>
+        <div className="order-card-top">
+          <div className="order-card-title-wrap">
+            <SkeletonLine className="is-order-title" />
+            <SkeletonLine className="is-order-meta" />
+          </div>
+          <SkeletonLine className="is-order-status" />
+        </div>
+        <div className="order-card-products">
+          {[0, 1, 2].map((item) => (
+            <SkeletonLine className="is-product-image" key={item} />
+          ))}
+        </div>
+        <div className="order-card-skeleton-summary">
+          <SkeletonLine className="is-summary-short" />
+          <SkeletonLine className="is-summary-total" />
+        </div>
+      </article>
+    ))}
+  </section>
+);
+
+const OrderDetailsSkeleton = () => (
+  <div
+    className="order-details-content order-details-skeleton"
+    aria-label="Loading order details"
+    aria-busy="true"
+  >
+    <section className="order-detail-section">
+      <div className="order-detail-skeleton-head">
+        <div>
+          <SkeletonLine className="is-detail-title" />
+          <SkeletonLine className="is-detail-meta" />
+        </div>
+        <SkeletonLine className="is-order-status" />
+      </div>
+      {[0, 1].map((item) => (
+        <div className="order-detail-skeleton-product" key={item}>
+          <SkeletonLine className="is-detail-image" />
+          <div>
+            <SkeletonLine className="is-detail-product-name" />
+            <SkeletonLine className="is-detail-product-line" />
+            <SkeletonLine className="is-detail-product-short" />
+          </div>
+        </div>
+      ))}
+    </section>
+    {[0, 1, 2].map((section) => (
+      <section className="order-detail-section" key={section}>
+        <SkeletonLine className="is-section-title" />
+        {[0, 1, 2].map((row) => (
+          <div className="order-detail-skeleton-row" key={row}>
+            <SkeletonLine className="is-row-label" />
+            <SkeletonLine className="is-row-value" />
+          </div>
+        ))}
+      </section>
+    ))}
+  </div>
+);
+
+const OrderTimeline = ({ order }) => {
+  const progress = getOrderProgress(order);
+  const isDeclined = progress === "Declined";
+  const isDraft = Boolean(order?._isDraft);
+  const transportLabel = order?.isPickup ? "Ready for pick-up" : "Shipped";
+  const handover = order?.vendorHandover;
+  const hasVendorHandover = Boolean(handover?.confirmedAt);
+  const courierName =
+    handover?.courier || order?.deliveryProvider || "the courier";
+
+  const steps = isDeclined
+    ? [
+        {
+          label: "Pending",
+          description: "Order placed and sent to the vendor",
+          icon: LuClock3,
+          date: order?.createdAt,
+        },
+        {
+          label: "Declined",
+          description: order?.declineReason || "The vendor declined this order",
+          icon: LuXCircle,
+        },
+      ]
+    : [
+        {
+          label: isDraft ? "Awaiting payment" : "Pending",
+          description: isDraft
+            ? "Payment is pending for this order"
+            : "Order placed and waiting for vendor review",
+          icon: LuClock3,
+          date: order?.createdAt,
+        },
+        {
+          label: order?.isPickup ? "Processing" : "Accepted",
+          description: order?.isPickup
+            ? "The vendor is preparing your order for pick-up"
+            : "Vendor accepted the order",
+          icon: LuCheckCircle,
+        },
+        ...(order?.isStockpile
+          ? [
+              {
+                label: "Piling",
+                description: "Your stockpile is active",
+                icon: LuPackage,
+              },
+            ]
+          : []),
+        ...(!order?.isPickup && hasVendorHandover
+          ? [
+              {
+                label: "Handed to courier",
+                description: `The vendor handed your parcel to ${courierName}. We’re waiting for the courier’s next update.`,
+                icon: LuPackageCheck,
+                date: handover.confirmedAt,
+              },
+            ]
+          : []),
+        {
+          label: transportLabel,
+          description: order?.isPickup
+            ? "Your order is ready at the pick-up location"
+            : "Your order is on the way",
+          icon: order?.isPickup ? LuPackage : LuTruck,
+          date: order?.shippedAt,
+        },
+        {
+          label: order?.isPickup ? "Collected" : "Delivered",
+          description: order?.isPickup
+            ? "Order collected from the pick-up location"
+            : "Order completed",
+          icon: LuCheckCircle,
+          date: order?.deliveredAt,
+        },
+      ];
+
+  let currentIndex = 0;
+  if (isDeclined) currentIndex = 1;
+  else if (progress === "Delivered") currentIndex = steps.length - 1;
+  else if (progress === "Shipped") currentIndex = steps.length - 2;
+  else if (hasVendorHandover) {
+    currentIndex = steps.findIndex((step) => step.label === "Handed to courier");
+  } else if (progress === "In Progress") {
+    currentIndex = order?.isStockpile ? 2 : 1;
+  }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-70 flex items-center justify-center px-4">
-      <div className="bg-white p-6 rounded-lg max-w-sm w-full">
-        <h2 className="text-lg font-opensans font-semibold mb-4">
-          Confirm Shipping Request ⚠️
-        </h2>
-        <p className="text-sm text-gray-700 font-opensans mb-6">
-          This action cannot be undone. Requesting for shipping means you are
-          ready for delivery. Ensure your items are complete and accurate before
-          proceeding. THIS PILE WILL CLOSE!
-        </p>
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className=" text-sm border border-customRichBrown text-customRichBrown font-opensans px-4 py-2 rounded"
+    <div className="order-timeline">
+      {steps.map((step, index) => {
+        const Icon = step.icon;
+        const complete = index < currentIndex;
+        const current = index === currentIndex;
+        return (
+          <div
+            key={step.label}
+            className={`order-timeline-step ${complete ? "is-complete" : ""} ${
+              current ? "is-current" : ""
+            }`}
           >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            className="bg-customOrange font-opensans text-sm text-white px-4 py-2 rounded"
-          >
-            I Confirm
-          </button>
-        </div>
-      </div>
+            <span className="order-timeline-icon" aria-hidden="true">
+              <Icon size={18} />
+            </span>
+            <div className="order-timeline-copy">
+              <div className="order-timeline-heading">
+                <strong>{step.label}</strong>
+                {step.date && <time>{formatOrderDate(step.date)}</time>}
+              </div>
+              {step.description && <p>{step.description}</p>}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };
+
+const OrderHelpSheet = ({ onClose, onChat, onKnowledgeBase }) => (
+  <div className="orders-help-overlay" onClick={onClose}>
+    <section
+      className="orders-help-sheet"
+      aria-modal="true"
+      role="dialog"
+      aria-labelledby="order-help-title"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="orders-help-handle" aria-hidden="true" />
+      <h2 id="order-help-title">How can we help?</h2>
+      <button className="orders-help-option" type="button" onClick={onKnowledgeBase}>
+        <LuBookOpen aria-hidden="true" />
+        Order knowledge base
+      </button>
+      <button className="orders-help-option" type="button" onClick={onChat}>
+        <LuMessageCircle aria-hidden="true" />
+        Talk to support
+      </button>
+    </section>
+  </div>
+);
 const Countdown = ({ expiresAtMs }) => {
   const [text, setText] = useState("");
 
@@ -171,8 +650,16 @@ const LinkShareModal = ({
           <IoCopyOutline
             className="ml-2 text-lg text-gray-600 cursor-pointer hover:text-gray-800"
             onClick={() => {
-              navigator.clipboard.writeText(shareUrl);
-              toast.success("Copied!");
+              void navigator.clipboard
+                .writeText(shareUrl)
+                .then(() => {
+                  appHaptics.success();
+                  toast.success("Copied!");
+                })
+                .catch(() => {
+                  appHaptics.error();
+                  toast.error("Could not copy. Please try again.");
+                });
             }}
             title="Copy link"
           />
@@ -184,46 +671,214 @@ const LinkShareModal = ({
 
 const OrdersCentre = () => {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
-  const [vendors, setVendors] = useState({});
+  const location = useLocation();
+  const { currentUser, currentUserData, loading: authLoading } = useAuth();
+  const userId = currentUser?.uid || null;
+  const orders = useSelector(selectBuyerDisplayOrders);
+  const draftOrders = useSelector(selectBuyerDisplayDrafts);
+  const rawOrders = useSelector(selectRawBuyerOrders);
+  const rawDraftOrders = useSelector(selectRawBuyerDrafts);
+  const ordersRevision = useSelector(selectBuyerOrdersRevision);
+  const draftsRevision = useSelector(selectBuyerDraftsRevision);
+  const projectedOrdersRevision = useSelector(
+    selectBuyerProjectedOrdersRevision
+  );
+  const projectedDraftsRevision = useSelector(
+    selectBuyerProjectedDraftsRevision
+  );
+  const allOrders = useMemo(
+    () =>
+      [...draftOrders, ...orders].sort(
+        (a, b) => getOrderTime(b.createdAt) - getOrderTime(a.createdAt)
+      ),
+    [draftOrders, orders]
+  );
   const [activeTab, setActiveTab] = useState("All");
-  const [userId, setUserId] = useState(null);
-  const [draftOrders, setDraftOrders] = useState([]);
-  const [allOrders, setAll] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const [loading, setLoading] = useState(
+    () => projectedOrdersRevision < ordersRevision && orders.length === 0
+  );
+  const [draftsLoading, setDraftsLoading] = useState(
+    () =>
+      projectedDraftsRevision < draftsRevision && draftOrders.length === 0
+  );
+  const [loadError, setLoadError] = useState(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [selectedOrder, setSelectedOrder] = useState(null); // Selected order for modal
   const [isModalOpen, setIsModalOpen] = useState(false); // Modal visibility
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [trackingRefreshing, setTrackingRefreshing] = useState(false);
+  const [courierReviewTarget, setCourierReviewTarget] = useState(null);
   const [activeProductIndex, setActiveProductIndex] = useState(0); // Track current product in the modal
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [showConfirmShippingModal, setShowConfirmShippingModal] =
     useState(false);
   const [orderToRequestShipping, setOrderToRequestShipping] = useState(null);
   // ↥ stay with the other useState hooks
-  const [showMapModal, setShowMapModal] = useState(false);
-  const [mapOrigin, setMapOrigin] = useState(null);
-  const [mapDestination, setMapDestination] = useState(null);
-  const [userLocation, setUserLocation] = useState(null); // <- logged-in user’s lat/lng
   const [showLinkBanner, setShowLinkBanner] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [sampleProduct, setSampleProduct] = useState(null);
-  const ordersFetched = useRef(false);
+  const detailRequestId = useRef(0);
+  const pickupMapOpeningRef = useRef(false);
+  const ordersTabsRef = useRef(null);
+  const listLoadedHapticPlayed = useRef(false);
   const [showOrderPlacedModal, setShowOrderPlacedModal] = useState(false);
   const [orderForPopup, setOrderForPopup] = useState(null); // The order that triggers the popup
-  const [isRequestingShipping, setIsRequestingShipping] = useState(false);
   const [shareUrl, setShareUrl] = useState(null);
   const [expiresAt, setExpiresAt] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showHelpOptions, setShowHelpOptions] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState(null);
+  const [returnToProfile] = useState(() =>
+    Boolean(
+      location.state?.fromPaymentApprove ||
+        location.state?.paymentConfirmationPending ||
+        location.state?.orderCreated,
+    ),
+  );
+  const [focusedOrderKey, setFocusedOrderKey] = useState(null);
+  const focusedOrderTimerRef = useRef(null);
 
   const countdown = expiresAt ? Math.max(0, expiresAt - Date.now()) : 0; // you can transform to “mm:ss” later if you like
 
-  const location = useLocation();
-  const { currentUser } = useAuth();
   const fromPaymentApprove = location.state?.fromPaymentApprove;
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (!userId) {
+      setPendingCheckout(null);
+      return;
+    }
+    const storageKey = `mythrift.pending-order.${userId}`;
+    const incomingPending =
+      location.state?.paymentConfirmationPending || location.state?.orderCreated
+        ? {
+            orderId: location.state?.orderId || null,
+            reference: location.state?.paymentReference || null,
+            kind: location.state?.orderCreated ? "created" : "confirming",
+            startedAt: Date.now(),
+          }
+        : null;
+
+    if (incomingPending) {
+      setPendingCheckout(incomingPending);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(incomingPending));
+      } catch {}
+      const remainingState = {...(location.state || {})};
+      delete remainingState.paymentConfirmationPending;
+      delete remainingState.orderCreated;
+      delete remainingState.orderId;
+      delete remainingState.paymentReference;
+      navigate(`${location.pathname}${location.search}${location.hash}`, {
+        replace: true,
+        state: remainingState,
+      });
+      return;
+    }
+
+    try {
+      const stored = JSON.parse(localStorage.getItem(storageKey) || "null");
+      setPendingCheckout(stored);
+    } catch {
+      setPendingCheckout(null);
+    }
+  }, [
+    location.hash,
+    location.pathname,
+    location.search,
+    location.state,
+    navigate,
+    userId,
+  ]);
+
+  useEffect(() => {
+    if (!pendingCheckout || !userId) return;
+    const matchingOrder = allOrders.find(
+      (order) =>
+        (pendingCheckout.orderId && order.id === pendingCheckout.orderId) ||
+        (pendingCheckout.reference &&
+          order.orderReference === pendingCheckout.reference),
+    );
+    if (!matchingOrder) return;
+    setPendingCheckout(null);
+    try {
+      localStorage.removeItem(`mythrift.pending-order.${userId}`);
+    } catch {}
+  }, [allOrders, pendingCheckout, userId]);
+
+  useEffect(() => {
+    const focusOrderId = location.state?.focusOrderId;
+    if (!focusOrderId || allOrders.length === 0) return undefined;
+    const matchingOrder = allOrders.find((order) =>
+      orderContainsOrderId(order, focusOrderId),
+    );
+    if (!matchingOrder) return undefined;
+
+    const focusKey = getOrderDetailHistoryKey(matchingOrder);
+    setActiveTab("All");
+    setFocusedOrderKey(focusKey);
+    appHaptics.selection();
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        document
+          .querySelector(`[data-order-focus-key="${CSS.escape(focusKey)}"]`)
+          ?.scrollIntoView({behavior: "smooth", block: "center"});
+      });
+    });
+    if (focusedOrderTimerRef.current) {
+      window.clearTimeout(focusedOrderTimerRef.current);
+    }
+    focusedOrderTimerRef.current = window.setTimeout(
+      () => setFocusedOrderKey(null),
+      2400,
+    );
+
+    const remainingState = {...(location.state || {})};
+    delete remainingState.focusOrderId;
+    navigate(`${location.pathname}${location.search}${location.hash}`, {
+      replace: true,
+      state: remainingState,
+    });
+
+    return undefined;
+  }, [allOrders, location.hash, location.pathname, location.search, location.state, navigate]);
+
+  useEffect(
+    () => () => {
+      if (focusedOrderTimerRef.current) {
+        window.clearTimeout(focusedOrderTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const stockpileId = location.state?.reopenStockpileDeliveryId;
+    if (!stockpileId || allOrders.length === 0) return;
+    const matchingOrder = allOrders.find(
+      (order) => order.stockpileDocId === stockpileId
+    );
+    if (!matchingOrder) return;
+    setOrderToRequestShipping(matchingOrder);
+    setShowConfirmShippingModal(true);
+    const { reopenStockpileDeliveryId, ...remainingState } = location.state;
+    navigate(`${location.pathname}${location.search}${location.hash}`, {
+      replace: true,
+      state: remainingState,
+    });
+  }, [allOrders, location.hash, location.pathname, location.search, location.state, navigate]);
+  const refreshOrders = useCallback(async () => {
+    if (!currentUser?.uid) return;
+    await refreshBuyerOrdersFromServer(currentUser.uid);
+  }, [currentUser?.uid]);
+
+  useNativePageRefresh(refreshOrders, {
+    enabled: Boolean(currentUser?.uid),
+    verticalOffset: 112,
+  });
   useEffect(() => {
     window.scrollTo(0, 0);
-  });
+  }, []);
   useEffect(() => {
     if (!location.state?.draftShareUrl) return;
     setShareUrl(location.state.draftShareUrl);
@@ -241,109 +896,105 @@ const OrdersCentre = () => {
   }, []);
 
   useEffect(() => {
-    if (!userId || ordersFetched.current) return;
+    if (!userId) {
+      dispatch(
+        ordersProjectionReceived({ orders: [], revision: ordersRevision })
+      );
+      setLoading(false);
+      setLoadError(null);
+      return;
+    }
+
+    // Wait for the auth-scoped realtime listener's first snapshot. This avoids
+    // replacing a warm Redux projection with a temporary empty list on mount.
+    if (ordersRevision === 0) return;
+
+    // The enriched projection survives route unmounts in Redux. If it already
+    // represents this source revision, navigation back to Orders is instant
+    // and performs no Firestore enrichment reads.
+    if (projectedOrdersRevision >= ordersRevision) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
 
     const fetchOrdersAndProducts = async () => {
+      // Keep the existing projection visible while a realtime update is being
+      // enriched; skeletons are only for the genuinely empty initial load.
+      setLoading(orders.length === 0);
+      setLoadError(null);
       try {
-        console.log("Fetching orders for userId:", userId);
-
-        // 1. Fetch orders for this user
-        const q = query(
-          collection(db, "orders"),
-          where("userId", "==", userId)
-        );
-        const querySnapshot = await getDocs(q);
-        const fetchedOrders = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        console.log("Fetched orders:", fetchedOrders);
+        // Orders are supplied incrementally by the auth-scoped Firestore
+        // listener. This effect only builds the existing enriched UI model.
+        const fetchedOrders = rawOrders.map((order) => ({ ...order }));
 
         // 2. Sort by createdAt (newest first)
-        fetchedOrders.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-
-        // 3. Fetch vendor names
-        const vendorIds = [
-          ...new Set(fetchedOrders.map((order) => order.vendorId)),
-        ];
-        const vendorSnapshots = await Promise.all(
-          vendorIds.map((id) => getDoc(doc(db, "vendors", id)))
+        fetchedOrders.sort(
+          (a, b) => getOrderTime(b.createdAt) - getOrderTime(a.createdAt)
         );
 
-        const vendorMap = {};
-        vendorSnapshots.forEach((snap) => {
-          if (snap.exists()) {
-            vendorMap[snap.id] = {
-              name: snap.data().shopName,
-              pickupLat: snap.data().pickupLat ?? null,
-              pickupLng: snap.data().pickupLng ?? null,
-              pickupAddress: snap.data().pickupAddress ?? "",
-            };
-          }
-        });
+        // A name lookup must never make a paid order disappear. Authorize
+        // historical store summaries by order ownership, not public eligibility.
+        const vendorMap = await getOwnedOrderVendorSummaries(fetchedOrders, userId)
+          .catch((error) => {
+            console.warn("[orders] store names unavailable", {code: error?.code});
+            return {};
+          });
 
         // 4. Attach vendorName to each order
         const enrichedOrders = fetchedOrders.map((order) => ({
           ...order,
-          vendorName: vendorMap[order.vendorId]?.name || "Unknown Vendor",
-          pickupLat: vendorMap[order.vendorId]?.pickupLat || null,
-          pickupLng: vendorMap[order.vendorId]?.pickupLng || null,
-          pickupAddress: vendorMap[order.vendorId]?.pickupAddress || "",
+          vendorName: vendorMap[order.vendorId]?.shopName || order.vendorName || order.shopName || "Unknown Vendor",
+          // Never copy another vendor's private address into every order.
+          // Pickup details are authorized on demand when opening that order.
+          pickupLat: null,
+          pickupLng: null,
+          pickupAddress: "",
         }));
 
-        // 5. Gather unique product IDs
-        const productIds = new Set();
-        enrichedOrders.forEach((order) =>
-          order.cartItems.forEach((item) => productIds.add(item.productId))
-        );
-
-        const productsSnapshot = await getDocs(
-          query(
-            collection(db, "products"),
-            where(documentId(), "in", Array.from(productIds))
-          )
-        );
-
-        const productsData = {};
-        productsSnapshot.forEach((doc) => {
-          productsData[doc.id] = doc.data();
-        });
+        const productsData = await getOrderProductSnapshots(enrichedOrders);
 
         // 6. Attach product info to cartItems
         const ordersWithProductDetails = enrichedOrders.map((order) => {
-          const cartItemsWithDetails = order.cartItems.map((item) => {
-            const product = productsData[item.productId];
-            let imageUrl = "";
-            let name = "";
-            let price = 0;
-            let color = "";
-            let size = "";
+          const items = Array.isArray(order.cartItems) ? order.cartItems : [];
+          const cartItemsWithDetails = items.map((item, index) => {
+            const product = productsData[order.id]?.[index] || item.productSnapshot;
+            let imageUrl = item.selectedImageUrl || item.imageUrl || item.image || product?.imageUrl || "";
+            let name = item.name || item.productName || product?.name || "Product";
+            let price = Number(item.unitPrice ?? item.productSnapshot?.price ?? item.price ?? product?.price ?? 0);
+            let color = item.color || item.variantAttributes?.color || "";
+            let size = item.size || item.variantAttributes?.size || "";
+            const savedSizeHidden =
+              item.variantAttributes?.sizeHidden ?? item.sizeHidden;
+            const hideSize =
+              typeof savedSizeHidden === "boolean"
+                ? savedSizeHidden
+                : product
+                  ? isVariantSizeHidden(product)
+                  : false;
 
             if (product) {
-              name = product.name;
-              price = product.price;
 
               if (item.subProductId) {
                 const sub = product.subProducts?.find(
                   (sp) => sp.subProductId === item.subProductId
                 );
                 if (sub) {
-                  imageUrl = sub.images?.[0] || "";
+                  imageUrl = imageUrl || sub.images?.[0] || "";
                   color = sub.color || "";
                   size = sub.size || "";
-                  if (sub.price) price = sub.price;
                 }
               } else if (item.variantAttributes) {
-                imageUrl = product.imageUrls?.[0] || "";
+                imageUrl = imageUrl || product.imageUrls?.[0] || "";
                 color = item.variantAttributes.color || "";
                 size = item.variantAttributes.size || "";
               } else {
-                imageUrl = product.coverImageUrl || "";
+                imageUrl = imageUrl || product.coverImageUrl || "";
               }
             }
 
-            return { ...item, name, price, imageUrl, color, size };
+            return { ...item, name, price, imageUrl, color, size, hideSize };
           });
 
           return {
@@ -368,17 +1019,11 @@ const OrdersCentre = () => {
                 o.stockpileDocId === order.stockpileDocId
             );
             relatedOrders.sort(
-              (a, b) => a.createdAt.seconds - b.createdAt.seconds
+              (a, b) => getOrderTime(a.createdAt) - getOrderTime(b.createdAt)
             );
             groupedKeys.add(key);
 
-            const combinedCartItems = relatedOrders.flatMap((o) =>
-              o.cartItems.map((item) => ({
-                ...item,
-                _orderId: o.id,
-                _orderCreatedAt: o.createdAt, // 👈 attach originating order ID
-              }))
-            );
+            const combinedCartItems = relatedOrders.flatMap((o) => o.cartItems);
 
             const orderIds = relatedOrders.map((o) => o.id);
             const combinedTotal = relatedOrders.reduce(
@@ -399,23 +1044,53 @@ const OrdersCentre = () => {
               stockpileData = stockpileSnap.data();
             }
             const firstOrder = relatedOrders[0];
+            const latestOrder = relatedOrders[relatedOrders.length - 1] || order;
+            const vendorHandover =
+              stockpileData.vendorHandover ||
+              relatedOrders.find((item) => item.vendorHandover?.confirmedAt)
+                ?.vendorHandover ||
+              latestOrder.vendorHandover ||
+              null;
 
             groupedMap.set(key, {
-              ...order,
+              ...latestOrder,
               cartItems: combinedCartItems,
               orderIds,
+              _relatedOrders: relatedOrders,
+              isReviewed: relatedOrders.every(
+                (item) =>
+                  Boolean(item.reviewId) && Number(item.reviewRating) > 0,
+              ),
+              reviewRating:
+                relatedOrders.find((item) => Number(item.reviewRating) > 0)
+                  ?.reviewRating || null,
               combinedTotal,
               combinedSubtotal,
               stockpileDocId: order.stockpileDocId,
               chosenWeeks: stockpileData.chosenWeeks || null,
               endDate: stockpileData.endDate || null,
               isActive: stockpileData.isActive ?? null,
+              requestedForShipping:
+                stockpileData.requestedForShipping ??
+                latestOrder.requestedForShipping ??
+                false,
+              stockpileStatus:
+                stockpileData.status ||
+                (stockpileData.isActive === false ? "closing" : "active"),
+              deliveryFulfillmentId:
+                stockpileData.deliveryFulfillmentId || null,
+              vendorHandover,
               firstOrderStatus:
-                firstOrder?.progressStatus || order.progressStatus,
+                firstOrder?.progressStatus || latestOrder.progressStatus,
 
               firstOrderCreatedAt: firstOrder?.createdAt || null,
               firstOrderRiderInfo: firstOrder?.riderInfo || null,
               firstOrderServiceFee: firstOrder?.serviceFee || 0,
+              paymentMethod:
+                firstOrder?.paymentMethod || latestOrder.paymentMethod || null,
+              userInfo: firstOrder?.userInfo || latestOrder.userInfo || {},
+              declineReason:
+                firstOrder?.declineReason || latestOrder.declineReason || "",
             });
           } else {
             groupedMap.set(order.id, order);
@@ -424,145 +1099,140 @@ const OrdersCentre = () => {
 
         // Convert map to array and sort
         const finalOrders = Array.from(groupedMap.values()).sort(
-          (a, b) => b.createdAt.seconds - a.createdAt.seconds
+          (a, b) => getOrderTime(b.createdAt) - getOrderTime(a.createdAt)
         );
-        setOrders(finalOrders);
+        if (!cancelled) {
+          dispatch(
+            ordersProjectionReceived({
+              orders: finalOrders.map(firestoreValueToSerializable),
+              revision: ordersRevision,
+            })
+          );
+        }
 
-        console.log("🧾 Final grouped orders:", finalOrders);
       } catch (error) {
         console.error("Error fetching orders and products:", error);
+        if (!cancelled) {
+          setLoadError("We couldn’t load your orders. Check your connection and try again.");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchOrdersAndProducts();
-  }, [userId]);
-  /* ─── Get user’s saved lat/lng once we know who they are ─── */
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    dispatch,
+    loadAttempt,
+    ordersRevision,
+    projectedOrdersRevision,
+    rawOrders,
+    userId,
+  ]);
+  const handleStockpileDeliveryState = useCallback(
+    (state) => {
+      if (!orderToRequestShipping?.stockpileDocId || !state?.status) return;
+      const isActive = state.status === "active";
+      const changes = {
+        stockpileStatus: state.status,
+        deliveryFulfillmentId: state.deliveryFulfillmentId || null,
+        requestedForShipping: !isActive,
+        isActive,
+      };
+      setSelectedOrder((previous) =>
+        previous?.stockpileDocId === orderToRequestShipping.stockpileDocId
+          ? { ...previous, ...changes }
+          : previous
+      );
+      dispatch(
+        displayOrderPatched({
+          stockpileDocId: orderToRequestShipping.stockpileDocId,
+          changes,
+        })
+      );
+      if (!isActive) dispatch(exitStockpileMode());
+    },
+    [dispatch, orderToRequestShipping?.stockpileDocId]
+  );
+
   useEffect(() => {
-    if (!userId) return;
-
-    (async () => {
-      try {
-        const uSnap = await getDoc(doc(db, "users", userId));
-        if (uSnap.exists()) {
-          const loc = uSnap.data().location;
-          if (loc?.lat && loc?.lng) {
-            setUserLocation({ lat: loc.lat, lng: loc.lng });
-          }
-        }
-      } catch (e) {
-        console.warn("Could not load user location:", e);
-      }
-    })();
-  }, [userId]);
-
-  const handleRequestShipping = async (order) => {
-    console.log("Requesting shipping for order:", order);
-
-    if (!order?.stockpileDocId) {
-      console.log("No stockpileDocId found");
+    if (!userId) {
+      dispatch(
+        draftsProjectionReceived({ drafts: [], revision: draftsRevision })
+      );
+      setDraftsLoading(false);
       return;
     }
 
-    setIsRequestingShipping(true);
+    if (draftsRevision === 0) return;
 
-    try {
-      const stockpileRef = doc(db, "stockpiles", order.stockpileDocId);
-      console.log("Updating stockpile document:", stockpileRef);
-
-      await updateDoc(stockpileRef, {
-        requestedForShipping: true,
-        isActive: false,
-      });
-
-      const updatedStockpileSnap = await getDoc(stockpileRef);
-      let updatedStockpileData = {};
-      if (updatedStockpileSnap.exists()) {
-        updatedStockpileData = updatedStockpileSnap.data();
-      }
-      dispatch(exitStockpileMode());
-      toast.success("Shipping request sent successfully!");
-
-      // Update local UI State
-      setSelectedOrder((prev) => ({
-        ...prev,
-        requestedForShipping: true,
-        isActive: updatedStockpileData.isActive,
-      }));
-
-      setOrders((prevOrders) =>
-        prevOrders.map((o) =>
-          o.stockpileDocId === order.stockpileDocId
-            ? {
-                ...o,
-                requestedForShipping: true,
-                isActive: updatedStockpileData.isActive,
-              }
-            : o
-        )
-      );
-
-      // === CALL THE CLOUD FUNCTION ===
-      const notifyVendorShippingRequest = httpsCallable(
-        functions,
-        "notifyVendorShippingRequest"
-      );
-
-      await notifyVendorShippingRequest({
-        vendorId: order.vendorId,
-        stockpileDocId: order.stockpileDocId,
-        userName: currentUser?.displayName || "A Customer",
-      });
-      dispatch(exitStockpileMode());
-      console.log("Vendor Notification Triggered Successfully");
-    } catch (error) {
-      console.error("Error requesting shipping:", error);
-      toast.error("Failed to request shipping. Please try again.");
-    } finally {
-      setIsRequestingShipping(false);
+    if (projectedDraftsRevision >= draftsRevision) {
+      setDraftsLoading(false);
+      return;
     }
-  };
+
+    let active = true;
+    setDraftsLoading(rawDraftOrders.length > 0 && draftOrders.length === 0);
+
+    const buildDraftProjection = async () => {
+      try {
+        const drafts = rawDraftOrders.map((draft) => ({
+          ...draft,
+          _isDraft: true,
+          progressStatus: "Awaiting Payment",
+        }));
+        const filledDrafts = await enrichWithProductInfo(drafts);
+        if (active) {
+          dispatch(
+            draftsProjectionReceived({
+              drafts: filledDrafts.map(firestoreValueToSerializable),
+              revision: draftsRevision,
+            })
+          );
+        }
+      } catch (error) {
+        console.error("Error enriching draft orders:", error);
+      } finally {
+        if (active) setDraftsLoading(false);
+      }
+    };
+
+    void buildDraftProjection();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    dispatch,
+    draftOrders.length,
+    draftsRevision,
+    projectedDraftsRevision,
+    rawDraftOrders,
+    userId,
+  ]);
 
   useEffect(() => {
-    if (!userId) return;
-    const now = Timestamp.fromDate(new Date());
-    const draftQ = query(
-      collection(db, "draftOrders"),
-      where("ownerId", "==", userId),
-      where("status", "==", "PAY_IN_PROGRESS"),
-      where("expiresAt", ">", now)
-    );
-
-    const unsub = onSnapshot(draftQ, async (snap) => {
-      // 1) build your raw drafts array
-      const rawDrafts = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-        _isDraft: true,
-        progressStatus: "Awaiting Payment",
-      }));
-
-      // 2) enrich with product info exactly like we do for real orders
-      const filledDrafts = await enrichWithProductInfo(rawDrafts);
-
-      // 3) finally update state
-      setDraftOrders(filledDrafts);
-    });
-
-    return unsub;
+    listLoadedHapticPlayed.current = false;
   }, [userId]);
 
   useEffect(() => {
-    // naive merge; if an id clashes the "real" order wins
-    const merged = [...draftOrders, ...orders].sort(
-      (a, b) =>
-        (b.createdAt?.seconds || b.createdAt) -
-        (a.createdAt?.seconds || a.createdAt)
-    );
+    if (
+      authLoading ||
+      !userId ||
+      loading ||
+      draftsLoading ||
+      allOrders.length === 0 ||
+      listLoadedHapticPlayed.current
+    ) {
+      return;
+    }
 
-    setAll(merged);
-  }, [orders, draftOrders]);
+    listLoadedHapticPlayed.current = true;
+    appHaptics.light();
+  }, [allOrders.length, authLoading, draftsLoading, loading, userId]);
 
   useEffect(() => {
     if (orders.length > 0) {
@@ -574,7 +1244,14 @@ const OrdersCentre = () => {
 
         // Clear the cart for that vendor immediately
         if (newOrder.vendorId) {
-          dispatch(clearCart(newOrder.vendorId));
+          dispatch(clearCart(newOrder.vendorId)).then((synced) => {
+            if (!synced) {
+              console.warn(
+                "Order completed, but the cart clear is pending cloud sync",
+                { vendorId: newOrder.vendorId },
+              );
+            }
+          });
           dispatch(exitStockpileMode());
         }
         dispatch(deactivateQuickMode());
@@ -602,15 +1279,354 @@ const OrdersCentre = () => {
       }
     }
   };
+
+  const revalidateOrderDetails = async (order, requestId) => {
+    try {
+      let refreshedOrder = order;
+
+      if (order.deliveryFulfillmentId) {
+        try {
+          await refreshDeliveryTracking({
+            deliveryFulfillmentId: order.deliveryFulfillmentId,
+            mode: "modal",
+          });
+        } catch (trackingError) {
+          // The saved order remains usable offline or while the courier is
+          // unavailable. Scheduled tracking will retry in the background.
+          console.warn("Could not refresh delivery tracking on open:", {
+            code: trackingError?.code || "unknown",
+          });
+        }
+      }
+
+      if (order.isStockpile && order.stockpileDocId) {
+        const orderIds = Array.from(
+          new Set(
+            (order.orderIds || order._relatedOrders?.map((item) => item.id) || [])
+              .filter(Boolean)
+          )
+        );
+        const [orderSnapshots, stockpileSnapshot] = await Promise.all([
+          Promise.all(orderIds.map((id) => getDoc(doc(db, "orders", id)))),
+          getDoc(doc(db, "stockpiles", order.stockpileDocId)),
+        ]);
+        const freshRelatedOrders = orderSnapshots
+          .filter((snapshot) => snapshot.exists())
+          .map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }))
+          .sort(
+            (a, b) => getOrderTime(a.createdAt) - getOrderTime(b.createdAt)
+          );
+
+        if (freshRelatedOrders.length > 0) {
+          // Keep the product metadata already enriched for the UI while
+          // replacing status and order fields with the latest Firestore data.
+          const existingOrdersById = new Map(
+            (order._relatedOrders || []).map((item) => [item.id, item])
+          );
+          const relatedOrders = freshRelatedOrders.map((freshOrder) => {
+            const existingOrder = existingOrdersById.get(freshOrder.id);
+            return {
+              ...existingOrder,
+              ...freshOrder,
+              cartItems:
+                existingOrder?.cartItems || freshOrder.cartItems || [],
+            };
+          });
+          const firstOrder = relatedOrders[0];
+          const latestOrder = relatedOrders[relatedOrders.length - 1];
+          const freshById = new Map(relatedOrders.map((item) => [item.id, item]));
+          const stockpileData = stockpileSnapshot.exists()
+            ? stockpileSnapshot.data()
+            : {};
+
+          refreshedOrder = {
+            ...order,
+            ...latestOrder,
+            id: order.id,
+            stockpileDocId: order.stockpileDocId,
+            orderIds: relatedOrders.map((item) => item.id),
+            _relatedOrders: relatedOrders,
+            cartItems: (order.cartItems || []).map((item) => {
+              const sourceOrder = freshById.get(item._orderId);
+              return {
+                ...item,
+                _orderProgressStatus:
+                  sourceOrder?.progressStatus || item._orderProgressStatus,
+                _orderDeclineReason:
+                  sourceOrder?.declineReason || item._orderDeclineReason || "",
+              };
+            }),
+            combinedTotal: relatedOrders.reduce(
+              (sum, item) => sum + Number(item.total || 0),
+              0
+            ),
+            combinedSubtotal: relatedOrders.reduce(
+              (sum, item) => sum + Number(item.subtotal || 0),
+              0
+            ),
+            chosenWeeks: stockpileData.chosenWeeks ?? order.chosenWeeks ?? null,
+            endDate: stockpileData.endDate ?? order.endDate ?? null,
+            isActive: stockpileData.isActive ?? order.isActive ?? null,
+            requestedForShipping:
+              stockpileData.requestedForShipping ??
+              order.requestedForShipping ??
+              false,
+            stockpileStatus:
+              stockpileData.status ||
+              order.stockpileStatus ||
+              (stockpileData.isActive === false ? "closing" : "active"),
+            deliveryFulfillmentId:
+              stockpileData.deliveryFulfillmentId ||
+              order.deliveryFulfillmentId ||
+              null,
+            firstOrderStatus:
+              firstOrder.progressStatus || order.firstOrderStatus,
+            firstOrderCreatedAt:
+              firstOrder.createdAt || order.firstOrderCreatedAt || null,
+            firstOrderRiderInfo:
+              firstOrder.riderInfo || order.firstOrderRiderInfo || null,
+            firstOrderServiceFee:
+              firstOrder.serviceFee ?? order.firstOrderServiceFee ?? 0,
+            paymentMethod:
+              firstOrder.paymentMethod || order.paymentMethod || null,
+            userInfo: firstOrder.userInfo || order.userInfo || {},
+            declineReason:
+              firstOrder.declineReason || order.declineReason || "",
+          };
+        }
+      } else {
+        const orderSnapshot = await getDoc(doc(db, "orders", order.id));
+        if (orderSnapshot.exists()) {
+          refreshedOrder = {
+            ...order,
+            ...orderSnapshot.data(),
+            id: order.id,
+            cartItems: order.cartItems,
+          };
+        }
+      }
+
+      if (refreshedOrder.isPickup || refreshedOrder.userInfo?.isPickup) {
+        // Failure to enrich a location must not discard a fresh order status.
+        // Do not fall back to a public vendor document or stale pickup details.
+        refreshedOrder = {
+          ...refreshedOrder,
+          pickupAddress: "", pickupLat: null, pickupLng: null,
+        };
+        try {
+          const pickup = await getOwnedPickupDetails([refreshedOrder], userId);
+          refreshedOrder = {...refreshedOrder, ...(pickup[refreshedOrder.id] || {})};
+        } catch (pickupError) {
+          console.warn("Could not refresh pickup location:", {code: pickupError?.code || "unknown"});
+          if (detailRequestId.current === requestId && auth.currentUser?.uid === userId) {
+            toast.error("Your order is up to date, but the pickup address couldn’t load. Try again shortly.");
+          }
+        }
+      }
+      if (detailRequestId.current !== requestId || auth.currentUser?.uid !== userId) return;
+      const serializableOrder = firestoreValueToSerializable(refreshedOrder);
+      setSelectedOrder(serializableOrder);
+      dispatch(
+        displayOrderReplaced({
+          order: serializableOrder,
+        })
+      );
+    } catch (error) {
+      console.error("Could not refresh order details:", error);
+      if (detailRequestId.current === requestId) {
+        appHaptics.warning();
+        toast("Showing the last loaded order details.");
+      }
+    } finally {
+      if (detailRequestId.current === requestId) setDetailLoading(false);
+    }
+  };
+
   const handleViewOrder = (order) => {
+    const historyKey = getOrderDetailHistoryKey(order);
+    if (historyKey) {
+      navigate(`${location.pathname}${location.search}${location.hash}`, {
+        state: {
+          ...(location.state || {}),
+          mtOrderDetailKey: historyKey,
+        },
+      });
+    }
+
+    const requestId = detailRequestId.current + 1;
+    detailRequestId.current = requestId;
     setSelectedOrder(order);
     setActiveProductIndex(0); // Reset to the first product
     setIsModalOpen(true);
+    appHaptics.light();
+
+    if (order._isDraft) {
+      setDetailLoading(false);
+      return;
+    }
+
+    // Render the cached Redux order immediately and revalidate it behind the
+    // modal. This avoids replacing usable details with a loading screen.
+    setDetailLoading(false);
+    void revalidateOrderDetails(order, requestId);
+  };
+
+  const handleManualTrackingRefresh = async () => {
+    if (!selectedOrder?.deliveryFulfillmentId || trackingRefreshing) return;
+    setTrackingRefreshing(true);
+    appHaptics.selection();
+    try {
+      const result = await refreshDeliveryTracking({
+        deliveryFulfillmentId: selectedOrder.deliveryFulfillmentId,
+        mode: "manual",
+      });
+      const requestId = detailRequestId.current + 1;
+      detailRequestId.current = requestId;
+      await revalidateOrderDetails(selectedOrder, requestId);
+      toast.success(
+        result?.reason === "fresh"
+          ? "Tracking is already up to date."
+          : "Tracking status refreshed."
+      );
+      appHaptics.success();
+    } catch (error) {
+      toast.error(
+        error?.message?.replace(/^Firebase:\s*/i, "") ||
+          "We couldn’t refresh tracking. Please try again."
+      );
+      appHaptics.error();
+    } finally {
+      setTrackingRefreshing(false);
+    }
+  };
+
+  const openPickupMap = async (order) => {
+    if (pickupMapOpeningRef.current) return;
+    if (!canUsePickupDetails(order)) {
+      toast.error(
+        "The pickup route is available after acceptance and before delivery."
+      );
+      return;
+    }
+    // Reserve the web tab within the tap itself: opening it only after the
+    // authenticated lookup can be blocked by Safari's popup protection.
+    // Native WebViews retain their existing external Maps navigation.
+    const mapTab = isNativeApp ? null : window.open("about:blank", "_blank");
+    if (mapTab) mapTab.opener = null;
+    pickupMapOpeningRef.current = true;
+    try {
+      const details = await getOwnedPickupDetails([order], userId);
+      const pickup = details[order.id];
+      if (!pickup || auth.currentUser?.uid !== userId) {
+        mapTab?.close();
+        toast.error("Pickup details are not available for this order.");
+        return;
+      }
+      const latitude = Number(pickup.pickupLat);
+      const longitude = Number(pickup.pickupLng);
+      const hasCoordinates =
+        pickup.pickupLat != null && pickup.pickupLng != null &&
+        Number.isFinite(latitude) && Number.isFinite(longitude);
+      const destination = hasCoordinates
+        ? `${latitude},${longitude}`
+        : String(pickup.pickupAddress || "").trim();
+      if (!destination) {
+        mapTab?.close();
+        toast.error("Vendor did not set a pick-up point.");
+        return;
+      }
+      appHaptics.selection();
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
+      if (isNativeApp) window.open(url, "_blank", "noopener,noreferrer");
+      else if (mapTab && !mapTab.closed) mapTab.location.replace(url);
+      else if (!mapTab) window.location.assign(url);
+      // Closing the reserved tab while loading is cancellation, not an error.
+    } catch {
+      mapTab?.close();
+      toast.error("Couldn’t load the pickup route. Please try again.");
+    } finally {
+      pickupMapOpeningRef.current = false;
+    }
+  };
+
+  const openKnowledgeBase = () => {
+    setShowHelpOptions(false);
+    if (ORDER_KNOWLEDGE_BASE_URL) {
+      void openExternalUrl(ORDER_KNOWLEDGE_BASE_URL);
+      return;
+    }
+    toast("Order knowledge base is coming soon.");
+  };
+
+  const openOrderSupport = () => {
+    const productIds = Array.from(
+      new Set(
+        (selectedOrder?.cartItems || [])
+          .map((item) => item?.productId)
+          .filter(Boolean)
+      )
+    );
+    setShowHelpOptions(false);
+    openChat({
+      "support-entry": "order-help",
+      screen: "order-details",
+      ...(selectedOrder?.id ? { "order-id": selectedOrder.id } : {}),
+      ...(selectedOrder?.vendorId
+        ? { "vendor-id": selectedOrder.vendorId }
+        : {}),
+      ...(selectedOrder?.orderReference
+        ? { "payment-reference": selectedOrder.orderReference }
+        : {}),
+      ...(productIds.length === 1 ? { "product-id": productIds[0] } : {}),
+    });
+  };
+
+  const dismissOrderDetails = () => {
+    detailRequestId.current += 1;
+    setDetailLoading(false);
+    setIsModalOpen(false);
+    setSelectedOrder(null);
   };
 
   const closeModal = () => {
-    setIsModalOpen(false);
+    if (location.state?.mtOrderDetailKey) {
+      navigate(-1);
+      return;
+    }
+    dismissOrderDetails();
   };
+
+  // Order Details is visually a full screen, so give it a real browser-history
+  // entry. Native WebKit Back can then close Details before leaving Orders;
+  // Forward also restores the same selected order without refetching the list.
+  useEffect(() => {
+    const historyKey = location.state?.mtOrderDetailKey || null;
+    if (!historyKey) {
+      if (isModalOpen) dismissOrderDetails();
+      return;
+    }
+
+    const selectedKey = getOrderDetailHistoryKey(selectedOrder);
+    if (isModalOpen && selectedKey === historyKey) return;
+
+    const order = allOrders.find(
+      (candidate) => getOrderDetailHistoryKey(candidate) === historyKey
+    );
+    if (!order) return;
+
+    const requestId = detailRequestId.current + 1;
+    detailRequestId.current = requestId;
+    setSelectedOrder(order);
+    setActiveProductIndex(0);
+    setIsModalOpen(true);
+
+    if (order._isDraft) {
+      setDetailLoading(false);
+    } else {
+      setDetailLoading(false);
+      void revalidateOrderDetails(order, requestId);
+    }
+  }, [allOrders, isModalOpen, location.state?.mtOrderDetailKey, selectedOrder]);
   useEffect(() => {
     if (orders.length > 0) {
       console.log("Orders available:", orders);
@@ -642,22 +1658,6 @@ const OrdersCentre = () => {
   // For stockpile orders, use the rider details from the first order (primary)
   // Otherwise, use the riderInfo from the current order.
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUserId(user.uid);
-      } else {
-        setUserId(null);
-      }
-      setIsAuthChecked(true); // Authentication state has been determined
-    });
-
-    return () => unsubscribe();
-  }, []);
-  if (!isAuthChecked) {
-    // Authentication state is not yet known show a loading indicator
-    return <Loading />;
-  }
   const openLinkDialog = () => setShowLinkDialog(true);
 
   const linkAnonymousAccount = async ({ email, password }) => {
@@ -694,24 +1694,8 @@ const OrdersCentre = () => {
         return;
       }
 
-      // 2) HARD BLOCK: vendor emails
-      const vendorsQ = query(
-        collection(db, "vendors"),
-        where("email", "==", inputEmail)
-      );
-      const vendorsSnap = await getDocs(vendorsQ);
-      if (!vendorsSnap.empty) {
-        toast.error("This email is already used for a Vendor account!");
-        return;
-      }
-      // Also check users collection for vendor role
-      const usersQ = query(
-        collection(db, "users"),
-        where("email", "==", inputEmail)
-      );
-      const usersSnap = await getDocs(usersQ);
-      if (!usersSnap.empty && usersSnap.docs[0].data()?.role === "vendor") {
-        toast.error("This email is already used for a Vendor account!");
+      if (!(await canUseBuyerContactEmail(inputEmail))) {
+        toast.error(CONTACT_SIGN_IN_MESSAGE);
         return;
       }
 
@@ -766,107 +1750,6 @@ const OrdersCentre = () => {
       }
     }
   };
-  const MapModal = ({ isOpen, onClose, origin, destination }) => {
-    /** 1 ▸ wait for Google Maps bundle */
-    const [ready, setReady] = useState(Boolean(window.google?.maps));
-    useEffect(() => {
-      if (ready) return;
-      window.initMap = () => setReady(true); // called by the script tag
-    }, [ready]);
-
-    /** 2 ▸ ask Routes API for a path */
-    const [directions, setDirections] = useState(null);
-    useEffect(() => {
-      if (!ready || !origin || !destination) return;
-
-      new window.google.maps.DirectionsService().route(
-        { origin, destination, travelMode: "DRIVING" },
-        (res, status) =>
-          status === "OK" && res.routes.length
-            ? setDirections(res)
-            : console.warn("Directions failed:", status, res)
-      );
-    }, [ready, origin, destination]);
-
-    /** 3 ▸ once the map is ready, draw the route */
-    const mapRef = useRef(null);
-    const rendererRef = useRef(null);
-
-    const handleMapLoad = (map) => {
-      mapRef.current = map;
-      // create renderer once
-      rendererRef.current = new window.google.maps.DirectionsRenderer({
-        map,
-        preserveViewport: true,
-        suppressMarkers: false,
-      });
-      // if the directions request already finished, push it in:
-      if (directions) rendererRef.current.setDirections(directions);
-    };
-
-    /** if directions arrive later, feed them into the same renderer */
-    useEffect(() => {
-      if (rendererRef.current && directions) {
-        rendererRef.current.setDirections(directions);
-      }
-    }, [directions]);
-
-    /** cleanup when the modal unmounts */
-    useEffect(
-      () => () => {
-        rendererRef.current && rendererRef.current.setMap(null);
-      },
-      []
-    );
-
-    /* ────────────── UI ────────────── */
-    if (!isOpen) return null;
-
-    return (
-      <Modal
-        isOpen
-        onRequestClose={onClose}
-        ariaHideApp={false}
-        className="bg-white w-full h-[75vh] rounded-t-2xl shadow-xl flex flex-col"
-        overlayClassName="fixed inset-0 bg-black/50 flex items-end z-50"
-      >
-        <div className="flex-1">
-          {ready ? (
-            <div
-              id="map"
-              style={{ height: "100%", width: "100%" }}
-              ref={(el) => {
-                if (el && !mapRef.current) {
-                  /* create the map only once */
-                  handleMapLoad(
-                    new window.google.maps.Map(el, {
-                      zoom: 12,
-                      center: origin,
-                    })
-                  );
-                }
-              }}
-            />
-          ) : (
-            <div className="h-full flex items-center justify-center">
-              Loading&nbsp;map…
-            </div>
-          )}
-        </div>
-
-        <button
-          onClick={onClose}
-          className="absolute font-opensans bottom-4 left-1/2 -translate-x-1/2
-                     px-6 py-3 text-base font-medium
-                     bg-black/20 backdrop-blur-md border border-white/30
-                     rounded-full shadow-md hover:bg-white/30
-                     transition-colors duration-200"
-        >
-          Close
-        </button>
-      </Modal>
-    );
-  };
   const filterOrdersByStatus = (status) => {
     if (status === "All") return allOrders;
     if (status === "Stockpile")
@@ -892,16 +1775,22 @@ const OrdersCentre = () => {
 
     if (status === "Delivered")
       return allOrders.filter((order) =>
-        order.isStockpile
-          ? order.firstOrderStatus === "Delivered"
-          : order.progressStatus === "Delivered"
+        !order.isPickup && getOrderProgress(order) === "Delivered"
+      );
+
+    if (status === "Collected")
+      return allOrders.filter(
+        (order) => order.isPickup && getOrderProgress(order) === "Delivered"
       );
 
     if (status === "Shipped")
       return allOrders.filter((order) =>
-        order.isStockpile
-          ? order.firstOrderStatus === "Shipped"
-          : order.progressStatus === "Shipped"
+        !order.isPickup && getOrderProgress(order) === "Shipped"
+      );
+
+    if (status === "Ready for pick-up")
+      return allOrders.filter(
+        (order) => order.isPickup && getOrderProgress(order) === "Shipped"
       );
 
     if (status === "Declined")
@@ -915,9 +1804,46 @@ const OrdersCentre = () => {
   };
 
   const filteredOrders = filterOrdersByStatus(activeTab);
+  const pageLoading =
+    authLoading ||
+    Boolean(
+      userId &&
+        (loading ||
+          draftsLoading ||
+          (ordersRevision === 0 && orders.length === 0) ||
+          (draftsRevision === 0 && draftOrders.length === 0))
+    );
+
+  const copyOrderText = async (value, successMessage) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      appHaptics.success();
+      toast.success(successMessage);
+    } catch (error) {
+      console.error("Could not copy order text:", error);
+      appHaptics.error();
+      toast.error("Could not copy. Please try again.");
+    }
+  };
+
+  const handleTabChange = (tab) => {
+    if (tab === activeTab) return;
+    appHaptics.selection();
+    setActiveTab(tab);
+  };
+
+  const handleRateSeller = (order) => {
+    appHaptics.selection();
+    const queryString = order.isStockpile && order.stockpileDocId
+      ? `rateStockpile=${encodeURIComponent(order.stockpileDocId)}`
+      : `rateOrder=${encodeURIComponent(order.id)}`;
+    navigate(`/store/${order.vendorId}?tab=reviews&${queryString}`);
+  };
 
   const handleBackClick = () => {
-    if (fromPaymentApprove) {
+    if (location.state?.returnTo) {
+      navigate(location.state.returnTo);
+    } else if (fromPaymentApprove || returnToProfile) {
       navigate("/profile");
     } else {
       navigate(-1);
@@ -931,9 +1857,29 @@ const OrdersCentre = () => {
     "Pending",
     "Processing",
     "Shipped",
+    "Ready for pick-up",
     "Delivered",
+    "Collected",
     "Declined",
   ];
+
+  const orderTabSwipeHandlers = useHorizontalTabSwipe({
+    tabs: tabButtons,
+    activeTab,
+    onChange: handleTabChange,
+    enabled: !isModalOpen,
+  });
+
+  useEffect(() => {
+    const activeButton = ordersTabsRef.current?.querySelector(
+      '.orders-tab[aria-current="page"]'
+    );
+    activeButton?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [activeTab]);
 
   return (
     <div>
@@ -972,467 +1918,1017 @@ const OrdersCentre = () => {
           currentUser={currentUser}
         />
       )}
-      <div className="sticky top-0 pb-2 bg-white w-full z-10">
-        <div className="flex p-3 py-3 items-center bg-white h-20 mb-3 pb-2">
-          <GoChevronLeft
-            className="text-3xl cursor-pointer"
-            onClick={() => navigate("/profile")}
-          />
-          <h1 className="text-xl font-opensans ml-5 font-semibold">Orders</h1>
-        </div>
-        <div className="border-t border-gray-300 my-2"></div>
-        {/* Tabs Section (Inside Header) */}
-        <div className="flex px-3 py-2 overflow-x-auto">
-          <div className="flex space-x-3">
+      <main
+        {...orderTabSwipeHandlers}
+        className="orders-history-page app-horizontal-tab-swipe"
+      >
+        <AppPageHeader
+          title="Orders"
+          alignment="center"
+          onBack={handleBackClick}
+          className="orders-page-header"
+          rightAction={
+            <button
+              type="button"
+              className="orders-header-action"
+              onClick={() => navigate("/search")}
+              aria-label="Search"
+            >
+              <LuSearch aria-hidden="true" />
+            </button>
+          }
+        >
+          <nav
+            ref={ordersTabsRef}
+            className="orders-tabs"
+            aria-label="Order status filters"
+          >
             {tabButtons.map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-2 border h-12 rounded-full ${
-                  activeTab === tab
-                    ? "bg-customOrange text-xs font-opensans text-white"
-                    : "bg-white text-xs font-opensans text-black"
-                }`}
+                type="button"
+                onClick={() => handleTabChange(tab)}
+                className={`orders-tab ${activeTab === tab ? "is-active" : ""}`}
+                aria-current={activeTab === tab ? "page" : undefined}
               >
                 {tab}
               </button>
             ))}
-          </div>
-        </div>
-      </div>
+          </nav>
+        </AppPageHeader>
 
-      {userId === null ? (
-        <div className="flex flex-col items-center justify-center mt-10">
-          <div className="bg-gray-200 flex justify-center rounded-full w-32 h-32 p-2">
-            <img src={Orderpic} alt="Order" />
-          </div>
-          <div className="mt-20 flex items-center flex-col justify-center">
-            <p className="text-gray-600 font-opensans text-center text-xs">
-              Please login to view your order progress status and history.
-            </p>
+        <div className="orders-tab-swipe-surface">
+        {pendingCheckout && userId && (
+          <section className="orders-payment-pending" role="status">
+            <LuRefreshCw aria-hidden="true" />
+            <div>
+              <strong>
+                {pendingCheckout.kind === "created"
+                  ? "Order placed"
+                  : "Payment received"}
+              </strong>
+              <p>
+                {pendingCheckout.kind === "created"
+                  ? "Loading your order details…"
+                  : "We’re confirming your order. Please don’t pay again."}
+              </p>
+            </div>
+          </section>
+        )}
+        {pageLoading ? (
+          <OrderCardsSkeleton />
+        ) : userId === null ? (
+          <section className="orders-empty">
+            <img
+              src="/figma-assets/orders/empty-orders.png"
+              alt=""
+              aria-hidden="true"
+            />
+            <h2>No orders yet</h2>
+            <p>After checkout your item(s) will appear here</p>
+            <div className="orders-empty-actions">
+              <button
+                type="button"
+                className="orders-empty-button is-primary"
+                onClick={() =>
+                  navigate("/login", { state: { from: location.pathname } })
+                }
+              >
+                Log In or Sign Up
+              </button>
+              <button
+                type="button"
+                className="orders-empty-button is-secondary"
+                onClick={() => navigate("/")}
+              >
+                Continue Shopping
+              </button>
+            </div>
+          </section>
+        ) : loadError && allOrders.length === 0 ? (
+          <section className="orders-load-error" role="alert">
+            <LuXCircle aria-hidden="true" />
+            <h2>Orders couldn’t load</h2>
+            <p>{loadError}</p>
             <button
-              className="text-white font-opensans font-semibold h-11 mt-3 mb-14 bg-customOrange rounded-full w-32"
+              type="button"
+              className="orders-empty-button is-primary"
               onClick={() => {
-                navigate("/login", { state: { from: location.pathname } });
+                setLoadAttempt((attempt) => attempt + 1);
+                void refreshOrders();
               }}
             >
-              Login
+              Try again
             </button>
-          </div>
-          {/* Render RelatedProducts when user is not authenticated */}
-          {sampleProduct && <RelatedProducts product={sampleProduct} />}
-        </div>
-      ) : (
-        // Existing code to display orders when user is authenticated
-        <>
-          {loading ? (
-            <Loading />
-          ) : filteredOrders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center mt-10">
-              <div className="bg-gray-200 flex justify-center rounded-full w-32 h-32 p-2">
-                <img src={Orderpic} alt="Order" />
-              </div>
-              <div className="mt-20">
-                <p className="text-gray-600 font-opensans text-center text-xs">
-                  No order available
-                </p>
+          </section>
+        ) : filteredOrders.length === 0 ? (
+          <section className="orders-empty">
+            <img
+              src="/figma-assets/orders/empty-orders.png"
+              alt=""
+              aria-hidden="true"
+            />
+            <h2>No orders yet</h2>
+            <p>After checkout your item(s) will appear here</p>
+            <div className="orders-empty-actions">
+              <button
+                type="button"
+                className="orders-empty-button is-primary"
+                onClick={() => navigate("/")}
+              >
+                Continue Shopping
+              </button>
+            </div>
+          </section>
+        ) : (
+          <section className="orders-content" aria-live="polite">
+            {loadError && (
+              <div className="orders-inline-error" role="status">
+                <span>{loadError}</span>
                 <button
-                  className="text-white font-opensans font-semibold h-12 mt-3 mb-14 bg-customOrange rounded-full w-32"
-                  onClick={() => navigate("/browse-markets")}
+                  type="button"
+                  onClick={() => setLoadAttempt((attempt) => attempt + 1)}
                 >
-                  Shop Now
+                  Retry
                 </button>
               </div>
-              {/* Render RelatedProducts when there are no orders */}
-              {sampleProduct && <RelatedProducts product={sampleProduct} />}
-            </div>
-          ) : (
-            filteredOrders.map((order) => {
-              const isStockpile = order.isStockpile;
-              const firstStatus = order.firstOrderStatus;
-
-              const isFirstDeclined = isStockpile && firstStatus === "Declined";
-              const isFirstPending = isStockpile && firstStatus === "Pending";
-              const isFirstAccepted =
-                isStockpile && !isFirstDeclined && !isFirstPending;
+            )}
+            {filteredOrders.map((order) => {
+              const progress = getOrderProgress(order);
+              const items = Array.isArray(order.cartItems) ? order.cartItems : [];
+              const daysLeft = order.isStockpile
+                ? getStockpileDaysLeft(order)
+                : null;
+              const showPickupDetails = canUsePickupDetails(order);
+              const orderIdentifier = getOrderIdentifier(order);
+              const visibleOrderIdentifier = getVisibleOrderIdentifier(order);
+              const orderIdentifierLabel = getOrderIdentifierLabel(order);
+              const canRepile =
+                order.isStockpile &&
+                progress !== "Pending" &&
+                progress !== "Declined" &&
+                order.isActive !== false &&
+                !order._isDraft;
+              const canRateOrder = isOrderReviewable(order);
+              const hasRecordedReview = order.isStockpile
+                ? order.isReviewed === true
+                : Boolean(order.reviewId) && Number(order.reviewRating) > 0;
 
               return (
-                <div key={order.id} className="px-3 py-2">
-                  <div
-                    className={`shadow-lg px-3 py-4 rounded-lg ${
-                      order._isDraft
-                        ? "bg-gray-50 border border-dashed border-gray-300 "
-                        : "bg-white"
-                    }`}
+                <article
+                  key={
+                    order.isStockpile
+                      ? `stockpile-${order.stockpileDocId}`
+                      : order.id
+                  }
+                  className={`order-history-card ${order._isDraft ? "is-draft" : ""} ${
+                    focusedOrderKey === getOrderDetailHistoryKey(order) ? "is-focused" : ""
+                  }`}
+                  data-order-focus-key={getOrderDetailHistoryKey(order)}
+                >
+                  <button
+                    type="button"
+                    className="order-card-main-button"
+                    onClick={() => handleViewOrder(order)}
+                    aria-label={`View ${orderIdentifierLabel.toLowerCase()} ${orderIdentifier}`}
                   >
-                    <div className="flex justify-between  items-start mb-2">
-                      <div className="flex flex-col">
-                        <div className="flex items-center space-x-2">
-                          {order.isStockpile ? (
-                            <>
-                              {order.firstOrderStatus === "Shipped" ? (
-                                <>
-                                  <TbTruckDelivery className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
-                                  <span className="text-sm text-black font-semibold font-opensans">
-                                    Shipped
-                                  </span>
-                                </>
-                              ) : order.firstOrderStatus === "Declined" ? (
-                                <>
-                                  <FaTimes className="text-white bg-gray-200 h-7 w-7 rounded-full p-1 text-lg" />
-                                  <span className="text-sm text-black font-semibold font-opensans">
-                                    Cancelled
-                                  </span>
-                                </>
-                              ) : order._isDraft ? (
-                                <>
-                                  <FaMoneyBillTransfer className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
-                                  <span className="text-sm text-black font-semibold font-opensans">
-                                    Awaiting Payment
-                                  </span>
-                                </>
-                              ) : order.firstOrderStatus === "In Progress" ? (
-                                <>
-                                  <IoTimeOutline className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
-                                  <span className="text-sm text-black font-semibold font-opensans">
-                                    In Progress
-                                  </span>
-                                </>
-                              ) : order.firstOrderStatus === "Pending" ? (
-                                <>
-                                  <MdPendingActions className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
-                                  <span className="text-sm text-black font-semibold font-opensans">
-                                    Pending Approval
-                                  </span>
-                                </>
-                              ) : order.firstOrderStatus === "Delivered" ? (
-                                <>
-                                  <FaClipboardCheck className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
-                                  <span className="text-sm text-black font-semibold font-opensans">
-                                    Delivered
-                                  </span>
-                                </>
-                              ) : (
-                                <span className="text-sm text-black font-semibold font-opensans">
-                                  {order.firstOrderStatus || "Status Unknown"}
-                                </span>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              {order.progressStatus === "Shipped" ? (
-                                <>
-                                  <TbTruckDelivery className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
-                                  <span className="text-sm text-black font-semibold font-opensans">
-                                    Shipped
-                                  </span>
-                                </>
-                              ) : order.progressStatus === "Declined" ? (
-                                <>
-                                  <FaTimes className="text-white bg-gray-200 h-7 w-7 rounded-full p-1 text-lg" />
-                                  <span className="text-sm text-black font-semibold font-opensans">
-                                    Cancelled
-                                  </span>
-                                </>
-                              ) : order.progressStatus === "In Progress" ? (
-                                <>
-                                  <IoTimeOutline className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
-                                  <span className="text-sm text-black font-semibold font-opensans">
-                                    In Progress
-                                  </span>
-                                </>
-                              ) : order._isDraft ? (
-                                <>
-                                  <FaMoneyBillTransfer className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
-                                  <span className="text-sm text-black font-semibold font-opensans">
-                                    Awaiting Payment
-                                  </span>
-                                </>
-                              ) : order.progressStatus === "Pending" ? (
-                                <>
-                                  <MdPendingActions className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
-                                  <span className="text-sm text-black font-semibold font-opensans">
-                                    Pending Approval
-                                  </span>
-                                </>
-                              ) : order.progressStatus === "Delivered" ? (
-                                <>
-                                  <FaClipboardCheck className="text-white bg-customOrange h-7 w-7 rounded-full p-1 text-lg" />
-                                  <span className="text-sm text-black font-semibold font-opensans">
-                                    Delivered
-                                  </span>
-                                </>
-                              ) : (
-                                <span className="text-sm text-black font-semibold font-opensans">
-                                  {order.progressStatus || "Status Unknown"}
-                                </span>
-                              )}
-                            </>
-                          )}
+                    <div className="order-card-top">
+                      <div className="order-card-title-wrap">
+                        <div className="order-card-title">
+                          <span title={orderIdentifier}>
+                            {orderIdentifierLabel} {visibleOrderIdentifier}
+                          </span>
+                          <LuChevronRight aria-hidden="true" />
                         </div>
-                        <div className="ml-9 -translate-y-1">
-                          {order._isDraft ? (
-                            // DRAFT: show only the countdown
-                            order.expiresAt && (
-                              <p className="text-xs text-gray-700 font-opensans">
-                                This order will expire in{" "}
-                                <span className="text-xs text-red-500 font-semibold font-opensans">
-                                  <Countdown
-                                    expiresAtMs={order.expiresAt
-                                      .toDate()
-                                      .getTime()}
-                                  />
-                                </span>
-                              </p>
-                            )
-                          ) : (
-                            // REAL ORDER: show placed-at timestamp
-                            <span className="text-xs text-gray-700 font-opensans">
-                              {moment(order.createdAt.seconds * 1000).format(
-                                "HH:mm, DD/MM/YYYY"
-                              )}
-                            </span>
-                          )}
+                        <div className="order-card-meta">
+                          <span>{order.vendorName || "Unknown vendor"}</span>
+                          <span className="order-meta-dot" aria-hidden="true" />
+                          <span>
+                            {formatOrderDate(
+                              order.isStockpile
+                                ? order.firstOrderCreatedAt || order.createdAt
+                                : order.createdAt
+                            )}
+                          </span>
                         </div>
-
-                        {/* Aligning date under the order status */}
                       </div>
-                      {order.isStockpile &&
-                        (() => {
-                          if (isFirstDeclined) {
-                            return (
-                              <TbBasketX
-                                className="text-red-600 text-2xl cursor-pointer"
-                                title="Stockpile Declined"
-                                onClick={() => {
-                                  toast.error(
-                                    `This Stockpile was declined by ${order.vendorName}. You cannot re-pile.`
-                                  );
-                                }}
-                              />
-                            );
-                          } else if (isFirstPending) {
-                            return (
-                              <TbBasketQuestion
-                                className="text-gray-400 text-2xl cursor-pointer"
-                                title="Stockpile Pending"
-                                onClick={() => {
-                                  toast(
-                                    `Stockpile from ${order.vendorName} is still pending approval.`
-                                  );
-                                }}
-                              />
-                            );
-                          } else {
-                            // Check if the stockpile is inactive:
-                            const repileDisabled =
-                              order.isActive === false || order._isDraft;
-                            return (
-                              <TbBasketPlus
-                                className={`text-2xl ${
-                                  repileDisabled
-                                    ? "text-gray-400 cursor-not-allowed opacity-50"
-                                    : "text-customOrange cursor-pointer"
-                                }`}
-                                title={
-                                  repileDisabled
-                                    ? "Stockpile is inactive, cannot repile"
-                                    : "Add more items to pile"
-                                }
-                                onClick={() => {
-                                  if (!repileDisabled) {
-                                    handleStockpileAddMore(order);
-                                  }
-                                }}
-                              />
-                            );
-                          }
-                        })()}
-
-              
-                      {order.isPickup &&
-                        order.pickupCode &&
-                        order.progressStatus !== "Delivered" && (
-                          <div className="flex flex-col items-end ml-auto">
-                            {/* code blocks */}
-                            <div className="flex space-x-1 mb-1">
-                              {order.pickupCode.split("").map((d, i) => (
-                                <span
-                                  key={i}
-                                  className="inline-block bg-gray-200 rounded-sm px-1.5 py-0.5 text-base font-opensans font-semibold tracking-wider"
-                                >
-                                  {d}
-                                </span>
-                              ))}
-                            </div>
-
-                          
-                            {(() => {
-                              const inProgress = order.isStockpile
-                                ? order.firstOrderStatus === "In Progress"
-                                : order.progressStatus === "In Progress";
-                              return (
-                                <button
-                                  disabled={!inProgress}
-                                  onClick={() => {
-                                    if (!inProgress) {
-                                      return toast.error(
-                                        "You can only view the pickup route once the vendor has accepted your order."
-                                      );
-                                    }
-                                    if (!userLocation) {
-                                      return toast.error(
-                                        "We couldn’t find your saved location."
-                                      );
-                                    }
-                                    if (!order.pickupLat || !order.pickupLng) {
-                                      return toast.error(
-                                        "Vendor did not set a pick-up point."
-                                      );
-                                    }
-                                    setMapOrigin(userLocation);
-                                    setMapDestination({
-                                      lat: order.pickupLat,
-                                      lng: order.pickupLng,
-                                    });
-                                    setShowMapModal(true);
-                                  }}
-                                  className={`
-            text-[11px] mt-1 flex font-opensans underline
-            ${
-              inProgress
-                ? "text-blue-800 hover:text-blue-600"
-                : "text-gray-400 cursor-not-allowed"
-            }
-          `}
-                                >
-                                  View&nbsp;map
-                                  <GoChevronRight className="text-lg -translate-x-1" />
-                                </button>
-                              );
-                            })()}
-                          </div>
-                        )}
+                      <OrderStatus order={order} />
                     </div>
-                    <div className="border-t border-gray-300 my-2"></div>
-                    <OrderStepper
-                      orderStatus={
-                        order.firstOrderStatus || order.progressStatus
+
+                    <div
+                      className="order-card-products"
+                      aria-label={
+                        order.isStockpile
+                          ? "Products in stockpile"
+                          : "Products in order"
                       }
-                      isStockpile={order.isStockpile}
-                      isPickup={order.isPickup}
-                    />
-                    <div className="border-t border-gray-300 my-2"></div>
-                    {order.cartItems ? (
-                      order.cartItems.map((item, index) => {
-                        const itemOrder = item._orderId
-                          ? orders.find((o) => o.id === item._orderId)
-                          : null;
-                        const isDeclined =
-                          itemOrder?.progressStatus === "Declined";
+                    >
+                      {items.map((item, index) => (
+                        <span
+                          className="order-card-product-thumb"
+                          key={`${item.productId || "item"}-${index}`}
+                        >
+                          <img
+                            className="order-card-product-image"
+                            src={item.imageUrl || "/Search_empty.svg"}
+                            alt={item.name || "Order item"}
+                          />
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="order-card-summary">
+                      <span>
+                        {items.length} {items.length === 1 ? "item" : "items"}
+                      </span>
+                      {daysLeft !== null && (
+                        <>
+                          <span className="order-meta-dot" aria-hidden="true" />
+                          <span>{daysLeft}d left</span>
+                        </>
+                      )}
+                      <span className="order-meta-dot" aria-hidden="true" />
+                      <span>
+                        Order total: <strong>₦{getOrderTotal(order).toLocaleString()}</strong>
+                      </span>
+                    </div>
+                  </button>
+
+                  {order._isDraft && order.expiresAt && (
+                    <div className="order-card-conditional">
+                      <span>
+                        Expires in{" "}
+                        <strong>
+                          <Countdown expiresAtMs={toOrderDate(order.expiresAt)?.getTime()} />
+                        </strong>
+                      </span>
+                      <button
+                        type="button"
+                        className="order-inline-action"
+                        onClick={() => {
+                          void copyOrderText(
+                            `${window.location.origin}/pay/${order.id}`,
+                            "Payment link copied"
+                          );
+                        }}
+                      >
+                        Copy payment link
+                      </button>
+                    </div>
+                  )}
+
+                  {showPickupDetails && (
+                    <div className="order-card-conditional">
+                      <PickupCode code={order.pickupCode} />
+                      <button
+                        type="button"
+                        className="order-inline-action"
+                        onClick={() => openPickupMap(order)}
+                      >
+                        Open in Google Maps
+                      </button>
+                    </div>
+                  )}
+
+                  {canRepile && (
+                    <div className="order-card-conditional">
+                      <span>Add more items to this active pile</span>
+                      <button
+                        type="button"
+                        className="order-inline-action"
+                        onClick={() => {
+                          appHaptics.selection();
+                          handleStockpileAddMore(order);
+                        }}
+                      >
+                        Repile
+                      </button>
+                    </div>
+                  )}
+
+                  {canRateOrder &&
+                    (hasRecordedReview ? (
+                      <div className="order-rate-row is-complete">
+                        <span>Your review</span>
+                        <span className="order-stars" aria-label={`${
+                          order.reviewRating || 5
+                        } out of 5 stars`}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <LuStar
+                              key={star}
+                              className={
+                                star <= Number(order.reviewRating || 5)
+                                  ? "is-filled"
+                                  : ""
+                              }
+                            />
+                          ))}
+                        </span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="order-rate-row"
+                        onClick={() => handleRateSeller(order)}
+                      >
+                        <span>Rate this order</span>
+                        <span className="order-stars" aria-hidden="true">
+                          {[0, 1, 2, 3, 4].map((star) => (
+                            <LuStar key={star} />
+                          ))}
+                        </span>
+                      </button>
+                    ))}
+                </article>
+              );
+            })}
+          </section>
+        )}
+        </div>
+      </main>
+      {isModalOpen && selectedOrder &&
+        (() => {
+          const progress = getOrderProgress(selectedOrder);
+          const isStockpile = Boolean(selectedOrder.isStockpile);
+          const isStockpileContainer = Boolean(
+            selectedOrder.isStockpile,
+          );
+          const isFirstDeclined = isStockpile && progress === "Declined";
+          const isFirstPending = isStockpile && progress === "Pending";
+          const repileDisabled =
+            isFirstPending ||
+            isFirstDeclined ||
+            selectedOrder._isDraft ||
+            selectedOrder?.isActive === false;
+          const deliveryActionDisabled =
+            selectedOrder._isDraft ||
+            !selectedOrder.stockpileDocId ||
+            isFirstDeclined;
+          const stockpileDeliveryLabel =
+            selectedOrder.stockpileStatus === "awaiting_delivery_payment"
+              ? "Pay for delivery"
+              : selectedOrder.stockpileStatus === "quote_retry"
+              ? "Retry delivery"
+              : selectedOrder.stockpileStatus &&
+                selectedOrder.stockpileStatus !== "active"
+              ? "Delivery progress"
+              : "End & deliver stockpile";
+          const paymentMethod = selectedOrder._isDraft
+            ? "pay for me"
+            : selectedOrder.paymentMethod ||
+              selectedOrder.userInfo?.paymentMethod ||
+              null;
+          const normalizedPaymentMethod = String(paymentMethod || "")
+            .trim()
+            .toLowerCase();
+          const completionDuration = formatCompletionDuration(
+            isStockpile
+              ? selectedOrder.firstOrderCreatedAt || selectedOrder.createdAt
+              : selectedOrder.createdAt,
+            selectedOrder.deliveredAt || selectedOrder.collectedAt,
+          );
+          const paymentView =
+            normalizedPaymentMethod === "wallet"
+              ? {
+                  label: "My Wallet",
+                  icon: "/figma-assets/checkout-wallet.svg",
+                }
+              : normalizedPaymentMethod === "pay for me"
+              ? {
+                  label: "Pay for me",
+                  icon: "/figma-assets/checkout-pay-for-me.svg",
+                }
+              : ["paystack", "card", "pay-for-me", "pay_for_me"].includes(
+                  normalizedPaymentMethod,
+                )
+              ? {
+                  label: "Paystack",
+                  icon: "/figma-assets/checkout-paystack.svg",
+                }
+              : null;
+          const detailPlaceholder = selectedOrder._isDraft ? "---" : "Not recorded";
+          const paymentLabel = paymentView?.label || detailPlaceholder;
+          const userSnapshot = selectedOrder.userInfo || {};
+          const itemTotal = Number(
+            isStockpileContainer
+              ? selectedOrder.combinedSubtotal || selectedOrder.subtotal || 0
+              : selectedOrder.subtotal || 0
+          );
+          const protectionFee = Number(
+            isStockpileContainer
+              ? selectedOrder.firstOrderServiceFee || selectedOrder.serviceFee || 0
+              : selectedOrder.serviceFee || 0
+          );
+          const deliveryFee = Number(selectedOrder.deliveryFee || 0);
+          const showPickupDetails = canUsePickupDetails(selectedOrder);
+          const orderIdentifier = getOrderIdentifier(selectedOrder);
+          const visibleOrderIdentifier = getVisibleOrderIdentifier(selectedOrder);
+          const orderIdentifierLabel = getOrderIdentifierLabel(selectedOrder);
+          const riderInfo = isStockpileContainer
+            ? selectedOrder.firstOrderRiderInfo || {}
+            : selectedOrder.riderInfo || {};
+          const hasRiderInfo = Boolean(
+            riderInfo.riderName || riderInfo.riderNumber || riderInfo.note
+          );
+          const deliveryTrackingStatus = String(
+            selectedOrder.deliveryStatus || ""
+          ).toLowerCase();
+          const showDeliveryTracking = Boolean(
+            !isStockpileContainer &&
+              !selectedOrder.isPickup &&
+              (["booking", "booked", "in_transit", "delivered"].includes(
+                deliveryTrackingStatus
+              ) ||
+                selectedOrder.deliveryTrackingUrl ||
+                selectedOrder.deliveryTrackingCode)
+          );
+          const deliveryProof =
+            selectedOrder.vendorHandover?.proof ||
+            selectedOrder.deliveryProof ||
+            null;
+          const stockpileOrders = isStockpileContainer
+            ? [...(selectedOrder._relatedOrders || [])].sort(
+                (first, second) =>
+                  getOrderTime(first.createdAt) - getOrderTime(second.createdAt)
+              )
+            : [];
+          const renderDetailProduct = (item, index, keyPrefix = "order") => {
+            const variants = [
+              item.hideSize ? null : item.size,
+              item.color,
+              item.condition,
+            ].filter(Boolean);
+
+            return (
+              <article
+                className="order-detail-product"
+                key={`${keyPrefix}-${item.productId || "item"}-${index}`}
+              >
+                <img
+                  src={item.imageUrl || "/Search_empty.svg"}
+                  alt={item.name || "Order item"}
+                  onClick={() =>
+                    item.imageUrl && setFullscreenImage(item.imageUrl)
+                  }
+                />
+                <div className="order-detail-product-copy">
+                  <h3>{item.name || "Product"}</h3>
+                  <p className="order-detail-product-price">
+                    ₦{Number(item.price || 0).toLocaleString()}
+                  </p>
+                  {variants.length > 0 && (
+                    <p className="order-detail-product-variant">
+                      {variants.join(" · ")}
+                    </p>
+                  )}
+                  <p className="order-detail-product-qty">
+                    Qty: {item.quantity || 1}
+                  </p>
+                </div>
+              </article>
+            );
+          };
+
+          return (
+            <section
+              className={`order-details-page${
+                isStockpileContainer ? " has-stockpile-actions" : ""
+              }`}
+              aria-label="Order details"
+            >
+              <AppPageHeader
+                title="Order details"
+                alignment="center"
+                onBack={closeModal}
+                className="order-details-header"
+                sticky={false}
+                rightAction={
+                  <button
+                    type="button"
+                    className="orders-header-action"
+                    onClick={() => setShowHelpOptions(true)}
+                    aria-label="Order help"
+                  >
+                    <LuHelpCircle aria-hidden="true" />
+                  </button>
+                }
+              />
+
+              {detailLoading ? (
+                <OrderDetailsSkeleton />
+              ) : (
+                <>
+              <div className="order-details-content">
+                <section className="order-detail-section">
+                  <div className="order-detail-order-head">
+                    <div>
+                      {selectedOrder._isDraft ? (
+                        <span className="order-detail-id-button">
+                          {orderIdentifierLabel} ---
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="order-detail-id-button"
+                          title={orderIdentifier}
+                          onClick={() =>
+                            void copyOrderText(
+                              orderIdentifier,
+                              `${orderIdentifierLabel} ID copied`
+                            )
+                          }
+                        >
+                          {orderIdentifierLabel} {visibleOrderIdentifier}
+                          <LuCopy aria-hidden="true" />
+                        </button>
+                      )}
+                      <div className="order-card-meta">
+                        <span>{selectedOrder.vendorName || "Unknown vendor"}</span>
+                        <span className="order-meta-dot" aria-hidden="true" />
+                        <span>
+                          {formatOrderDate(
+                            isStockpileContainer
+                              ? selectedOrder.firstOrderCreatedAt ||
+                                  selectedOrder.createdAt
+                              : selectedOrder.createdAt
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                    <OrderStatus order={selectedOrder} />
+                  </div>
+
+                  {isStockpileContainer && stockpileOrders.length > 0 ? (
+                    <div
+                      className="stockpile-detail-orders"
+                      aria-label="Individual orders in this stockpile"
+                    >
+                      {stockpileOrders.map((stockpileOrder, orderIndex) => {
+                        const stockpileOrderId = String(
+                          stockpileOrder.id || "Unavailable"
+                        );
+                        const declineReason =
+                          getOrderProgress(stockpileOrder) === "Declined"
+                            ? stockpileOrder.declineReason ||
+                              "The vendor declined this order."
+                            : null;
 
                         return (
-                          <div
-                            key={index}
-                            className="flex flex-col items-start py-2 border-b"
+                          <section
+                            className="stockpile-detail-order"
+                            key={stockpileOrderId}
                           >
-                            <div
-                              className={`flex items-center justify-between w-full ${
-                                isDeclined ? "opacity-50" : ""
-                              }`}
-                            >
-                              <div className="flex items-center">
-                                <img
-                                  src={
-                                    item.imageUrl ||
-                                    "https://via.placeholder.com/150"
+                            <div className="stockpile-detail-order-head">
+                              <div>
+                                <button
+                                  type="button"
+                                  className="stockpile-detail-order-id"
+                                  title={stockpileOrderId}
+                                  onClick={() =>
+                                    void copyOrderText(
+                                      stockpileOrderId,
+                                      "Order ID copied"
+                                    )
                                   }
-                                  alt={item.name}
-                                  className="w-16 h-16 object-cover rounded-lg mr-4"
-                                  onError={(e) => {
-                                    e.target.src =
-                                      "https://via.placeholder.com/150";
-                                  }}
-                                />
-                                <div>
-                                  <h4 className="text-sm font-opensans">
-                                    {item.name}
-                                  </h4>
-                                  <p className="font-opensans text-md mt-2 text-black font-bold">
-                                    ₦
-                                    {item.price
-                                      ? item.price.toLocaleString()
-                                      : "0"}
-                                  </p>
-                                </div>
+                                >
+                                  Order {getVisibleStockpileIdentifier(stockpileOrderId)}
+                                  <LuCopy aria-hidden="true" />
+                                </button>
+                                <p>
+                                  {formatOrderDate(stockpileOrder.createdAt)}
+                                </p>
                               </div>
+                              <OrderStatus order={stockpileOrder} />
+                            </div>
 
-                              {isDeclined && (
-                                <MdCancel
-                                  className="text-red-600 text-xl"
-                                  title="Order Declined"
-                                />
+                            <div className="stockpile-detail-order-products">
+                              {(stockpileOrder.cartItems || []).map(
+                                (item, itemIndex) =>
+                                  renderDetailProduct(
+                                    item,
+                                    itemIndex,
+                                    `stockpile-${orderIndex}-${stockpileOrderId}`
+                                  )
                               )}
                             </div>
 
-                            {index === order.cartItems.length - 1 && (
-                              <div className="flex justify-start ml-[77px] mt-2">
-                                <button
-                                  onClick={() => handleViewOrder(order)}
-                                  className="bg-customCream bg-opacity-60 text-xs text-customRichBrown font-opensans font-medium border-2 border-customOrange px-2.5 py-1.5 rounded-full "
-                                >
-                                  Tap to view
-                                </button>
-                              </div>
+                            {declineReason && (
+                              <p className="stockpile-detail-decline-reason">
+                                {declineReason}
+                              </p>
                             )}
-                          </div>
+                          </section>
                         );
-                      })
-                    ) : (
-                      <p className="text-xs text-red-500">
-                        No products found in this order.
-                      </p>
-                    )}
-                    <div className="mt-2">
-                      {order._isDraft ? (
-                        <div className="mt-2 flex justify-end">
-                          <button
-                            onClick={() => {
-                              const link = `${window.location.origin}/pay/${order.id}`;
-                              navigator.clipboard.writeText(link);
-                              toast.success("Link copied!");
-                            }}
-                            className="px-2 py-1.5  bg-customOrange text-white rounded-md text-xs font-opensans"
-                          >
-                            Copy Payment Link
-                          </button>
+                      })}
+                    </div>
+                  ) : (
+                    <div className="order-detail-products">
+                      {(selectedOrder.cartItems || []).map((item, index) =>
+                        renderDetailProduct(item, index)
+                      )}
+                    </div>
+                  )}
+                </section>
+
+                {!selectedOrder._isDraft && (
+                  <section className="order-detail-section">
+                    <h2 className="order-section-title">Costs</h2>
+                    <div className="order-detail-rows">
+                      <div className="order-detail-row">
+                        <span>Item(s) Total</span>
+                        <strong>₦{itemTotal.toLocaleString()}</strong>
+                      </div>
+                      <div className="order-detail-row">
+                        <span>Buyer Protection fee</span>
+                        <strong>₦{protectionFee.toLocaleString()}</strong>
+                      </div>
+                      {!isStockpile && (
+                        <div className="order-detail-row">
+                          <span>Delivery fee</span>
+                          <strong>₦{deliveryFee.toLocaleString()}</strong>
                         </div>
-                      ) : (
-                        <div className="mt-2">
-                          <div className="flex justify-end">
-                            <span className="text-sm font-opensans font-normal">
-                              Order Total:
-                            </span>
-                            <span className="text-sm font-opensans font-semibold ml-1">
-                              ₦{" "}
-                              {order.isStockpile && order.combinedTotal
-                                ? Number(order.combinedTotal).toLocaleString()
-                                : order.total
-                                ? Number(order.total).toLocaleString()
-                                : "0"}
-                            </span>
+                      )}
+                      <div className="order-detail-row is-total">
+                        <span>Order Total</span>
+                        <strong>₦{getOrderTotal(selectedOrder).toLocaleString()}</strong>
+                      </div>
+                    </div>
+                  </section>
+                )}
+
+                <section className="order-detail-section">
+                  <h2 className="order-section-title">Delivery Information</h2>
+                  <div className="order-detail-rows">
+                    <div className="order-detail-row">
+                      <span>Name</span>
+                      <strong>{userSnapshot.displayName || detailPlaceholder}</strong>
+                    </div>
+                    <div className="order-detail-row">
+                      <span>Phone Number</span>
+                      <strong>
+                        {userSnapshot.phoneNumber ||
+                          userSnapshot.phone ||
+                          detailPlaceholder}
+                      </strong>
+                    </div>
+                    <div className="order-detail-row">
+                      <span>Email</span>
+                      <strong>{userSnapshot.email || detailPlaceholder}</strong>
+                    </div>
+                    <div className="order-detail-row">
+                      <span>Delivery Address</span>
+                      <strong>{userSnapshot.address || detailPlaceholder}</strong>
+                    </div>
+                  </div>
+                </section>
+
+                {selectedOrder.isPickup && (
+                  <section className="order-detail-section">
+                    <h2 className="order-section-title">Pick-up window</h2>
+                    <div className="order-detail-rows">
+                      <div className="order-detail-row">
+                        <span>Available days</span>
+                        <strong>
+                          {selectedOrder.pickupDays || "Not scheduled yet"}
+                        </strong>
+                      </div>
+                      <div className="order-detail-row">
+                        <span>Available time</span>
+                        <strong>
+                          {selectedOrder.pickupTime || "Not scheduled yet"}
+                        </strong>
+                      </div>
+                    </div>
+                    {selectedOrder.pickupNote && (
+                      <div className="order-delivery-note">
+                        <span>Vendor note</span>
+                        <p>{selectedOrder.pickupNote}</p>
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                <section className="order-detail-section">
+                  <h2 className="order-section-title">Payment method</h2>
+                  <div className="order-payment-method">
+                    {paymentView && (
+                      <img
+                        src={paymentView.icon}
+                        alt=""
+                        aria-hidden="true"
+                      />
+                    )}
+                    <span>{paymentLabel}</span>
+                  </div>
+                </section>
+
+                <section className="order-detail-section">
+                  <h2 className="order-section-title">Delivery method</h2>
+                  <div className="order-detail-rows">
+                    <div className="order-detail-row">
+                      <span>Method</span>
+                      <strong>
+                        {isStockpile
+                          ? "Stockpile delivery"
+                          : selectedOrder.isPickup
+                          ? "Pick-up"
+                          : "Home delivery"}
+                      </strong>
+                    </div>
+                    {selectedOrder.isPickup && (
+                      <>
+                        <div className="order-detail-row">
+                          <span>Pick-up location</span>
+                          <strong>
+                            {selectedOrder.pickupAddress || "Location unavailable"}
+                          </strong>
+                        </div>
+                        {showPickupDetails && (
+                          <div className="order-card-conditional">
+                            <PickupCode code={selectedOrder.pickupCode} />
+                            <button
+                              type="button"
+                              className="order-inline-action"
+                              onClick={() => openPickupMap(selectedOrder)}
+                            >
+                              <LuMapPin aria-hidden="true" /> Open in Google Maps
+                            </button>
                           </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </section>
+
+                {showDeliveryTracking && (
+                  <section className="order-detail-section">
+                    <h2 className="order-section-title">Delivery tracking</h2>
+                    <DeliveryTrackingCard
+                      provider={
+                        selectedOrder.deliveryProvider ||
+                        selectedOrder.deliveryOption?.provider
+                      }
+                      providerLogo={
+                        selectedOrder.deliveryProviderLogo ||
+                        selectedOrder.deliveryOption?.providerLogo
+                      }
+                      status={deliveryTrackingStatus}
+                      eta={selectedOrder.deliveryOption?.eta}
+                      trackingUrl={selectedOrder.deliveryTrackingUrl}
+                      trackingCode={selectedOrder.deliveryTrackingCode}
+                    />
+                    {selectedOrder.deliveryFulfillmentId && (
+                      <button
+                        type="button"
+                        className="order-inline-action order-tracking-refresh"
+                        onClick={handleManualTrackingRefresh}
+                        disabled={trackingRefreshing}
+                      >
+                        <LuRefreshCw aria-hidden="true" />
+                        {trackingRefreshing ? "Refreshing…" : "Refresh status"}
+                      </button>
+                    )}
+                    {String(deliveryTrackingStatus || "").toLowerCase() ===
+                      "delivered" &&
+                      selectedOrder.deliveryFulfillmentId &&
+                      !selectedOrder.courierReviewSubmitted && (
+                        <button
+                          type="button"
+                          className="orders-empty-button is-primary order-courier-review-action"
+                          onClick={() => {
+                            appHaptics.selection();
+                            setCourierReviewTarget({
+                              deliveryFulfillmentId:
+                                selectedOrder.deliveryFulfillmentId,
+                              provider:
+                                selectedOrder.deliveryProvider ||
+                                selectedOrder.deliveryOption?.provider,
+                            });
+                          }}
+                        >
+                          Rate delivery courier
+                        </button>
+                      )}
+                  </section>
+                )}
+
+                {(deliveryProof?.storagePath || deliveryProof?.url) && (
+                  <PrivateDeliveryProof
+                    key={`${isStockpileContainer ? "stockpile" : "order"}:${selectedOrder.id}`}
+                    entityType={isStockpileContainer ? "stockpile" : "order"}
+                    entityId={isStockpileContainer ? selectedOrder.stockpileDocId || selectedOrder.id : selectedOrder.id}
+                    proof={deliveryProof}
+                    onView={setFullscreenImage}
+                  />
+                )}
+
+                {selectedOrder.note && (
+                  <section className="order-detail-section">
+                    <h2 className="order-section-title">Note</h2>
+                    <p className="order-detail-note">{selectedOrder.note}</p>
+                  </section>
+                )}
+
+                {(hasRiderInfo || selectedOrder.declineReason) && (
+                  <section className="order-detail-section">
+                    <h2 className="order-section-title">Order information</h2>
+                    <div className="order-detail-rows">
+                      {hasRiderInfo && (
+                        <>
+                          <div className="order-detail-row">
+                            <span>Rider Name</span>
+                            <strong>
+                              {riderInfo.riderName || detailPlaceholder}
+                            </strong>
+                          </div>
+                          <div className="order-detail-row">
+                            <span>Rider Number</span>
+                            <strong>
+                              {riderInfo.riderNumber || detailPlaceholder}
+                            </strong>
+                          </div>
+                        </>
+                      )}
+                      {selectedOrder.declineReason && (
+                        <div className="order-detail-row">
+                          <span>Decline Reason</span>
+                          <strong>{selectedOrder.declineReason}</strong>
                         </div>
                       )}
                     </div>
-                  </div>
+                    {riderInfo.note && (
+                      <div className="order-delivery-note">
+                        <span>Delivery note</span>
+                        <p>{riderInfo.note}</p>
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                {isStockpile && (
+                  <section className="order-detail-section">
+                    <h2 className="order-section-title">Stockpile information</h2>
+                    <div className="order-detail-rows">
+                      <div className="order-detail-row">
+                        <span>Stockpile ID</span>
+                        <strong title={selectedOrder.stockpileDocId || undefined}>
+                          {selectedOrder.stockpileDocId
+                            ? getVisibleStockpileIdentifier(
+                                selectedOrder.stockpileDocId,
+                              )
+                            : detailPlaceholder}
+                        </strong>
+                      </div>
+                      <div className="order-detail-row">
+                        <span>Duration</span>
+                        <strong>
+                          {selectedOrder.chosenWeeks
+                            ? `${selectedOrder.chosenWeeks} weeks`
+                            : detailPlaceholder}
+                        </strong>
+                      </div>
+                      <div className="order-detail-row">
+                        <span>End date</span>
+                        <strong>{formatOrderDate(selectedOrder.endDate)}</strong>
+                      </div>
+                      <div className="order-detail-row">
+                        <span>Status</span>
+                        <strong>{getStockpileStatusView(selectedOrder).label}</strong>
+                      </div>
+                    </div>
+                  </section>
+                )}
+
+                <section className="order-detail-section">
+                  <h2 className="order-section-title">Timeline</h2>
+                  <OrderTimeline order={selectedOrder} />
+                  {completionDuration && (
+                    <div className="order-completion-duration">
+                      <IoTimeOutline aria-hidden="true" />
+                      <span>Completed in</span>
+                      <strong>{completionDuration}</strong>
+                    </div>
+                  )}
+                </section>
+
+                {selectedOrder._isDraft && (
+                  <section className="order-detail-section">
+                    <button
+                      type="button"
+                      className="orders-empty-button is-primary order-copy-payment-link"
+                      onClick={() =>
+                        void copyOrderText(
+                          `${window.location.origin}/pay/${selectedOrder.id}`,
+                          "Payment link copied"
+                        )
+                      }
+                    >
+                      Copy payment link
+                    </button>
+                  </section>
+                )}
+              </div>
+
+              {isStockpileContainer && (
+                <div className="order-stockpile-actions">
+                  <button
+                    type="button"
+                    className="order-stockpile-action"
+                    disabled={deliveryActionDisabled}
+                    onClick={() => {
+                      appHaptics.selection();
+                      setOrderToRequestShipping(selectedOrder);
+                      setShowConfirmShippingModal(true);
+                    }}
+                  >
+                    {stockpileDeliveryLabel}
+                  </button>
+                  <button
+                    type="button"
+                    className="order-stockpile-action is-primary"
+                    disabled={repileDisabled}
+                    onClick={() => {
+                      appHaptics.selection();
+                      handleStockpileAddMore(selectedOrder);
+                    }}
+                  >
+                    Repile
+                  </button>
                 </div>
-              );
-            })
-          )}
-        </>
+              )}
+                </>
+              )}
+            </section>
+          );
+        })()}
+
+      {showHelpOptions && (
+        <OrderHelpSheet
+          onClose={() => setShowHelpOptions(false)}
+          onChat={openOrderSupport}
+          onKnowledgeBase={openKnowledgeBase}
+        />
       )}
-      {isModalOpen &&
+
+      {showConfirmShippingModal && (
+        <StockpileDeliverySheet
+          open={showConfirmShippingModal}
+          onClose={() => setShowConfirmShippingModal(false)}
+          stockpileId={orderToRequestShipping?.stockpileDocId}
+          currentUserData={currentUserData}
+          onStateChange={handleStockpileDeliveryState}
+          onEditDetails={() => {
+            const stockpileId = orderToRequestShipping?.stockpileDocId;
+            setShowConfirmShippingModal(false);
+            navigate("/account-info", {
+              state: {
+                returnTo: `${location.pathname}${location.search}${location.hash}`,
+                returnState: stockpileId
+                  ? { reopenStockpileDeliveryId: stockpileId }
+                  : null,
+              },
+            });
+          }}
+        />
+      )}
+
+      <CourierReviewSheet
+        open={Boolean(courierReviewTarget)}
+        onClose={() => setCourierReviewTarget(null)}
+        deliveryFulfillmentId={courierReviewTarget?.deliveryFulfillmentId}
+        provider={courierReviewTarget?.provider}
+        onSubmitted={(result) => {
+          setSelectedOrder((current) =>
+            current
+              ? {
+                  ...current,
+                  courierReviewSubmitted: true,
+                  courierReviewRating: result?.rating || null,
+                }
+              : current
+          );
+        }}
+      />
+
+      {fullscreenImage && (
+        <div
+          className="fixed px-12 py-12 inset-0 z-[110] bg-black bg-opacity-90 flex items-center justify-center"
+          data-native-back-block
+          onClick={closeFullscreenImage}
+        >
+          <img
+            src={fullscreenImage}
+            alt="Full View"
+            className="w-full h-full object-contain"
+          />
+          <MdClose
+            onClick={closeFullscreenImage}
+            className="absolute top-5 right-5 text-white text-3xl"
+          />
+        </div>
+      )}
+
+      {false && isModalOpen &&
         selectedOrder &&
         (() => {
           const isStockpile = selectedOrder.isStockpile;
@@ -1475,7 +2971,7 @@ const OrdersCentre = () => {
                     <div className=" ">
                       <FcOnlineSupport
                         className="text-2xl cursor-pointer"
-                        onClick={openChat}
+                        onClick={openOrderSupport}
                         title="Support"
                       />
                     </div>
@@ -1570,12 +3066,16 @@ const OrdersCentre = () => {
                           ].price?.toLocaleString() || "0"
                         }`,
                       },
-                      {
-                        label: "Size:",
-                        value:
-                          selectedOrder.cartItems[activeProductIndex].size ||
-                          "N/A",
-                      },
+                      ...(!selectedOrder.cartItems[activeProductIndex].hideSize
+                        ? [
+                            {
+                              label: "Size:",
+                              value:
+                                selectedOrder.cartItems[activeProductIndex]
+                                  .size || "N/A",
+                            },
+                          ]
+                        : []),
                       {
                         label: "Color:",
                         value:
@@ -1588,7 +3088,7 @@ const OrdersCentre = () => {
                           selectedOrder.cartItems[activeProductIndex]
                             .quantity || 1,
                       },
-                    ].map(({ label, value }, index) => (
+                    ].map(({ label, value }, index, rows) => (
                       <React.Fragment key={index}>
                         <div className="flex justify-between items-center my-2">
                           <p className="text-sm font-opensans text-black font-semibold text-left w-1/2">
@@ -1598,7 +3098,9 @@ const OrdersCentre = () => {
                             {value}
                           </p>
                         </div>
-                        {index < 4 && <div className="border-b my-2"></div>}
+                        {index < rows.length - 1 && (
+                          <div className="border-b my-2"></div>
+                        )}
                       </React.Fragment>
                     ))}
                   </div>
@@ -1877,7 +3379,7 @@ const OrdersCentre = () => {
                       disabled={
                         isFirstPending ||
                         isFirstDeclined ||
-                        isRequestingShipping ||
+                        false ||
                         selectedOrder?.requestedForShipping ||
                         selectedOrder?.isActive === false ||
                         selectedOrder._isDraft
@@ -1898,16 +3400,14 @@ const OrdersCentre = () => {
                         isFirstDeclined ||
                         isFirstPending ||
                         selectedOrder._isDraft ||
-                        isRequestingShipping ||
+                        false ||
                         selectedOrder?.requestedForShipping ||
                         selectedOrder?.isActive === false
                           ? "border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed"
                           : "border-customRichBrown text-customRichBrown bg-transparent text-xs font-medium"
                       }`}
                     >
-                      {isRequestingShipping
-                        ? "Requesting..."
-                        : selectedOrder?.requestedForShipping
+                      {selectedOrder?.requestedForShipping
                         ? "Shipping Requested"
                         : "Request for Shipping"}
                     </button>
@@ -1948,17 +3448,6 @@ const OrdersCentre = () => {
                   </div>
                 )}
               </div>
-              {showConfirmShippingModal && (
-                <ConfirmShippingModal
-                  isOpen={showConfirmShippingModal}
-                  onClose={() => setShowConfirmShippingModal(false)}
-                  onConfirm={() => {
-                    handleRequestShipping(orderToRequestShipping);
-                    setShowConfirmShippingModal(false);
-                  }}
-                />
-              )}
-
               {fullscreenImage && (
                 <div
                   className="fixed px-12 py-12 inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center"
@@ -1978,12 +3467,6 @@ const OrdersCentre = () => {
             </div>
           );
         })()}
-      <MapModal
-        isOpen={showMapModal}
-        onClose={() => setShowMapModal(false)}
-        origin={mapOrigin}
-        destination={mapDestination}
-      />
     </div>
   );
 };

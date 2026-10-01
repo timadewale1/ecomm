@@ -1,6 +1,8 @@
+import { publicVendorsQuery } from "../services/publicVendors";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { GoDotFill, GoChevronLeft } from "react-icons/go";
+import AppBackButton from "../components/layout/AppBackButton";
 import { CiSearch } from "react-icons/ci";
 import ReactStars from "react-rating-stars-component";
 import RoundedStar from "../components/Roundedstar";
@@ -44,11 +46,8 @@ const MarketVendors = () => {
   useEffect(() => {
     const fetchVendors = async () => {
       try {
-        const vendorQuery = query(
-          collection(db, "vendors"),
+        const vendorQuery = publicVendorsQuery(
           where("marketPlaceType", "==", "marketplace"),
-          where("isDeactivated", "==", false),
-          where("isApproved", "==", true)
         );
         const vendorSnapshot = await getDocs(vendorQuery);
         const vendorsList = vendorSnapshot.docs.map((doc) => ({
@@ -146,7 +145,7 @@ const MarketVendors = () => {
   };
 
   const handleStoreView = (vendor) => {
-    navigate(`/marketstorepage/${vendor.id}`);
+    navigate(`/store/${vendor.id}`);
   };
 
   const defaultImageUrl =
@@ -163,10 +162,7 @@ const MarketVendors = () => {
         <div className="flex items-center justify-between mb-3 pb-2 px-2">
           {!isSearching ? (
             <>
-              <GoChevronLeft
-                className="text-3xl cursor-pointer"
-                onClick={() => navigate(-1)}
-              />
+              <AppBackButton onClick={() => navigate(-1)} />
               <h1 className="text-xl font-opensans font-semibold">
                 Market Vendors
               </h1>

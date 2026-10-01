@@ -459,7 +459,7 @@ const productTypes = [
       "Brogues",
       "Corporate Shoes",
     ],
-    sizes: productSizes["FootWear"],
+    sizes: productSizes["Footwear"],
   },
   // Gym Wear
   {

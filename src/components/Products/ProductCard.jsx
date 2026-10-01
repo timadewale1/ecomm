@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getPublicVendor } from "../../services/publicVendors";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Skeleton from "react-loading-skeleton";
@@ -10,10 +11,6 @@ import { db } from "../../firebase.config";
 import {
   doc,
   getDoc,
-  setDoc,
-  deleteDoc,
-  updateDoc,
-  increment,
   collection,
   query,
   where,
@@ -24,12 +21,14 @@ import {
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
 
 import { useAuth } from "../../custom-hooks/useAuth";
-import { useFavorites } from "../../components/Context/FavoritesContext";
+import { useProductFavorite } from "../../components/Context/FavoritesContext";
 
-import { handleUserActionLimit } from "../../services/userWriteHandler";
 import IkImage from "../../services/IkImage";
 import Sales from "../Loading/Sales";
 import { useCardImpression } from "../../services/useCardImpression";
+import { appHaptics } from "../../services/haptics";
+import { isVariantSizeHidden } from "../../services/productVariantSelection";
+import { isProductSoldOut } from "../../services/productAvailability";
 const toTitleCase = (str = "") =>
   String(str)
     .trim()
@@ -41,6 +40,7 @@ const toTitleCase = (str = "") =>
 
 const getSizeText = (product) => {
   if (!product) return "";
+  if (isVariantSizeHidden(product)) return "";
 
   // 1) If product.size exists (string like "S, UK 38, 47" OR "S: 32-45")
   if (product.size) {
@@ -133,7 +133,6 @@ function formatSizeWord(w) {
   // default: Capitalize first letter, lowercase rest
   return capFirstLowerRest(t);
 }
-const wishCountCache = new Map(); // productId -> number
 
 const ProductCard = ({
   product,
@@ -142,47 +141,43 @@ const ProductCard = ({
   showName = true,
   showCondition = true,
   quickForThisVendor = false,
-   surface = "unknown",
+
+  surface = "unknown",
+
+  // V2 recommendation attribution
+  position,
+  requestId,
+  algorithmVersion,
+  candidateSource,
 }) => {
   const navigate = useNavigate();
   const [imgLoaded, setImgLoaded] = useState(false);
   // Auth state
 const productId = product?.id || product?.productId;
+  const soldOut = isProductSoldOut(product);
   const { currentUser } = useAuth();
   const [metaIndex, setMetaIndex] = useState(0); // 0 = condition, 1 = subType
 
   // Local Favorites Context
-  const { addFavorite, removeFavorite, isFavorite } = useFavorites();
-const favorite = isFavorite(productId);
+  const { favorite, wishCount, toggleFavorite } = useProductFavorite(product);
 
 const [burstKey, setBurstKey] = useState(0);
 
 
-const [wishCount, setWishCount] = useState(() => {
-  const base = typeof product?.wishCount === "number" ? product.wishCount : 0;
-  return productId ? (wishCountCache.get(productId) ?? base) : base;
-});
-
-useEffect(() => {
-  if (!productId) return;
-  const base = typeof product?.wishCount === "number" ? product.wishCount : 0;
-  const cached = wishCountCache.get(productId);
-  setWishCount(cached ?? base);
-}, [productId, product?.wishCount]);
 
   // State for vendor's marketplace type
   const [vendorMarketplaceType, setVendorMarketplaceType] = useState(null);
 
-  // Fetch vendor's marketplace type from Firestore
+  // Read only the public storefront. Ignore responses for a previous card.
   useEffect(() => {
+    let alive = true;
+    setVendorMarketplaceType(null);
     const fetchVendorMarketplaceType = async () => {
       if (!product?.vendorId) return;
       try {
-        const vendorRef = doc(db, "vendors", product.vendorId);
-        const vendorDoc = await getDoc(vendorRef);
-
-        if (vendorDoc.exists()) {
-          const vendorData = vendorDoc.data();
+        const vendorData = await getPublicVendor(product.vendorId);
+        if (!alive) return;
+        if (vendorData) {
           setVendorMarketplaceType(vendorData.marketPlaceType);
         } else {
           console.error("Vendor not found");
@@ -192,11 +187,9 @@ useEffect(() => {
       }
     };
     fetchVendorMarketplaceType();
+    return () => { alive = false; };
   }, [product?.vendorId]);
 
-  useEffect(() => {
-    if (typeof product?.wishCount === "number") setWishCount(product.wishCount);
-  }, [product?.wishCount]);
 
   useEffect(() => {
     const id = setInterval(() => setMetaIndex((i) => (i + 1) % 3), 2500);
@@ -206,25 +199,41 @@ useEffect(() => {
  const handleCardClick = () => {
   if (isLoading) return;
 
-  // block only if we KNOW it's sold out
-  const soldOut =
-    product?.inStock === false || Number(product?.stockQuantity ?? 1) <= 0;
-
-  if (soldOut) return;
-
   const id = product?.id || product?.productId;
   if (!id) return;
 
-navigate(`/product/${id}`, { state: { mtSurface: surface } });
+navigate(`/product/${id}`, {
+  state: {
+    mtSurface: surface,
+    mtProductId: String(id),
+    mtProductName: product?.name || "",
+  },
+});
 
 };
 
-  const impressionRef = useCardImpression({
+const impressionRef =
+  useCardImpression({
     kind: "product",
+
     productId,
-    vendorId: product?.vendorId,
-    surface,          // "home" | "search" | "vendor_store"
-    enabled: !isLoading && !!productId,
+
+    vendorId:
+      product?.vendorId,
+
+    surface,
+
+    enabled:
+      !isLoading &&
+      !!productId,
+
+    requestId,
+
+    position,
+
+    algorithmVersion,
+
+    candidateSource,
   });
 
   // ---- Offer helpers ----
@@ -345,129 +354,30 @@ navigate(`/product/${id}`, { state: { mtSurface: surface } });
   );
   const handleVendorClick = (e) => {
     e.stopPropagation();
-    if (vendorMarketplaceType === "virtual") {
+    if (
+      vendorMarketplaceType === "virtual" ||
+      vendorMarketplaceType === "marketplace"
+    ) {
       navigate(
         quickForThisVendor
           ? `/store/${product.vendorId}?shared=true`
           : `/store/${product.vendorId}`
-      );
-    } else if (vendorMarketplaceType === "marketplace") {
-      navigate(
-        quickForThisVendor
-          ? `/marketstorepage/${product.vendorId}?shared=true`
-          : `/marketstorepage/${product.vendorId}`
       );
     } else {
       console.error("Unknown marketplace type or vendor not found");
     }
   };
 
-const handleFavoriteToggle = async (e) => {
+const handleFavoriteToggle = (e) => {
   e.stopPropagation();
-
-  const productId = product?.id || product?.productId;
-  if (!productId) return;
-
-  const wasFavorite = isFavorite(productId);
-
-  // helper to keep UI count consistent across route changes
-  const setWish = (next) => {
-    const v = Math.max(0, Number(next || 0));
-    wishCountCache.set(productId, v);
-    setWishCount(v);
-  };
-
-  // best-effort product wishCount update (adjust paths to match your DB)
-  const tryUpdateProductWishCount = async (delta) => {
-    const candidates = [
-      // common patterns — keep the one that matches your schema
-      doc(db, "products", productId),
-      product?.vendorId ? doc(db, "vendors", product.vendorId, "products", productId) : null,
-    ].filter(Boolean);
-
-    for (const ref of candidates) {
-      try {
-        await updateDoc(ref, { wishCount: increment(delta) });
-        return true;
-      } catch (err) {
-        // try next candidate
-      }
-    }
-    return false;
-  };
-
-  // -------------------------
-  // ✅ Optimistic UI
-  // -------------------------
-  try {
-    if (wasFavorite) {
-      removeFavorite(productId);
-      setWish(Number(wishCount || 0) - 1);
-      toast.info(`Removed ${product?.name || "item"} from favorites!`);
-    } else {
-      addFavorite({ ...product, id: productId }); // ensure id exists in your favorites store
-      setWish(Number(wishCount || 0) + 1);
-      setBurstKey((k) => k + 1); // splash only on like
-      toast.success(`Added ${product?.name || "item"} to favorites!`);
-    }
-
-    // guest mode: keep it local only (cache will persist across pages in SPA)
-    if (!currentUser?.uid) return;
-
-    await handleUserActionLimit(
-      currentUser.uid,
-      "favorite",
-      {},
-      {
-        collectionName: "usage_metadata",
-        writeLimit: 50,
-        minuteLimit: 10,
-        hourLimit: 80,
-        dayLimit: 120,
-      }
-    );
-
-    const favDocRef = doc(db, "users", currentUser.uid, "favorites", productId);
-    const vendorDocRef = product?.vendorId ? doc(db, "vendors", product.vendorId) : null;
-
-    if (wasFavorite) {
-      await deleteDoc(favDocRef);
-
-      // OPTIONAL: keep vendor likes symmetrical
-      // if (vendorDocRef) await updateDoc(vendorDocRef, { likesCount: increment(-1) });
-
-      // OPTIONAL: persist wishCount globally
-      // await tryUpdateProductWishCount(-1);
-    } else {
-      await setDoc(favDocRef, {
-        productId,
-        vendorId: product?.vendorId || null,
-        name: product?.name || "",
-        price: Number(product?.price || 0),
-        createdAt: new Date(),
-      });
-
-      if (vendorDocRef) await updateDoc(vendorDocRef, { likesCount: increment(1) });
-
-      // OPTIONAL: persist wishCount globally
-      // await tryUpdateProductWishCount(1);
-    }
-  } catch (err) {
-    console.error("Error updating favorites:", err);
-
-    // -------------------------
-    // ✅ Revert optimistic UI
-    // -------------------------
-    if (wasFavorite) {
-      addFavorite({ ...product, id: productId });
-      setWish(Number(wishCount || 0) + 1);
-    } else {
-      removeFavorite(productId);
-      setWish(Number(wishCount || 0) - 1);
-    }
-
-    toast.error(err?.message || "Failed to update favorites. Please try again.");
-  }
+  const liked = toggleFavorite({ surface });
+  if (liked === null) return;
+  appHaptics.favorite(liked);
+  if (liked) setBurstKey((key) => key + 1);
+  const message = `${liked ? "Added" : "Removed"} ${product?.name || "item"} ${liked ? "to" : "from"} favorites!`;
+  const toastId = `favorite-${productId}`;
+  if (toast.isActive(toastId)) toast.update(toastId, { render: message, type: liked ? "success" : "info", autoClose: 3500 });
+  else toast(message, { toastId, type: liked ? "success" : "info", autoClose: 3500 });
 };
 
 
@@ -523,9 +433,7 @@ const handleFavoriteToggle = async (e) => {
       {/* --- MAIN CARD --- */}
       <div
         ref={impressionRef}
-        className={`product-card relative mb-2 cursor-pointer ${
-          product?.stockQuantity === 0 ? "opacity-50 pointer-events-none" : ""
-        }`}
+        className="product-card relative mb-2 cursor-pointer"
         onClick={handleCardClick}
         style={{ width: "100%", margin: "0" }}
       >
@@ -725,10 +633,10 @@ const handleFavoriteToggle = async (e) => {
 
 
           {/* Out of Stock Overlay */}
-          {product?.stockQuantity === 0 && (
-            <div className="absolute inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center rounded-lg z-10">
-              <p className="text-red-700 font-semibold text-2xl animate-pulse">
-                Sold Out!
+          {soldOut && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[18px] bg-slate-900/45">
+              <p className="rounded-full bg-black/70 px-4 py-2 font-satoshi text-sm font-medium text-white">
+                Sold
               </p>
             </div>
           )}
@@ -818,12 +726,6 @@ return (
               </span>
             )}
 
-            {/* Freebie badge beside new price */}
-            {isFreebie && product?.discount?.freebieText && (
-              <span className="shrink-0 max-w-[8.5rem] truncate inline-flex items-center px-2 h-5 rounded-full bg-customPink text-customOrange text-xs font-opensans font-medium">
-                {product.discount.freebieText}
-              </span>
-            )}
           </div>
         </div>
       );

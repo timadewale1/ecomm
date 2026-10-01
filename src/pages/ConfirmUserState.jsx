@@ -1,162 +1,197 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { FaCheck } from "react-icons/fa";
-import logo from "../Images/logo.png";
-import { GiClothes } from "react-icons/gi";
-import { BsShop } from "react-icons/bs";
-import { useAuth } from "../custom-hooks/useAuth";
+import React, { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Check, ShoppingBag, Store } from "lucide-react";
 import { RotatingLines } from "react-loader-spinner";
+import logo from "../Images/logo.png";
 import SEO from "../components/Helmet/SEO";
+import { useAuth } from "../custom-hooks/useAuth";
+import { useAppExperience } from "../components/Context/AppExperienceContext";
+import { APP_EXPERIENCE } from "../services/appExperience";
+import { appHaptics } from "../services/haptics";
 import Loading from "../components/Loading/Loading";
+
+const experienceOptions = [
+  {
+    id: APP_EXPERIENCE.CUSTOMER,
+    title: "Shop as a customer",
+    description: "Discover unique finds, make offers and shop trusted stores.",
+    icon: ShoppingBag,
+  },
+  {
+    id: APP_EXPERIENCE.VENDOR,
+    title: "Sell as a vendor",
+    description: "Set up your store, list products and manage your orders.",
+    icon: Store,
+  },
+];
 
 const ConfirmUserState = () => {
   const navigate = useNavigate();
-  const { currentUser, currentUserData, loading } = useAuth();
-  const [selectedRole, setSelectedRole] = useState(null);
+  const location = useLocation();
+  const { loading: authLoading } = useAuth();
+  const { ready: experienceReady, selectExperience } = useAppExperience();
+  const [selectedExperience, setSelectedExperience] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  useEffect(() => {
-    const savedRole = localStorage.getItem("mythrift_role"); // "customer" | "vendor"
-    if (!savedRole) return; // first launch → stay on selector
-    if (loading) return;
-    if (savedRole === "vendor") {
-      // you still need the auth check, but this mimics your existing logic
-      if (currentUser && currentUserData?.role === "vendor") {
-        navigate("/vendordashboard", { replace: true });
+  const chooseExperience = (experience) => {
+    setSelectedExperience(experience);
+    void appHaptics.selection();
+  };
+
+  const handleContinue = async () => {
+    if (!selectedExperience || isProcessing) return;
+    setIsProcessing(true);
+    void appHaptics.medium();
+
+    try {
+      await selectExperience(selectedExperience);
+      const requestedDestination =
+        typeof location.state?.returnTo === "string" &&
+        location.state.returnTo.startsWith("/") &&
+        !location.state.returnTo.startsWith("//")
+          ? location.state.returnTo
+          : null;
+      const requestedPath = requestedDestination?.split(/[?#]/)[0] || null;
+      const isAuthEntry = [
+        "/login",
+        "/vendorlogin",
+        "/confirm-state",
+        "/confirm-user",
+      ].includes(requestedPath);
+
+      if (selectedExperience === APP_EXPERIENCE.VENDOR) {
+        navigate("/vendorlogin", {
+          replace: true,
+          state: requestedDestination && !isAuthEntry
+            ? { returnTo: requestedDestination }
+            : undefined,
+        });
       } else {
-        navigate("/vendorlogin", { replace: true });
+        navigate(
+          isAuthEntry
+            ? "/login"
+            : requestedDestination || "/",
+          { replace: true },
+        );
       }
-    } else {
-      navigate("/confirm-user", { replace: true });
-    }
-  }, [loading, currentUser, currentUserData, navigate]);
-  useEffect(() => {
-    if (isProcessing && !loading) {
-      if (currentUser && currentUserData?.role === "vendor") {
-        navigate("/vendordashboard", { replace: true });
-      } else if (selectedRole === "vendor") {
-        navigate("/vendorlogin", { replace: true });
-      } else {
-        navigate("/", { replace: true });
-      }
+    } finally {
       setIsProcessing(false);
     }
-  }, [
-    isProcessing,
-    loading,
-    currentUser,
-    currentUserData,
-    navigate,
-    selectedRole,
-  ]);
-
-  const handleContinue = () => {
-    if (!selectedRole) return;
-    localStorage.setItem("mythrift_role", selectedRole);
-    if (selectedRole === "vendor") {
-      setIsProcessing(true);
-    } else {
-      navigate("/login");
-    }
   };
-  if (loading) {
-    return <Loading />;
-  }
+
+  if (!experienceReady || authLoading) return <Loading />;
+
   return (
     <>
       <SEO
-        title={`Let’s Get You Started`}
-        url={`https://www.shopmythrift.store/confirm-state`}
+        title="Choose your My Thrift experience"
+        description="Choose whether you want to shop or sell on My Thrift."
+        url="https://www.shopmythrift.store/confirm-state"
       />
-      <div className="flex px-3 py-2 mt-3 justify-between mb-3">
-        <img src={logo} alt="Logo" />
-      </div>
 
-      <div className="p-3 bg-white w-full h-screen font-opensans pb-20">
-        <div className="flex justify-center text-center mb-10">
-          <h1 className="font-opensans text-2xl text-black font-semibold">
-            Use <span className="text-customOrange">My Thrift</span> as a?
-          </h1>
-        </div>
+      <main className="min-h-[100dvh] bg-white px-5 pb-[calc(24px+env(safe-area-inset-bottom,0px))] pt-[calc(20px+env(safe-area-inset-top,0px))] font-satoshi text-gray-950">
+        <div className="mx-auto flex min-h-[calc(100dvh-44px)] w-full max-w-md flex-col">
+          <img
+            src={logo}
+            alt="My Thrift"
+            className="h-10 w-auto self-start object-contain"
+          />
 
-        <div className="space-y-5">
-          <div
-            className={`relative p-4 border-2 rounded-3xl ${
-              selectedRole === "customer"
-                ? "border-customBrown"
-                : "border-gray-200"
-            } cursor-pointer`}
-            onClick={() => setSelectedRole("customer")}
-          >
-            <div className="w-12 h-12 rounded-full bg-lighOrange flex items-center justify-center">
-              <GiClothes className="text-lg text-customBrown" />
-            </div>
-            <div className="mt-2">
-              <h2 className="text-lg font-semibold text-black">Customer</h2>
-              <p className="text-gray-600">
-                Find thrifted treasures from curated vendors!🧡
-              </p>
-            </div>
-            {selectedRole === "customer" && (
-              <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-customOrange flex items-center justify-center">
-                <FaCheck className="text-white text-sm" />
-              </div>
-            )}
-          </div>
+          <section className="mt-12">
+            <p className="text-sm font-semibold text-customOrange">
+              WELCOME TO MY THRIFT
+            </p>
+            <h1 className="mt-2 max-w-sm text-[34px] font-semibold leading-[1.08] tracking-[-0.035em]">
+              How will you use My Thrift?
+            </h1>
+            <p className="mt-3 max-w-sm text-base leading-6 text-gray-500">
+              Choose the experience that fits you. You can change this later in
+              Settings.
+            </p>
+          </section>
 
           <div
-            className={`relative p-4 border-2 rounded-3xl ${
-              selectedRole === "vendor"
-                ? "border-customBrown"
-                : "border-gray-200"
-            } cursor-pointer`}
-            onClick={() => setSelectedRole("vendor")}
+            className="mt-9 space-y-3"
+            role="radiogroup"
+            aria-label="Choose an app experience"
           >
-            <div className="w-12 h-12 rounded-full bg-lighOrange flex items-center justify-center">
-              <BsShop className="text-lg text-customBrown" />
-            </div>
-            <div className="mt-2">
-              <h2 className="text-lg font-semibold text-black">Vendor</h2>
-              <p className="text-gray-600 font-opensans text-base">
-                Showcase your thrift finds on{" "}
-                <span className="text-customOrange">My Thrift</span> and sell
-                with ease.
-              </p>
-            </div>
-            {selectedRole === "vendor" && (
-              <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-customOrange flex items-center justify-center">
-                <FaCheck className="text-white text-sm" />
-              </div>
-            )}
+            {experienceOptions.map((option) => {
+              const selected = selectedExperience === option.id;
+              const Icon = option.icon;
+
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => chooseExperience(option.id)}
+                  className={`relative flex w-full items-start gap-4 rounded-[22px] border p-5 text-left transition-colors ${
+                    selected
+                      ? "border-customOrange bg-[#fff6f2]"
+                      : "border-gray-200 bg-white active:bg-gray-50"
+                  }`}
+                >
+                  <span
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+                      selected
+                        ? "bg-customOrange text-white"
+                        : "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    <Icon size={23} strokeWidth={1.8} aria-hidden="true" />
+                  </span>
+
+                  <span className="min-w-0 pr-7">
+                    <span className="block text-[17px] font-semibold leading-6">
+                      {option.title}
+                    </span>
+                    <span className="mt-1 block text-sm leading-5 text-gray-500">
+                      {option.description}
+                    </span>
+                  </span>
+
+                  <span
+                    className={`absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full border ${
+                      selected
+                        ? "border-customOrange bg-customOrange text-white"
+                        : "border-gray-300 bg-white text-transparent"
+                    }`}
+                    aria-hidden="true"
+                  >
+                    <Check size={15} strokeWidth={2.5} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-auto pt-8">
+            <button
+              type="button"
+              onClick={handleContinue}
+              disabled={!selectedExperience || isProcessing}
+              className={`flex h-14 w-full items-center justify-center rounded-md text-base font-semibold transition-colors ${
+                selectedExperience
+                  ? "bg-customOrange text-white active:bg-orange-600"
+                  : "cursor-not-allowed bg-gray-200 text-gray-400"
+              }`}
+            >
+              {isProcessing ? (
+                <RotatingLines
+                  strokeColor="#ffffff"
+                  strokeWidth="5"
+                  animationDuration="0.75"
+                  width="24"
+                  visible
+                />
+              ) : (
+                "Continue"
+              )}
+            </button>
           </div>
         </div>
-
-        <div className="fixed bottom-0 left-0 right-0 flex justify-center p-3">
-          <button
-            onClick={handleContinue}
-            className={`w-full h-14 flex items-center justify-center rounded-full font-semibold text-white ${
-              isProcessing
-                ? "bg-customOrange"
-                : selectedRole
-                ? "bg-customOrange"
-                : "bg-gray-300 cursor-not-allowed"
-            }`}
-            disabled={!selectedRole || isProcessing}
-          >
-            {isProcessing && selectedRole === "vendor" ? (
-              <RotatingLines
-                strokeColor="#ffffff"
-                strokeWidth="5"
-                animationDuration="0.75"
-                width="24"
-                visible={true}
-              />
-            ) : (
-              "Continue"
-            )}
-          </button>
-        </div>
-      </div>
+      </main>
     </>
   );
 };

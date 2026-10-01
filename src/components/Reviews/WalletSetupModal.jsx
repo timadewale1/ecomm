@@ -1,102 +1,86 @@
-// src/components/Wallet/WalletSetupModal.jsx
-
-import React from "react";
-import Modal from "react-modal";
+import React, { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import WalletAnim from "../Loading/WalletAnim";
-
-Modal.setAppElement("#root");
+import AppBottomSheet from "../layout/AppBottomSheet";
+import { appHaptics } from "../../services/haptics";
 
 const WalletSetupModal = ({ isOpen }) => {
   const navigate = useNavigate();
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (isOpen && !wasOpenRef.current) {
+      void appHaptics.medium();
+    }
+    wasOpenRef.current = isOpen;
+  }, [isOpen]);
 
   const handleSetup = () => {
+    void appHaptics.selection();
     navigate("/vendor-wallet");
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      shouldCloseOnOverlayClick={false}
-      shouldCloseOnEsc={false}
-      onRequestClose={() => {}}
-      contentLabel="Set Up Your Wallet"
-      style={{
-        content: {
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          top: "auto",
-          borderRadius: "20px 20px 0 0",
-          padding: "16px",
-          backgroundColor: "#ffffff",
-          border: "none",
-          height: "88%",
-          animation: "slide-up 0.3s ease-in-out",
-          overflow: "hidden",
-        },
-        overlay: {
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "center",
-          zIndex: 3000,
-        },
-      }}
+    <AppBottomSheet
+      open={isOpen}
+      onClose={() => {}}
+      height="70dvh"
+      ariaLabel="Set up your vendor wallet"
+      closeOnBackdrop={false}
+      dismissible={false}
+      compactTop
+      zIndex={5000}
     >
-      <div className="flex flex-col h-full px-4">
-        {/* Animated Illustration */}
-        <div className="flex justify-center h-40 -translate-y-8 ">
-          <WalletAnim/>
+      <div className="flex min-h-0 flex-1 flex-col px-5 pb-4 pt-5 font-satoshi">
+        <div className="flex h-24 shrink-0 justify-center overflow-hidden">
+          <WalletAnim />
         </div>
 
-        {/* Header */}
-        <h2 className="font-satoshi -translate-y-24 text-xl font-semibold text-gray-800 mb-3">
-          Introducing Wallets!
-        </h2>
-        <div className="border -translate-y-24 border-gray-200 mb-4"></div>
+        <header className="shrink-0 border-b border-gray-200 pb-3">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Introducing Wallets!
+          </h2>
+        </header>
 
-        {/* Info */}
-        <div className="flex-1 -translate-y-24 text-gray-700  font-opensans space-y-3 mb-4">
-          <p className="text-sm">
-            You now have full control over how and when you receive your payouts
-            — no more guessing or delays.
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto py-4 text-sm leading-5 text-gray-700">
+          <p>
+            You now have full control over how and when you receive your
+            payouts—no more guessing or delays.
           </p>
-          <p className="text-sm">
+          <p>
             Withdrawals are available every{" "}
-            <span className="text-customOrange font-medium">
+            <span className="font-medium text-customOrange">
               Monday, Wednesday, and Friday
             </span>
-            . On those days, you can withdraw your funds anytime that works for
-            you and get credited instantly.
+            . On those days, you can withdraw your funds whenever works for you
+            and get credited instantly.
           </p>
-          <p className="text-sm">
+          <p>
             As you accept new orders, your{" "}
-            <span className="text-customOrange font-medium">
+            <span className="font-medium text-customOrange">
               pending balance
             </span>{" "}
-            updates in real-time — so even if it’s not yet withdrawable, it’s
+            updates in real time. Even when it is not yet withdrawable, it is
             already on the way.
           </p>
-          <p className="text-sm italic">
-            Your withdrawable balance is the amount that’s fully available for
-            transfer — and can only be sent to your linked bank account.
+          <p className="italic">
+            Your withdrawable balance is the amount fully available for
+            transfer and can only be sent to your linked bank account.
           </p>
-          <p className="text-sm">
-            We hope it makes your payout experience much better.
-          </p>
+          <p>We hope it makes your payout experience much better.</p>
         </div>
 
-        {/* Button always at bottom */}
-        <button
-          onClick={handleSetup}
-          className="mt-auto px-6 py-2.5 -translate-y-20   w-full text-sm font-opensans bg-customOrange text-white font-medium rounded-full"
-        >
-          Set Up Wallet
-        </button>
+        <div className="shrink-0 border-t border-gray-100 bg-white pt-3">
+          <button
+            type="button"
+            onClick={handleSetup}
+            className="h-12 w-full rounded-md bg-customOrange px-6 text-sm font-medium text-white active:opacity-90"
+          >
+            Set Up Wallet
+          </button>
+        </div>
       </div>
-    </Modal>
+    </AppBottomSheet>
   );
 };
 

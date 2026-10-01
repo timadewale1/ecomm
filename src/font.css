@@ -1,24 +1,16 @@
-/* src/fonts.css */
+/* Official Fontshare Satoshi 1.0 variable webfonts (300–900). */
 @font-face {
-  font-family: 'Satoshi';
-  src: url('satoshi-variable-webfont.woff') format('woff2');
-  font-weight: 400;
+  font-family: "Satoshi";
+  src: url("/Fonts/satoshi/Satoshi-Variable.woff2") format("woff2");
+  font-weight: 300 900;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Satoshi';
-  src: url('/fonts/satoshi/Satoshi-Medium.woff2') format('woff2');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Satoshi';
-  src: url('/fonts/satoshi/satoshi-bold-webfont.woff2') format('woff2');
-  font-weight: 700;
-  font-style: normal;
+  font-family: "Satoshi";
+  src: url("/Fonts/satoshi/Satoshi-VariableItalic.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: italic;
   font-display: swap;
 }

@@ -1,659 +1,425 @@
-import React, { useEffect, useState } from "react";
-import { signOut } from "firebase/auth";
-import { auth, db } from "../firebase.config";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { db } from "../firebase.config";
 import { toast } from "react-hot-toast";
-import { ChevronRight, User, ChevronLeft } from "lucide-react";
-import { AiOutlineUserSwitch } from "react-icons/ai";
-import { useNavigate, useLocation } from "react-router-dom";
+import {
+  BadgePercent,
+  Bell,
+  ChevronRight,
+  CircleHelp,
+  Heart,
+  HandHeart,
+  Info,
+  Package,
+  Ruler,
+  Search,
+  Settings,
+  Shirt,
+  UserRound,
+  WalletCards,
+} from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   doc,
   getDoc,
   onSnapshot,
   updateDoc,
-  setDoc,
-  query,
-  collection,
-  where,
 } from "firebase/firestore";
 import { useAuth } from "../custom-hooks/useAuth";
-import posthog from "posthog-js";
-import { FaHeart } from "react-icons/fa";
-import { RotatingLines } from "react-loader-spinner";
-import { FcOnlineSupport } from "react-icons/fc";
-import { PiSignOutBold } from "react-icons/pi";
-import { GiClothes } from "react-icons/gi";
-import { MdHelpOutline, MdModeEdit, MdOutlineFeedback } from "react-icons/md";
+import { useDispatch, useSelector } from "react-redux";
+import AvatarSelectorModal from "../components/Avatars/AvatarSelectorModal";
+import QuickAuthModal from "../components/PwaModals/AuthModal";
+import SEO from "../components/Helmet/SEO";
+import { fetchAndMergeCart } from "../services/cartMerge";
 import {
   setUserData,
   updateUserData,
-  resetUserData,
 } from "../redux/actions/useractions";
-import { CiMoneyBill } from "react-icons/ci";
-import { LuLogIn } from "react-icons/lu";
-import { AiOutlineDashboard, AiOutlineExperiment } from "react-icons/ai";
-import { mergeCarts } from "../services/cartMerge";
-import Skeleton from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
-import { BsBoxSeam, BsShieldFillCheck } from "react-icons/bs";
-import AvatarSelectorModal from "../components/Avatars/AvatarSelectorModal";
-import ProfileDetails from "./UserSide/ProfileDetails";
-import FAQs from "./UserSide/FAQs";
-import { IoMdContact } from "react-icons/io";
-import { clearCart } from "../redux/actions/action";
-import { useDispatch, useSelector } from "react-redux";
-import { FaFileContract } from "react-icons/fa6";
-import SEO from "../components/Helmet/SEO";
-import { useTawk } from "../components/Context/TawkProvider";
-import { exitStockpileMode } from "../redux/reducers/stockpileSlice";
-import { TfiWallet } from "react-icons/tfi";
-import QuickAuthModal from "../components/PwaModals/AuthModal";
-import { BiSolidOffer } from "react-icons/bi";
+import { takeAuthIntent } from "../services/authIntent";
+import { useAppExperience } from "../components/Context/AppExperienceContext";
+import { APP_EXPERIENCE } from "../services/appExperience";
+import "./profile.css";
+
+const ProfileMenuRow = ({
+  icon: Icon,
+  label,
+  description,
+  onClick,
+  comingSoon = false,
+  unread = false,
+}) => (
+  <button
+    type="button"
+    className="you-menu-row"
+    onClick={onClick}
+    disabled={comingSoon}
+  >
+    <span className="you-menu-main">
+      {Icon && <Icon className="you-menu-icon" aria-hidden="true" />}
+      <span className="you-menu-copy">
+        <span className="you-menu-label">{label}</span>
+        {description && (
+          <span className="you-menu-description">{description}</span>
+        )}
+      </span>
+    </span>
+
+    {comingSoon ? (
+      <span className="you-coming-soon">
+        Coming soon <Info aria-hidden="true" />
+      </span>
+    ) : (
+      <span className="you-row-end">
+        {unread && <span className="you-unread-dot" aria-label="Unread" />}
+        <ChevronRight aria-hidden="true" />
+      </span>
+    )}
+  </button>
+);
+
 const Profile = () => {
   const navigate = useNavigate();
-
   const location = useLocation();
   const { currentUser } = useAuth();
   const dispatch = useDispatch();
+  const { selectExperience } = useAppExperience();
   const userData = useSelector((state) => state.user.userData);
-  const [showHighlight, setShowHighlight] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
-  const [showQuickAuth, setShowQuickAuth] = useState(false);
+  const hasUnreadOffers = useSelector(
+    (state) => state.buyerOffers.ids.some(
+      (id) => state.buyerOffers.entities[id]?.buyerRead === false,
+    ),
+  );
 
-  const cart = useSelector((state) => state.cart);
-  const [isIncomplete, setIsIncomplete] = useState(false);
-  const [showMetrics, setShowMetrics] = useState(false);
-  const [showDonations, setShowDonations] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showQuickAuth, setShowQuickAuth] = useState(false);
+  const [authReturnTo, setAuthReturnTo] = useState(null);
+  const [profileAuthAction, setProfileAuthAction] = useState("account");
+  const authResumeHandledRef = useRef(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
-  const [profileComplete, setProfileComplete] = useState();
-  const [hasUnreadOffers, setHasUnreadOffers] = useState(false);
+  const [profileComplete, setProfileComplete] = useState(false);
+
   useEffect(() => {
     if (!currentUser?.uid) return;
-
-    const q = query(
-      collection(db, "offers"),
-      where("buyerId", "==", currentUser.uid),
-      where("buyerRead", "==", false),
-    );
-
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setHasUnreadOffers(!snap.empty);
-      },
-      (err) => {
-        console.error("Unread offers listener failed:", err);
-      },
-    );
-
-    return () => unsub();
-  }, [currentUser?.uid]);
-  useEffect(() => {
-    const queryParams = new URLSearchParams(location.search);
-    const incompleteProfile = queryParams.get("incomplete") === "true";
-    setIsIncomplete(incompleteProfile);
-    setShowHighlight(incompleteProfile);
-
-    if (incompleteProfile) {
-      const highlightTimeout = setTimeout(() => setShowHighlight(false), 10000);
-      return () => clearTimeout(highlightTimeout);
-    }
 
     const fetchUserData = async () => {
-      if (currentUser && !userData) {
-        setLoading(true);
-        try {
-          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-          if (userDoc.exists()) {
-            dispatch(setUserData(userDoc.data()));
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setLoading(false);
+      if (userData) return;
+      try {
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists()) dispatch(setUserData(userDoc.data()));
+      } catch (error) {
+        console.error("Error fetching user data:", error);
       }
     };
+
     fetchUserData();
-  }, [currentUser, location.search]);
+  }, [currentUser?.uid, dispatch, userData]);
+
   useEffect(() => {
-    if (!currentUser?.uid) return;
-    const unsub = onSnapshot(
+    if (!currentUser?.uid) {
+      setProfileComplete(false);
+      return;
+    }
+
+    return onSnapshot(
       doc(db, "users", currentUser.uid),
-      (snap) => {
-        const complete = snap.data()?.profileComplete ?? false;
-        setProfileComplete(complete);
-        // keep Redux in sync if you like
-        dispatch(updateUserData({ profileComplete: complete }));
+      (snapshot) => {
+        const data = snapshot.data() || {};
+        setProfileComplete(data.profileComplete ?? false);
+        dispatch(updateUserData(data));
       },
-      (err) => console.error("profileComplete listener failed:", err),
+      (error) => console.error("Profile listener failed:", error)
     );
-    return () => unsub();
   }, [currentUser?.uid, dispatch]);
+
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    if (queryParams.get("incomplete") !== "true" || !currentUser?.uid) return;
+
+    navigate("/account-info", {
+      replace: true,
+      state: {
+        highlightIncomplete: true,
+        returnTo: location.state?.returnTo || "/profile",
+      },
+    });
+  }, [currentUser?.uid, location.search, location.state, navigate]);
+
+  const openQuickAuth = (returnTo = null, action = "account") => {
+    authResumeHandledRef.current = false;
+    setAuthReturnTo(returnTo);
+    setProfileAuthAction(action);
+    setShowQuickAuth(true);
+  };
+
+  const closeQuickAuth = () => {
+    setShowQuickAuth(false);
+    setAuthReturnTo(null);
+    setProfileAuthAction("account");
+  };
+
+  const requireAccount = (action, returnTo = null) => {
+    if (!currentUser) {
+      openQuickAuth(returnTo);
+      return;
+    }
+    action();
+  };
+
+  const openWallet = useCallback(async (authenticatedUser = null) => {
+    // QuickAuthModal completes before AuthProvider's onAuthStateChanged render
+    // is guaranteed to reach this component. Use the user returned by the
+    // successful auth operation so the resumed wallet action never evaluates
+    // the previous signed-out render's profile state.
+    const authenticatedUid = authenticatedUser?.uid || currentUser?.uid || null;
+    let complete = profileComplete;
+    if (authenticatedUid) {
+      try {
+        const snapshot = await getDoc(doc(db, "users", authenticatedUid));
+        complete = snapshot.exists() && snapshot.data()?.profileComplete === true;
+      } catch {
+        // Fall back to the live profile state already rendered on this page.
+      }
+    }
+    if (!complete) {
+      toast.error("Please complete your personal information first.");
+      navigate("/account-info", {
+        state: { highlightIncomplete: true, from: "/profile" },
+      });
+      return;
+    }
+    navigate("/your-wallet");
+  }, [currentUser?.uid, navigate, profileComplete]);
+
+  const handleWalletClick = () => {
+    if (!currentUser) {
+      openQuickAuth(null, "wallet");
+      return;
+    }
+    void openWallet();
+  };
+
+  const resumeProfileAction = useCallback(async (
+    action,
+    destination,
+    authenticatedUser = null,
+  ) => {
+    // The main Profile sign-in entry is authentication-only. It must not
+    // inherit the Account Information destination used by profile editing.
+    if (action === "login") return;
+    if (action === "avatar") {
+      setIsAvatarModalOpen(true);
+      return;
+    }
+    if (action === "wallet") {
+      await openWallet(authenticatedUser);
+      return;
+    }
+    if (destination) navigate(destination);
+  }, [navigate, openWallet]);
+
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      authResumeHandledRef.current = false;
+      return;
+    }
+    if (authResumeHandledRef.current || !currentUser?.uid) return;
+    const intent = takeAuthIntent({types: "profile-action", pathname: location.pathname});
+    if (!intent) return;
+    authResumeHandledRef.current = true;
+    void resumeProfileAction(intent.payload?.action, intent.payload?.destination);
+  }, [currentUser?.uid, location.pathname, resumeProfileAction]);
 
   const handleAvatarChange = (newAvatar) => {
     dispatch(updateUserData({ photoURL: newAvatar }));
   };
 
   const handleRemoveAvatar = async () => {
+    if (!currentUser?.uid) return;
     try {
-      await updateDoc(doc(db, "users", currentUser.uid), {
-        photoURL: "",
-      });
+      await updateDoc(doc(db, "users", currentUser.uid), { photoURL: "" });
       dispatch(updateUserData({ photoURL: "" }));
-      toast.success("Avatar removed successfully", {
-        className: "custom-toast",
-      });
+      toast.success("Avatar removed successfully");
     } catch (error) {
-      toast.error("Error removing avatar. Please try again.", {
-        className: "custom-toast",
-      });
+      toast.error("Error removing avatar. Please try again.");
     }
   };
-  const pulseProfileHighlight = () => {
-    setShowHighlight(true);
-    setTimeout(() => setShowHighlight(false), 600); // 10 s pulse
-  };
 
-  const handleLogout = async () => {
+  const mergeCartAfterLogin = async (uid) => {
     try {
-      setIsLoggingOut(true);
-      console.log("🚪  Starting logout …");
-
-      /* 1️⃣  End current Tawk visitor session */
-      if (window.Tawk_API?.logout) {
-        console.log("[Tawk] logging out visitor");
-        await new Promise((res) => {
-          window.Tawk_API.logout(() => {
-            console.log("[Tawk] visitor logged-out ✔");
-
-            // scrub every visible field (use nested {value:…} syntax!)
-            window.Tawk_API.setAttributes(
-              {
-                name: { value: "Guest" },
-                email: { value: "" },
-                phone: { value: "" },
-                jobTitle: { value: "" },
-                uid: { value: "" },
-                role: { value: "" },
-              },
-              () => res(),
-            );
-          });
-        });
-      } else {
-        console.warn("[Tawk] logout() not available");
-      }
-
-      /* 2️⃣  Persist cart (optional) */
-      if (currentUser?.uid) {
-        console.log("Saving cart to Firestore …");
-        await setDoc(doc(db, "carts", currentUser.uid), { cart });
-        console.log("✓ cart saved");
-      }
-
-      /* 3️⃣  Firebase sign-out */
-      console.log("Signing out from Firebase …");
-      await signOut(auth);
-      console.log("✓ Firebase signed-out");
-      posthog.reset();
-      /* 4️⃣  Local + Redux cleanup */
-      localStorage.removeItem("cart");
-      localStorage.removeItem("mythrift_role");
-      dispatch(clearCart());
-      dispatch(resetUserData());
-      dispatch(exitStockpileMode());
-      console.log("✓ Redux & localStorage cleared");
-
-      toast.success("Successfully logged out", { className: "custom-toast" });
-      navigate("/"); // or "/" for buyers
-    } catch (err) {
-      console.error("Logout error:", err);
-      toast.error("Error logging out", { className: "custom-toast" });
-    } finally {
-      setIsLoggingOut(false);
-      console.log("Logout sequence complete");
+      return await fetchAndMergeCart(db, uid, dispatch);
+    } catch (error) {
+      // Authentication has succeeded at this point. A temporary cart sync
+      // failure must not make the user appear signed out or block the profile.
+      console.warn("Cart merge skipped after profile sign-in:", error);
+      throw error;
     }
   };
-  const openDisclaimer = (path) => (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const abs = `${window.location.origin}${path}`;
-    setDisclaimerUrl(abs);
-    setShowDisclaimerModal(true);
+
+  const handleAuthComplete = async (authenticatedUser) => {
+    await selectExperience(APP_EXPERIENCE.CUSTOMER);
+    const destination = authReturnTo;
+    const action = profileAuthAction;
+    setShowQuickAuth(false);
+    setAuthReturnTo(null);
+    setProfileAuthAction("account");
+    await resumeProfileAction(action, destination, authenticatedUser);
   };
-  const handleWalletClick = () => {
-    if (!profileComplete) {
-      toast.error("Please complete your personal information first.");
-      pulseProfileHighlight();
-      return;
-    }
-    navigate("/your-wallet");
-  };
-  const handleOfferClick = () => {
-    navigate("/offers");
-  };
-  const { openChat } = useTawk();
+
+  const displayName =
+    userData?.username ||
+    userData?.firstName ||
+    currentUser?.displayName ||
+    "Your profile";
+  const profilePhoto = userData?.photoURL || currentUser?.photoURL || "";
+
   return (
     <>
       <SEO
-        title={`Profile - My Thrift`}
-        description={`Update your personal information, view your orders, and more.`}
-        url={`https://www.shopmythrift.store/profile`}
+        title="You - My Thrift"
+        description="Manage your My Thrift profile and shopping activity."
+        url="https://www.shopmythrift.store/profile"
       />
-      <div className="py-6  pb-24">
-        {!showDetails && !showMetrics ? (
-          <div className="flex flex-col items-center">
-            <h1 className="font-opensans text-xl font-semibold ">
-              {" "}
-              My Profile
-            </h1>
 
-            <div className="flex border  rounded-full p-1 justify-center mt-4 relative">
-              {loading ? (
-                <Skeleton circle={true} height={120} width={120} />
-              ) : userData && userData.photoURL ? (
-                <img
-                  src={userData.photoURL}
-                  alt=""
-                  className="rounded-full object-cover h-28 w-28"
-                  onClick={() => {
-                    if (currentUser) setIsAvatarModalOpen(true);
-                  }}
-                />
+      <main className="you-page">
+        <header className="you-header">
+          <button
+            type="button"
+            onClick={() => navigate("/search")}
+            aria-label="Search"
+          >
+            <Search aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/notifications")}
+            aria-label="Notifications"
+          >
+            <Bell aria-hidden="true" />
+          </button>
+        </header>
+
+        <div className="you-profile-entry">
+          <button
+            type="button"
+            className="you-avatar-button"
+            aria-label={currentUser ? "Change profile avatar" : "Log in or sign up"}
+            onClick={() =>
+              currentUser
+                ? setIsAvatarModalOpen(true)
+                : openQuickAuth(null, "avatar")
+            }
+          >
+            <span className="you-avatar">
+              {profilePhoto ? (
+                <img src={profilePhoto} alt="" />
               ) : (
-                <div
-                  className="rounded-full h-36 w-36 flex items-center justify-center"
-                  onClick={() => {
-                    if (currentUser) setIsAvatarModalOpen(true);
-                  }}
-                >
-                  <IoMdContact className="text-gray-500 text-8xl" />
-                </div>
+                <UserRound aria-hidden="true" />
               )}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className="you-profile-details"
+            onClick={() =>
+              currentUser
+                ? navigate("/account-info", { state: { from: "/profile" } })
+                : openQuickAuth(null, "login")
+            }
+          >
+            <span className="you-profile-copy">
+              <span className="you-profile-name">
+                {currentUser ? displayName : "Log in/Sign up"}
+              </span>
               {currentUser && (
-                <MdModeEdit
-                  className="absolute bottom-0 right-0 border text-black mr-2 text-3xl p-2 rounded-full bg-white cursor-pointer shadow-md"
-                  onClick={() => setIsAvatarModalOpen(true)}
-                />
+                <span className="you-profile-subtitle">Edit profile</span>
               )}
-            </div>
+            </span>
+            <ChevronRight aria-hidden="true" />
+          </button>
+        </div>
 
-            <p className="text-lg font-semibold text-black font-opensans capitalize mt-2">
-              {loading ? <Skeleton width={100} /> : userData?.username}
-            </p>
-
-            <div className="w-full mt-2">
-              <div className="w-full h-14 flex">
-                <h1 className="text-base font-semibold mx-4 font-opensans translate-y-3 text-black">
-                  Account
-                </h1>
-              </div>
-
-              <div className="px-2">
-                {" "}
-                <div
-                  className={`relative flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl transition-all duration-500 ease-in-out ${
-                    showHighlight
-                      ? "highlight border-red-500 bg-red-100"
-                      : "bg-customGrey"
-                  } mb-3`}
-                  onClick={() => setShowDetails(true)}
-                >
-                  <div className="flex items-center w-full">
-                    <User className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal  text-sm  font-opensans text-black capitalize">
-                      Personal information
-                    </h2>
-                    <ChevronRight className="text-black ml-auto" />
-                  </div>
-
-                  {isIncomplete && showHighlight && (
-                    <span className="absolute top-1 right-4 font-opensans text-xs text-red-500 animate-pulse">
-                      Update profile here
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-col items-center w-full px-2">
-                <div
-                  className="flex items-center justify-between w-full px-4 py-3 cursor-pointer  border-none rounded-xl bg-customGrey mb-2"
-                  onClick={() => navigate("/favorites")}
-                >
-                  <div className="flex items-center">
-                    <FaHeart className="text-red-500  text-xl mr-4" />
-                    <h2 className="text-size text-sm  font-normal font-opensans text-black capitalize">
-                      Favorites
-                    </h2>
-                  </div>
-                  <ChevronRight className="text-black" />
-                </div>
-              </div>
-            </div>
-
-            <div className="w-full h-14 flex">
-              <h1 className="text-base font-opensans font-semibold mx-4 translate-y-3 text-black">
-                Data
-              </h1>
-            </div>
-            {/* {currentUser && (
-            <>
-              <div className="flex flex-col items-center px-2 w-full">
-                <div
-                  className="flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl bg-customGrey mb-3"
-                  onClick={() => navigate("/user-dashboard")}
-                >
-                  <div className="flex items-center">
-                    <AiOutlineDashboard className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal font-opensans text-black capitalize">
-                      Metrics
-                    </h2>
-                  </div>
-                  <ChevronRight className="text-black" />
-                </div>
-              </div>
-            </>
-          )} */}
-
-            <div className="flex flex-col items-center w-full px-2">
-              <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl bg-customGrey mb-3"
+        <div className="you-sections">
+          <section className="you-section">
+            <h1>Shopping</h1>
+            <div className="you-menu">
+              <ProfileMenuRow
+                icon={Heart}
+                label="Favourites"
+                onClick={() => navigate("/favorites")}
+              />
+              <ProfileMenuRow
+                icon={Package}
+                label="Orders"
                 onClick={() => navigate("/user-orders")}
-              >
-                <div className="flex items-center">
-                  <BsBoxSeam className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal font-opensans text-black capitalize">
-                    Orders
-                  </h2>
-                </div>
-                <ChevronRight className="text-black" />
-              </div>
-              {currentUser && (
-                <div
-                  className="flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={handleWalletClick}
-                >
-                  <div className="flex items-center relative">
-                    <TfiWallet className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal font-opensans text-black capitalize">
-                      My Wallet
-                    </h2>
-                  </div>
-                  <ChevronRight className="text-black mr-1" />
-                </div>
-              )}
-              {currentUser && (
-                <div
-                  className="relative flex items-center justify-between w-full px-3 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={handleOfferClick}
-                >
-                  <div className="flex items-center relative">
-                    <BiSolidOffer className="text-green-700 text-xl mr-4" />
-                    <h2 className="text-size font-normal font-opensans text-black capitalize">
-                      My Offers
-                      <span className="absolute -top-1 animate-pulse -right-10 text-[8px] font-bold text-white bg-customOrange px-2 py-0.5 rounded-md shadow-sm">
-                        NEW
-                      </span>
-                    </h2>
-                  </div>
-                  <ChevronRight className="text-black mr-1" />
-                  {hasUnreadOffers && (
-                    <span className="absolute right-12 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-customOrange rounded-full animate-pulse" />
-                  )}
-                </div>
-              )}
+              />
+              <ProfileMenuRow
+                icon={WalletCards}
+                label="Wallet"
+                onClick={handleWalletClick}
+              />
+              <ProfileMenuRow
+                icon={BadgePercent}
+                label="Offers"
+                unread={hasUnreadOffers}
+                onClick={() =>
+                  requireAccount(() => navigate("/offers"), "/offers")
+                }
+              />
+              <ProfileMenuRow
+                icon={Ruler}
+                label="My sizes"
+                description="Save your sizes to shop what fits"
+                onClick={() =>
+                  requireAccount(() => navigate("/my-sizes"), "/my-sizes")
+                }
+              />
+              <ProfileMenuRow icon={HandHeart} label="Donations" comingSoon />
+              <ProfileMenuRow icon={Shirt} label="Declutter" comingSoon />
             </div>
+          </section>
 
-            <div className="w-full h-14 flex">
-              <h1 className="text-base font-opensans font-semibold mx-4 translate-y-3 text-black">
-                More
-              </h1>
-            </div>
-            <div className="flex flex-col items-center w-full px-2">
-              <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer border-none rounded-xl bg-customGrey mb-3"
+          <section className="you-section">
+            <h1>More</h1>
+            <div className="you-menu">
+              <ProfileMenuRow
+                icon={Settings}
+                label="Settings"
+                onClick={() => navigate("/settings")}
+              />
+              <ProfileMenuRow
+                icon={CircleHelp}
+                label="FAQs"
                 onClick={() => navigate("/faqs")}
-              >
-                <div className="flex items-center ">
-                  <MdHelpOutline className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
-                    FAQs
-                  </h2>
-                </div>
-                <ChevronRight className="text-black" />
-              </div>
-            </div>
-            <div className="flex flex-col items-center w-full px-2">
-              {/* Donations Section */}
-              <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-gray-100 mb-3 opacity-60">
-                <div className="flex items-center">
-                  <CiMoneyBill className="text-gray-600 text-xl mr-4" />
-                  <h2 className="text-size font-normal text-sm  font-opensans text-gray-600 capitalize">
-                    Donations
-                  </h2>
-                </div>
-                {/* Coming Soon Message on the Far Right */}
-                <div className="flex items-center">
-                  <MdHelpOutline className="text-customOrange text-lg mr-2" />
-                  <span className="text-customOrange font-semibold text-xs">
-                    Coming Soon
-                  </span>
-                </div>
-              </div>
-
-              {/* Declutter Section */}
-              <div className="relative flex items-center justify-between w-full px-4 py-3 cursor-not-allowed border-none rounded-xl bg-gray-100 mb-3 opacity-60">
-                <div className="flex items-center">
-                  <GiClothes className="text-gray-600 text-xl mr-4" />
-                  <h2 className="text-size font-normal text-sm  font-opensans text-gray-600 capitalize">
-                    Declutter
-                  </h2>
-                </div>
-                {/* Coming Soon Message on the Far Right */}
-                <div className="flex items-center">
-                  <MdHelpOutline className="text-customOrange text-lg mr-2" />
-                  <span className="text-customOrange font-semibold text-xs">
-                    Coming Soon
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="w-full h-14 flex">
-              <h1 className="text-base font-semibold mx-4 font-opensans translate-y-3 text-black">
-                Legal
-              </h1>
-            </div>
-            <div className="flex flex-col items-center px-2 w-full">
-              <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={() =>
-                  window.open(
-                    "/terms-and-conditions",
-                    "_blank",
-                    "noopener,noreferrer",
-                  )
-                }
-              >
-                <div className="flex items-center">
-                  <FaFileContract className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
-                    Terms and Conditions
-                  </h2>
-                </div>
-                <ChevronRight className="text-black" />
-              </div>
-
-              <div
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={() =>
-                  window.open(
-                    "/privacy-policy",
-                    "_blank",
-                    "noopener,noreferrer",
-                  )
-                }
-              >
-                <div className="flex items-center">
-                  <BsShieldFillCheck className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
-                    Privacy Policy
-                  </h2>
-                </div>
-                <ChevronRight className="text-black" />
-              </div>
-
-              <div className="w-full h-14 flex ml-4">
-                <h1 className="text-base font-semibold mx-2 font-opensans translate-y-3 text-black">
-                  Beta
-                </h1>
-                <AiOutlineExperiment className="font-semibold text-lg translate-y-[14px] text-black" />
-              </div>
-              <div className="flex flex-col items-center w-full">
-                <div
-                  className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                  onClick={() => navigate("/send-us-feedback")}
-                >
-                  <div className="flex items-center">
-                    <MdOutlineFeedback className="text-black text-xl mr-4" />
-                    <h2 className="text-size font-normal text-sm  font-opensans text-black capitalize">
-                      Send us your feedback! 📣
-                    </h2>
-                  </div>
-                  <ChevronRight className="text-black" />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center px-2 w-full">
-              <div
-                id="contact-support-tab"
-                className="flex items-center justify-between w-full px-4 py-3 cursor-pointer rounded-xl bg-customGrey mb-3"
-                onClick={openChat}
-              >
-                <div className="flex items-center">
-                  <FcOnlineSupport className="text-black text-xl mr-4" />
-                  <h2 className="text-size font-normal text-sm font-opensans text-black capitalize">
-                    Contact Support
-                  </h2>
-                </div>
-                <ChevronRight className="text-black" />
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center px-2 w-full">
-              {currentUser && (
-                <div
-                  className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
-                  onClick={handleLogout}
-                >
-                  <div className="flex items-center justify-between w-full px-4 py-3">
-                    <PiSignOutBold className="text-red-600 text-xl mr-4" />
-                    <p className="text-size text-black text-sm  font-opensans w-full font-normal">
-                      Sign Out
-                    </p>
-
-                    {isLoggingOut && (
-                      <RotatingLines
-                        strokeColor="#f9531e"
-                        strokeWidth="5"
-                        animationDuration="0.75"
-                        width="24"
-                        visible={true}
-                      />
-                    )}
-                  </div>
-                </div>
-              )}
-              {!currentUser && (
-                <>
-                  <div
-                    className="flex flex-col items-center w-full cursor-pointer rounded-xl bg-customGrey mb-3 px-2"
-                    onClick={() => setShowQuickAuth(true)}
-                  >
-                    <div className="flex items-center justify-between w-full px-4 py-3">
-                      <LuLogIn className="text-green-600 text-xl mr-4" />
-                      <p className="text-black text-base font-opensans font-normal w-full">
-                        Login
-                      </p>
-                    </div>
-                  </div>
-
-                  <QuickAuthModal
-                    open={showQuickAuth}
-                    onClose={() => setShowQuickAuth(false)}
-                    onComplete={(user) => {
-                      setShowQuickAuth(false);
-                      // optional: refetch user/cart here
-                    }}
-                    mergeCart={mergeCarts}
-                    openDisclaimer={openDisclaimer}
-                  />
-                </>
-              )}
-
-              {!currentUser && (
-                <div
-                  className="flex flex-col items-center w-full cursor-pointer border-none rounded-xl bg-customGrey mb-3 px-2"
-                  onClick={() => {
-                    localStorage.removeItem("mythrift_role");
-                    navigate("/confirm-state");
-                  }}
-                >
-                  <div className="flex items-center justify-between w-full px-4 py-3">
-                    <AiOutlineUserSwitch className="text-customOrange text-xl mr-4" />
-                    <p className="text-size text-black font-opensans w-full text-sm font-normal">
-                      Switch Role
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="w-full text-center mt-2">
-              <p className="text-sm font-poppins font-medium text-gray-500">
-                {" "}
-                v.2.8
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            {showDetails && (
-              <ProfileDetails
-                currentUser={currentUser}
-                userData={userData}
-                setUserData={setUserData}
-                setShowDetails={setShowDetails}
               />
-            )}
-
-            {/* {showMetrics && <UserDashboard />} */}
-            {/* {showDonations && (
-            <div className="flex flex-col items-center">
-              <ChevronLeft
-                className="text-2xl text-black cursor-pointer self-start"
-                onClick={() => setShowDonations(false)}
-              />
-              <h2 className="text-xl font-ubuntu">Donations</h2>
-              <Donate />
             </div>
-          )} */}
-          </>
-        )}
+          </section>
+        </div>
+      </main>
 
-        {isAvatarModalOpen && (
-          <AvatarSelectorModal
-            userId={currentUser.uid}
-            onClose={() => setIsAvatarModalOpen(false)}
-            onAvatarChange={handleAvatarChange}
-            onRemoveAvatar={handleRemoveAvatar}
-          />
-        )}
-      </div>
+      <QuickAuthModal
+        open={showQuickAuth}
+        onClose={closeQuickAuth}
+        onComplete={handleAuthComplete}
+        mergeCart={mergeCartAfterLogin}
+        headerText="Let’s set up your account"
+        returnTo={authReturnTo}
+        authIntent={{
+          type: "profile-action",
+          returnTo: "/profile",
+          payload: {
+            action: profileAuthAction,
+            destination: authReturnTo,
+          },
+        }}
+      />
+
+      {isAvatarModalOpen && currentUser && (
+        <AvatarSelectorModal
+          userId={currentUser.uid}
+          onClose={() => setIsAvatarModalOpen(false)}
+          onAvatarChange={handleAvatarChange}
+          onRemoveAvatar={handleRemoveAvatar}
+        />
+      )}
     </>
   );
 };

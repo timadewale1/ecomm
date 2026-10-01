@@ -23,6 +23,56 @@ import "react-phone-input-2/lib/style.css";
 import Modal from "react-modal";
 import { httpsCallable } from "firebase/functions";
 import SEO from "../components/Helmet/SEO";
+import { appHaptics } from "../services/haptics";
+
+const createSignupRequestId = () => {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `vendor_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+};
+
+const normalizeCallableCode = (error) =>
+  String(error?.code || "unknown").replace(/^functions\//, "");
+
+const vendorSignupErrorMessage = (error) => {
+  const code = normalizeCallableCode(error);
+  const reason = error?.details?.reason;
+
+  if (code === "invalid-argument") {
+    if (reason === "invalid-name") return "Enter a valid first and last name.";
+    if (reason === "invalid-email") return "Enter a valid email address.";
+    if (reason === "invalid-phone") {
+      return "Enter a valid Nigerian mobile number.";
+    }
+    if (reason === "password-mismatch") return "The passwords do not match.";
+    if (reason === "invalid-password") {
+      return "Your password must meet all of the security requirements shown.";
+    }
+    return "Please check the information you entered and try again.";
+  }
+
+  if (code === "already-exists") {
+    if (reason === "phone-in-use") {
+      return "That phone number is already connected to an account.";
+    }
+    if (reason === "customer-account-exists") {
+      return "That email is already connected to a customer account.";
+    }
+    return "A vendor account already exists with these details. Please sign in instead.";
+  }
+
+  if (code === "resource-exhausted") {
+    const seconds = Number(error?.details?.retryAfterSeconds) || 60;
+    return `Please wait ${seconds} seconds before requesting another verification email.`;
+  }
+  if (code === "unavailable" || code === "deadline-exceeded") {
+    return "We couldn't reach the service. Check your connection and try again.";
+  }
+  if (code === "permission-denied" || code === "unauthenticated") {
+    return "Please sign in to continue with this vendor account.";
+  }
+
+  return "We couldn't create your vendor account right now. Please try again.";
+};
 
 const VendorSignup = () => {
   const [vendorData, setVendorData] = useState({
@@ -38,26 +88,33 @@ const VendorSignup = () => {
   const [loading, setLoading] = useState(false);
   const [showPasswordCriteria, setShowPasswordCriteria] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [signupRequestId] = useState(createSignupRequestId);
+  const [signupOutcome, setSignupOutcome] = useState({
+    accountCreated: false,
+    verificationEmailSent: true,
+    message: "",
+  });
+  const [retryingVerification, setRetryingVerification] = useState(false);
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
   const navigate = useNavigate();
+
   useEffect(() => {
-    const handleFocus = () => {
-      document.body.classList.add("scroll-lock");
-    };
-    const handleBlur = () => {
-      document.body.classList.remove("scroll-lock");
-    };
-    const inputs = document.querySelectorAll("input");
-    inputs.forEach((input) => {
-      input.addEventListener("focus", handleFocus);
-      input.addEventListener("blur", handleBlur);
-    });
-    return () => {
-      inputs.forEach((input) => {
-        input.removeEventListener("focus", handleFocus);
-        input.removeEventListener("blur", handleBlur);
-      });
-    };
-  }, []);
+    if (!modalOpen) return;
+    if (signupOutcome.verificationEmailSent === false) {
+      void appHaptics.warning();
+    } else {
+      void appHaptics.success();
+    }
+  }, [modalOpen, signupOutcome.verificationEmailSent]);
+
+  useEffect(() => {
+    if (!modalOpen || retryAfterSeconds <= 0) return undefined;
+    const timer = window.setTimeout(() => {
+      setRetryAfterSeconds((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [modalOpen, retryAfterSeconds]);
+
   // Validation functions
   const validateName = (name) => name.trim() !== "";
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -128,32 +185,61 @@ const VendorSignup = () => {
     const createVendorAccount = httpsCallable(functions, "createVendorAccount");
 
     try {
-      const res = await createVendorAccount(vendorData);
+      const res = await createVendorAccount({
+        ...vendorData,
+        signupRequestId,
+      });
 
-      // If successful, open your success modal
-      if (res.data.success) {
+      if (res.data?.success && res.data?.accountCreated !== false) {
+        setSignupOutcome({
+          accountCreated: true,
+          verificationEmailSent: res.data.verificationEmailSent !== false,
+          message: res.data.message || "",
+        });
+        setRetryAfterSeconds(Number(res.data.retryAfterSeconds) || 0);
         setModalOpen(true);
+      } else {
+        throw new Error("Vendor signup did not complete.");
       }
     } catch (error) {
       console.error("Cloud function error:", error);
-
-      let errorMessage = "Something went wrong. Please try again.";
-
-      // Use if-else to handle specific error codes
-      if (error.code === "invalid-argument") {
-        errorMessage =
-          "Some of the information you provided is invalid. Please review and try again.";
-      } else if (error.code === "already-exists") {
-        errorMessage =
-          "That email or phone number is already in use. Please use a different one.";
-      } else if (error.code === "unknown") {
-        errorMessage =
-          "An unexpected error occurred on our end. Please try again later.";
-      }
-
-      toast.error(errorMessage);
+      void appHaptics.error();
+      toast.error(vendorSignupErrorMessage(error));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRetryVerificationEmail = async () => {
+    if (retryingVerification || retryAfterSeconds > 0) return;
+
+    setRetryingVerification(true);
+    try {
+      const createVendorAccount = httpsCallable(functions, "createVendorAccount");
+      const res = await createVendorAccount({
+        ...vendorData,
+        signupRequestId,
+      });
+      const sent = res.data?.verificationEmailSent === true;
+      setSignupOutcome({
+        accountCreated: res.data?.accountCreated !== false,
+        verificationEmailSent: sent,
+        message: res.data?.message || "",
+      });
+      setRetryAfterSeconds(Number(res.data?.retryAfterSeconds) || 0);
+
+      if (sent) {
+        toast.success("Verification email sent. Please check your inbox.");
+      } else {
+        toast("Your account is safe, but the email could not be sent yet.");
+      }
+    } catch (error) {
+      const seconds = Number(error?.details?.retryAfterSeconds) || 0;
+      if (seconds > 0) setRetryAfterSeconds(seconds);
+      void appHaptics.error();
+      toast.error(vendorSignupErrorMessage(error));
+    } finally {
+      setRetryingVerification(false);
     }
   };
 
@@ -177,10 +263,10 @@ const VendorSignup = () => {
         description={`Sign up to grow your brand as My Thrift vendor!`}
         url={`https://www.shopmythrift.store/vendor-signup`}
       />
-      <section>
-        <Container>
-          <Row>
-            <div className="px-2 mb-32">
+      <section className="w-full">
+        <Container className="mx-auto w-full max-w-[574px] px-0">
+          <Row className="mx-0 w-full">
+            <div className="mb-32 w-full px-4">
               <Link to="/vendorlogin">
                 <GoChevronLeft className="text-3xl -translate-y-2 font-normal text-black" />
               </Link>
@@ -227,7 +313,7 @@ const VendorSignup = () => {
               <div className="translate-y-6">
                 <Form onSubmit={handleSignup}>
                   <FormGroup className="relative mb-2">
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
                       <FaRegUser className="text-gray-500 text-xl" />
                     </div>
                     <input
@@ -241,7 +327,7 @@ const VendorSignup = () => {
                     />
                   </FormGroup>
                   <FormGroup className="relative mb-2">
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
                       <FaRegUser className="text-gray-500 text-xl" />
                     </div>
                     <input
@@ -255,7 +341,7 @@ const VendorSignup = () => {
                     />
                   </FormGroup>
                   <FormGroup className="relative mb-2">
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
                       <MdEmail className="text-gray-500 text-xl" />
                     </div>
                     <input
@@ -287,7 +373,7 @@ const VendorSignup = () => {
                     />
                   </FormGroup>
                   <FormGroup className="relative mb-2">
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
                       <GrSecure className="text-gray-500 text-xl" />
                     </div>
                     <input
@@ -304,10 +390,14 @@ const VendorSignup = () => {
                     <motion.button
                       whileTap={{ scale: 1.2 }}
                       type="button"
-                      className="absolute right-3 top-4 text-gray-500"
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 cursor-pointer"
                       onClick={() => setShowPassword(!showPassword)}
                     >
-                      {showPassword ? <FaRegEye /> : <FaRegEyeSlash />}
+                      {showPassword ? (
+                        <FaRegEye className="text-xl" />
+                      ) : (
+                        <FaRegEyeSlash className="text-xl" />
+                      )}
                     </motion.button>
                   </FormGroup>
                   {showPasswordCriteria && (
@@ -357,7 +447,7 @@ const VendorSignup = () => {
                     </ul>
                   )}
                   <FormGroup className="relative mb-2">
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
                       <GrSecure className="text-gray-500 text-xl" />
                     </div>
                     <input
@@ -372,37 +462,29 @@ const VendorSignup = () => {
                     <motion.button
                       whileTap={{ scale: 1.2 }}
                       type="button"
-                      className="absolute right-3 top-4 text-gray-500"
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 cursor-pointer"
                       onClick={() =>
                         setShowConfirmPassword(!showConfirmPassword)
                       }
                     >
-                      {showConfirmPassword ? <FaRegEye /> : <FaRegEyeSlash />}
+                      {showConfirmPassword ? (
+                        <FaRegEye className="text-xl" />
+                      ) : (
+                        <FaRegEyeSlash className="text-xl" />
+                      )}
                     </motion.button>
                   </FormGroup>
                   <div className="text-gray-600 font-opensans text-xs mt-2 -mx-1 leading-relaxed">
                     By signing up, you agree to our
                     <span
-                      onClick={() =>
-                        window.open(
-                          "/terms-and-conditions",
-                          "_blank",
-                          "noopener,noreferrer"
-                        )
-                      }
+                      onClick={() => navigate("/terms-and-conditions")}
                       className="text-customOrange font-medium hover:underline cursor-pointer ml-1"
                     >
                       Terms & Conditions
                     </span>
                     and
                     <span
-                      onClick={() =>
-                        window.open(
-                          "/privacy-policy",
-                          "_blank",
-                          "noopener,noreferrer"
-                        )
-                      }
+                      onClick={() => navigate("/privacy-policy")}
                       className="text-customOrange font-medium hover:underline cursor-pointer ml-1"
                     >
                       Privacy Policy
@@ -413,7 +495,7 @@ const VendorSignup = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full h-12 mt-4 rounded-full flex justify-center items-center bg-customOrange text-white font-semibold font-opensans text-sm hover:bg-orange-600"
+                    className="glow-button w-full h-12 mt-4 bg-customOrange text-white font-medium rounded-xl flex justify-center font-opensans items-center"
                   >
                     {loading ? (
                       <RotatingLines
@@ -478,7 +560,9 @@ const VendorSignup = () => {
                 <MdOutlineDomainVerification className="text-customRichBrown text-lg" />
               </div>
               <h2 className="font-opensans text-lg font-semibold text-customRichBrown">
-                Verify Your Email
+                {signupOutcome.verificationEmailSent
+                  ? "Verify Your Email"
+                  : "Your Account Is Ready"}
               </h2>
             </div>
             {/* Close Icon */}
@@ -489,15 +573,47 @@ const VendorSignup = () => {
           </div>
 
           {/* Message Section */}
-          <p className="font-opensans mt-1 text-base text-black text-center font-medium leading-6">
-            Email sent successfully! Please check your inbox for the
-            verification link.
-            <br />
-            <span className="font-light text-xs  font-opensans">
-              P.S. If you didn’t receive it, please check your spam or junk
-              folder.
-            </span>
-          </p>
+          {signupOutcome.verificationEmailSent ? (
+            <p className="font-opensans mt-1 text-base text-black text-center font-medium leading-6">
+              Email sent successfully! Please check your inbox for the
+              verification link.
+              <br />
+              <span className="font-light text-xs font-opensans">
+                P.S. If you didn’t receive it, please check your spam or junk
+                folder.
+              </span>
+            </p>
+          ) : (
+            <div className="w-full text-center">
+              <p className="font-opensans mt-1 text-base text-black font-medium leading-6">
+                Your vendor account was created successfully, but we couldn’t
+                send the verification email right now. Your account is safe.
+              </p>
+              <button
+                type="button"
+                onClick={handleRetryVerificationEmail}
+                disabled={retryingVerification || retryAfterSeconds > 0}
+                className="mt-5 h-12 w-full rounded-md bg-customOrange text-white font-opensans font-medium disabled:opacity-50 flex items-center justify-center"
+              >
+                {retryingVerification ? (
+                  <RotatingLines
+                    width="24"
+                    height="24"
+                    strokeColor="white"
+                    strokeWidth="4"
+                  />
+                ) : retryAfterSeconds > 0 ? (
+                  `Try again in ${retryAfterSeconds}s`
+                ) : (
+                  "Retry verification email"
+                )}
+              </button>
+              <p className="mt-3 text-xs text-gray-500 font-opensans">
+                You can also close this message and sign in to request another
+                verification email.
+              </p>
+            </div>
+          )}
         </div>
       </Modal>
     </>

@@ -1,4 +1,5 @@
 import { GoTrash } from "react-icons/go";
+import { appHaptics } from "../../services/haptics";
 
 /* tiny helper – cuts freebies text to 20 chars */
 const truncate = (txt, n = 20) =>
@@ -11,6 +12,7 @@ export default function DiscountToggle({
   onClearDiscount, // optional callback
 }) {
   const handleToggle = () => {
+    void appHaptics.selection();
     /* turning OFF clears discount */
     if (runDiscount && onClearDiscount) onClearDiscount();
     setRunDiscount(!runDiscount);
@@ -32,13 +34,17 @@ export default function DiscountToggle({
   return (
     <div className="flex items-center justify-between">
       {/* label */}
-      <span className="font-opensans font-medium text-sm text-black">
+      <span className="font-satoshi font-medium text-sm text-black">
         Run a discount on this product?
       </span>
 
       {/* toggle switch */}
-      <div
-        className={`w-11 h-5.5 flex items-center rounded-full cursor-pointer
+      <button
+        type="button"
+        role="switch"
+        aria-checked={runDiscount}
+        aria-label="Run a discount on this product"
+        className={`w-11 h-6 shrink-0 flex items-center rounded-full cursor-pointer
         ${runDiscount ? "bg-customOrange/10" : "bg-gray-200"}
         transition-colors duration-300`}
         onClick={handleToggle}
@@ -48,7 +54,7 @@ export default function DiscountToggle({
           ${runDiscount ? "bg-customOrange translate-x-6" : "bg-white"}
           transition-transform duration-300`}
         />
-      </div>
+      </button>
 
       {/* summary pill + trash (only when discount already saved) */}
       {runDiscount && badge && (
@@ -64,11 +70,16 @@ export default function DiscountToggle({
           </span>
 
           {onClearDiscount && (
-            <GoTrash
-              onClick={() => onClearDiscount()}
-              className="w-4 h-4 text-red-600 cursor-pointer"
-              title="Remove discount"
-            />
+            <button
+              type="button"
+              onClick={() => {
+                void appHaptics.selection();
+                onClearDiscount();
+              }}
+              aria-label="Remove discount"
+            >
+              <GoTrash className="w-4 h-4 text-red-600" title="Remove discount" />
+            </button>
           )}
         </div>
       )}

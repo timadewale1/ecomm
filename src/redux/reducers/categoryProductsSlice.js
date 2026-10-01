@@ -1,3 +1,4 @@
+import { publicVendorsQuery } from "../../services/publicVendors";
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { db } from "../../firebase.config";
 import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
@@ -73,10 +74,7 @@ export const fetchCategoryProducts = createAsyncThunk(
 
       // 1) Fetch all approved & active vendors
       const vendorsSnap = await getDocs(
-        query(
-          collection(db, "vendors"),
-          where("isApproved", "==", true),
-          where("isDeactivated", "==", false)
+        publicVendorsQuery(
         )
       );
       const approvedVendorIDs = vendorsSnap.docs.map((doc) => doc.id);
@@ -101,7 +99,7 @@ export const fetchCategoryProducts = createAsyncThunk(
         console.log("[Thunk] Querying chunk:", chunk);
         // Omit 'startAfter' for simplicity when merging multiple queries
         const q = query(
-          collection(db, "products"),
+          collection(db, "publicProducts"),
           where("productType", "==", category),
           where("isDeleted", "==", false),
           where("published", "==", true),

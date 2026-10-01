@@ -1,8 +1,8 @@
 // src/components/TopVendors.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchTopVendors } from "../../redux/reducers/topVendorsSlice";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import IkImage from "../../services/IkImage";
 import { onAuthStateChanged } from "firebase/auth";
 import {
@@ -10,34 +10,31 @@ import {
   query,
   where,
   getDocs,
-  setDoc,
-  deleteDoc,
-  doc,
 } from "firebase/firestore";
 import { db, auth } from "../../firebase.config";
-import { handleUserActionLimit } from "../../services/userWriteHandler";
+import { setVendorFollowState } from "../../services/vendorFollow";
 import toast from "react-hot-toast";
 import { useAuth } from "../../custom-hooks/useAuth";
 import Skeleton from "react-loading-skeleton";
-import Modal from "react-modal";
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
 import { GoDotFill } from "react-icons/go";
 import { FaStar } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import RotatingCategoryPill from "./CategoryPills";
-import { CiLogin } from "react-icons/ci";
-import { LiaTimesSolid } from "react-icons/lia";
-
-Modal.setAppElement("#root");
+import LoginRequiredSheet from "../PwaModals/LoginRequiredSheet";
+import { rememberAuthIntent, takeAuthIntent } from "../../services/authIntent";
 
 export default function TopVendors() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser } = useAuth();
 
   const { list: vendors, status } = useSelector((s) => s.topVendors);
   const [followed, setFollowed] = useState({});
   const [showLogin, setShowLogin] = useState(false);
+  const [pendingVendorId, setPendingVendorId] = useState(null);
+  const pendingFollowsRef = useRef(new Set());
 
   // Load follow state
   useEffect(() => {
@@ -64,34 +61,52 @@ export default function TopVendors() {
   const toggleFollow = async (e, vendorId) => {
     e.stopPropagation();
     if (!currentUser) {
+      setPendingVendorId(vendorId);
       setShowLogin(true);
       return;
     }
+    if (pendingFollowsRef.current.has(vendorId)) return;
+
     const willFollow = !followed[vendorId];
+    pendingFollowsRef.current.add(vendorId);
     setFollowed((p) => ({ ...p, [vendorId]: willFollow }));
 
     try {
-      await handleUserActionLimit(
-        currentUser.uid,
-        "follow",
-        {},
-        { collectionName: "usage_metadata", writeLimit: 50, minuteLimit: 8 }
-      );
-      const ref = doc(db, "follows", `${currentUser.uid}_${vendorId}`);
-      if (willFollow) {
-        await setDoc(ref, {
-          userId: currentUser.uid,
-          vendorId,
-          createdAt: new Date(),
-        });
-      } else {
-        await deleteDoc(ref);
-      }
+      const result = await setVendorFollowState({
+        userId: currentUser.uid,
+        vendorId,
+        shouldFollow: willFollow,
+      });
+      setFollowed((p) => ({ ...p, [vendorId]: result.followed }));
     } catch (err) {
       setFollowed((p) => ({ ...p, [vendorId]: !willFollow }));
       toast.error(err.message);
+    } finally {
+      pendingFollowsRef.current.delete(vendorId);
     }
   };
+
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+    const intent = takeAuthIntent({types: "follow-vendor", pathname: location.pathname});
+    const vendorId = intent?.payload?.vendorId;
+    if (!vendorId || pendingFollowsRef.current.has(vendorId)) return;
+    pendingFollowsRef.current.add(vendorId);
+    setFollowed((current) => ({...current, [vendorId]: true}));
+    setVendorFollowState({
+      userId: currentUser.uid,
+      vendorId,
+      shouldFollow: true,
+    })
+      .then((result) => {
+        setFollowed((current) => ({...current, [vendorId]: result.followed}));
+      })
+      .catch((error) => {
+        setFollowed((current) => ({...current, [vendorId]: false}));
+        toast.error(error.message || "Could not follow this vendor.");
+      })
+      .finally(() => pendingFollowsRef.current.delete(vendorId));
+  }, [currentUser?.uid, location.pathname]);
 
   if (status === "loading") {
     return (
@@ -209,57 +224,30 @@ export default function TopVendors() {
 
       <div className="h-1.5 bg-gray-50 w-[100vw] relative left-1/2 -translate-x-1/2" />
 
-      {/* login modal */}
-      <Modal
-        isOpen={showLogin}
-        onRequestClose={() => setShowLogin(false)}
-        overlayClassName="fixed inset-0 modal-overlay bg-black bg-opacity-50 z-50 flex items-center justify-center"
-        className="bg-transparent flex items-center justify-center p-4"
-      >
-        <div
-          className="bg-white w-11/12 max-w-md rounded-lg px-3 py-4 flex flex-col"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex space-x-4">
-              <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
-                <CiLogin className="text-customRichBrown" />
-              </div>
-              <h2 className="text-lg font-opensans font-semibold">
-                Please Log In
-              </h2>
-            </div>
-            <LiaTimesSolid
-              onClick={() => setShowLogin(false)}
-              className="text-black text-xl mb-6 cursor-pointer"
-            />
-          </div>
-          <p className="mb-6 text-xs font-opensans text-gray-800">
-            You need to be logged in to follow vendors and get updates. Please
-            log in or create a new account to continue.
-          </p>
-          <div className="flex space-x-16">
-            <button
-              onClick={() => {
-                navigate("/signup");
-                setShowLogin(false);
-              }}
-              className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border rounded-full"
-            >
-              Sign Up
-            </button>
-            <button
-              onClick={() => {
-                navigate("/login");
-                setShowLogin(false);
-              }}
-              className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
-            >
-              Login
-            </button>
-          </div>
-        </div>
-      </Modal>
+      <LoginRequiredSheet
+        open={showLogin}
+        onClose={() => setShowLogin(false)}
+        title="Let’s set you up to follow"
+        description="Sign in to follow vendors and receive their latest updates, or create an account to continue."
+        onSignUp={() => {
+          rememberAuthIntent({
+            type: "follow-vendor",
+            returnTo: `${location.pathname}${location.search}`,
+            payload: {vendorId: pendingVendorId},
+          });
+          navigate("/signup", {state: {from: `${location.pathname}${location.search}`}});
+          setShowLogin(false);
+        }}
+        onLogin={() => {
+          rememberAuthIntent({
+            type: "follow-vendor",
+            returnTo: `${location.pathname}${location.search}`,
+            payload: {vendorId: pendingVendorId},
+          });
+          navigate("/login", {state: {from: `${location.pathname}${location.search}`}});
+          setShowLogin(false);
+        }}
+      />
     </div>
   );
 }

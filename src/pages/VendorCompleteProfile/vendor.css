@@ -9,3 +9,17 @@
 .no-spinner {
   -moz-appearance: textfield;
 }
+
+.vendor-onboarding {
+  font-family: "Satoshi", sans-serif;
+  padding-bottom: calc(5.5rem + var(--app-safe-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+.vendor-onboarding :is(input, textarea, select, button) {
+  font-family: inherit;
+}
+
+.vendor-onboarding-action {
+  bottom: calc(1rem + var(--app-safe-bottom, env(safe-area-inset-bottom, 0px)));
+  z-index: 30;
+}

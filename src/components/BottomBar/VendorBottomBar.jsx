@@ -9,10 +9,13 @@ import { IoChatbubblesOutline } from "react-icons/io5";
 import { AiOutlineProduct } from "react-icons/ai";
 
 import { collection, query, where, onSnapshot, doc } from "firebase/firestore";
-import { db } from "../../firebase.config";
+import { auth, db } from "../../firebase.config";
 import { useAuth } from "../../custom-hooks/useAuth";
 import { useVendorNavigation } from "../Context/VendorBottomBarCtxt";
 import Badge from "../Badge/Badge";
+import { appHaptics } from "../../services/haptics";
+import { useSelector } from "react-redux";
+import { selectOfferConversationUnreadCount } from "../../redux/reducers/offerConversationsSlice";
 
 const VendorBottomBar = ({ isSearchFocused }) => {
   const { activeNav, setActiveNav } = useVendorNavigation();
@@ -21,8 +24,12 @@ const VendorBottomBar = ({ isSearchFocused }) => {
   const { currentUser } = useAuth();
 
   // --- State for Counts ---
-  const [unreadOffersCount, setUnreadOffersCount] = useState(0);
-  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+  const cachedUnreadOffersCount = useSelector(selectOfferConversationUnreadCount);
+  const conversationOwner = useSelector(state => state.offerConversations.ownerUid);
+  const unreadOffersCount = conversationOwner === currentUser?.uid ? cachedUnreadOffersCount : 0;
+  const pendingOrdersCount = useSelector(state =>
+    state.orders?.ownerVendorId === currentUser?.uid
+      ? (state.orders.orders || []).filter(order => order.progressStatus === "Pending").length : 0);
   const [unreadChatsCount, setUnreadChatsCount] = useState(0);
   
   // --- State for Avatar ---
@@ -53,53 +60,24 @@ const VendorBottomBar = ({ isSearchFocused }) => {
     }
   }, [location.pathname, setActiveNav, navItems]);
 
-  // --- Logic: Listen for "Pending" orders count ---
-  useEffect(() => {
-    if (!currentUser?.uid) return;
-    const ordersRef = collection(db, "orders");
-    const q = query(
-      ordersRef,
-      where("progressStatus", "==", "Pending"),
-      where("vendorId", "==", currentUser.uid)
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setPendingOrdersCount(snapshot.docs.length);
-    });
-    return unsubscribe;
-  }, [currentUser]);
+  // Order badges share the existing contact-safe vendor subscription.
 
   // --- Logic: Listen for "unread" inquiries (chats) ---
   useEffect(() => {
-    if (!currentUser?.uid) return;
-    const inquiriesRef = collection(db, "inquiries");
+    setUnreadChatsCount(0);
+    const session = auth.currentUser;
+    let active = true;
+    if (!currentUser?.uid || session?.uid !== currentUser.uid) return;
+    const inquiriesRef = collection(db, "inquiryViews");
     const q = query(
       inquiriesRef,
       where("vendorId", "==", currentUser.uid),
       where("hasRead", "==", false)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setUnreadChatsCount(snapshot.docs.length);
-    });
-    return unsubscribe;
-  }, [currentUser]);
-
-  // --- Logic: Listen for unread offers ---
-  useEffect(() => {
-    if (!currentUser?.uid) return;
-    const offersRef = collection(db, "offers");
-    const q = query(offersRef, where("vendorId", "==", currentUser.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const threadMap = new Map();
-      snapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        if (!data.vendorRead) {
-          const threadKey = `${data.buyerId}_${data.productId}`;
-          threadMap.set(threadKey, true);
-        }
-      });
-      setUnreadOffersCount(threadMap.size);
-    });
-    return unsubscribe;
+      if (active && auth.currentUser === session) setUnreadChatsCount(snapshot.docs.length);
+    }, () => {if (active && auth.currentUser === session) setUnreadChatsCount(0);});
+    return () => {active = false; unsubscribe();};
   }, [currentUser]);
 
   // --- Logic: Live Avatar Listener ---
@@ -119,6 +97,7 @@ const VendorBottomBar = ({ isSearchFocused }) => {
   }, [currentUser?.uid]);
 
   const handleClick = (index, route) => {
+    appHaptics.strong();
     setActiveNav(index);
     navigate(route);
   };
@@ -128,6 +107,7 @@ const VendorBottomBar = ({ isSearchFocused }) => {
 
   return (
     <div
+      data-native-bottom-bar
       className="fixed bottom-0 left-0 right-0 z-[999] bg-white border-t border-gray-100 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(0,0,0,0.04)] font-opensans"
       onClick={(e) => e.stopPropagation()}
     >

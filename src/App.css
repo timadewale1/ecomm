@@ -1,7 +1,4 @@
-/* google fonts */
-@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap");
-
-css variables :root {
+:root {
   --card-bg-01: #fdefe6;
   --card-bg-02: #d6e5fb;
   --card-bg-03: #ceebe9;
@@ -21,7 +18,209 @@ css variables :root {
 }
 
 body {
-  font-family: "Montserrat", sans-serif;
+  font-family: "Satoshi", sans-serif;
+  font-synthesis: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: "Satoshi", sans-serif;
+  font-synthesis: none;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+body {
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.native-platform {
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-right: env(safe-area-inset-right, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-safe-left: env(safe-area-inset-left, 0px);
+}
+
+/* Keep the Capacitor UI inside the visible iPhone screen. These rules are
+   native-iOS-only, so the website and Android layout remain unchanged. */
+.native-ios body {
+  padding-top: var(--app-safe-top);
+  padding-right: var(--app-safe-right);
+  padding-left: var(--app-safe-left);
+  background: #fff;
+  /* Let WKWebView expose its native top/bottom rubber-band on iOS. This is
+     interaction-only and does not alter the resting layout position. */
+  overscroll-behavior-y: auto;
+}
+
+.native-ios #root {
+  min-height: calc(100vh - var(--app-safe-top));
+  min-height: calc(100dvh - var(--app-safe-top));
+}
+
+/* Android 15+ renders target-SDK 35/36 apps edge-to-edge. Keep the WebView's
+   page chrome clear of cutouts/status bars while individual bottom controls
+   continue to own the navigation-bar inset through --app-safe-bottom. */
+.native-android body {
+  padding-top: var(--app-safe-top);
+  padding-right: var(--app-safe-right);
+  padding-left: var(--app-safe-left);
+  background: #fff;
+}
+
+.native-android #root {
+  min-height: calc(100vh - var(--app-safe-top));
+  min-height: calc(100dvh - var(--app-safe-top));
+}
+
+/* Nested sticky headings inside a draggable, overflow-hidden bottom sheet are
+   unstable in Android WebView. The sheet header/search remain fixed; only the
+   scrolling taxonomy group labels become part of the list on Android. */
+.native-android .product-taxonomy-group-title {
+  position: static !important;
+  top: auto !important;
+  z-index: auto !important;
+}
+
+/* Search owns an internal viewport-bounded history list. Avoid asking the
+   document for another full viewport below the iOS safe-area padding. */
+.search-page-root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.native-ios .search-page-root {
+  min-height: calc(100vh - var(--app-safe-top));
+  min-height: calc(100dvh - var(--app-safe-top));
+}
+
+/* Opaque native status-bar layer. Without this, content scrolling behind a
+   sticky header remains visible in the safe-area strip around the island. */
+.native-ios::before,
+.native-android::before {
+  content: "";
+  position: fixed;
+  z-index: 1000;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--app-safe-top);
+  background: #fff;
+  pointer-events: none;
+}
+
+/* Tailwind top-0 headers otherwise stick underneath the notch after scroll. */
+.native-ios .fixed.top-0,
+.native-ios .sticky.top-0,
+.native-android .fixed.top-0,
+.native-android .sticky.top-0 {
+  top: var(--app-safe-top) !important;
+}
+
+/* Tawk renders its mobile chat in a cross-origin, viewport-sized surface, so
+   the app cannot pad the close button inside it. TawkProvider tags only the
+   fullscreen outer surface while chat is maximized; this keeps that surface
+   below the iOS status-bar/Dynamic Island without changing any app page. */
+.native-ios.tawk-chat-maximized [data-mythrift-tawk-host="true"] {
+  position: fixed !important;
+  top: var(--app-safe-top, env(safe-area-inset-top, 0px)) !important;
+  right: var(--app-safe-right, env(safe-area-inset-right, 0px)) !important;
+  bottom: var(--app-safe-bottom, env(safe-area-inset-bottom, 0px)) !important;
+  left: var(--app-safe-left, env(safe-area-inset-left, 0px)) !important;
+  width: auto !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: hidden !important;
+  transform: translateZ(0) !important;
+  z-index: 1000000 !important;
+}
+
+/* Tawk's own fullscreen controls live inside a cross-origin iframe and can be
+   placed underneath an iPhone's status area. Keep an app-owned escape control
+   above the widget so native users can always dismiss support safely. */
+.tawk-native-close {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+  top: calc(var(--app-safe-top, env(safe-area-inset-top, 0px)) + 6px);
+  right: calc(var(--app-safe-right, env(safe-area-inset-right, 0px)) + 12px);
+  display: grid !important;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #111827;
+  box-shadow: 0 4px 16px rgba(17, 24, 39, 0.14);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  touch-action: manipulation;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  -webkit-transform: translateZ(0);
+}
+
+.tawk-native-close:active {
+  transform: scale(0.96);
+}
+
+.native-keyboard-open [data-native-bottom-bar] {
+  display: none;
+}
+
+/* Keep the Android navigation surface flush with the screen while lifting its
+   controls just enough to clear device-specific gesture/navigation chrome.
+   iOS continues to use its existing safe-area layout unchanged. */
+.native-android [data-native-bottom-bar] {
+  padding-bottom: calc(var(--app-safe-bottom, env(safe-area-inset-bottom, 0px)) + 4px) !important;
+}
+
+/* Native WebView resizing normally keeps focused fields visible. These
+   margins give the guarded scroll fallback comfortable space inside forms
+   and independently scrolling bottom sheets. */
+.native-keyboard-open input,
+.native-keyboard-open textarea,
+.native-keyboard-open select,
+.native-keyboard-open [contenteditable="true"] {
+  scroll-margin-top: 16px;
+  scroll-margin-bottom: 24px;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  touch-action: manipulation;
+}
+
+/* Horizontal tab gestures are additive to normal vertical page scrolling. */
+.app-horizontal-tab-swipe {
+  touch-action: pan-y;
+}
+
+@media (max-width: 574px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }
 
 h1,
@@ -150,7 +349,7 @@ li::marker {
 
 .custom-toast {
   font-size: 11px;
-  font-family: "Ubuntu", sans-serif;
+  font-family: "Satoshi", sans-serif;
 }
 .modal-content2 {
   min-width: 90%; /* Ensure the modal doesn't take too much width */
@@ -613,18 +812,9 @@ li::marker {
   background: white;
 }
 
-root {
-  --vh: 100%;
-}
-body.scroll-lock {
-  overflow: hidden;
-}
-.scroll-lock {
-  overflow: hidden;
-}
-
 body {
-  height: var(--vh);
+  min-height: 100vh;
+  min-height: calc(var(--vh, 1vh) * 100);
   overflow-x: hidden;
 }
 
@@ -774,4 +964,7 @@ button.bg-orange-500:hover {
 .animate-marquee {
   animation: marquee 10s linear infinite; /* 10 seconds for smooth scrolling */
   display: inline-flex; /* Ensure items are in a row */
+}
+body.native-keyboard-open .add-product-publish-bar {
+  display: none;
 }

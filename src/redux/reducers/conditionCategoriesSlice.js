@@ -1,3 +1,4 @@
+import { publicVendorsQuery } from "../../services/publicVendors";
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   collection,
@@ -19,10 +20,7 @@ export const fetchConditionCategories = createAsyncThunk(
   async (condition) => {
     // 1️⃣ Get approved + active vendors
     const vendorSnap = await getDocs(
-      query(
-        collection(db, "vendors"),
-        where("isApproved", "==", true),
-        where("isDeactivated", "==", false),
+      publicVendorsQuery(
       ),
     );
     const vendorIds = vendorSnap.docs.map((d) => d.id);
@@ -48,7 +46,7 @@ export const fetchConditionCategories = createAsyncThunk(
         ];
         if (cursor) constraints.push(startAfter(cursor));
 
-        const q = query(collection(db, "products"), ...constraints);
+        const q = query(collection(db, "publicProducts"), ...constraints);
         const snap = await getDocs(q);
 
         snap.docs.forEach((d) => {

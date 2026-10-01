@@ -11,17 +11,19 @@ import Lottie from "lottie-react";
 import NotificationPermissionBanner from "./NotificationPermissionBanner";
 import { AccessContext } from "../Context/AccesContext";
 import ScrollToTop from "./ScrollToTop";
-import PWAInstallModal from "./PwaInstallModal";
 import { useFCM } from "../../custom-hooks/useFCM";
+import { useProductJourneyTracker } from "../../custom-hooks/useProductJourney";
+import useNativeBackNavigation from "../../custom-hooks/useNativeBackNavigation";
 
 const Layout = () => {
   const location = useLocation();
+  useProductJourneyTracker();
+  useNativeBackNavigation();
   const { currentUser, currentUserData } = useAuth();
-  const { showBanner, handleEnableNotifs, enabling, isPWA } = useFCM(
+  const { showBanner, handleEnableNotifs, enabling } = useFCM(
     currentUser,
     currentUserData
   );
-  const [showInstallModal, setShowInstallModal] = useState(true);
 const [isMobile, setIsMobile] = useState(() =>
   window.matchMedia("(max-width: 574px)").matches
 );
@@ -54,7 +56,8 @@ useEffect(() => {
     "/complete-profile",
     "/confirm-user",
     "/newcheckout/bookingfee",
-    "your-wallet",
+    "/your-wallet",
+    "/wallet-transactions",
     "/newcheckout/fulldelivery",
     "/user-dashboard",
     "/search",
@@ -66,6 +69,9 @@ useEffect(() => {
     "/share-profile",
     "/notifications",
     "/favorites",
+    "/settings",
+    "/account-info",
+    "/my-sizes",
     "/reset-password",
     "/market-vendors",
     "/online-vendors",
@@ -95,8 +101,8 @@ useEffect(() => {
     "/payment-approve/:reference",
     "category/:id",
     "/offers/:offerId",
+    "/offer-conversations/:conversationId",
     "/pay/:token",
-    "marketstorepage/:id",
     "/newcheckout/:vendorId",
   ];
 
@@ -128,9 +134,6 @@ useEffect(() => {
   return (
     <NavigationProvider>
       <VendorNavigationProvider>
-        {showInstallModal && isPWA && (
-          <PWAInstallModal onClose={() => setShowInstallModal(false)} />
-        )}
         {isMobile ? (
           <>
             {showBanner && (

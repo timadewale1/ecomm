@@ -9,34 +9,28 @@ import { useSelector, useDispatch } from "react-redux";
 import { removeFromCart } from "../../redux/actions/action";
 import { BsBasket } from "react-icons/bs";
 import PhoneInput from "react-phone-input-2";
-import { setCart } from "../../redux/actions/action";
 import "react-phone-input-2/lib/style.css";
 import LocationPicker from "../Location/LocationPicker";
 
 import IframeModal from "../PwaModals/PushNotifsModal";
 import { LiaTimesSolid } from "react-icons/lia";
-import { GoChevronRight } from "react-icons/go";
 import {
   GoogleAuthProvider,
-  signInWithPopup,
   fetchSignInMethodsForEmail,
-  TwitterAuthProvider,
   getAdditionalUserInfo,
   signInAnonymously,
 } from "firebase/auth";
+import { signInWithGoogle, signInWithTwitter } from "../../services/firebaseAuth";
+import { canUseBuyerContactEmail, isCurrentAccountBuyer, CONTACT_SIGN_IN_MESSAGE, assertCurrentAccount } from "../../services/accountLookups";
+import { authProvisioning } from "../../services/authProvisioning.mjs";
 import { FaXTwitter } from "react-icons/fa6";
 import {
-  collection,
-  query,
-  where,
-  getDocs,
   doc,
   updateDoc,
   getDoc,
   setDoc,
 } from "firebase/firestore";
 import { auth, db } from "../../firebase.config";
-import { useLocation } from "react-router-dom";
 import posthog from "posthog-js";
 import IkImage from "../../services/IkImage";
 import toast from "react-hot-toast";
@@ -45,9 +39,11 @@ import Badge from "../Badge/Badge";
 import { FcGoogle } from "react-icons/fc";
 import { SiReacthookform } from "react-icons/si";
 import { RotatingLines } from "react-loader-spinner";
-import { AnimatePresence, motion } from "framer-motion";
+import AppBottomSheet from "../layout/AppBottomSheet";
+import { isVariantSizeHidden } from "../../services/productVariantSelection";
+import { fetchAndMergeCart } from "../../services/cartMerge";
 const StoreBasket = forwardRef(function StoreBasket(
-  { vendorId, quickMode = false, onQuickFlow },
+  { vendorId, quickMode = false },
   ref
 ) {
   const products = useSelector((s) => s.cart?.[vendorId]?.products || {});
@@ -55,10 +51,8 @@ const StoreBasket = forwardRef(function StoreBasket(
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [deliveryOpen, setDeliveryOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const location = useLocation();
   const [fname, setFname] = useState("");
   const [lname, setLname] = useState("");
   const [email, setEmail] = useState("");
@@ -136,37 +130,26 @@ const StoreBasket = forwardRef(function StoreBasket(
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    let provisioning;
 
     try {
       setSubmitting(true);
 
-      /* ───────── block vendor e-mails ───────── */
-      const vSnap = await getDocs(
-        query(collection(db, "vendors"), where("email", "==", cleanEmail))
-      );
-      if (!vSnap.empty) {
-        toast.error("This email is already used for a Vendor account!");
-        return;
-      }
-
-      /* ───────── existing user? redirect to /login ───────── */
-      const uSnap = await getDocs(
-        query(collection(db, "users"), where("email", "==", cleanEmail))
-      );
-      if (!uSnap.empty) {
-        toast(
-          "Looks like you already have an account — please log in instead."
-        );
+      if (!(await canUseBuyerContactEmail(cleanEmail))) {
+        toast(CONTACT_SIGN_IN_MESSAGE);
         navigate("/login", { state: { from: "/latest-cart" } });
         return;
       }
 
+      provisioning = authProvisioning.begin();
       /* ───────── 1️⃣  anonymous sign-in ───────── */
       const { user } = await signInAnonymously(auth);
+      provisioning.bind(user.uid);
 
       /* ───────── 2️⃣  create / update user doc ───────── */
       const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
+      assertCurrentAccount(user);
 
       const baseData = {
         displayName: `${fname} ${lname}`.replace(/\s+/g, " ").trim(),
@@ -183,27 +166,35 @@ const StoreBasket = forwardRef(function StoreBasket(
       };
 
       if (userSnap.exists()) {
-        await updateDoc(userRef, baseData); // merge
+        // Defaults are creation-only. Retrying quick checkout must never reset
+        // a wallet, completion state, email receipt or original signup time.
+        await updateDoc(userRef, {
+          displayName: baseData.displayName,
+          email: cleanEmail,
+          ...(!userSnap.data()?.username ? {username: baseData.username} : {}),
+          updatedAt: new Date(),
+        });
       } else {
         await setDoc(userRef, { uid: user.uid, ...baseData });
       }
 
       /* ───────── 3️⃣  cart merge, PostHog, fast flow ───────── */
+      provisioning.finish();
+      assertCurrentAccount(user);
       identifyUser(
         posthog,
         { ...user, displayName: baseData.displayName },
         { role: "user" }
       );
 
-      const localCart = JSON.parse(localStorage.getItem("cart")) || {};
-      await fetchCartFromFirestore(user.uid, localCart);
-      localStorage.removeItem("cart");
+      await fetchCartFromFirestore(user.uid);
 
       setShowDeliveryStep(true);
     } catch (err) {
       console.error(err);
       toast.error("Could not continue, please try again.");
     } finally {
+      provisioning?.finish();
       setSubmitting(false);
     }
   };
@@ -254,62 +245,17 @@ const StoreBasket = forwardRef(function StoreBasket(
 
     try {
       setConfirmLoading(true);
+      assertCurrentAccount(pendingAuthUser);
 
-      // 1) HARD BLOCK: vendor email (applies to both providers)
-      const vSnap = await getDocs(
-        query(collection(db, "vendors"), where("email", "==", e))
-      );
-      const userVendorSnap = await getDocs(
-        query(collection(db, "users"), where("email", "==", e))
-      );
-      const isVendorByUsers =
-        !userVendorSnap.empty &&
-        userVendorSnap.docs[0].data()?.role === "vendor";
-      if (!vSnap.empty || isVendorByUsers) {
-        try {
-          await pendingAuthUser.delete?.();
-        } catch {
-          await auth.signOut();
-        }
-        toast.error("This email is already used for a Vendor account!");
+      if (!(await canUseBuyerContactEmail(e))) {
+        toast.error(CONTACT_SIGN_IN_MESSAGE);
         return;
-      }
-
-      // 2) Cross-provider conflict checks (Twitter needs this; Google email is owned by Google already)
-      if (confirmProvider === "twitter") {
-        const methods = await fetchSignInMethodsForEmail(auth, e);
-        if (methods.includes("password") && !methods.includes("twitter.com")) {
-          try {
-            await pendingAuthUser.delete?.();
-          } catch {
-            await auth.signOut();
-          }
-          toast.info(
-            "This email was registered with a password. Please log in to continue."
-          );
-          navigate("/login", { state: { email: e, linkTwitter: true } });
-          return;
-        }
-        if (
-          methods.includes("google.com") &&
-          !methods.includes("twitter.com")
-        ) {
-          try {
-            await pendingAuthUser.delete?.();
-          } catch {
-            await auth.signOut();
-          }
-          toast.info(
-            "This email is already registered with Google. Please log in with your original method."
-          );
-          navigate("/login", { state: { email: e } });
-          return;
-        }
       }
 
       // 3) Create/merge Firestore user
       const userRef = doc(db, "users", pendingAuthUser.uid);
       const userDoc = await getDoc(userRef);
+      assertCurrentAccount(pendingAuthUser);
       const fullName = `${f} ${l}`.trim();
       const baseData = {
         uid: pendingAuthUser.uid,
@@ -341,9 +287,8 @@ const StoreBasket = forwardRef(function StoreBasket(
       }
 
       // 4) Cart merge + analytics
-      const localCart = JSON.parse(localStorage.getItem("cart")) || {};
-      await fetchCartFromFirestore(pendingAuthUser.uid, localCart);
-      localStorage.removeItem("cart");
+      assertCurrentAccount(pendingAuthUser);
+      await fetchCartFromFirestore(pendingAuthUser.uid);
 
       identifyUser(
         posthog,
@@ -368,36 +313,6 @@ const StoreBasket = forwardRef(function StoreBasket(
     }
   };
 
-  const mergeCarts = (cart1, cart2) => {
-    const mergedCart = { ...cart1 };
-
-    for (const vendorId in cart2) {
-      if (mergedCart[vendorId]) {
-        const vendorCart1 = mergedCart[vendorId].products;
-        const vendorCart2 = cart2[vendorId].products;
-
-        for (const productKey in vendorCart2) {
-          const newProduct = vendorCart2[productKey];
-
-          const productAlreadyExists = Object.values(vendorCart1).some(
-            (existingProduct) =>
-              existingProduct.productId === newProduct.productId &&
-              existingProduct.color === newProduct.color &&
-              existingProduct.size === newProduct.size &&
-              existingProduct.variation === newProduct.variation
-          );
-
-          if (!productAlreadyExists) {
-            vendorCart1[productKey] = newProduct;
-          }
-        }
-      } else {
-        mergedCart[vendorId] = cart2[vendorId];
-      }
-    }
-
-    return mergedCart;
-  };
   const onlyLetters = (s) => /^[A-Za-z][A-Za-z\s'-]*$/.test(s.trim());
   const isEmail = (s) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s).toLowerCase());
@@ -409,30 +324,21 @@ const StoreBasket = forwardRef(function StoreBasket(
     return { first: parts[0], last: parts.slice(1).join(" ") };
   };
 
-  const fetchCartFromFirestore = async (userId, localCart = {}) => {
+  const fetchCartFromFirestore = async (userId) => {
     try {
-      const cartDoc = await getDoc(doc(db, "carts", userId));
-      let firestoreCart = {};
-      if (cartDoc.exists()) {
-        firestoreCart = cartDoc.data().cart;
-        console.log("Fetched cart from Firestore: ", firestoreCart);
-      } else {
-        console.log("No cart found in Firestore, initializing empty cart");
-      }
-      const mergedCart = mergeCarts(firestoreCart, localCart);
-      console.log("Merged cart: ", mergedCart);
-      await setDoc(doc(db, "carts", userId), { cart: mergedCart });
-      dispatch(setCart(mergedCart));
+      return await fetchAndMergeCart(db, userId, dispatch);
     } catch (error) {
-      console.error("Error fetching or merging cart from Firestore: ", error);
+      console.warn("Cart import will retry after quick checkout login:", error);
+      return null;
     }
   };
   const formatNaira = (n) =>
     `₦${n.toLocaleString("en-NG", { minimumFractionDigits: 0 })}`;
 
-  const handleRemove = (key) => {
-    dispatch(removeFromCart({ vendorId, productKey: key }));
+  const handleRemove = async (key) => {
+    const syncPromise = dispatch(removeFromCart({ vendorId, productKey: key }));
     toast(`Removed item from cart`, { icon: "🗑️" });
+    await syncPromise;
   };
   const openDisclaimerModal = (path) => (e) => {
     e.preventDefault();
@@ -487,35 +393,26 @@ const StoreBasket = forwardRef(function StoreBasket(
 
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
+    let provisioning;
     try {
       setLoading(true);
       posthog?.capture("login_attempted", { method: "google" });
+      provisioning = authProvisioning.begin();
 
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithGoogle(auth, provider);
       const user = result.user;
 
-      // ---- HARD BLOCK: vendor emails (no writes) ----
-      const vSnap = await getDocs(
-        query(collection(db, "vendors"), where("email", "==", user.email))
-      );
-      if (!vSnap.empty) {
+      provisioning.bind(user.uid);
+      if (!(await isCurrentAccountBuyer())) {
         await auth.signOut();
-        toast.error("This email is already used for a Vendor account!");
+        toast.error("This account belongs to a vendor. Please use vendor sign-in.");
         return;
       }
-      const uSnap = await getDocs(
-        query(collection(db, "users"), where("email", "==", user.email))
-      );
-      if (!uSnap.empty && uSnap.docs[0].data()?.role === "vendor") {
-        await auth.signOut();
-        toast.error("This email is already used for a Vendor account!");
-        return;
-      }
-      // -----------------------------------------------
 
       // Initialize/patch user doc (non-destructive)
       const userRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userRef);
+      assertCurrentAccount(user);
 
       if (!userDoc.exists()) {
         await setDoc(userRef, {
@@ -545,6 +442,8 @@ const StoreBasket = forwardRef(function StoreBasket(
       }
 
       // Split name and decide whether to confirm
+      provisioning.finish();
+      assertCurrentAccount(user);
       const { first, last } = splitDisplayName(user.displayName || "");
       const needNameConfirm = !first || !last;
 
@@ -575,9 +474,7 @@ const StoreBasket = forwardRef(function StoreBasket(
       }
 
       // Cart merge
-      const localCart = JSON.parse(localStorage.getItem("cart")) || {};
-      await fetchCartFromFirestore(user.uid, localCart);
-      localStorage.removeItem("cart");
+      await fetchCartFromFirestore(user.uid);
 
       identifyUser(posthog, user, { role: "user" });
       posthog?.capture("login_succeeded", { method: "google" });
@@ -596,25 +493,8 @@ const StoreBasket = forwardRef(function StoreBasket(
         try {
           const methods = await fetchSignInMethodsForEmail(auth, email);
 
-          const vSnap = await getDocs(
-            query(collection(db, "vendors"), where("email", "==", email))
-          );
-          if (!vSnap.empty) {
-            toast.error("This email is already used for a Vendor account!");
-            setLoading(false);
-            return;
-          }
-          const userSnap = await getDocs(
-            query(collection(db, "users"), where("email", "==", email))
-          );
-          if (!userSnap.empty && userSnap.docs[0].data()?.role === "vendor") {
-            toast.error("This email is already used for a Vendor account!");
-            setLoading(false);
-            return;
-          }
-
           if (methods.includes("password") && !methods.includes("google.com")) {
-            toast.info(
+            toast(
               "This email was registered with a password. Please log in to continue."
             );
             navigate("/login", { state: { email, linkGoogle: true } });
@@ -622,7 +502,7 @@ const StoreBasket = forwardRef(function StoreBasket(
             return;
           }
 
-          toast.info(
+          toast(
             "This email is already registered. Please log in with your original method."
           );
           navigate("/login", { state: { email } });
@@ -643,19 +523,21 @@ const StoreBasket = forwardRef(function StoreBasket(
         msg = "Popup closed before completing sign-in.";
       toast.error(msg);
     } finally {
+      provisioning?.finish();
       setLoading(false);
     }
   };
 
   const handleTwitterSignIn = async () => {
-    const provider = new TwitterAuthProvider();
+    let provisioning;
     const TAG = "[TWITTER_SIGNIN]";
     try {
       setLoading(true);
       posthog?.capture("login_attempted", { method: "twitter" });
+      provisioning = authProvisioning.begin();
       console.log(`${TAG} calling signInWithPopup...`);
 
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithTwitter(auth);
       const user = result.user;
       const info = getAdditionalUserInfo(result);
       const twitterHandle = info?.username || "";
@@ -665,25 +547,18 @@ const StoreBasket = forwardRef(function StoreBasket(
         }`
       );
 
-      // Optional vendor-email guard if you have isVendorEmail available
+      provisioning.bind(user.uid);
       const clean = (user.email || "").toLowerCase().trim();
-      if (clean && typeof isVendorEmail === "function") {
-        try {
-          if (await isVendorEmail(clean)) {
-            console.warn(`${TAG} vendor email detected -> signOut`);
-            await auth.signOut();
-            toast.error("This email is already used for a Vendor account!");
-            setLoading(false);
-            return;
-          }
-        } catch (guardErr) {
-          console.warn(`${TAG} vendor email guard error:`, guardErr);
-        }
+      if (!(await isCurrentAccountBuyer())) {
+        await auth.signOut();
+        toast.error("This account belongs to a vendor. Please use vendor sign-in.");
+        return;
       }
 
       // Ensure a stub user doc exists BEFORE showing confirm modal
       const userRef = doc(db, "users", user.uid);
       const snap = await getDoc(userRef);
+      assertCurrentAccount(user);
       if (!snap.exists()) {
         console.log(`${TAG} creating stub users/${user.uid}`);
         const makeUsername = () => {
@@ -727,6 +602,8 @@ const StoreBasket = forwardRef(function StoreBasket(
       }
 
       // Prefill confirm modal inputs
+      provisioning.finish();
+      assertCurrentAccount(user);
       const { first, last } = splitDisplayName(user.displayName || "");
       setPendingHandle(twitterHandle);
       setConfirmFirst(first);
@@ -756,14 +633,14 @@ const StoreBasket = forwardRef(function StoreBasket(
             methods.includes("password") &&
             !methods.includes("twitter.com")
           ) {
-            toast.info(
+            toast(
               "This email was registered with a password. Please log in."
             );
             navigate("/login", { state: { email, linkTwitter: true } });
             setLoading(false);
             return;
           }
-          toast.info(
+          toast(
             "This email is already registered. Please log in with your original method."
           );
           navigate("/login", { state: { email } });
@@ -784,6 +661,7 @@ const StoreBasket = forwardRef(function StoreBasket(
       console.error("Twitter Sign-In Error:", error);
       toast.error("Twitter sign-in failed. Please try again.");
     } finally {
+      provisioning?.finish();
       setLoading(false);
     }
   };
@@ -914,13 +792,17 @@ const StoreBasket = forwardRef(function StoreBasket(
                     </p>
                     {p.isFashion && (
                       <p className="text-[11px] font-opensans text-gray-600 mt-1">
-                        Size:{" "}
-                        <span className="font-semibold text-black">
-                          {p.selectedSize}
-                        </span>
+                        {!isVariantSizeHidden(p) && (
+                          <>
+                            Size:{" "}
+                            <span className="font-semibold text-black">
+                              {p.selectedSize}
+                            </span>
+                          </>
+                        )}
                         {p.selectedColor && (
                           <>
-                            {" , "}Color:{" "}
+                            {!isVariantSizeHidden(p) && " , "}Color:{" "}
                             <span className="font-semibold text-black capitalize">
                               {p.selectedColor.toLowerCase()}
                             </span>
@@ -963,27 +845,30 @@ const StoreBasket = forwardRef(function StoreBasket(
           </div>
         </>
       )}
-      {authOpen && (
-        <>
-          {/* backdrop */}
-          <div
-            onClick={() => !loading && setAuthOpen(false)}
-            className="fixed inset-0  bg-black/40 backdrop-blur-sm z-[60]"
-          />
-
-          <div
-            className="fixed z-[9000] bottom-0 scrollbar-hide h-[65vh] w-full bg-white p-6
-             flex flex-col items-center right-0 left-0 rounded-t-lg shadow-lg overflow-y-auto"
-          >
+      <AppBottomSheet
+        open={authOpen && !showConfirmModal && !showDeliveryStep}
+        onClose={() => !loading && setAuthOpen(false)}
+        closeOnBackdrop={!loading}
+        dismissible={!loading}
+        height="65dvh"
+        ariaLabel="Let’s set up your order"
+        ariaBusy={loading}
+        zIndex={9000}
+        backdropClassName="bg-black/40 backdrop-blur-sm"
+        surfaceClassName="scrollbar-hide items-center overflow-y-auto p-6 pt-5"
+        compactTop
+      >
             <button
               onClick={() => !loading && setAuthOpen(false)}
-              className="absolute bg-gray-200 rounded-full p-1 top-3 right-3 text-2xl"
+              disabled={loading}
+              className="absolute bg-gray-200 rounded-full p-1 top-5 right-3 text-2xl disabled:opacity-60"
+              aria-label="Close checkout sign in"
             >
               <LiaTimesSolid />
             </button>
 
             {/* heading */}
-            <h3 className="text-lg font-opensans -translate-y-2 font-semibold mb-4">
+            <h3 className="text-lg font-opensans font-semibold mb-4">
               Let’s set up your order
             </h3>
 
@@ -1114,39 +999,31 @@ const StoreBasket = forwardRef(function StoreBasket(
               </a>
               .
             </p>
-          </div>
-        </>
-      )}
+      </AppBottomSheet>
 
-      <AnimatePresence>
-        {showConfirmModal && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              key="confirm-backdrop"
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9700]"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                if (confirmProvider === "twitter" && !isEmail(confirmEmail))
-                  return;
-                if (!confirmLoading) setShowConfirmModal(false);
-              }}
-            />
-
-            {/* Centered Modal Container */}
-            <motion.div
-              key="confirm-modal"
-              className="fixed inset-0 z-[9800] flex items-center justify-center p-4"
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ type: "spring", stiffness: 260, damping: 20 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Actual white box */}
-              <div className="w-[92%] max-w-md bg-white rounded-2xl shadow-xl p-5">
+      <AppBottomSheet
+        open={showConfirmModal}
+        onClose={() => {
+          if (confirmProvider === "twitter" && !isEmail(confirmEmail)) return;
+          if (!confirmLoading) setShowConfirmModal(false);
+        }}
+        closeOnBackdrop={
+          !confirmLoading &&
+          !(confirmProvider === "twitter" && !isEmail(confirmEmail))
+        }
+        dismissible={
+          !confirmLoading &&
+          !(confirmProvider === "twitter" && !isEmail(confirmEmail))
+        }
+        height="55dvh"
+        ariaLabel="Confirm your details"
+        ariaBusy={confirmLoading}
+        zIndex={9800}
+        backdropClassName="bg-black/50 backdrop-blur-sm"
+        surfaceClassName="px-5 pb-5 pt-5"
+        compactTop
+      >
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pt-2 scrollbar-hide">
                 <h3 className="text-lg font-opensans font-semibold mb-2 text-center">
                   Confirm your details
                 </h3>
@@ -1204,10 +1081,7 @@ const StoreBasket = forwardRef(function StoreBasket(
                   )}
                 </button>
               </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      </AppBottomSheet>
       {showDeliveryStep && (
         <>
           {/* inert backdrop */}

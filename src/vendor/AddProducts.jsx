@@ -6,6 +6,7 @@ import { db } from "../firebase.config";
 import { toast } from "react-toastify";
 import { FaImage, FaMinusCircle } from "react-icons/fa";
 import { RotatingLines } from "react-loader-spinner";
+import NativeImageInput from "../components/Inputs/NativeImageInput";
 
 const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
 
@@ -342,9 +343,8 @@ const AddProduct = ({ vendorId, closeModal }) => {
               <FaImage className="h-16 w-16 text-gray-400" />
             )}
           </div>
-          <input
+          <NativeImageInput
             id="coverFileInput"
-            type="file"
             accept="image/*"
             onChange={(e) => handleFileChange(e, setProductCoverImageFile)}
             className="hidden"
@@ -392,9 +392,8 @@ const AddProduct = ({ vendorId, closeModal }) => {
                 ) : (
                   <FaImage className="h-8 w-8 text-gray-400" />
                 )}
-                <input
+                <NativeImageInput
                   id={`productFileInput-${index}`}
-                  type="file"
                   accept="image/*"
                   onChange={(e) => {
                     const newFiles = [...productImageFiles];
@@ -406,9 +405,8 @@ const AddProduct = ({ vendorId, closeModal }) => {
               </div>
             ))}
           </div>
-          <input
+          <NativeImageInput
             id="multipleFileInput"
-            type="file"
             accept="image/*"
             multiple
             onChange={handleMultipleFileChange}

@@ -37,6 +37,8 @@ import ProductCard from "../../components/Products/ProductCard";
 import Loading from "../../components/Loading/Loading";
 import { RotatingLines } from "react-loader-spinner";
 import VendorResultsBar from "../../components/VendorsData/VendorResultsBar";
+import { getCategoryBrowseProductTypeValues } from "../../services/categoryBrowseTaxonomy";
+import { acquireScrollLock } from "../../services/scrollLock";
 const SUGGEST_URL =
   "https://us-central1-ecommerce-ba520.cloudfunctions.net/suggestV3";
 const SEARCH_URL =
@@ -61,6 +63,9 @@ const DEFAULT_FILTERS = {
   priceMax: "",
 };
 
+const CATEGORY_BROWSE_AUDIENCES = new Set(["womens", "mens", "everyday"]);
+const INVALID_CATEGORY_PRODUCT_TYPE = "__category_product_type_unavailable__";
+
 const DEFAULT_IMG =
   "https://images.saatchiart.com/saatchi/1750204/art/9767271/8830343-WUMLQQKS-7.jpg";
 
@@ -70,10 +75,15 @@ function cleanStr(x) {
 
 function debounce(fn, wait = 200) {
   let t;
-  return (...args) => {
+  const debounced = (...args) => {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), wait);
   };
+  debounced.cancel = () => {
+    clearTimeout(t);
+    t = null;
+  };
+  return debounced;
 }
 function EmptySearchState({
   title = "No results found",
@@ -90,6 +100,29 @@ function EmptySearchState({
         {title}
       </p>
       <p className="mt-1 font-opensans text-sm text-gray-500">{subtitle}</p>
+    </div>
+  );
+}
+
+function SearchErrorState({ onRetry }) {
+  return (
+    <div
+      className="flex min-h-[40vh] flex-col items-center justify-center px-8 py-16 text-center"
+      role="alert"
+    >
+      <p className="font-opensans text-base font-semibold text-gray-900">
+        Search could not load
+      </p>
+      <p className="mt-1 max-w-xs font-opensans text-sm text-gray-500">
+        Check your connection and try again. Your search is still here.
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-5 h-11 rounded-xl bg-customOrange px-6 font-opensans text-sm font-semibold text-white"
+      >
+        Try again
+      </button>
     </div>
   );
 }
@@ -227,21 +260,68 @@ function useROHeight(ref) {
   return h;
 }
 
-function saveRecentSearch(q) {
-  const normalized = cleanStr(q);
-  if (!normalized) return;
-  const key = "mythrift_recent_searches_v3";
-  const prev = JSON.parse(localStorage.getItem(key) || "[]");
-  const next = [normalized, ...prev.filter((x) => x !== normalized)].slice(
-    0,
-    12,
-  );
-  localStorage.setItem(key, JSON.stringify(next));
+const RECENT_SEARCHES_KEY = "mythrift_recent_searches_v3";
+const RECENT_SEARCHES_LIMIT = 12;
+
+function normalizeRecentSearches(value) {
+  if (!Array.isArray(value)) return [];
+
+  const seen = new Set();
+  return value.reduce((normalized, entry) => {
+    const query = cleanStr(entry);
+    if (!query || seen.has(query) || normalized.length >= RECENT_SEARCHES_LIMIT) {
+      return normalized;
+    }
+
+    seen.add(query);
+    normalized.push(query);
+    return normalized;
+  }, []);
 }
 
 function readRecentSearches() {
-  const key = "mythrift_recent_searches_v3";
-  return JSON.parse(localStorage.getItem(key) || "[]");
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return [];
+    const stored = window.localStorage.getItem(RECENT_SEARCHES_KEY);
+    return normalizeRecentSearches(stored ? JSON.parse(stored) : []);
+  } catch (error) {
+    console.warn("Unable to read recent searches:", error);
+    return [];
+  }
+}
+
+function persistRecentSearches(value) {
+  const normalized = normalizeRecentSearches(value);
+
+  try {
+    if (typeof window === "undefined" || !window.localStorage) {
+      return normalized;
+    }
+
+    if (normalized.length === 0) {
+      window.localStorage.removeItem(RECENT_SEARCHES_KEY);
+    } else {
+      window.localStorage.setItem(
+        RECENT_SEARCHES_KEY,
+        JSON.stringify(normalized),
+      );
+    }
+  } catch (error) {
+    console.warn("Unable to save recent searches:", error);
+  }
+
+  return normalized;
+}
+
+function saveRecentSearch(q) {
+  const normalized = cleanStr(q);
+  if (!normalized) return readRecentSearches();
+
+  const previous = readRecentSearches();
+  return persistRecentSearches([
+    normalized,
+    ...previous.filter((entry) => entry !== normalized),
+  ]);
 }
 
 function renderHighlighted(text, query) {
@@ -381,6 +461,48 @@ export default function SearchPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlQ = cleanStr(searchParams.get("q") || "");
+  const browseSource = cleanStr(searchParams.get("browse") || "");
+  const browseAudience = cleanStr(
+    searchParams.get("audience") || "",
+  ).toLowerCase();
+  const browseProductType = cleanStr(searchParams.get("productType") || "");
+  const isCategoryBrowse =
+    browseSource === "categories" &&
+    CATEGORY_BROWSE_AUDIENCES.has(browseAudience);
+  const browseKey = isCategoryBrowse
+    ? `${browseAudience}|${browseProductType.toLowerCase()}`
+    : "";
+  const browseInitialFilters = useMemo(
+    () => ({
+      ...DEFAULT_FILTERS,
+      ...(isCategoryBrowse &&
+      (browseAudience === "womens" || browseAudience === "mens")
+        ? { category: browseAudience, includeUnisex: true }
+        : {}),
+    }),
+    [browseAudience, isCategoryBrowse],
+  );
+  const browseAllowedProductTypes = useMemo(
+    () =>
+      isCategoryBrowse
+        ? getCategoryBrowseProductTypeValues(browseAudience)
+        : [],
+    [browseAudience, isCategoryBrowse],
+  );
+  const browseRequestFilterExtras = useMemo(() => {
+    if (!isCategoryBrowse) return null;
+    if (browseProductType) {
+      const normalizedProductType = browseProductType.toLowerCase();
+      return {
+        productTypes: [
+          browseAllowedProductTypes.includes(normalizedProductType)
+            ? normalizedProductType
+            : INVALID_CATEGORY_PRODUCT_TYPE,
+        ],
+      };
+    }
+    return { productTypes: browseAllowedProductTypes };
+  }, [browseAllowedProductTypes, browseProductType, isCategoryBrowse]);
   const location = useLocation();
   const inputRef = useRef(null);
 
@@ -389,7 +511,9 @@ export default function SearchPage() {
   const submitSourceRef = useRef("unknown");
   const lastLoggedRef = useRef(""); // prevent double logs
 
-  const [input, setInput] = useState(urlQ);
+  const [input, setInput] = useState(
+    isCategoryBrowse && browseProductType ? browseProductType : urlQ,
+  );
   const tabParam = cleanStr(searchParams.get("tab") || "");
   const initialTab =
     tabParam === "vendors"
@@ -411,6 +535,7 @@ export default function SearchPage() {
   const [vendorSuggest, setVendorSuggest] = useState([]);
 
   const [vendorResultsLoading, setVendorResultsLoading] = useState(false);
+  const [vendorResultsError, setVendorResultsError] = useState(null);
   const [vendorResultsLoadingMore, setVendorResultsLoadingMore] =
     useState(false);
   const [vendors, setVendors] = useState([]);
@@ -427,6 +552,18 @@ export default function SearchPage() {
     () => JSON.stringify(appliedFilters),
     [appliedFilters],
   );
+
+  const buildSearchFilters = (filters) => {
+    const normalized =
+      isCategoryBrowse && filters?.sizeType && !filters?.sizes?.length
+        ? { ...filters, sizeType: null }
+        : filters;
+
+    return {
+      ...buildFiltersPayload(normalized),
+      ...(browseRequestFilterExtras || {}),
+    };
+  };
 
   const activeFilterCount = useMemo(() => {
     let n = 0;
@@ -445,6 +582,7 @@ export default function SearchPage() {
   const [facets, setFacets] = useState(null);
 
   const [resultsLoading, setResultsLoading] = useState(false);
+  const [resultsError, setResultsError] = useState(null);
   const [resultsLoadingMore, setResultsLoadingMore] = useState(false);
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
@@ -469,16 +607,19 @@ export default function SearchPage() {
   const restoringRef = useRef(false);
 
   const searchRowRef = useRef(null);
-  const dockRowRef = useRef(null);
   function clearRecentSearches() {
-    const key = "mythrift_recent_searches_v3";
-    localStorage.removeItem(key);
-    setRecent([]);
+    setRecent(persistRecentSearches([]));
   }
 
-  const searchRowH = useROHeight(searchRowRef); // search input row
-  const dockRowH = useROHeight(dockRowRef); // tabs row OR chips row (same slot)
+  function removeRecentSearch(query) {
+    const next = persistRecentSearches(
+      readRecentSearches().filter((entry) => entry !== query),
+    );
+    setRecent(next);
+  }
+
   const headerRef = useRef(null);
+  const headerH = useROHeight(headerRef);
   const dockContentRef = useRef(null);
 
   const dockContentH = useROHeight(dockContentRef);
@@ -509,20 +650,30 @@ export default function SearchPage() {
   // derived “mode” flags (usable in effects)
   const showAutocomplete = activeTab === "items" && Boolean(input) && menuOpen;
   const showResults =
-    Boolean(urlQ) && !showAutocomplete && activeTab === "items";
-  const showVendorResults = activeTab === "vendors" && Boolean(urlVQ);
-
-  // what’s currently visible under the input?
-  const visibleDockH = showResults ? (chipsVisible ? dockRowH : 0) : dockRowH;
-
-  // used by recent/autocomplete panels
-  const overlayTop = searchRowH + visibleDockH;
-
-  // spacer keeps content from going under fixed header (stable height)
+    (Boolean(urlQ) || isCategoryBrowse) &&
+    !showAutocomplete &&
+    activeTab === "items";
+  const showIdleItemHistory =
+    activeTab === "items" &&
+    !input &&
+    !isCategoryBrowse &&
+    !showResults;
 
   useEffect(() => {
-    setInput(activeTab === "items" ? urlQ : urlVQ);
-  }, [urlQ, urlVQ, activeTab]);
+    if (!showIdleItemHistory || typeof document === "undefined") return;
+
+    return acquireScrollLock("SearchIdleHistory");
+  }, [showIdleItemHistory]);
+
+  useEffect(() => {
+    setInput(
+      activeTab === "items"
+        ? isCategoryBrowse && browseProductType
+          ? browseProductType
+          : urlQ
+        : urlVQ,
+    );
+  }, [urlQ, urlVQ, activeTab, isCategoryBrowse, browseProductType]);
   const openMenuRef = useRef(null);
   const lastAutofocusKeyRef = useRef(null);
 
@@ -566,7 +717,7 @@ export default function SearchPage() {
 
   useEffect(() => {
     setChipsVisible(true);
-  }, [urlQ]);
+  }, [urlQ, browseKey]);
   useEffect(() => {
     if (!showResults) {
       setChipsVisible(true);
@@ -721,26 +872,34 @@ export default function SearchPage() {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
 
+      if (suggestAbortRef.current !== ac || ac.signal.aborted) return;
+
       setSuggestQueries(Array.isArray(data.queries) ? data.queries : []);
       setSuggestProducts(Array.isArray(data.products) ? data.products : []);
     } catch (e) {
       if (String(e?.name) !== "AbortError") console.error("suggest error:", e);
     } finally {
-      setSuggestLoading(false);
+      if (suggestAbortRef.current === ac) setSuggestLoading(false);
     }
   }
 
-  const debouncedSuggest = useMemo(() => debounce(callSuggest, 220), []);
+  const callSuggestRef = useRef(callSuggest);
+  callSuggestRef.current = callSuggest;
+  const debouncedSuggest = useMemo(
+    () => debounce((value) => callSuggestRef.current(value), 220),
+    [],
+  );
 
   async function runSearchFirstPage(q, filtersOverride) {
     if (activeTab !== "items") return;
     const query = cleanStr(q);
-    if (!query) {
+    if (!query && !isCategoryBrowse) {
       setItems([]);
       setTotal(0);
       setNextCursor(null);
       setHasMore(false);
       setFacets(null);
+      setResultsError(null);
       return;
     }
     getSearchSessionId("items");
@@ -757,6 +916,7 @@ export default function SearchPage() {
     setNextCursor(null);
     setHasMore(false);
     setFacets(null);
+    setResultsError(null);
 
     try {
       const res = await fetch(SEARCH_URL, {
@@ -768,14 +928,18 @@ export default function SearchPage() {
           pageSize: PAGE_SIZE,
           page: 0,
           sort: finalFilters.sort || "relevance",
-          filters: buildFiltersPayload(finalFilters),
+          filters: buildSearchFilters(finalFilters),
           cursor: null,
-          strictVariant: false,
+          // When both colour and size are selected they must exist together
+          // on one in-stock variant, not on two unrelated variants.
+          strictVariant: true,
         }),
       });
 
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
+
+      if (searchAbortRef.current !== ac || ac.signal.aborted) return;
 
       const got = Array.isArray(data.items) ? data.items : [];
       setItems(got);
@@ -833,9 +997,12 @@ export default function SearchPage() {
         submitSourceRef.current = "unknown";
       }
     } catch (e) {
-      if (String(e?.name) !== "AbortError") console.error("search error:", e);
+      if (String(e?.name) !== "AbortError" && searchAbortRef.current === ac) {
+        console.error("search error:", e);
+        setResultsError(e);
+      }
     } finally {
-      setResultsLoading(false);
+      if (searchAbortRef.current === ac) setResultsLoading(false);
     }
   }
   async function callVendorSuggest(q) {
@@ -866,19 +1033,36 @@ export default function SearchPage() {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
 
+      if (vendorSuggestAbortRef.current !== ac || ac.signal.aborted) return;
+
       setVendorSuggest(Array.isArray(data.items) ? data.items : []);
     } catch (e) {
       if (String(e?.name) !== "AbortError")
         console.error("vendor suggest error:", e);
     } finally {
-      setVendorSuggestLoading(false);
+      if (vendorSuggestAbortRef.current === ac) {
+        setVendorSuggestLoading(false);
+      }
     }
   }
 
+  const callVendorSuggestRef = useRef(callVendorSuggest);
+  callVendorSuggestRef.current = callVendorSuggest;
   const debouncedVendorSuggest = useMemo(
-    () => debounce(callVendorSuggest, 220),
+    () => debounce((value) => callVendorSuggestRef.current(value), 220),
     [],
   );
+
+  useEffect(() => {
+    return () => {
+      debouncedSuggest.cancel?.();
+      debouncedVendorSuggest.cancel?.();
+      suggestAbortRef.current?.abort?.();
+      vendorSuggestAbortRef.current?.abort?.();
+      searchAbortRef.current?.abort?.();
+      vendorSearchAbortRef.current?.abort?.();
+    };
+  }, [debouncedSuggest, debouncedVendorSuggest]);
 
   async function runVendorSearchFirstPage(q) {
     const query = cleanStr(q);
@@ -887,6 +1071,7 @@ export default function SearchPage() {
       setVendorTotal(0);
       setVendorNextCursor(null);
       setVendorHasMore(false);
+      setVendorResultsError(null);
       return;
     }
     const t0 = performance.now();
@@ -899,6 +1084,7 @@ export default function SearchPage() {
     setVendorTotal(0);
     setVendorNextCursor(null);
     setVendorHasMore(false);
+    setVendorResultsError(null);
 
     try {
       const res = await fetch(VENDOR_SEARCH_URL, {
@@ -909,11 +1095,14 @@ export default function SearchPage() {
           q: query,
           pageSize: VENDOR_PAGE_SIZE,
           cursor: null,
+          includeAvailableCounts: true,
         }),
       });
 
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
+
+      if (vendorSearchAbortRef.current !== ac || ac.signal.aborted) return;
 
       const got = Array.isArray(data.items) ? data.items : [];
       setVendors(got);
@@ -952,10 +1141,17 @@ export default function SearchPage() {
         submitSourceRef.current = "unknown";
       }
     } catch (e) {
-      if (String(e?.name) !== "AbortError")
+      if (
+        String(e?.name) !== "AbortError" &&
+        vendorSearchAbortRef.current === ac
+      ) {
         console.error("vendor search error:", e);
+        setVendorResultsError(e);
+      }
     } finally {
-      setVendorResultsLoading(false);
+      if (vendorSearchAbortRef.current === ac) {
+        setVendorResultsLoading(false);
+      }
     }
   }
 
@@ -974,6 +1170,7 @@ export default function SearchPage() {
           q: urlVQ,
           pageSize: VENDOR_PAGE_SIZE,
           cursor: vendorNextCursor,
+          includeAvailableCounts: true,
         }),
       });
 
@@ -994,6 +1191,14 @@ export default function SearchPage() {
   }
 
 const onBackPress = (closeMenuFn) => {
+  if (isCategoryBrowse) {
+    closeMenuFn?.();
+    const idx = window.history.state?.idx ?? 0;
+    if (idx > 0) navigate(-1);
+    else navigate("/explore", { replace: true });
+    return;
+  }
+
   const hasTyped = Boolean(cleanStr(input));
   const hasQuery = Boolean(cleanStr(urlQ) || cleanStr(urlVQ));
 
@@ -1026,7 +1231,7 @@ const onBackPress = (closeMenuFn) => {
 
   async function runSearchLoadMore() {
     if (activeTab !== "items") return;
-    if (!urlQ) return;
+    if (!urlQ && !isCategoryBrowse) return;
     if (!hasMore || resultsLoadingMore || resultsLoading) return;
     if (!nextCursor) return;
 
@@ -1039,9 +1244,9 @@ const onBackPress = (closeMenuFn) => {
           q: urlQ,
           pageSize: PAGE_SIZE,
           sort: appliedFilters.sort || "relevance",
-          filters: buildFiltersPayload(appliedFilters),
+          filters: buildSearchFilters(appliedFilters),
           cursor: nextCursor,
-          strictVariant: false,
+          strictVariant: true,
         }),
       });
 
@@ -1072,7 +1277,10 @@ const onBackPress = (closeMenuFn) => {
     setRecent(readRecentSearches());
 
     const sameQ =
-      snapshot && cleanStr(snapshot.q) === cleanStr(urlQ) && Boolean(urlQ);
+      snapshot &&
+      cleanStr(snapshot.q) === cleanStr(urlQ) &&
+      cleanStr(snapshot.browseKey || "") === browseKey &&
+      Boolean(urlQ || isCategoryBrowse);
 
     if (sameQ) {
       restoringRef.current = true;
@@ -1096,10 +1304,10 @@ const onBackPress = (closeMenuFn) => {
     restoringRef.current = false;
     restoreScrollYRef.current = null;
 
-    setAppliedFilters(DEFAULT_FILTERS);
-    runSearchFirstPage(urlQ, DEFAULT_FILTERS);
+    setAppliedFilters(browseInitialFilters);
+    runSearchFirstPage(urlQ, browseInitialFilters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlQ, snapshot]);
+  }, [urlQ, snapshot, browseKey]);
 
   useLayoutEffect(() => {
     if (!restoringRef.current) return;
@@ -1165,6 +1373,7 @@ const onBackPress = (closeMenuFn) => {
     resultsLoading,
     resultsLoadingMore,
     urlQ,
+    browseKey,
     filtersKey,
   ]);
 
@@ -1190,8 +1399,7 @@ const onBackPress = (closeMenuFn) => {
 
     submitSourceRef.current = source;
     startNewSearchSession("items");
-    saveRecentSearch(q);
-    setRecent(readRecentSearches());
+    setRecent(saveRecentSearch(q));
 
     setAppliedFilters(DEFAULT_FILTERS);
       setSearchParams({ q, tab: "items" }, { replace: true });
@@ -1215,7 +1423,7 @@ const onBackPress = (closeMenuFn) => {
       />
 
       {/* ✅ NOT motion.div here (no transform ancestor) */}
-      <div className="w-full min-h-screen bg-white">
+      <div className="search-page-root w-full bg-white">
         <Downshift
           items={downshiftItems}
           itemToString={(item) => {
@@ -1258,31 +1466,23 @@ const onBackPress = (closeMenuFn) => {
             const showAutocomplete =
               activeTab === "items" && Boolean(input) && menuOpen; // use menuOpen for consistency
             const showResults =
-              Boolean(urlQ) && !showAutocomplete && activeTab === "items";
-            const DOCK_EXTRA = 0;
+              (Boolean(urlQ) || isCategoryBrowse) &&
+              !showAutocomplete &&
+              activeTab === "items";
             openMenuRef.current = openMenu;
 
+            // Before results, let the tab row use its natural height. This
+            // prevents the first Items render from being clipped while its
+            // measured height is still zero. Once item results are active,
+            // preserve the existing collapsible filter-row behaviour.
             const dockTargetH = showResults
               ? chipsVisible
-                ? dockContentH + DOCK_EXTRA
+                ? Number(dockContentH || 0)
                 : 0
-              : showVendorResults
-                ? dockContentH + DOCK_EXTRA
-                : dockContentH + DOCK_EXTRA;
-
-            const overlayTop = 150;
-            const spacerH = overlayTop;
-
-            const safeSearchH = Number(searchRowH || 0);
-            const safeDockH = Number(dockRowH || 0);
-
-            const visibleDockH = showResults
-              ? chipsVisible
-                ? safeDockH
-                : 0
-              : safeDockH;
-
-            const dockSlide = -(safeDockH || 92);
+              : "auto";
+            const measuredHeaderH = headerH || 150;
+            const overlayTop = `calc(var(--app-safe-top, 0px) + ${measuredHeaderH}px)`;
+            const spacerH = measuredHeaderH;
             const inputProps = getInputProps({
               placeholder: "Search My Thrift",
               onFocus: () => openMenu(),
@@ -1294,11 +1494,9 @@ const onBackPress = (closeMenuFn) => {
                 else debouncedVendorSuggest(v);
               },
               onKeyDown: (e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" || e.keyCode === 13) {
                   e.preventDefault();
-                  if (activeTab === "items") submitItemSearch(input, "enter");
-                  else submitVendorSearch(input, "enter");
-                  closeMenu();
+                  e.currentTarget.form?.requestSubmit();
                 }
               },
             });
@@ -1312,15 +1510,39 @@ const onBackPress = (closeMenuFn) => {
                   className="fixed top-0 left-0 right-0 z-40 bg-white p-3"
                 >
                   {/* Search bar */}
-                  <div ref={searchRowRef} className="flex items-center gap-3">
-                    <AiOutlineArrowLeft
-                      className="text-2xl text-gray-500 cursor-pointer"
+                  <form
+                    ref={searchRowRef}
+                    className="flex items-center gap-3"
+                    role="search"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const submittedValue =
+                        inputRef.current?.value ?? input;
+                      if (activeTab === "items") {
+                        submitItemSearch(submittedValue, "submit");
+                      } else {
+                        submitVendorSearch(submittedValue, "submit");
+                      }
+                      closeMenu();
+                      inputRef.current?.blur?.();
+                    }}
+                  >
+                    <button
+                      type="button"
+                      aria-label="Go back"
                       onClick={() => onBackPress(closeMenu)}
-                    />
+                      className="grid h-10 w-8 shrink-0 place-items-center text-gray-500"
+                    >
+                      <AiOutlineArrowLeft className="text-2xl" />
+                    </button>
 
                     <div className="relative flex-1">
                       <input
                         {...restInputProps}
+                        type="search"
+                        enterKeyHint="search"
+                        autoComplete="off"
+                        spellCheck="false"
                         ref={(node) => {
                           // keep Downshift working
                           if (typeof downshiftRef === "function")
@@ -1332,28 +1554,46 @@ const onBackPress = (closeMenuFn) => {
                         }}
                         value={input}
                         autoFocus={wantsAutofocus}
-                        className="w-full bg-gray-50 focus:outline-none focus:ring-0 font-opensans text-black text-lg rounded-full pl-12 pr-4 py-4 font-medium"
+                        className="w-full bg-gray-50 focus:outline-none focus:ring-0 font-opensans text-black text-lg rounded-full pl-12 pr-12 py-4 font-medium"
                       />
 
-                      <CiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-2xl text-gray-700" />
+                      <button
+                        type="submit"
+                        aria-label="Search"
+                        className="absolute left-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center text-gray-700"
+                      >
+                        <CiSearch className="text-2xl" />
+                      </button>
                       {input && (
-                        <VscClose
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-2xl text-gray-600 cursor-pointer"
+                        <button
+                          type="button"
+                          aria-label="Clear search"
+                          className="absolute right-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center text-gray-600"
                           onClick={() => {
                             setInput("");
                             setSuggestQueries([]);
                             setSuggestProducts([]);
+                            setVendorSuggest([]);
+                            setResultsError(null);
+                            setVendorResultsError(null);
                             closeMenu();
 
                             setSearchParams(
-    { tab: activeTab === "vendors" ? "vendors" : "items" },
-    { replace: true }
-  );
+                              {
+                                tab:
+                                  activeTab === "vendors"
+                                    ? "vendors"
+                                    : "items",
+                              },
+                              { replace: true },
+                            );
                           }}
-                        />
+                        >
+                          <VscClose className="text-2xl" />
+                        </button>
                       )}
                     </div>
-                  </div>
+                  </form>
 
                   <div
                     className="relative overflow-hidden"
@@ -1373,7 +1613,7 @@ const onBackPress = (closeMenuFn) => {
                       }}
                     >
                       {!showResults && (
-                        <div className=" w-full flex border-b border-gray-100">
+                        <div className="w-full flex border-b border-gray-100">
                           {[
                             { key: "items", label: "Items" },
                             { key: "vendors", label: "Vendors" },
@@ -1447,62 +1687,88 @@ const onBackPress = (closeMenuFn) => {
                   }}
                 />
 
-                {/* Recent */}
-                {activeTab === "items" && !input && (
-                  <div
-                    className="fixed left-0 right-0 bottom-0 z-[9998] bg-white overflow-y-auto"
-                    style={{ top: overlayTop }}
-                  >
-                    {recent.length > 0 ? (
-                      <div className="bg-white">
-                        <div className="px-4 py-2 flex items-center justify-between">
-                          <p className="text-lg font-opensans font-semibold text-black">
-                            Recent searches
-                          </p>
+                {/* Keep the idle history inside the visible area below the
+                    fixed header. Only this panel scrolls when the list is long. */}
+                {showIdleItemHistory && (
+                    <div
+                      className="fixed left-0 right-0 bottom-0 z-30 overflow-y-auto bg-white"
+                      style={{
+                        top: overlayTop,
+                        paddingBottom: "var(--app-safe-bottom, 0px)",
+                        overscrollBehaviorY: "contain",
+                        WebkitOverflowScrolling: "touch",
+                      }}
+                    >
+                      {recent.length > 0 ? (
+                        <div className="bg-white">
+                          <div className="flex items-center justify-between px-4 py-2">
+                            <p className="font-opensans text-lg font-semibold text-black">
+                              Recent searches
+                            </p>
 
-                          <button
-                            type="button"
-                            onClick={clearRecentSearches}
-                            className="text-base font-opensans font-normal text-customOrange"
-                          >
-                            Clear All
-                          </button>
+                            <button
+                              type="button"
+                              onClick={clearRecentSearches}
+                              className="font-opensans text-base font-normal text-customOrange"
+                            >
+                              Clear All
+                            </button>
+                          </div>
+
+                          {recent.map((q) => (
+                            <div
+                              key={q}
+                              className="flex min-w-0 items-center hover:bg-gray-50"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  submitItemSearch(q, "recent");
+                                  closeMenu();
+                                }}
+                                className="flex min-w-0 flex-1 items-center gap-3 px-4 py-4 text-left"
+                              >
+                                <VscHistory
+                                  className="shrink-0 text-2xl text-gray-500"
+                                  aria-hidden="true"
+                                />
+
+                                <span className="truncate font-opensans text-base text-gray-900">
+                                  {q}
+                                </span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => removeRecentSearch(q)}
+                                className="mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-500 active:bg-gray-100"
+                                aria-label={`Remove ${q} from recent searches`}
+                                title="Remove recent search"
+                              >
+                                <VscClose
+                                  className="text-xl"
+                                  aria-hidden="true"
+                                />
+                              </button>
+                            </div>
+                          ))}
                         </div>
-
-                        {recent.map((q) => (
-                          <button
-                            key={q}
-                            type="button"
-                            onClick={() => {
-                              submitItemSearch(q, "recent");
-                              closeMenu();
-                            }}
-                            className="w-full flex items-center gap-3 px-4 py-4 text-left hover:bg-gray-50"
-                          >
-                            <VscHistory className="text-2xl text-gray-500" />
-                            <span className="font-opensans text-base text-gray-900">
-                              {q}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="px-4 py-6 text-sm font-opensans text-gray-500">
-                        Start typing to search.
-                      </div>
-                    )}
-                  </div>
-                )}
+                      ) : (
+                        <div className="px-4 py-6 font-opensans text-sm text-gray-500">
+                          Start typing to search.
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                 {/* Autocomplete */}
-                <div
-                  {...getMenuProps({
-                    className: showAutocomplete
-                      ? "fixed left-0 right-0 bottom-0 z-[9998] bg-white overflow-y-auto"
-                      : "hidden",
-                    style: showAutocomplete ? { top: overlayTop } : undefined,
-                  })}
-                >
+            <div
+  {...getMenuProps({
+    className: showAutocomplete
+      ? "bg-white overflow-y-auto"
+      : "hidden",
+  })}
+>
                   <div className=" -mx-3 border-gray-100 bg-white">
                     {!suggestLoading && suggestQueries.length > 0 && (
                       <div className="py-2 ml-4">
@@ -1547,13 +1813,21 @@ const onBackPress = (closeMenuFn) => {
                   animate={{ x: 0 }}
                   exit={{ x: "100%" }}
                   transition={{ type: "spring", stiffness: 100, damping: 20 }}
-                  className=" pb-6"
+                  className={
+                    showResults || activeTab === "vendors" ? "pb-6" : ""
+                  }
                 >
                   {activeTab === "vendors" ? (
                     urlVQ ? (
                       <div className="mt-12 space-y-3">
                         {vendorResultsLoading ? (
                           <VendorListSkeleton count={6} />
+                        ) : vendorResultsError ? (
+                          <SearchErrorState
+                            onRetry={() =>
+                              runVendorSearchFirstPage(urlVQ)
+                            }
+                          />
                         ) : vendors.length === 0 ? (
                           <EmptySearchState
                             title="No vendors found"
@@ -1595,6 +1869,12 @@ const onBackPress = (closeMenuFn) => {
                       <div className="mt-4 px-3">
                         {resultsLoading ? (
                           <ProductGridSkeleton count={10} />
+                        ) : resultsError ? (
+                          <SearchErrorState
+                            onRetry={() =>
+                              runSearchFirstPage(urlQ, appliedFilters)
+                            }
+                          />
                         ) : items.length === 0 ? (
                           <EmptySearchState
                             title="No items found"
@@ -1644,6 +1924,7 @@ const onBackPress = (closeMenuFn) => {
                                       dispatch(
                                         saveSearchSnapshot({
                                           q: urlQ,
+                                          browseKey,
                                           input,
                                           activeTab,
                                           appliedFilters,
@@ -1701,6 +1982,9 @@ const onBackPress = (closeMenuFn) => {
                     items={items}
                     facets={facets}
                     appliedFilters={appliedFilters}
+                    allowEmptyQueryPreview={isCategoryBrowse}
+                    requestFilterExtras={browseRequestFilterExtras}
+                    sizeTypeRequiresSizes={isCategoryBrowse}
                     onApply={(next) => {
                       submitSourceRef.current = "filter_apply";
                       startNewSearchSession("items");

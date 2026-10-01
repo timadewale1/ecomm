@@ -1,0 +1,145 @@
+.delivery-tracking-card {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 16px;
+  background: #fff;
+  font-family: "Satoshi", sans-serif;
+}
+
+.delivery-tracking-provider {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.delivery-tracking-logo {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 13px;
+  background: #fff1eb;
+  color: #f9531e;
+}
+
+.delivery-tracking-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.delivery-tracking-logo svg {
+  width: 23px;
+  height: 23px;
+}
+
+.delivery-tracking-provider div {
+  min-width: 0;
+}
+
+.delivery-tracking-provider small,
+.delivery-tracking-provider strong,
+.delivery-tracking-provider p {
+  display: block;
+  margin: 0;
+}
+
+.delivery-tracking-provider small,
+.delivery-tracking-eta span,
+.delivery-tracking-code small {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.delivery-tracking-provider strong {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.delivery-tracking-provider p {
+  color: #f9531e;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.delivery-tracking-eta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid #eef0f3;
+  padding-top: 12px;
+}
+
+.delivery-tracking-eta strong {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: right;
+}
+
+.delivery-tracking-primary,
+.delivery-tracking-code {
+  display: flex;
+  width: 100%;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  font: 600 14px/18px "Satoshi", sans-serif;
+}
+
+.delivery-tracking-primary {
+  border: 0;
+  background: #f9531e;
+  color: #fff;
+}
+
+.delivery-tracking-primary svg,
+.delivery-tracking-code > svg {
+  width: 18px;
+  height: 18px;
+}
+
+.delivery-tracking-code {
+  justify-content: space-between;
+  border: 1px solid #e5e7eb;
+  padding: 10px 12px;
+  background: #f9fafb;
+  color: #111827;
+  text-align: left;
+}
+
+.delivery-tracking-code span,
+.delivery-tracking-code strong {
+  display: block;
+}
+
+.delivery-tracking-code strong {
+  margin-top: 1px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.delivery-tracking-help {
+  margin: -4px 0 0;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 17px;
+}
+

@@ -8,6 +8,7 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { GoChevronLeft } from "react-icons/go";
 import { LuListFilter } from "react-icons/lu";
+import AppBackButton from "../../components/layout/AppBackButton";
 
 const InAppDiscountProducts = () => {
   const { discountName } = useParams();
@@ -97,10 +98,7 @@ const InAppDiscountProducts = () => {
       <div className="relative  py-6">
         {/* Sticky Header */}
         <div className="sticky top-0 bg-white z-50 border-b flex items-center justify-between mb-3 py-6 px-2">
-          <GoChevronLeft
-            className="text-2xl cursor-pointer"
-            onClick={() => navigate(-1)}
-          />
+          <AppBackButton onClick={() => navigate(-1)} />
           <h1 className="text-xl font-opensans font-semibold">
             {discountName
               .replace(/-/g, " ")

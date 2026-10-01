@@ -10,6 +10,7 @@ import { fetchCategoryProductTypes } from "../../redux/reducers/categoryTypesSli
 import ProductCard from "../Products/ProductCard";
 import { RotatingLines } from "react-loader-spinner";
 import { GoChevronLeft } from "react-icons/go";
+import AppBackButton from "../layout/AppBackButton";
 import { saveScroll, clearScroll } from "../../redux/reducers/scrollSlice";
 import { LuListFilter } from "react-icons/lu";
 import SEO from "../Helmet/SEO";
@@ -117,7 +118,7 @@ export default function CategoryProducts() {
           pageSize: BATCH_SIZE,
         })
       ).unwrap();
-      if (!res.lastCursor || res.items.length < BATCH_SIZE) setNoMore(true);
+      if (!res.lastCursor || !res.hasMore) setNoMore(true);
     } catch {
       // handled in slice
     } finally {
@@ -141,7 +142,7 @@ export default function CategoryProducts() {
           pageSize: BATCH_SIZE,
         })
       ).unwrap();
-      if (!res.lastCursor || res.items.length < BATCH_SIZE) setNoMore(true);
+      if (!res.lastCursor || !res.hasMore) setNoMore(true);
     } finally {
       setLoading(false);
     }
@@ -266,7 +267,7 @@ export default function CategoryProducts() {
           pageSize: BATCH_SIZE,
         })
       ).unwrap();
-      if (!res.lastCursor || res.items.length < BATCH_SIZE) setNoMore(true);
+      if (!res.lastCursor || !res.hasMore) setNoMore(true);
     } finally {
       setLoading(false);
     }
@@ -298,10 +299,7 @@ export default function CategoryProducts() {
         <div className="fixed top-0 left-0 w-full bg-white z-50 px-2 pt-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <GoChevronLeft
-                className="text-2xl cursor-pointer mr-2"
-                onClick={() => navigate(-1)}
-              />
+              <AppBackButton className="mr-1" onClick={() => navigate(-1)} />
               <h2 className="text-sm font-opensans font-semibold">
                 {category} Items
               </h2>

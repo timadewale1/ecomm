@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { IoMdArrowForward, IoMdClose } from "react-icons/io";
 import { CiCircleInfo } from "react-icons/ci";
-import { motion, AnimatePresence } from "framer-motion";
+import AppBottomSheet from "../layout/AppBottomSheet";
+import { isVariantSizeHidden } from "../../services/productVariantSelection";
 
 // --- Helper Functions ---
 const toTitleCase = (str = "") =>
@@ -45,6 +46,7 @@ const timeAgo = (date) => {
 
 const deriveSizeText = (product) => {
   if (!product) return "";
+  if (isVariantSizeHidden(product)) return "";
   if (product.size) {
     const parts = String(product.size)
       .split(",")
@@ -76,6 +78,7 @@ const InfoRow = ({
   showInfoIcon = false,
   isDescription = false,
   onMore,
+  onInfo,
 }) => {
   if (!value) return null;
 
@@ -83,7 +86,19 @@ const InfoRow = ({
     <div className="flex items-start justify-between py-1">
       <div className="flex items-center gap-1">
         <span className="text-sm font-opensans text-gray-500">{label}</span>
-        {showInfoIcon && <CiCircleInfo className="text-gray-400 text-md" />}
+        {showInfoIcon && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onInfo?.();
+            }}
+            className="inline-grid h-6 w-6 place-items-center p-0 text-gray-400"
+            aria-label={`About ${label.toLowerCase()}`}
+          >
+            <CiCircleInfo className="text-md" />
+          </button>
+        )}
       </div>
 
       <div className="text-sm font-opensans text-black text-right max-w-[65%] leading-tight">
@@ -111,38 +126,18 @@ const InfoRow = ({
   );
 };
 
-const DetailsModal = ({ data, onClose, onOpenDefect }) => {
+const DetailsModal = ({ open, data, onClose, onOpenDefect, onOpenCondition }) => {
   return (
-    <>
-      {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
-      />
-
-      {/* Bottom Sheet */}
-      <motion.div
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        drag="y"
-        dragConstraints={{ top: 0 }}
-        dragElastic={0.2}
-        onDragEnd={(_, info) => {
-          if (info.offset.y > 100) onClose();
-        }}
-        className="fixed bottom-0 left-0 right-0 z-[9000] bg-white rounded-t-3xl shadow-2xl h-[45vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Drag Handle */}
-        <div className="pt-4 pb-2 cursor-grab active:cursor-grabbing flex justify-center w-full">
-          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
-        </div>
-
+    <AppBottomSheet
+      open={open}
+      onClose={onClose}
+      height="45dvh"
+      ariaLabel="About this item"
+      zIndex={9000}
+      backdropClassName="bg-black/60 backdrop-blur-sm"
+      compactTop
+    >
+      <div className="flex min-h-0 flex-1 flex-col pt-5">
         {/* Header */}
         <div className="relative text-center px-5 mb-2 shrink-0">
           <h3 className="text-lg font-normal font-satoshi text-gray-800">
@@ -163,6 +158,7 @@ const DetailsModal = ({ data, onClose, onOpenDefect }) => {
               label="Condition"
               value={data.condition}
               showInfoIcon={true}
+              onInfo={onOpenCondition}
             />
 
             {/* ✅ DEFECT (right below Condition) */}
@@ -216,8 +212,8 @@ const DetailsModal = ({ data, onClose, onOpenDefect }) => {
             </div>
           </div>
         </div>
-      </motion.div>
-    </>
+      </div>
+    </AppBottomSheet>
   );
 };
 
@@ -226,6 +222,7 @@ export default function AboutThisItem({
   showSize = true,
   className = "",
   onOpenDefect, // ✅ NEW (opens the defect modal in ProductDetailPage)
+  onOpenCondition,
 }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -313,6 +310,7 @@ export default function AboutThisItem({
             label="Condition"
             value={data.condition}
             showInfoIcon={true}
+            onInfo={onOpenCondition}
           />
 
           {/* ✅ DEFECT IN PREVIEW (right below Condition) */}
@@ -361,16 +359,16 @@ export default function AboutThisItem({
         </div>
       </div>
 
-      {/* Modal */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <DetailsModal
-            data={data}
-            onClose={() => setIsModalOpen(false)}
-            onOpenDefect={openDefect} // ✅ opens ProductDetailPage defect modal
-          />
-        )}
-      </AnimatePresence>
+      <DetailsModal
+        open={isModalOpen}
+        data={data}
+        onClose={() => setIsModalOpen(false)}
+        onOpenDefect={openDefect}
+        onOpenCondition={() => {
+          setIsModalOpen(false);
+          onOpenCondition?.();
+        }}
+      />
     </>
   );
 }

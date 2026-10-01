@@ -1,0 +1,197 @@
+.settings-page {
+  min-height: 100dvh;
+  background: #fff;
+  color: #111827;
+  font-family: "Satoshi", sans-serif;
+}
+
+.settings-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: 24px 1fr 24px;
+  align-items: center;
+  height: 57px;
+  padding: 0 16px;
+  background: #fff;
+}
+
+.settings-header h1 {
+  color: #111827;
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 25px;
+  text-align: center;
+}
+
+.settings-header button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #111827;
+}
+
+.settings-header svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.5;
+}
+
+.settings-hidden-action {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.settings-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 23px 16px 32px;
+}
+
+.settings-group h2 {
+  color: #f9531e;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 18px;
+}
+
+.settings-group {
+  padding: 20px 0;
+}
+
+.settings-group > div {
+  margin-top: 8px;
+}
+
+.settings-row {
+  display: flex;
+  width: 100%;
+  height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  border: 0;
+  background: transparent;
+  color: #111827;
+  font: 400 16px/20px "Satoshi", sans-serif;
+  text-align: left;
+}
+
+.settings-row svg {
+  width: 20px;
+  height: 20px;
+  color: #64748b;
+  stroke-width: 1.35;
+}
+
+.settings-sheet-layer {
+  position: fixed;
+  z-index: 1200;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(17, 24, 39, 0.48);
+}
+
+.settings-sheet {
+  width: 100%;
+  max-width: 574px;
+  padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  border-radius: 20px 20px 0 0;
+  background: #fff;
+  font-family: "Satoshi", sans-serif;
+}
+
+.settings-sheet-handle {
+  width: 56px;
+  height: 6px;
+  margin: 0 auto 8px;
+  border-radius: 999px;
+  background: #d1d5db;
+}
+
+.settings-sheet-titlebar {
+  display: grid;
+  grid-template-columns: 20px 1fr 20px;
+  align-items: center;
+  min-height: 48px;
+}
+
+.settings-sheet-titlebar-simple {
+  display: flex;
+  justify-content: center;
+}
+
+.settings-sheet-titlebar-simple h2 {
+  width: 100%;
+}
+
+.native-ios .settings-header {
+  top: var(--app-safe-top, env(safe-area-inset-top, 0px));
+}
+
+.settings-sheet-titlebar h2 {
+  color: #111827;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: center;
+}
+
+.settings-sheet-titlebar button {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #111827;
+}
+
+.settings-sheet-titlebar svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.5;
+}
+
+.settings-sheet-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.settings-sheet-actions button {
+  height: 48px;
+  border-radius: 12px;
+  font: 500 14px/18px "Satoshi", sans-serif;
+}
+
+.settings-sheet-cancel {
+  border: 1px solid #f9531e;
+  background: #fff;
+  color: #f9531e;
+}
+
+.settings-sheet-confirm {
+  border: 1px solid #f9531e;
+  background: #f9531e;
+  color: #fff;
+}
+
+.settings-sheet-confirm:disabled {
+  opacity: 0.65;
+}
+
+@media (min-width: 394px) {
+  .settings-page {
+    max-width: 574px;
+    margin: 0 auto;
+  }
+}

@@ -1,3 +1,4 @@
+import { publicVendorsQuery } from "../../services/publicVendors";
 // src/redux/slices/catsection.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { db } from "../../firebase.config";
@@ -50,18 +51,12 @@ export const fetchCategorySection = createAsyncThunk(
         let vendorsQuery;
         if (isAll) {
           // For "all", fetch all approved and active vendors
-          vendorsQuery = query(
-            collection(db, "vendors"),
-            where("isApproved", "==", true),
-            where("isDeactivated", "==", false)
+          vendorsQuery = publicVendorsQuery(
           );
         } else {
           // For a specific category, filter by the categories array
-          vendorsQuery = query(
-            collection(db, "vendors"),
+          vendorsQuery = publicVendorsQuery(
             where("categories", "array-contains", normalizedCat),
-            where("isApproved", "==", true),
-            where("isDeactivated", "==", false)
           );
         }
         const vendorSnapshot = await getDocs(vendorsQuery);
@@ -95,7 +90,7 @@ export const fetchCategorySection = createAsyncThunk(
         let q;
         if (isAll) {
           q = query(
-            collection(db, "products"),
+            collection(db, "publicProducts"),
             where("isDeleted", "==", false),
             where("published", "==", true),
             where("vendorId", "in", chunk),
@@ -105,7 +100,7 @@ export const fetchCategorySection = createAsyncThunk(
         } else {
           // Use an 'in' filter to include products whose category is either the normalizedCat or "all"
           q = query(
-            collection(db, "products"),
+            collection(db, "publicProducts"),
             where("category", "in", [normalizedCat, "all"]),
             where("isDeleted", "==", false),
             where("published", "==", true),

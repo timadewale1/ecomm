@@ -1,14 +1,11 @@
-import React from "react";
-import { useState, useEffect } from "react";
-import Modal from "react-modal";
+import React, { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { MdOutlineClose, MdOutlineLocalShipping } from "react-icons/md";
+import { MdOutlineClose } from "react-icons/md";
 import {
   FaLeaf,
   FaRegCalendarCheck,
   FaBell,
   FaShieldAlt,
-  FaBoxOpen,
   FaHourglassHalf,
   FaHeadset,
   FaSpinner,
@@ -16,16 +13,14 @@ import {
 import { SiFusionauth } from "react-icons/si";
 import { useNavigate } from "react-router-dom";
 import { HiOutlineClipboardCheck } from "react-icons/hi";
-import { motion, AnimatePresence } from "framer-motion";
 import { RiShakeHandsFill } from "react-icons/ri";
 import { FcExpired } from "react-icons/fc";
 import { FaShippingFast } from "react-icons/fa";
 import moment from "moment"; // if you're not already importing it
-import { followVendor } from "../redux/reducers/followVendor";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase.config";
-// Make sure to set the app element (for accessibility)
-Modal.setAppElement("#root");
+import { setVendorFollowState, getVendorFollowState } from "../services/vendorFollow";
+import AppBottomSheet from "./layout/AppBottomSheet";
+import { appHaptics } from "../services/haptics";
+import "./Order/order-confirmation-sheet.css";
 
 const OrderPlacedModal = ({
   showPopup,
@@ -40,13 +35,8 @@ const OrderPlacedModal = ({
     const checkIfFollowing = async () => {
       if (!currentUser?.uid || !order?.vendorId) return;
       try {
-        const followRef = doc(
-          db,
-          "follows",
-          `${currentUser.uid}_${order.vendorId}`,
-        );
-        const followSnap = await getDoc(followRef);
-        if (followSnap.exists()) {
+        const followed = await getVendorFollowState(currentUser.uid, order.vendorId);
+        if (followed) {
           setIsFollowing(true); // The user is already following
         } else {
           setIsFollowing(false);
@@ -59,6 +49,9 @@ const OrderPlacedModal = ({
       checkIfFollowing();
     }
   }, [showPopup, currentUser, order]);
+  useEffect(() => {
+    if (showPopup) void appHaptics.success();
+  }, [showPopup]);
   const expiryDate = order.createdAt?.seconds
     ? moment(order.createdAt.seconds * 1000)
         .add(order.stockpileDuration || 2, "weeks")
@@ -68,16 +61,23 @@ const OrderPlacedModal = ({
   console.log("🧡 Calculated expiry date:", expiryDate);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const followMutationRef = useRef(false);
   const handleFollowClick = async () => {
     if (!currentUser) {
       toast.error("Please log in to follow the vendor.");
       return;
     }
+    if (followMutationRef.current) return;
+
+    followMutationRef.current = true;
     try {
       setIsFollowLoading(true);
 
-      const vendorObj = { id: order.vendorId };
-      const result = await followVendor(currentUser.uid, vendorObj);
+      const result = await setVendorFollowState({
+        userId: currentUser.uid,
+        vendorId: order.vendorId,
+        shouldFollow: !isFollowing,
+      });
 
       if (result.followed) {
         toast.success(
@@ -93,6 +93,7 @@ const OrderPlacedModal = ({
       console.error("Follow/unfollow error:", error);
       toast.error(error.message);
     } finally {
+      followMutationRef.current = false;
       setIsFollowLoading(false);
     }
   };
@@ -190,83 +191,73 @@ const OrderPlacedModal = ({
       ];
 
   return (
-    <Modal
-      isOpen={showPopup}
-      onRequestClose={onRequestClose}
-      shouldCloseOnOverlayClick={true}
-      className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full  max-h-[90vh] rounded-t-3xl bg-white shadow-lg p-6 z-50 outline-none"
-      overlayClassName="fixed inset-0 bg-black/30 backdrop-blur-xs flex justify-center items-end z-40"
-      closeTimeoutMS={300}
+    <AppBottomSheet
+      open={showPopup}
+      onClose={onRequestClose}
+      height="88dvh"
+      ariaLabel={isStockpile ? "Stockpile confirmation" : "Order confirmation"}
+      surfaceClassName="order-confirmation-sheet"
+      compactTop
     >
-      <AnimatePresence>
-        {showPopup && (
-          <motion.div
-            initial={{ y: 200, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 200, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-          >
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="text-xl font-opensans font-bold text-customRichBrown">
-                {isStockpile ? "Stockpile Confirmation" : "Order Confirmation"}
-              </h2>
-              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                <MdOutlineClose
-                  onClick={onRequestClose}
-                  className="text-xl cursor-pointer text-gray-600"
-                />
+      <header className="order-confirmation-header">
+        <div>
+          <p>{isStockpile ? "Stockpile placed" : "Payment confirmed"}</p>
+          <h2>{isStockpile ? "Stockpile confirmation" : "Order confirmation"}</h2>
+        </div>
+        <button type="button" onClick={onRequestClose} aria-label="Close">
+          <MdOutlineClose aria-hidden="true" />
+        </button>
+      </header>
+
+      <div className="order-confirmation-scroll scrollbar-hide">
+        <div className="order-confirmation-success" aria-hidden="true">
+          <HiOutlineClipboardCheck />
+        </div>
+        <p className="order-confirmation-lead">
+          {isStockpile
+            ? "Your order is safely in this stockpile. We’ll keep you updated as the vendor responds."
+            : "Your order has been placed successfully. We’ll keep you updated at every stage."}
+        </p>
+
+        <div className="order-confirmation-steps">
+          {steps.map((step, index) => (
+            <article key={index} className="order-confirmation-step">
+              <span>{step.icon}</span>
+              <div>
+                <h3>{step.title}</h3>
+                <p>{step.text}</p>
               </div>
-            </div>
-            <div className="border-b border-gray-200 mb-4"></div>
-            <div className="space-y-4 ">
-              {steps.map((step, index) => (
-                <div
-                  key={index}
-                  className="flex gap-3  bg-gray-50 px-2 py-1 rounded-lg items-start"
-                >
-                  <div className="pt-1">{step.icon}</div>
-                  <div>
-                    <p className="font-semibold font-opensans  text-base text-gray-900">
-                      {step.title}
-                    </p>
-                    <p className="text-xs font-opensans text-gray-700 mt-1">
-                      {step.text}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-8">
-              {isFollowing ? (
-                <button
-                  onClick={() => {
-                    onRequestClose(); // close the modal
-                    navigate("/"); // then navigate
-                  }}
-                  className="w-full py-3 mb-3 rounded-md font-opensans font-medium bg-customOrange text-white"
-                >
-                  Continue Shopping
-                </button>
-              ) : (
-                <button
-                  onClick={handleFollowClick}
-                  disabled={isFollowLoading}
-                  className="w-full py-3 mb-3 rounded-md font-opensans font-medium bg-customOrange text-white"
-                >
-                  {isFollowLoading ? (
-                    <div className="flex justify-center items-center">
-                      <FaSpinner className="animate-spin mr-2" />
-                    </div>
-                  ) : (
-                    "Follow Vendor"
-                  )}
-                </button>
-              )}
-            </div>
-          </motion.div>
+            </article>
+          ))}
+        </div>
+      </div>
+
+      <footer className="order-confirmation-actions">
+        {isFollowing ? (
+          <button
+            type="button"
+            onClick={() => {
+              void appHaptics.selection();
+              onRequestClose();
+              navigate("/");
+            }}
+          >
+            Continue shopping
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              void appHaptics.selection();
+              void handleFollowClick();
+            }}
+            disabled={isFollowLoading}
+          >
+            {isFollowLoading ? <FaSpinner className="animate-spin" /> : "Follow vendor"}
+          </button>
         )}
-      </AnimatePresence>
-    </Modal>
+      </footer>
+    </AppBottomSheet>
   );
 };
 

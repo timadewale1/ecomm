@@ -1,13 +1,11 @@
 import React, { useMemo, useState, useEffect } from "react";
-import Modal from "react-modal";
 import toast from "react-hot-toast";
 import { MdOutlineClose, MdOutlineReportProblem } from "react-icons/md";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../../firebase.config";
+import AppBottomSheet from "../layout/AppBottomSheet";
 // OPTIONAL (only if you want rate limiting like disputes/favorites)
 // import { handleUserActionLimit } from "../../services/userWriteHandler";
-
-Modal.setAppElement("#root");
 
 const REASONS = [
   "Misleading description or photos",
@@ -114,13 +112,15 @@ const ProductReportModal = ({
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onRequestClose={onClose}
-      className="modal-content-stockpile h-auto"
-      overlayClassName="modal-content-overloy "
-      ariaHideApp={false}
+    <AppBottomSheet
+      open={isOpen}
+      onClose={onClose}
+      height="auto"
+      ariaLabel="Report this product"
+      zIndex={10000}
+      compactTop
     >
+      <div className="max-h-[78dvh] overflow-y-auto px-3 pb-3 pt-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
@@ -202,7 +202,8 @@ const ProductReportModal = ({
           {sending ? "Sending..." : "Send"}
         </button>
       </div>
-    </Modal>
+      </div>
+    </AppBottomSheet>
   );
 };
 

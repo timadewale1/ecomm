@@ -1,0 +1,287 @@
+.vendor-store-page {
+  min-height: 100dvh;
+  max-width: 574px;
+  margin: 0 auto;
+  background: #fff;
+  color: #111827;
+  font-family: "Satoshi", sans-serif;
+  padding-bottom: calc(32px + var(--app-safe-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+.vendor-store-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: #fff;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  isolation: isolate;
+}
+
+.native-ios .vendor-store-header,
+.native-android .vendor-store-header {
+  top: var(--app-safe-top, env(safe-area-inset-top, 0px));
+}
+
+/* A bottom sheet locks the root scroll container while the native body still
+   owns the safe-area padding. Do not apply that same inset to the sticky store
+   header a second time during the lock or it shifts over the vendor identity. */
+.native-ios[data-app-scroll-lock-count] .vendor-store-header,
+.native-android[data-app-scroll-lock-count] .vendor-store-header {
+  top: 0;
+}
+
+.vendor-store-header-row {
+  position: relative;
+  height: 48px;
+  margin: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vendor-store-header button {
+  min-width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  color: #111827;
+}
+
+.vendor-store-header button > svg { width: 24px; height: 24px; }
+.vendor-store-header button > img { width: 24px; height: 24px; object-fit: contain; }
+.vendor-store-header-row > button > img[src="/newlogo.png"] { width: 28px; height: 28px; }
+.vendor-store-header-title { position: absolute; left: 50%; top: 50%; max-width: min(42vw, 190px); margin: 0; overflow: hidden; color: #111827; font: 500 16px/20px "Satoshi", sans-serif; text-align: center; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; opacity: 0; transform: translate(-50%, calc(-50% + 5px)); transition: opacity 180ms ease, transform 220ms ease; }
+.vendor-store-header-title.is-visible { opacity: 1; transform: translate(-50%, -50%); }
+.vendor-store-header-actions { display: flex; align-items: center; gap: 12px; }
+.vendor-store-header .vendor-store-checkout { width: auto; padding: 0 10px; border-radius: 10px; background: #f9531e; color: #fff; font: 500 12px/16px "Satoshi", sans-serif; }
+
+.vendor-store-search-field {
+  flex: 1;
+  height: 40px;
+  margin-left: 12px;
+  border-radius: 12px;
+  background: #f7f7f7;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+}
+.vendor-store-search-field > svg { width: 20px; height: 20px; color: #4b5563; }
+.vendor-store-search-field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: #111827; font: 400 16px/20px "Satoshi", sans-serif; }
+.vendor-store-search-field button { min-width: 24px; width: 24px; height: 24px; padding: 2px; }
+
+.vendor-store-summary { padding: 16px; display: flex; flex-direction: column; gap: 24px; }
+.vendor-store-identity { display: flex; align-items: center; gap: 16px; }
+.vendor-store-identity > img, .vendor-store-identity > span { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }
+.vendor-store-identity > span { display: grid; place-items: center; background: #f2f2f2; color: #4b5563; font: 500 28px/32px "Satoshi", sans-serif; }
+.vendor-store-identity > div { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.vendor-store-identity h1 { margin: 0; color: #111827; font: 500 21px/25px "Satoshi", sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 265px; }
+.vendor-store-highlight-rotator { width: min(230px, calc(100vw - 132px)); height: 38px; overflow: hidden; display: flex; align-items: center; }
+.vendor-store-highlight-pill { position: relative; width: max-content; max-width: calc(100% - 14px); height: 29px; margin-left: 14px; border: 0; border-radius: 0 100px 100px 0; padding: 4px 12px 4px 23px; display: inline-flex; align-items: center; color: #374151; font: 500 14px/18px "Satoshi", sans-serif; box-shadow: none; animation: vendor-store-highlight-cycle 2s ease-in-out both; }
+.vendor-store-highlight-pill.is-badge { background: linear-gradient(100deg, rgba(255,255,255,.5), rgba(235,210,117,.3)); }
+.vendor-store-highlight-pill.is-stockpile { background: linear-gradient(100deg, #fff8df, #ffedc3); color: #975400; }
+.vendor-store-highlight-pill.is-delivery { background: linear-gradient(100deg, #e8f6ff, #e9e7ff); color: #3156a3; }
+.vendor-store-highlight-icon { position: absolute; z-index: 1; width: 36px; height: 36px; left: -14px; top: 50%; flex: 0 0 auto; display: grid; place-items: center; transform: translateY(-50%); filter: drop-shadow(0 4px 5px rgba(33, 48, 74, .16)); }
+.vendor-store-highlight-icon > img { width: 34px; height: 34px; object-fit: contain; }
+.vendor-store-highlight-icon > svg { width: 36px; height: 36px; overflow: visible; }
+.vendor-store-highlight-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@keyframes vendor-store-highlight-cycle {
+  0% { opacity: 0; transform: translateY(5px) scale(.98); }
+  12%, 84% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-4px) scale(.99); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vendor-store-header-title { transition: none; }
+  .vendor-store-highlight-pill { animation: none; }
+}
+
+.vendor-store-metrics { display: grid; grid-template-columns: 1fr 1px 1fr 1px 1fr; align-items: center; }
+.vendor-store-metrics button, .vendor-store-metrics > div { border: 0; background: transparent; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #111827; }
+.vendor-store-metrics strong { display: flex; align-items: center; gap: 2px; font: 500 16px/20px "Satoshi", sans-serif; }
+.vendor-store-metrics strong svg { width: 16px; height: 16px; }
+.vendor-store-metrics .vendor-rating-star { color: #e8a700; }
+.vendor-store-metrics span { color: #4b5563; font: 400 14px/18px "Satoshi", sans-serif; white-space: nowrap; }
+.vendor-store-metrics > i { width: 1px; height: 24px; background: #e5e7eb; }
+.vendor-store-follow { width: 100%; height: 48px; border: 1px solid #f9531e; border-radius: 12px; background: #f9531e; color: #fff; font: 500 16px/20px "Satoshi", sans-serif; display: grid; place-items: center; }
+.vendor-store-follow.is-following { background: #fff; color: #f9531e; }
+
+.vendor-store-tabs { position: sticky; top: calc(48px + var(--app-safe-top, env(safe-area-inset-top, 0px))); z-index: 30; height: 40px; display: flex; align-items: center; justify-content: center; gap: 64px; padding: 0 16px; border-bottom: 1px solid #e5e7eb; background: #fff; }
+.vendor-store-tabs button { position: relative; height: 40px; border: 0; background: transparent; padding: 8px 0; color: #4b5563; font: 500 16px/20px "Satoshi", sans-serif; }
+.vendor-store-tabs button[aria-selected="true"] { color: #111827; }
+.vendor-store-tabs button > span { position: absolute; left: 0; right: 0; bottom: -1px; height: 4px; border-radius: 100px; background: #f9531e; }
+
+.vendor-store-panel { padding: 16px; }
+.vendor-store-catalog-filters { margin-bottom: 8px; }
+.vendor-store-filter-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 16px; }
+.vendor-store-filter-row::-webkit-scrollbar { display: none; }
+.vendor-store-filter-row button { flex: 0 0 auto; height: 40px; border: 0; border-radius: 8px; background: #f7f7f7; color: #3d3d3d; padding: 8px 8px 8px 12px; display: flex; align-items: center; gap: 4px; font: 400 16px/22px "Satoshi", sans-serif; }
+.vendor-store-filter-row button svg { width: 20px; height: 20px; }
+.vendor-store-filter-row .vendor-store-filter-main { position: relative; width: 44px; padding: 8px 12px; justify-content: center; }
+.vendor-store-filter-row button.is-active { color: #f9531e; background: #fff2ed; }
+.vendor-store-filter-main span { position: absolute; right: -4px; top: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #f9531e; color: #fff; display: grid; place-items: center; font: 500 10px/12px "Satoshi", sans-serif; }
+.vendor-store-product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 8px; }
+
+.vendor-store-flash-sale { margin: 16px 16px 0; padding: 16px; border-radius: 16px; background: #171717; color: #fff; font-family: "Satoshi", sans-serif; box-shadow: 0 8px 24px rgba(17, 24, 39, .12); }
+.vendor-store-flash-sale > strong { display: block; margin-bottom: 12px; font: 500 14px/18px "Satoshi", sans-serif; }
+.vendor-store-flash-sale .text-3xl { font-size: 24px; line-height: 28px; }
+
+.vendor-store-empty { min-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; }
+.vendor-store-empty > svg { width: 42px; height: 42px; color: #9ca3af; }
+.vendor-store-empty h2 { margin: 16px 0 4px; font: 500 18px/22px "Satoshi", sans-serif; }
+.vendor-store-empty p { margin: 0; max-width: 280px; color: #4b5563; font: 400 14px/20px "Satoshi", sans-serif; }
+
+.vendor-reviews-panel { padding-top: 16px; }
+.vendor-review-summary { height: 94px; display: flex; align-items: center; justify-content: space-between; }
+.vendor-review-summary > div:first-child { width: 94px; text-align: center; display: flex; flex-direction: column; gap: 8px; }
+.vendor-review-summary > div:first-child strong { font: 500 56px/60px "Satoshi", sans-serif; color: #000; }
+.vendor-review-summary > div:first-child span { color: #4b5563; font: 400 14px/18px "Satoshi", sans-serif; }
+.vendor-review-breakdown { width: min(217px, 61%); display: flex; flex-direction: column; gap: 1px; }
+.vendor-review-breakdown > div { height: 18px; display: grid; grid-template-columns: 27px 1fr 41px; align-items: center; gap: 8px; color: #4b5563; font: 400 14px/18px "Satoshi", sans-serif; }
+.vendor-review-breakdown span { display: flex; gap: 2px; align-items: center; }
+.vendor-review-breakdown span svg { width: 16px; height: 16px; color: #e8a700; }
+.vendor-review-breakdown i { height: 8px; overflow: hidden; border-radius: 100px; background: #f7f7f7; }
+.vendor-review-breakdown i b { display: block; height: 100%; border-radius: inherit; background: #f9531e; }
+.vendor-review-breakdown em { font-style: normal; }
+.vendor-review-filters { width: 100%; display: flex; gap: 8px; margin-top: 27px; padding-bottom: 2px; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.vendor-review-filters::-webkit-scrollbar { display: none; }
+.vendor-review-filters button { flex: 0 0 auto; min-width: 64px; height: 40px; padding: 0 16px; border: 1px solid transparent; border-radius: 8px; background: #f7f7f7; color: #4b5563; display: flex; align-items: center; justify-content: center; gap: 4px; font: 400 16px/20px "Satoshi", sans-serif; }
+.vendor-review-filters button svg { width: 14px; height: 14px; }
+.vendor-review-filters button.is-active { border-color: #f9531e; background: #fff2ed; color: #f9531e; }
+.vendor-review-verification { margin: 16px 0 28px; padding: 12px; border-radius: 12px; background: #f7f7f7; color: #4b5563; display: flex; align-items: center; gap: 8px; font: 400 13px/18px "Satoshi", sans-serif; }
+.vendor-review-verification svg { flex: 0 0 auto; width: 18px; height: 18px; color: #f9531e; }
+.vendor-review-list { margin-top: 0; }
+.vendor-review-card { margin: 0 -16px 31px; border-bottom: 1px solid #f3f4f6; padding: 0 16px 31px; }
+.vendor-review-card-main { width: 100%; border: 0; background: transparent; padding: 0; text-align: left; color: inherit; }
+.vendor-review-card-main.is-interactive { cursor: pointer; }
+.vendor-review-card-main.is-interactive:focus-visible { outline: 2px solid #f9531e; outline-offset: 4px; border-radius: 8px; }
+.vendor-review-author { width: 100%; display: flex; align-items: center; justify-content: space-between; }
+.vendor-review-author-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.vendor-review-author-main > img, .vendor-review-author-main > span { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }
+.vendor-review-author-main > span { display: grid; place-items: center; background: #ededed; color: #4b5563; }
+.vendor-review-author-main > div { display: flex; flex-direction: column; gap: 2px; }
+.vendor-review-author-main strong { color: #111827; font: 500 16px/20px "Satoshi", sans-serif; }
+.vendor-review-author-main strong small { margin-left: 8px; color: #4b5563; font: 400 14px/18px "Satoshi", sans-serif; }
+.vendor-review-author-main > div > span { display: flex; align-items: center; gap: 4px; color: #4b5563; font: 400 14px/18px "Satoshi", sans-serif; }
+.vendor-review-author-main > div > span svg { width: 16px; height: 16px; color: #e8a700; }
+.vendor-review-menu { display: grid; width: 32px; height: 32px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 100px; background: transparent; color: #111827; }
+.vendor-review-menu svg { width: 24px; height: 24px; }
+.vendor-review-text { margin: 8px 0 0; color: #4b5563; font: 400 14px/18px "Satoshi", sans-serif; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.vendor-review-images { display: flex; gap: 8px; margin-top: 12px; overflow: hidden; }
+.vendor-review-images span { position: relative; flex: 0 0 120px; height: 150px; border-radius: 8px; overflow: hidden; }
+.vendor-review-images img { width: 100%; height: 100%; object-fit: cover; }
+.vendor-review-images b { position: absolute; inset: 0; background: rgba(0,0,0,.45); color: #fff; display: grid; place-items: center; font: 500 21px/25px "Satoshi", sans-serif; }
+.vendor-review-product { width: 100%; height: 48px; margin-top: 12px; border: 0; border-radius: 12px; background: #ededed; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; color: #000; font: 500 14px/18px "Satoshi", sans-serif; }
+.vendor-review-product svg, .vendor-review-viewer-product svg { width: 20px; height: 20px; transform: rotate(-90deg); }
+.vendor-review-skeleton { overflow: hidden; }
+.vendor-review-skeleton-summary { height: 94px; display: flex; align-items: center; justify-content: space-between; }
+.vendor-review-skeleton-summary > div:first-child { width: 94px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.vendor-review-skeleton-summary > div:last-child { width: min(217px, 61%); display: flex; flex-direction: column; gap: 2px; }
+.vendor-review-skeleton-summary > div:last-child > div { height: 16px; display: grid; grid-template-columns: 27px 1fr 30px; align-items: center; gap: 8px; }
+.vendor-review-skeleton-filters { display: flex; gap: 8px; margin-top: 27px; overflow: hidden; }
+.vendor-review-skeleton-filters > span { flex: 0 0 auto; }
+.vendor-review-skeleton-notice { height: 60px; margin: 16px 0 28px; padding: 12px; border-radius: 12px; background: #f7f7f7; display: flex; align-items: center; gap: 8px; }
+.vendor-review-card-skeleton { display: grid; gap: 8px; }
+.vendor-review-skeleton-author { display: flex; align-items: center; gap: 8px; }
+.vendor-review-skeleton-author > div { display: flex; flex-direction: column; gap: 2px; }
+.vendor-review-skeleton-images { display: flex; gap: 8px; margin: 4px 0; overflow: hidden; }
+.vendor-review-skeleton-images > span { flex: 0 0 120px; }
+
+.vendor-about-panel { display: flex; flex-direction: column; gap: 20px; }
+.vendor-about-row { display: flex; align-items: flex-start; gap: 16px; }
+.vendor-about-row > svg, .vendor-about-row > img { width: 20px; height: 20px; flex: 0 0 auto; object-fit: contain; }
+.vendor-about-row > div { flex: 1; min-width: 0; }
+.vendor-about-row strong { display: block; color: #111827; font: 500 14px/18px "Satoshi", sans-serif; }
+.vendor-about-row > div > div { margin-top: 2px; color: #4b5563; font: 400 14px/18px "Satoshi", sans-serif; }
+.vendor-about-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px !important; }
+.vendor-about-chips span { border: 1px solid #e5e7eb; border-radius: 100px; padding: 4px 8px; }
+.vendor-about-action { min-height: 60px; border: 0; border-top: 1px solid #e5e7eb; background: #fff; padding: 12px 0; display: flex; align-items: center; gap: 16px; text-align: left; color: #111827; }
+.vendor-about-action > svg, .vendor-about-action > img { width: 20px; height: 20px; flex: 0 0 auto; object-fit: contain; }
+.vendor-about-action > svg { stroke-width: 1.75; }
+.vendor-about-row .vendor-about-light-icon,
+.vendor-about-action > .vendor-about-light-icon { stroke-width: 1.25; }
+.vendor-about-action > svg:last-child { margin-left: auto; transform: rotate(-90deg); }
+.vendor-about-action span { display: flex; flex-direction: column; gap: 2px; }
+.vendor-about-action strong { font: 500 14px/18px "Satoshi", sans-serif; }
+.vendor-about-action small { color: #4b5563; font: 400 14px/18px "Satoshi", sans-serif; }
+.vendor-about-verified { padding: 12px 0; display: flex; align-items: flex-start; gap: 16px; }
+.vendor-about-verified > svg { width: 20px; height: 20px; margin: 0; color: #177245; flex: 0 0 auto; stroke-width: 1.75; }
+.vendor-about-verified > div { flex: 1; min-width: 0; }
+.vendor-about-verified strong { display: block; font: 500 14px/18px "Satoshi", sans-serif; }
+.vendor-about-verified p { margin: 2px 0 0; color: #4b5563; font: 400 14px/18px "Satoshi", sans-serif; }
+
+.vendor-badge-bottom-sheet { background-color: #dcfce7; }
+.vendor-badge-sheet { width: 100%; height: 100%; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 22px 16px 20px; }
+.vendor-badge-sheet header { position: relative; width: 100%; height: 40px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; z-index: 1; }
+.vendor-badge-sheet header button, .vendor-badge-rankings header button { width: 32px; height: 32px; border: 0; background: transparent; display: grid; place-items: center; color: #111827; }
+.vendor-badge-sheet header button { border-radius: 50%; background: rgba(255,255,255,.42); }
+.vendor-badge-sheet header svg, .vendor-badge-rankings header svg { width: 24px; height: 24px; }
+.vendor-badge-sheet h2 { margin: 0; font: 600 14px/18px "Satoshi", sans-serif; color: #1f2937; }
+.vendor-badge-sheet-art { position: relative; width: 96px; height: 96px; flex: 0 0 auto; margin-top: 8px; }
+.vendor-badge-sheet-art i { position: absolute; inset: 0; border-radius: 50%; background: var(--badge-glow); filter: blur(24px); }
+.vendor-badge-sheet-art img { position: relative; width: 96px; height: 96px; object-fit: contain; filter: drop-shadow(0 10px 8px rgba(0,0,0,.16)); }
+.vendor-badge-sheet-label { position: relative; margin-top: 20px; border-radius: 100px; background: var(--badge-label-bg); color: var(--badge-ink); padding: 8px 20px; box-shadow: 0 4px 12px rgba(17,24,39,.12); font: 600 12px/16px "Satoshi", sans-serif; }
+.vendor-badge-sheet-message { max-width: 330px; margin: 12px 24px 0; color: rgba(31,41,55,.8); text-align: center; font: 400 12px/18px "Satoshi", sans-serif; }
+.vendor-badge-rankings { height: 100%; padding: 24px 16px 20px; overflow-y: auto; }
+.vendor-badge-rankings header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.vendor-badge-rankings h2 { margin: 0; color: #000; font: 500 21px/25px "Satoshi", sans-serif; }
+.vendor-badge-rankings header p { margin: 6px 0 0; color: #4b5563; font: 400 14px/18px "Satoshi", sans-serif; }
+.vendor-badge-ranking-list { margin-top: 16px; }
+.vendor-badge-ranking-list > div { min-height: 80px; display: flex; align-items: center; gap: 12px; }
+.vendor-badge-ranking-list img { width: 54px; height: 48px; object-fit: contain; }
+.vendor-badge-ranking-list span { min-height: 80px; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; border-bottom: 1px solid #e5e7eb; }
+.vendor-badge-ranking-list strong { font: 500 16px/20px "Satoshi", sans-serif; }
+.vendor-badge-ranking-list small { color: #4b5563; font: 400 14px/18px "Satoshi", sans-serif; }
+
+.vendor-review-viewer { position: fixed; inset: 0; z-index: 5000; background: #000; color: #fff; font-family: "Satoshi", sans-serif; }
+.vendor-review-viewer-image { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 100%; height: min(58dvh, 492px); object-fit: cover; }
+.vendor-review-viewer-shade { position: absolute; inset: 0; background: rgba(0,0,0,.5); }
+.vendor-review-viewer > header { position: absolute; top: 0; left: 0; right: 0; padding: var(--app-safe-top, env(safe-area-inset-top, 0px)) 16px 0; height: calc(48px + var(--app-safe-top, env(safe-area-inset-top, 0px))); display: grid; grid-template-columns: 32px 1fr 32px; align-items: center; }
+.vendor-review-viewer > header button { width: 32px; height: 32px; border: 0; background: transparent; color: #fff; display: grid; place-items: center; }
+.vendor-review-viewer > header button svg { width: 24px; height: 24px; }
+.vendor-review-viewer > header strong { text-align: center; font: 500 18px/22px "Satoshi", sans-serif; }
+.vendor-review-viewer-detail { position: absolute; left: 16px; right: 16px; bottom: calc(72px + var(--app-safe-bottom, env(safe-area-inset-bottom, 0px))); display: flex; flex-direction: column; gap: 8px; }
+.vendor-review-viewer-detail .vendor-review-author-main strong { color: #fff; }
+.vendor-review-viewer-detail .vendor-review-author-main strong small, .vendor-review-viewer-detail .vendor-review-author-main > div > span { color: #eaeaea; }
+.vendor-review-viewer-text { width: 100%; border: 0; background: transparent; color: #eaeaea; padding: 0; display: flex; text-align: left; font: 400 14px/18px "Satoshi", sans-serif; }
+.vendor-review-viewer-text span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vendor-review-viewer-text b { flex: 0 0 auto; margin-left: 4px; font-weight: 400; opacity: .8; }
+.vendor-review-viewer-detail.is-expanded { bottom: calc(72px + var(--app-safe-bottom, env(safe-area-inset-bottom, 0px))); }
+.vendor-review-viewer-detail.is-expanded .vendor-review-viewer-text span { white-space: normal; overflow: visible; }
+.vendor-review-viewer-product { position: absolute; left: 16px; right: 16px; bottom: calc(8px + var(--app-safe-bottom, env(safe-area-inset-bottom, 0px))); height: 48px; border: 0; border-radius: 12px; background: #ededed; color: #000; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; font: 500 14px/18px "Satoshi", sans-serif; }
+.vendor-review-prev, .vendor-review-next { position: absolute; top: 50%; width: 42px; height: 56px; border: 0; background: rgba(0,0,0,.35); color: #fff; display: grid; place-items: center; }
+.vendor-review-prev { left: 0; }
+.vendor-review-next { right: 0; }
+.vendor-review-prev svg { transform: rotate(90deg); }
+.vendor-review-next svg { transform: rotate(-90deg); }
+.vendor-review-composer-layer { position: fixed; inset: 0; z-index: 5000; background: #fff; overflow-y: auto; }
+
+.vendor-review-delete-sheet { display: flex; height: 100%; flex-direction: column; padding: 24px 16px 16px; font-family: "Satoshi", sans-serif; }
+.vendor-review-delete-sheet header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.vendor-review-delete-sheet h2 { margin: 0; color: #111827; font: 500 21px/25px "Satoshi", sans-serif; }
+.vendor-review-delete-sheet header p { margin: 6px 0 0; color: #4b5563; font: 400 14px/18px "Satoshi", sans-serif; }
+.vendor-review-delete-sheet header button { display: grid; width: 32px; height: 32px; flex: 0 0 auto; place-items: center; border: 0; background: transparent; color: #111827; }
+.vendor-review-delete-sheet header button svg { width: 24px; height: 24px; }
+.vendor-review-delete-action, .vendor-review-delete-cancel { width: 100%; height: 48px; margin-top: 20px; border-radius: 12px; font: 500 16px/20px "Satoshi", sans-serif; }
+.vendor-review-delete-action { border: 0; background: #b42318; color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.vendor-review-delete-action svg { width: 20px; height: 20px; }
+.vendor-review-delete-cancel { margin-top: 8px; border: 1px solid #e5e7eb; background: #fff; color: #111827; }
+.vendor-review-delete-action:disabled, .vendor-review-delete-cancel:disabled { opacity: .55; }
+
+.vendor-store-page-skeleton .react-loading-skeleton { line-height: 1; }
+.vendor-store-summary-copy { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.vendor-store-skeleton-metrics > div { gap: 2px; }
+.vendor-store-skeleton-tabs > span { line-height: 1; }
+
+@media (max-width: 374px) {
+  .vendor-store-tabs { gap: 42px; }
+  .vendor-store-metrics span { font-size: 12px; }
+  .vendor-review-summary > div:first-child strong { font-size: 48px; }
+}

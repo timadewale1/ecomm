@@ -2,7 +2,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   collection,
-  collectionGroup,
   getDocs,
   query,
   where,
@@ -24,7 +23,8 @@ function canonicalCategory(input) {
 
 /**
  * Fetch items from the categories index.
- * If category === "All": use collectionGroup('items') for a global feed.
+ * If category === "All": use the eligible top-level catalogue, not every
+ * subcollection named 'items' (which can include private order records).
  * Otherwise: use /categories/{cat}/items.
  */
 export const fetchCategoryItems = createAsyncThunk(
@@ -44,12 +44,14 @@ export const fetchCategoryItems = createAsyncThunk(
 
       let qRef;
       if (cat === "All") {
-        // global view across all categories
-        qRef = query(collectionGroup(db, "items"), ...filters, limit(pageSize));
+        qRef = query(collection(db, "publicProducts"),
+          where("vendorEligible", "==", true), where("published", "==", true),
+          ...filters, limit(pageSize));
       } else {
         // specific category
         qRef = query(
-          collection(db, "categories", cat, "items"),
+          collection(db, "publicProducts"),
+          where("browseCategory", "==", cat),
           ...filters,
           limit(pageSize)
         );
@@ -60,10 +62,13 @@ export const fetchCategoryItems = createAsyncThunk(
       }
 
       const snap = await getDocs(qRef);
-      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        .filter((item) => item.isDeleted !== true && item.isUnpublished !== true && item.isDeactivated !== true && item.deactivated !== true);
       const newCursor = snap.docs.length ? snap.docs[snap.docs.length - 1] : null;
 
-      return { category: cat, items, lastCursor: newCursor };
+      // Pagination is based on fetched documents, not the visible rows after
+      // filtering a listing that became unavailable during mirror propagation.
+      return { category: cat, items, lastCursor: newCursor, hasMore: snap.docs.length === pageSize };
     } catch (err) {
       console.error("fetchCategoryItems error:", err);
       return rejectWithValue(err.message);

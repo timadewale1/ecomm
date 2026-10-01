@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { GoDotFill, GoChevronLeft } from "react-icons/go";
+import AppBackButton from "../components/layout/AppBackButton";
 import { CiSearch } from "react-icons/ci";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchVendorsRanked } from "../redux/reducers/VendorsSlice";
@@ -123,10 +124,7 @@ const OnlineVendors = () => {
           <div className="flex items-center justify-between mb-3 pb-2 px-2">
             {!isSearching && (
               <>
-                <GoChevronLeft
-                  className="text-3xl cursor-pointer"
-                  onClick={() => navigate(-1)}
-                />
+                <AppBackButton onClick={() => navigate(-1)} />
                 <h1 className="text-xl font-opensans font-semibold">
                   Online Vendors
                 </h1>

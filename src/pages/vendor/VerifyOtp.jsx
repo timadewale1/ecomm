@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { siteUrls } from "../../config/siteUrls.mjs";
+import { mustSignOutRestrictedAccount } from "../../services/accountRestrictionPolicy.mjs";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   getAuth,
@@ -139,7 +141,7 @@ const VendorVerifyOTP = () => {
         console.log("Email/password credential linked to user account.");
 
         const actionCodeSettings = {
-          url: "https://shopmythrift.store/confirm-email", // Replace with your email verification link
+          url: siteUrls.appUrl("/confirm-email"),
           handleCodeInApp: true,
         };
         await sendEmailVerification(user, actionCodeSettings);
@@ -164,7 +166,7 @@ const VendorVerifyOTP = () => {
         if (vendorDoc.exists()) {
           const vendorData = vendorDoc.data();
 
-          if (vendorData.isDeactivated) {
+          if (mustSignOutRestrictedAccount({ ...vendorData, role: "vendor" })) {
             toast.error(
               "Your vendor account is deactivated. Please contact support."
             );

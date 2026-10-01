@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { FormGroup } from "reactstrap";
 import { FaXTwitter } from "react-icons/fa6";
@@ -7,8 +7,6 @@ import { AiOutlineTikTok } from "react-icons/ai";
 import { TiCameraOutline } from "react-icons/ti";
 import { CiFacebook } from "react-icons/ci";
 import { AiOutlineBank } from "react-icons/ai";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "../../firebase.config";
 import { NigerianStates } from "../../services/states";
 import { BiSolidImageAdd } from "react-icons/bi";
 import { PiIdentificationCardThin } from "react-icons/pi";
@@ -21,8 +19,18 @@ import ProgressBar from "./ProgressBar";
 import toast from "react-hot-toast"; // Import from react-hot-toast
 import { RotatingLines } from "react-loader-spinner";
 import LocationPicker from "../../components/Location/LocationPicker";
+import NativePickerField from "../../components/Form/NativePickerField";
+import AppBottomSheet from "../../components/layout/AppBottomSheet";
+import {
+  checkVendorShopName,
+  getVendorOnboardingErrorMessage,
+  resolveVendorBankAccount,
+} from "../../services/vendorOnboarding";
+import { appHaptics } from "../../services/haptics";
 
 import { GoChevronLeft, GoTrash } from "react-icons/go";
+import { FiX } from "react-icons/fi";
+import NativeImageInput from "../../components/Inputs/NativeImageInput";
 import { BsBasket, BsStack } from "react-icons/bs";
 import { IoIosClock } from "react-icons/io";
 const VirtualVendor = ({
@@ -43,8 +51,10 @@ const VirtualVendor = ({
   handleIdVerificationChange,
   idImage,
   handleIdImageUpload,
+  handleRemoveIdImage,
   handleProfileCompletion,
   handleImageUpload,
+  handleRemoveCoverImage,
   handleSocialMediaChange,
   stockpile,
 
@@ -63,6 +73,8 @@ const VirtualVendor = ({
   isIdImageUploading,
   isLoading,
 }) => {
+  const [descriptionInfoOpen, setDescriptionInfoOpen] = useState(false);
+
   const isValidURL = (string) => {
     try {
       // Automatically prepend 'https://' if missing
@@ -88,11 +100,15 @@ const VirtualVendor = ({
         return false;
       }
       if (!vendorData.Address) {
-        toast.error("Please fill in Address");
+        toast.error("Please choose your delivery address");
         return false;
       }
       if (vendorData.categories.length === 0) {
         toast.error("Please select at least one category");
+        return false;
+      }
+      if (!vendorData.description?.trim()) {
+        toast.error("Please add a brand description");
         return false;
       }
       if (!vendorData.coverImageUrl) {
@@ -156,22 +172,17 @@ const VirtualVendor = ({
     return true;
   };
 
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [shopNameLoading, setShopNameLoading] = useState(false); // Loader for shop name
   const [isShopNameTaken, setIsShopNameTaken] = useState(false);
   const [isShopNameAvailable, setIsShopNameAvailable] = useState(false);
-  const [showStateDropdown, setShowStateDropdown] = useState(false);
-  const [stateSearchTerm, setStateSearchTerm] = useState(""); // For state search input
-  const [categorySearchTerm, setCategorySearchTerm] = useState(""); // For category search input
-
-  const [selectedState, setSelectedState] = useState("");
-  // const [banks, setBanks] = useState([]);
   const [isResolving, setIsResolving] = useState(false); // Loader for account resolution
-
-  const [searchBankTerm, setSearchBankTerm] = useState(""); // For bank search input
-
-  const filteredBanks = banks.filter((bank) =>
-    bank.name.toLowerCase().includes(searchBankTerm.toLowerCase())
+  const accountResolutionGenerationRef = useRef(0);
+  const shopNameGenerationRef = useRef(0);
+  useEffect(
+    () => () => {
+      accountResolutionGenerationRef.current += 1;
+    },
+    []
   );
   // Remember previous stockpile choice and weeks when user returns to Step 5
   useEffect(() => {
@@ -196,50 +207,123 @@ const VirtualVendor = ({
       .join(" ");
   };
   const handleStateChange = (state) => {
-    setSelectedState(state);
+    setVendorData((current) => ({ ...current, state }));
+  };
 
-    // Update vendorData with the new state
-    setVendorData({
-      ...vendorData,
-      state: state,
-    });
+  const runAccountResolution = async (accountNumber, bank) => {
+    if (accountNumber.length !== 10 || !bank?.code) return;
+    const generation = ++accountResolutionGenerationRef.current;
+    setIsResolving(true);
+    setBankDetails((current) => ({ ...current, accountName: "", error: "" }));
 
-    // Close the state dropdown
-    setShowStateDropdown(false);
+    try {
+      const { accountName } = await resolveVendorBankAccount({
+        accountNumber,
+        bankCode: bank.code,
+      });
+      if (generation !== accountResolutionGenerationRef.current) return;
+      setBankDetails((current) => ({
+        ...current,
+        accountName,
+        error: "",
+      }));
+      void appHaptics.success();
+      toast.success("Account resolved successfully");
+    } catch (error) {
+      if (generation !== accountResolutionGenerationRef.current) return;
+      const message = getVendorOnboardingErrorMessage(
+        error,
+        "We couldn’t verify that account. Check the details and try again."
+      );
+      console.error("[VendorProfile] Account resolution failed", {
+        code: error?.code || "unknown",
+        status: error?.status || null,
+      });
+      setBankDetails((current) => ({
+        ...current,
+        accountName: "",
+        error: message,
+      }));
+      toast.error(message);
+    } finally {
+      if (generation === accountResolutionGenerationRef.current) {
+        setIsResolving(false);
+      }
+    }
+  };
+
+  const handleBankSelection = (bankCode) => {
+    const bank = banks.find((candidate) => candidate.code === bankCode);
+    if (!bank) return;
+
+    accountResolutionGenerationRef.current += 1;
+    setIsResolving(false);
+    setSelectedBank(bank);
+    setBankDetails((current) => ({
+      ...current,
+      bankName: bank.name,
+      bankCode: bank.code,
+      accountName: "",
+      error: "",
+    }));
+
+    if (bankDetails.accountNumber?.length === 10) {
+      void runAccountResolution(bankDetails.accountNumber, bank);
+    }
+  };
+
+  const handleAccountNumberChange = (event) => {
+    const accountNumber = event.target.value;
+    if (!/^\d*$/.test(accountNumber) || accountNumber.length > 10) return;
+
+    accountResolutionGenerationRef.current += 1;
+    setIsResolving(false);
+    setBankDetails((current) => ({
+      ...current,
+      accountNumber,
+      accountName: "",
+      error: "",
+    }));
+
+    if (accountNumber.length === 10 && selectedBank) {
+      void runAccountResolution(accountNumber, selectedBank);
+    }
   };
   useEffect(() => {
-    const checkShopNameAvailability = async () => {
-      const shopName = toTitleCase(vendorData.shopName.trim()); // Convert to title case
+    const shopName = toTitleCase(vendorData.shopName.trim());
+    const generation = ++shopNameGenerationRef.current;
+    if (shopName.length < 2) {
+      setShopNameLoading(false);
+      setIsShopNameTaken(false);
+      setIsShopNameAvailable(false);
+      return undefined;
+    }
 
-      if (shopName.length >= 2) {
-        setShopNameLoading(true);
-        setIsShopNameTaken(false);
-        setIsShopNameAvailable(false);
-
-        try {
-          const q = query(
-            collection(db, "vendors"),
-            where("shopName", "==", shopName) // Query in title case
-          );
-          const querySnapshot = await getDocs(q);
-
-          if (!querySnapshot.empty) {
-            setIsShopNameTaken(true);
-          } else {
-            setIsShopNameAvailable(true);
+    setShopNameLoading(true);
+    setIsShopNameTaken(false);
+    setIsShopNameAvailable(false);
+    const timeout = window.setTimeout(() => {
+      checkVendorShopName(shopName)
+        .then(({ available }) => {
+          if (generation !== shopNameGenerationRef.current) return;
+          setIsShopNameTaken(!available);
+          setIsShopNameAvailable(Boolean(available));
+        })
+        .catch((error) => {
+          if (generation !== shopNameGenerationRef.current) return;
+          setIsShopNameAvailable(false);
+          console.error("[VendorOnboarding] Shop-name check failed", {
+            code: error?.code || "unknown",
+          });
+        })
+        .finally(() => {
+          if (generation === shopNameGenerationRef.current) {
+            setShopNameLoading(false);
           }
-        } catch (error) {
-          console.error("Error checking shop name availability:", error);
-        } finally {
-          setShopNameLoading(false);
-        }
-      } else {
-        setIsShopNameTaken(false);
-        setIsShopNameAvailable(false);
-      }
-    };
+        });
+    }, 450);
 
-    checkShopNameAvailability();
+    return () => window.clearTimeout(timeout);
   }, [vendorData.shopName]);
 
   const isFormComplete = () => {
@@ -251,6 +335,7 @@ const VirtualVendor = ({
         // vendorData.phoneNumber &&
         // vendorData.phoneNumber.length === 11 &&
         vendorData.categories.length > 0 &&
+        vendorData.description?.trim() &&
         vendorData.coverImageUrl &&
         (vendorData.socialMediaHandle.instagram ||
           vendorData.socialMediaHandle.facebook ||
@@ -284,40 +369,11 @@ const VirtualVendor = ({
 
     // Step 6 is ID verification
     if (step === 6) {
-      return idVerification && idImage;
+      return idVerification && (idImage || vendorData.idUploaded);
     }
 
     return false;
   };
-
-  // Filter categories based on the search input
-  const filteredCategories = categories.filter((category) =>
-    category.toLowerCase().includes(categorySearchTerm.toLowerCase())
-  );
-  // Remove the hardcoded accountNumber and use state
-
-  // Debugging resolveBankName function
-  useEffect(() => {
-    const handleOutsideClick = (event) => {
-      if (!event.target.closest(".dropdown-container")) {
-        setShowBankDropdown(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, []);
-  useEffect(() => {
-    const handleOutsideClick = (event) => {
-      if (!event.target.closest(".category-dropdown")) {
-        setShowCategoryDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
-  }, []);
 
   return (
     <div>
@@ -349,57 +405,12 @@ const VirtualVendor = ({
                   name="shopName"
                   placeholder="Brand Name"
                   value={vendorData.shopName}
-                  onChange={async (e) => {
-                    const toTitleCase = (str) =>
-                      str
-                        .toLowerCase()
-                        .split(" ")
-                        .map(
-                          (word) => word.charAt(0).toUpperCase() + word.slice(1)
-                        )
-                        .join(" ");
-
-                    // Format the input value to title case
-                    const formattedShopName = toTitleCase(e.target.value);
-
-                    // Update the state with the formatted shop name
-                    setVendorData({
-                      ...vendorData,
-                      shopName: formattedShopName,
-                    });
-
-                    // Validate shop name availability
-                    if (formattedShopName.length >= 2) {
-                      try {
-                        setShopNameLoading(true);
-
-                        // Query Firestore for the formatted shop name
-                        const q = query(
-                          collection(db, "vendors"),
-                          where("shopName", "==", formattedShopName)
-                        );
-                        const querySnapshot = await getDocs(q);
-
-                        if (!querySnapshot.empty) {
-                          setIsShopNameTaken(true);
-                          setIsShopNameAvailable(false);
-                        } else {
-                          setIsShopNameTaken(false);
-                          setIsShopNameAvailable(true);
-                        }
-                      } catch (error) {
-                        console.error(
-                          "Error checking shop name availability:",
-                          error
-                        );
-                      } finally {
-                        setShopNameLoading(false);
-                      }
-                    } else {
-                      setIsShopNameTaken(false);
-                      setIsShopNameAvailable(false);
-                    }
-                  }}
+                  onChange={(event) =>
+                    setVendorData((current) => ({
+                      ...current,
+                      shopName: toTitleCase(event.target.value),
+                    }))
+                  }
                   className={`w-full h-12 p-3 border-2 font-opensans text-neutral-800 rounded-lg hover:border-customOrange focus:outline-none focus:border-customOrange ${
                     isShopNameTaken
                       ? "border-red-500"
@@ -437,182 +448,128 @@ const VirtualVendor = ({
                 )}
               </FormGroup>
 
-              <div className="mb-2">
+              <div className="mb-3">
+                <label className="mb-1 block text-sm font-medium text-gray-800">
+                  Delivery address
+                </label>
+                <p className="mb-2 text-xs leading-5 text-gray-600">
+                  Add the address where our logistics partners should collect
+                  customer orders from your store.
+                </p>
                 <LocationPicker
-                  // you can pass an initial value if you like:
                   initialAddress={vendorData.Address}
+                  initialCoords={vendorData.location}
                   onLocationSelect={({ address, lat, lng }) => {
-                    setVendorData({
-                      ...vendorData,
-                      Address: address, // human‑readable
-                      location: { lat, lng }, // numeric coords
-                    });
+                    setVendorData((current) => ({
+                      ...current,
+                      Address: address,
+                      location: { lat, lng },
+                    }));
                   }}
                 />
               </div>
 
-              <div className="relative">
+              <div className="mb-3">
+                <NativePickerField
+                  name="state"
+                  title="Choose a State"
+                  placeholder="Choose a State"
+                  value={vendorData.state || ""}
+                  options={NigerianStates}
+                  onChange={handleStateChange}
+                  className="min-h-12 rounded-lg border-2 px-3 font-opensans"
+                />
+              </div>
+
+              <div className="mb-3">
+                <NativePickerField
+                  name="categories"
+                  title="Choose one or more categories"
+                  placeholder="Choose one or more categories"
+                  value={vendorData.categories}
+                  options={categories}
+                  onChange={(nextCategories) =>
+                    setVendorData((current) => ({
+                      ...current,
+                      categories: nextCategories,
+                    }))
+                  }
+                  multiple
+                  className="min-h-12 rounded-lg border-2 p-3 font-opensans"
+                />
+                <p className="mt-1.5 text-xs leading-5 text-gray-600">
+                  You can select multiple categories. Tap Done when you have
+                  selected everything your store sells.
+                </p>
+              </div>
+
+              <div className="mb-1 flex items-center justify-between">
+                <label
+                  htmlFor="vendor-store-description"
+                  className="text-sm font-medium text-gray-800"
+                >
+                  Store description
+                </label>
                 <button
                   type="button"
                   onClick={() => {
-                    setShowStateDropdown(!showStateDropdown);
-                    setShowCategoryDropdown(false); // Close category dropdown
+                    void appHaptics.selection();
+                    setDescriptionInfoOpen(true);
                   }}
-                  className="w-full h-12 mb-3 p-3 border-2 rounded-lg bg-white font-opensans text-left flex items-center justify-between"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-customOrange"
+                  aria-label="Why your store description matters"
                 >
-                  {selectedState ? (
-                    <span className="text-neutral-800">{selectedState}</span>
-                  ) : (
-                    <span className="text-neutral-400">Choose a State</span>
-                  )}
-                  <svg
-                    className="fill-current h-4 w-4 text-neutral-400"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 1 1 1.06 1.06l-5.015 5.015a.75.75 0 0 1-1.06 0l-5.015-5.015a.75.75 0 1 1 1.06-1.06z" />
-                  </svg>
+                  <FaInfoCircle className="h-5 w-5" />
                 </button>
-
-                {showStateDropdown && (
-                  <div className="absolute w-full text-neutral-400 bg-white border rounded-lg z-10">
-                    <div className="p-2">
-                      <input
-                        type="text"
-                        value={stateSearchTerm}
-                        onChange={(e) => setStateSearchTerm(e.target.value)}
-                        placeholder="Search states..."
-                        className="w-full p-2 border rounded-lg focus:outline-none focus:border-customOrange"
-                      />
-                    </div>
-
-                    <div className="max-h-60 overflow-y-auto">
-                      {NigerianStates.filter((state) =>
-                        state
-                          .toLowerCase()
-                          .includes(stateSearchTerm.toLowerCase())
-                      ).map((state, index) => (
-                        <div
-                          key={index}
-                          className="p-2 h-12 cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleStateChange(state)} // Close dropdown when state is selected
-                        >
-                          <span className="text-neutral-800">{state}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
-
-              <div className="relative category-dropdown">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCategoryDropdown(!showCategoryDropdown);
-                    setShowStateDropdown(false); // Close state dropdown
-                  }}
-                  className={`w-full p-3 border-2 mb-3  rounded-lg bg-white font-opensans text-left flex items-center justify-between`}
-                  style={{
-                    minHeight: "3rem", // Ensure the minimum height remains consistent
-                    flexWrap: "wrap", // Allow wrapping of content
-                    alignItems: "flex-start", // Align items to the top for proper wrapping
-                  }}
-                >
-                  {vendorData.categories.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {vendorData.categories.map((category, index) => (
-                        <span
-                          key={index}
-                          className="bg-customOrange text-white text-xs rounded-full px-2 py-1"
-                        >
-                          {category}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-neutral-400">
-                      Select Brand Category
-                    </span>
-                  )}
-                  <svg
-                    className="fill-current h-4 w-4 text-neutral-400"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 1 1 1.06 1.06l-5.015 5.015a.75.75 0 0 1-1.06 0l-5.015-5.015a.75.75 0 1 1 1.06-1.06z" />
-                  </svg>
-                </button>
-
-                {showCategoryDropdown && (
-                  <div className="absolute w-full text-neutral-400 bg-white border rounded-lg category-dropdown z-10">
-                    {/* Search Input */}
-                    <div className="p-2">
-                      <input
-                        type="text"
-                        value={categorySearchTerm}
-                        onChange={(e) => setCategorySearchTerm(e.target.value)}
-                        placeholder="Search categories..."
-                        className="w-full p-2 border rounded-lg focus:outline-none focus:border-customOrange"
-                      />
-                    </div>
-
-                    {/* Categories List */}
-                    <div className="max-h-60 overflow-y-auto">
-                      {filteredCategories.length > 0 ? (
-                        filteredCategories.map((category, index) => (
-                          <div key={index} className="p-2 h-12">
-                            <label className="flex items-center">
-                              <input
-                                type="checkbox"
-                                value={category}
-                                checked={vendorData.categories.includes(
-                                  category
-                                )}
-                                onChange={(e) => {
-                                  const newCategories = [
-                                    ...vendorData.categories,
-                                  ];
-                                  if (e.target.checked) {
-                                    newCategories.push(category);
-                                  } else {
-                                    const idx = newCategories.indexOf(category);
-                                    if (idx > -1) {
-                                      newCategories.splice(idx, 1);
-                                    }
-                                  }
-                                  setVendorData({
-                                    ...vendorData,
-                                    categories: newCategories,
-                                  });
-                                }}
-                                className="mr-2 appearance-none h-4 w-4 border border-gray-300 checked:bg-customOrange checked:border-customOrange focus:outline-none focus:ring-2 focus:ring-customOrange focus:ring-opacity-50 rounded-lg"
-                              />
-                              <span className="text-neutral-800">
-                                {category}
-                              </span>
-                            </label>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-2 text-sm text-gray-500">
-                          No categories found
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
               <input
+                id="vendor-store-description"
                 type="text"
                 name="description"
-                placeholder="Brand Description"
+                placeholder="Describe your store"
                 value={vendorData.description}
-                onFocus={() => setShowCategoryDropdown(false)}
                 onChange={handleInputChange}
                 className="w-full h-12 mb-4 p-3 border-2 font-opensans text-black rounded-lg focus:outline-none focus:border-customOrange hover:border-customOrange"
               />
+
+              <AppBottomSheet
+                open={descriptionInfoOpen}
+                onClose={() => setDescriptionInfoOpen(false)}
+                height="42dvh"
+                ariaLabel="Why your store description matters"
+                compactTop
+                zIndex={5300}
+              >
+                <div className="flex min-h-0 flex-1 flex-col pt-5 font-satoshi">
+                  <header className="flex items-center justify-between border-b border-gray-100 px-4 pb-3">
+                    <span className="h-9 w-9" aria-hidden="true" />
+                    <h2 className="text-center text-base font-semibold text-gray-950">
+                      Your store description
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => setDescriptionInfoOpen(false)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-800"
+                      aria-label="Close description information"
+                    >
+                      <FiX className="h-5 w-5" />
+                    </button>
+                  </header>
+                  <div className="overflow-y-auto px-5 pb-6 pt-4 text-sm leading-6 text-gray-700">
+                    <p>
+                      This description appears on your public storefront. Use
+                      it to tell customers what you sell, your style, and what
+                      makes your store different.
+                    </p>
+                    <p className="mt-3">
+                      A clear and specific description builds trust, helps
+                      customers understand your catalogue, and can make your
+                      store easier to discover. Avoid filler, unrelated text,
+                      or claims that could mislead customers.
+                    </p>
+                  </div>
+                </div>
+              </AppBottomSheet>
               {/* Categories */}
               {/* Social Media */}
               <h3 className="text-md font-semibold mb-1 font-opensans flex items-center">
@@ -620,8 +577,8 @@ const VirtualVendor = ({
                 Social Media
               </h3>
               <h4 className="font-opensans text-gray-700 mb-3 text-xs">
-                Your social media handles are collected for security reasons
-                best known to us(minimum of one link must be attached).
+                Add at least one active social media link. We need it to review
+                and verify your vendor application.
               </h4>
               <div className="relative w-full mb-4">
                 {/* Instagram Icon */}
@@ -707,10 +664,7 @@ const VirtualVendor = ({
               </h3>
               <div className="border-2 border-dashed border-customBrown rounded-lg h-48 w-full text-center mb-6">
                 <div
-                  className={`w-full h-full flex items-center justify-center cursor-pointer relative`}
-                  onClick={() =>
-                    document.getElementById("shopImageUpload").click()
-                  }
+                  className="relative flex h-full w-full items-center justify-center"
                 >
                   {vendorData.coverImageUrl ? (
                     <>
@@ -724,30 +678,30 @@ const VirtualVendor = ({
                         className="absolute top-2 right-2 bg-customBrown text-white rounded-full p-1"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setVendorData((prev) => ({
-                            ...prev,
-                            coverImageUrl: null,
-                          })); // Clear the image URL
-                          // Optionally, delete the image from Firebase Storage here
+                          void handleRemoveCoverImage();
                         }}
                       >
                         <GoTrash className="h-4 w-4" />
                       </button>
                     </>
                   ) : (
-                    <div className="p-12 flex flex-col justify-center items-center text-center">
+                    <button
+                      type="button"
+                      className="flex h-full w-full flex-col items-center justify-center p-12 text-center"
+                      onClick={() =>
+                        document.getElementById("shopImageUpload")?.click()
+                      }
+                      disabled={isCoverImageUploading}
+                    >
                       <BiSolidImageAdd
                         size={60}
                         className="mb-4 text-customOrange opacity-40"
                       />
-                      <label
-                        htmlFor="shopImageUpload"
-                        className="text-orange-500 font-light font-opensans text-xs cursor-pointer"
-                      >
+                      <span className="text-xs font-light text-orange-500">
                         Upload shop image here. Image must be clear and not more
                         than 3MB.
-                      </label>
-                    </div>
+                      </span>
+                    </button>
                   )}
                   {/* Loader overlay when uploading */}
                   {isCoverImageUploading && (
@@ -763,16 +717,16 @@ const VirtualVendor = ({
                   )}
                 </div>
 
-                <input
-                  type="file"
+                <NativeImageInput
                   id="shopImageUpload"
                   className="hidden"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={(e) => handleImageUpload(e)}
                 />
               </div>
               <motion.button
                 type="button"
-                className={`w-full h-12 text-white rounded-full ${
+                className={`w-full h-12 text-white rounded-md ${
                   isFormComplete()
                     ? "bg-customOrange"
                     : "bg-customOrange opacity-50"
@@ -807,42 +761,20 @@ const VirtualVendor = ({
                 >
                   Select Bank
                 </label>
-                <select
+                <NativePickerField
                   id="bank-select"
                   name="bankName"
+                  title="Select Bank"
+                  placeholder="Select Bank"
                   value={bankDetails.bankCode || ""}
-                  onChange={(e) => {
-                    const selectedBankCode = e.target.value;
-                    console.log("Selected Bank Code:", selectedBankCode); // Log the selected bank code
-
-                    const selectedBank = banks.find(
-                      (bank) => bank.code === selectedBankCode
-                    );
-
-                    if (selectedBank) {
-                      console.log("Selected Bank Details:", selectedBank); // Log the selected bank object
-
-                      // Update bank details state directly
-                      setBankDetails({
-                        ...bankDetails,
-                        bankName: selectedBank.name,
-                        bankCode: selectedBank.code, // Update bankCode as well
-                      });
-
-                      setSelectedBank(selectedBank); // Optional: Set selected bank for further use
-                    }
-                  }}
-                  className="w-full h-12 px-3 border-2 rounded-lg font-opensans text-gray-800 hover:border-customOrange focus:outline-none focus:border-customOrange"
-                >
-                  <option value="" disabled>
-                    Select Bank
-                  </option>
-                  {banks.map((bank) => (
-                    <option key={bank.code} value={bank.code}>
-                      {bank.name}
-                    </option>
-                  ))}
-                </select>
+                  options={banks.map((bank) => ({
+                    label: bank.name,
+                    value: bank.code,
+                  }))}
+                  onChange={handleBankSelection}
+                  disabled={isResolving}
+                  className="h-12 rounded-lg border-2 px-3 font-opensans text-gray-800 hover:border-customOrange focus:border-customOrange"
+                />
               </div>
 
               {/* Account Number Field */}
@@ -851,95 +783,9 @@ const VirtualVendor = ({
                   type="text"
                   name="accountNumber"
                   value={bankDetails.accountNumber || ""}
-                  onChange={async (e) => {
-                    const value = e.target.value;
-
-                    console.log(`Account Number Entered: ${value}`); // Log the entered value
-
-                    if (/^\d*$/.test(value) && value.length <= 10) {
-                      setBankDetails((prevDetails) => ({
-                        ...prevDetails,
-                        accountNumber: value,
-                        ...(value.length < 10
-                          ? {
-                              accountName: "",
-                              error: "",
-                            }
-                          : {}),
-                      }));
-
-                      if (value.length === 10 && selectedBank) {
-                        console.log(
-                          `Starting API call with account number: ${value}`
-                        );
-                        console.log(`Selected Bank Code: ${selectedBank.code}`);
-
-                        const token = import.meta.env.VITE_RESOLVE_TOKEN;
-                        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-                        const accountNumber = value;
-
-                        try {
-                          setIsResolving(true);
-
-                          // Build URL using query parameters
-                          const url = `${API_BASE_URL}/resolve-account?accountNumber=${accountNumber}&bankCode=${selectedBank.code}`;
-                          console.log(`API URL: ${url}`);
-
-                          const res = await fetch(url, {
-                            method: "GET",
-                            headers: {
-                              Authorization: `Bearer ${token}`,
-                              Accept: "application/json",
-                            },
-                          });
-
-                          const json = await res.json();
-                          console.log("API Response:", json);
-
-                          // guard for all the nested levels
-                          if (
-                            res.ok &&
-                            json.status === true &&
-                            json.data?.data?.account_name
-                          ) {
-                            const accountName = json.data.data.account_name;
-
-                            console.log("Resolved Account Name:", accountName);
-                            setBankDetails((prev) => ({
-                              ...prev,
-                              accountName,
-                              error: "",
-                            }));
-                            toast.success("Account resolved successfully");
-                          } else {
-                            console.error(
-                              `API Error: ${data.message || "Invalid response"}`
-                            );
-                            setBankDetails((prevDetails) => ({
-                              ...prevDetails,
-                              accountName: "",
-                              error: data.message || "Invalid account number.",
-                            }));
-                            toast.error(
-                              data.message || "Failed to resolve account number"
-                            );
-                          }
-                        } catch (error) {
-                          console.error(`Error during API call:`, error);
-                          toast.error(
-                            "Error resolving account number. Please try again."
-                          );
-                          setBankDetails((prevDetails) => ({
-                            ...prevDetails,
-                            accountName: "",
-                            error: "Error resolving account number.",
-                          }));
-                        } finally {
-                          setIsResolving(false);
-                        }
-                      }
-                    }
-                  }}
+                  onChange={handleAccountNumberChange}
+                  inputMode="numeric"
+                  autoComplete="off"
                   placeholder="Enter Account Number (10 digits)"
                   disabled={isResolving}
                   className="w-full h-12 px-3 pr-10 border-2 font-opensans text-neutral-800 rounded-lg hover:border-customOrange focus:outline-none focus:border-customOrange mb-1"
@@ -985,7 +831,7 @@ const VirtualVendor = ({
               <div className="mt-4">
                 <motion.button
                   type="button"
-                  className={`w-11/12 h-12 fixed bottom-6 left-0 right-0 mx-auto flex justify-center items-center text-white rounded-full ${
+                  className={`vendor-onboarding-action w-11/12 h-12 fixed left-0 right-0 mx-auto flex justify-center items-center text-white rounded-md ${
                     bankDetails.accountName && selectedBank && !isResolving
                       ? "bg-customOrange"
                       : "bg-customOrange opacity-50 cursor-not-allowed"
@@ -1021,9 +867,11 @@ const VirtualVendor = ({
               {/* Delivery Mode Options */}
               <div className="">
                 {/* Delivery Option - Selectable */}
-                <div
+                <button
+                  type="button"
                   onClick={() => handleDeliveryModeChange("Delivery")}
-                  className={`border-0 p-2 mb-4 rounded-lg cursor-pointer flex justify-between items-center ${
+                  aria-pressed={deliveryMode === "Delivery"}
+                  className={`mb-4 flex w-full items-center justify-between rounded-md border-0 p-2 text-left ${
                     deliveryMode === "Delivery"
                       ? "border-customOrange"
                       : "border-gray-200"
@@ -1041,12 +889,14 @@ const VirtualVendor = ({
                       <div className="w-3 h-3 rounded-full bg-orange-500" />
                     )}
                   </div>
-                </div>
+                </button>
 
                 {/* Delivery & Pickup Option */}
-                <div
+                <button
+                  type="button"
                   onClick={() => handleDeliveryModeChange("Delivery & Pickup")}
-                  className={`p-2  rounded-lg cursor-pointer flex justify-between items-center  ${
+                  aria-pressed={deliveryMode === "Delivery & Pickup"}
+                  className={`flex w-full items-center justify-between rounded-md p-2 text-left ${
                     deliveryMode === "Delivery & Pickup"
                   }`}
                 >
@@ -1065,7 +915,7 @@ const VirtualVendor = ({
                       <div className="w-3 h-3 rounded-full bg-customOrange" />
                     )}
                   </div>
-                </div>
+                </button>
                 {deliveryMode === "Delivery & Pickup" && (
                   <div className="mt-2 px-2">
                     <p className="font-opensans text-xs text-gray-700 mb-2">
@@ -1093,6 +943,10 @@ const VirtualVendor = ({
 
                     <LocationPicker
                       initialAddress={vendorData.pickupAddress}
+                      initialCoords={{
+                        lat: vendorData.pickupLat,
+                        lng: vendorData.pickupLng,
+                      }}
                       onLocationSelect={({ address, lat, lng }) =>
                         setVendorData({
                           ...vendorData,
@@ -1108,7 +962,7 @@ const VirtualVendor = ({
 
               <motion.button
                 type="button"
-                className={`w-11/12 h-12 fixed bottom-6 left-0 right-0 mx-auto flex justify-center items-center text-white font-opensans rounded-full ${
+                className={`vendor-onboarding-action w-11/12 h-12 fixed left-0 right-0 mx-auto flex justify-center items-center text-white font-opensans rounded-md ${
                   deliveryMode &&
                   (deliveryMode !== "Delivery & Pickup" ||
                     (vendorData.pickupAddress &&
@@ -1163,7 +1017,7 @@ const VirtualVendor = ({
                     <button
                       type="button"
                       onClick={() => handleStockpileChoice(true)} // enables & goes to weeks
-                      className={`px-4 py-2 font-opensans font-medium rounded-full border ${
+                      className={`rounded-md border px-4 py-2 font-opensans font-medium ${
                         stockpile?.enabled ?? vendorData?.stockpile?.enabled
                           ? "bg-customOrange text-white border-customOrange"
                           : "bg-gray-100 text-gray-700 border-gray-200"
@@ -1178,7 +1032,7 @@ const VirtualVendor = ({
                         handleStockpileChoice(false); // disables and goes next
                         setDuration(null);
                       }}
-                      className={`px-4 py-2 font-opensans font-medium rounded-full border ${
+                      className={`rounded-md border px-4 py-2 font-opensans font-medium ${
                         stockpile?.enabled ?? vendorData?.stockpile?.enabled
                           ? "bg-gray-100 text-gray-700 border-gray-200"
                           : "bg-customOrange text-white border-customOrange"
@@ -1198,9 +1052,11 @@ const VirtualVendor = ({
                   </h2>
                   <div className="grid grid-cols-2 gap-4 mt-10 mb-6">
                     {[2, 4, 6, 8].map((week) => (
-                      <label
+                      <button
+                        type="button"
                         key={week}
-                        className={`cursor-pointer px-4 py-3  font-opensans rounded-xl border text-sm font-medium ${
+                        aria-pressed={duration === week}
+                        className={`rounded-md border px-4 py-3 font-opensans text-sm font-medium ${
                           duration === week
                             ? "bg-customOrange text-white"
                             : "bg-gray-100 text-gray-700"
@@ -1208,7 +1064,7 @@ const VirtualVendor = ({
                         onClick={() => setDuration(week)}
                       >
                         {week} weeks
-                      </label>
+                      </button>
                     ))}
                   </div>
                   <button
@@ -1218,7 +1074,7 @@ const VirtualVendor = ({
                       handleValidation(); // then advance
                     }}
                     disabled={!duration}
-                    className={`w-full py-3 relative text-sm font-opensans -bottom-28 rounded-full font-medium ${
+                    className={`w-full py-3 relative text-sm font-opensans -bottom-28 rounded-md font-medium ${
                       duration
                         ? "bg-customOrange text-white"
                         : "bg-gray-300 text-gray-200 cursor-not-allowed"
@@ -1246,28 +1102,21 @@ const VirtualVendor = ({
                 ID Verification
               </h3>
               <div className="relative mb-2 font-opensans">
-                <select
+                <NativePickerField
                   name="idVerification"
+                  title="Select Verification Document"
+                  placeholder="Select Verification Document"
                   value={idVerification}
                   onChange={handleIdVerificationChange}
-                  className="w-full h-10 px-4 pr-10 border border-gray-300 rounded-lg bg-white text-gray-700 text-left appearance-none focus:outline-none focus:ring-2 focus:ring-customOrange"
-                  style={{
-                    backgroundImage:
-                      "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23666666%22 viewBox=%220 0 20 20%22><path d=%22M5.516 7.548l4.486 4.486 4.485-4.486a.75.75 0 01 1.06 1.06l-5.015 5.015a.75.75 0 01-1.06 0l-5.015-5.015a.75.75 0 01-1.06-1.06z%22 /></svg>')",
-                    backgroundPosition: "right 1rem center",
-                    backgroundRepeat: "no-repeat",
-                    backgroundSize: "1rem",
-                  }}
-                >
-                  <option value="">Select Verification Document</option>
-                  <option value="NIN">NIN</option>
-                  <option value="International Passport">
-                    International Passport
-                  </option>
-                  <option value="CAC">CAC</option>
-                  <option value="School ID">School ID</option>
-                  <option value="Work ID">Work ID</option>
-                </select>
+                  options={[
+                    "NIN",
+                    "International Passport",
+                    "CAC",
+                    "School ID",
+                    "Work ID",
+                  ]}
+                  className="h-11 rounded-lg border border-gray-300 px-4 font-opensans text-gray-700 focus:border-customOrange"
+                />
               </div>
 
               {/* Upload ID */}
@@ -1275,15 +1124,20 @@ const VirtualVendor = ({
                 <TiCameraOutline className="w-5 h-5 mr-2 text-black" />
                 Upload ID
               </h3>
+              <div
+                className="mb-4 rounded-md border border-orange-200 bg-orange-50 p-3 text-xs leading-5 text-gray-800"
+                role="note"
+              >
+                Every ID is reviewed manually. Upload a valid ID that belongs to
+                you. False, altered or incorrect documents may result in a
+                permanent vendor ban and the application will not be reviewed
+                again. NIN, passport, CAC, school ID and work ID are accepted.
+              </div>
               <div className="border-2 border-customBrown border-dashed rounded-lg h-48 w-full text-center mb-6">
                 {idImage ? (
                   <div className="relative w-full h-full">
                     <img
-                      src={
-                        typeof idImage === "string"
-                          ? idImage // Use the URL string directly
-                          : URL.createObjectURL(idImage) // Create a URL for the File object
-                      }
+                      src={idImage}
                       alt="Uploaded ID"
                       className="w-full h-full object-cover rounded-lg"
                     />
@@ -1303,14 +1157,27 @@ const VirtualVendor = ({
                       <button
                         type="button"
                         className="absolute top-2 right-2 bg-customBrown text-white rounded-full p-1"
-                        onClick={() => {
-                          setIdImage(null); // Clear the image state
-                          setVendorData({ ...vendorData, idImage: null }); // Also clear it from vendorData
-                        }}
+                        onClick={() => void handleRemoveIdImage()}
+                        aria-label="Remove uploaded ID"
                       >
                         <GoTrash className="h-4 w-4" />
                       </button>
                     )}
+                  </div>
+                ) : vendorData.idUploaded ? (
+                  <div className="relative flex h-full w-full flex-col items-center justify-center rounded-lg bg-green-50 px-8">
+                    <FaCheckCircle className="mb-3 text-4xl text-green-600" />
+                    <p className="text-sm font-medium text-green-800">
+                      ID uploaded securely and ready for review
+                    </p>
+                    <button
+                      type="button"
+                      className="absolute right-2 top-2 rounded-full bg-customBrown p-1 text-white"
+                      onClick={() => void handleRemoveIdImage()}
+                      aria-label="Remove uploaded ID"
+                    >
+                      <GoTrash className="h-4 w-4" />
+                    </button>
                   </div>
                 ) : (
                   <div className="border-dashed rounded-lg h-48 w-full text-center border-opacity-20 mb-6 flex flex-col justify-center items-center">
@@ -1335,11 +1202,11 @@ const VirtualVendor = ({
                           />
                         </label>
 
-                        <input
-                          type="file"
-                          className="hidden"
+                          <NativeImageInput
+                            className="hidden"
                           onChange={handleIdImageUpload}
                           id="idImageUpload"
+                          accept="image/jpeg,image/png,image/webp"
                           disabled={isIdImageUploading} // Disable input during upload
                         />
 
@@ -1357,13 +1224,17 @@ const VirtualVendor = ({
 
               <motion.button
                 type="submit"
-                className={`w-11/12 h-12 fixed bottom-6 left-0 right-0 mx-auto flex justify-center font-opensans items-center text-white rounded-full ${
-                  idVerification && idImage
+                className={`vendor-onboarding-action w-11/12 h-12 fixed left-0 right-0 mx-auto flex justify-center font-opensans items-center text-white rounded-md ${
+                  idVerification && (idImage || vendorData.idUploaded)
                     ? "bg-customOrange"
                     : "bg-customOrange opacity-20"
                 }`}
                 onClick={handleProfileCompletion}
-                disabled={!idVerification || !idImage || isLoading} // Disable the button during loading
+                disabled={
+                  !idVerification ||
+                  !(idImage || vendorData.idUploaded) ||
+                  isLoading
+                }
               >
                 {isLoading ? (
                   <RotatingLines

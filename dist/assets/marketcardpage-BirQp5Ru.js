@@ -1,0 +1,1 @@
+import{ae as e,t}from"./index-CHrsVnsK.js";const s=()=>{const{marketName:s}=e();return t.jsx("div",{className:"p-2",children:t.jsx("h1",{className:"font-ubuntu text-xl flex justify-center",children:s})})};export{s as default};

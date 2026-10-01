@@ -1,34 +1,18 @@
-// src/utils/enrichOrders.ts
-import { collection, query, where, getDocs, documentId } from "firebase/firestore";
-import { db } from "../firebase.config";
+import {getOrderProductSnapshots} from "./orderProductSnapshots";
+import {isVariantSizeHidden} from "./productVariantSelection";
 
 export async function enrichWithProductInfo(rawOrders) {
-  // gather all productIds
-  const ids = Array.from(
-    new Set(rawOrders.flatMap(o => o.cartItems.map(i => i.productId)))
-  );
-  if (ids.length === 0) return rawOrders;
-
-  // fetch all those products in one go
-  const prodSnap = await getDocs(
-    query(collection(db, "products"), where(documentId(), "in", ids))
-  );
-  const products = {};
-  prodSnap.forEach(d => (products[d.id] = d.data()));
-
-  // attach name/price/image/color/size into each cartItem
-  return rawOrders.map(order => ({
-    ...order,
-    cartItems: order.cartItems.map(item => {
-      const p = products[item.productId] || {};
-      return {
-        ...item,
-        name: p.name,
-        price: item.price ?? p.price,
-        imageUrl: p.coverImageUrl || p.imageUrls?.[0] || "",
-        color: item.color || item.variantAttributes?.color || p.color || "",
-        size: item.size || item.variantAttributes?.size || p.size || "",
-      };
-    }),
-  }));
+  const products=await getOrderProductSnapshots(rawOrders,{source:"draftOrders"});
+  return rawOrders.map(order=>({...order,cartItems:(order.cartItems || []).map((item,index)=>{
+    const product=products[order.id]?.[index] || item.productSnapshot || {};
+    const hidden=item.variantAttributes?.sizeHidden ?? item.sizeHidden;
+    return {...item,
+      name:item.name || item.productName || product.name || "Product",
+      price:item.unitPrice ?? item.productSnapshot?.price ?? item.price ?? product.price,
+      imageUrl:item.selectedImageUrl || item.imageUrl || item.image || product.imageUrl || product.coverImageUrl || product.imageUrls?.[0] || "",
+      color:item.color || item.variantAttributes?.color || product.color || "",
+      size:item.size || item.variantAttributes?.size || product.size || "",
+      hideSize:typeof hidden==="boolean" ? hidden : isVariantSizeHidden(product),
+    };
+  })}));
 }

@@ -5,8 +5,6 @@ import {
   query,
   where,
   getDocs,
-  updateDoc,
-  doc,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import ReviewModal from "./ReviewModal";
@@ -32,9 +30,14 @@ const WithReviewModal = ({ children }) => {
         );
         const querySnapshot = await getDocs(q);
 
+        const dismissed = new Set(
+          JSON.parse(sessionStorage.getItem("dismissedReviewOrders") || "[]")
+        );
         const deliveredOrders = [];
         querySnapshot.forEach((orderDoc) => {
-          deliveredOrders.push({ id: orderDoc.id, ...orderDoc.data() });
+          if (!dismissed.has(orderDoc.id)) {
+            deliveredOrders.push({ id: orderDoc.id, ...orderDoc.data() });
+          }
         });
 
         // If we found at least one unreviewed delivered order, show the modal for the first
@@ -52,15 +55,16 @@ const WithReviewModal = ({ children }) => {
     fetchDeliveredOrders();
   }, [currentUser]);
 
-  const handleModalClose = async () => {
+  const handleModalClose = () => {
     if (modalOrderId) {
-      try {
-        // Mark that order as reviewed so it won't show again
-        const orderRef = doc(db, "orders", modalOrderId);
-        await updateDoc(orderRef, { isReviewed: true });
-      } catch (error) {
-        console.error("Error updating order review status:", error);
-      }
+      const dismissed = new Set(
+        JSON.parse(sessionStorage.getItem("dismissedReviewOrders") || "[]")
+      );
+      dismissed.add(modalOrderId);
+      sessionStorage.setItem(
+        "dismissedReviewOrders",
+        JSON.stringify(Array.from(dismissed))
+      );
     }
     // Close modal & clear states
     setShowModal(false);

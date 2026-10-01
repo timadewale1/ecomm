@@ -1,4 +1,5 @@
 import { ChevronLeft } from "lucide-react";
+import { siteUrls } from "../../config/siteUrls.mjs";
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { FaFacebookF, FaWhatsapp, FaXTwitter } from "react-icons/fa6";
@@ -6,6 +7,7 @@ import { PiLinkBold } from "react-icons/pi";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import SEO from "../../components/Helmet/SEO";
+import { openExternalUrl } from "../../services/nativeLinks";
 
 const ProfileView = () => {
   const navigate = useNavigate();
@@ -25,9 +27,7 @@ const ProfileView = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData]);
 
-  const profileLink = `https://shopmythrift.store/${
-    userData && (marketPlaceType === "virtual" ? "store" : "marketstorepage")
-  }/${uid}?shared=true`;
+  const profileLink = siteUrls.storeShareUrl({ id: uid });
 
   const [copied, setCopied] = useState(false);
   const copyToClipboard = async () => {
@@ -83,11 +83,10 @@ const ProfileView = () => {
               <button
                 className="flex justify-center items-center bg-white text-customOrange p-3 rounded-full shadow-md w-12 h-12"
                 onClick={() =>
-                  window.open(
+                  openExternalUrl(
                     `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
                       profileLink
                     )}`,
-                    "_blank"
                   )
                 }
               >
@@ -98,11 +97,10 @@ const ProfileView = () => {
               <button
                 className="flex justify-center items-center bg-white text-customOrange p-3 rounded-full shadow-md w-12 h-12"
                 onClick={() =>
-                  window.open(
+                  openExternalUrl(
                     `https://twitter.com/intent/tweet?url=${encodeURIComponent(
                       profileLink
                     )}`,
-                    "_blank"
                   )
                 }
               >
@@ -113,9 +111,8 @@ const ProfileView = () => {
               <button
                 className="flex justify-center items-center bg-white text-customOrange p-3 rounded-full shadow-md w-12 h-12"
                 onClick={() =>
-                  window.open(
+                  openExternalUrl(
                     `https://wa.me/?text=${encodeURIComponent(profileLink)}`,
-                    "_blank"
                   )
                 }
               >

@@ -1,7 +1,7 @@
+import { publicVendorsQuery } from "../../services/publicVendors";
 
 import { useState, useEffect } from "react";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "../../firebase.config";
+import { getDocs } from "firebase/firestore";
 
 const useFetchVendors = () => {
   const [vendors, setVendors] = useState([]);
@@ -10,7 +10,7 @@ const useFetchVendors = () => {
   useEffect(() => {
     const fetchVendors = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, "vendors"));
+        const querySnapshot = await getDocs(publicVendorsQuery());
         const vendorsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setVendors(vendorsList);
       } catch (error) {

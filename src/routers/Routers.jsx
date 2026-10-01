@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
 import Loading from "../components/Loading/Loading.jsx";
 import StockpileNudge from "../components/StockpileNudge.jsx";
 // Non-lazy loaded components (bottom bar routes, Checkout, StorePage)
@@ -46,9 +46,7 @@ const CategoryProduct = lazy(() =>
 );
 
 const VendorVerifyOTP = lazy(() => import("../pages/vendor/VerifyOtp.jsx"));
-const MarketStorePage = lazy(() => import("../pages/MarketStorePage.jsx"));
 const PayPage = lazy(() => import("../pages/UserSide/PayPage.jsx"));
-const Marketpg = lazy(() => import("../pages/Marketpg.jsx"));
 const ResetPassword = lazy(() => import("../pages/UserSide/ResetPassword.jsx"));
 const CompleteProfile = lazy(() =>
   import("../pages/VendorCompleteProfile/CompleteVendorProfile.jsx")
@@ -57,30 +55,36 @@ const NewHome = lazy(() => import("../pages/Homepage.jsx"));
 const EmailVerification = lazy(() =>
   import("../pages/UserSide/ConfirmEmail.jsx")
 );
+const ProductQuestionVerification = lazy(() =>
+  import("../pages/UserSide/VerifyProductQuestion.jsx")
+);
 const LatestCart = lazy(() => import("../pages/Cart.jsx"));
 const OrdersCentre = lazy(() => import("../pages/UserSide/OrdersCentre.jsx"));
 const UserOffers = lazy(() => import("../pages/UserSide/UserOffers.jsx"));
 const UserOfferDetail = lazy(() =>
-  import("../pages/UserSide/UserOfferDetail.jsx")
+  import("../pages/UserSide/LegacyOfferConversationRedirect.jsx")
 );
+const OfferConversation = lazy(() => import("../pages/OfferConversation.jsx"));
 
 const MarketVendors = lazy(() => import("../pages/MarketVendors.jsx"));
 const Profile = lazy(() => import("../pages/Profile.jsx"));
+const SettingsPage = lazy(() => import("../pages/UserSide/Settings.jsx"));
+const AccountInfoPage = lazy(() => import("../pages/UserSide/AccountInfo.jsx"));
+const MySizesPage = lazy(() => import("../pages/UserSide/MySizes.jsx"));
 const ConditionProducts = lazy(() =>
   import("../components/Conditions/ConditionPage.jsx")
 );
-const Explore = lazy(() => import("../pages/Explore.jsx"));
+const Categories = lazy(() => import("../pages/Categories.jsx"));
+const LegacyExplore = lazy(() => import("../pages/Explore.jsx"));
 const Marketcardpage = lazy(() => import("../pages/marketcardpage.jsx"));
 const OnlineVendors = lazy(() => import("../pages/OnlineVendors.jsx"));
 const ConfirmUserState = lazy(() => import("../pages/ConfirmUserState.jsx"));
 const ProtectedRoute = lazy(() => import("./ProtectedRoute.jsx"));
 const CategoryPage = lazy(() => import("../pages/UserSide/CategoryPage.jsx"));
-const VendorRatings = lazy(() => import("../pages/vendor/VendorRatings.jsx"));
 const SearchPage = lazy(() => import("../pages/UserSide/Searchpage.jsx"));
 const InAppDiscountProducts = lazy(() =>
   import("../pages/UserSide/InAppDiscountProducts.jsx")
 );
-const ErrorBoundary = lazy(() => import("../components/Errorboundary.jsx"));
 const TermsAndConditions = lazy(() =>
   import("../pages/Legal/TermsAndConditions.jsx")
 );
@@ -93,9 +97,6 @@ const VendorChatList = lazy(() => import("../pages/vendor/VendorChatList.jsx"));
 const StoreReviews = lazy(() => import("../pages/vendor/StoreReviews.jsx"));
 const RoleBasedAccess = lazy(() => import("../custom-hooks/Rbac.jsx"));
 const WalletPage = lazy(() => import("../pages/vendor/WalletPage.jsx"));
-const WithAnswerModal = lazy(() =>
-  import("../components/Reviews/WithAnswerModal.jsx")
-);
 const PersonalDiscountsPage = lazy(() =>
   import("../components/Discounts/PersonalDiscountsPage.jsx")
 );
@@ -109,19 +110,27 @@ const SubmitFeedback = lazy(() => import("../pages/SubmitFeedback.jsx"));
 const WithWalletSetupModal = lazy(() =>
   import("../components/Reviews/WithWalletSetupModal.jsx")
 );
-const WithPwaInstallModal = lazy(() =>
-  import("../components/layout/WithPwaInstallModal.jsx")
-);
 const WithPickupPrompt = lazy(() =>
   import("../components/Reviews/withPickupModal.jsx")
 );
+
+const LegacyVendorReviewsRedirect = () => {
+  const { id } = useParams();
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set("tab", "reviews");
+  return <Navigate to={`/store/${id}?${params.toString()}`} replace />;
+};
 
 const Routers = () => {
   return (
     <Suspense fallback={<Loading />}>
       <Routes>
         {/* Default Route */}
-        <Route path="/confirm-user" element={<ConfirmUserState />} />
+        <Route
+          path="/confirm-user"
+          element={<Navigate to="/confirm-state" replace />}
+        />
 
         {/* Public Routes */}
         <Route path="/pay/:token" element={<PayPage />} />
@@ -136,16 +145,23 @@ const Routers = () => {
         <Route path="login" element={<Login />} />
         <Route path="vendorlogin" element={<VendorLogin />} />
         <Route path="/i/:id" element={<InfluencerRedir />} />
-        <Route path="complete-profile" element={<CompleteProfile />} />
         <Route path="/forgetpassword" element={<ForgetPassword />} />
         <Route path="/faqs" element={<FAQs />} />
         <Route path="reset-password" element={<ResetPassword />} />
         <Route path="/confirm-email" element={<EmailVerification />} />
+        <Route
+          path="/verify-question"
+          element={<ProductQuestionVerification />}
+        />
         <Route path="/auth-action" element={<AuthActionHandler />} />
         <Route path="/vendor-verify-otp" element={<VendorVerifyOTP />} />
         <Route path="terms-and-conditions" element={<TermsAndConditions />} />
         <Route path="privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/send-us-feedback" element={<SubmitFeedback />} />
+        <Route
+          path="/offer-conversations/:conversationId"
+          element={<OfferConversation />}
+        />
         {/* Apply Role-Based Access to Specific Routes */}
         <Route
           path="/profile"
@@ -159,7 +175,34 @@ const Routers = () => {
           }
         />
         <Route
+          path="/settings"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <SettingsPage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/account-info"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <AccountInfoPage />
+            </RoleBasedAccess>
+          }
+        />
+        <Route
           path="/your-wallet"
+          element={
+            <RoleBasedAccess allowedRoles={["user"]}>
+              <WithReviewModal>
+                <StockpileNudge />
+                <UserWalletPage />
+              </WithReviewModal>
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/wallet-transactions"
           element={
             <RoleBasedAccess allowedRoles={["user"]}>
               <WithReviewModal>
@@ -182,13 +225,10 @@ const Routers = () => {
           path="/"
           element={
             <RoleBasedAccess allowedRoles={["user"]}>
-              <WithAnswerModal>
-                <WithReviewModal>
-                  <WithPwaInstallModal />
-                  <StockpileNudge />
-                  <NewHome />
-                </WithReviewModal>
-              </WithAnswerModal>
+              <WithReviewModal>
+                <StockpileNudge />
+                <NewHome />
+              </WithReviewModal>
             </RoleBasedAccess>
           }
         />
@@ -269,11 +309,7 @@ const Routers = () => {
         />
         <Route
           path="/marketstorepage/:id"
-          element={
-            <RoleBasedAccess allowedRoles={["user", null]}>
-              <MarketStorePage />
-            </RoleBasedAccess>
-          }
+          element={<Navigate to="/" replace />}
         />
         <Route
           path="/discounts-today"
@@ -315,24 +351,11 @@ const Routers = () => {
           element={
             <RoleBasedAccess allowedRoles={["user", null]}>
               <StockpileNudge />
-              <WithPwaInstallModal />
               <OnlineVendors />
             </RoleBasedAccess>
           }
         />
-        <Route
-          path="/browse-markets"
-          element={
-            <RoleBasedAccess allowedRoles={["user", null]}>
-              <WithReviewModal>
-                <ErrorBoundary>
-                  <StockpileNudge />
-                  <Marketpg />
-                </ErrorBoundary>
-              </WithReviewModal>
-            </RoleBasedAccess>
-          }
-        />
+        <Route path="/browse-markets" element={<Navigate to="/" replace />} />
         <Route
           path="/market-card/:marketName"
           element={
@@ -346,9 +369,19 @@ const Routers = () => {
           element={
             <RoleBasedAccess allowedRoles={["user", null]}>
               <WithReviewModal>
-                <WithPwaInstallModal />
                 <StockpileNudge />
-                <Explore />
+                <Categories />
+              </WithReviewModal>
+            </RoleBasedAccess>
+          }
+        />
+        <Route
+          path="/explore/legacy"
+          element={
+            <RoleBasedAccess allowedRoles={["user", null]}>
+              <WithReviewModal>
+                <StockpileNudge />
+                <LegacyExplore />
               </WithReviewModal>
             </RoleBasedAccess>
           }
@@ -358,13 +391,14 @@ const Routers = () => {
           element={
             <RoleBasedAccess allowedRoles={["user", null]}>
               <StockpileNudge />
-              <VendorRatings />
+              <LegacyVendorReviewsRedirect />
             </RoleBasedAccess>
           }
         />
 
         {/* Vendor Protected Routes */}
         <Route element={<ProtectedRoute requiredRole="vendor" />}>
+          <Route path="/complete-profile" element={<CompleteProfile />} />
           <Route
             path="/vendordashboard"
             element={
@@ -372,7 +406,6 @@ const Routers = () => {
                 {" "}
                 <WithStoreCelebrationModal>
                   <WithWalletSetupModal>
-                    <WithPwaInstallModal />
                     <VendorDashboard />
                   </WithWalletSetupModal>
                 </WithStoreCelebrationModal>
@@ -393,7 +426,6 @@ const Routers = () => {
               <WithStoreCelebrationModal>
                 <WithWalletSetupModal>
                   <WithPickupPrompt>
-                    <WithPwaInstallModal />
                     <VendorProducts />
                   </WithPickupPrompt>
                 </WithWalletSetupModal>
@@ -437,6 +469,7 @@ const Routers = () => {
 
         {/* User Protected Routes */}
         <Route element={<ProtectedRoute requiredRole="user" />}>
+          <Route path="/my-sizes" element={<MySizesPage />} />
           <Route path="/newcheckout/:vendorId" element={<Checkout />} />
           <Route path="/donate" element={<Donate />} />
         </Route>

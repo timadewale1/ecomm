@@ -23,7 +23,10 @@ const { Readable } = require("stream");
 const path = require("path");
 
 async function build() {
-  const hostname = "https://www.shopmythrift.store";
+  const { createSiteUrls } = await import("../src/config/siteUrls.mjs");
+  const hostname = createSiteUrls({
+    appOrigin: process.env.VITE_APP_ORIGIN || "https://www.shopmythrift.store",
+  }).appOrigin;
   const now = new Date().toISOString();
 
   // 3) Static top-level pages

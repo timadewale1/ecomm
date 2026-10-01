@@ -4,7 +4,6 @@ import axios from "axios"; // Add axios for API call
 
 const notifyOrderStatusChange = async (
   userId,
-  vendorId,
   orderId,
   newStatus,
   vendorName,
@@ -14,6 +13,12 @@ const notifyOrderStatusChange = async (
   riderInfo = null
 ) => {
   try {
+    // Accept, decline and pickup-window notifications are emitted from
+    // authoritative Firestore triggers. Do not duplicate them from a client
+    // that may close, retry or lose connectivity after the status write.
+    if (["Declined", "In Progress", "Pickup Scheduled"].includes(newStatus)) {
+      return;
+    }
     console.log("Starting notification process...");
     console.log("Input Data:", {
       userId,

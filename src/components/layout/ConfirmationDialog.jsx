@@ -3,6 +3,7 @@ import { MdOutlineCancel } from "react-icons/md";
 import { IoTrashOutline } from "react-icons/io5";
 import Lottie from "lottie-react";
 import LoadState from "../../Animations/loadinganimation.json";
+import { createPortal } from "react-dom";
 
 const ConfirmationDialog = ({
   isOpen,
@@ -19,10 +20,10 @@ const ConfirmationDialog = ({
       setTimeout(() => setVisible(true), 10);
     }, []);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
-  return (
-    <div className={`fixed font-opensans inset-0 bg-black bg-opacity-40 flex items-center justify-center modal2 transition-all duration-100 ${visible ? 'backdrop-blur-sm' : ''}`}>
+  return createPortal(
+    <div className={`fixed z-[6500] font-opensans inset-0 bg-black bg-opacity-40 flex items-center justify-center transition-all duration-100 ${visible ? 'backdrop-blur-sm' : ''}`}>
      { /*  from-gray-300 via-customSoftGray to-gray-200 */}
       <div className={`space-y-4 flex flex-col justify-center transition-all duration-[50ms] ease-in-out bg-white ${
           visible
@@ -68,7 +69,8 @@ const ConfirmationDialog = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

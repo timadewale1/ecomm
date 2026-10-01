@@ -5,9 +5,14 @@ import Select from "react-select";
 import { BiSolidImageAdd } from "react-icons/bi";
 import { TiCameraOutline } from "react-icons/ti";
 import toast from "react-hot-toast";
-import Compressor from "compressorjs";
+import { RotatingLines } from "react-loader-spinner";
+import { appHaptics } from "../../services/haptics";
+import {
+  createProductImagePreview,
+  prepareProductImage,
+} from "../../services/productImagePipeline";
+import NativeImageInput from "../../components/Inputs/NativeImageInput";
 
-const MAX_FILE_SIZE = 3 * 1024 * 1024;
 const MAX_SUB_PRODUCTS = 4;
 
 const SubProduct = ({
@@ -31,118 +36,94 @@ const SubProduct = ({
   );
   const scrollContainerRef = useRef(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageTask, setImageTask] = useState(null);
 
-  const handleFileChange = (index, event) => {
-    const files = Array.from(event.target.files);
-    const updatedSubProducts = [...subProducts];
+  const handleFileChange = async (index, event) => {
+    const input = event.currentTarget;
+    const availableSlots = Math.max(
+      0,
+      2 - (subProducts[index]?.images?.length || 0),
+    );
+    let files = Array.from(input.files || []);
+    input.value = "";
 
-    // Validate each file's size
-    const validFiles = [];
-    files.forEach((file) => {
-      if (file.size > MAX_FILE_SIZE) {
-        toast.dismiss();
-        toast.error(`${file.name} exceeds the maximum file size of 3MB`, {
-          duration: 3000,
-        });
-      } else {
-        validFiles.push(file);
-      }
-    });
-
-    // Check the number of images
-    if (validFiles.length + updatedSubProducts[index].images.length > 2) {
-      toast.dismiss();
-      toast.error("You can upload a maximum of 2 images", { duration: 3000 });
+    if (!files.length) return;
+    if (!availableSlots) {
+      toast.error("You can upload a maximum of 2 images", { duration: 3500 });
       return;
     }
+    if (files.length > availableSlots) {
+      toast(`Only ${availableSlots} more image${availableSlots > 1 ? "s" : ""} allowed.`, {
+        icon: "⚠️",
+      });
+      files = files.slice(0, availableSlots);
+    }
 
-    updatedSubProducts[index].images = [
-      ...updatedSubProducts[index].images,
-      ...validFiles,
-    ];
+    const preparedImages = [];
+    setImageTask({ subProductIndex: index, current: 1, total: files.length });
 
-    setSubProducts(updatedSubProducts);
+    try {
+      for (const [fileIndex, file] of files.entries()) {
+        setImageTask({
+          subProductIndex: index,
+          current: fileIndex + 1,
+          total: files.length,
+        });
+        try {
+          const prepared = await prepareProductImage(file);
+          preparedImages.push({
+            ...createProductImagePreview(prepared.file),
+            originalBytes: prepared.originalBytes,
+            storedBytes: prepared.storedBytes,
+            wasOptimized: prepared.wasOptimized,
+          });
+        } catch (error) {
+          console.error("Sub-product image preparation failed:", error);
+          toast.error(error.message || `${file.name} could not be prepared.`);
+        }
+      }
+
+      if (preparedImages.length) {
+        setSubProducts((previous) =>
+          previous.map((subProduct, subProductIndex) =>
+            subProductIndex === index
+              ? {
+                  ...subProduct,
+                  images: [...subProduct.images, ...preparedImages].slice(0, 2),
+                }
+              : subProduct,
+          ),
+        );
+        void appHaptics.success();
+        toast.success(
+          `${preparedImages.length} image${preparedImages.length > 1 ? "s" : ""} ready`,
+        );
+      } else {
+        void appHaptics.warning();
+      }
+    } finally {
+      setImageTask(null);
+    }
   };
-
-//   const handleFileChange = (index, event) => {
-//   const files = Array.from(event.target.files);
-//   const updatedSubProducts = [...subProducts];
-
-//   const loadingToastId = toast.loading("Compressing image...");
-
-//   let completed = 0;
-//   const compressedImages = [];
-
-//   files.forEach((file) => {
-//     // Check file size first
-//     if (file.size > MAX_FILE_SIZE) {
-//       toast.dismiss(loadingToastId);
-//       toast.error(`${file.name} exceeds the maximum file size of 3MB`, {
-//         duration: 3000,
-//       });
-//       return;
-//     }
-
-//     // Compress valid file
-//     new Compressor(file, {
-//       quality: 0.6,
-//       success(result) {
-//         // Create preview URL
-//         const preview = URL.createObjectURL(result);
-
-//         compressedImages.push({
-//           file: result,
-//           preview,
-//         });
-
-//         completed++;
-
-//         // When all files are processed
-//         if (completed === files.length) {
-//           // Check if adding these would exceed the limit
-//           const totalImages =
-//             updatedSubProducts[index].images.length + compressedImages.length;
-//           if (totalImages > 2) {
-//             toast.dismiss(loadingToastId);
-//             toast.error("You can upload a maximum of 2 images", {
-//               duration: 3000,
-//             });
-//             return;
-//           }
-
-//           // Update subProducts with new images
-//           updatedSubProducts[index].images = [
-//             ...updatedSubProducts[index].images,
-//             ...compressedImages,
-//           ];
-
-//           setSubProducts(updatedSubProducts);
-//           toast.dismiss(loadingToastId);
-//           toast.success("Images compressed!");
-//         }
-//       },
-//       error(err) {
-//         console.error("Compression error:", err.message);
-//         toast.dismiss(loadingToastId);
-//         toast.error("Image compression failed.");
-//       },
-//     });
-//   });
-// };
 
   const handleRemoveImage = (subIndex, imageIndex) => {
     const updatedSubProducts = [...subProducts];
+    const removedImage = updatedSubProducts[subIndex].images[imageIndex];
+    if (removedImage?.preview) URL.revokeObjectURL(removedImage.preview);
     updatedSubProducts[subIndex].images.splice(imageIndex, 1);
     setSubProducts(updatedSubProducts);
   };
 
   const handleRemoveSubProduct = (subIndex) => {
+    (subProducts[subIndex]?.images || []).forEach((image) => {
+      if (image?.preview) URL.revokeObjectURL(image.preview);
+    });
     const updatedSubProducts = subProducts.filter(
       (_, index) => index !== subIndex
     );
     setSubProducts(updatedSubProducts);
     toast.dismiss(); // Dismiss existing toasts
-    toast.success("Sub-product removed successfully", { duration: 3000 });
+    toast.success("Sub-product removed successfully", { duration: 3500 });
   };
 
   const handleInputChange = (subIndex, field, value) => {
@@ -153,7 +134,7 @@ const SubProduct = ({
 
   const handleAddAnotherSubProduct = () => {
     if (subProducts.length >= MAX_SUB_PRODUCTS) {
-      toast.error("You can only add up to 4 sub-products", { duration: 3000 });
+      toast.error("You can only add up to 4 sub-products", { duration: 3500 });
       return;
     }
     setSubProducts([
@@ -202,6 +183,30 @@ const SubProduct = ({
 
   return (
     <div className="fixed inset-0  bg-white z-50  overflow-y-auto flex flex-col">
+      {imageTask && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 px-6 backdrop-blur-[2px]"
+          role="status"
+          aria-live="polite"
+          aria-label="Optimising variation images"
+        >
+          <div className="flex w-full max-w-[280px] flex-col items-center rounded-2xl bg-white px-5 py-6 text-center shadow-2xl font-satoshi">
+            <RotatingLines
+              strokeColor="#f9531e"
+              strokeWidth="4"
+              animationDuration="0.75"
+              width="40"
+              visible
+            />
+            <p className="mt-3 text-[15px] font-semibold text-gray-950">
+              Optimising your images
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              Image {imageTask.current} of {imageTask.total}
+            </p>
+          </div>
+        </div>
+      )}
       {/* Modal Header */}
       <div className="relative flex items-center justify-center p-4">
         <button
@@ -277,16 +282,18 @@ const SubProduct = ({
                     >
                       <BiSolidImageAdd className="h-16 w-16 text-customOrange opacity-20" />
                       <h2 className="font-opensans px-10 text-center font-light text-xs text-customOrange opacity-90">
-                        Upload product image here. Image must not be more than
-                        3MB
+                        Upload product images here. Large photos are optimised
+                        automatically.
                       </h2>
                     </div>
                   )}
 
-                  <input
+                  <NativeImageInput
                     id={`imageUpload-${subIndex}`}
-                    type="file"
                     accept="image/*"
+                    multiple
+                    nativeMaxFiles={4}
+                    disabled={Boolean(imageTask)}
                     onChange={(e) => handleFileChange(subIndex, e)}
                     className="hidden"
                   />

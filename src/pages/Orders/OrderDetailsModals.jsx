@@ -46,6 +46,9 @@ import { serverTimestamp } from "firebase/firestore";
 
 import { BiCoinStack } from "react-icons/bi";
 import addActivityNote from "../../services/activityNotes";
+import { openExternalUrl } from "../../services/nativeLinks";
+import { isVariantSizeHidden } from "../../services/productVariantSelection";
+import { getTransactionPercentages } from "../../services/walletApi";
 import { GiBookPile, GiStarsStack } from "react-icons/gi";
 const OrderDetailsModal = ({
   isOpen,
@@ -151,6 +154,7 @@ const OrderDetailsModal = ({
                 price: productData.price,
                 color: subProduct.color,
                 size: subProduct.size,
+                hideSize: isVariantSizeHidden(productData),
               };
             }
           } else if (item.variantAttributes) {
@@ -160,12 +164,14 @@ const OrderDetailsModal = ({
               price: productData.price,
               color: item.variantAttributes.color,
               size: item.variantAttributes.size,
+              hideSize: isVariantSizeHidden(productData),
             };
           } else {
             images[item.productId] = productData.imageUrls[0];
             details[item.productId] = {
               name: productData.name,
               price: productData.price,
+              hideSize: isVariantSizeHidden(productData),
             };
           }
         }
@@ -546,7 +552,7 @@ const OrderDetailsModal = ({
   const openWhatsAppWith = (phoneDigits, text) => {
     const base = `https://wa.me/${phoneDigits}`;
     const url = text ? `${base}?text=${encodeURIComponent(text)}` : base; // <- no text = open chat
-    window.open(url, "_blank", "noopener,noreferrer");
+    void openExternalUrl(url);
   };
 
   const handleMoveToShippingWithRider = async () => {
@@ -796,7 +802,9 @@ const OrderDetailsModal = ({
       onClose();
     } catch (err) {
       console.error("acceptVendorOrder failed:", err);
-      toast.error("Failed to accept the order");
+      toast.error(
+        err?.message || "We couldn't accept this order. Please try again."
+      );
     } finally {
       setAcceptLoading(false);
     }
@@ -845,43 +853,7 @@ const OrderDetailsModal = ({
           return;
         }
 
-        /* ── 2. Build the API URL ──────────────────────────────── */
-        const base = import.meta.env.VITE_API_BASE_URL;
-        const token = import.meta.env.VITE_RESOLVE_TOKEN;
-        console.log("🔐 ENV  VITE_API_BASE_URL   →", base);
-        console.log(
-          "🔐 ENV  VITE_RESOLVE_TOKEN →",
-          token ? "[present]" : "[undefined]"
-        );
-
-        const url =
-          base.replace(/\/$/, "") + // remove trailing slash if present
-          "/transaction-percentages" + // add our endpoint
-          `?vendorId=${encodeURIComponent(vendorId)}` +
-          `&orderReference=${encodeURIComponent(orderReference)}`;
-
-        /* ── 3. Call the endpoint ──────────────────────────────── */
-        const response = await fetch(url.toString(), {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        console.log(`↩︎  HTTP ${response.status} – ${response.statusText}`);
-
-        /* ── 4. Parse body (even on errors for debugging) ───────── */
-        const bodyText = await response.text();
-        let body;
-        try {
-          body = JSON.parse(bodyText);
-        } catch {
-          body = bodyText;
-        }
-        console.log("📝 Response body:", body);
-
-        if (!response.ok) {
-          console.error("❌ Network / server error – aborting.");
-          return;
-        }
+        const body = await getTransactionPercentages(order.id);
 
         if (!body || body.status !== true || !body.data) {
           console.warn("⚠️ Unexpected JSON shape:", body);
@@ -1110,7 +1082,7 @@ const OrderDetailsModal = ({
 
   const handleProceedCall = () => {
     setIsCallModalOpen(false);
-    window.open(`tel:${userInfo.phoneNumber}`, "_self");
+    void openExternalUrl(`tel:${userInfo.phoneNumber}`);
   };
 
   const handleContactUs = () => {
@@ -1119,7 +1091,7 @@ const OrderDetailsModal = ({
 
   const handleProceedCallSupport = () => {
     setIsSupportCallModalOpen(false);
-    window.open(`tel:08105911662`, "_self");
+    void openExternalUrl("tel:08105911662");
   };
   if (!order) {
     return null;
@@ -1143,6 +1115,15 @@ const OrderDetailsModal = ({
   const canDMOnWhatsApp = progressStatus === "In Progress";
   const showWhatsApp =
     (isSelfDelivery || order.isPickup) && (!order.isStockpile || isMature);
+  const shouldHideItemSize = (item) => {
+    const savedSizeHidden =
+      item.variantAttributes?.sizeHidden ?? item.sizeHidden;
+    if (typeof savedSizeHidden === "boolean") return savedSizeHidden;
+
+    return Boolean(
+      productDetails[item.subProductId || item.productId]?.hideSize,
+    );
+  };
   return (
     <Modal
       isOpen={isOpen}
@@ -1759,21 +1740,26 @@ const OrderDetailsModal = ({
                     </p>
                   </div>
 
-                  <div className="flex items-center pb-3 border-b border-gray-100">
-                    <IoIosBody className="text-blue-800 text-xl" />
-                    <p className="ml-3 text-gray-500 text-sm font-opensans">
-                      Size:
-                    </p>
-                    <p className="ml-10 font-opensans text-black text-sm flex-grow">
-                      {loading ? (
-                        <Skeleton width={50} />
-                      ) : (
-                        productDetails[item.subProductId]?.size ||
-                        item.variantAttributes?.size ||
-                        "N/A"
-                      )}
-                    </p>
-                  </div>
+                  {!shouldHideItemSize(item) && (
+                    <div className="flex items-center pb-3 border-b border-gray-100">
+                      <IoIosBody className="text-blue-800 text-xl" />
+                      <p className="ml-3 text-gray-500 text-sm font-opensans">
+                        Size:
+                      </p>
+                      <p className="ml-10 font-opensans text-black text-sm flex-grow">
+                        {loading ? (
+                          <Skeleton width={50} />
+                        ) : (
+                          productDetails[
+                            item.subProductId || item.productId
+                          ]?.size ||
+                          item.size ||
+                          item.variantAttributes?.size ||
+                          "N/A"
+                        )}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="flex items-center pb-3 border-b border-gray-100">
                     <GoClockFill className="text-indigo-700 text-xl" />
@@ -2544,7 +2530,25 @@ const OrderDetailsModal = ({
           <div className="flex justify-end">
             <button
               onClick={() => {
-                openChat();
+                const productIds = Array.from(
+                  new Set(
+                    (order?.cartItems || [])
+                      .map((item) => item?.productId)
+                      .filter(Boolean)
+                  )
+                );
+                openChat({
+                  "support-entry": "vendor-order-help",
+                  screen: "vendor-order-details",
+                  ...(order?.id ? { "order-id": order.id } : {}),
+                  ...(order?.vendorId ? { "vendor-id": order.vendorId } : {}),
+                  ...(order?.orderReference
+                    ? { "payment-reference": order.orderReference }
+                    : {}),
+                  ...(productIds.length === 1
+                    ? { "product-id": productIds[0] }
+                    : {}),
+                });
                 setIsSupportCallModalOpen(false);
               }}
               className="bg-customOrange text-white font-opensans py-2 px-8 rounded-full"

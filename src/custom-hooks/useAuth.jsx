@@ -1,114 +1,293 @@
 // hooks/useAuth.js
-import React, { createContext, useState, useContext, useEffect } from "react";
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, getDocFromCache } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase.config";
 import toast from "react-hot-toast";
+import { authProvisioning } from "../services/authProvisioning.mjs";
+import { mustSignOutRestrictedAccount } from "../services/accountRestrictionPolicy.mjs";
 
 const AuthContext = createContext();
+const USER_DATA_KEY = "mythrift:userData";
+const USER_DATA_OWNER_KEY = "mythrift:userDataOwner";
 
-const retryGetDoc = async (ref, retries = 3, delay = 1000) => {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    const docSnap = await getDoc(ref);
-    if (docSnap.exists()) {
-      return docSnap;
-    }
-    await new Promise((res) => setTimeout(res, delay));
+const readCachedUserData = (uid) => {
+  if (!uid) return null;
+  try {
+    const raw = localStorage.getItem(USER_DATA_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    // The embedded owner is written with the data in one storage operation.
+    // Legacy user documents often carry `uid`; the companion key remains a
+    // fallback for legacy vendor documents that do not.
+    const ownerUid =
+      data?.__myThriftAuthUid ||
+      data?.uid ||
+      localStorage.getItem(USER_DATA_OWNER_KEY) ||
+      null;
+    return ownerUid === uid ? data : null;
+  } catch {
+    return null;
   }
-  return null;
 };
+
+const storeCachedUserData = (data, uid) => {
+  try {
+    localStorage.setItem(
+      USER_DATA_KEY,
+      JSON.stringify({ ...data, __myThriftAuthUid: uid }),
+    );
+    localStorage.setItem(USER_DATA_OWNER_KEY, uid);
+  } catch {
+    // Authentication must keep working when WebView storage is unavailable.
+  }
+};
+
+const clearCachedUserData = () => {
+  try {
+    localStorage.removeItem(USER_DATA_KEY);
+    localStorage.removeItem(USER_DATA_OWNER_KEY);
+  } catch {
+    // Best-effort cache cleanup only.
+  }
+};
+
+const roleForCollection = (collectionName) =>
+  collectionName === "vendors" ? "vendor" : "user";
+
+const collectionForRole = (role) =>
+  role === "vendor" ? "vendors" : role === "user" ? "users" : null;
+
+const dataFromSnapshot = (snapshot, collectionName) =>
+  snapshot?.exists()
+    ? { ...snapshot.data(), role: roleForCollection(collectionName) }
+    : null;
+
+const delay = (milliseconds) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(() => auth.currentUser);
-  const [currentUserData, setCurrentUserData] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("mythrift:userData"));
-    } catch {
-      return null;
-    }
-  });
+  const [currentUserData, setCurrentUserData] = useState(() =>
+    readCachedUserData(auth.currentUser?.uid),
+  );
+  const [currentUserDataUid, setCurrentUserDataUid] = useState(() =>
+    readCachedUserData(auth.currentUser?.uid) ? auth.currentUser?.uid : null,
+  );
   const [loading, setLoading] = useState(true);
   const [accountDeactivated, setAccountDeactivated] = useState(false);
+  const [profileResolution, setProfileResolution] = useState("loading");
+  const [profileRefreshToken, setProfileRefreshToken] = useState(0);
+  const authGenerationRef = useRef(0);
+
+  useEffect(() => {
+    const uid = currentUser?.uid;
+    const collectionName = collectionForRole(currentUserData?.role);
+    if (!uid || currentUserDataUid !== uid || !collectionName) return undefined;
+    return onSnapshot(doc(db, collectionName, uid), snapshot => {
+      if (auth.currentUser?.uid !== uid || snapshot.metadata.fromCache) return;
+      if (snapshot.exists() && mustSignOutRestrictedAccount({
+        ...snapshot.data(), role: roleForCollection(collectionName),
+      })) {
+        setAccountDeactivated(true);
+        setProfileResolution("deactivated");
+        clearCachedUserData();
+        void signOut(auth).catch(() => { setAccountDeactivated(true); });
+      }
+    }, () => { /* Offline reads must not sign out an active account. */ });
+  }, [currentUser?.uid, currentUserData?.role, currentUserDataUid]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      const generation = ++authGenerationRef.current;
+      const uid = user?.uid || null;
+      const isCurrent = () =>
+        generation === authGenerationRef.current &&
+        (auth.currentUser?.uid || null) === uid;
+
       setLoading(true);
+      setProfileResolution("loading");
       setAccountDeactivated(false);
 
       if (user) {
-        // 1️⃣  Try cache first
-        const userRef = doc(db, "users", user.uid);
-        try {
-          const cacheSnap = await getDocFromCache(userRef);
-          if (cacheSnap.exists()) {
-            const data = { ...cacheSnap.data(), role: "user" };
-            setCurrentUserData(data);
-            localStorage.setItem("mythrift:userData", JSON.stringify(data));
-          }
-        } catch {
-          // no cache yet
+        // Bind cached profile data to the Firebase UID that produced it. This
+        // prevents a fast account switch from briefly exposing account A's
+        // profile while account B is restoring.
+        const cachedData = readCachedUserData(user.uid);
+        setCurrentUser(user);
+        setCurrentUserData(cachedData);
+        setCurrentUserDataUid(cachedData ? user.uid : null);
+        if (!cachedData) clearCachedUserData();
+
+        // A UID-bound cached profile is enough to choose the correct shell
+        // immediately. Firestore still validates it in the background before
+        // any protected write, and rules remain the security boundary.
+        if (cachedData?.role) {
+          setLoading(false);
+          setProfileResolution("cached");
         }
 
-        // 2️⃣  Then network (with retry)
-        try {
-          const userDoc = await retryGetDoc(userRef);
-          if (userDoc && userDoc.exists()) {
-            if (userDoc.data().isDeactivated) {
-              await signOut(auth);
-              setAccountDeactivated(true);
+        const userRef = doc(db, "users", user.uid);
+        const vendorRef = doc(db, "vendors", user.uid);
+        const preferredCollection = collectionForRole(cachedData?.role);
+        let resolvedData = null;
+        let networkFailed = false;
+
+        const resolveFromNetwork = async () => {
+          if (preferredCollection) {
+            const preferredRef =
+              preferredCollection === "vendors" ? vendorRef : userRef;
+            const preferredResult = await Promise.allSettled([
+              getDoc(preferredRef),
+            ]);
+            if (!isCurrent()) return null;
+            if (preferredResult[0].status === "fulfilled") {
+              const preferredData = dataFromSnapshot(
+                preferredResult[0].value,
+                preferredCollection,
+              );
+              if (preferredData) return preferredData;
             } else {
-              const data = { ...userDoc.data(), role: "user" };
-              setCurrentUser(user);
-              setCurrentUserData(data);
-              localStorage.setItem("mythrift:userData", JSON.stringify(data));
+              networkFailed = true;
+              return null;
             }
+
+            const fallbackCollection =
+              preferredCollection === "vendors" ? "users" : "vendors";
+            const fallbackRef =
+              fallbackCollection === "vendors" ? vendorRef : userRef;
+            try {
+              return dataFromSnapshot(
+                await getDoc(fallbackRef),
+                fallbackCollection,
+              );
+            } catch {
+              networkFailed = true;
+              return null;
+            }
+          }
+
+          const [userResult, vendorResult] = await Promise.allSettled([
+            getDoc(userRef),
+            getDoc(vendorRef),
+          ]);
+          if (!isCurrent()) return null;
+          networkFailed =
+            userResult.status === "rejected" &&
+            vendorResult.status === "rejected";
+
+          const userData =
+            userResult.status === "fulfilled"
+              ? dataFromSnapshot(userResult.value, "users")
+              : null;
+          const vendorData =
+            vendorResult.status === "fulfilled"
+              ? dataFromSnapshot(vendorResult.value, "vendors")
+              : null;
+
+          if (userData && vendorData) {
+            console.error("[auth] UID has both user and vendor profiles", {
+              uid: user.uid,
+            });
+          }
+          // Preserve the existing compatibility rule: legacy dual-profile
+          // accounts resolve as buyers until they are repaired server-side.
+          return userData || vendorData;
+        };
+
+        try {
+          resolvedData = resolvedData || (await resolveFromNetwork());
+
+          // Wait for the actual in-flight profile creation, not repeated reads
+          // against a three-second guess. A timeout follows the recoverable
+          // offline path; it must never become a false missing-account logout.
+          if (!resolvedData && !networkFailed && isCurrent()) {
+            await authProvisioning.wait(user.uid);
+            if (isCurrent()) {
+              await delay(650);
+              resolvedData = await resolveFromNetwork();
+            }
+          }
+
+          if (!isCurrent()) return;
+
+          if (mustSignOutRestrictedAccount(resolvedData)) {
+            setAccountDeactivated(true);
+            setProfileResolution("deactivated");
+            await signOut(auth);
+            return;
+          }
+
+          if (resolvedData) {
+            setCurrentUserData(resolvedData);
+            setCurrentUserDataUid(user.uid);
+            storeCachedUserData(resolvedData, user.uid);
+            setProfileResolution("resolved");
             setLoading(false);
             return;
           }
-        } catch {}
 
-        // 3️⃣  Not a normal user → check vendor
-        const vendorRef = doc(db, "vendors", user.uid);
-        try {
-          const cacheSnap = await getDocFromCache(vendorRef);
-          if (cacheSnap.exists()) {
-            const data = { ...cacheSnap.data(), role: "vendor" };
-            setCurrentUserData(data);
-            localStorage.setItem("mythrift:userData", JSON.stringify(data));
+          if (networkFailed) {
+            // Never turn a transport failure into an unauthorized-account
+            // logout. A valid UID-bound cache can continue in offline mode.
+            setProfileResolution(cachedData ? "offline-cached" : "offline");
+            setLoading(false);
+            return;
           }
-        } catch {}
 
-        try {
-          const vendorDoc = await retryGetDoc(vendorRef);
-          if (vendorDoc && vendorDoc.exists()) {
-            if (vendorDoc.data().isDeactivated) {
-              await signOut(auth);
-              setAccountDeactivated(true);
-            } else {
-              const data = { ...vendorDoc.data(), role: "vendor" };
-              setCurrentUser(user);
-              setCurrentUserData(data);
-              localStorage.setItem("mythrift:userData", JSON.stringify(data));
-            }
-          } else {
-            toast.error("Unauthorized access. Please contact support.");
-            await signOut(auth);
-          }
-        } catch (err) {
-          console.error("Error fetching vendor data:", err);
+          setProfileResolution("missing");
+          setLoading(false);
+          toast.error("We couldn’t finish loading this account. Please sign in again.");
+          await signOut(auth);
+        } catch (error) {
+          if (!isCurrent()) return;
+          console.error("[auth] Profile resolution failed:", error);
+          setProfileResolution(cachedData ? "offline-cached" : "offline");
+          setLoading(false);
         }
-
-        setLoading(false);
       } else {
         // signed out
         setCurrentUser(null);
         setCurrentUserData(null);
-        localStorage.removeItem("mythrift:userData");
+        setCurrentUserDataUid(null);
+        clearCachedUserData();
+        setProfileResolution("signed-out");
         setLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      authGenerationRef.current += 1;
+      unsubscribe();
+    };
+  }, [profileRefreshToken]);
+
+  const refreshAuthProfile = useCallback(() => {
+    setProfileResolution("loading");
+    setLoading(true);
+    setProfileRefreshToken((value) => value + 1);
+  }, []);
+
+  const updateCurrentUserData = useCallback((patch = {}) => {
+    const uid = auth.currentUser?.uid;
+    if (!uid || !patch || typeof patch !== "object") return;
+
+    setCurrentUserData((current) => {
+      const next = {
+        ...(current || {}),
+        ...patch,
+      };
+      storeCachedUserData(next, uid);
+      return next;
+    });
+    setCurrentUserDataUid(uid);
   }, []);
 
   const startOTPVerification = () => {};
@@ -119,8 +298,12 @@ export const AuthProvider = ({ children }) => {
       value={{
         currentUser,
         currentUserData,
+        currentUserDataUid,
         loading,
+        profileResolution,
         accountDeactivated,
+        refreshAuthProfile,
+        updateCurrentUserData,
         startOTPVerification,
         endOTPVerification,
       }}

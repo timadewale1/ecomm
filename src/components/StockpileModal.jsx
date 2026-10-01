@@ -1,48 +1,24 @@
-import React, { useEffect, useState } from "react";
-import Modal from "react-modal";
-import { AnimatePresence, motion } from "framer-motion";
-import { PiStackSimpleFill } from "react-icons/pi";
-import { GoChevronRight } from "react-icons/go";
+import React from "react";
 import { FaCalendarAlt } from "react-icons/fa";
 import StockpileAnim from "./Loading/StockpileAnim";
 import { IoCheckmarkCircleSharp } from "react-icons/io5";
+import AppBottomSheet from "./layout/AppBottomSheet";
 
 /** simple confetti / loader animation (swap in whatever you use) */
 
 const StockpileInfoModal = ({ vendor, isOpen, onClose }) => {
-  const [autoClose, setAutoClose] = useState(false);
-
-  /* optional: auto-dismiss after 12 s so it never blocks the UI */
-  //   useEffect(() => {
-  //     if (!isOpen) return;
-  //     const id = setTimeout(() => {
-  //       setAutoClose(true);
-  //       onClose();
-  //     }, 12000);
-  //     return () => clearTimeout(id);
-  //   }, [isOpen, onClose]);
-
   if (!vendor?.stockpile?.enabled) return null; // guard
 
   const maxWeeks = vendor.stockpile.durationInWeeks || 2;
 
   return (
-    <AnimatePresence>
-      {isOpen && !autoClose && (
-        <Modal
-          isOpen
-          onRequestClose={onClose}
-          ariaHideApp={false}
-          overlayClassName="fixed inset-0 bg-black/50 flex items-end z-50"
-          className="bg-white w-full max-w-md h-[70vh] rounded-t-3xl shadow-xl p-4 flex flex-col"
-        >
-          <motion.div
-            initial={{ y: 60, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 60, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="flex-1 flex flex-col"
-          >
+    <AppBottomSheet
+      open={isOpen}
+      onClose={onClose}
+      height="70dvh"
+      ariaLabel={`Stockpile with ${vendor.shopName || "this vendor"}`}
+    >
+          <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-6 font-satoshi">
             <StockpileAnim />
             {/* header */}
             <div className="flex flex-col items-center mb-4">
@@ -94,10 +70,8 @@ const StockpileInfoModal = ({ vendor, isOpen, onClose }) => {
                 Got&nbsp;it
               </button>
             </div>
-          </motion.div>
-        </Modal>
-      )}
-    </AnimatePresence>
+          </div>
+    </AppBottomSheet>
   );
 };
 

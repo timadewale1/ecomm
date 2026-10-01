@@ -39,11 +39,7 @@ const SearchDropdown = ({ products, vendors }) => {
       if (selectedItem.type === "product") {
         navigate(`/product/${selectedItem.id}`);
       } else if (selectedItem.type === "vendor") {
-        if (selectedItem.marketPlaceType === "Online") {
-          navigate(`/store/${selectedItem.id}`);
-        } else {
-          navigate(`/marketstorepage/${selectedItem.id}`);
-        }
+        navigate(`/store/${selectedItem.id}`);
       }
     }
   };

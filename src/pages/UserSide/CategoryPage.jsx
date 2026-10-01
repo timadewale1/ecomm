@@ -1,5 +1,5 @@
 // src/components/CategoryPage.jsx
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -11,17 +11,13 @@ import {
   query,
   where,
   getDocs,
-  setDoc,
-  deleteDoc,
-  doc,
-  getDoc,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { db } from "../../firebase.config";
 import toast from "react-hot-toast";
 import ProductCard from "../../components/Products/ProductCard";
 import { GoChevronLeft } from "react-icons/go";
-import { handleUserActionLimit } from "../../services/userWriteHandler";
+import { setVendorFollowState } from "../../services/vendorFollow";
 import { RotatingLines } from "react-loader-spinner";
 import SEO from "../../components/Helmet/SEO";
 import { MdCancel } from "react-icons/md";
@@ -31,10 +27,12 @@ import { AdvancedImage } from "@cloudinary/react";
 import { Cloudinary } from "@cloudinary/url-gen";
 import { auto } from "@cloudinary/url-gen/actions/resize";
 import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
-import { CiLogin, CiSearch } from "react-icons/ci";
+import { CiSearch } from "react-icons/ci";
 import { FaCheck, FaPlus, FaStar } from "react-icons/fa";
-import { LiaTimesSolid } from "react-icons/lia";
 import { auth } from "../../firebase.config";
+import AppBackButton from "../../components/layout/AppBackButton";
+import LoginRequiredSheet from "../../components/PwaModals/LoginRequiredSheet";
+import { rememberAuthIntent, takeAuthIntent } from "../../services/authIntent";
 // Cloudinary config
 const cld = new Cloudinary({
   cloud: {
@@ -64,6 +62,7 @@ const CategoryPage = () => {
   const dispatch = useDispatch();
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [pendingFollowVendorId, setPendingFollowVendorId] = useState(null);
   // Assume category is provided via URL param or location.state (defaulting to "Mens")
   const { category: paramCategory } = useParams();
   const category = paramCategory || "Mens"; // fallback if no param
@@ -158,6 +157,7 @@ const CategoryPage = () => {
     }
   }, [dispatch, category, loading, noMoreProducts]);
   const [followedVendors, setFollowedVendors] = useState({});
+  const pendingFollowsRef = useRef(new Set());
 
   const fetchFollowedVendors = async (userId) => {
     try {
@@ -189,12 +189,16 @@ const CategoryPage = () => {
 
   const handleFollowClick = async (vendorId) => {
     if (!currentUser) {
+      setPendingFollowVendorId(vendorId);
       setIsLoginModalOpen(true);
       return;
     }
 
+    if (pendingFollowsRef.current.has(vendorId)) return;
+
     // Determine the new follow state optimistically
     const newFollowState = !followedVendors[vendorId];
+    pendingFollowsRef.current.add(vendorId);
 
     // Update the UI immediately (optimistic update)
     setFollowedVendors((prev) => ({
@@ -203,32 +207,19 @@ const CategoryPage = () => {
     }));
 
     try {
-      // Enforce follow rate limit
-      await handleUserActionLimit(
-        currentUser.uid,
-        "follow",
-        {},
-        {
-          collectionName: "usage_metadata",
-          writeLimit: 50,
-          minuteLimit: 8,
-          hourLimit: 40,
-        }
-      );
+      const result = await setVendorFollowState({
+        userId: currentUser.uid,
+        vendorId,
+        shouldFollow: newFollowState,
+      });
+      setFollowedVendors((prev) => ({
+        ...prev,
+        [vendorId]: result.followed,
+      }));
 
-      const followRef = doc(db, "follows", `${currentUser.uid}_${vendorId}`);
-
-      if (newFollowState) {
-        // Create the follow document
-        await setDoc(followRef, {
-          userId: currentUser.uid,
-          vendorId,
-          createdAt: new Date(),
-        });
+      if (result.followed) {
         toast.success("You will be notified of new products and promos.");
       } else {
-        // Delete the follow document
-        await deleteDoc(followRef);
         toast.success("Unfollowed.");
       }
     } catch (error) {
@@ -238,8 +229,32 @@ const CategoryPage = () => {
         [vendorId]: !newFollowState,
       }));
       toast.error(`Error: ${error.message}`);
+    } finally {
+      pendingFollowsRef.current.delete(vendorId);
     }
   };
+
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+    const intent = takeAuthIntent({types: "follow-vendor", pathname: location.pathname});
+    const vendorId = intent?.payload?.vendorId;
+    if (!vendorId || pendingFollowsRef.current.has(vendorId)) return;
+    pendingFollowsRef.current.add(vendorId);
+    setFollowedVendors((current) => ({...current, [vendorId]: true}));
+    setVendorFollowState({
+      userId: currentUser.uid,
+      vendorId,
+      shouldFollow: true,
+    })
+      .then((result) => {
+        setFollowedVendors((current) => ({...current, [vendorId]: result.followed}));
+      })
+      .catch((error) => {
+        setFollowedVendors((current) => ({...current, [vendorId]: false}));
+        toast.error(error.message || "Could not follow this vendor.");
+      })
+      .finally(() => pendingFollowsRef.current.delete(vendorId));
+  }, [currentUser?.uid, location.pathname]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -343,11 +358,14 @@ const CategoryPage = () => {
         <div className="absolute top-0 z-10 w-full mt-2 flex justify-between p-2">
           {!isSearching ? (
             <>
-              <button onClick={() => navigate(-1)}>
-                <GoChevronLeft className="text-4xl text-white" />
-              </button>
+              <AppBackButton
+                onClick={() => navigate(-1)}
+                variant="overlay"
+                fixed
+                scrolled={isSticky}
+              />
               <CiSearch
-                className="text-3xl text-white"
+                className="ml-auto text-3xl text-white"
                 onClick={() => setIsSearching(true)}
               />
             </>
@@ -378,10 +396,7 @@ const CategoryPage = () => {
 
         {/* Sticky header */}
         {isSticky && !isSearching && (
-          <div className="sticky top-0 z-20 w-full flex items-center py-2 px-2 h-20 opacity-95 bg-white shadow-md">
-            <button onClick={() => navigate(-1)} className="p-1 rounded-full">
-              <GoChevronLeft className="text-3xl" />
-            </button>
+          <div className="sticky top-0 z-20 w-full flex items-center py-2 pl-16 pr-2 h-20 opacity-95 bg-white">
             <div className="flex-grow text-xl font-opensans font-semibold">
               {category}
             </div>
@@ -528,63 +543,30 @@ const CategoryPage = () => {
             </p>
           )}
         </div>
-        {isLoginModalOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                setIsLoginModalOpen(false);
-              }
-            }}
-          >
-            <div
-              className="bg-white w-9/12 max-w-md rounded-lg px-3 py-4 flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex space-x-4">
-                  <div className="w-8 h-8 bg-rose-100 flex justify-center items-center rounded-full">
-                    <CiLogin className="text-customRichBrown" />
-                  </div>
-                  <h2 className="text-lg font-opensans font-semibold">
-                    Please Log In
-                  </h2>
-                </div>
-                <LiaTimesSolid
-                  onClick={() => setIsLoginModalOpen(false)}
-                  className="text-black text-xl mb-6 cursor-pointer"
-                />
-              </div>
-              <p className="mb-6 text-xs font-opensans text-gray-800 ">
-                You need to be logged in to follow this vendor to recieve
-                notifications. Please log in to your account, or create a new
-                account if you don’t have one, to continue.
-              </p>
-              <div className="flex space-x-16">
-                <button
-                  onClick={() => {
-                    navigate("/signup", { state: { from: location.pathname } });
-                    setIsLoginModalOpen(false);
-                  }}
-                  className="flex-1 bg-transparent py-2 text-customRichBrown font-medium text-xs font-opensans border-customRichBrown border rounded-full"
-                >
-                  Sign Up
-                </button>
-
-                <button
-                  onClick={() => {
-                    navigate("/login", { state: { from: location.pathname } });
-                    setIsLoginModalOpen(false);
-                  }}
-                  className="flex-1 bg-customOrange py-2 text-white text-xs font-opensans rounded-full"
-                >
-                  Login
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <LoginRequiredSheet
+          open={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          title="Let’s set you up to follow"
+          description="Sign in to follow this vendor and receive their updates, or create an account to continue."
+          onSignUp={() => {
+            rememberAuthIntent({
+              type: "follow-vendor",
+              returnTo: `${location.pathname}${location.search}`,
+              payload: {vendorId: pendingFollowVendorId},
+            });
+            navigate("/signup", { state: { from: location.pathname } });
+            setIsLoginModalOpen(false);
+          }}
+          onLogin={() => {
+            rememberAuthIntent({
+              type: "follow-vendor",
+              returnTo: `${location.pathname}${location.search}`,
+              payload: {vendorId: pendingFollowVendorId},
+            });
+            navigate("/login", { state: { from: location.pathname } });
+            setIsLoginModalOpen(false);
+          }}
+        />
       </div>
     </>
   );

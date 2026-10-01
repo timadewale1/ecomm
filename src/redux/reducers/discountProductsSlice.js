@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { db } from "../../firebase.config";
 import { collection, query, where, getDocs } from "firebase/firestore";
+import { isMarketplaceProductEligible } from "../../services/marketplaceVisibility";
 
 export const fetchDiscountProducts = createAsyncThunk(
   "discountProducts/fetchDiscountProducts",
@@ -8,7 +9,7 @@ export const fetchDiscountProducts = createAsyncThunk(
     try {
       // Query all products that are not deleted and are published.
       const q = query(
-        collection(db, "products"),
+        collection(db, "publicProducts"),
         where("isDeleted", "==", false),
         where("published", "==", true)
       );
@@ -20,6 +21,7 @@ export const fetchDiscountProducts = createAsyncThunk(
       // Filter for in‑app discount products (discount.discountType starts with "inApp")
       const inAppProducts = allProducts.filter(
         (product) =>
+          isMarketplaceProductEligible(product) &&
           product.discount &&
           product.discount.discountType &&
           product.discount.discountType.startsWith("inApp")

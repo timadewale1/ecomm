@@ -9,9 +9,11 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { db } from "../../firebase.config";
+import { auth, db } from "../../firebase.config";
 import moment from "moment";
 import toast from "react-hot-toast";
+import { getStockpileOrderMembership } from "../../services/stockpileOrderStatus";
+import {getOrderProductSnapshots} from "../../services/orderProductSnapshots";
 
 /**
  * fetchStockpileData:
@@ -23,11 +25,18 @@ import toast from "react-hot-toast";
 export const fetchStockpileData = createAsyncThunk(
   "stockpile/fetchStockpileData",
   async ({ userId, vendorId }, thunkAPI) => {
+    const session = auth.currentUser;
+    const assertCurrent = () => {
+      if (!session?.uid || session.uid !== userId || auth.currentUser !== session) {
+        throw Object.assign(new Error("Your account changed. Please reopen your pile."), {code:"auth/session-changed"});
+      }
+    };
     console.log("[stockpileSlice] fetchStockpileData called with:", {
       userId,
       vendorId,
     });
     try {
+      assertCurrent();
       const stockpilesRef = collection(db, "stockpiles");
       const q = query(
         stockpilesRef,
@@ -39,11 +48,12 @@ export const fetchStockpileData = createAsyncThunk(
         "[stockpileSlice] Executing Firestore query for stockpiles..."
       );
       const spSnap = await getDocs(q);
+      assertCurrent();
 
       if (spSnap.empty) {
         console.log("[stockpileSlice] No active pile found for this vendor.");
         toast("No active pile found for this vendor.");
-        return { pileItems: [], stockpileExpiry: null };
+        return { pileItems: [], pileOrders: [], stockpileExpiry: null };
       }
 
       const spDoc = spSnap.docs[0];
@@ -56,7 +66,7 @@ export const fetchStockpileData = createAsyncThunk(
           "[stockpileSlice] No orders array found in this stockpile."
         );
         toast("No orders in this stockpile yet.");
-        return { pileItems: [], stockpileExpiry: null };
+        return { pileItems: [], pileOrders: [], stockpileExpiry: null };
       }
 
       // If there's an endDate (Timestamp), parse it
@@ -66,61 +76,61 @@ export const fetchStockpileData = createAsyncThunk(
         console.log("[stockpileSlice] Stockpile endDate:", expiry);
       }
 
-      let allItems = [];
+      const allItems = [];
+      const pileOrders = [];
 
-      // For each order
-      for (const oid of spData.orderIds) {
-        console.log("[stockpileSlice] Fetching order doc:", oid);
-        const orderSnap = await getDoc(doc(db, "orders", oid));
-        if (!orderSnap.exists()) {
-          console.warn("[stockpileSlice] Order doc does not exist:", oid);
-          continue;
-        }
 
-        const orderData = orderSnap.data();
-        if (orderData.progressStatus === "Declined") {
-          console.log(`[stockpileSlice] Skipping declined order: ${oid}`);
-          continue;
-        }
+      const orderSnapshots = [];
+      for (let start = 0; start < spData.orderIds.length; start += 20) {
+        assertCurrent();
+        orderSnapshots.push(...await Promise.all(spData.orderIds.slice(start, start + 20).map(oid=>getDoc(doc(db,"orders",oid)))));
+      }
+      assertCurrent();
+      const orders = orderSnapshots.filter(snap=>snap.exists()).map(snap=>({...snap.data(),id:snap.id}));
+      const productViews = await getOrderProductSnapshots(orders);
+      assertCurrent();
+      for (const orderData of orders) {
+        const oid = orderData.id;
+        const membershipStatus = getStockpileOrderMembership(orderData);
+        const orderItems = [];
         if (!Array.isArray(orderData.cartItems)) {
           console.warn(
             "[stockpileSlice] orderData.cartItems is missing or not an array for order:",
             oid
           );
+          pileOrders.push({
+            id: oid,
+            orderId: orderData.orderId || oid,
+            progressStatus: orderData.progressStatus || "Pending",
+            vendorStatus: orderData.vendorStatus || null,
+            membershipStatus,
+            declineReason: orderData.declineReason || null,
+            createdAt: orderData.createdAt || null,
+            items: [],
+          });
           continue;
         }
 
-        // For each cartItem, fetch product doc
-        for (const item of orderData.cartItems) {
-          if (!item.productId) {
-            console.warn(
-              "[stockpileSlice] cartItem is missing productId:",
-              item
-            );
-            continue;
-          }
 
-          console.log(
-            "[stockpileSlice] Fetching product doc for:",
-            item.productId
-          );
-          const productSnap = await getDoc(doc(db, "products", item.productId));
-          if (!productSnap.exists()) {
-            console.warn(
-              "[stockpileSlice] Product doc not found for ID:",
-              item.productId
-            );
-            continue;
-          }
-
-          const productData = productSnap.data();
-          console.log("[stockpileSlice] Product data fetched:", productData);
+        // Owned-order fallback is batched; missing listings cannot erase a pile.
+        for (const [itemIndex,item] of orderData.cartItems.entries()) {
+          const productData = productViews[oid]?.[itemIndex] || item.productSnapshot || {};
 
           // --------------------------
           // Decide which image to use:
           // --------------------------
           let itemImages = [];
           let variantImages = [];
+
+          // Prefer the immutable order-time image. A live listing can change
+          // after the item has already joined the customer's pile.
+          if (item.selectedImageUrl) {
+            itemImages.push(item.selectedImageUrl);
+          } else if (item.productSnapshot?.imageUrl) {
+            itemImages.push(item.productSnapshot.imageUrl);
+          } else if (item.imageUrl || item.image || productData.imageUrl) {
+            itemImages.push(item.imageUrl || item.image || productData.imageUrl);
+          }
 
           // 1) Check for subProductId
           let subProduct = null;
@@ -178,16 +188,59 @@ export const fetchStockpileData = createAsyncThunk(
           // Build the final cart item
           const finalItem = {
             ...item,
-            name: productData.name || "Unknown",
+            orderId: oid,
+            displayOrderId: orderData.orderId || oid,
+            orderProgressStatus: orderData.progressStatus || "Pending",
+            orderVendorStatus: orderData.vendorStatus || null,
+            stockpileMembershipStatus: membershipStatus,
+            declineReason: orderData.declineReason || null,
+            name:
+              item.name ||
+              item.productSnapshot?.name ||
+              productData.name ||
+              "Item",
             imageUrl: finalImage,
+            selectedImageUrl: finalImage,
+            unitPrice:
+              item.unitPrice ??
+              item.productSnapshot?.price ??
+              item.price ??
+              productData.price ??
+              null,
+            selectedSize:
+              item.selectedSize || item.size || item.variantAttributes?.size,
+            selectedColor:
+              item.selectedColor || item.color || item.variantAttributes?.color,
+            condition:
+              item.condition ||
+              item.productSnapshot?.condition ||
+              productData.condition ||
+              null,
+            isFashion:
+              item.isFashion ??
+              item.productSnapshot?.isFashion ??
+              productData.isFashion ??
+              false,
           };
 
           console.log(
             "[stockpileSlice] Final cart item with product data:",
             finalItem
           );
+          orderItems.push(finalItem);
           allItems.push(finalItem);
         }
+
+        pileOrders.push({
+          id: oid,
+          orderId: orderData.orderId || oid,
+          progressStatus: orderData.progressStatus || "Pending",
+          vendorStatus: orderData.vendorStatus || null,
+          membershipStatus,
+          declineReason: orderData.declineReason || null,
+          createdAt: orderData.createdAt || null,
+          items: orderItems,
+        });
       }
 
       console.log(
@@ -197,6 +250,7 @@ export const fetchStockpileData = createAsyncThunk(
 
       return {
         pileItems: allItems,
+        pileOrders,
         stockpileExpiry: expiry,
       };
     } catch (error) {
@@ -215,9 +269,11 @@ const initialState = {
   isActive: false,
   vendorId: null,
   pileItems: [],
+  pileOrders: [],
   stockpileExpiry: null,
   loading: false,
   error: null,
+  requestId: null,
 };
 
 const stockpileSlice = createSlice({
@@ -239,18 +295,25 @@ const stockpileSlice = createSlice({
       state.isActive = false;
       state.vendorId = null;
       state.pileItems = [];
+      state.pileOrders = [];
       state.stockpileExpiry = null;
       state.error = null;
+      state.requestId = null;
+      state.loading = false;
     },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchStockpileData.pending, (state) => {
+      .addCase(fetchStockpileData.pending, (state, action) => {
+        state.requestId = action.meta.requestId;
         console.log("[stockpileSlice] fetchStockpileData.pending");
         state.loading = true;
         state.error = null;
+        state.pileItems = [];
+        state.pileOrders = [];
       })
       .addCase(fetchStockpileData.fulfilled, (state, action) => {
+        if (state.requestId !== action.meta.requestId || auth.currentUser?.uid !== action.meta.arg.userId) return;
         console.log(
           "[stockpileSlice] fetchStockpileData.fulfilled:",
           action.payload
@@ -258,10 +321,12 @@ const stockpileSlice = createSlice({
         state.loading = false;
         if (action.payload) {
           state.pileItems = action.payload.pileItems;
+          state.pileOrders = action.payload.pileOrders || [];
           state.stockpileExpiry = action.payload.stockpileExpiry;
         }
       })
       .addCase(fetchStockpileData.rejected, (state, action) => {
+        if (state.requestId !== action.meta.requestId || auth.currentUser?.uid !== action.meta.arg.userId) return;
         console.log(
           "[stockpileSlice] fetchStockpileData.rejected with error:",
           action.payload

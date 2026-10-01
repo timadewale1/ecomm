@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import StorePagePreview from "./StorePreview";
 import CommunityInviteModal from "./CommunityInviteModal";
@@ -6,10 +6,15 @@ import { VendorContext } from "../Context/Vendorcontext";
 import { db } from "../../firebase.config";
 import { doc, updateDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { acquireScrollLock } from "../../services/scrollLock";
 
 const StoreCelebration = ({ onClose }) => {
   const { vendorData: vendor } = useContext(VendorContext);
-  const [phase, setPhase] = useState("preview"); 
+  const [phase, setPhase] = useState("preview");
+
+  useEffect(() => {
+    return acquireScrollLock("StoreCelebration", { freezePosition: true });
+  }, []);
 
   const handleCommunityDone = async () => {
     try {
@@ -42,26 +47,27 @@ const StoreCelebration = ({ onClose }) => {
           transition={{ type: "tween", duration: 0.8 }}
           className="fixed inset-0 flex justify-center items-center z-[9999]"
         >
-          <div className="bg-white rounded-2xl p-3 w-[90%] max-w-md mx-auto shadow-2xl text-center">
+          <div className="mx-auto max-h-[92dvh] w-[92%] max-w-md overflow-y-auto overscroll-contain rounded-[24px] bg-white p-4 text-center shadow-2xl font-satoshi">
             {phase === "preview" ? (
               <>
-                <h2 className="text-xl font-bold uppercase font-opensans text-customOrange">
-                  🎉 Congratulations!
+                <h2 className="text-[21px] font-medium leading-7 text-gray-900">
+                  Congratulations! 🎉
                 </h2>
-                <p className="text-xs px-12 font-opensans mt-3 mb-1">
-                  Your store setup is complete! Here&apos;s how it looks to
+                <p className="mx-auto mb-1 mt-2 max-w-xs px-2 text-sm leading-5 text-gray-600">
+                  Your store setup is complete. Here&apos;s how it looks to
                   customers:
                 </p>
 
-                <div className="shadow mt-4 border-dashed rounded-md">
+                <div className="mt-4">
                   <StorePagePreview />
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => setPhase("community")}
-                  className="mt-4 px-4 py-2 rounded-full border border-customOrange font-opensans text-white bg-customOrange"
+                  className="mt-4 h-12 w-full rounded-xl border border-customOrange bg-customOrange px-4 text-base font-medium text-white active:opacity-90"
                 >
-                  Continue
+                  Continue setup
                 </button>
               </>
             ) : (

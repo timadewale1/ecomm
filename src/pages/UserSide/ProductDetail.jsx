@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/img-redundant-alt */
 import { siteUrls } from "../../config/siteUrls.mjs";
+import {getProductForDetail} from "../../services/publicProducts";
 import React, {
   useEffect,
   useState,
@@ -47,6 +48,7 @@ import {
   shouldInitializeProductVariantSelection,
 } from "../../services/productVariantSelection";
 
+import { getPublicVendor } from "../../services/publicVendors";
 import LoadProducts from "../../components/Loading/LoadProducts";
 import { GoChevronLeft, GoChevronRight, GoDotFill } from "react-icons/go";
 import { LuCopyCheck, LuCopy } from "react-icons/lu";
@@ -84,8 +86,6 @@ import {
   getDoc,
   getFirestore,
   collection,
-  serverTimestamp,
-  runTransaction,
 } from "firebase/firestore";
 import {
   marketplaceActionErrorMessage,
@@ -113,11 +113,10 @@ import IkImage from "../../services/IkImage";
 import SEO from "../../components/Helmet/SEO";
 import QuestionandA from "../../components/Loading/QuestionandA";
 import { LiaHomeSolid, LiaShareSolid } from "react-icons/lia";
-import { handleUserActionLimit } from "../../services/userWriteHandler";
 import SafeImg from "../../services/safeImg";
 import AppBackButton from "../../components/layout/AppBackButton";
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
-import { useFavorites } from "../../components/Context/FavoritesContext";
+import { useProductFavorite } from "../../components/Context/FavoritesContext";
 import { BsBadgeHdFill } from "react-icons/bs";
 import { HiOutlineShoppingBag } from "react-icons/hi";
 import { FcShop } from "react-icons/fc";
@@ -651,9 +650,6 @@ const [variantSheetMode, setVariantSheetMode] = useState("add"); // "add" | "buy
   const [disclaimerUrl, setDisclaimerUrl] = useState("");
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [wishCount, setWishCount] = useState(
-    typeof product?.wishCount === "number" ? product.wishCount : 0,
-  );
 
   const [hdImages, setHdImages] = useState([]);
   const [loadedHd, setLoadedHd] = useState(new Set());
@@ -680,7 +676,6 @@ const hdToastShownRef = useRef(new Set());
 
   const uid = currentUser?.uid ?? null;
   const priceLock = usePriceLock(db, uid, product?.id);
-const favBusyRef = useRef(false);
 
   const loadedProductId = product?.id || product?.productId;
   useProductDetailScrollRestoration({
@@ -727,8 +722,7 @@ const openVariantSheet = useCallback((mode) => {
   }, [id]);
 
   // Local Favorites Context
-  const { addFavorite, removeFavorite, isFavorite } = useFavorites();
-  const favorite = isFavorite(product?.id);
+  const { favorite, wishCount, toggleFavorite } = useProductFavorite(product);
   const { isActive: quickMode = false, vendorId: basketVendorId = null } =
     useSelector((state) => selectQuickMode(state) ?? {});
   const offerPriceFromState = location.state?.offerPrice;
@@ -782,20 +776,24 @@ const openVariantSheet = useCallback((mode) => {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const fetchProductDetails = async () => {
       dispatch(fetchProductRequest());
       setVendorLoading(true);
       try {
-        const productRef = doc(db, "products", id); // Fetch product by ID
-        const productSnap = await getDoc(productRef);
+        const productSnap = await getProductForDetail(id);
+        if (cancelled) return;
 
         if (productSnap.exists()) {
           const productData = productSnap.data();
           const vendorId = String(productData.vendorId || "").trim();
-          const vendorSnap = vendorId
+          const vendorSnap = vendorId && currentUser?.uid === vendorId
             ? await getDoc(doc(db, "vendors", vendorId))
             : null;
-          const vendorData = vendorSnap?.exists() ? vendorSnap.data() : null;
+          // Only the vendor owner can read their private document for preview.
+          const vendorData = vendorSnap?.exists() ? vendorSnap.data()
+            : await getPublicVendor(vendorId);
+          if (cancelled) return;
           const ownerPreview = Boolean(
             currentUser?.uid &&
               currentUser.uid === vendorId &&
@@ -843,16 +841,18 @@ const openVariantSheet = useCallback((mode) => {
           dispatch(fetchProductFailure("No such product found!"));
         }
       } catch (err) {
+        if (cancelled) return;
         console.error("Error fetching product details:", err);
         dispatch(
           fetchProductFailure(err?.message || "Failed to load product details."),
         );
       } finally {
-        setVendorLoading(false);
+        if (!cancelled) setVendorLoading(false);
       }
     };
 
     fetchProductDetails();
+    return () => { cancelled = true; };
   }, [id, dispatch, currentUser?.uid, db]);
   useEffect(() => {
     if (isGuestShared && productVendorId) {
@@ -1154,9 +1154,6 @@ useEffect(() => {
   //       return n;
   //     });
   // };
-  useEffect(() => {
-    if (typeof product?.wishCount === "number") setWishCount(product.wishCount);
-  }, [product?.wishCount]);
 
   const handleSubProductClick = (subProduct) => {
     swiperRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1175,109 +1172,10 @@ useEffect(() => {
     setCurrentImageIndex(0);
   };
 
-const handleFavoriteToggle = async (e) => {
+const handleFavoriteToggle = (e) => {
   e?.stopPropagation?.();
-
-  const productId = product?.id;
-  const vendorId = product?.vendorId;
-  const uid = currentUser?.uid;
-
-  if (!productId || !vendorId) return;
-
-  // Prevent double taps causing double increments
-  if (favBusyRef.current) return;
-  favBusyRef.current = true;
-
-  // Helper: optimistic UI count change
-  const bumpUI = (delta) =>
-    setWishCount((c) => Math.max(0, Number(c || 0) + delta));
-
-  // Use current truth from context at click-time (not stale closure)
-  const wasFavorite = isFavorite(productId);
-
-  try {
-    // ✅ Optimistic UI + favorites context
-    appHaptics.favorite(!wasFavorite);
-    if (wasFavorite) {
-      removeFavorite(productId);
-      bumpUI(-1);
-    } else {
-      addFavorite(product); // product already has id here
-      bumpUI(1);
-    }
-
-    // Guest: keep it local only
-    if (!uid) return;
-
-    // ✅ Rate limit check (if this fails, we revert below)
-    await handleUserActionLimit(
-      uid,
-      "favorite",
-      {},
-      {
-        collectionName: "usage_metadata",
-        writeLimit: 50,
-        minuteLimit: 10,
-        hourLimit: 80,
-        dayLimit: 120,
-      }
-    );
-
-    const favDocRef = doc(db, "users", uid, "favorites", productId);
-    // Write the explicit UI intent. A cloud hydration racing this tap must not
-    // invert the action by toggling against an older Firestore snapshot.
-    const didLike = !wasFavorite;
-
-    await runTransaction(db, async (tx) => {
-      if (didLike) {
-        tx.set(favDocRef, {
-          productId,
-          vendorId,
-          name: product?.name || "",
-          price: Number(product?.price || 0),
-          createdAt: serverTimestamp(),
-        });
-      } else {
-        tx.delete(favDocRef);
-      }
-    });
-
-    // ✅ Tracking (based on DB truth)
-    if (didLike === true) {
-      track(
-        "product_like",
-        {
-          surface: "product_detail",
-          productId,
-          vendorId,
-          priceShown: Number(displayPrice || product?.price || 0),
-          currency: "NGN",
-        },
-        { surface: "product_detail" }
-      );
-    } else if (didLike === false) {
-      track(
-        "product_unlike",
-        { surface: "product_detail", productId, vendorId },
-        { surface: "product_detail" }
-      );
-    }
-  } catch (err) {
-    console.error("Error updating favorites:", err);
-
-    // ✅ Revert optimistic UI
-    if (wasFavorite) {
-      addFavorite(product);
-      bumpUI(1);
-    } else {
-      removeFavorite(productId);
-      bumpUI(-1);
-    }
-
-    toast.error(err?.message || "Failed to update favorites. Please try again.");
-  } finally {
-    favBusyRef.current = false;
-  }
+  const liked = toggleFavorite({ surface: "product_detail", priceShown: Number(displayPrice || product?.price || 0) });
+  if (liked !== null) appHaptics.favorite(liked);
 };
 
   // ---- role guard (user only) ----

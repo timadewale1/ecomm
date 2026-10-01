@@ -1,4 +1,5 @@
 const initialState = {
+  securityVersion: 3,
   orders: [],
   ownerVendorId: null,
   status: "idle",
@@ -8,9 +9,10 @@ const initialState = {
 const orderReducer = (state = initialState, action) => {
   switch (action.type) {
     case "SET_ORDERS":
+      if (!state.ownerVendorId || action.meta?.vendorId !== state.ownerVendorId) return state;
       return {
         ...state,
-        orders: action.payload,
+        orders: action.payload.filter(order => order.vendorId === state.ownerVendorId),
         status: "ready",
         error: null,
       };
@@ -40,12 +42,13 @@ const orderReducer = (state = initialState, action) => {
       };
     case "ORDER_LISTENER_STARTED":
       return {
-        ...state,
+        ...(state.ownerVendorId === action.payload.vendorId && state.securityVersion === 3 ? state : initialState),
         ownerVendorId: action.payload.vendorId,
-        status: state.orders.length ? "refreshing" : "connecting",
+        status: state.ownerVendorId === action.payload.vendorId && state.securityVersion === 3 && state.orders.length ? "refreshing" : "connecting",
         error: null,
       };
     case "ORDER_LISTENER_READY":
+      if (action.payload.vendorId !== state.ownerVendorId) return state;
       return {
         ...state,
         ownerVendorId: action.payload.vendorId,
@@ -54,6 +57,7 @@ const orderReducer = (state = initialState, action) => {
         lastSyncedAt: action.payload.syncedAt,
       };
     case "ORDER_LISTENER_FAILED":
+      if (action.payload.vendorId !== state.ownerVendorId) return state;
       return {
         ...state,
         status: state.orders.length ? "ready" : "error",

@@ -1,3 +1,4 @@
+import { publicVendorsQuery } from "../../services/publicVendors";
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import {
   collection,
@@ -14,10 +15,7 @@ export const fetchHomepageData = createAsyncThunk(
     const { lastVisible } = getState().homepage; // Access the last fetched document
 
     const approvedVendorsSnapshot = await getDocs(
-      query(
-        collection(db, "vendors"),
-        where("isApproved", "==", true),
-        where("isDeactivated", "==", false)
+      publicVendorsQuery(
       )
     );
 

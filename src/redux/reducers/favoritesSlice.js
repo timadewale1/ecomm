@@ -56,6 +56,8 @@ const initialState = {
   cloudHydrated: false,
   cloudError: null,
   pendingGuestMergeIds: [],
+  views: {},
+  pendingIntents: {},
 };
 
 const splitIntoChunks = (values, size) => {
@@ -97,7 +99,7 @@ export const refreshFavoriteProducts = createAsyncThunk(
         splitIntoChunks(requestedIds, FIRESTORE_IN_QUERY_LIMIT).map((chunk) =>
           getDocs(
             query(
-              collection(db, "products"),
+              collection(db, "publicProducts"),
               where(documentId(), "in", chunk)
             )
           )
@@ -164,6 +166,8 @@ const favoritesSlice = createSlice({
           state.lastFetchedAt = null;
         }
         state.pendingGuestMergeIds = preserveLocal ? [...state.ids] : [];
+        state.views = {};
+        state.pendingIntents = {};
         state.ownerUid = uid;
       }
 
@@ -241,7 +245,27 @@ const favoritesSlice = createSlice({
         cloudHydrated: false,
         cloudError: null,
         pendingGuestMergeIds: [],
+        views: {},
+        pendingIntents: {},
       });
+    },
+    favoriteViewChanged: (state, { payload }) => {
+      const { productId, product, liked, wishCount, pending, intent } = payload;
+      if (!productId) return;
+      state.views ||= {};
+      state.pendingIntents ||= {};
+      state.views[productId] = { liked, wishCount, pending };
+      if (intent) state.pendingIntents[productId] = intent;
+      else delete state.pendingIntents[productId];
+      if (liked) {
+        if (!state.ids.includes(productId)) state.ids.push(productId);
+        // Keep raw product data separate from the optimistic display count.
+        state.entities[productId] = { ...state.entities[productId], ...product, id: productId };
+      } else {
+        state.ids = state.ids.filter((id) => id !== productId);
+        delete state.entities[productId];
+        state.pendingGuestMergeIds = state.pendingGuestMergeIds.filter((id) => id !== productId);
+      }
     },
     favoriteAdded: (state, { payload }) => {
       const id = payload?.id || payload?.productId;
@@ -331,6 +355,7 @@ export const {
   signedOut: favoritesSignedOut,
   favoriteAdded,
   favoriteRemoved,
+  favoriteViewChanged,
   legacyFavoritesMerged,
 } = favoritesSlice.actions;
 

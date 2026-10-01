@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { siteUrls } from "../../config/siteUrls.mjs";
 import { useParams, useNavigate } from "react-router-dom";
 import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "../../firebase.config";
+import { db, functions } from "../../firebase.config";
+import {httpsCallable} from "firebase/functions";
 import PaystackPop from "@paystack/inline-js";
 import { RiShareForwardBoxLine } from "react-icons/ri";
 import { AiOutlineInfoCircle } from "react-icons/ai";
@@ -25,6 +26,8 @@ export default function PayPage() {
   const [paymentState, setPaymentState] = useState("idle");
   const [paymentError, setPaymentError] = useState("");
   const [paymentReference, setPaymentReference] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const linkScopeRef = useRef(null);
   const isDeliveryDraft = draft?.draftType === "stockpile_delivery";
 
   // stockpile tips and rotating index
@@ -43,7 +46,18 @@ export default function PayPage() {
   }, []);
 
   useEffect(() => {
+    const linkScope = {token, active: true};
+    linkScopeRef.current = linkScope;
     let interval = null;
+    let cancelled = false;
+    let unsubscribe = () => {};
+    setLoading(true);
+    setDraft(null);
+    setError("");
+    setExpired(false);
+    setPaymentState("idle");
+    setPaymentReference("");
+    setPaymentError("");
 
     const clearCountdown = () => {
       if (interval) clearInterval(interval);
@@ -72,11 +86,27 @@ export default function PayPage() {
       interval = setInterval(tick, 1000);
     };
 
-    const unsubscribe = onSnapshot(
-      doc(db, "draftOrders", token),
+    const connect = async () => {
+      if (!/^[a-f0-9]{32}$/.test(token || "")) {
+        setExpired(true);
+        setLoading(false);
+        return;
+      }
+      const response = await httpsCallable(functions, "prepareSharedPaymentLinkV1", {timeout: 15000})({token});
+      if (cancelled) return;
+      if (!response.data?.available) {
+        setExpired(true);
+        setLoading(false);
+        return;
+      }
+      // Keep realtime payment confirmation, but never download the private
+      // order draft or the buyer's address, phone and email to the payer.
+      unsubscribe = onSnapshot(
+      doc(db, "sharedPaymentLinks", token),
       (snap) => {
+        if (cancelled) return;
         if (!snap.exists()) {
-          setError("Link not found");
+          setExpired(true);
           setLoading(false);
           clearCountdown();
           return;
@@ -107,23 +137,36 @@ export default function PayPage() {
         }
         setLoading(false);
       },
-      (snapshotError) => {
+      () => {
+        if (cancelled) return;
         clearCountdown();
-        setError(snapshotError.message || "Unable to load payment link");
+        setError("We couldn’t load the payment update. Please try again.");
         setLoading(false);
       },
     );
+    };
+    void connect().catch(() => {
+      if (cancelled) return;
+      setError("We couldn’t load this payment link. Please try again.");
+      setLoading(false);
+    });
 
     return () => {
+      linkScope.active = false;
+      cancelled = true;
       clearCountdown();
       unsubscribe();
     };
-  }, [token]);
+  }, [token, loadAttempt]);
 
   const handlePayNow = () => {
     if (!draft?.access_code || ["opening", "confirming"].includes(paymentState)) {
       return;
     }
+    const linkScope = linkScopeRef.current;
+    const isCurrentLink = () => linkScope?.active &&
+      linkScopeRef.current === linkScope && linkScope.token === token;
+    if (!isCurrentLink()) return;
 
     setPaymentError("");
     setPaymentState("opening");
@@ -132,17 +175,20 @@ export default function PayPage() {
       const popup = new PaystackPop();
       popup.resumeTransaction(draft.access_code, {
         onSuccess: (transaction) => {
+          if (!isCurrentLink()) return;
           setPaymentReference(transaction?.reference || "");
           setPaymentState((current) =>
             current === "success" ? current : "confirming",
           );
         },
         onCancel: () => {
+          if (!isCurrentLink()) return;
           setPaymentState((current) =>
             current === "success" ? current : "idle",
           );
         },
         onError: (paystackError) => {
+          if (!isCurrentLink()) return;
           setPaymentError(
             paystackError?.message ||
               "We couldn’t open Paystack. Please try again.",
@@ -203,8 +249,9 @@ export default function PayPage() {
         />
         <ExpiredLink />
         <h2 className="text-3xl font-medium text-center mb-12 font-ubuntu">
-          Ooops! Payment link has expired.
+          {expired ? "Ooops! Payment link has expired." : error}
         </h2>
+        {!expired && <button type="button" onClick={() => setLoadAttempt(value => value + 1)} className="mb-4 rounded bg-customOrange px-4 py-3 text-sm text-white">Try again</button>}
         <button
           onClick={() => navigate("/")}
           className="px-4 py-3 bg-customOrange text-sm z-50 font-opensans text-white rounded"
@@ -344,7 +391,7 @@ export default function PayPage() {
         <button
           type="button"
           onClick={handlePayNow}
-          disabled={["opening", "confirming"].includes(paymentState)}
+          disabled={!draft.access_code || ["opening", "confirming"].includes(paymentState)}
           className="w-full py-3 mt-16 bg-customOrange text-white rounded-full font-opensans font-semibold"
         >
           {paymentState === "opening"

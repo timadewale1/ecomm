@@ -9,18 +9,15 @@ import { useDispatch } from "react-redux";
 import toast from "react-hot-toast";
 import { RotatingLines } from "react-loader-spinner";
 
-import { fetchSignInMethodsForEmail } from "firebase/auth";
+
 import {
   doc,
   getDoc,
   setDoc,
-  getDocs,
-  collection,
-  query,
-  where,
 } from "firebase/firestore";
 
 import { auth, db } from "../../firebase.config";
+import { canUseBuyerContactEmail, CONTACT_SIGN_IN_MESSAGE, assertCurrentAccount } from "../../services/accountLookups";
 import LocationPicker from "../Location/LocationPicker";
 import { AiOutlineMail } from "react-icons/ai";
 import AppBottomSheet from "../layout/AppBottomSheet";
@@ -172,21 +169,6 @@ export default function QuickAuthModal({
   };
 
   /* ─────────────────────────────────────────────
-   *   Vendor e-mail hard block (defense in depth)
-   * ───────────────────────────────────────────── */
-  const isVendorEmail = async (cleanEmail) => {
-    const vSnap = await getDocs(
-      query(collection(db, "vendors"), where("email", "==", cleanEmail))
-    );
-    if (!vSnap.empty) return true;
-
-    const uSnap = await getDocs(
-      query(collection(db, "users"), where("email", "==", cleanEmail))
-    );
-    return !uSnap.empty && uSnap.docs[0].data()?.role === "vendor";
-  };
-
-  /* ─────────────────────────────────────────────
    *   Confirm modal save/skip
    * ───────────────────────────────────────────── */
   const handleConfirmSave = async () => {
@@ -206,65 +188,20 @@ export default function QuickAuthModal({
 
     try {
       setSaving(true);
+      assertCurrentAccount(pendingUser);
 
-      // Guard: vendor email
-      if (await isVendorEmail(e)) {
-        try {
-          await pendingUser?.delete?.();
-        } catch (delErr) {
-          try {
-            if (auth.currentUser && auth.currentUser.uid === pendingUser?.uid) {
-              await auth.currentUser.delete?.();
-            }
-          } catch {
-            await auth.signOut();
-          }
-        }
-        toast.error("This email is already used for a Vendor account!");
+      if (!(await canUseBuyerContactEmail(e))) {
+        toast.error(CONTACT_SIGN_IN_MESSAGE);
         return;
       }
 
-      // Twitter cross-provider checks
-      if (confirmProvider === "twitter.com") {
-        const methods = await fetchSignInMethodsForEmail(auth, e);
-        if (methods.includes("password") && !methods.includes("twitter.com")) {
-          try {
-            await pendingUser.delete?.();
-          } catch {
-            await auth.signOut();
-          }
-          toast.info(
-            "This email is registered with a password. Please log in."
-          );
-          preserveInitialAction();
-          navigate("/login", { state: { email: e, from: safeReturnDestination() } });
-          return;
-        }
-        if (
-          methods.includes("google.com") &&
-          !methods.includes("twitter.com")
-        ) {
-          try {
-            await pendingUser.delete?.();
-          } catch {
-            await auth.signOut();
-          }
-          toast.info(
-            "This email is registered with Google. Please log in with Google."
-          );
-          preserveInitialAction();
-          navigate("/login", { state: { email: e, from: safeReturnDestination() } });
-          return;
-        }
-      }
-
-      // Build completeness + optional fields
+      // Firebase Auth remains the authority for identity/linking.
+      // Preserve the existing quick-checkout completeness/optional fields.
       const hasPhone = !!(phoneRaw && isValidNg10(phoneRaw));
       const hasLocation = !!(address && coords?.lat && coords?.lng);
       const hasNames = !!(f && l);
       const hasEmail = !!e;
       const isProfileComplete = hasNames && hasEmail && hasPhone && hasLocation;
-
       const optionalUpdates = {};
       if (hasPhone) optionalUpdates.phoneNumber = `+234${phoneRaw}`;
       if (hasLocation) {
@@ -272,9 +209,9 @@ export default function QuickAuthModal({
         optionalUpdates.location = { lat: coords.lat, lng: coords.lng };
       }
 
-      // Create/merge user doc
       const userRef = doc(db, "users", pendingUser.uid);
       const userSnap = await getDoc(userRef);
+      assertCurrentAccount(pendingUser);
 
       if (!userSnap.exists()) {
         // New doc: write everything at once
@@ -307,7 +244,9 @@ export default function QuickAuthModal({
         await setDoc(userRef, patch, { merge: true });
       }
 
+      assertCurrentAccount(pendingUser);
       const mergeResult = await mergeEligibleCart(pendingUser.uid);
+      assertCurrentAccount(pendingUser);
 
       // clean confirm UI
       setShowConfirm(false);

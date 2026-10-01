@@ -1,29 +1,18 @@
+import { publicVendorsQuery } from "../../services/publicVendors";
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "../../firebase.config";
+import { getDocs, where } from "firebase/firestore";
 
 /** Helper that returns vendor docs for a given place type */
 const getVendorsByType = async (type) => {
   const snap = await getDocs(
-    query(
-      collection(db, "vendors"),
+    publicVendorsQuery(
       where("marketPlaceType", "==", type),
-      where("isApproved", "==", true),
-      where("isDeactivated", "==", false)
     )
   );
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 };
 
-/** Counts how many orders a vendor has fulfilled */
-const getOrderCount = async (vendorId) => {
-  const snap = await getDocs(
-    query(collection(db, "orders"), where("vendorId", "==", vendorId))
-  );
-  return snap.size;
-};
-
-/** Fetches local + online vendors, assigns product & order counts, then ranks. */
+/** Fetches public local + online stores, preserving sale priority and ranking. */
 export const fetchVendorsRanked = createAsyncThunk(
   "vendors/fetchRanked",
   async (_, { rejectWithValue }) => {
@@ -34,27 +23,11 @@ export const fetchVendorsRanked = createAsyncThunk(
         getVendorsByType("virtual"),
       ]);
 
-      // 2 ─ enrich with counts + score
-      const enrich = async (vList) =>
-        Promise.all(
-          vList.map(async (v) => {
-            const productCount = Array.isArray(v.productIds)
-              ? v.productIds.length
-              : 0;
-            const orderCount = await getOrderCount(v.id);
-            return {
-              ...v,
-              productCount,
-              orderCount,
-              score: productCount + orderCount,
-            };
-          })
-        );
-
-      const [localEnriched, onlineEnriched] = await Promise.all([
-        enrich(marketVendors),
-        enrich(onlineVendors),
-      ]);
+      const enrich = (vendors) => vendors.map((vendor) => ({
+        ...vendor, score: Number(vendor.discoveryScore) || 0,
+      }));
+      const localEnriched = enrich(marketVendors);
+      const onlineEnriched = enrich(onlineVendors);
 
       // 3 ─ rank each list:
       //    - vendors with flashSale first

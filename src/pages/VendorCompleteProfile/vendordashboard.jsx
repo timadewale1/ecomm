@@ -1,3 +1,4 @@
+import VendorReviewNotice from "./VendorReviewNotice";
 import { siteUrls } from "../../config/siteUrls.mjs";
 import React, {
   useEffect,
@@ -12,9 +13,7 @@ import {
   collection,
   query,
   where,
-  updateDoc,
   onSnapshot,
-  doc,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../../firebase.config";
@@ -46,7 +45,7 @@ import ScrollToTop from "../../components/layout/ScrollToTop";
 import SEO from "../../components/Helmet/SEO";
 import Lottie from "lottie-react";
 import LoadState from "../../Animations/loadinganimation.json";
-import MissingLocationModal from "../../components/Location/MissingLocationModal.jsx";
+import VendorDeliveryLocationNotice from "../../components/Location/VendorDeliveryLocationNotice.jsx";
 import TipChat from "../../components/TipsMaltilda.jsx";
 import { getVendorDashboardRevenue } from "../../services/walletApi";
 import VendorTour from "../../components/Tours/VendorTour";
@@ -133,10 +132,6 @@ const VendorDashboard = () => {
       vendorData?.profileComplete === true) &&
       vendorData?.isDeactivated !== true,
   );
-
-  const [showMissingLocationModal, setShowMissingLocationModal] =
-    useState(false);
-  const [locationFixing, setLocationFixing] = useState(false);
 
   // const [lastDoc, setLastDoc] = useState(null);
   // const [hasMore, setHasMore] = useState(true); // If there are more activities to load
@@ -386,14 +381,6 @@ const VendorDashboard = () => {
     }
   }, [vendorData, loading, navigate, location.state]);
   useEffect(() => {
-    if (
-      vendorData &&
-      (!vendorData.location?.lat || !vendorData.location?.lng)
-    ) {
-      setShowMissingLocationModal(true);
-    }
-  }, [vendorData]);
-  useEffect(() => {
     const blocked = localStorage.getItem("BLOCKED_VENDOR_EMAIL") === "1";
     if (!blocked) return;
     localStorage.removeItem("BLOCKED_VENDOR_EMAIL");
@@ -478,22 +465,6 @@ const VendorDashboard = () => {
           !initialOrdersReady ||
           !initialActivitiesReady),
     );
-  const handleLocationUpdate = async ({ lat, lng, Address }) => {
-    setLocationFixing(true);
-    try {
-      await updateDoc(doc(db, "vendors", vendorData.vendorId), {
-        Address,
-        location: { lat, lng },
-      });
-      toast.success("Address updated successfully!");
-      setShowMissingLocationModal(false);
-    } catch (err) {
-      console.error("Failed to update address:", err);
-      toast.error("Error updating address.");
-    } finally {
-      setLocationFixing(false);
-    }
-  };
 
   const textToCopy = vendorData?.slug
     ? siteUrls.storeShareUrl({ slug: vendorData.slug })
@@ -706,14 +677,6 @@ const VendorDashboard = () => {
   );
   return (
     <>
-      {showMissingLocationModal && (
-        <MissingLocationModal
-          onLocationUpdate={handleLocationUpdate}
-          isLoading={locationFixing}
-          closeModal={() => setShowMissingLocationModal(false)}
-        />
-      )}
-
       <SEO
         title={`Vendor Dashboard - My Thrift`}
         description={`Manage your store on My Thrift`}
@@ -741,7 +704,11 @@ const VendorDashboard = () => {
           </div>
         </div>
 
-      {!vendorData.isApproved && (
+        <VendorDeliveryLocationNotice key={vendorData.vendorId} vendor={vendorData}/>
+
+      {["changes_required", "declined"].includes(vendorData.applicationReview?.status) ? (
+        <VendorReviewNotice vendorId={vendorData.vendorId} summary={vendorData.applicationReview}/>
+      ) : !vendorData.isApproved && (
           <div className="flex flex-col justify-center items-center">
             <NotApproved allowCatalogue={canManageCatalogue} />
             {/* <img src="info.png" alt="" className="w-full h-28" /> */}

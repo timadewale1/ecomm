@@ -23,6 +23,7 @@ import { appHaptics } from "../services/haptics";
 import { useAppExperience } from "../components/Context/AppExperienceContext";
 import { APP_EXPERIENCE } from "../services/appExperience";
 import { authDestinationFromState } from "../services/authIntent";
+import { mustSignOutRestrictedAccount } from "../services/accountRestrictionPolicy.mjs";
 
 const VendorLogin = () => {
   const [email, setEmail] = useState("");
@@ -69,7 +70,7 @@ const VendorLogin = () => {
 
       const vendorData = docSnap.data();
 
-      if (vendorData.isDeactivated) {
+      if (mustSignOutRestrictedAccount({ ...vendorData, role: "vendor" })) {
         // Sign out and throw custom error
         await auth.signOut();
         throw { code: "vendor/account-deactivated" };
@@ -126,7 +127,10 @@ const VendorLogin = () => {
       }
 
       // 4) If verified, check other vendor fields
-      if (!vendorData.profileComplete) {
+      if (vendorData.applicationReview?.status === "changes_required") {
+        await selectExperience(APP_EXPERIENCE.VENDOR);
+        navigate("/complete-profile", { replace: true });
+      } else if (!vendorData.profileComplete) {
         await selectExperience(APP_EXPERIENCE.VENDOR);
         toast("Please complete your profile.");
         navigate("/complete-profile", { replace: true });

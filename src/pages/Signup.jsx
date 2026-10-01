@@ -3,7 +3,7 @@ import { Container, Row, Form, FormGroup } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
 import { auth, db, functions } from "../firebase.config";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { isBuyerUsernameAvailable } from "../services/accountLookups";
 import { motion } from "framer-motion";
 import Typewriter from "typewriter-effect";
 import toast from "react-hot-toast";
@@ -71,32 +71,26 @@ const Signup = () => {
     navigate("/login"); // Redirect to login page
   };
 
-  // Check if username is available
+  // Debounced hint only; no private profile is downloaded or cached.
   useEffect(() => {
-    const checkUsername = async () => {
-      if (username.trim().length >= 2) {
-        setUsernameLoading(true);
-        const formattedUsername = formatUsername(username);
-        const q = query(
-          collection(db, "users"),
-          where("username", "==", formattedUsername),
-        );
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-          setIsUsernameTaken(true);
-          setIsUsernameAvailable(false);
-        } else {
-          setIsUsernameTaken(false);
-          setIsUsernameAvailable(true);
+    let cancelled = false;
+    setIsUsernameTaken(false);
+    setIsUsernameAvailable(false);
+    setUsernameLoading(false);
+    if (username.trim().length < 2) return;
+    setUsernameLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const available = await isBuyerUsernameAvailable(formatUsername(username));
+        if (!cancelled) {
+          setIsUsernameTaken(!available);
+          setIsUsernameAvailable(available);
         }
-        setUsernameLoading(false);
-      } else {
-        setIsUsernameTaken(false);
-        setIsUsernameAvailable(false);
-      }
-    };
-    checkUsername();
+      } catch {
+        // A failed availability check is neither "taken" nor "available".
+      } finally { if (!cancelled) setUsernameLoading(false); }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [username]);
 
   const validateEmail = (email) => {

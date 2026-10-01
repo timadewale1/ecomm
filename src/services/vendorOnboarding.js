@@ -22,8 +22,8 @@ export const getVendorOnboardingDraft = async () =>
 export const saveVendorOnboardingDraft = async (draft) =>
   unwrap("saveVendorOnboardingDraft", { draft });
 
-export const completeVendorProfile = async (profile) =>
-  unwrap("completeVendorProfile", { profile });
+export const completeVendorProfile = async (profile, reviewVersion) =>
+  unwrap("completeVendorProfile", { profile, ...(reviewVersion == null ? {} : { reviewVersion }) });
 
 export const deleteVendorIdImage = async () =>
   unwrap("deleteVendorIdImage");

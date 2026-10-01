@@ -1,3 +1,6 @@
+import {recordOperationalEvent} from "../../services/operationalEvents";
+import {uploadPrivateImage} from "../../services/privateMedia";
+import {reportAppException} from "../../services/crashReporting";
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { getAuth, signOut } from "firebase/auth";
@@ -32,6 +35,7 @@ import {
   saveVendorOnboardingDraft,
 } from "../../services/vendorOnboarding";
 import VirtualVendor from "./virtualVendor";
+import VendorCorrections from "./VendorCorrections";
 import "./vendor.css";
 
 const NativeFormPicker = registerPlugin("NativeFormPicker");
@@ -96,6 +100,8 @@ const CompleteProfile = () => {
   const [selectedBank, setSelectedBank] = useState(null);
   const [duration, setDuration] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [review, setReview] = useState(null);
+  const [restoreError, setRestoreError] = useState("");
   const [actionsOpen, setActionsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const hydratedRef = useRef(false);
@@ -124,8 +130,10 @@ const CompleteProfile = () => {
     let cancelled = false;
     const restoreDraft = async () => {
       try {
-        const { draft = {} } = await getVendorOnboardingDraft();
+        const { draft = {}, review: restoredReview = null } = await getVendorOnboardingDraft();
         if (cancelled) return;
+        setReview(restoredReview);
+        recordOperationalEvent("onboarding_opened",{screen:"vendor_onboarding"});
         const restoredStockpile = draft.stockpile || null;
         const restoredBank = { ...EMPTY_BANK, ...(draft.bankDetails || {}) };
         setVendorData((current) => ({
@@ -150,13 +158,14 @@ const CompleteProfile = () => {
         setDuration(restoredStockpile?.durationInWeeks || null);
         setStockpileStep(restoredStockpile?.enabled ? 2 : 1);
       } catch (error) {
+        if (!cancelled) setRestoreError("We couldn’t load your saved application. Reload before making changes.");
         console.error("[VendorOnboarding] Draft restore failed", {
           code: error?.code || "unknown",
         });
         toast.error(
           getVendorOnboardingErrorMessage(
             error,
-            "We couldn’t restore your saved setup. You can still continue."
+            "We couldn’t restore your saved setup. Please reload before continuing."
           )
         );
       } finally {
@@ -173,8 +182,9 @@ const CompleteProfile = () => {
   }, []);
 
   useEffect(() => {
-    if (!hydratedRef.current || completingRef.current) return undefined;
+    if (!hydratedRef.current || completingRef.current || restoreError) return undefined;
     const timeout = window.setTimeout(() => {
+      if (completingRef.current) return;
       const draft = {
         ...vendorData,
         step,
@@ -197,7 +207,7 @@ const CompleteProfile = () => {
       });
     }, 800);
     return () => window.clearTimeout(timeout);
-  }, [vendorData, bankDetails, deliveryMode, idVerification, stockpile, step]);
+  }, [vendorData, bankDetails, deliveryMode, idVerification, stockpile, step, restoreError]);
 
   useEffect(() => () => {
     if (idPreviewRef.current) URL.revokeObjectURL(idPreviewRef.current);
@@ -281,11 +291,12 @@ const CompleteProfile = () => {
       setIsCoverImageUploading(true);
       const user = getAuth().currentUser;
       if (!user) throw new Error("Sign in as a vendor to upload an image.");
-      const storageRef = ref(getStorage(), `vendorImages/${user.uid}/coverImage`);
+      const correction = review?.status === "changes_required" || review?.status === "declined";
+      const storageRef = ref(getStorage(), correction ? `vendorImages/${user.uid}/review-${review.version}-${Date.now()}/coverImage` : `vendorImages/${user.uid}/coverImage`);
       await uploadBytes(storageRef, file, { contentType: file.type });
       const coverImageUrl = await getDownloadURL(storageRef);
       setVendorData((current) => ({ ...current, coverImageUrl }));
-      await setDoc(doc(db, "vendors", user.uid), { coverImageUrl }, { merge: true });
+      if (!correction) await setDoc(doc(db, "vendors", user.uid), { coverImageUrl }, { merge: true });
       void appHaptics.success();
       toast.success("Shop image uploaded.");
     } catch (error) {
@@ -324,11 +335,8 @@ const CompleteProfile = () => {
       setIsIdImageUploading(true);
       const user = getAuth().currentUser;
       if (!user) throw new Error("Sign in as a vendor to upload your ID.");
-      await uploadBytes(
-        ref(getStorage(), `vendorImages/${user.uid}/idImage`),
-        file,
-        { contentType: file.type, cacheControl: "private,no-store,max-age=0" }
-      );
+      await uploadPrivateImage(file, {kind: "identity"});
+      if (getAuth().currentUser !== user) return;
       if (idPreviewRef.current) URL.revokeObjectURL(idPreviewRef.current);
       idPreviewRef.current = URL.createObjectURL(file);
       setIdImage(idPreviewRef.current);
@@ -401,7 +409,7 @@ const CompleteProfile = () => {
         step,
         idImage: undefined,
         idImageUrl: undefined,
-      });
+      }, ["changes_required", "declined"].includes(review?.status) ? review.version : undefined);
       if (completion?.success !== true) {
         throw new Error("Profile completion was not confirmed.");
       }
@@ -409,6 +417,7 @@ const CompleteProfile = () => {
       // The callable only returns success after its Firestore batch commits.
       // Publish that committed state locally before mounting the dashboard so
       // a previous cached `profileComplete: false` cannot redirect backwards.
+      recordOperationalEvent("onboarding_submitted",{screen:"vendor_onboarding"});
       markVendorProfileComplete({
         shopName: vendorData.shopName,
         coverImageUrl: vendorData.coverImageUrl,
@@ -440,6 +449,7 @@ const CompleteProfile = () => {
       });
     } catch (error) {
       completingRef.current = false;
+      void reportAppException(error,"vendor-onboarding");
       console.error("[VendorOnboarding] Completion failed", {
         code: error?.code || "unknown",
       });
@@ -545,6 +555,12 @@ const CompleteProfile = () => {
         <Row>
           {loading ? (
             <Loading />
+          ) : restoreError ? (
+            <div role="alert" className="space-y-3 p-4"><p>{restoreError}</p><button type="button" onClick={() => window.location.reload()}>Reload application</button></div>
+          ) : review?.status === "declined" && !review.allowReapply ? (
+            <div className="space-y-4 p-4"><h1 className="text-xl font-bold">Application declined</h1><p>{review.reason}</p><p>{review.suggestions}</p><button type="button" onClick={openOnboardingSupport}>Contact support</button></div>
+          ) : review?.status === "changes_required" ? (
+            <Form onSubmit={handleProfileCompletion}><VendorCorrections review={review} vendorData={vendorData} setVendorData={setVendorData} categories={categories} bankDetails={bankDetails} setBankDetails={setBankDetails} deliveryMode={deliveryMode} handleDeliveryModeChange={handleDeliveryModeChange} idVerification={idVerification} handleIdVerificationChange={handleIdVerificationChange} handleImageUpload={handleImageUpload} handleIdImageUpload={handleIdImageUpload} isIdImageUploading={isIdImageUploading} isCoverImageUploading={isCoverImageUploading} isLoading={isLoading} onSupport={openOnboardingSupport}/></Form>
           ) : (
             <Form className="font-satoshi" onSubmit={handleProfileCompletion}>
               {step > 2 && (

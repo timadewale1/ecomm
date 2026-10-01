@@ -1,109 +1,69 @@
-import {
-  collection,
-  doc,
-  getCountFromServer,
-  query,
-  runTransaction,
-  serverTimestamp,
-  where,
-} from "firebase/firestore";
-
-import { db } from "../firebase.config";
-import { handleUserActionLimit } from "./userWriteHandler";
+import { collection, getDocs, limit, onSnapshot, query, where } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
+import { auth, db, functions } from "../firebase.config";
 
 const activeMutations = new Map();
+const setFollow = httpsCallable(functions, "setVendorFollowStateV1");
+const countFollowers = httpsCallable(functions, "getVendorFollowerCountV1");
 
-const followKey = (userId, vendorId) => `${userId}_${vendorId}`;
+function requireSession(userId, session = auth.currentUser) {
+  if (!session || session.isAnonymous || session.uid !== userId || auth.currentUser !== session) {
+    throw new Error("Your account changed. Please sign in and try again.");
+  }
+  return session;
+}
 
-export const getVendorFollowerCount = async (vendorId) => {
+// Owner-filtered queries also work before the relationship exists. A direct
+// missing-document get cannot prove ownership to the security rules.
+export const vendorFollowQuery = (userId, vendorId) => query(
+  collection(db, "follows"), where("userId", "==", userId),
+  where("vendorId", "==", vendorId), limit(1),
+);
+
+export async function getVendorFollowState(userId, vendorId) {
+  const session = requireSession(userId);
+  const snapshot = await getDocs(vendorFollowQuery(userId, vendorId));
+  requireSession(userId, session);
+  return !snapshot.empty;
+}
+
+export function subscribeVendorFollow(userId, vendorId, onValue, onError) {
+  const session = auth.currentUser;
+  if (!session || session.isAnonymous || session.uid !== userId) {
+    onValue(false);
+    return () => {};
+  }
+  return onSnapshot(vendorFollowQuery(userId, vendorId), snapshot => {
+    if (auth.currentUser === session) onValue(!snapshot.empty);
+  }, error => {
+    if (auth.currentUser === session) onError?.(error);
+  });
+}
+
+export async function getVendorFollowerCount(vendorId) {
   if (!vendorId) throw new Error("Vendor ID is missing.");
-  const snapshot = await getCountFromServer(
-    query(collection(db, "follows"), where("vendorId", "==", vendorId)),
-  );
-  return snapshot.data().count;
-};
+  return (await countFollowers({vendorId})).data.count;
+}
 
-/**
- * Set one user's relationship with one vendor to an explicit state.
- *
- * The follows document is the source of truth. The transaction makes retries
- * idempotent: requesting "followed" for an existing document (or "unfollowed"
- * for a missing one) is a successful no-op rather than another counter change.
- * The vendor counter is reconciled by the onFollowChange Cloud Function.
- */
-export const setVendorFollowState = async ({ userId, vendorId, shouldFollow }) => {
-  if (!userId) throw new Error("You need to be signed in to follow a vendor.");
+/** Explicit intents are serialized per account/store; identical in-flight
+ * requests share one result. The server transaction owns limits and writes. */
+export async function setVendorFollowState({ userId, vendorId, shouldFollow }) {
+  const session = requireSession(userId);
   if (!vendorId) throw new Error("Vendor ID is missing.");
-
-  const key = followKey(userId, vendorId);
+  const key = `${userId}_${vendorId}`;
   const requestedState = Boolean(shouldFollow);
   const active = activeMutations.get(key);
-
-  // Share an identical in-flight request across simultaneously mounted entry
-  // points. Callers always reconcile their UI from the returned canonical state.
-  if (active && active.shouldFollow === requestedState) return active.promise;
-
-  const previousPromise = active?.promise;
-
+  if (active?.session === session && active.shouldFollow === requestedState) return active.promise;
   const promise = (async () => {
-    // Opposite requests for the same relationship are serialized. This makes
-    // the most recent explicit intent win without two transactions racing.
-    if (previousPromise) {
-      try {
-        await previousPromise;
-      } catch {
-        // A failed earlier request must not permanently block the next intent.
-      }
+    if (active) {
+      try { await active.promise; } catch { /* A failed intent must not block the next one. */ }
     }
-
-    await handleUserActionLimit(
-      userId,
-      "follow",
-      {},
-      {
-        collectionName: "usage_metadata",
-        writeLimit: 50,
-        minuteLimit: 8,
-        hourLimit: 40,
-      },
-    );
-
-    const followRef = doc(db, "follows", key);
-    const result = await runTransaction(db, async (transaction) => {
-      const snapshot = await transaction.get(followRef);
-      const currentState = snapshot.exists();
-
-      if (currentState === requestedState) {
-        return { followed: currentState, changed: false };
-      }
-
-      if (requestedState) {
-        transaction.set(followRef, {
-          userId,
-          vendorId,
-          createdAt: serverTimestamp(),
-        });
-      } else {
-        transaction.delete(followRef);
-      }
-
-      return { followed: requestedState, changed: true };
-    });
-
-    console.info("[vendorFollow] mutation complete", {
-      vendorId,
-      requestedState,
-      followed: result.followed,
-      changed: result.changed,
-    });
-    return result;
+    requireSession(userId, session);
+    const {data} = await setFollow({vendorId, shouldFollow:requestedState});
+    requireSession(userId, session);
+    return data;
   })();
-
-  activeMutations.set(key, { shouldFollow: requestedState, promise });
-
-  try {
-    return await promise;
-  } finally {
-    if (activeMutations.get(key)?.promise === promise) activeMutations.delete(key);
-  }
-};
+  activeMutations.set(key, {shouldFollow:requestedState, session, promise});
+  try { return await promise; }
+  finally { if (activeMutations.get(key)?.promise === promise) activeMutations.delete(key); }
+}

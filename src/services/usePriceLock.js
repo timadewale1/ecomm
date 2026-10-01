@@ -1,6 +1,6 @@
 // hooks/usePriceLock.js
 import { useEffect, useState } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
+import { collection, query, where, limit, onSnapshot } from "firebase/firestore";
 import {
   getPriceLockExpiryMs,
   isPriceLockUsable,
@@ -11,16 +11,22 @@ export function usePriceLock(db, buyerId, productId) {
 
   useEffect(() => {
     if (!db || !buyerId || !productId) { setLock(null); return; }
-    const lockRef = doc(db, "priceLocks", `${buyerId}_${productId}`);
-    const unsub = onSnapshot(lockRef, (snap) => {
-      if (!snap.exists()) return setLock(null);
-      const data = snap.data();
+    // An owner-filtered query can subscribe before a lock exists, without
+    // permitting reads of guessed documents belonging to another buyer.
+    const lockQuery = query(collection(db, "priceLocks"), where("buyerId", "==", buyerId),
+      where("productId", "==", productId), limit(1));
+    let active = true;
+    setLock(null);
+    const unsub = onSnapshot(lockQuery, (snap) => {
+      if (!active) return;
+      if (snap.empty) return setLock(null);
+      const data = snap.docs[0].data();
       // Only honor ACTIVE & not expired
       const validUntilMs = getPriceLockExpiryMs(data);
       const isActive = data.state === "active" && isPriceLockUsable(data);
       setLock(isActive ? { ...data, validUntilMs } : null);
-    }, () => setLock(null));
-    return () => unsub();
+    }, () => {if (active) setLock(null);});
+    return () => {active = false; unsub();};
   }, [db, buyerId, productId]);
 
   useEffect(() => {

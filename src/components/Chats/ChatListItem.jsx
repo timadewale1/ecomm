@@ -2,28 +2,29 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "../../firebase.config";
 import { fetchCustomerProfile } from "../../redux/reducers/vendorChatSlice";
 import ChatAvatar from "./ChatAvatar";
+import {useAuth} from "../../custom-hooks/useAuth";
+import {updateLegacyInquiry} from "../../services/legacyInquiryAccess";
 
 const DEFAULT_AVATAR = "/default-avatar.png";
 
 export default function ChatListItem({ inquiry }) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const {currentUser} = useAuth();
 
   // Pull the cached profile from Redux (if it exists)
   const customerData = useSelector(
-    (state) => state.vendorChats.profiles[inquiry.customerId]
+    (state) => state.vendorChats.ownerUid === currentUser?.uid ? state.vendorChats.profiles[inquiry.customerId] : null
   );
 
   // If we don’t have this customer in Redux yet, dispatch to fetch it
   React.useEffect(() => {
     if (!customerData) {
-      dispatch(fetchCustomerProfile(inquiry.customerId));
+      dispatch(fetchCustomerProfile({customerId: inquiry.customerId, inquiryId: inquiry.id}));
     }
-  }, [dispatch, inquiry.customerId, customerData]);
+  }, [dispatch, inquiry.customerId, inquiry.id, currentUser?.uid, customerData]);
 
   // Format the timestamp
   const formattedDate = inquiry.createdAt
@@ -42,8 +43,7 @@ export default function ChatListItem({ inquiry }) {
 
     // 2) Fire-and-forget update to mark hasRead=true
     if (!inquiry.hasRead) {
-      const inquiryRef = doc(db, "inquiries", inquiry.id);
-      updateDoc(inquiryRef, { hasRead: true }).catch((error) => {
+      updateLegacyInquiry(inquiry.id, "read").catch((error) => {
         console.error("Error marking inquiry as read:", error);
         // Optional: you could show a toast here, e.g.:
         // toast.error("Could not mark as read");

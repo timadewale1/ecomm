@@ -168,6 +168,7 @@ const uploadOne = ({ storage, entry, reportProgress, activeTasks }) =>
     const task = uploadBytesResumable(storageRef, entry.file, {
       contentType: entry.file.type || "application/octet-stream",
       cacheControl: "public,max-age=31536000,immutable",
+      customMetadata: {productId: entry.path.split("/")[2]},
     });
     activeTasks.add(task);
 

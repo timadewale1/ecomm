@@ -1,0 +1,1 @@
+import{g2 as r,b as e,h as s,i as a}from"./index-CHrsVnsK.js";const i=r({currentUid:()=>{var r;return null==(r=e.currentUser)?void 0:r.uid},call:r=>s(a,"getOrderVendorSummariesV1")(r)});export{i as g};

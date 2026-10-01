@@ -1,3 +1,4 @@
+import { publicVendorsQuery } from "../../services/publicVendors";
 // src/redux/slices/personalDiscountsPageSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { db } from "../../firebase.config";
@@ -43,10 +44,7 @@ export const fetchPersonalDiscountsPage = createAsyncThunk(
 
       // 1) Fetch all approved & active vendors
       const vendorsSnap = await getDocs(
-        query(
-          collection(db, "vendors"),
-          where("isApproved", "==", true),
-          where("isDeactivated", "==", false)
+        publicVendorsQuery(
         )
       );
       const approvedVendorIDs = vendorsSnap.docs.map((doc) => doc.id);
@@ -64,7 +62,7 @@ export const fetchPersonalDiscountsPage = createAsyncThunk(
       // Query each vendor chunk
       for (const chunk of vendorIDChunks) {
         const qProd = query(
-          collection(db, "products"),
+          collection(db, "publicProducts"),
           where("isDeleted", "==", false),
           where("published", "==", true),
           where("vendorId", "in", chunk),

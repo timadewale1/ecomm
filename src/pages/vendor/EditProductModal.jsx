@@ -2,11 +2,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import toast from "react-hot-toast";
 import Modal from "react-modal";
-import { db } from "../../firebase.config";
+import { auth, functions } from "../../firebase.config";
 import { IoClose } from "react-icons/io5";
 import { FreeMode } from "swiper/modules";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -20,6 +20,7 @@ import { PALETTE, PALETTE_ORDER } from "../../services/pallete";
 import { getSwatchFromRawColor } from "../../services/colorutils";
 import { appHaptics } from "../../services/haptics";
 import { buildProductTypePickerOptions } from "../../services/productTaxonomyPresentation";
+import { safeStorageFileName } from "../../services/productImagePipeline";
 
 // Existing app modules (kept)
 import productTypes from "./producttype";
@@ -27,7 +28,6 @@ import productSizes from "./productsizes";
 import everydayType from "./everydayType";
 import ConfirmationDialog from "../../components/layout/ConfirmationDialog";
 import { TbEdit } from "react-icons/tb";
-import { handleUserActionLimit } from "../../services/userWriteHandler";
 import {
   IMPLICIT_ONE_SIZE,
   LISTING_SIZE_KINDS,
@@ -707,20 +707,9 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
       return;
     }
 
-    try {
-      await handleUserActionLimit(
-        currentUser.uid,
-        "product_edit",
-        {},
-        {
-          dayLimit: 5,
-        }
-      );
-    } catch (limitError) {
-      // If limit is reached, throw an error
-      toast.error(limitError.message);
-      setConfirmSave(false);
-      setIsLoading(false);
+    const editSession = auth.currentUser;
+    if (!editSession || editSession.isAnonymous || editSession.uid !== vendorId) {
+      toast.error("Please sign in to your vendor account again.");
       setIsLoading(false);
       return;
     }
@@ -833,9 +822,9 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
         if (img?.file) {
           const storageRef = ref(
             storage,
-            `${vendorId}/products/${productName}/${img.file.name}`
+            `${vendorId}/products/${selectedProduct.id}/${crypto.randomUUID()}-${safeStorageFileName(img.file.name)}`
           );
-          await uploadBytes(storageRef, img.file);
+          await uploadBytes(storageRef, img.file, {contentType:img.file.type,customMetadata:{productId:selectedProduct.id}});
           imageUrls.push(await getDownloadURL(storageRef));
         } else if (img?.preview) {
           imageUrls.push(img.preview);
@@ -877,9 +866,9 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
             const spImageUrls = [];
             for (const img of sp.images || []) {
               if (img?.name) {
-                const refPath = `${vendorId}/products/${productName}/subProducts/${sp.color}_${sp.size}/${img.name}`;
+                const refPath = `${vendorId}/products/${selectedProduct.id}/subProducts/${crypto.randomUUID()}-${safeStorageFileName(img.name)}`;
                 const imgRef = ref(storage, refPath);
-                await uploadBytes(imgRef, img);
+                await uploadBytes(imgRef, img, {contentType:img.type,customMetadata:{productId:selectedProduct.id}});
                 spImageUrls.push(await getDownloadURL(imgRef));
               } else {
                 spImageUrls.push(img);
@@ -930,10 +919,6 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
             ? { sizing: null }
             : {}),
         tags,
-        updatedAt: serverTimestamp(),
-        published: selectedProduct.published,
-        isDeleted: selectedProduct.isDeleted,
-        editCount: (selectedProduct.editCount || 0) + 1,
         variants: isFashion ? variantsData : [],
         subProducts: isFashion ? subProductsForSubmit : [],
       };
@@ -942,12 +927,14 @@ const EditProductModal = ({ vendorId, selectedProduct, onClose }) => {
         updateData.defectDescription = productDefectDescription.trim();
       }
 
-      const productDocRef = doc(db, "products", selectedProduct.id);
-      await updateDoc(productDocRef, updateData);
+      if (auth.currentUser !== editSession) return;
+      await httpsCallable(functions, "updateVendorListingV1")({productId:selectedProduct.id, patch:updateData});
+      if (auth.currentUser !== editSession) return;
 
       toast.success("Product updated successfully");
       onClose();
     } catch (err) {
+      if (auth.currentUser !== editSession) return;
       console.error(err);
       toast.error("Error updating product: " + err.message);
       setConfirmSave(false);

@@ -31,6 +31,7 @@ import {
 import {
   getVendorFollowerCount,
   setVendorFollowState,
+  subscribeVendorFollow,
 } from "../services/vendorFollow";
 import { onAuthStateChanged } from "firebase/auth";
 import Skeleton from "react-loading-skeleton";
@@ -1063,11 +1064,10 @@ const openSearch = useCallback(() => {
     }
 
     setIsFollowLoading(true);
-    const followRef = doc(db, "follows", `${userId}_${vendorId}`);
-    return onSnapshot(
-      followRef,
-      (snapshot) => {
-        setIsFollowing(snapshot.exists());
+    return subscribeVendorFollow(
+      userId, vendorId,
+      (followed) => {
+        setIsFollowing(followed);
         if (!followMutationRef.current) setIsFollowLoading(false);
       },
       (followError) => {
@@ -1082,7 +1082,7 @@ const openSearch = useCallback(() => {
     if (!vendorId) return undefined;
 
     return onSnapshot(
-      doc(db, "vendors", vendorId),
+      doc(db, "publicVendors", vendorId),
       (snapshot) => {
         const count = Number(snapshot.data()?.followersCount);
         if (Number.isFinite(count)) {

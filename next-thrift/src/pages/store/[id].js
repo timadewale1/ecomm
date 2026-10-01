@@ -1,16 +1,9 @@
 // src/pages/store/[id].js
 import Head from "next/head";
-import dynamic from "next/dynamic";
 import { initAdmin } from "lib/firebaseAdmin.js";
-import { AuthProvider } from "@/custom-hooks/useAuth";
-import { FavoritesProvider } from "@/components/context/FavoritesContext";
 import { Timestamp } from "firebase-admin/firestore";
 import { getOgImageUrl } from "lib/imageKit";
 import shareRouting from "lib/shareRouting.cjs";
-
-const StorePage = dynamic(() => import("../../app/store/StorePage"), {
-  ssr: false,
-});
 
 function toJSON(value) {
   if (value == null) return value;
@@ -47,7 +40,7 @@ export async function getServerSideProps({ req, res, params, resolvedUrl }) {
   // 4️⃣ True bots get the SSR meta + OG tags
   const db = initAdmin();
   const snap = await db.collection("vendors").doc(params.id).get();
-  if (!snap.exists) return { notFound: true };
+  if (!snap.exists || !shareRouting.isPublicVendor(snap.data())) return { notFound: true };
   const vendor = toJSON(shareRouting.previewVendor(snap.id, snap.data()));
   return { props: { vendor, canonicalUrl: shareRouting.canonicalUrl("store", vendor) } };
 }
@@ -92,11 +85,12 @@ export default function StoreSSR({ vendor, canonicalUrl }) {
         <meta name="twitter:image" content={image} key="tw:image" />
       </Head>
 
-      <FavoritesProvider>
-        <AuthProvider>
-          <StorePage vendorId={vendor.id} />
-        </AuthProvider>
-      </FavoritesProvider>
+      {/* Humans already redirect to the SPA. Crawlers need only this public
+          preview, not a second client storefront reading private profiles. */}
+      <main>
+        <h1>{title}</h1>
+        <p>{description}</p>
+      </main>
     </>
   );
 }

@@ -30,45 +30,50 @@ test("profile requests deduplicate, keep full avatars, refresh stale cache and b
   let reads = 0;
   let release;
   const mocks = {
-    "firebase.config": { db: {} },
-    "firebase/firestore": {
-      doc: (_, collection, uid) => ({ collection, uid }),
-      getDoc: () => { reads++; return new Promise((resolve, reject) => { release = { resolve, reject }; }); },
+    "firebase.config": { auth: {currentUser: {uid: "vendor"}} },
+    "services/chatParticipantProfiles": {
+      getChatParticipantProfile: request => {
+        assert.equal(request.ownerUid, "vendor");
+        assert.equal(request.conversationId, "thread");
+        reads++;
+        return new Promise((resolve, reject) => { release = { resolve, reject }; });
+      },
     },
   };
   const { default: reducer, fetchCustomerProfile } = await loadModule("src/redux/reducers/vendorChatSlice.js", mocks);
   const store = configureStore({ reducer: { vendorChats: reducer } });
   const photo = "data:image/svg+xml," + "x".repeat(20_000);
-  const one = store.dispatch(fetchCustomerProfile("buyer"));
-  const two = store.dispatch(fetchCustomerProfile("buyer"));
+  const request = customerId => ({customerId, conversationId: "thread"});
+  const one = store.dispatch(fetchCustomerProfile(request("buyer")));
+  const two = store.dispatch(fetchCustomerProfile(request("buyer")));
   assert.equal(reads, 1);
-  release.resolve({ exists: () => true, data: () => ({ username: "Buyer", photoURL: photo }) });
+  release.resolve({uid: "buyer", displayName: "Buyer", photoURL: photo});
   await Promise.all([one, two]);
   assert.equal(store.getState().vendorChats.profiles.buyer.photoURL, photo);
-  await store.dispatch(fetchCustomerProfile("buyer"));
+  await store.dispatch(fetchCustomerProfile(request("buyer")));
   assert.equal(reads, 1);
 
   const previous = structuredClone(store.getState().vendorChats);
   previous.profileRequests.buyer.updatedAt = Date.now() - 300_001;
   const refreshed = configureStore({ reducer: { vendorChats: reducer }, preloadedState: { vendorChats: previous } });
-  const remove = refreshed.dispatch(fetchCustomerProfile("buyer"));
+  const remove = refreshed.dispatch(fetchCustomerProfile(request("buyer")));
   assert.equal(refreshed.getState().vendorChats.profiles.buyer.photoURL, photo, "keep image visible while refreshing");
-  release.resolve({ exists: () => true, data: () => ({ username: "Buyer", photoURL: "" }) });
+  release.resolve({uid: "buyer", displayName: "Buyer", photoURL: null});
   await remove;
   assert.equal(refreshed.getState().vendorChats.profiles.buyer.photoURL, null);
-  const missing = refreshed.dispatch(fetchCustomerProfile("missing"));
-  release.resolve({ exists: () => false });
+  const missing = refreshed.dispatch(fetchCustomerProfile(request("missing")));
+  release.resolve({uid: "missing", displayName: "Customer", photoURL: null});
   await missing;
   assert.equal(refreshed.getState().vendorChats.profiles.missing.photoURL, null);
 
-  const failed = refreshed.dispatch(fetchCustomerProfile("offline"));
+  const failed = refreshed.dispatch(fetchCustomerProfile(request("offline")));
   const beforeFailure = reads;
   const errorLog = console.error;
   console.error = () => {};
   try { release.reject(new Error("offline")); await failed; } finally { console.error = errorLog; }
-  await refreshed.dispatch(fetchCustomerProfile("offline"));
+  await refreshed.dispatch(fetchCustomerProfile(request("offline")));
   assert.equal(reads, beforeFailure, "no retry loop");
-  for (const invalid of [null, "", "bad/path"]) await refreshed.dispatch(fetchCustomerProfile(invalid));
+  for (const invalid of [{}, {customerId: ""}, {customerId: "buyer"}]) await refreshed.dispatch(fetchCustomerProfile(invalid));
   assert.equal(reads, beforeFailure);
 });
 
@@ -85,10 +90,13 @@ test("continuous inbox renders full profile photos, has no legacy tabs and isola
   const moves = [];
   const photo = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg"><text>${"x".repeat(20_000)}</text></svg>`);
   const mocks = {
-    "firebase.config": { db: {} },
-    "firebase/firestore": {
-      doc: (_, collection, uid) => ({ collection, uid }),
-      getDoc: async () => { reads++; return { exists: () => true, data: () => ({ username: "Rachael", photoURL: photo }) }; },
+    "firebase.config": { get auth() {return auth;} },
+    "services/chatParticipantProfiles": {
+      getChatParticipantProfile: async request => {
+        assert.equal(request.conversationId, "thread");
+        reads++;
+        return {uid: "buyer", displayName: "Rachael", photoURL: photo};
+      },
     },
     "useAuth": { useAuth: () => auth },
     "services/offerConversations": { hydrateMyOfferConversations: async () => {} },

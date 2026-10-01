@@ -43,6 +43,7 @@ test("decline reasons render for delivery, pickup and declined stockpile orders"
     "Form/NativePickerField": () => null,
     "Inputs/NativeImageInput": () => null,
     "services/haptics": { appHaptics: {} },
+    "services/privateMedia": {loadDeliveryProof: () => {throw Error("Unexpected proof read");}},
   });
   const render = (order, orders = [order], sourceBucket = "declined") => renderToStaticMarkup(
     React.createElement(Provider, { store: store() }, React.createElement(Details, { open: true, order, orders, sourceBucket })),
@@ -101,7 +102,7 @@ test("profile details hides/restores bottom navigation and keeps payout digits m
     return React.createElement(Provider, { store: store() },
       React.createElement(AccessContext.Provider, { value: { hideBottomBar: hidden, setHideBottomBar } },
         React.createElement(VendorContext.Provider, { value: { vendorData: profile, loading: false } },
-          show && React.createElement(Details, { setShowDetails: setShow }),
+          show && React.createElement(Details, { onBack: () => setShow(false) }),
           !hidden && React.createElement("nav", null, "Bottom navigation"),
         ),
       ),
@@ -111,8 +112,7 @@ test("profile details hides/restores bottom navigation and keeps payout digits m
   try {
     await act(async () => app.render(React.createElement(React.StrictMode, null, React.createElement(Harness))));
     assert.equal(document.querySelector("nav"), null);
-    const digits = [...document.querySelectorAll(".vendor-bank-digits span")].map((el) => el.textContent).join("");
-    assert.equal(digits, "••••••6789");
+    assert.match(document.body.textContent, /••••••6789/);
     assert.doesNotMatch(document.body.innerHTML, /0123456789/);
     assert.match(document.body.textContent, /SAMPLE STORE LIMITED/);
     assert.match(document.body.textContent, /Withdrawals are paid only to this verified account/);

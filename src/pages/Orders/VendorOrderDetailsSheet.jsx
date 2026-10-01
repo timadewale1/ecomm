@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import { httpsCallable } from "firebase/functions";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import {uploadPrivateImage} from "../../services/privateMedia";
 import Compressor from "compressorjs";
 import toast from "react-hot-toast";
 import {
@@ -22,7 +22,7 @@ import {
 } from "react-icons/fi";
 import AppBottomSheet from "../../components/layout/AppBottomSheet";
 import NativePickerField from "../../components/Form/NativePickerField";
-import { functions, storage } from "../../firebase.config";
+import { functions } from "../../firebase.config";
 import { appHaptics } from "../../services/haptics";
 import {
   patchVendorOrder,
@@ -146,11 +146,6 @@ const compactIdentifier = (value) => {
 };
 
 const MAX_PROOF_IMAGE_BYTES = 8 * 1024 * 1024;
-
-const safeStorageSegment = (value) =>
-  String(value || "unknown")
-    .replace(/[^a-zA-Z0-9_-]/g, "_")
-    .slice(0, 180);
 
 const compressProofImage = (file) =>
   new Promise((resolve, reject) => {
@@ -1259,21 +1254,10 @@ export default function VendorOrderDetailsSheet({
     const compressed = await compressProofImage(proof.file);
     const entityId =
       order.stockpileDocId || order.stockpile?.id || order.orderId || order.id;
-    const storagePath = [
-      "orderDeliveryProofs",
-      safeStorageSegment(order.vendorId),
-      safeStorageSegment(entityId),
-      kind,
-    ].join("/");
-    const proofRef = ref(storage, storagePath);
-    const contentType = compressed.type || proof.file.type || "image/jpeg";
-    await uploadBytes(proofRef, compressed, {contentType});
-    return {
-      url: await getDownloadURL(proofRef),
-      storagePath,
-      contentType,
-      kind,
-    };
+    return uploadPrivateImage(compressed, {kind: "delivery-proof", proofKind: kind,
+      entityId, entityType: order.stockpileDocId || order.stockpile?.id ? "stockpile" : "order",
+      attemptId: crypto.randomUUID(),
+    });
   };
 
   const submitDecision = async (reason) => {

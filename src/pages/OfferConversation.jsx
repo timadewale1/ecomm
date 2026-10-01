@@ -396,6 +396,14 @@ function OfferEventCard({
 
 export default function OfferConversation() {
   const {conversationId} = useParams();
+  const {currentUser} = useAuth();
+  // A routed conversation/account change must not carry messages, pickup
+  // secrets or unsent composer text into a different participant's screen.
+  return <OfferConversationPage key={`${currentUser?.uid || "guest"}:${conversationId}`} />;
+}
+
+function OfferConversationPage() {
+  const {conversationId} = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const {currentUser, currentUserData, loading: authLoading} = useAuth();

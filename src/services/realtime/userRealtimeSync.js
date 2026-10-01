@@ -8,7 +8,7 @@ import {
   Timestamp,
   where,
 } from "firebase/firestore";
-import { db } from "../../firebase.config";
+import { auth, db } from "../../firebase.config";
 import store from "../../redux/store";
 import {
   buyerDraftChangesReceived,
@@ -43,6 +43,7 @@ import {
 import { snapshotChanges, snapshotDocument } from "./serializeFirestore";
 
 let activeUid = null;
+let activeSession = null;
 let generation = 0;
 let unsubscribers = [];
 let draftPruneTimer = null;
@@ -94,6 +95,7 @@ export const stopUserRealtimeSync = ({ clear = true } = {}) => {
   generation += 1;
   clearTimersAndListeners();
   activeUid = null;
+  activeSession = null;
   if (clear) {
     store.dispatch(buyerOrdersCleared());
     store.dispatch(buyerOffersCleared());
@@ -103,17 +105,19 @@ export const stopUserRealtimeSync = ({ clear = true } = {}) => {
 };
 
 export const startUserRealtimeSync = (uid) => {
-  if (!uid) {
+  const session = auth.currentUser;
+  if (!uid || session?.uid !== uid || session.isAnonymous) {
     stopUserRealtimeSync();
     return () => {};
   }
 
-  if (activeUid === uid && unsubscribers.length) {
+  if (activeUid === uid && activeSession === session && unsubscribers.length) {
     return () => {};
   }
 
   stopUserRealtimeSync({ clear: activeUid !== uid });
   activeUid = uid;
+  activeSession = session;
   const listenerGeneration = generation;
 
   store.dispatch(buyerOrdersSyncStarted(uid));
@@ -122,7 +126,7 @@ export const startUserRealtimeSync = (uid) => {
   store.dispatch(userWalletLiveSyncStarted(uid));
 
   const isCurrent = () =>
-    activeUid === uid && listenerGeneration === generation;
+    activeUid === uid && listenerGeneration === generation && auth.currentUser === session;
 
   unsubscribers = [
     onSnapshot(
@@ -269,18 +273,26 @@ export const startUserRealtimeSync = (uid) => {
   store.dispatch(expiredDraftsPruned(Date.now()));
 
   return () => {
-    if (isCurrent()) stopUserRealtimeSync({ clear: false });
+    if (activeUid === uid && listenerGeneration === generation) stopUserRealtimeSync({ clear: false });
   };
 };
 
 const documentsFromSnapshot = (snapshot) => snapshot.docs.map(snapshotDocument);
 
+const refreshScope = uid => {
+  const session = auth.currentUser, refreshGeneration = generation;
+  return () => Boolean(uid && session?.uid === uid && !session.isAnonymous &&
+    auth.currentUser === session && activeUid === uid && refreshGeneration === generation);
+};
+
 export const refreshBuyerOrdersFromServer = async (uid) => {
+  const isCurrent = refreshScope(uid);
+  if (!isCurrent()) return;
   const [ordersSnapshot, draftsSnapshot] = await Promise.all([
     getDocsFromServer(ordersQuery(uid)),
     getDocsFromServer(draftsQuery(uid)),
   ]);
-  if (activeUid !== uid) return;
+  if (!isCurrent()) return;
   store.dispatch(
     buyerServerOrdersReplaced({ uid, documents: documentsFromSnapshot(ordersSnapshot) }),
   );
@@ -291,16 +303,20 @@ export const refreshBuyerOrdersFromServer = async (uid) => {
 };
 
 export const refreshBuyerOffersFromServer = async (uid) => {
+  const isCurrent = refreshScope(uid);
+  if (!isCurrent()) return;
   const snapshot = await getDocsFromServer(offersQuery(uid));
-  if (activeUid !== uid) return;
+  if (!isCurrent()) return;
   store.dispatch(
     buyerOffersServerSnapshotReplaced({ uid, documents: documentsFromSnapshot(snapshot) }),
   );
 };
 
 export const refreshNotificationsFromServer = async (uid) => {
+  const isCurrent = refreshScope(uid);
+  if (!isCurrent()) return;
   const snapshot = await getDocsFromServer(notificationsQuery(uid));
-  if (activeUid !== uid) return;
+  if (!isCurrent()) return;
   store.dispatch(
     notificationServerSnapshotReplaced({
       uid,

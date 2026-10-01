@@ -32,6 +32,7 @@ import "./notifications.css";
 
 const INITIAL_VISIBLE_NOTIFICATIONS = 32;
 const VISIBLE_NOTIFICATIONS_BATCH = 32;
+const EMPTY_NOTIFICATIONS = [];
 
 const notificationDate = (createdAt) => {
   if (typeof createdAt?.toDate === "function") return createdAt.toDate();
@@ -68,8 +69,9 @@ const NotificationsSkeleton = () => (
 );
 
 const NotificationsPage = () => {
-  const notifications = useSelector(selectNotifications);
-  const notificationsStatus = useSelector(selectNotificationsStatus);
+  const allNotifications = useSelector(selectNotifications);
+  const cacheStatus = useSelector(selectNotificationsStatus);
+  const cacheOwner = useSelector(state => state.notificationsRealtime.ownerUid);
   const [activeTab, setActiveTab] = useState("all");
   const [optionsNotification, setOptionsNotification] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -81,7 +83,12 @@ const NotificationsPage = () => {
   const location = useLocation();
   const dispatch = useDispatch();
   const { currentUser, loading: authLoading } = useAuth();
-  const authenticatedUid = currentUser?.uid || auth.currentUser?.uid || null;
+  const authenticatedUid = currentUser?.uid || null;
+  const ownsCache = Boolean(authenticatedUid && cacheOwner === authenticatedUid);
+  const notifications = ownsCache ? allNotifications : EMPTY_NOTIFICATIONS;
+  const notificationsStatus = ownsCache ? cacheStatus : "connecting";
+
+  useEffect(() => {setOptionsNotification(null); setDeleting(false);}, [authenticatedUid]);
 
   const refreshNotifications = useCallback(async () => {
     if (!authenticatedUid) return;
@@ -94,23 +101,27 @@ const NotificationsPage = () => {
   });
 
   const markAsRead = useCallback(async (notificationId) => {
-    dispatch(notificationPatched({ id: notificationId, changes: { seen: true } }));
+    const session = auth.currentUser;
+    if (!authenticatedUid || session?.uid !== authenticatedUid || !notifications.some(item => item.id === notificationId)) return;
+    dispatch(notificationPatched({ uid: authenticatedUid, id: notificationId, changes: { seen: true } }));
 
     try {
       await updateDoc(doc(db, "notifications", notificationId), { seen: true });
     } catch (error) {
-      dispatch(notificationPatched({ id: notificationId, changes: { seen: false } }));
+      if (auth.currentUser === session) dispatch(notificationPatched({ uid: authenticatedUid, id: notificationId, changes: { seen: false } }));
       console.error("Error marking notification as read:", error);
     }
-  }, [dispatch]);
+  }, [dispatch, authenticatedUid, notifications]);
 
   const deleteNotification = async (notificationId) => {
+    const session = auth.currentUser;
     const previous = notifications.find((item) => item.id === notificationId);
-    dispatch(notificationRemoved(notificationId));
+    if (!previous || !authenticatedUid || session?.uid !== authenticatedUid) throw new Error("Please reopen your notifications.");
+    dispatch(notificationRemoved({uid: authenticatedUid, id: notificationId}));
     try {
       await deleteDoc(doc(db, "notifications", notificationId));
     } catch (error) {
-      if (previous) dispatch(notificationRestored(previous));
+      if (previous && auth.currentUser === session) dispatch(notificationRestored({uid: authenticatedUid, notification: previous}));
       throw error;
     }
   };
@@ -217,17 +228,19 @@ const NotificationsPage = () => {
 
   const handleDeleteSelected = async () => {
     if (!optionsNotification || deleting) return;
-
+    const session = auth.currentUser;
     setDeleting(true);
     try {
       await deleteNotification(optionsNotification.id);
+      if (auth.currentUser !== session) return;
       setOptionsNotification(null);
       toast.success("Notification deleted", { position: "bottom-center" });
     } catch (error) {
+      if (auth.currentUser !== session) return;
       console.error("Error deleting notification:", error);
       toast.error("We couldn't delete this notification. Please try again.");
     } finally {
-      setDeleting(false);
+      if (auth.currentUser === session) setDeleting(false);
     }
   };
 

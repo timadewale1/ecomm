@@ -22,6 +22,7 @@ import AppPageHeader from "../../components/layout/AppPageHeader";
 import NativePickerField from "../../components/Form/NativePickerField";
 import SEO from "../../components/Helmet/SEO";
 import { appHaptics } from "../../services/haptics";
+import { reviewVersion } from "../../services/reviewClient.mjs";
 import "./store-reviews.css";
 
 const PAGE_SIZE = 20;
@@ -143,7 +144,7 @@ export default function StoreReviews() {
     setSubmittingDispute(true);
     try {
       const callable = httpsCallable(functions, "submitReviewDisputeV1");
-      const response = await callable({reviewId: disputeReview.id, reason: disputeReason, details: disputeDetails});
+      const response = await callable({reviewId: disputeReview.id, version: reviewVersion(disputeReview), reason: disputeReason, details: disputeDetails});
       setDisputeStatuses((current) => ({...current, [disputeReview.id]: response.data?.status || "open"}));
       setDisputeReview(null);
       void appHaptics.success();

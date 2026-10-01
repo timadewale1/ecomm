@@ -3,6 +3,7 @@ import { createStore, applyMiddleware, combineReducers } from "redux";
 import thunk from "redux-thunk";
 import { createTransform, persistReducer, persistStore } from "redux-persist";
 import { safeStorage as storage } from "../services/storage";
+import {restoreVendorOrderCache} from "../services/vendorOrderCache.mjs";
 import conditionCategoriesSlice from "./reducers/conditionCategoriesSlice";
 // Reducers
 import { cartReducer } from "./reducers/reducer";
@@ -66,6 +67,7 @@ const favoritesTransform = createTransform(
     pendingGuestMergeIds: Array.isArray(favorites?.pendingGuestMergeIds)
       ? favorites.pendingGuestMergeIds
       : [],
+    pendingIntents: favorites?.ownerUid ? favorites.pendingIntents || {} : {},
   }),
   (favorites) => {
     const ids = Array.isArray(favorites?.ids) ? favorites.ids : [];
@@ -87,6 +89,8 @@ const favoritesTransform = createTransform(
       cloudStatus: "idle",
       cloudHydrated: false,
       cloudError: null,
+      views: {},
+      pendingIntents: favorites?.ownerUid ? favorites.pendingIntents || {} : {},
       pendingGuestMergeIds: Array.isArray(favorites?.pendingGuestMergeIds)
         ? favorites.pendingGuestMergeIds.filter((id) => ids.includes(id))
         : [],
@@ -229,6 +233,7 @@ const persistConfig = {
     "offerConversations",
   ],
   transforms: [
+    createTransform(restoreVendorOrderCache, restoreVendorOrderCache, {whitelist: ["orders"]}),
     favoritesTransform,
     mySizesTransform,
     recentActivitiesTransform,

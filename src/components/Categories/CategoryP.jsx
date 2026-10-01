@@ -118,7 +118,7 @@ export default function CategoryProducts() {
           pageSize: BATCH_SIZE,
         })
       ).unwrap();
-      if (!res.lastCursor || res.items.length < BATCH_SIZE) setNoMore(true);
+      if (!res.lastCursor || !res.hasMore) setNoMore(true);
     } catch {
       // handled in slice
     } finally {
@@ -142,7 +142,7 @@ export default function CategoryProducts() {
           pageSize: BATCH_SIZE,
         })
       ).unwrap();
-      if (!res.lastCursor || res.items.length < BATCH_SIZE) setNoMore(true);
+      if (!res.lastCursor || !res.hasMore) setNoMore(true);
     } finally {
       setLoading(false);
     }
@@ -267,7 +267,7 @@ export default function CategoryProducts() {
           pageSize: BATCH_SIZE,
         })
       ).unwrap();
-      if (!res.lastCursor || res.items.length < BATCH_SIZE) setNoMore(true);
+      if (!res.lastCursor || !res.hasMore) setNoMore(true);
     } finally {
       setLoading(false);
     }

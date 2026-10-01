@@ -100,6 +100,8 @@ export default function WalletPage() {
   const vendorId = vendorData?.vendorId || vendorData?.uid || "";
   const balance = Number(vendorData?.balance || 0);
   const pending = Number(vendorData?.pendingBalance || 0);
+  const withdrawalsRequireSupport = vendorData?.isDeactivated === true ||
+    vendorData?.accountRestriction?.active === true;
   const historyRequest = useRef(0);
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -224,6 +226,13 @@ export default function WalletPage() {
   };
 
   const performPayout = async (pin) => {
+    if (withdrawalsRequireSupport) {
+      setWithdrawPin("");
+      setWithdrawPinOpen(false);
+      setAmountOpen(false);
+      toast.error("Contact support to arrange a withdrawal while your store is restricted.");
+      return;
+    }
     setWithdrawLoading(true);
     try {
       const response = await requestVendorPayout({vendorId, walletPin: pin, payoutAmount: amount});
@@ -265,7 +274,7 @@ export default function WalletPage() {
               <div className="user-wallet-balance-main"><p>Available Balance</p><div className="user-wallet-balance-value"><strong>{hideBalance ? "₦••••••" : `₦${balanceFormatter.format(balance)}`}</strong><button type="button" onClick={toggleBalance}>{hideBalance ? <Eye/> : <EyeOff/>}</button></div></div>
               <div className="vendor-wallet-card-footer"><div><span>Pending balance</span><strong>₦{balanceFormatter.format(pending)}</strong></div><button type="button" onClick={() => setInfoOpen(true)} aria-label="About pending balance"><Info/></button></div>
             </section>
-            <div className="vendor-wallet-withdraw-row"><button type="button" disabled={!payoutWindow} onClick={() => { setAmountOpen(true); void appHaptics.medium(); }}>{payoutWindow ? "Withdraw earnings" : `Withdrawals open in ${countdown}`}</button><small>Withdrawals are processed Monday, Wednesday and Friday.</small></div>
+            <div className="vendor-wallet-withdraw-row"><button type="button" disabled={!withdrawalsRequireSupport && !payoutWindow} onClick={() => { void appHaptics.medium(); if (withdrawalsRequireSupport) { void openChat({"support-entry": "restricted-vendor-withdrawal", screen: "vendor-wallet"}); } else { setAmountOpen(true); } }}>{withdrawalsRequireSupport ? "Contact support for withdrawal" : payoutWindow ? "Withdraw earnings" : `Withdrawals open in ${countdown}`}</button><small>{withdrawalsRequireSupport ? "You can still fulfil your existing paid orders." : "Withdrawals are processed Monday, Wednesday and Friday."}</small></div>
           </>
         )}
         <section className={`user-wallet-recent ${historyView ? "vendor-wallet-history" : ""}`}>

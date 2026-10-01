@@ -1,58 +1,20 @@
+import { publicVendorsQuery } from "../../services/publicVendors";
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-} from "firebase/firestore";
-import { db } from "../../firebase.config";
+import { getDocs } from "firebase/firestore";
 
 /**
- * Fetches all approved, active vendors, counts
- *  • number of products (vendor.productIds.length)
- *  • number of orders (docs in "orders" with vendorId)
- * Then ranks them by (products + orders) desc and returns top 10.
+ * Preserves the server-projected discovery score and returns the top 10.
+ * Customer clients never fetch raw orders or unpublished product IDs to rank.
  */
 export const fetchTopVendors = createAsyncThunk(
   "topVendors/fetch",
   async (_, { rejectWithValue }) => {
     try {
-      // 1) grab approved + active vendors
-      const vendorSnap = await getDocs(
-        query(
-          collection(db, "vendors"),
-          where("isApproved", "==", true),
-          where("isDeactivated", "==", false)
-        )
-      );
-      const vendors = vendorSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
+      // Same discovery score, computed server-side; never fetch customer orders.
+      const vendorSnap = await getDocs(publicVendorsQuery());
+      const enriched = vendorSnap.docs.map((doc) => ({
+        ...doc.data(), id: doc.id, score: Number(doc.data().discoveryScore) || 0,
       }));
-
-      // 2) for each vendor, count products & orders
-      const enriched = await Promise.all(
-        vendors.map(async (v) => {
-          const productCount = Array.isArray(v.productIds)
-            ? v.productIds.length
-            : 0;
-
-          const ordersSnap = await getDocs(
-            query(
-              collection(db, "orders"),
-              where("vendorId", "==", v.id)
-            )
-          );
-          const orderCount = ordersSnap.size;
-
-          return {
-            ...v,
-            productCount,
-            orderCount,
-            score: productCount + orderCount,
-          };
-        })
-      );
 
       // 3) sort & take top 10
       enriched.sort((a, b) => b.score - a.score);

@@ -22,7 +22,6 @@ import {
   limit,
   orderBy,
   startAfter,
-  documentId,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../../firebase.config";
@@ -540,6 +539,9 @@ const VendorProducts = () => {
   ]);
 
   const loadViewStatsForIds = useCallback(async (rawProductIds) => {
+    const session = auth.currentUser;
+    if (!session || session.isAnonymous) return;
+    const isCurrentSession = () => auth.currentUser === session;
     const productIds = [...new Set(rawProductIds.filter(Boolean))];
     if (!productIds.length) return;
 
@@ -559,6 +561,7 @@ const VendorProducts = () => {
           nextStats[id] = 0;
         });
         const response = await getViewStats({ productIds: ids });
+        if (!isCurrentSession()) return;
         const stats = Array.isArray(response?.data?.stats)
           ? response.data.stats
           : [];
@@ -572,30 +575,34 @@ const VendorProducts = () => {
       }
       setViewStatsById((current) => ({ ...current, ...nextStats }));
     } catch (error) {
-      // Backward-compatible fallback while the callable is unavailable. This
-      // projection is delayed, but it is preferable to hiding all view data.
+      if (!isCurrentSession()) return;
+      // Return only this vendor's counts, never expose the private ranking
+      // documents. The delayed fallback must not lower a cached all-time total.
       try {
         const fallbackStats = {};
-        for (let offset = 0; offset < productIds.length; offset += 30) {
-          const ids = productIds.slice(offset, offset + 30);
-          const statsSnapshot = await getDocs(
-            query(
-              collection(db, "product_rank_signals_v2"),
-              where(documentId(), "in", ids),
-            ),
-          );
+        const getFallback = httpsCallable(functions, "getMyVendorProductViewFallbackV1");
+        for (let offset = 0; offset < productIds.length; offset += VIEW_STATS_CHUNK_SIZE) {
+          const ids = productIds.slice(offset, offset + VIEW_STATS_CHUNK_SIZE);
+          const response = await getFallback({ productIds: ids });
+          if (!isCurrentSession()) return;
           ids.forEach((id) => {
             fallbackStats[id] = 0;
           });
-          statsSnapshot.docs.forEach((statsDoc) => {
-            fallbackStats[statsDoc.id] = Math.max(
+          (response?.data?.stats || []).forEach((row) => {
+            if (!ids.includes(row?.productId)) return;
+            fallbackStats[row.productId] = Math.max(
               0,
-              Number(statsDoc.data()?.metrics24h?.views || 0),
+              Number(row.completedViews || 0),
             );
           });
         }
-        setViewStatsById((current) => ({ ...current, ...fallbackStats }));
+        setViewStatsById((current) => ({
+          ...current,
+          ...Object.fromEntries(Object.entries(fallbackStats).map(([id, count]) =>
+            [id, Math.max(Number(current[id]) || 0, count)])),
+        }));
       } catch (fallbackError) {
+        if (!isCurrentSession()) return;
         productIds.forEach((id) => requestedViewStatsRef.current.delete(id));
         console.warn("Vendor product view stats could not be loaded:", {
           callableCode: error?.code || "unknown",
@@ -603,7 +610,7 @@ const VendorProducts = () => {
         });
       }
     }
-  }, []);
+  }, [auth]);
 
   useEffect(() => {
     productsRef.current = products;

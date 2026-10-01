@@ -37,6 +37,9 @@ PODS:
   - CapacitorFirebaseAuthentication/Lite (8.5.2):
     - Capacitor
     - FirebaseAuth (~> 12.7)
+  - CapacitorFirebaseCrashlytics (8.5.2):
+    - Capacitor
+    - FirebaseCrashlytics (~> 12.7)
   - CapacitorGeolocation (8.2.2):
     - Capacitor
     - IONGeolocationLib (= 2.1.0)
@@ -78,6 +81,30 @@ PODS:
     - FirebaseCore (~> 12.19.0)
   - FirebaseCoreInternal (12.19.0):
     - "GoogleUtilities/NSData+zlib (~> 8.1)"
+  - FirebaseCrashlytics (12.19.0):
+    - FirebaseCore (~> 12.19.0)
+    - FirebaseInstallations (~> 12.19.0)
+    - FirebaseRemoteConfigInterop (~> 12.19.0)
+    - FirebaseSessions (~> 12.19.0)
+    - GoogleDataTransport (~> 10.1)
+    - GoogleUtilities/Environment (~> 8.1)
+    - nanopb (~> 3.30910.0)
+    - PromisesObjC (~> 2.4)
+  - FirebaseInstallations (12.19.0):
+    - FirebaseCore (~> 12.19.0)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GoogleUtilities/UserDefaults (~> 8.1)
+    - PromisesObjC (~> 2.4)
+  - FirebaseRemoteConfigInterop (12.19.0)
+  - FirebaseSessions (12.19.0):
+    - FirebaseCore (~> 12.19.0)
+    - FirebaseCoreExtension (~> 12.19.0)
+    - FirebaseInstallations (~> 12.19.0)
+    - GoogleDataTransport (~> 10.1)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GoogleUtilities/UserDefaults (~> 8.1)
+    - nanopb (~> 3.30910.0)
+    - PromisesSwift (~> 2.1)
   - Google-Maps-iOS-Utils (6.1.0):
     - GoogleMaps (~> 9.0)
   - GoogleDataTransport (10.1.1):
@@ -183,6 +210,7 @@ DEPENDENCIES:
   - "CapacitorFilesystem (from `../../node_modules/@capacitor/filesystem`)"
   - "CapacitorFirebaseAuthentication (from `../../node_modules/@capacitor-firebase/authentication`)"
   - "CapacitorFirebaseAuthentication/Google (from `../../node_modules/@capacitor-firebase/authentication`)"
+  - "CapacitorFirebaseCrashlytics (from `../../node_modules/@capacitor-firebase/crashlytics`)"
   - "CapacitorGeolocation (from `../../node_modules/@capacitor/geolocation`)"
   - "CapacitorGoogleMaps (from `../../node_modules/@capacitor/google-maps`)"
   - "CapacitorHaptics (from `../../node_modules/@capacitor/haptics`)"
@@ -204,6 +232,10 @@ SPEC REPOS:
     - FirebaseCore
     - FirebaseCoreExtension
     - FirebaseCoreInternal
+    - FirebaseCrashlytics
+    - FirebaseInstallations
+    - FirebaseRemoteConfigInterop
+    - FirebaseSessions
     - Google-Maps-iOS-Utils
     - GoogleDataTransport
     - GoogleMaps
@@ -246,6 +278,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/filesystem"
   CapacitorFirebaseAuthentication:
     :path: "../../node_modules/@capacitor-firebase/authentication"
+  CapacitorFirebaseCrashlytics:
+    :path: "../../node_modules/@capacitor-firebase/crashlytics"
   CapacitorGeolocation:
     :path: "../../node_modules/@capacitor/geolocation"
   CapacitorGoogleMaps:
@@ -276,6 +310,7 @@ SPEC CHECKSUMS:
   CapacitorCordova: 5bec5648cbd09a176ce34ce5e7b6cdabb2c8a327
   CapacitorFilesystem: b2bbd84bb91c177906c9dbc252864cb71ab9957b
   CapacitorFirebaseAuthentication: 826e1dae433819492daff947f3d674d1579a6ee7
+  CapacitorFirebaseCrashlytics: b619bf2ec0f5e9fad67c9d5649acd677ba92b315
   CapacitorGeolocation: 327f18983c8f8a55e191fcf7dee80b9294f1ab78
   CapacitorGoogleMaps: 33b110f185f8bddaac473d6639c785fdb4d8923c
   CapacitorHaptics: 296f771ecd89c7a1bd92a7b6826a7d268e2e70f5
@@ -291,6 +326,10 @@ SPEC CHECKSUMS:
   FirebaseCore: c990214798d7c568ad436a15ba7da25c7a278c9a
   FirebaseCoreExtension: 201c78d7491a273d61d8afbf491214276a951e6d
   FirebaseCoreInternal: 656b1c2fd5a1c5976183dc54b73deda78fb26ee3
+  FirebaseCrashlytics: 5c8e09beebcd41913b35250cd0e533b58e4961a0
+  FirebaseInstallations: f70a49eed611f5602f373e40974b3b01556ac217
+  FirebaseRemoteConfigInterop: 90659b3cac8f6de884f2d930fbdbeb711533e142
+  FirebaseSessions: 39bcaa7c16b5d8b91d58f495f29ce2988d2f915c
   Google-Maps-iOS-Utils: 0a484b05ed21d88c9f9ebbacb007956edd508a96
   GoogleDataTransport: a24e58982ab3ba2f64d79613e027fe7f57e88539
   GoogleMaps: 0608099d4870cac8754bdba9b6953db543432438
@@ -316,6 +355,6 @@ SPEC CHECKSUMS:
   PromisesSwift: 217dea0fd5d2ad65222a109c48698add13cc1c5b
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
 
-PODFILE CHECKSUM: cab6d10c67bc486f8857b1b49bb68a4196d31019
+PODFILE CHECKSUM: 57f43fc4b58067aab99549fc3fad21da3961efaa
 
 COCOAPODS: 1.17.0

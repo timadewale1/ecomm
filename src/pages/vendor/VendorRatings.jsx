@@ -26,6 +26,8 @@ import {
 } from "../../components/Reviews/reviewOrders";
 import { takeAuthIntent } from "../../services/authIntent";
 import { acquireScrollLock } from "../../services/scrollLock";
+import {getPublicVendor} from "../../services/publicVendors";
+
 const VendorRatings = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -92,10 +94,8 @@ const VendorRatings = () => {
   useEffect(() => {
     const fetchVendorData = async () => {
       try {
-        const vendorRef = doc(db, "vendors", id);
-        const vendorDoc = await getDoc(vendorRef);
-        if (vendorDoc.exists()) {
-          const vendorData = vendorDoc.data();
+        const vendorData = await getPublicVendor(id);
+        if (vendorData) {
           setVendor(vendorData);
         } else {
           toast.error("Vendor not found!");

@@ -1,4 +1,6 @@
 import PaystackPop from "@paystack/inline-js";
+import {recordOperationalEvent} from "./operationalEvents";
+import {reportAppException} from "./crashReporting";
 
 let activeTransaction = null;
 
@@ -17,6 +19,7 @@ export const resumePaystackTransaction = ({ accessCode }) => {
     return Promise.reject(new Error("The secure payment session is missing."));
   }
   if (activeTransaction) return activeTransaction;
+  recordOperationalEvent("checkout_opened",{screen:"paystack"});
 
   activeTransaction = new Promise((resolve, reject) => {
     let settled = false;
@@ -24,6 +27,8 @@ export const resumePaystackTransaction = ({ accessCode }) => {
       if (settled) return;
       settled = true;
       activeTransaction = null;
+      if(callback===reject){recordOperationalEvent("checkout_error",{screen:"paystack",code:"paystack_popup_failed"});void reportAppException({code:"paystack_popup_failed"},"checkout");}
+      else recordOperationalEvent(value.status === "success" ? "checkout_client_completed" : "checkout_cancelled",{screen:"paystack",reference:value.reference});
       callback(value);
     };
 
@@ -54,4 +59,3 @@ export const resumePaystackTransaction = ({ accessCode }) => {
 
   return activeTransaction;
 };
-

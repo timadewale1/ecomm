@@ -5,7 +5,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { db } from "../../firebase.config";
+import { auth, db } from "../../firebase.config";
 import store from "../../redux/store";
 import {
   offerConversationChangesReceived,
@@ -17,6 +17,7 @@ import { snapshotChanges, snapshotDocument } from "./serializeFirestore";
 import { repairOfferConversationAvatars, resetOfferConversationAvatarRepair } from "../offerConversations";
 
 let activeIdentity = null;
+let activeSession = null;
 let generation = 0;
 let unsubscribe = null;
 let notificationBaselineReady = false;
@@ -28,25 +29,28 @@ export const stopOfferConversationSync = ({clear = true} = {}) => {
   unsubscribe?.();
   unsubscribe = null;
   activeIdentity = null;
+  activeSession = null;
   notificationBaselineReady = false;
   latestEventIds = new Map();
   if (clear) store.dispatch(offerConversationsCleared());
 };
 
 export const startOfferConversationSync = (uid, role) => {
+  const session = auth.currentUser;
   const normalizedRole = role === "vendor" ? "vendor" : role === "user" ? "buyer" : null;
-  if (!uid || !normalizedRole) {
+  if (!uid || !normalizedRole || session?.uid !== uid || session.isAnonymous) {
     stopOfferConversationSync();
     return () => {};
   }
   const identity = `${uid}:${normalizedRole}`;
-  if (activeIdentity === identity && unsubscribe) return () => {};
+  if (activeIdentity === identity && activeSession === session && unsubscribe) return () => {};
 
   stopOfferConversationSync({clear: activeIdentity !== identity});
   activeIdentity = identity;
+  activeSession = session;
   const listenerGeneration = generation;
   const isCurrent = () =>
-    activeIdentity === identity && listenerGeneration === generation;
+    activeIdentity === identity && listenerGeneration === generation && auth.currentUser === session;
   store.dispatch(
     offerConversationsSyncStarted({uid, role: normalizedRole}),
   );
@@ -142,6 +146,6 @@ export const startOfferConversationSync = (uid, role) => {
   );
 
   return () => {
-    if (isCurrent()) stopOfferConversationSync({clear: false});
+    if (activeIdentity === identity && listenerGeneration === generation) stopOfferConversationSync({clear: false});
   };
 };

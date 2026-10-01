@@ -65,13 +65,16 @@ const slice = createSlice({
       state.revision += 1;
     },
     notificationPatched(state, { payload }) {
+      if (payload.uid !== state.ownerUid) return;
       adapter.updateOne(state, { id: payload.id, changes: payload.changes });
     },
     notificationRestored(state, { payload }) {
-      adapter.upsertOne(state, payload);
+      if (payload.uid !== state.ownerUid || payload.notification?.userId !== state.ownerUid) return;
+      adapter.upsertOne(state, payload.notification);
     },
-    notificationRemoved(state, { payload: id }) {
-      adapter.removeOne(state, id);
+    notificationRemoved(state, { payload }) {
+      if (payload.uid !== state.ownerUid) return;
+      adapter.removeOne(state, payload.id);
     },
     syncFailed(state, { payload }) {
       if (state.ownerUid !== payload.uid) return;

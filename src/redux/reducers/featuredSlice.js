@@ -22,7 +22,7 @@ export const fetchFeaturedProducts = createAsyncThunk(
 
       // Only published and not deleted + featured
       let qRef = query(
-        collection(db, "products"),
+        collection(db, "publicProducts"),
         where("published", "==", true),
         where("isDeleted", "==", false),
         where("isFeatured", "==", true),
@@ -32,7 +32,7 @@ export const fetchFeaturedProducts = createAsyncThunk(
 
       if (useCursor) {
         qRef = query(
-          collection(db, "products"),
+          collection(db, "publicProducts"),
           where("published", "==", true),
           where("isDeleted", "==", false),
           where("isFeatured", "==", true),

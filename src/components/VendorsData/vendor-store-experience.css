@@ -24,7 +24,16 @@
   top: var(--app-safe-top, env(safe-area-inset-top, 0px));
 }
 
+/* A bottom sheet locks the root scroll container while the native body still
+   owns the safe-area padding. Do not apply that same inset to the sticky store
+   header a second time during the lock or it shifts over the vendor identity. */
+.native-ios[data-app-scroll-lock-count] .vendor-store-header,
+.native-android[data-app-scroll-lock-count] .vendor-store-header {
+  top: 0;
+}
+
 .vendor-store-header-row {
+  position: relative;
   height: 48px;
   margin: 0 16px;
   display: flex;
@@ -47,6 +56,8 @@
 .vendor-store-header button > svg { width: 24px; height: 24px; }
 .vendor-store-header button > img { width: 24px; height: 24px; object-fit: contain; }
 .vendor-store-header-row > button > img[src="/newlogo.png"] { width: 28px; height: 28px; }
+.vendor-store-header-title { position: absolute; left: 50%; top: 50%; max-width: min(42vw, 190px); margin: 0; overflow: hidden; color: #111827; font: 500 16px/20px "Satoshi", sans-serif; text-align: center; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; opacity: 0; transform: translate(-50%, calc(-50% + 5px)); transition: opacity 180ms ease, transform 220ms ease; }
+.vendor-store-header-title.is-visible { opacity: 1; transform: translate(-50%, -50%); }
 .vendor-store-header-actions { display: flex; align-items: center; gap: 12px; }
 .vendor-store-header .vendor-store-checkout { width: auto; padding: 0 10px; border-radius: 10px; background: #f9531e; color: #fff; font: 500 12px/16px "Satoshi", sans-serif; }
 
@@ -71,8 +82,26 @@
 .vendor-store-identity > span { display: grid; place-items: center; background: #f2f2f2; color: #4b5563; font: 500 28px/32px "Satoshi", sans-serif; }
 .vendor-store-identity > div { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .vendor-store-identity h1 { margin: 0; color: #111827; font: 500 21px/25px "Satoshi", sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 265px; }
-.vendor-store-badge-pill { position: relative; min-height: 28px; border: 0; background: linear-gradient(90deg, rgba(255,255,255,.3), rgba(235,210,117,.3)); border-radius: 0 100px 100px 0; padding: 5px 12px 5px 24px; margin-left: 11px; font: 500 14px/18px "Satoshi", sans-serif; }
-.vendor-store-badge-pill img { position: absolute; width: 31px; height: 31px; object-fit: contain; left: -11px; top: 50%; transform: translateY(-50%); }
+.vendor-store-highlight-rotator { width: min(230px, calc(100vw - 132px)); height: 38px; overflow: hidden; display: flex; align-items: center; }
+.vendor-store-highlight-pill { position: relative; width: max-content; max-width: calc(100% - 14px); height: 29px; margin-left: 14px; border: 0; border-radius: 0 100px 100px 0; padding: 4px 12px 4px 23px; display: inline-flex; align-items: center; color: #374151; font: 500 14px/18px "Satoshi", sans-serif; box-shadow: none; animation: vendor-store-highlight-cycle 2s ease-in-out both; }
+.vendor-store-highlight-pill.is-badge { background: linear-gradient(100deg, rgba(255,255,255,.5), rgba(235,210,117,.3)); }
+.vendor-store-highlight-pill.is-stockpile { background: linear-gradient(100deg, #fff8df, #ffedc3); color: #975400; }
+.vendor-store-highlight-pill.is-delivery { background: linear-gradient(100deg, #e8f6ff, #e9e7ff); color: #3156a3; }
+.vendor-store-highlight-icon { position: absolute; z-index: 1; width: 36px; height: 36px; left: -14px; top: 50%; flex: 0 0 auto; display: grid; place-items: center; transform: translateY(-50%); filter: drop-shadow(0 4px 5px rgba(33, 48, 74, .16)); }
+.vendor-store-highlight-icon > img { width: 34px; height: 34px; object-fit: contain; }
+.vendor-store-highlight-icon > svg { width: 36px; height: 36px; overflow: visible; }
+.vendor-store-highlight-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@keyframes vendor-store-highlight-cycle {
+  0% { opacity: 0; transform: translateY(5px) scale(.98); }
+  12%, 84% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-4px) scale(.99); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vendor-store-header-title { transition: none; }
+  .vendor-store-highlight-pill { animation: none; }
+}
 
 .vendor-store-metrics { display: grid; grid-template-columns: 1fr 1px 1fr 1px 1fr; align-items: center; }
 .vendor-store-metrics button, .vendor-store-metrics > div { border: 0; background: transparent; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #111827; }

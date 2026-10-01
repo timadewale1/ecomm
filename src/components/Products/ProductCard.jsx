@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
+import { getPublicVendor } from "../../services/publicVendors";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Skeleton from "react-loading-skeleton";
@@ -10,9 +11,6 @@ import { db } from "../../firebase.config";
 import {
   doc,
   getDoc,
-  setDoc,
-  deleteDoc,
-  serverTimestamp,
   collection,
   query,
   where,
@@ -23,9 +21,8 @@ import {
 import { RiHeart3Fill, RiHeart3Line } from "react-icons/ri";
 
 import { useAuth } from "../../custom-hooks/useAuth";
-import { useFavorites } from "../../components/Context/FavoritesContext";
+import { useProductFavorite } from "../../components/Context/FavoritesContext";
 
-import { handleUserActionLimit } from "../../services/userWriteHandler";
 import IkImage from "../../services/IkImage";
 import Sales from "../Loading/Sales";
 import { useCardImpression } from "../../services/useCardImpression";
@@ -136,7 +133,6 @@ function formatSizeWord(w) {
   // default: Capitalize first letter, lowercase rest
   return capFirstLowerRest(t);
 }
-const wishCountCache = new Map(); // productId -> number
 
 const ProductCard = ({
   product,
@@ -163,38 +159,25 @@ const productId = product?.id || product?.productId;
   const [metaIndex, setMetaIndex] = useState(0); // 0 = condition, 1 = subType
 
   // Local Favorites Context
-  const { addFavorite, removeFavorite, isFavorite } = useFavorites();
-const favorite = isFavorite(productId);
+  const { favorite, wishCount, toggleFavorite } = useProductFavorite(product);
 
 const [burstKey, setBurstKey] = useState(0);
-const favoriteBusyRef = useRef(false);
 
 
-const [wishCount, setWishCount] = useState(() => {
-  const base = typeof product?.wishCount === "number" ? product.wishCount : 0;
-  return productId ? (wishCountCache.get(productId) ?? base) : base;
-});
-
-useEffect(() => {
-  if (!productId) return;
-  const base = typeof product?.wishCount === "number" ? product.wishCount : 0;
-  const cached = wishCountCache.get(productId);
-  setWishCount(cached ?? base);
-}, [productId, product?.wishCount]);
 
   // State for vendor's marketplace type
   const [vendorMarketplaceType, setVendorMarketplaceType] = useState(null);
 
-  // Fetch vendor's marketplace type from Firestore
+  // Read only the public storefront. Ignore responses for a previous card.
   useEffect(() => {
+    let alive = true;
+    setVendorMarketplaceType(null);
     const fetchVendorMarketplaceType = async () => {
       if (!product?.vendorId) return;
       try {
-        const vendorRef = doc(db, "vendors", product.vendorId);
-        const vendorDoc = await getDoc(vendorRef);
-
-        if (vendorDoc.exists()) {
-          const vendorData = vendorDoc.data();
+        const vendorData = await getPublicVendor(product.vendorId);
+        if (!alive) return;
+        if (vendorData) {
           setVendorMarketplaceType(vendorData.marketPlaceType);
         } else {
           console.error("Vendor not found");
@@ -204,11 +187,9 @@ useEffect(() => {
       }
     };
     fetchVendorMarketplaceType();
+    return () => { alive = false; };
   }, [product?.vendorId]);
 
-  useEffect(() => {
-    if (typeof product?.wishCount === "number") setWishCount(product.wishCount);
-  }, [product?.wishCount]);
 
   useEffect(() => {
     const id = setInterval(() => setMetaIndex((i) => (i + 1) % 3), 2500);
@@ -387,85 +368,16 @@ const impressionRef =
     }
   };
 
-const handleFavoriteToggle = async (e) => {
+const handleFavoriteToggle = (e) => {
   e.stopPropagation();
-
-  const productId = product?.id || product?.productId;
-  if (!productId || favoriteBusyRef.current) return;
-  favoriteBusyRef.current = true;
-
-  const wasFavorite = isFavorite(productId);
-
-  // helper to keep UI count consistent across route changes
-  const setWish = (next) => {
-    const v = Math.max(0, Number(next || 0));
-    wishCountCache.set(productId, v);
-    setWishCount(v);
-  };
-
-  // -------------------------
-  // ✅ Optimistic UI
-  // -------------------------
-  try {
-    appHaptics.favorite(!wasFavorite);
-    if (wasFavorite) {
-      removeFavorite(productId);
-      setWish(Number(wishCount || 0) - 1);
-      toast.info(`Removed ${product?.name || "item"} from favorites!`);
-    } else {
-      addFavorite({ ...product, id: productId }); // ensure id exists in your favorites store
-      setWish(Number(wishCount || 0) + 1);
-      setBurstKey((k) => k + 1); // splash only on like
-      toast.success(`Added ${product?.name || "item"} to favorites!`);
-    }
-
-    // guest mode: keep it local only (cache will persist across pages in SPA)
-    if (!currentUser?.uid) return;
-
-    await handleUserActionLimit(
-      currentUser.uid,
-      "favorite",
-      {},
-      {
-        collectionName: "usage_metadata",
-        writeLimit: 50,
-        minuteLimit: 10,
-        hourLimit: 80,
-        dayLimit: 120,
-      }
-    );
-
-    const favDocRef = doc(db, "users", currentUser.uid, "favorites", productId);
-
-    if (wasFavorite) {
-      await deleteDoc(favDocRef);
-    } else {
-      await setDoc(favDocRef, {
-        productId,
-        vendorId: product?.vendorId || null,
-        name: product?.name || "",
-        price: Number(product?.price || 0),
-        createdAt: serverTimestamp(),
-      });
-    }
-  } catch (err) {
-    console.error("Error updating favorites:", err);
-
-    // -------------------------
-    // ✅ Revert optimistic UI
-    // -------------------------
-    if (wasFavorite) {
-      addFavorite({ ...product, id: productId });
-      setWish(Number(wishCount || 0) + 1);
-    } else {
-      removeFavorite(productId);
-      setWish(Number(wishCount || 0) - 1);
-    }
-
-    toast.error(err?.message || "Failed to update favorites. Please try again.");
-  } finally {
-    favoriteBusyRef.current = false;
-  }
+  const liked = toggleFavorite({ surface });
+  if (liked === null) return;
+  appHaptics.favorite(liked);
+  if (liked) setBurstKey((key) => key + 1);
+  const message = `${liked ? "Added" : "Removed"} ${product?.name || "item"} ${liked ? "to" : "from"} favorites!`;
+  const toastId = `favorite-${productId}`;
+  if (toast.isActive(toastId)) toast.update(toastId, { render: message, type: liked ? "success" : "info", autoClose: 3500 });
+  else toast(message, { toastId, type: liked ? "success" : "info", autoClose: 3500 });
 };
 
 

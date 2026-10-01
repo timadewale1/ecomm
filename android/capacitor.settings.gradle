@@ -5,6 +5,9 @@ project(':capacitor-android').projectDir = new File('../node_modules/@capacitor/
 include ':capacitor-firebase-authentication'
 project(':capacitor-firebase-authentication').projectDir = new File('../node_modules/@capacitor-firebase/authentication/android')
 
+include ':capacitor-firebase-crashlytics'
+project(':capacitor-firebase-crashlytics').projectDir = new File('../node_modules/@capacitor-firebase/crashlytics/android')
+
 include ':capacitor-mlkit-image-labeling'
 project(':capacitor-mlkit-image-labeling').projectDir = new File('../node_modules/@capacitor-mlkit/image-labeling/android')
 

@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { updateProfile } from "firebase/auth";
 import { auth, db } from "../../firebase.config";
+import { isBuyerUsernameAvailable } from "../../services/accountLookups";
 import toast from "react-hot-toast";
 import {
   doc,
   updateDoc,
   getDoc,
-  collection,
-  getDocs,
-  query,
-  where,
 } from "firebase/firestore";
 import {
   FaTimes,
@@ -152,18 +149,9 @@ const ProfileDetails = ({
       try {
         const formattedUsername =
           candidate.charAt(0).toUpperCase() + candidate.slice(1).toLowerCase();
-        const snapshot = await getDocs(
-          query(
-            collection(db, "users"),
-            where("username", "==", formattedUsername),
-          ),
-        );
+        const available = await isBuyerUsernameAvailable(formattedUsername);
         if (cancelled) return;
-
-        const belongsToAnotherUser = snapshot.docs.some(
-          (userDoc) => userDoc.id !== currentUser?.uid,
-        );
-        setUsernameStatus(belongsToAnotherUser ? "taken" : "available");
+        setUsernameStatus(available ? "available" : "taken");
       } catch (error) {
         console.error("Error checking username availability:", error);
         if (!cancelled) setUsernameStatus("error");
@@ -320,17 +308,8 @@ const ProfileDetails = ({
       if (editField === "username") {
         const formattedUsername = formatName(username);
 
-        // Check for duplicate usernames
-        const usersRef = collection(db, "users");
-        const querySnapshot = await getDocs(
-          query(usersRef, where("username", "==", formattedUsername))
-        );
-
-        const belongsToAnotherUser = querySnapshot.docs.some(
-          (userDoc) => userDoc.id !== currentUser.uid,
-        );
-
-        if (belongsToAnotherUser) {
+        // Server returns availability only, not other customers' profiles.
+        if (!(await isBuyerUsernameAvailable(formattedUsername))) {
           toast.error("Username is already taken. Please choose another.");
           setIsLoading(false);
           return;

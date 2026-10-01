@@ -3,6 +3,21 @@ const assert = require("node:assert/strict");
 const { getOrigins, isPreviewCrawler, prepareShareResponse, appDestination, canonicalUrl, previewVendor, previewProduct } = require("./shareRouting.cjs");
 const env = { MYTHRIFT_APP_ORIGIN: "https://app.shopmythrift.com", MYTHRIFT_PUBLIC_ORIGIN: "https://shopmythrift.com" };
 
+test("rich previews enforce visibility while keeping sold items viewable", () => {
+  const {isPublicVendor, isPublicProduct} = require("./shareRouting.cjs");
+  const vendor = {isApproved:true, isDeactivated:false};
+  assert.equal(isPublicProduct({published:true, stock:0, soldOut:true}, vendor), true);
+  for (const v of [null, {}, {...vendor, isApproved:false}, {...vendor, isDeactivated:true},
+    {...vendor, accountRestriction:{active:true}}]) {
+    assert.equal(isPublicVendor(v), false);
+    assert.equal(isPublicProduct({published:true}, v), false);
+  }
+  for (const p of [null, {published:false}, {published:true, isDeleted:true},
+    {published:true, isDeactivated:true}, {published:true, deactivated:true}]) {
+    assert.equal(isPublicProduct(p, vendor), false);
+  }
+});
+
 test("legacy behaviour is retained without activation", () => {
   assert.equal(getOrigins({}).app, "https://shopmythrift.store");
   assert.equal(getOrigins({}).public, "https://mx.shopmythrift.store");

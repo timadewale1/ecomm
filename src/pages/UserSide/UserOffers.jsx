@@ -33,6 +33,7 @@ const TABS = [
   ["countered", "Countered"],
   ["declined", "Declined"],
 ];
+const EMPTY_ITEMS = [];
 
 const offerActivityTime = (offer) =>
   Number(
@@ -94,10 +95,12 @@ const OffersListSkeleton = () => (
 
 export default function UserOffers() {
   const location = useLocation();
-  const offers = useSelector(selectBuyerOffers);
-  const offersStatus = useSelector(selectBuyerOffersStatus);
-  const conversations = useSelector(selectOfferConversations);
-  const conversationsStatus = useSelector(selectOfferConversationsStatus);
+  const cachedOffers = useSelector(selectBuyerOffers);
+  const cachedOffersStatus = useSelector(selectBuyerOffersStatus);
+  const cachedConversations = useSelector(selectOfferConversations);
+  const cachedConversationsStatus = useSelector(selectOfferConversationsStatus);
+  const offerOwner = useSelector(state => state.buyerOffers.ownerUid);
+  const conversationOwner = useSelector(state => state.offerConversations.ownerUid);
   const [view, setView] = useState(() => {
     const requestedView = new URLSearchParams(location.search).get("view");
     if (requestedView === "chats") return "chats";
@@ -112,6 +115,11 @@ export default function UserOffers() {
   });
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const uid = currentUser?.uid;
+  const offers = uid && offerOwner === uid ? cachedOffers : EMPTY_ITEMS;
+  const offersStatus = uid && offerOwner === uid ? cachedOffersStatus : "connecting";
+  const conversations = uid && conversationOwner === uid ? cachedConversations : EMPTY_ITEMS;
+  const conversationsStatus = uid && conversationOwner === uid ? cachedConversationsStatus : "connecting";
 
   useEffect(() => {
     localStorage.setItem("userOffersTab", tab);

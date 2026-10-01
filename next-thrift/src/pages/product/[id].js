@@ -38,6 +38,11 @@ export async function getServerSideProps({ req, res, params, resolvedUrl }) {
   const snap = await db.collection("products").doc(params.id).get();
   if (!snap.exists) return { notFound: true };
 
+  const vendorId = snap.data().vendorId;
+  if (typeof vendorId !== "string" || !vendorId || vendorId.includes("/")) return { notFound: true };
+  const vendor = await db.collection("vendors").doc(vendorId).get();
+  if (!shareRouting.isPublicProduct(snap.data(), vendor.exists ? vendor.data() : null)) return { notFound: true };
+
   const product = toJSON(shareRouting.previewProduct(snap.id, snap.data()));
   return { props: { product, canonicalUrl: shareRouting.canonicalUrl("product", product) } };
 }

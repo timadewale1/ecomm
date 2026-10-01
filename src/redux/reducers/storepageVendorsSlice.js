@@ -2,8 +2,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { db } from "../../firebase.config";
 import {
-  doc,
-  getDoc,
   collection,
   getDocs,
   where,
@@ -13,6 +11,7 @@ import {
   query,
 } from "firebase/firestore";
 import { fetchVendorStoreProducts } from "../../services/vendorStoreSearch";
+import { getPublicVendor, publicVendorsQuery } from "../../services/publicVendors";
 
 const toMillis = (value) => {
   if (!value) return 0;
@@ -126,9 +125,8 @@ export const fetchVendorCategories = createAsyncThunk(
   "storepageVendors/fetchVendorCategories",
   async (vendorId, { rejectWithValue }) => {
     try {
-      const snap = await getDoc(doc(db, "vendors", vendorId));
-      if (!snap.exists()) throw new Error("Vendor not found");
-      const data = snap.data();
+      const data = await getPublicVendor(vendorId);
+      if (!data) throw new Error("Vendor not found");
 
       // Firestore field is now `productCategories` (instead of `categories`)
       const cats = Array.isArray(data.productCategories)
@@ -150,9 +148,8 @@ export const fetchStoreVendor = createAsyncThunk(
   "storepageVendors/fetchStoreVendor",
   async (vendorId, { rejectWithValue }) => {
     try {
-      const snap = await getDoc(doc(db, "vendors", vendorId));
-      if (!snap.exists()) throw new Error("Vendor not found");
-      const vendor = { id: snap.id, ...snap.data() };
+      const vendor = await getPublicVendor(vendorId);
+      if (!vendor) throw new Error("Vendor not found");
       if (vendor.isApproved !== true || vendor.isDeactivated === true) {
         throw new Error("Vendor is not available");
       }
@@ -190,7 +187,7 @@ export const fetchVendorProductsBatch = createAsyncThunk(
         const chunk = ids.slice(i, i + 10);
         const snap = await getDocs(
           query(
-            collection(db, "products"),
+            collection(db, "publicProducts"),
             where("__name__", "in", chunk),
             where("published", "==", true)
           )
@@ -213,8 +210,7 @@ export const fetchStoreVendorBySlug = createAsyncThunk(
   "storepageVendors/fetchBySlug",
   async (slug, { rejectWithValue }) => {
     try {
-      const q = query(
-        collection(db, "vendors"),
+      const q = publicVendorsQuery(
         where("slug", "==", slug),
         limit(1)
       );

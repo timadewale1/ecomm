@@ -17,17 +17,14 @@ import { LiaTimesSolid } from "react-icons/lia";
 import {
   GoogleAuthProvider,
   fetchSignInMethodsForEmail,
-  TwitterAuthProvider,
   getAdditionalUserInfo,
   signInAnonymously,
 } from "firebase/auth";
-import { signInWithGoogle } from "../../services/firebaseAuth";
+import { signInWithGoogle, signInWithTwitter } from "../../services/firebaseAuth";
+import { canUseBuyerContactEmail, isCurrentAccountBuyer, CONTACT_SIGN_IN_MESSAGE, assertCurrentAccount } from "../../services/accountLookups";
+import { authProvisioning } from "../../services/authProvisioning.mjs";
 import { FaXTwitter } from "react-icons/fa6";
 import {
-  collection,
-  query,
-  where,
-  getDocs,
   doc,
   updateDoc,
   getDoc,
@@ -133,37 +130,26 @@ const StoreBasket = forwardRef(function StoreBasket(
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    let provisioning;
 
     try {
       setSubmitting(true);
 
-      /* ───────── block vendor e-mails ───────── */
-      const vSnap = await getDocs(
-        query(collection(db, "vendors"), where("email", "==", cleanEmail))
-      );
-      if (!vSnap.empty) {
-        toast.error("This email is already used for a Vendor account!");
-        return;
-      }
-
-      /* ───────── existing user? redirect to /login ───────── */
-      const uSnap = await getDocs(
-        query(collection(db, "users"), where("email", "==", cleanEmail))
-      );
-      if (!uSnap.empty) {
-        toast(
-          "Looks like you already have an account — please log in instead."
-        );
+      if (!(await canUseBuyerContactEmail(cleanEmail))) {
+        toast(CONTACT_SIGN_IN_MESSAGE);
         navigate("/login", { state: { from: "/latest-cart" } });
         return;
       }
 
+      provisioning = authProvisioning.begin();
       /* ───────── 1️⃣  anonymous sign-in ───────── */
       const { user } = await signInAnonymously(auth);
+      provisioning.bind(user.uid);
 
       /* ───────── 2️⃣  create / update user doc ───────── */
       const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
+      assertCurrentAccount(user);
 
       const baseData = {
         displayName: `${fname} ${lname}`.replace(/\s+/g, " ").trim(),
@@ -180,12 +166,21 @@ const StoreBasket = forwardRef(function StoreBasket(
       };
 
       if (userSnap.exists()) {
-        await updateDoc(userRef, baseData); // merge
+        // Defaults are creation-only. Retrying quick checkout must never reset
+        // a wallet, completion state, email receipt or original signup time.
+        await updateDoc(userRef, {
+          displayName: baseData.displayName,
+          email: cleanEmail,
+          ...(!userSnap.data()?.username ? {username: baseData.username} : {}),
+          updatedAt: new Date(),
+        });
       } else {
         await setDoc(userRef, { uid: user.uid, ...baseData });
       }
 
       /* ───────── 3️⃣  cart merge, PostHog, fast flow ───────── */
+      provisioning.finish();
+      assertCurrentAccount(user);
       identifyUser(
         posthog,
         { ...user, displayName: baseData.displayName },
@@ -199,6 +194,7 @@ const StoreBasket = forwardRef(function StoreBasket(
       console.error(err);
       toast.error("Could not continue, please try again.");
     } finally {
+      provisioning?.finish();
       setSubmitting(false);
     }
   };
@@ -249,62 +245,17 @@ const StoreBasket = forwardRef(function StoreBasket(
 
     try {
       setConfirmLoading(true);
+      assertCurrentAccount(pendingAuthUser);
 
-      // 1) HARD BLOCK: vendor email (applies to both providers)
-      const vSnap = await getDocs(
-        query(collection(db, "vendors"), where("email", "==", e))
-      );
-      const userVendorSnap = await getDocs(
-        query(collection(db, "users"), where("email", "==", e))
-      );
-      const isVendorByUsers =
-        !userVendorSnap.empty &&
-        userVendorSnap.docs[0].data()?.role === "vendor";
-      if (!vSnap.empty || isVendorByUsers) {
-        try {
-          await pendingAuthUser.delete?.();
-        } catch {
-          await auth.signOut();
-        }
-        toast.error("This email is already used for a Vendor account!");
+      if (!(await canUseBuyerContactEmail(e))) {
+        toast.error(CONTACT_SIGN_IN_MESSAGE);
         return;
-      }
-
-      // 2) Cross-provider conflict checks (Twitter needs this; Google email is owned by Google already)
-      if (confirmProvider === "twitter") {
-        const methods = await fetchSignInMethodsForEmail(auth, e);
-        if (methods.includes("password") && !methods.includes("twitter.com")) {
-          try {
-            await pendingAuthUser.delete?.();
-          } catch {
-            await auth.signOut();
-          }
-          toast.info(
-            "This email was registered with a password. Please log in to continue."
-          );
-          navigate("/login", { state: { email: e, linkTwitter: true } });
-          return;
-        }
-        if (
-          methods.includes("google.com") &&
-          !methods.includes("twitter.com")
-        ) {
-          try {
-            await pendingAuthUser.delete?.();
-          } catch {
-            await auth.signOut();
-          }
-          toast.info(
-            "This email is already registered with Google. Please log in with your original method."
-          );
-          navigate("/login", { state: { email: e } });
-          return;
-        }
       }
 
       // 3) Create/merge Firestore user
       const userRef = doc(db, "users", pendingAuthUser.uid);
       const userDoc = await getDoc(userRef);
+      assertCurrentAccount(pendingAuthUser);
       const fullName = `${f} ${l}`.trim();
       const baseData = {
         uid: pendingAuthUser.uid,
@@ -336,6 +287,7 @@ const StoreBasket = forwardRef(function StoreBasket(
       }
 
       // 4) Cart merge + analytics
+      assertCurrentAccount(pendingAuthUser);
       await fetchCartFromFirestore(pendingAuthUser.uid);
 
       identifyUser(
@@ -364,20 +316,6 @@ const StoreBasket = forwardRef(function StoreBasket(
   const onlyLetters = (s) => /^[A-Za-z][A-Za-z\s'-]*$/.test(s.trim());
   const isEmail = (s) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s).toLowerCase());
-
-  const isVendorEmail = async (cleanEmail) => {
-    const vendorSnapshot = await getDocs(
-      query(collection(db, "vendors"), where("email", "==", cleanEmail))
-    );
-    if (!vendorSnapshot.empty) return true;
-
-    const userSnapshot = await getDocs(
-      query(collection(db, "users"), where("email", "==", cleanEmail))
-    );
-    return (
-      !userSnapshot.empty && userSnapshot.docs[0].data()?.role === "vendor"
-    );
-  };
 
   const splitDisplayName = (displayName = "") => {
     const parts = displayName.trim().split(/\s+/).filter(Boolean);
@@ -455,35 +393,26 @@ const StoreBasket = forwardRef(function StoreBasket(
 
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
+    let provisioning;
     try {
       setLoading(true);
       posthog?.capture("login_attempted", { method: "google" });
+      provisioning = authProvisioning.begin();
 
       const result = await signInWithGoogle(auth, provider);
       const user = result.user;
 
-      // ---- HARD BLOCK: vendor emails (no writes) ----
-      const vSnap = await getDocs(
-        query(collection(db, "vendors"), where("email", "==", user.email))
-      );
-      if (!vSnap.empty) {
+      provisioning.bind(user.uid);
+      if (!(await isCurrentAccountBuyer())) {
         await auth.signOut();
-        toast.error("This email is already used for a Vendor account!");
+        toast.error("This account belongs to a vendor. Please use vendor sign-in.");
         return;
       }
-      const uSnap = await getDocs(
-        query(collection(db, "users"), where("email", "==", user.email))
-      );
-      if (!uSnap.empty && uSnap.docs[0].data()?.role === "vendor") {
-        await auth.signOut();
-        toast.error("This email is already used for a Vendor account!");
-        return;
-      }
-      // -----------------------------------------------
 
       // Initialize/patch user doc (non-destructive)
       const userRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userRef);
+      assertCurrentAccount(user);
 
       if (!userDoc.exists()) {
         await setDoc(userRef, {
@@ -513,6 +442,8 @@ const StoreBasket = forwardRef(function StoreBasket(
       }
 
       // Split name and decide whether to confirm
+      provisioning.finish();
+      assertCurrentAccount(user);
       const { first, last } = splitDisplayName(user.displayName || "");
       const needNameConfirm = !first || !last;
 
@@ -562,25 +493,8 @@ const StoreBasket = forwardRef(function StoreBasket(
         try {
           const methods = await fetchSignInMethodsForEmail(auth, email);
 
-          const vSnap = await getDocs(
-            query(collection(db, "vendors"), where("email", "==", email))
-          );
-          if (!vSnap.empty) {
-            toast.error("This email is already used for a Vendor account!");
-            setLoading(false);
-            return;
-          }
-          const userSnap = await getDocs(
-            query(collection(db, "users"), where("email", "==", email))
-          );
-          if (!userSnap.empty && userSnap.docs[0].data()?.role === "vendor") {
-            toast.error("This email is already used for a Vendor account!");
-            setLoading(false);
-            return;
-          }
-
           if (methods.includes("password") && !methods.includes("google.com")) {
-            toast.info(
+            toast(
               "This email was registered with a password. Please log in to continue."
             );
             navigate("/login", { state: { email, linkGoogle: true } });
@@ -588,7 +502,7 @@ const StoreBasket = forwardRef(function StoreBasket(
             return;
           }
 
-          toast.info(
+          toast(
             "This email is already registered. Please log in with your original method."
           );
           navigate("/login", { state: { email } });
@@ -609,19 +523,21 @@ const StoreBasket = forwardRef(function StoreBasket(
         msg = "Popup closed before completing sign-in.";
       toast.error(msg);
     } finally {
+      provisioning?.finish();
       setLoading(false);
     }
   };
 
   const handleTwitterSignIn = async () => {
-    const provider = new TwitterAuthProvider();
+    let provisioning;
     const TAG = "[TWITTER_SIGNIN]";
     try {
       setLoading(true);
       posthog?.capture("login_attempted", { method: "twitter" });
+      provisioning = authProvisioning.begin();
       console.log(`${TAG} calling signInWithPopup...`);
 
-      const result = await signInWithGoogle(auth, provider);
+      const result = await signInWithTwitter(auth);
       const user = result.user;
       const info = getAdditionalUserInfo(result);
       const twitterHandle = info?.username || "";
@@ -631,25 +547,18 @@ const StoreBasket = forwardRef(function StoreBasket(
         }`
       );
 
-      // Optional vendor-email guard if you have isVendorEmail available
+      provisioning.bind(user.uid);
       const clean = (user.email || "").toLowerCase().trim();
-      if (clean && typeof isVendorEmail === "function") {
-        try {
-          if (await isVendorEmail(clean)) {
-            console.warn(`${TAG} vendor email detected -> signOut`);
-            await auth.signOut();
-            toast.error("This email is already used for a Vendor account!");
-            setLoading(false);
-            return;
-          }
-        } catch (guardErr) {
-          console.warn(`${TAG} vendor email guard error:`, guardErr);
-        }
+      if (!(await isCurrentAccountBuyer())) {
+        await auth.signOut();
+        toast.error("This account belongs to a vendor. Please use vendor sign-in.");
+        return;
       }
 
       // Ensure a stub user doc exists BEFORE showing confirm modal
       const userRef = doc(db, "users", user.uid);
       const snap = await getDoc(userRef);
+      assertCurrentAccount(user);
       if (!snap.exists()) {
         console.log(`${TAG} creating stub users/${user.uid}`);
         const makeUsername = () => {
@@ -693,6 +602,8 @@ const StoreBasket = forwardRef(function StoreBasket(
       }
 
       // Prefill confirm modal inputs
+      provisioning.finish();
+      assertCurrentAccount(user);
       const { first, last } = splitDisplayName(user.displayName || "");
       setPendingHandle(twitterHandle);
       setConfirmFirst(first);
@@ -722,14 +633,14 @@ const StoreBasket = forwardRef(function StoreBasket(
             methods.includes("password") &&
             !methods.includes("twitter.com")
           ) {
-            toast.info(
+            toast(
               "This email was registered with a password. Please log in."
             );
             navigate("/login", { state: { email, linkTwitter: true } });
             setLoading(false);
             return;
           }
-          toast.info(
+          toast(
             "This email is already registered. Please log in with your original method."
           );
           navigate("/login", { state: { email } });
@@ -750,6 +661,7 @@ const StoreBasket = forwardRef(function StoreBasket(
       console.error("Twitter Sign-In Error:", error);
       toast.error("Twitter sign-in failed. Please try again.");
     } finally {
+      provisioning?.finish();
       setLoading(false);
     }
   };

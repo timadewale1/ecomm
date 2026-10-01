@@ -3,6 +3,7 @@ import { httpsCallable } from "firebase/functions";
 import { doc, getDoc, getDocFromCache } from "firebase/firestore";
 import { auth, db, functions } from "../firebase.config";
 import { createChatAvatarRepair } from "./chatAvatarRepair.mjs";
+import {captureChatSession, createScopedChatCallable} from "./chatRequestScope.mjs";
 
 const cleanId = (value) => String(value || "").trim();
 
@@ -13,7 +14,9 @@ export const offerConversationIdFor = (vendorId, buyerId) => {
   return `oc_${SHA256(`${vendor}\u0000${buyer}`).toString().slice(0, 48)}`;
 };
 
-const callable = (name) => httpsCallable(functions, name);
+const scopedCall = createScopedChatCallable({getSession: () => auth.currentUser,
+  invoke: (name, payload) => httpsCallable(functions, name)(payload)});
+const callable = name => payload => scopedCall(name, payload);
 const avatarRepair = createChatAvatarRepair({
   getUid: () => auth.currentUser?.uid || null,
   request: (conversationIds) => callable("refreshOfferConversationAvatarsV1")({conversationIds}),
@@ -76,9 +79,16 @@ export const ensureOfferConversation = async (
   offerId,
   {vendorId = null, buyerId = auth.currentUser?.uid || null} = {},
 ) => {
+  const scope = captureChatSession(() => auth.currentUser);
   const conversationId = offerConversationIdFor(vendorId, buyerId);
   const identity = {conversationId, vendorId, buyerId};
+  if (conversationId && ![cleanId(vendorId), cleanId(buyerId)].includes(scope.uid)) {
+    const error = new Error("This conversation is not available to your account.");
+    error.code = "permission-denied";
+    throw error;
+  }
   const existing = await findExistingConversation(identity);
+  scope.assertCurrent();
   if (existing) return existing;
 
   try {
@@ -92,6 +102,7 @@ export const ensureOfferConversation = async (
     if (conversationId && RECOVERABLE_ENSURE_CODES.has(firebaseErrorCode(error))) {
       await new Promise((resolve) => window.setTimeout(resolve, 180));
       const recovered = await findExistingConversation(identity);
+      scope.assertCurrent();
       if (recovered) return recovered;
     }
     throw error;

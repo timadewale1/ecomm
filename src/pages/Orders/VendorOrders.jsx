@@ -18,6 +18,7 @@ import { appHaptics } from "../../services/haptics";
 import VendorOrderDetailsSheet from "./VendorOrderDetailsSheet";
 import useNativePageRefresh from "../../custom-hooks/useNativePageRefresh";
 import { refreshVendorOrders } from "../../custom-hooks/orderListener";
+import {useAuth} from "../../custom-hooks/useAuth";
 import AppPageHeader from "../../components/layout/AppPageHeader";
 
 const MAIN_TABS = [
@@ -314,10 +315,18 @@ export default function VendorOrders() {
   const location = useLocation();
   const navigate = useNavigate();
   const orderState = useSelector((state) => state.orders);
-  const orders = orderState?.orders || EMPTY_ORDERS;
-  const vendorId = orderState?.ownerVendorId;
+  const {currentUser} = useAuth();
+  const vendorId = currentUser?.uid;
+  const ownsOrderCache = Boolean(vendorId && orderState?.ownerVendorId === vendorId);
+  const orders = ownsOrderCache ? orderState.orders : EMPTY_ORDERS;
+  const currentSelection = vendorId && selected?.order?.vendorId === vendorId ? selected : null;
   const activeTab = mainTab === "normal" ? normalTab : stockpileTab;
   const miniTabs = mainTab === "normal" ? NORMAL_TABS : STOCKPILE_TABS;
+
+  useEffect(() => {
+    setSelected(null);
+    setFocusedOrderId(null);
+  }, [vendorId]);
 
   const refreshOrders = useCallback(async () => {
     if (!vendorId) return;
@@ -471,7 +480,7 @@ export default function VendorOrders() {
     if (nextIndex !== index) switchMini(miniTabs[nextIndex].id);
   };
 
-  const connecting = ["idle", "connecting"].includes(orderState?.status) && !orders.length;
+  const connecting = (!ownsOrderCache || ["idle", "connecting"].includes(orderState?.status)) && !orders.length;
 
   return (
     <>
@@ -555,10 +564,10 @@ export default function VendorOrders() {
         </div>
       </main>
       <VendorOrderDetailsSheet
-        open={Boolean(selected)}
-        order={selected?.order || null}
-        orders={selected?.group || []}
-        sourceBucket={selected?.sourceBucket || null}
+        open={Boolean(currentSelection)}
+        order={currentSelection?.order || null}
+        orders={currentSelection?.group || []}
+        sourceBucket={currentSelection?.sourceBucket || null}
         onClose={() => setSelected(null)}
       />
     </>

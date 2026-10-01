@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { httpsCallable } from "firebase/functions";
-import { doc, getDoc } from "firebase/firestore";
 import { AlertTriangle, Flag, Star, X } from "lucide-react";
 import { RotatingLines } from "react-loader-spinner";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { db, functions } from "../../firebase.config";
+import { auth, functions } from "../../firebase.config";
+import { getOwnedOrderVendorSummaries } from "../../services/orderVendorSummaries";
 import AppBottomSheet from "../layout/AppBottomSheet";
 import NativePickerField from "../Form/NativePickerField";
 import { appHaptics } from "../../services/haptics";
@@ -53,12 +53,13 @@ const ReviewModal = ({ isOpen, onClose, orderId, orderData }) => {
     setVendorName(
       orderData?.vendorName || orderData?.shopName || "the vendor",
     );
-    if (!orderData?.vendorId) return;
+    if (!orderData?.vendorId || !effectiveOrderId) return;
     let cancelled = false;
-    void getDoc(doc(db, "vendors", orderData.vendorId))
-      .then((snapshot) => {
-        if (!cancelled && snapshot.exists()) {
-          setVendorName(snapshot.data()?.shopName || "the vendor");
+    void getOwnedOrderVendorSummaries([{id: effectiveOrderId, vendorId: orderData.vendorId}], auth.currentUser?.uid)
+      .then((summaries) => {
+        const name = summaries[orderData.vendorId]?.shopName;
+        if (!cancelled && name) {
+          setVendorName(name);
         }
       })
       .catch((error) => {
@@ -69,7 +70,7 @@ const ReviewModal = ({ isOpen, onClose, orderId, orderData }) => {
     return () => {
       cancelled = true;
     };
-  }, [isOpen, orderData?.shopName, orderData?.vendorId, orderData?.vendorName]);
+  }, [isOpen, effectiveOrderId, orderData?.shopName, orderData?.vendorId, orderData?.vendorName]);
 
   const openReviewComposer = (rating) => {
     if (!orderData?.vendorId || !effectiveOrderId) {

@@ -85,6 +85,7 @@ const debounce = (func, delay) => {
   };
 };
 
+import { getPublicVendor } from "../services/publicVendors";
 const sameEntityId = (left, right) =>
   left !== null &&
   left !== undefined &&
@@ -238,8 +239,7 @@ const Cart = () => {
         const vendor = cart[vendorId];
 
         try {
-          const vendorDoc = await getDoc(doc(db, "vendors", vendorId));
-          const liveVendor = vendorDoc.exists() ? vendorDoc.data() : null;
+          const liveVendor = await getPublicVendor(vendorId);
           if (!isMarketplaceVendorEligible(liveVendor)) {
             const synced = await dispatch(clearCart(vendorId));
             if (!synced) {
@@ -273,7 +273,7 @@ const Cart = () => {
           const { id } = product;
 
           try {
-            const productDoc = await getDoc(doc(db, `products`, id));
+            const productDoc = await getDoc(doc(db, "publicProducts", id));
             if (!productDoc.exists()) {
               await dispatch(removeFromCart({ vendorId, productKey }));
               toast.dismiss();
@@ -387,9 +387,9 @@ const Cart = () => {
         for (const vendorId of ids) {
           // only fetch if we don’t already have it
           if (!newVendorsInfo[vendorId]) {
-            const vendorDoc = await getDoc(doc(db, "vendors", vendorId));
-            if (vendorDoc.exists()) {
-              newVendorsInfo[vendorId] = vendorDoc.data();
+            const publicVendor = await getPublicVendor(vendorId);
+            if (publicVendor) {
+              newVendorsInfo[vendorId] = publicVendor;
             } else {
               console.warn(`Vendor with ID ${vendorId} does not exist.`);
             }
@@ -607,15 +607,13 @@ const Cart = () => {
 
     /* ───── 5 – Vendor active? ───── */
     try {
-      const vendorDocRef = doc(db, "vendors", vendorId);
-      const vendorDocSnap = await getDoc(vendorDocRef);
-
-      if (!vendorDocSnap.exists()) {
+      const publicVendor = await getPublicVendor(vendorId);
+      if (!publicVendor) {
         toast.error("Vendor not found.");
         setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
         return;
       }
-      if (!isMarketplaceVendorEligible(vendorDocSnap.data())) {
+      if (!isMarketplaceVendorEligible(publicVendor)) {
         toast.error("This store is not currently available.");
         setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
         return;
@@ -632,11 +630,12 @@ const Cart = () => {
     try {
       for (const productKey in vendorCart.products) {
         const product = vendorCart.products[productKey];
-        const productRef = doc(db, "products", product.id);
+        const productRef = doc(db, "publicProducts", product.id);
         const productDoc = await getDoc(productRef);
 
         if (!productDoc.exists()) {
           console.warn(`Product with ID ${product.id} not found.`);
+          outOfStockItems.push(product.name);
           continue;
         }
         const productData = productDoc.data();

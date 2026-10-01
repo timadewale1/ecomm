@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { exitStockpileMode } from "../redux/reducers/stockpileSlice";
-import { getDoc, doc } from "firebase/firestore";
-import { db } from "../firebase.config";
+import { getPublicVendor } from "../services/publicVendors";
 import { IoCloseOutline } from "react-icons/io5";
 
 const StockpileNudge = () => {
@@ -12,18 +11,21 @@ const StockpileNudge = () => {
   const [vendorName, setVendorName] = useState("");
 
   useEffect(() => {
+    let alive = true;
+    setVendorName("");
     if (isActive && vendorId) {
       (async () => {
         try {
-          const snap = await getDoc(doc(db, "vendors", vendorId));
-          if (snap.exists()) {
-            setVendorName(snap.data().shopName);
+          const vendor = await getPublicVendor(vendorId);
+          if (alive && vendor) {
+            setVendorName(vendor.shopName);
           }
         } catch (err) {
           console.error("Failed to fetch vendor name:", err);
         }
       })();
     }
+    return () => { alive = false; };
   }, [isActive, vendorId]);
 
   if (!isActive) return null;

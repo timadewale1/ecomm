@@ -196,6 +196,7 @@ const reviewDate = (review) => {
 };
 
 function StoreHeader({
+  vendorName,
   quickMode,
   onBack,
   onBackLongPress,
@@ -206,6 +207,36 @@ function StoreHeader({
   checkoutCount,
   onCheckout,
 }) {
+  const [showVendorName, setShowVendorName] = useState(() =>
+    typeof window !== "undefined" ? window.scrollY > 72 : false,
+  );
+
+  useEffect(() => {
+    let frameId = 0;
+
+    const updateTitle = () => {
+      frameId = 0;
+      const scrollTop = Math.max(
+        window.scrollY || 0,
+        document.documentElement?.scrollTop || 0,
+      );
+      setShowVendorName(scrollTop > 72);
+    };
+
+    const handleScroll = () => {
+      if (frameId) return;
+      frameId = window.requestAnimationFrame(updateTitle);
+    };
+
+    updateTitle();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (frameId) window.cancelAnimationFrame(frameId);
+    };
+  }, []);
+
   return (
     <header className="vendor-store-header">
       <div className="vendor-store-header-row">
@@ -222,6 +253,12 @@ function StoreHeader({
             icon={<img src={HEADER_ICONS.back} alt="" />}
           />
         )}
+        <p
+          className={`vendor-store-header-title ${showVendorName ? "is-visible" : ""}`}
+          aria-hidden={!showVendorName}
+        >
+          {vendorName || "Vendor"}
+        </p>
         <div className="vendor-store-header-actions">
           <button type="button" onClick={onSearch} aria-label="Search this store"><img src={HEADER_ICONS.search} alt="" /></button>
           <button type="button" onClick={onShare} aria-label="Share this store"><img src={HEADER_ICONS.share} alt="" /></button>
@@ -258,10 +295,137 @@ function StoreSearchHeader({ vendorName, value, onChange, onClose }) {
   );
 }
 
+function StockpileArtwork() {
+  return (
+    <svg viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="stockpile-basket" x1="8" y1="16" x2="31" y2="34" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#FFB444" />
+          <stop offset="1" stopColor="#F56B35" />
+        </linearGradient>
+      </defs>
+      <path d="M12 19.5h16l-1.6 11H13.6L12 19.5Z" fill="url(#stockpile-basket)" />
+      <path d="M15.5 20c.7-5.2 8.3-5.2 9 0" fill="none" stroke="#9A441F" strokeWidth="2" strokeLinecap="round" />
+      <rect x="13" y="12" width="6" height="8" rx="2" fill="#8B7CFF" />
+      <rect x="20" y="10" width="7" height="10" rx="2" fill="#42C9A5" />
+      <path d="M16.5 23v4M20 23v4M23.5 23v4" stroke="#FFF4D9" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="m30.5 8 .8 1.8 1.8.8-1.8.8-.8 1.8-.8-1.8-1.8-.8 1.8-.8.8-1.8Z" fill="#FF9C45" />
+    </svg>
+  );
+}
+
+function DeliveryArtwork() {
+  return (
+    <svg viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="delivery-van" x1="7" y1="14" x2="32" y2="29" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#45C8FF" />
+          <stop offset="1" stopColor="#7A69F8" />
+        </linearGradient>
+      </defs>
+      <path d="M7 29h26" stroke="#B7D9F4" strokeWidth="2" strokeLinecap="round" />
+      <path d="M9 14h14v13H9a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" fill="url(#delivery-van)" />
+      <path d="M23 18h5.2l4 4.5V27H23v-9Z" fill="#FF9E45" />
+      <path d="M27 19.5h1l2.1 2.4H27v-2.4Z" fill="#FFF6DF" />
+      <rect x="11" y="17" width="8" height="7" rx="1.5" fill="#FFE174" />
+      <path d="M15 17v7" stroke="#E5A82E" strokeWidth="1.2" />
+      <circle cx="13" cy="28" r="3" fill="#29345B" />
+      <circle cx="28" cy="28" r="3" fill="#29345B" />
+      <circle cx="13" cy="28" r="1.2" fill="#DCEBFF" />
+      <circle cx="28" cy="28" r="1.2" fill="#DCEBFF" />
+      <path d="M5.5 18H3M5.5 22H2" stroke="#68BFEA" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function StoreHighlightRotator({ vendor, onBadge }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const badge = badgeFor(vendor?.badge);
+  const stockpileEnabled = vendor?.stockpile?.enabled === true;
+  const stockpileDuration = Math.max(
+    1,
+    Number(vendor?.stockpile?.durationInWeeks) || 2,
+  );
+  const stockpileText = stockpileEnabled
+    ? `${stockpileDuration}-week stockpile`
+    : "Stockpiling unavailable";
+  const deliveryText = clean(vendor?.deliveryMode) || "Delivery not specified";
+
+  const highlights = [
+    {
+      key: "badge",
+      text: badge.label,
+      tone: "badge",
+      icon: <img src={badge.asset} alt="" />,
+      action: onBadge,
+      color: badge.ink,
+    },
+    {
+      key: "stockpile",
+      text: stockpileText,
+      tone: "stockpile",
+      icon: <StockpileArtwork />,
+    },
+    {
+      key: "delivery",
+      text: deliveryText,
+      tone: "delivery",
+      icon: <DeliveryArtwork />,
+    },
+  ];
+
+  useEffect(() => {
+    setActiveIndex(0);
+    const intervalId = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % highlights.length);
+    }, 2000);
+
+    return () => window.clearInterval(intervalId);
+  }, [vendor?.id, vendor?.uid]);
+
+  const activeHighlight = highlights[activeIndex] || highlights[0];
+  const content = (
+    <>
+      <span className="vendor-store-highlight-icon">{activeHighlight.icon}</span>
+      <span
+        className="vendor-store-highlight-text"
+        style={activeHighlight.color ? { color: activeHighlight.color } : undefined}
+      >
+        {activeHighlight.text}
+      </span>
+    </>
+  );
+
+  return (
+    <div
+      className="vendor-store-highlight-rotator"
+      aria-label={`Store highlight: ${activeHighlight.text}`}
+    >
+      {activeHighlight.action ? (
+        <button
+          key={activeHighlight.key}
+          type="button"
+          className={`vendor-store-highlight-pill is-${activeHighlight.tone}`}
+          onClick={activeHighlight.action}
+          aria-label={`Open ${activeHighlight.text} badge details`}
+        >
+          {content}
+        </button>
+      ) : (
+        <div
+          key={activeHighlight.key}
+          className={`vendor-store-highlight-pill is-${activeHighlight.tone}`}
+        >
+          {content}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StoreSummary({ vendor, productCount, isFollowing, isFollowLoading, onFollow, onReviews, onBadge }) {
   const ratingCount = Number(vendor?.ratingCount || 0);
   const rating = ratingCount ? Number(vendor?.rating || 0) / ratingCount : 0;
-  const badge = badgeFor(vendor?.badge);
 
   return (
     <section className="vendor-store-summary" aria-label="Vendor summary">
@@ -273,10 +437,7 @@ function StoreSummary({ vendor, productCount, isFollowing, isFollowLoading, onFo
         )}
         <div>
           <h1>{vendor?.shopName || "Vendor"}</h1>
-          <button type="button" className="vendor-store-badge-pill" onClick={onBadge}>
-            <img src={badge.asset} alt="" />
-            <span style={{ color: badge.ink }}>{badge.label}</span>
-          </button>
+          <StoreHighlightRotator vendor={vendor} onBadge={onBadge} />
         </div>
       </div>
 
@@ -932,6 +1093,7 @@ export default function VendorStoreExperience({
         vendorId,
         reviewId: reviewToDelete.id,
         userId: currentUser.uid,
+        review: reviewToDelete,
       });
       dispatch(removeVendorReview({
         vendorId,
@@ -967,6 +1129,7 @@ export default function VendorStoreExperience({
         <StoreSearchHeader vendorName={vendor.shopName} value={searchTerm} onChange={setSearchTerm} onClose={() => { setSearching(false); setSearchTerm(""); }} />
       ) : (
         <StoreHeader
+          vendorName={vendor.shopName}
           quickMode={quickMode}
           onBack={() => navigate(-1)}
           onBackLongPress={

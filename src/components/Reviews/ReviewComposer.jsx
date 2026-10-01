@@ -1,19 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Compressor from "compressorjs";
-import {
-  collection,
-  doc,
-  getDoc,
-  increment,
-  runTransaction,
-  serverTimestamp,
-} from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { getMetadata, ref, uploadBytes } from "firebase/storage";
 import { LuArrowLeft, LuImage, LuStar, LuX } from "react-icons/lu";
 import toast from "react-hot-toast";
-import { db, storage } from "../../firebase.config";
+import { auth, storage } from "../../firebase.config";
 import { appHaptics } from "../../services/haptics";
-import { handleUserActionLimit } from "../../services/userWriteHandler";
+import { submitBuyerReview } from "../../services/vendorReviews";
+import { assertCurrentAccount } from "../../services/accountLookups";
 import NativeImageInput from "../Inputs/NativeImageInput";
 import "./review-composer.css";
 
@@ -103,6 +96,9 @@ const ReviewComposer = ({
   onSuccess,
 }) => {
   const inputRef = useRef(null);
+  const submissionRef = useRef(null);
+  const submittingRef = useRef(false);
+  const generationRef = useRef(0);
   const initialProducts = useMemo(
     () => buildProductSnapshots(order?.cartItems),
     [order]
@@ -119,6 +115,14 @@ const ReviewComposer = ({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    generationRef.current += 1;
+    submittingRef.current = false;
+    setSubmitting(false);
+    return () => { generationRef.current += 1; };
+  }, [order?.reviewTargetKey, currentUser?.uid, vendor?.id]);
+
+  useEffect(() => {
+    submissionRef.current = null;
     setProductSnapshots(initialProducts);
     setReviewImages((items) => {
       items.forEach((image) => URL.revokeObjectURL(image.previewUrl));
@@ -202,10 +206,12 @@ const ReviewComposer = ({
     appHaptics.selection();
   };
 
-  const uploadReviewImages = async (reviewId) =>
+  const uploadReviewImages = async (reviewId, attempt, session) =>
     Promise.all(
-      reviewImages.map(async ({ file }, index) => {
+      reviewImages.map(async ({ file, key }, index) => {
+        if (attempt.uploads.has(key)) return attempt.uploads.get(key);
         const compressed = await compressImage(file);
+        assertCurrentAccount(session);
         const extension =
           file.type === "image/png"
             ? "png"
@@ -216,17 +222,27 @@ const ReviewComposer = ({
           storage,
           `reviewImages/${safeSegment(vendor.id)}/${safeSegment(
             currentUser.uid
-          )}/${safeSegment(reviewId)}/image-${index + 1}.${extension}`
+          )}/${safeSegment(reviewId)}/${attempt.id}/image-${index + 1}.${extension}`
         );
-        await uploadBytes(imageRef, compressed, {
-          contentType: compressed.type || file.type,
-        });
-        return getDownloadURL(imageRef);
+        try {
+          await uploadBytes(imageRef, compressed, {
+            contentType: compressed.type || file.type,
+            customMetadata: {reviewUploadId: attempt.id},
+          });
+        } catch (uploadError) {
+          // A lost upload response must not require overwriting an immutable
+          // object. Only accept this same attempt's already completed upload.
+          const existing = await getMetadata(imageRef).catch(() => null);
+          if (existing?.customMetadata?.reviewUploadId !== attempt.id || existing?.size !== compressed.size) throw uploadError;
+        }
+        assertCurrentAccount(session);
+        attempt.uploads.set(key, imageRef.fullPath);
+        return imageRef.fullPath;
       })
     );
 
   const handlePost = async () => {
-    if (submitting) return;
+    if (submittingRef.current) return;
     if (!rating) {
       appHaptics.warning();
       toast.error("Choose a star rating first.");
@@ -254,84 +270,56 @@ const ReviewComposer = ({
     const reviewId = safeSegment(
       `${currentUser.uid}__${order.reviewTargetKey}`
     );
-    const reviewRef = doc(collection(db, "vendors", vendor.id, "reviews"), reviewId);
-
+    const session = auth.currentUser;
+    const generation = generationRef.current;
+    if (!session || session.uid !== currentUser.uid) {
+      toast.error("Please sign in again before posting your review.");
+      return;
+    }
     try {
+      submittingRef.current = true;
       setSubmitting(true);
-      const existingReview = await getDoc(reviewRef);
-      if (existingReview.exists()) {
+      // Keep one token across network retries. Reopening the composer starts a
+      // new attempt, so a delayed old request cannot restore a deleted review.
+      const signature = JSON.stringify([rating, reviewText.trim(), reviewImages.map((image) => image.key), productSnapshots.map((item) => !!item.productImageUrl)]);
+      if (submissionRef.current?.signature !== signature) {
+        submissionRef.current = {id: crypto.randomUUID(), signature, uploads: new Map()};
+      }
+      const attempt = submissionRef.current;
+      const submissionId = attempt.id;
+      const imagePaths = await uploadReviewImages(reviewId, attempt, session);
+      assertCurrentAccount(session);
+      if (generation !== generationRef.current) return;
+      const result = await submitBuyerReview({
+        vendorId: vendor.id, orderId: order.id, submissionId, rating,
+        reviewText: reviewText.trim(), imagePaths,
+        hiddenProductImages: productSnapshots.flatMap((item, index) => item.productImageUrl ? [] : [index]),
+      }, currentUser.uid);
+      if (generation !== generationRef.current) return;
+      if (result.alreadySubmitted) {
         toast("You have already rated this order.");
-        onSuccess?.({ id: reviewRef.id, ...existingReview.data() }, order);
+        onSuccess?.(result.review, order);
         return;
       }
 
-      await handleUserActionLimit(
-        currentUser.uid,
-        "review",
-        {},
-        {
-          collectionName: "usage_metadata",
-          writeLimit: 50,
-          minuteLimit: 8,
-          hourLimit: 40,
-        }
-      );
-
-      const reviewImageUrls = await uploadReviewImages(reviewId);
-      const orderIds = Array.from(
-        new Set((order.orderIds || [order.id]).filter(Boolean))
-      );
-      const reviewPayload = {
-        schemaVersion: 2,
-        source: order.isStockpile ? "stockpile_order" : "order",
-        reviewTargetKey: order.reviewTargetKey,
-        orderId: order.id || orderIds[0] || null,
-        orderIds,
-        stockpileDocId: order.stockpileDocId || null,
-        vendorId: vendor.id,
-        userId: currentUser.uid,
-        reviewText: reviewText.trim() || null,
-        rating,
-        userName:
-          currentUser.username || currentUser.displayName || "My Thrift shopper",
-        userPhotoURL: currentUser.photoURL || null,
-        productSnapshots: productSnapshots.map(({ key, ...item }) => item),
-        reviewImageUrls,
-        createdAt: serverTimestamp(),
-      };
-
-      await runTransaction(db, async (transaction) => {
-        const duplicate = await transaction.get(reviewRef);
-        if (duplicate.exists()) throw new Error("review-already-exists");
-
-        transaction.set(reviewRef, reviewPayload);
-        transaction.update(doc(db, "vendors", vendor.id), {
-          ratingCount: increment(1),
-          rating: increment(rating),
-        });
-        orderIds.forEach((orderId) => {
-          transaction.update(doc(db, "orders", orderId), {
-            isReviewed: true,
-            reviewId: reviewRef.id,
-            reviewRating: rating,
-            reviewedAt: serverTimestamp(),
-          });
-        });
-      });
-
       appHaptics.success();
       toast.success("Review sent successfully");
-      onSuccess?.({ id: reviewRef.id, ...reviewPayload }, order);
+      onSuccess?.(result.review, order);
     } catch (error) {
+      if (generation !== generationRef.current) return;
       console.error("Error submitting order review:", error);
-      if (error?.message === "review-already-exists") {
+      if (error?.code === "functions/already-exists") {
         toast("You have already rated this order.");
       } else {
         appHaptics.error();
-        toast.error("Your review could not be posted. Please try again.");
+        toast.error(["functions/failed-precondition", "functions/invalid-argument", "functions/resource-exhausted", "functions/permission-denied"].includes(error?.code)
+          ? error.message : "Your review could not be posted. Please try again.");
       }
     } finally {
-      setSubmitting(false);
+      if (generation === generationRef.current) {
+        submittingRef.current = false;
+        setSubmitting(false);
+      }
     }
   };
 
@@ -388,6 +376,7 @@ const ReviewComposer = ({
             key={value}
             type="button"
             onClick={() => handleRating(value)}
+            disabled={submitting}
             aria-label={`${value} star${value === 1 ? "" : "s"}`}
             aria-pressed={value <= rating}
           >
@@ -399,6 +388,7 @@ const ReviewComposer = ({
       <div className="review-composer-field-wrap">
         <div className="review-composer-field">
           <textarea
+            disabled={submitting}
             value={reviewText}
             onChange={(event) =>
               setReviewText(event.target.value.slice(0, MAX_REVIEW_LENGTH))
@@ -420,6 +410,7 @@ const ReviewComposer = ({
                         : removeReviewImage(attachment.sourceKey)
                     }
                     aria-label={`Remove ${attachment.alt}`}
+                    disabled={submitting}
                   >
                     <LuX aria-hidden="true" />
                   </button>
@@ -433,6 +424,7 @@ const ReviewComposer = ({
             className="review-composer-image-button"
             onClick={() => inputRef.current?.click()}
             aria-label="Add review images"
+            disabled={submitting}
           >
             <LuImage aria-hidden="true" />
           </button>

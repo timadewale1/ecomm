@@ -1,7 +1,6 @@
+import { getOwnedOrderVendorSummaries } from "./orderVendorSummaries";
 import {
   collection,
-  doc,
-  getDoc,
   getDocs,
   query,
   where,
@@ -47,17 +46,9 @@ const loadTransactionEnrichment = async (uid) => {
     id: orderDoc.id,
     ...orderDoc.data(),
   }));
-  const vendorIds = [
-    ...new Set(orders.map((order) => order.vendorId).filter(Boolean)),
-  ];
-  const vendorSnapshots = await Promise.all(
-    vendorIds.map((vendorId) => getDoc(doc(db, "vendors", vendorId))),
-  );
-
-  vendorSnapshots.forEach((vendorSnapshot) => {
-    if (!vendorSnapshot.exists()) return;
-    vendorNames[vendorSnapshot.id] =
-      vendorSnapshot.data().shopName || vendorSnapshot.data().name || "";
+  const summaries = await getOwnedOrderVendorSummaries(orders, uid);
+  Object.values(summaries).forEach((summary) => {
+    vendorNames[summary.vendorId] = summary.shopName;
   });
 
   orders.forEach((order) => {

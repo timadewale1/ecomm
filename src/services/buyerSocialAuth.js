@@ -1,41 +1,12 @@
 import { getAdditionalUserInfo } from "firebase/auth";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  setDoc,
-  where,
-} from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { isCurrentAccountBuyer, assertCurrentAccount } from "./accountLookups";
+import { authProvisioning } from "./authProvisioning.mjs";
 import {
   signInWithApple,
   signInWithGoogle,
   signInWithTwitter,
 } from "./firebaseAuth";
-
-export const BUYER_SOCIAL_AUTH_PROVISIONING_KEY =
-  "mythrift:buyer-social-auth-provisioning";
-
-const setProvisioningState = (value) => {
-  try {
-    if (value) sessionStorage.setItem(BUYER_SOCIAL_AUTH_PROVISIONING_KEY, value);
-    else sessionStorage.removeItem(BUYER_SOCIAL_AUTH_PROVISIONING_KEY);
-  } catch {
-    // Session storage can be unavailable in hardened WebViews. The profile
-    // creation itself remains authoritative; this marker only widens the
-    // AuthProvider's bounded race-protection window.
-  }
-};
-
-export const isBuyerSocialAuthProvisioning = (uid) => {
-  try {
-    const value = sessionStorage.getItem(BUYER_SOCIAL_AUTH_PROVISIONING_KEY);
-    return value === "pending" || (!!uid && value === uid);
-  } catch {
-    return false;
-  }
-};
 
 const providerSignIn = (auth, providerId) => {
   if (providerId === "apple.com") return signInWithApple(auth);
@@ -63,36 +34,6 @@ const generatedUsername = ({ displayName, email, uid }) => {
   return `${base || "thrifter"}${String(uid || "").slice(0, 6)}`;
 };
 
-const fulfilledDocs = (result) =>
-  result.status === "fulfilled" ? result.value.docs : [];
-
-const accountBelongsToVendor = async ({ db, uid, email, userDoc, vendorDoc }) => {
-  if (vendorDoc.exists() || userDoc.data()?.role === "vendor") return true;
-  if (!email) return false;
-
-  const results = await Promise.allSettled([
-    getDocs(query(collection(db, "vendors"), where("email", "==", email))),
-    getDocs(
-      query(collection(db, "vendors"), where("emailLower", "==", email)),
-    ),
-    getDocs(query(collection(db, "users"), where("email", "==", email))),
-    getDocs(
-      query(collection(db, "users"), where("emailLower", "==", email)),
-    ),
-  ]);
-
-  const failedLookup = results.find((result) => result.status === "rejected");
-  if (failedLookup) throw failedLookup.reason;
-
-  if (fulfilledDocs(results[0]).length || fulfilledDocs(results[1]).length) {
-    return true;
-  }
-
-  return [...fulfilledDocs(results[2]), ...fulfilledDocs(results[3])].some(
-    (snapshot) => snapshot.id !== uid && snapshot.data()?.role === "vendor",
-  );
-};
-
 const endBlockedSession = async (auth, result) => {
   const isNewUser = !!getAdditionalUserInfo(result)?.isNewUser;
   if (isNewUser) {
@@ -111,7 +52,7 @@ const endBlockedSession = async (auth, result) => {
 };
 
 export const authenticateBuyerWithProvider = async ({ auth, db, providerId }) => {
-  setProvisioningState("pending");
+  const provisioning = authProvisioning.begin();
   let result = null;
   try {
     result = await providerSignIn(auth, providerId);
@@ -122,24 +63,15 @@ export const authenticateBuyerWithProvider = async ({ auth, db, providerId }) =>
       throw error;
     }
 
-    setProvisioningState(user.uid);
+    provisioning.bind(user.uid);
     const userRef = doc(db, "users", user.uid);
-    const vendorRef = doc(db, "vendors", user.uid);
-    const [userDoc, vendorDoc] = await Promise.all([
-      getDoc(userRef),
-      getDoc(vendorRef),
+    const [userDoc, buyerAllowed] = await Promise.all([
+      getDoc(userRef), isCurrentAccountBuyer(),
     ]);
     const email = lower(user.email || result.providerProfile?.email);
+    assertCurrentAccount(user);
 
-    if (
-      await accountBelongsToVendor({
-        db,
-        uid: user.uid,
-        email,
-        userDoc,
-        vendorDoc,
-      })
-    ) {
+    if (!buyerAllowed) {
       await endBlockedSession(auth, result);
       try {
         localStorage.setItem("BLOCKED_VENDOR_EMAIL", "1");
@@ -182,6 +114,7 @@ export const authenticateBuyerWithProvider = async ({ auth, db, providerId }) =>
       }
     }
 
+    assertCurrentAccount(user);
     return {
       result,
       user,
@@ -193,7 +126,7 @@ export const authenticateBuyerWithProvider = async ({ auth, db, providerId }) =>
         : { profileComplete: false, email: email || null, displayName },
     };
   } finally {
-    setProvisioningState(null);
+    provisioning.finish();
   }
 };
 

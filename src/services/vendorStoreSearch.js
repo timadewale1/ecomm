@@ -13,6 +13,26 @@ const cleanList = (values) =>
     new Set((Array.isArray(values) ? values : []).map(clean).filter(Boolean)),
   );
 
+// OpenSearch stores the catalogue image under `productCoverImage`, while
+// legacy Firestore-backed UI still reads `coverImageUrl`. Keep both aliases at
+// this service boundary so every vendor-catalogue consumer receives the same
+// product shape without changing the persisted product document.
+const normalizeVendorStoreProduct = (product) => {
+  if (!product || typeof product !== "object") return product;
+
+  const coverImage = String(
+    product.productCoverImage || product.coverImageUrl || "",
+  ).trim();
+
+  if (!coverImage) return product;
+
+  return {
+    ...product,
+    productCoverImage: product.productCoverImage || coverImage,
+    coverImageUrl: product.coverImageUrl || coverImage,
+  };
+};
+
 export function buildVendorStoreFilters(filters = {}) {
   const payload = {};
 
@@ -84,7 +104,9 @@ export async function fetchVendorStoreProducts({
 
   const data = await response.json();
   return {
-    items: Array.isArray(data.items) ? data.items : [],
+    items: Array.isArray(data.items)
+      ? data.items.map(normalizeVendorStoreProduct)
+      : [],
     total: Math.max(0, Number(data.total || 0)),
     availableTotal:
       data.availableTotal != null &&

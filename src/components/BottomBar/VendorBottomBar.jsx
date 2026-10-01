@@ -9,7 +9,7 @@ import { IoChatbubblesOutline } from "react-icons/io5";
 import { AiOutlineProduct } from "react-icons/ai";
 
 import { collection, query, where, onSnapshot, doc } from "firebase/firestore";
-import { db } from "../../firebase.config";
+import { auth, db } from "../../firebase.config";
 import { useAuth } from "../../custom-hooks/useAuth";
 import { useVendorNavigation } from "../Context/VendorBottomBarCtxt";
 import Badge from "../Badge/Badge";
@@ -24,8 +24,12 @@ const VendorBottomBar = ({ isSearchFocused }) => {
   const { currentUser } = useAuth();
 
   // --- State for Counts ---
-  const unreadOffersCount = useSelector(selectOfferConversationUnreadCount);
-  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+  const cachedUnreadOffersCount = useSelector(selectOfferConversationUnreadCount);
+  const conversationOwner = useSelector(state => state.offerConversations.ownerUid);
+  const unreadOffersCount = conversationOwner === currentUser?.uid ? cachedUnreadOffersCount : 0;
+  const pendingOrdersCount = useSelector(state =>
+    state.orders?.ownerVendorId === currentUser?.uid
+      ? (state.orders.orders || []).filter(order => order.progressStatus === "Pending").length : 0);
   const [unreadChatsCount, setUnreadChatsCount] = useState(0);
   
   // --- State for Avatar ---
@@ -56,34 +60,24 @@ const VendorBottomBar = ({ isSearchFocused }) => {
     }
   }, [location.pathname, setActiveNav, navItems]);
 
-  // --- Logic: Listen for "Pending" orders count ---
-  useEffect(() => {
-    if (!currentUser?.uid) return;
-    const ordersRef = collection(db, "orders");
-    const q = query(
-      ordersRef,
-      where("progressStatus", "==", "Pending"),
-      where("vendorId", "==", currentUser.uid)
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setPendingOrdersCount(snapshot.docs.length);
-    });
-    return unsubscribe;
-  }, [currentUser]);
+  // Order badges share the existing contact-safe vendor subscription.
 
   // --- Logic: Listen for "unread" inquiries (chats) ---
   useEffect(() => {
-    if (!currentUser?.uid) return;
-    const inquiriesRef = collection(db, "inquiries");
+    setUnreadChatsCount(0);
+    const session = auth.currentUser;
+    let active = true;
+    if (!currentUser?.uid || session?.uid !== currentUser.uid) return;
+    const inquiriesRef = collection(db, "inquiryViews");
     const q = query(
       inquiriesRef,
       where("vendorId", "==", currentUser.uid),
       where("hasRead", "==", false)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setUnreadChatsCount(snapshot.docs.length);
-    });
-    return unsubscribe;
+      if (active && auth.currentUser === session) setUnreadChatsCount(snapshot.docs.length);
+    }, () => {if (active && auth.currentUser === session) setUnreadChatsCount(0);});
+    return () => {active = false; unsubscribe();};
   }, [currentUser]);
 
   // --- Logic: Live Avatar Listener ---

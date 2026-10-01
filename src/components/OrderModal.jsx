@@ -17,9 +17,7 @@ import { RiShakeHandsFill } from "react-icons/ri";
 import { FcExpired } from "react-icons/fc";
 import { FaShippingFast } from "react-icons/fa";
 import moment from "moment"; // if you're not already importing it
-import { setVendorFollowState } from "../services/vendorFollow";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase.config";
+import { setVendorFollowState, getVendorFollowState } from "../services/vendorFollow";
 import AppBottomSheet from "./layout/AppBottomSheet";
 import { appHaptics } from "../services/haptics";
 import "./Order/order-confirmation-sheet.css";
@@ -37,13 +35,8 @@ const OrderPlacedModal = ({
     const checkIfFollowing = async () => {
       if (!currentUser?.uid || !order?.vendorId) return;
       try {
-        const followRef = doc(
-          db,
-          "follows",
-          `${currentUser.uid}_${order.vendorId}`,
-        );
-        const followSnap = await getDoc(followRef);
-        if (followSnap.exists()) {
+        const followed = await getVendorFollowState(currentUser.uid, order.vendorId);
+        if (followed) {
           setIsFollowing(true); // The user is already following
         } else {
           setIsFollowing(false);

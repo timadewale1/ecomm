@@ -1,6 +1,7 @@
-export const setOrders = (orders) => ({
+export const setOrders = (orders, vendorId) => ({
   type: "SET_ORDERS",
   payload: orders,
+  meta: {vendorId},
 });
 
 export const patchVendorOrder = (orderId, changes) => ({

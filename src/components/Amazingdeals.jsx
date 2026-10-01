@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { toast } from "react-hot-toast";
-import { db } from "../firebase.config";
-import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { functions } from "../firebase.config";
+import { httpsCallable } from "firebase/functions";
 import { RotatingLines } from "react-loader-spinner";
 
 const Amazingdeals = () => {
@@ -17,43 +17,21 @@ const Amazingdeals = () => {
   const handleSubscribe = async () => {
     if (!validateEmail(email)) {
       toast.error("Please enter a valid email address.");
-      console.log("Invalid email entered:", email);
       return;
     }
 
     setIsLoading(true);
 
     try {
-      console.log("Connecting to Firestore...");
-      // Reference the existing document by its ID
-      const subscriptionDocRef = doc(
-        db,
-        "subscriptions",
-        "Bj98oIGgF1dF3RR7NpA4"
-      );
-      console.log(
-        "Subscription document reference created:",
-        subscriptionDocRef
-      );
-
-      // Update the document to add the email to the array
-      await updateDoc(subscriptionDocRef, {
-        emails: arrayUnion(email), // Use arrayUnion to add without duplicates
-      });
-      console.log("Email successfully added to the subscription:", email);
+      await httpsCallable(functions, "subscribeToDealsV1")({email});
 
       setEmail(""); // Clear input field
       toast.success("Thank you for subscribing!");
     } catch (error) {
       toast.error("Failed to subscribe. Please try again later.");
       console.error("Subscription Error:", error);
-      console.log("Error details:", {
-        errorMessage: error.message,
-        errorStack: error.stack,
-      });
     } finally {
       setIsLoading(false);
-      console.log("Finished subscription attempt");
     }
   };
 

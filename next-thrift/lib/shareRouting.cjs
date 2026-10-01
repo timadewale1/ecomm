@@ -66,4 +66,17 @@ function previewVendor(id, data) {
   };
 }
 
-module.exports = { getOrigins, isPreviewCrawler, prepareShareResponse, appDestination, canonicalUrl, previewProduct, previewVendor };
+function isPublicVendor(vendor) {
+  return vendor?.isApproved === true && vendor.isDeactivated !== true &&
+    vendor.accountRestriction?.active !== true;
+}
+
+function isPublicProduct(product, vendor) {
+  // Stock is deliberately not a visibility condition: sold listings retain
+  // their public detail page and rich link. Hidden/moderated listings do not.
+  return !!product && product.published === true && product.isUnpublished !== true && product.isDeleted !== true &&
+    product.isDeactivated !== true && product.deactivated !== true &&
+    product.accountRestriction?.active !== true && isPublicVendor(vendor);
+}
+
+module.exports = { getOrigins, isPreviewCrawler, prepareShareResponse, appDestination, canonicalUrl, previewProduct, previewVendor, isPublicVendor, isPublicProduct };

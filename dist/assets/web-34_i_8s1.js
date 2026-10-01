@@ -1,0 +1,1 @@
+import{W as e,hx as n,hy as t}from"./index-CHrsVnsK.js";class s extends e{async processImage(e){throw this.createUnimplementedException()}createUnimplementedException(){return new n("This method is not implemented on web.",t.Unimplemented)}}export{s as ImageLabelingWeb};

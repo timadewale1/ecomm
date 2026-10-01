@@ -1,3 +1,6 @@
+import {recordOperationalEvent} from "../services/operationalEvents";
+import {reportAppException} from "../services/crashReporting";
+import {getOrderProductSnapshots} from "../services/orderProductSnapshots";
 import React, {
   useEffect,
   useState,
@@ -60,6 +63,7 @@ import { RotatingLines } from "react-loader-spinner";
 import { calculateDeliveryFee } from "../services/states";
 import LocationPicker from "../components/Location/LocationPicker";
 
+import { getPublicVendor } from "../services/publicVendors";
 import SEO from "../components/Helmet/SEO";
 import { RiUser3Line } from "react-icons/ri";
 import { LuCreditCard } from "react-icons/lu";
@@ -713,7 +717,7 @@ const Checkout = () => {
     void Promise.all(
       checkoutProductIds.map(async (productId) => {
         try {
-          const snapshot = await getDoc(doc(db, "products", productId));
+          const snapshot = await getDoc(doc(db, "publicProducts", productId));
           if (!snapshot.exists()) return [productId, null];
           const price = Number(snapshot.data()?.price);
           return [productId, Number.isFinite(price) ? price : null];
@@ -1199,13 +1203,14 @@ const Checkout = () => {
   }, [vendorId, navigate]);
 
   useEffect(() => {
+    let cancelled = false;
     const fetchVendorInfo = async () => {
       try {
         if (!vendorId) return;
 
-        const vendorDoc = await getDoc(doc(db, "vendors", vendorId));
-        if (vendorDoc.exists()) {
-          const vendor = vendorDoc.data();
+        const vendor = await getPublicVendor(vendorId);
+        if (cancelled) return;
+        if (vendor) {
           if (!isMarketplaceVendorEligible(vendor)) {
             toast.error("This store is not currently available.");
             navigate("/latest-cart", { replace: true });
@@ -1217,12 +1222,14 @@ const Checkout = () => {
           navigate("/latest-cart", { replace: true });
         }
       } catch (error) {
+        if (cancelled) return;
         console.error("Error fetching vendor info:", error);
         toast.error("Unable to verify this store right now. Please try again.");
       }
     };
 
     fetchVendorInfo();
+    return () => { cancelled = true; };
   }, [vendorId, navigate]);
   useEffect(() => {
     const mode = vendorsInfo[vendorId]?.deliveryMode;
@@ -1327,40 +1334,17 @@ const Checkout = () => {
         const orderSnapshots = await Promise.all(
           orderIds.map((orderId) => getDoc(doc(db, "orders", orderId)))
         );
-        const orders = orderSnapshots
-          .filter((snapshot) => snapshot.exists())
-          .map((snapshot) => snapshot.data());
-        const rawItems = orders.flatMap((order) => order.cartItems || []);
-        const productIds = [...new Set(rawItems.map((item) => item.productId))];
-        const productSnapshots = await Promise.all(
-          productIds.map((productId) =>
-            getDoc(doc(db, "products", productId))
-          )
-        );
-        const products = {};
-        productSnapshots.forEach((snapshot) => {
-          if (snapshot.exists()) products[snapshot.id] = snapshot.data();
-        });
 
-        const items = rawItems.map((item, index) => {
-          const product = products[item.productId] || {};
-          const subProduct = item.subProductId
-            ? product.subProducts?.find(
-                (candidate) => candidate.subProductId === item.subProductId
-              )
-            : null;
-
-          return {
-            ...item,
-            key: `${item.productId}-${item.subProductId || index}`,
-            name: product.name || "Stockpiled item",
-            imageUrl:
-              subProduct?.images?.[0] ||
-              product.coverImageUrl ||
-              product.imageUrls?.[0] ||
-              "",
-          };
-        });
+        const orders = orderSnapshots.filter(snapshot=>snapshot.exists())
+          .map(snapshot=>({...snapshot.data(),id:snapshot.id}));
+        const products = await getOrderProductSnapshots(orders);
+        const rawItems = orders.flatMap(order=>order.cartItems || []);
+        const items = orders.flatMap(order=>(order.cartItems || []).map((item,index)=>{
+          const product=products[order.id]?.[index] || item.productSnapshot || {};
+          return {...item,key:order.id+"-"+index,
+            name:item.name || item.productName || product.name || "Stockpiled item",
+            imageUrl:item.selectedImageUrl || item.imageUrl || item.image || product.imageUrl || product.coverImageUrl || product.imageUrls?.[0] || ""};
+        }));
 
         if (!cancelled) {
           setActivePile({
@@ -1560,6 +1544,8 @@ const Checkout = () => {
         },
       });
     } catch (err) {
+      recordOperationalEvent("checkout_error",{screen:"checkout",code:err?.details?.code || err?.code || "checkout_failed"});
+      void reportAppException(err,"checkout");
       console.error("Error in payment process:", err);
       appHaptics.error();
 
@@ -2432,9 +2418,8 @@ const Checkout = () => {
                       <div className="checkout-pickup-copy">
                         <p className="checkout-pickup-title">Pick-up location</p>
                         <p className="checkout-pickup-address">
-                          {supportsPickup &&
-                          vendorsInfo[vendorId]?.pickupAddress
-                            ? vendorsInfo[vendorId].pickupAddress
+                          {supportsPickup
+                            ? "Exact address available after you place your pickup order"
                             : "Vendor doesn’t offer pickup"}
                         </p>
                       </div>
@@ -2442,22 +2427,6 @@ const Checkout = () => {
                         <CheckoutRadio
                           selected={selectedDeliveryMode === "Pickup"}
                         />
-                        {supportsPickup &&
-                          vendorsInfo[vendorId]?.pickupLat &&
-                          vendorsInfo[vendorId]?.pickupLng &&
-                          vendorsInfo[vendorId]?.pickupAddress && (
-                          <button
-                            type="button"
-                            className="checkout-open-map"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleShowMapToast();
-                            }}
-                          >
-                            <span>Open map</span>
-                            <GoChevronRight aria-hidden="true" />
-                          </button>
-                        )}
                       </div>
                     </div>
 

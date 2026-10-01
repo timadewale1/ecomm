@@ -8,7 +8,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
-import { setVendorFollowState } from "../../services/vendorFollow";
+import { setVendorFollowState, subscribeVendorFollow } from "../../services/vendorFollow";
 import { FaStar } from "react-icons/fa";
 import { GoChevronRight } from "react-icons/go";
 import QuickAuthModal from "../../components/PwaModals/AuthModal";
@@ -20,6 +20,7 @@ import { takeAuthIntent } from "../../services/authIntent";
 import { useAuth } from "../../custom-hooks/useAuth";
 import { appHaptics } from "../../services/haptics";
 
+import { getPublicVendor } from "../../services/publicVendors";
 const norm = (v) => String(v || "").trim().toLowerCase();
 
 const getLikes = (p) => Number(p?.wishCount ?? p?.likesCount ?? 0);
@@ -143,9 +144,9 @@ export default function VendorProfileMoreFromSeller({
       if (!vendorId) return;
       setVendorLoading(true);
       try {
-        const snap = await getDoc(doc(db, "vendors", vendorId));
+        const publicVendor = await getPublicVendor(vendorId);
         if (!alive) return;
-        setVendor(snap.exists() ? { id: vendorId, ...snap.data() } : null);
+        setVendor(publicVendor);
       } catch (e) {
         console.error("[VendorProfileMoreFromSeller] vendor fetch:", e);
         if (alive) setVendor(null);
@@ -166,11 +167,10 @@ export default function VendorProfileMoreFromSeller({
       return;
     }
     setIsFollowLoading(true);
-    const followRef = doc(db, "follows", `${uid}_${vendorId}`);
-    return onSnapshot(
-      followRef,
-      (snap) => {
-        setIsFollowing(snap.exists());
+    return subscribeVendorFollow(
+      uid, vendorId,
+      (followed) => {
+        setIsFollowing(followed);
         if (!followMutationRef.current) setIsFollowLoading(false);
       },
       () => {
@@ -203,7 +203,7 @@ export default function VendorProfileMoreFromSeller({
         // exclude current product + basic cleanup
         const cleaned = rows
           .filter((p) => p?.id !== currentProductId)
-          .filter((p) => p?.coverImageUrl); // keep consistent visuals
+          .filter((p) => p?.productCoverImage || p?.coverImageUrl);
 
         setProducts(cleaned);
       } catch (e) {

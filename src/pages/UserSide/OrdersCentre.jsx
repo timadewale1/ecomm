@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { canUseBuyerContactEmail, CONTACT_SIGN_IN_MESSAGE } from "../../services/accountLookups";
 import { GoChevronLeft, GoChevronRight } from "react-icons/go";
 import { addToCart } from "../../redux/actions/action";
 import { useNavigate, useLocation } from "react-router-dom";
 import { deactivateQuickMode } from "../../redux/reducers/quickModeSlice";
 import { db, auth } from "../../firebase.config";
+import { getOwnedPickupDetails } from "../../services/pickupOrderAccess";
+import PrivateDeliveryProof from "../../components/Orders/PrivateDeliveryProof";
 import {
   collection,
   query,
@@ -30,6 +33,7 @@ import moment from "moment";
 import { useTawk } from "../../components/Context/TawkProvider";
 import { TbTruckDelivery } from "react-icons/tb";
 import { enrichWithProductInfo } from "../../services/enrichWithProductInfo";
+import {getOrderProductSnapshots} from "../../services/orderProductSnapshots";
 import { isVariantSizeHidden } from "../../services/productVariantSelection";
 import { FaTimes } from "react-icons/fa";
 import { IoCopyOutline, IoTimeOutline } from "react-icons/io5";
@@ -53,6 +57,7 @@ import {
   exitStockpileMode,
 } from "../../redux/reducers/stockpileSlice";
 
+import { getOwnedOrderVendorSummaries } from "../../services/orderVendorSummaries";
 import {
   EmailAuthProvider,
   linkWithCredential,
@@ -66,6 +71,7 @@ import LinkAccountModal from "../../components/QuickMode/LinkAccountModal";
 import AccountLinkBanner from "../../components/QuickMode/AccountLinkBanner";
 import { appHaptics } from "../../services/haptics";
 import { openExternalUrl } from "../../services/nativeLinks";
+import { isNativeApp } from "../../services/platform";
 import useNativePageRefresh from "../../custom-hooks/useNativePageRefresh";
 import useHorizontalTabSwipe from "../../custom-hooks/useHorizontalTabSwipe";
 import {
@@ -712,6 +718,7 @@ const OrdersCentre = () => {
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [sampleProduct, setSampleProduct] = useState(null);
   const detailRequestId = useRef(0);
+  const pickupMapOpeningRef = useRef(false);
   const ordersTabsRef = useRef(null);
   const listLoadedHapticPlayed = useRef(false);
   const [showOrderPlacedModal, setShowOrderPlacedModal] = useState(false);
@@ -922,78 +929,40 @@ const OrdersCentre = () => {
         // listener. This effect only builds the existing enriched UI model.
         const fetchedOrders = rawOrders.map((order) => ({ ...order }));
 
-        console.log("Fetched orders:", fetchedOrders);
-
         // 2. Sort by createdAt (newest first)
         fetchedOrders.sort(
           (a, b) => getOrderTime(b.createdAt) - getOrderTime(a.createdAt)
         );
 
-        // 3. Fetch vendor names
-        const vendorIds = [
-          ...new Set(fetchedOrders.map((order) => order.vendorId).filter(Boolean)),
-        ];
-        const vendorEntries = await Promise.all(
-          vendorIds.map(async (id) => [id, await getDoc(doc(db, "vendors", id))])
-        );
-
-        const vendorMap = {};
-        vendorEntries.forEach(([id, snap]) => {
-          if (snap.exists()) {
-            vendorMap[id] = {
-              name: snap.data().shopName,
-              pickupLat: snap.data().pickupLat ?? null,
-              pickupLng: snap.data().pickupLng ?? null,
-              pickupAddress: snap.data().pickupAddress ?? "",
-            };
-          }
-        });
+        // A name lookup must never make a paid order disappear. Authorize
+        // historical store summaries by order ownership, not public eligibility.
+        const vendorMap = await getOwnedOrderVendorSummaries(fetchedOrders, userId)
+          .catch((error) => {
+            console.warn("[orders] store names unavailable", {code: error?.code});
+            return {};
+          });
 
         // 4. Attach vendorName to each order
         const enrichedOrders = fetchedOrders.map((order) => ({
           ...order,
-          vendorName: vendorMap[order.vendorId]?.name || "Unknown Vendor",
-          pickupLat: vendorMap[order.vendorId]?.pickupLat ?? null,
-          pickupLng: vendorMap[order.vendorId]?.pickupLng ?? null,
-          pickupAddress: vendorMap[order.vendorId]?.pickupAddress || "",
+          vendorName: vendorMap[order.vendorId]?.shopName || order.vendorName || order.shopName || "Unknown Vendor",
+          // Never copy another vendor's private address into every order.
+          // Pickup details are authorized on demand when opening that order.
+          pickupLat: null,
+          pickupLng: null,
+          pickupAddress: "",
         }));
 
-        // 5. Gather unique product IDs
-        const productIds = new Set();
-        enrichedOrders.forEach((order) => {
-          const items = Array.isArray(order.cartItems) ? order.cartItems : [];
-          items.forEach((item) => item?.productId && productIds.add(item.productId));
-        });
-
-        const productsData = {};
-        const productBatches = chunkValues(
-          Array.from(productIds),
-          PRODUCT_QUERY_BATCH_SIZE
-        );
-        const productSnapshots = await Promise.all(
-          productBatches.map((ids) =>
-            getDocs(
-              query(
-                collection(db, "products"),
-                where(documentId(), "in", ids)
-              )
-            )
-          )
-        );
-        productSnapshots.forEach((snapshot) => {
-          snapshot.forEach((productDoc) => {
-            productsData[productDoc.id] = productDoc.data();
-          });
-        });
+        const productsData = await getOrderProductSnapshots(enrichedOrders);
 
         // 6. Attach product info to cartItems
         const ordersWithProductDetails = enrichedOrders.map((order) => {
           const items = Array.isArray(order.cartItems) ? order.cartItems : [];
-          const cartItemsWithDetails = items.map((item) => {
-            const product = productsData[item.productId];
-            let imageUrl = item.imageUrl || item.image || "";
-            let name = item.name || item.productName || "Product";
-            let price = Number(item.price || 0);
+          const cartItemsWithDetails = items.map((item, index) => {
+            const product = productsData[order.id]?.[index] || item.productSnapshot;
+            let imageUrl = item.selectedImageUrl || item.imageUrl || item.image || product?.imageUrl || "";
+            let name = item.name || item.productName || product?.name || "Product";
+            let price = Number(item.unitPrice ?? item.productSnapshot?.price ?? item.price ?? product?.price ?? 0);
             let color = item.color || item.variantAttributes?.color || "";
             let size = item.size || item.variantAttributes?.size || "";
             const savedSizeHidden =
@@ -1006,25 +975,22 @@ const OrdersCentre = () => {
                   : false;
 
             if (product) {
-              name = product.name;
-              price = product.price;
 
               if (item.subProductId) {
                 const sub = product.subProducts?.find(
                   (sp) => sp.subProductId === item.subProductId
                 );
                 if (sub) {
-                  imageUrl = sub.images?.[0] || "";
+                  imageUrl = imageUrl || sub.images?.[0] || "";
                   color = sub.color || "";
                   size = sub.size || "";
-                  if (sub.price) price = sub.price;
                 }
               } else if (item.variantAttributes) {
-                imageUrl = product.imageUrls?.[0] || "";
+                imageUrl = imageUrl || product.imageUrls?.[0] || "";
                 color = item.variantAttributes.color || "";
                 size = item.variantAttributes.size || "";
               } else {
-                imageUrl = product.coverImageUrl || "";
+                imageUrl = imageUrl || product.coverImageUrl || "";
               }
             }
 
@@ -1144,7 +1110,6 @@ const OrdersCentre = () => {
           );
         }
 
-        console.log("🧾 Final grouped orders:", finalOrders);
       } catch (error) {
         console.error("Error fetching orders and products:", error);
         if (!cancelled) {
@@ -1441,7 +1406,24 @@ const OrdersCentre = () => {
         }
       }
 
-      if (detailRequestId.current !== requestId) return;
+      if (refreshedOrder.isPickup || refreshedOrder.userInfo?.isPickup) {
+        // Failure to enrich a location must not discard a fresh order status.
+        // Do not fall back to a public vendor document or stale pickup details.
+        refreshedOrder = {
+          ...refreshedOrder,
+          pickupAddress: "", pickupLat: null, pickupLng: null,
+        };
+        try {
+          const pickup = await getOwnedPickupDetails([refreshedOrder], userId);
+          refreshedOrder = {...refreshedOrder, ...(pickup[refreshedOrder.id] || {})};
+        } catch (pickupError) {
+          console.warn("Could not refresh pickup location:", {code: pickupError?.code || "unknown"});
+          if (detailRequestId.current === requestId && auth.currentUser?.uid === userId) {
+            toast.error("Your order is up to date, but the pickup address couldn’t load. Try again shortly.");
+          }
+        }
+      }
+      if (detailRequestId.current !== requestId || auth.currentUser?.uid !== userId) return;
       const serializableOrder = firestoreValueToSerializable(refreshedOrder);
       setSelectedOrder(serializableOrder);
       dispatch(
@@ -1518,33 +1500,53 @@ const OrdersCentre = () => {
     }
   };
 
-  const openPickupMap = (order) => {
+  const openPickupMap = async (order) => {
+    if (pickupMapOpeningRef.current) return;
     if (!canUsePickupDetails(order)) {
       toast.error(
         "The pickup route is available after acceptance and before delivery."
       );
       return;
     }
-
-    const latitude = Number(order.pickupLat);
-    const longitude = Number(order.pickupLng);
-    const hasCoordinates =
-      Number.isFinite(latitude) && Number.isFinite(longitude);
-    const destination = hasCoordinates
-      ? `${latitude},${longitude}`
-      : String(order.pickupAddress || "").trim();
-
-    if (!destination) {
-      toast.error("Vendor did not set a pick-up point.");
-      return;
+    // Reserve the web tab within the tap itself: opening it only after the
+    // authenticated lookup can be blocked by Safari's popup protection.
+    // Native WebViews retain their existing external Maps navigation.
+    const mapTab = isNativeApp ? null : window.open("about:blank", "_blank");
+    if (mapTab) mapTab.opener = null;
+    pickupMapOpeningRef.current = true;
+    try {
+      const details = await getOwnedPickupDetails([order], userId);
+      const pickup = details[order.id];
+      if (!pickup || auth.currentUser?.uid !== userId) {
+        mapTab?.close();
+        toast.error("Pickup details are not available for this order.");
+        return;
+      }
+      const latitude = Number(pickup.pickupLat);
+      const longitude = Number(pickup.pickupLng);
+      const hasCoordinates =
+        pickup.pickupLat != null && pickup.pickupLng != null &&
+        Number.isFinite(latitude) && Number.isFinite(longitude);
+      const destination = hasCoordinates
+        ? `${latitude},${longitude}`
+        : String(pickup.pickupAddress || "").trim();
+      if (!destination) {
+        mapTab?.close();
+        toast.error("Vendor did not set a pick-up point.");
+        return;
+      }
+      appHaptics.selection();
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
+      if (isNativeApp) window.open(url, "_blank", "noopener,noreferrer");
+      else if (mapTab && !mapTab.closed) mapTab.location.replace(url);
+      else if (!mapTab) window.location.assign(url);
+      // Closing the reserved tab while loading is cancellation, not an error.
+    } catch {
+      mapTab?.close();
+      toast.error("Couldn’t load the pickup route. Please try again.");
+    } finally {
+      pickupMapOpeningRef.current = false;
     }
-
-    appHaptics.selection();
-    window.open(
-      `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
   };
 
   const openKnowledgeBase = () => {
@@ -1692,24 +1694,8 @@ const OrdersCentre = () => {
         return;
       }
 
-      // 2) HARD BLOCK: vendor emails
-      const vendorsQ = query(
-        collection(db, "vendors"),
-        where("email", "==", inputEmail)
-      );
-      const vendorsSnap = await getDocs(vendorsQ);
-      if (!vendorsSnap.empty) {
-        toast.error("This email is already used for a Vendor account!");
-        return;
-      }
-      // Also check users collection for vendor role
-      const usersQ = query(
-        collection(db, "users"),
-        where("email", "==", inputEmail)
-      );
-      const usersSnap = await getDocs(usersQ);
-      if (!usersSnap.empty && usersSnap.docs[0].data()?.role === "vendor") {
-        toast.error("This email is already used for a Vendor account!");
+      if (!(await canUseBuyerContactEmail(inputEmail))) {
+        toast.error(CONTACT_SIGN_IN_MESSAGE);
         return;
       }
 
@@ -2726,34 +2712,14 @@ const OrdersCentre = () => {
                   </section>
                 )}
 
-                {deliveryProof?.url && (
-                  <section className="order-detail-section">
-                    <h2 className="order-section-title">Delivery proof</h2>
-                    <button
-                      type="button"
-                      className="order-delivery-proof"
-                      onClick={() => {
-                        appHaptics.selection();
-                        setFullscreenImage(deliveryProof.url);
-                      }}
-                      aria-label="View delivery proof image"
-                    >
-                      <img
-                        src={deliveryProof.url}
-                        alt={
-                          deliveryProof.kind === "pickup_collection"
-                            ? "Proof of pickup collection"
-                            : "Proof of courier handover"
-                        }
-                      />
-                      <span>Tap to view</span>
-                    </button>
-                    <p className="order-delivery-proof-note">
-                      {deliveryProof.kind === "pickup_collection"
-                        ? "Added by the vendor when collection was confirmed."
-                        : "Added by the vendor when the parcel was handed to the courier."}
-                    </p>
-                  </section>
+                {(deliveryProof?.storagePath || deliveryProof?.url) && (
+                  <PrivateDeliveryProof
+                    key={`${isStockpileContainer ? "stockpile" : "order"}:${selectedOrder.id}`}
+                    entityType={isStockpileContainer ? "stockpile" : "order"}
+                    entityId={isStockpileContainer ? selectedOrder.stockpileDocId || selectedOrder.id : selectedOrder.id}
+                    proof={deliveryProof}
+                    onView={setFullscreenImage}
+                  />
                 )}
 
                 {selectedOrder.note && (

@@ -8,10 +8,11 @@ import React, {
   useCallback,
 } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase.config";
 import toast from "react-hot-toast";
-import { isBuyerSocialAuthProvisioning } from "../services/buyerSocialAuth";
+import { authProvisioning } from "../services/authProvisioning.mjs";
+import { mustSignOutRestrictedAccount } from "../services/accountRestrictionPolicy.mjs";
 
 const AuthContext = createContext();
 const USER_DATA_KEY = "mythrift:userData";
@@ -85,6 +86,23 @@ export const AuthProvider = ({ children }) => {
   const [profileResolution, setProfileResolution] = useState("loading");
   const [profileRefreshToken, setProfileRefreshToken] = useState(0);
   const authGenerationRef = useRef(0);
+
+  useEffect(() => {
+    const uid = currentUser?.uid;
+    const collectionName = collectionForRole(currentUserData?.role);
+    if (!uid || currentUserDataUid !== uid || !collectionName) return undefined;
+    return onSnapshot(doc(db, collectionName, uid), snapshot => {
+      if (auth.currentUser?.uid !== uid || snapshot.metadata.fromCache) return;
+      if (snapshot.exists() && mustSignOutRestrictedAccount({
+        ...snapshot.data(), role: roleForCollection(collectionName),
+      })) {
+        setAccountDeactivated(true);
+        setProfileResolution("deactivated");
+        clearCachedUserData();
+        void signOut(auth).catch(() => { setAccountDeactivated(true); });
+      }
+    }, () => { /* Offline reads must not sign out an active account. */ });
+  }, [currentUser?.uid, currentUserData?.role, currentUserDataUid]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -187,28 +205,20 @@ export const AuthProvider = ({ children }) => {
         try {
           resolvedData = resolvedData || (await resolveFromNetwork());
 
-          // A native provider publishes its Firebase session before the buyer
-          // profile transaction can finish. Ordinary launches keep the single
-          // short retry; a marked social-auth transaction receives a bounded
-          // 3-second provisioning window so a new Apple/X account is never
-          // falsely signed out on a slower mobile connection.
+          // Wait for the actual in-flight profile creation, not repeated reads
+          // against a three-second guess. A timeout follows the recoverable
+          // offline path; it must never become a false missing-account logout.
           if (!resolvedData && !networkFailed && isCurrent()) {
-            const provisioning = isBuyerSocialAuthProvisioning(user.uid);
-            const retryCount = provisioning ? 6 : 1;
-            const retryDelay = provisioning ? 500 : 650;
-            for (
-              let attempt = 0;
-              attempt < retryCount && !resolvedData && !networkFailed && isCurrent();
-              attempt += 1
-            ) {
-              await delay(retryDelay);
+            await authProvisioning.wait(user.uid);
+            if (isCurrent()) {
+              await delay(650);
               resolvedData = await resolveFromNetwork();
             }
           }
 
           if (!isCurrent()) return;
 
-          if (resolvedData?.isDeactivated) {
+          if (mustSignOutRestrictedAccount(resolvedData)) {
             setAccountDeactivated(true);
             setProfileResolution("deactivated");
             await signOut(auth);

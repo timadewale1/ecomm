@@ -21,7 +21,7 @@ export const fetchProductsFailure = (error) => ({ type: FETCH_PRODUCTS_FAILURE, 
 export const fetchProduct = (id) => async (dispatch) => {
   dispatch(fetchProductRequest()); // Dispatching initial request action
   try {
-    const productRef = doc(db, "products", id); // Fetch from centralized products collection
+    const productRef = doc(db, "publicProducts", id); // Fetch from centralized products collection
     const productDoc = await getDoc(productRef); // Fetch the product
 
     if (productDoc.exists() && isMarketplaceProductEligible(productDoc.data())) {
@@ -42,7 +42,7 @@ export const fetchProducts = () => async (dispatch) => {
   dispatch(fetchProductsRequest()); // Dispatch request action
 
   try {
-    const productsSnapshot = await getDocs(collection(db, "products")); // Fetch all products from the centralized collection
+    const productsSnapshot = await getDocs(collection(db, "publicProducts")); // Fetch all products from the centralized collection
 
     const products = productsSnapshot.docs
       .map(doc => ({

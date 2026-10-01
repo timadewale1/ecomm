@@ -14,7 +14,7 @@ export const fetchPersonalDiscounts = createAsyncThunk(
       // If your "discount" field is an object with a key "discountType",
       // you can query like this:
       const q = query(
-        collection(db, "products"),               // 1. Use "products" collection
+        collection(db, "publicProducts"),               // 1. Use "products" collection
         where("isDeleted", "==", false),          // 2. Match your existing conditions if needed
         where("published", "==", true),
         where("discount.discountType", "in", [

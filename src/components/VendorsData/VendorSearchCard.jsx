@@ -5,7 +5,7 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { FaStar } from "react-icons/fa";
 
 import { db } from "../../firebase.config";
-import { setVendorFollowState } from "../../services/vendorFollow";
+import { setVendorFollowState, subscribeVendorFollow } from "../../services/vendorFollow";
 import QuickAuthModal from "../../components/PwaModals/AuthModal";
 import SafeImg from "../../services/safeImg";
 import { pendingAuthIntent, takeAuthIntent } from "../../services/authIntent";
@@ -137,11 +137,10 @@ export default function VendorSearchCard({
       return;
     }
     setIsFollowLoading(true);
-    const followRef = doc(db, "follows", `${uid}_${vendorId}`);
-    return onSnapshot(
-      followRef,
-      (snap) => {
-        setIsFollowing(snap.exists());
+    return subscribeVendorFollow(
+      uid, vendorId,
+      (followed) => {
+        setIsFollowing(followed);
         if (!followMutationRef.current) setIsFollowLoading(false);
       },
       () => {

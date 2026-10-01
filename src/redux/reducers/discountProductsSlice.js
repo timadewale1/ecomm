@@ -9,7 +9,7 @@ export const fetchDiscountProducts = createAsyncThunk(
     try {
       // Query all products that are not deleted and are published.
       const q = query(
-        collection(db, "products"),
+        collection(db, "publicProducts"),
         where("isDeleted", "==", false),
         where("published", "==", true)
       );

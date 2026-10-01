@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { getAuth } from "firebase/auth";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import {uploadPrivateImage} from "../services/privateMedia";
 import { db } from "../firebase.config";
 import toast from "react-hot-toast";
 import { RotatingLines } from "react-loader-spinner";
@@ -19,30 +19,26 @@ const SubmitFeedback = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const auth = getAuth();
-  const storage = getStorage();
 
-  useEffect(() => {
-    const user = auth.currentUser;
-    if (user) {
-      setEmail(user.email);
-      setIsAuthenticated(true);
-    }
-  }, [auth]);
+  useEffect(() => onAuthStateChanged(auth, user => {
+    const signedIn = Boolean(user && !user.isAnonymous);
+    setEmail(signedIn ? user.email || "" : "");
+    setIsAuthenticated(signedIn);
+    setAttachments([]);
+  }), [auth]);
 
-  const uploadAttachments = async (files, feedbackId) => {
-    const urls = [];
-    for (const file of files) {
+  const uploadAttachments = async (files, feedbackId, session) => {
+    const images = [];
+    for (const [slot, file] of files.entries()) {
       try {
-        const fileRef = ref(storage, `feedbacks/${feedbackId}-${file.name}`);
-        await uploadBytes(fileRef, file);
-        const url = await getDownloadURL(fileRef);
-        urls.push(url);
+        if (auth.currentUser !== session) throw new Error("Your account changed. Please try again.");
+        images.push(await uploadPrivateImage(file, {kind: "feedback", entityId: feedbackId, slot}));
       } catch (error) {
         console.error("Error uploading attachment:", error);
         throw new Error("Failed to upload attachment.");
       }
     }
-    return urls;
+    return images;
   };
 
   const handleFeedbackSubmit = async () => {
@@ -67,19 +63,28 @@ const SubmitFeedback = () => {
 
     try {
       const user = auth.currentUser;
+      if (attachments.length && (!user || user.isAnonymous)) {
+        toast.error("Please sign in to attach images, or send your feedback without an attachment.");
+        return;
+      }
+      if (attachments.some(file => !['image/jpeg','image/png','image/webp','image/gif'].includes(file.type) || file.size > 8 * 1024 * 1024)) {
+        toast.error("Please attach JPG, PNG, WebP or GIF images under 8 MB.");
+        return;
+      }
       const feedbackId = `${user?.uid || "guest"}-${Date.now()}`;
-      let attachmentUrls = [];
+      let uploadedAttachments = [];
 
       if (attachments.length > 0) {
-        attachmentUrls = await uploadAttachments(attachments, feedbackId);
+        uploadedAttachments = await uploadAttachments(attachments, feedbackId, user);
       }
+      if (auth.currentUser !== user) return;
 
       const feedbackDoc = {
         userId: user?.uid || "guest",
         email,
         feedbackType,
         feedbackText,
-        attachmentUrls,
+        attachments: uploadedAttachments,
         submittedAt: serverTimestamp(),
       };
 

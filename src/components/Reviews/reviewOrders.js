@@ -6,8 +6,8 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
+import {getOrderProductSnapshots} from "../../services/orderProductSnapshots";
 
-const PRODUCT_BATCH_SIZE = 30;
 
 const toMillis = (value) => {
   if (!value) return 0;
@@ -27,7 +27,7 @@ const chunk = (values, size) => {
 };
 
 const getProductImage = (product, item) => {
-  if (item?.imageUrl || item?.image) return item.imageUrl || item.image;
+  if (item?.selectedImageUrl || item?.imageUrl || item?.image || product?.imageUrl) return item.selectedImageUrl || item.imageUrl || item.image || product.imageUrl;
   if (item?.subProductId) {
     const variant = product?.subProducts?.find(
       (entry) => entry.subProductId === item.subProductId
@@ -38,34 +38,12 @@ const getProductImage = (product, item) => {
 };
 
 const enrichOrders = async (orders) => {
-  const productIds = Array.from(
-    new Set(
-      orders
-        .flatMap((order) => order.cartItems || [])
-        .map((item) => item?.productId)
-        .filter(Boolean)
-    )
-  );
-  if (!productIds.length) return orders;
-
-  const snapshots = await Promise.all(
-    chunk(productIds, PRODUCT_BATCH_SIZE).map((ids) =>
-      getDocs(
-        query(collection(db, "products"), where(documentId(), "in", ids))
-      )
-    )
-  );
-  const products = {};
-  snapshots.forEach((snapshot) => {
-    snapshot.forEach((productDoc) => {
-      products[productDoc.id] = productDoc.data();
-    });
-  });
+  const products = await getOrderProductSnapshots(orders);
 
   return orders.map((order) => ({
     ...order,
-    cartItems: (order.cartItems || []).map((item) => {
-      const product = products[item.productId] || {};
+    cartItems: (order.cartItems || []).map((item, index) => {
+      const product = products[order.id]?.[index] || item.productSnapshot || {};
       return {
         ...item,
         name: item.name || item.productName || product.name || "Product",
@@ -102,7 +80,7 @@ const groupReviewOrders = (orders) => {
         fulfilledOrders.every((order) => order.progressStatus === "Delivered");
       if (!isDelivered) return null;
 
-      const primary = sorted[0];
+      const primary = fulfilledOrders[0];
       return {
         ...primary,
         id: primary.id,

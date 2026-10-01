@@ -12,6 +12,8 @@ import { db } from "../../firebase.config";
 // IMPORTANT: tell React Modal where to mount
 Modal.setAppElement("#root");
 
+import {getPublicVendor} from "../../services/publicVendors";
+
 const AnswerModz = ({ isOpen, onClose, inquiryId, inquiryData }) => {
   const navigate = useNavigate();
 
@@ -70,10 +72,8 @@ const AnswerModz = ({ isOpen, onClose, inquiryId, inquiryData }) => {
     if (!vendorId) return;
     const fetchVendor = async () => {
       try {
-        const vendorRef = doc(db, "vendors", vendorId);
-        const vendorSnap = await getDoc(vendorRef);
-        if (vendorSnap.exists()) {
-          const data = vendorSnap.data();
+        const data = await getPublicVendor(vendorId);
+        if (data) {
           setVendorName(data.shopName || "The vendor");
         }
       } catch (err) {

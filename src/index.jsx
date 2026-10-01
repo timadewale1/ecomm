@@ -17,12 +17,15 @@ import { NavigationProvider } from "./components/Context/Bottombarcontext";
 import { HelmetProvider } from "react-helmet-async";
 
 import { AuthProvider } from "./custom-hooks/useAuth";
+import {installCrashReporting} from "./services/crashReporting";
+import OperationalJourney from "./components/Context/OperationalJourney";
 import { AppExperienceProvider } from "./components/Context/AppExperienceContext.jsx";
 import { TawkProvider } from "./components/Context/TawkProvider.jsx";
 
 import { PostHogProvider } from "posthog-js/react";
 import SwipeToast from "./components/Toasts/SwipeToast.jsx";
 
+installCrashReporting();
 const posthogOptions = {
   api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
   autocapture: true,
@@ -43,6 +46,7 @@ createRoot(document.getElementById("root")).render(
             <PersistGate loading={null} persistor={persistor}>
               <AppExperienceProvider>
                 <AuthProvider>
+                  <OperationalJourney />
                   <NavigationProvider>
                     <VendorProvider>
                       <TawkProvider>

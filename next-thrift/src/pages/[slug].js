@@ -40,7 +40,7 @@ export async function getServerSideProps({ req, res, params, resolvedUrl }) {
     .limit(1)
     .get();
 
-  if (snapQ.empty) return { notFound: true };
+  if (snapQ.empty || !shareRouting.isPublicVendor(snapQ.docs[0].data())) return { notFound: true };
   const vendor = toJSON(
     shareRouting.previewVendor(snapQ.docs[0].id, snapQ.docs[0].data()),
     Timestamp

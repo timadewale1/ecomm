@@ -10,11 +10,8 @@ import {
   sendEmailVerification,
 } from "firebase/auth";
 import { auth, db, functions } from "../firebase.config";
+import { canUseBuyerContactEmail, CONTACT_SIGN_IN_MESSAGE } from "../services/accountLookups";
 import {
-  collection,
-  query,
-  where,
-  getDocs,
   getDoc,
   doc,
   setDoc,
@@ -146,23 +143,8 @@ const Login = () => {
         return;
       }
 
-      // 1) HARD BLOCK: Vendor emails
-      const vendorsQ = query(
-        collection(db, "vendors"),
-        where("email", "==", inputEmail),
-      );
-      const vendorsSnap = await getDocs(vendorsQ);
-      if (!vendorsSnap.empty) {
-        toast.error("This email is already used for a Vendor account!");
-        return;
-      }
-      const usersQ = query(
-        collection(db, "users"),
-        where("email", "==", inputEmail),
-      );
-      const usersSnap = await getDocs(usersQ);
-      if (!usersSnap.empty && usersSnap.docs[0].data()?.role === "vendor") {
-        toast.error("This email is already used for a Vendor account!");
+      if (!(await canUseBuyerContactEmail(inputEmail))) {
+        toast.error(CONTACT_SIGN_IN_MESSAGE);
         return;
       }
 
@@ -341,13 +323,7 @@ const Login = () => {
               .toLowerCase() || "";
 
           if (!savedEmail || savedEmail === inputEmail) {
-            // vendor block -> if vendor, do not open modal
-            const vendorsQ = query(
-              collection(db, "vendors"),
-              where("email", "==", inputEmail),
-            );
-            const vendorsSnap = await getDocs(vendorsQ);
-            if (vendorsSnap.empty) {
+            if (await canUseBuyerContactEmail(inputEmail)) {
               // only open if email is NOT already registered in Auth
               const methods = await fetchSignInMethodsForEmail(
                 auth,

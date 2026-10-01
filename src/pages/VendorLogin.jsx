@@ -24,6 +24,7 @@ import { useAppExperience } from "../components/Context/AppExperienceContext";
 import { APP_EXPERIENCE } from "../services/appExperience";
 import { authDestinationFromState } from "../services/authIntent";
 import { mustSignOutRestrictedAccount } from "../services/accountRestrictionPolicy.mjs";
+import { beginAuthTransition } from "../services/authTransition.mjs";
 
 const VendorLogin = () => {
   const [email, setEmail] = useState("");
@@ -48,6 +49,7 @@ const VendorLogin = () => {
     }
 
     void appHaptics.medium();
+    let transition;
 
     try {
       // 1) Sign in via Firebase Auth
@@ -57,6 +59,7 @@ const VendorLogin = () => {
         password
       );
       const user = userCredential.user;
+      transition = beginAuthTransition();
 
       // 2) Check Firestore "vendors" collection
       const docRef = doc(db, "vendors", user.uid);
@@ -190,6 +193,7 @@ const VendorLogin = () => {
         );
       }
     } finally {
+      transition?.finish();
       setLoading(false);
     }
   };

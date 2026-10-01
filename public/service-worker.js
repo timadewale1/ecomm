@@ -75,6 +75,8 @@ self.addEventListener("fetch", (event) => {
   // ✅ Only handle same-origin. Let cross-origin (Cloud Functions, CDNs) go straight to network.
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+  // OAuth helper responses must never become an offline page or cached HTML.
+  if (url.pathname.startsWith("/__/auth/") || url.pathname === "/auth/google") return;
 
   event.respondWith(
     fetch(event.request)

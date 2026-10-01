@@ -9,6 +9,8 @@ import {
 } from "firebase/auth";
 import { isNativeApp } from "./platform";
 import { stageAnonymousCartAsGuest } from "./cartPersistence";
+import { startWebGoogleRedirect } from "./webGoogleRedirect";
+import { WEB_AUTH_HOSTS } from "./webAuthRedirectState.mjs";
 
 const preserveReplacedAnonymousCart = (anonymousUid, nextUid) => {
   if (!anonymousUid || anonymousUid === nextUid) return;
@@ -61,17 +63,19 @@ const credentialError = (provider) => {
   return error;
 };
 
-export const signInWithGoogle = async (auth, provider) => {
+export const signInWithGoogle = async (auth, provider, redirectContext) => {
   const anonymousUid = auth.currentUser?.isAnonymous
     ? auth.currentUser.uid
     : null;
   if (!isNativeApp) {
-    const result = await signInWithPopup(
-      auth,
-      provider || new GoogleAuthProvider(),
-    );
-    preserveReplacedAnonymousCart(anonymousUid, result.user?.uid);
-    return result;
+    // Keep local development/preview sign-in working; their callback domains
+    // are not part of the production OAuth registration.
+    if (!WEB_AUTH_HOSTS.has(window.location.hostname)) {
+      const result = await signInWithPopup(auth, provider || new GoogleAuthProvider());
+      preserveReplacedAnonymousCart(anonymousUid, result.user?.uid);
+      return result;
+    }
+    return startWebGoogleRedirect(auth, provider, redirectContext);
   }
 
   const nativeResult = await FirebaseAuthentication.signInWithGoogle({

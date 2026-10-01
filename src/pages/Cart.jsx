@@ -65,6 +65,7 @@ import AppBottomSheet from "../components/layout/AppBottomSheet";
 import { isVariantSizeHidden } from "../services/productVariantSelection";
 import { cartOwnerKey } from "../services/cartPersistence";
 import { pendingAuthIntent, takeAuthIntent } from "../services/authIntent";
+import { beginAuthTransition } from "../services/authTransition.mjs";
 import {
   isMarketplaceProductEligible,
   isMarketplaceVendorEligible,
@@ -690,7 +691,7 @@ const Cart = () => {
     authUser = currentUser,
     options = undefined,
   ) => {
-    void handleCheckout(vendorId, authUser, options).catch((error) => {
+    return handleCheckout(vendorId, authUser, options).catch((error) => {
       console.error("Checkout could not be started:", error);
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
       toast.error("We couldn't start checkout. Please try again.");
@@ -720,7 +721,9 @@ const Cart = () => {
     if (!intent) return;
     authResumeHandledRef.current = true;
     setPendingVendorForCheckout(null);
-    requestCheckoutRef.current?.(vendorId, currentUser);
+    const transition = beginAuthTransition();
+    Promise.resolve(requestCheckoutRef.current?.(vendorId, currentUser))
+      .finally(() => transition.finish());
   }, [cart, currentUser?.uid, location.pathname]);
 
   useEffect(() => {

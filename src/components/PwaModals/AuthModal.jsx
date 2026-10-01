@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { LiaTimesSolid } from "react-icons/lia";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple, FaXTwitter } from "react-icons/fa6";
@@ -103,6 +103,8 @@ export default function QuickAuthModal({
   compactTop = false,
   returnTo,
   authIntent = null,
+  resumeSession = null,
+  retainAuthIntentOnComplete = false,
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -131,6 +133,18 @@ export default function QuickAuthModal({
   const [coords, setCoords] = useState({ lat: null, lng: null });
 
   const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (!resumeSession?.user) return;
+    const { first: f, last: l } = splitDisplayName(resumeSession.displayName || "");
+    setFirst(f);
+    setLast(l);
+    setEmail(resumeSession.email || resumeSession.user.email || "");
+    setEmailLocked(Boolean(resumeSession.email || resumeSession.user.email));
+    setConfirmProvider("google.com");
+    setPendingUser(resumeSession.user);
+    setShowConfirm(true);
+    void prefillFromUserDoc(resumeSession.user.uid, { setPhoneRaw, setAddress, setCoords });
+  }, [resumeSession]);
   const requiresCheckoutDetails = ["cart-checkout", "product-buy-now"].includes(
     authIntent?.type,
   );
@@ -150,8 +164,8 @@ export default function QuickAuthModal({
   };
 
   const completeInitialAction = (user, mergeResult) => {
-    clearAuthIntent();
-    onComplete?.(user, mergeResult);
+    if (!retainAuthIntentOnComplete) clearAuthIntent();
+    return onComplete?.(user, mergeResult);
   };
 
   // Every completed buyer-auth path must cross the same explicit cart-import
@@ -293,21 +307,28 @@ export default function QuickAuthModal({
 
   const handleSocialSignIn = async (providerId, providerLabel) => {
     void appHaptics.medium();
+    let transition;
     try {
       setLoading(true);
       setLoadingProvider(providerId);
+      if (!isNativeApp && providerId === "google.com") preserveInitialAction();
       const authResult = await authenticateBuyerWithProvider({
         auth,
         db,
         providerId,
+        redirectContext: {
+          source: "modal", requiresCheckoutDetails,
+          returnTo: authIntent?.returnTo || safeReturnDestination(),
+        },
       });
+      transition = authResult.transition;
       const { user, profile, displayName, email: providerEmail } = authResult;
       markBuyerMode();
 
       if (profile?.profileComplete || !requiresCheckoutDetails) {
         const mergeResult = await mergeEligibleCart(user.uid);
         onClose?.();
-        completeInitialAction(user, mergeResult);
+        await completeInitialAction(user, mergeResult);
         return;
       }
 
@@ -333,6 +354,7 @@ export default function QuickAuthModal({
       const message = socialAuthErrorMessage(error, providerLabel);
       if (message) toast.error(message);
     } finally {
+      transition?.finish();
       setLoading(false);
       setLoadingProvider(null);
     }
@@ -349,6 +371,7 @@ export default function QuickAuthModal({
 
   const confirmCanClose = !saving;
   const closeConfirm = () => {
+    if (confirmCanClose && resumeSession) { void handleConfirmSkip(); return; }
     if (confirmCanClose) setShowConfirm(false);
   };
 

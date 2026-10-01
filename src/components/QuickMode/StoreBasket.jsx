@@ -42,6 +42,9 @@ import { RotatingLines } from "react-loader-spinner";
 import AppBottomSheet from "../layout/AppBottomSheet";
 import { isVariantSizeHidden } from "../../services/productVariantSelection";
 import { fetchAndMergeCart } from "../../services/cartMerge";
+import { useAuth } from "../../custom-hooks/useAuth";
+import { beginAuthTransition } from "../../services/authTransition.mjs";
+import { WEB_AUTH_REDIRECT_TTL } from "../../services/webAuthRedirectState.mjs";
 const StoreBasket = forwardRef(function StoreBasket(
   { vendorId, quickMode = false },
   ref
@@ -49,6 +52,7 @@ const StoreBasket = forwardRef(function StoreBasket(
   const products = useSelector((s) => s.cart?.[vendorId]?.products || {});
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
 
@@ -208,6 +212,34 @@ const StoreBasket = forwardRef(function StoreBasket(
     const tot = arr.reduce((sum, p) => sum + p.price * p.quantity, 0);
     return { items: arr, itemCount: count, total: tot };
   }, [products]);
+
+  useEffect(() => {
+    if (!currentUser?.uid || !itemCount) return;
+    const key = "mythrift:quick-google-resume:v1";
+    let resume;
+    try { resume = JSON.parse(sessionStorage.getItem(key) || "null"); } catch { return; }
+    if (!resume) return;
+    if (Date.now() - resume.createdAt > WEB_AUTH_REDIRECT_TTL || resume.uid !== currentUser.uid) {
+      sessionStorage.removeItem(key);
+      return;
+    }
+    if (resume.vendorId !== vendorId) return;
+    sessionStorage.removeItem(key);
+    setNote(resume.note || "");
+    const parts = (currentUser.displayName || "").trim().split(/\s+/).filter(Boolean);
+    if (parts.length < 2) {
+      setConfirmFirst(parts[0] || "");
+      setConfirmLast(parts.slice(1).join(" "));
+      setConfirmEmail(currentUser.email || "");
+      setConfirmEmailLocked(Boolean(currentUser.email));
+      setPendingAuthUser(currentUser);
+      setConfirmProvider("google");
+      setShowConfirmModal(true);
+    } else {
+      setAuthOpen(false);
+      setShowDeliveryStep(true);
+    }
+  }, [currentUser?.uid, itemCount, vendorId]);
 
   /* ---------- helpers ---------- */
   const identifyUser = (ph, userRecord, extra = {}) => {
@@ -394,12 +426,17 @@ const StoreBasket = forwardRef(function StoreBasket(
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
     let provisioning;
+    let transition;
     try {
       setLoading(true);
       posthog?.capture("login_attempted", { method: "google" });
       provisioning = authProvisioning.begin();
 
-      const result = await signInWithGoogle(auth, provider);
+      const result = await signInWithGoogle(auth, provider, {
+        source: "quick-basket", vendorId, note,
+        returnTo: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      });
+      transition = beginAuthTransition();
       const user = result.user;
 
       provisioning.bind(user.uid);
@@ -523,6 +560,7 @@ const StoreBasket = forwardRef(function StoreBasket(
         msg = "Popup closed before completing sign-in.";
       toast.error(msg);
     } finally {
+      transition?.finish();
       provisioning?.finish();
       setLoading(false);
     }
@@ -530,6 +568,7 @@ const StoreBasket = forwardRef(function StoreBasket(
 
   const handleTwitterSignIn = async () => {
     let provisioning;
+    let transition;
     const TAG = "[TWITTER_SIGNIN]";
     try {
       setLoading(true);
@@ -538,6 +577,7 @@ const StoreBasket = forwardRef(function StoreBasket(
       console.log(`${TAG} calling signInWithPopup...`);
 
       const result = await signInWithTwitter(auth);
+      transition = beginAuthTransition();
       const user = result.user;
       const info = getAdditionalUserInfo(result);
       const twitterHandle = info?.username || "";
@@ -661,6 +701,7 @@ const StoreBasket = forwardRef(function StoreBasket(
       console.error("Twitter Sign-In Error:", error);
       toast.error("Twitter sign-in failed. Please try again.");
     } finally {
+      transition?.finish();
       provisioning?.finish();
       setLoading(false);
     }

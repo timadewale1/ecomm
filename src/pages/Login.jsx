@@ -46,18 +46,21 @@ import {
   socialAuthErrorMessage,
 } from "../services/buyerSocialAuth";
 import { isNativeApp } from "../services/platform";
+import { beginAuthTransition } from "../services/authTransition.mjs";
 
-const withLoginTimeout = (promise, label, timeoutMs = 15000) =>
-  Promise.race([
+const withLoginTimeout = async (promise, label, timeoutMs = 15000) => {
+  let timer;
+  try { return await Promise.race([
     promise,
     new Promise((_, reject) =>
-      setTimeout(() => {
+      timer = setTimeout(() => {
         const error = new Error(`${label} timed out`);
         error.code = "app/login-timeout";
         reject(error);
       }, timeoutMs),
     ),
-  ]);
+  ]); } finally { clearTimeout(timer); }
+};
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -220,7 +223,7 @@ const Login = () => {
 
     void appHaptics.medium();
     setLoading(true);
-
+    let transition;
     try {
       posthog?.capture("login_attempted", { method: "email" });
       /* ── 1.  Firebase Auth sign-in  (edge POP ≈ 250 ms) ────────── */
@@ -231,6 +234,7 @@ const Login = () => {
         signInWithEmailAndPassword(auth, email, password),
         "Email authentication",
       );
+      transition = beginAuthTransition();
 
       if (anonymousUid && anonymousUid !== user.uid) {
         try {
@@ -367,19 +371,19 @@ const Login = () => {
           "Sign-in reached Firebase but the account lookup timed out. Please try again.";
       }
       toast.error(errorMessage);
-    }
+    } finally { transition?.finish(); }
   };
 
   const handleSocialSignIn = async (providerId, method, providerLabel) => {
     void appHaptics.medium();
+    let transition;
     try {
       setSocialLoading(true);
       posthog?.capture("login_attempted", { method });
-      const authResult = await withLoginTimeout(
-        authenticateBuyerWithProvider({ auth, db, providerId }),
-        `${providerLabel} authentication`,
-        30000,
-      );
+      const authResult = await authenticateBuyerWithProvider({ auth, db, providerId,
+        redirectContext: { source: "login", returnTo: authDestinationFromState(location.state, "/") },
+      });
+      transition = authResult.transition;
       const { user, isNewUser, displayName } = authResult;
 
       await fetchCartFromFirestore(user.uid);
@@ -398,6 +402,7 @@ const Login = () => {
       const message = socialAuthErrorMessage(error, providerLabel);
       if (message) toast.error(message);
     } finally {
+      transition?.finish();
       setSocialLoading(false);
     }
   };

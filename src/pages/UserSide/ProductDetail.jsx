@@ -56,6 +56,7 @@ import toast from "react-hot-toast";
 import { shareContent } from "../../services/nativeLinks";
 import { appHaptics } from "../../services/haptics";
 import { takeAuthIntent } from "../../services/authIntent";
+import { beginAuthTransition } from "../../services/authTransition.mjs";
 import { FiPlus } from "react-icons/fi";
 import { buildCartKey } from "../../services/cartKey";
 import { FiMinus } from "react-icons/fi";
@@ -2478,6 +2479,7 @@ const handleBuyNow = useCallback(async (override = {}, authUser = currentUser) =
       return;
     }
 
+    const transition = beginAuthTransition();
     void handleBuyNow(
       {
         size: intent.payload?.size,
@@ -2486,7 +2488,7 @@ const handleBuyNow = useCallback(async (override = {}, authUser = currentUser) =
         imageUrl: intent.payload?.imageUrl,
       },
       currentUser,
-    );
+    ).finally(() => transition.finish());
   }, [currentUser?.uid, handleBuyNow, location.pathname, product?.id, viewSignals]);
 
   if (loading) {

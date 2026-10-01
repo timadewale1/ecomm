@@ -10,10 +10,10 @@ function configuredOrigin(value, fallback, hosts) {
 
 function getOrigins(env = process.env) {
   return {
-    app: configuredOrigin(env.MYTHRIFT_APP_ORIGIN, "https://shopmythrift.store", [
+    app: configuredOrigin(env.MYTHRIFT_APP_ORIGIN, "https://app.shopmythrift.com", [
       "shopmythrift.store", "www.shopmythrift.store", "app.shopmythrift.com",
     ]),
-    public: configuredOrigin(env.MYTHRIFT_PUBLIC_ORIGIN, "https://mx.shopmythrift.store", [
+    public: configuredOrigin(env.MYTHRIFT_PUBLIC_ORIGIN, "https://shopmythrift.com", [
       "mx.shopmythrift.store", "shopmythrift.com", "www.shopmythrift.com",
     ]),
   };

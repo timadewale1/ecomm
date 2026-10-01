@@ -1,7 +1,7 @@
-// Keep legacy defaults until DNS, TLS and authentication have been verified.
-// Vercel/mobile builds opt into the new domains using the two VITE_* values.
-const LEGACY_APP = "https://shopmythrift.store";
-const LEGACY_SHARE = "https://mx.shopmythrift.store";
+// Public sharing/marketing and the signed-in app have separate origins.
+// Explicit legacy overrides remain available for rollback.
+const DEFAULT_APP = "https://app.shopmythrift.com";
+const DEFAULT_SHARE = "https://shopmythrift.com";
 
 function origin(value, fallback, allowedHosts) {
   if (!value) return fallback;
@@ -14,10 +14,10 @@ function origin(value, fallback, allowedHosts) {
 }
 
 export function createSiteUrls({ appOrigin, shareOrigin } = {}) {
-  const app = origin(appOrigin, LEGACY_APP, [
+  const app = origin(appOrigin, DEFAULT_APP, [
     "shopmythrift.store", "www.shopmythrift.store", "app.shopmythrift.com",
   ]);
-  const share = origin(shareOrigin, LEGACY_SHARE, [
+  const share = origin(shareOrigin, DEFAULT_SHARE, [
     "mx.shopmythrift.store", "shopmythrift.com", "www.shopmythrift.com",
   ]);
   const pathUrl = (base, path = "/") => {

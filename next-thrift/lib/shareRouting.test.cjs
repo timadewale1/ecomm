@@ -18,9 +18,10 @@ test("rich previews enforce visibility while keeping sold items viewable", () =>
   }
 });
 
-test("legacy behaviour is retained without activation", () => {
-  assert.equal(getOrigins({}).app, "https://shopmythrift.store");
-  assert.equal(getOrigins({}).public, "https://mx.shopmythrift.store");
+test("legacy links point to the new app with explicit rollback available", () => {
+  assert.equal(getOrigins({}).app, "https://app.shopmythrift.com");
+  assert.equal(getOrigins({}).public, "https://shopmythrift.com");
+  assert.equal(getOrigins({MYTHRIFT_APP_ORIGIN:"https://shopmythrift.store"}).app, "https://shopmythrift.store");
 });
 test("browser redirect preserves query and sets shared without duplicates", () => {
   assert.equal(appDestination("product", "p1", "/product/p1?tag=a&tag=b&shared=false&offerId=12", env),

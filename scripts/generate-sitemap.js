@@ -25,14 +25,13 @@ const path = require("path");
 async function build() {
   const { createSiteUrls } = await import("../src/config/siteUrls.mjs");
   const hostname = createSiteUrls({
-    appOrigin: process.env.VITE_APP_ORIGIN || "https://www.shopmythrift.store",
+    appOrigin: process.env.VITE_APP_ORIGIN,
   }).appOrigin;
   const now = new Date().toISOString();
 
   // 3) Static top-level pages
   const links = [
     { url: "/", changefreq: "daily", priority: 1.0, lastmod: now },
-    { url: "/", changefreq: "weekly", priority: 0.8, lastmod: now },
     { url: "/explore", changefreq: "weekly", priority: 0.8, lastmod: now },
     {
       url: "/producttype/Tops",
@@ -48,21 +47,16 @@ async function build() {
     },
   ];
 
-  // 4) Pull every vendor doc ID
-  const snapshot = await db.collection("vendors").get();
-  console.log(`Fetched ${snapshot.size} vendor docs.`);
+  // Only the server-owned public projection belongs in a public sitemap.
+  const snapshot = await db.collection("publicVendors").where("isPublic", "==", true).select("isPublic").get();
+  console.log(`Fetched ${snapshot.size} public stores.`);
   snapshot.docs.forEach((doc) => {
-    // you can also filter here if you only want approved vendors:
-    // const { isApproved } = doc.data();
-    // if (!isApproved) return;
-
     links.push({
       url: `/store/${doc.id}`,
       changefreq: "weekly",
       priority: 0.7,
       lastmod: now,
     });
-    console.log(` → added /store/${doc.id}`);
   });
 
   // 5) Generate sitemap XML

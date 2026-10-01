@@ -2,10 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createSiteUrls, getAppPath } from "./siteUrls.mjs";
 
-test("existing URLs remain the default until the migration is activated", () => {
+test("new domains are the default; explicit legacy rollback remains supported", () => {
   const urls = createSiteUrls();
-  assert.equal(urls.appUrl("/pay/abc"), "https://shopmythrift.store/pay/abc");
-  assert.equal(urls.productShareUrl("abc"), "https://mx.shopmythrift.store/product/abc?shared=true");
+  assert.equal(urls.appUrl("/pay/abc"), "https://app.shopmythrift.com/pay/abc");
+  assert.equal(urls.productShareUrl("abc"), "https://shopmythrift.com/product/abc?shared=true");
+  assert.equal(createSiteUrls({appOrigin:"https://shopmythrift.store"}).appUrl("/pay/abc"), "https://shopmythrift.store/pay/abc");
 });
 
 test("new public shares and app actions have separate hosts", () => {

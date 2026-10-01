@@ -64,8 +64,8 @@ import AppPageHeader from "../components/layout/AppPageHeader";
 import AppBottomSheet from "../components/layout/AppBottomSheet";
 import { isVariantSizeHidden } from "../services/productVariantSelection";
 import { cartOwnerKey } from "../services/cartPersistence";
-import { pendingAuthIntent, takeAuthIntent } from "../services/authIntent";
-import { beginAuthTransition } from "../services/authTransition.mjs";
+import { authCartReady, pauseAuthIntentForProfile } from "../services/authIntent";
+import useAuthContinuation from "../custom-hooks/useAuthContinuation";
 import {
   isMarketplaceProductEligible,
   isMarketplaceVendorEligible,
@@ -123,9 +123,7 @@ const Cart = () => {
   // leave repile mode and continue with a different store.
   const [pendingCheckoutVendor, setPendingCheckoutVendor] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
-  const authResumeHandledRef = useRef(false);
   const requestCheckoutRef = useRef(null);
-  const [authCheckoutResume, setAuthCheckoutResume] = useState(null);
   const [pendingVendorForCheckout, setPendingVendorForCheckout] =
     useState(null);
   const {
@@ -140,7 +138,6 @@ const Cart = () => {
   const [showNoteBadge, setShowNoteBadge] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
-  const [authTransitioning, setAuthTransitioning] = useState(false);
 
   const vendorIds = Object.keys(cart);
   const firstVendorId = vendorIds.length > 0 ? vendorIds[0] : null;
@@ -500,12 +497,12 @@ const Cart = () => {
   const handleCheckout = async (
     vendorId,
     authUser = currentUser,
-    { skipRepileGuard = false } = {},
+    { skipRepileGuard = false, note: savedNote, stillCurrent = () => true } = {},
   ) => {
     const vendorCart = cart[vendorId];
     if (!vendorCart || Object.keys(vendorCart.products).length === 0) {
       toast.error("No products to checkout for this vendor.");
-      return;
+      return "blocked";
     }
 
     /* ───── 1 – Auth guard ───── */
@@ -532,7 +529,7 @@ const Cart = () => {
 
     if (needsEmailVerification) {
       toast.error("Please verify your email before proceeding to checkout.");
-      return;
+      return "blocked";
     }
 
     /* ───── 3 – Stockpile exit guard ───── */
@@ -550,7 +547,7 @@ const Cart = () => {
       setPendingCheckoutVendor(vendorId);
       setShowExitStockpileModal(true);
       void appHaptics.warning();
-      return;
+      return true;
     }
 
     // A repile conflict is a decision, not a network operation. Only show the
@@ -579,6 +576,8 @@ const Cart = () => {
     }
 
     if (!profileComplete) {
+      if (!stillCurrent()) return "blocked";
+      pauseAuthIntentForProfile(authUser.uid);
       toast.error(
         "Please complete your profile before proceeding to checkout.",
       );
@@ -595,6 +594,8 @@ const Cart = () => {
       typeof userLocation?.lat !== "number" ||
       typeof userLocation?.lng !== "number"
     ) {
+      if (!stillCurrent()) return "blocked";
+      pauseAuthIntentForProfile(authUser.uid);
       toast.error("Please update your delivery address before checking out.");
       navigate("/account-info", {
         state: {
@@ -612,12 +613,12 @@ const Cart = () => {
       if (!publicVendor) {
         toast.error("Vendor not found.");
         setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
-        return;
+        return "blocked";
       }
       if (!isMarketplaceVendorEligible(publicVendor)) {
         toast.error("This store is not currently available.");
         setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
-        return;
+        return "blocked";
       }
     } catch (error) {
       console.error("Error checking vendor status:", error);
@@ -676,15 +677,18 @@ const Cart = () => {
     if (outOfStockItems.length) {
       toast.error(`Out of stock: ${outOfStockItems.join(", ")}`);
       setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
-      return;
+      return "blocked";
     }
 
     /* ───── 7 – Navigate to checkout ───── */
-    const note = vendorNotes[vendorId]
-      ? encodeURIComponent(vendorNotes[vendorId])
+    if (!stillCurrent()) return "blocked";
+    const noteValue = savedNote ?? vendorNotes[vendorId];
+    const note = noteValue
+      ? encodeURIComponent(noteValue)
       : "";
     navigate(`/newcheckout/${vendorId}?note=${note}`);
     setCheckoutLoading((prev) => ({ ...prev, [vendorId]: false }));
+    return true;
   };
   const requestCheckout = (
     vendorId,
@@ -699,46 +703,17 @@ const Cart = () => {
   };
   requestCheckoutRef.current = requestCheckout;
 
-  useEffect(() => {
-    if (!currentUser?.uid) {
-      authResumeHandledRef.current = false;
-      return;
-    }
-    if (authResumeHandledRef.current || !currentUser?.uid) return;
-    const pending = pendingAuthIntent();
-    if (
-      pending?.type !== "cart-checkout" ||
-      pending.returnTo?.split(/[?#]/)[0] !== location.pathname
-    ) return;
-    const vendorId = pending.payload?.vendorId;
-    const vendorCart = vendorId ? cart[vendorId] : null;
-    if (!vendorCart || !Object.keys(vendorCart.products || {}).length) return;
+  useAuthContinuation({
+    types: "cart-checkout",
+    ready: authCartReady(cartSync, currentUser?.uid),
+    run: (intent, user, stillCurrent) => {
+      const { vendorId, note = "" } = intent.payload;
+      setPendingVendorForCheckout(null);
+      setVendorNotes((notes) => ({ ...notes, [vendorId]: note }));
+      return requestCheckoutRef.current(vendorId, user, { note, stillCurrent });
+    },
+  });
 
-    const intent = takeAuthIntent({
-      types: "cart-checkout",
-      pathname: location.pathname,
-    });
-    if (!intent) return;
-    authResumeHandledRef.current = true;
-    setPendingVendorForCheckout(null);
-    const transition = beginAuthTransition();
-    Promise.resolve(requestCheckoutRef.current?.(vendorId, currentUser))
-      .finally(() => transition.finish());
-  }, [cart, currentUser?.uid, location.pathname]);
-
-  useEffect(() => {
-    if (!authCheckoutResume || cartIsHydrating) return;
-    const vendorId = authCheckoutResume.vendorId;
-    const vendorCart = vendorId ? cart[vendorId] : null;
-    if (!vendorCart || !Object.keys(vendorCart.products || {}).length) return;
-
-    setAuthCheckoutResume(null);
-    setAuthTransitioning(false);
-    requestCheckoutRef.current?.(
-      vendorId,
-      authCheckoutResume.user || currentUser,
-    );
-  }, [authCheckoutResume, cart, cartIsHydrating, currentUser]);
   const toTitleCase = (str = "") =>
     String(str)
       .trim()
@@ -757,34 +732,6 @@ const Cart = () => {
     const label = raw.includes(":") ? raw.split(":").pop().trim() : raw;
 
     return toTitleCase(label);
-  };
-  const handleAuthComplete = async (user, completedMerge = null) => {
-    // Show a clear “working” state as we merge + maybe open modal or navigate
-    setAuthTransitioning(true);
-    setAuthOpen(false); // close the auth modal immediately
-
-    let mergeMeta = completedMerge;
-    if (!mergeMeta) {
-      try {
-        mergeMeta = await mergeCartFor(user.uid);
-      } catch (mergeError) {
-        // The owner-scoped local cart remains usable and the persistence queue
-        // retries later. Never expose background sync state as a cart toast.
-        console.warn("Cart merge will retry after sign-in:", mergeError);
-      }
-    }
-
-    const vendorId = pendingVendorForCheckout;
-    setPendingVendorForCheckout(null);
-    if (!vendorId) {
-      setAuthTransitioning(false);
-      return;
-    }
-
-    // The cart merge dispatch has completed, but this render can still hold
-    // the pre-auth cart closure. Resume from an effect after Redux renders the
-    // merged cart so checkout never validates stale products.
-    setAuthCheckoutResume({vendorId, user});
   };
   const calculateVendorTotal = (vendorId) => {
     const vendorCart = cart[vendorId]?.products || {};
@@ -875,7 +822,7 @@ const Cart = () => {
   const hasVendorNote = (vendorId) =>
     Boolean((vendorNotes?.[vendorId] || "").trim());
 
-  if (loading || cartIsHydrating) {
+  if ((loading || cartIsHydrating) && !authOpen) {
     return (
       <div>
         <Loading />
@@ -894,16 +841,6 @@ const Cart = () => {
         description={`Your cart on My Thrift`}
         url={`https://www.shopmythrift.store/latest-cart`}
       />
-      {authTransitioning && (
-        <div className="fixed inset-0 z-[9999] bg-white/60 backdrop-blur-sm flex items-center justify-center">
-          <RotatingLines
-            strokeColor="#f9531e"
-            strokeWidth="5"
-            width="28"
-            visible
-          />
-        </div>
-      )}
 
       <div className="flex flex-col h-full justify-between pb-20 px-2 bg-white">
         <AppPageHeader
@@ -1654,7 +1591,6 @@ const Cart = () => {
         <QuickAuthModal
           open={authOpen}
           onClose={() => setAuthOpen(false)}
-          onComplete={handleAuthComplete}
           mergeCart={mergeCartFor}
           openDisclaimer={openDisclaimer}
           headerText="Let’s set up your order"
@@ -1663,7 +1599,7 @@ const Cart = () => {
           authIntent={{
             type: "cart-checkout",
             returnTo: `${location.pathname}${location.search}`,
-            payload: {vendorId: pendingVendorForCheckout},
+            payload: {vendorId: pendingVendorForCheckout, note: vendorNotes[pendingVendorForCheckout] || ""},
           }}
         />
         <IframeModal

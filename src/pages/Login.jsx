@@ -40,7 +40,7 @@ import VendorRedirectModal from "../components/layout/VendorRedirectModal";
 import { appHaptics } from "../services/haptics";
 import { useAppExperience } from "../components/Context/AppExperienceContext";
 import { APP_EXPERIENCE } from "../services/appExperience";
-import { authDestinationFromState } from "../services/authIntent";
+import { activateAuthIntent, authDestinationFromState, pendingAuthReturnTo } from "../services/authIntent";
 import {
   authenticateBuyerWithProvider,
   socialAuthErrorMessage,
@@ -74,6 +74,7 @@ const Login = () => {
   const [showVendorModal, setShowVendorModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const authDestination = () => authDestinationFromState(location.state, pendingAuthReturnTo());
   const dispatch = useDispatch();
   const posthog = usePostHog();
   const { selectExperience } = useAppExperience();
@@ -295,7 +296,9 @@ const Login = () => {
       await selectExperience(APP_EXPERIENCE.CUSTOMER);
       const name = uData.username || "User";
       toast.success(`Hello ${name}, welcome back!`);
-      const redirectTo = authDestinationFromState(location.state, "/");
+      const redirectTo = authDestination();
+      if (auth.currentUser?.uid !== user.uid) return;
+      activateAuthIntent(user, redirectTo);
       navigate(redirectTo, { replace: true });
       setLoading(false);
       identifyUser(posthog, user, { role: uData.role ?? "user" });
@@ -381,7 +384,7 @@ const Login = () => {
       setSocialLoading(true);
       posthog?.capture("login_attempted", { method });
       const authResult = await authenticateBuyerWithProvider({ auth, db, providerId,
-        redirectContext: { source: "login", returnTo: authDestinationFromState(location.state, "/") },
+        redirectContext: { source: "login", returnTo: authDestination() },
       });
       transition = authResult.transition;
       const { user, isNewUser, displayName } = authResult;
@@ -392,7 +395,9 @@ const Login = () => {
       if (isNewUser) posthog?.capture("signup_completed", { method });
       posthog?.capture("login_succeeded", { method });
 
-      const redirectTo = authDestinationFromState(location.state, "/");
+      const redirectTo = authDestination();
+      if (auth.currentUser?.uid !== user.uid) return;
+      activateAuthIntent(user, redirectTo);
       toast.success(`Welcome back ${displayName || user.displayName || "there"}!`);
       navigate(redirectTo, { replace: true });
     } catch (error) {
@@ -590,7 +595,7 @@ const Login = () => {
                   <p className="text-gray-900 text-sm">
                     Don't have an account?{" "}
                     <span className="font-normal text-customOrange">
-                      <Link to="/signup">Sign up</Link>
+                      <Link to="/signup" state={{ from: authDestination() }}>Sign up</Link>
                     </span>
                   </p>
                 </div>

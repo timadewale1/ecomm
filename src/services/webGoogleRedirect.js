@@ -1,5 +1,6 @@
 import { beginAuthTransition } from "./authTransition.mjs";
 import { writeWebAuthAttempt, clearWebAuthAttempt, WEB_AUTH_HOSTS } from "./webAuthRedirectState.mjs";
+import { pendingAuthIntent } from "./authIntent";
 
 export async function startWebGoogleRedirect(auth, provider, context = {}) {
   // Preview/localhost need their own registered callback, never silently use
@@ -9,6 +10,7 @@ export async function startWebGoogleRedirect(auth, provider, context = {}) {
   }
   const attempt = writeWebAuthAttempt(sessionStorage, {
     ...context,
+    intentId: context.intentId || pendingAuthIntent()?.id || null,
     returnTo: context.returnTo || `${location.pathname}${location.search}${location.hash}`,
     anonymousUid: auth.currentUser?.isAnonymous ? auth.currentUser.uid : null,
   });

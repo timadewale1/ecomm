@@ -32,7 +32,8 @@ import { FaCheck, FaPlus, FaStar } from "react-icons/fa";
 import { auth } from "../../firebase.config";
 import AppBackButton from "../../components/layout/AppBackButton";
 import LoginRequiredSheet from "../../components/PwaModals/LoginRequiredSheet";
-import { rememberAuthIntent, takeAuthIntent } from "../../services/authIntent";
+import { rememberAuthIntent } from "../../services/authIntent";
+import useAuthContinuation from "../../custom-hooks/useAuthContinuation";
 // Cloudinary config
 const cld = new Cloudinary({
   cloud: {
@@ -234,27 +235,26 @@ const CategoryPage = () => {
     }
   };
 
-  useEffect(() => {
-    if (!currentUser?.uid) return;
-    const intent = takeAuthIntent({types: "follow-vendor", pathname: location.pathname});
+  useAuthContinuation({ types: "follow-vendor", run: async (intent, user) => {
     const vendorId = intent?.payload?.vendorId;
     if (!vendorId || pendingFollowsRef.current.has(vendorId)) return;
     pendingFollowsRef.current.add(vendorId);
     setFollowedVendors((current) => ({...current, [vendorId]: true}));
-    setVendorFollowState({
-      userId: currentUser.uid,
+    return setVendorFollowState({
+      userId: user.uid,
       vendorId,
       shouldFollow: true,
     })
       .then((result) => {
         setFollowedVendors((current) => ({...current, [vendorId]: result.followed}));
+        return true;
       })
       .catch((error) => {
         setFollowedVendors((current) => ({...current, [vendorId]: false}));
         toast.error(error.message || "Could not follow this vendor.");
       })
       .finally(() => pendingFollowsRef.current.delete(vendorId));
-  }, [currentUser?.uid, location.pathname]);
+  } });
 
   useEffect(() => {
     const handleScroll = () => {
@@ -549,21 +549,21 @@ const CategoryPage = () => {
           title="Let’s set you up to follow"
           description="Sign in to follow this vendor and receive their updates, or create an account to continue."
           onSignUp={() => {
-            rememberAuthIntent({
+            try { rememberAuthIntent({
               type: "follow-vendor",
               returnTo: `${location.pathname}${location.search}`,
               payload: {vendorId: pendingFollowVendorId},
-            });
-            navigate("/signup", { state: { from: location.pathname } });
+            }); } catch { toast.error("Allow site storage to continue signing in."); return; }
+            navigate("/signup", { state: { from: `${location.pathname}${location.search}` } });
             setIsLoginModalOpen(false);
           }}
           onLogin={() => {
-            rememberAuthIntent({
+            try { rememberAuthIntent({
               type: "follow-vendor",
               returnTo: `${location.pathname}${location.search}`,
               payload: {vendorId: pendingFollowVendorId},
-            });
-            navigate("/login", { state: { from: location.pathname } });
+            }); } catch { toast.error("Allow site storage to continue signing in."); return; }
+            navigate("/login", { state: { from: `${location.pathname}${location.search}` } });
             setIsLoginModalOpen(false);
           }}
         />

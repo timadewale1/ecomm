@@ -8,7 +8,7 @@ import { db } from "../../firebase.config";
 import { setVendorFollowState, subscribeVendorFollow } from "../../services/vendorFollow";
 import QuickAuthModal from "../../components/PwaModals/AuthModal";
 import SafeImg from "../../services/safeImg";
-import { pendingAuthIntent, takeAuthIntent } from "../../services/authIntent";
+import useAuthContinuation from "../../custom-hooks/useAuthContinuation";
 import { useAuth } from "../../custom-hooks/useAuth";
 import { appHaptics } from "../../services/haptics";
 
@@ -178,7 +178,7 @@ export default function VendorSearchCard({
     navigate(`/store/${vendorId}`);
   }, [navigate, vendorId]);
 
-  const performFollow = useCallback(async (authUser) => {
+  const performFollow = useCallback(async (authUser, desiredState) => {
     if (!vendorId) return;
 
     if (!authUser?.uid) {
@@ -191,16 +191,17 @@ export default function VendorSearchCard({
     const prev = isFollowing;
     followMutationRef.current = true;
     setIsFollowLoading(true);
-    setIsFollowing(!prev);
+    setIsFollowing(desiredState ?? !prev);
     appHaptics.medium();
 
     try {
       const result = await setVendorFollowState({
         userId: authUser.uid,
         vendorId,
-        shouldFollow: !prev,
+        shouldFollow: desiredState ?? !prev,
       });
       setIsFollowing(result.followed);
+      return true;
     } catch (e) {
       console.error("[VendorSearchCard] follow failed:", e?.message || e);
       setIsFollowing(prev);
@@ -215,17 +216,12 @@ export default function VendorSearchCard({
     void performFollow(currentUser);
   }, [currentUser, performFollow]);
 
-  useEffect(() => {
-    if (!uid || !vendorId) return;
-    const pending = pendingAuthIntent();
-    if (
-      pending?.type !== "follow-vendor" ||
-      String(pending.payload?.vendorId || "") !== String(vendorId)
-    ) return;
-    const intent = takeAuthIntent({types: "follow-vendor", pathname: location.pathname});
-    if (!intent) return;
-    void performFollow(currentUser);
-  }, [currentUser, location.pathname, performFollow, uid, vendorId]);
+  useAuthContinuation({
+    types: "follow-vendor",
+    ready: Boolean(vendorId),
+    match: (intent) => String(intent.payload?.vendorId) === String(vendorId),
+    run: (intent, user) => performFollow(user, true),
+  });
 
   return (
     <div className={["bg-gray-50", "w-full"  ,  "p-4", className].join(" ")}>
@@ -304,10 +300,6 @@ export default function VendorSearchCard({
         open={authOpen}
         onClose={() => setAuthOpen(false)}
         headerText="Let’s set you up to follow"
-        onComplete={(user) => {
-          setAuthOpen(false);
-          void performFollow(user);
-        }}
         openDisclaimer={openDisclaimer}
         authIntent={{
           type: "follow-vendor",

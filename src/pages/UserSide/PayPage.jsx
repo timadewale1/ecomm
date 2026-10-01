@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { siteUrls } from "../../config/siteUrls.mjs";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db, functions } from "../../firebase.config";
 import {httpsCallable} from "firebase/functions";
@@ -17,6 +17,7 @@ import { useAuth } from "../../custom-hooks/useAuth";
 export default function PayPage() {
   const { token } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser } = useAuth();
   const [draft, setDraft] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -274,13 +275,13 @@ export default function PayPage() {
           <img src="/newlogo.png" alt="Logo" className="h-8 w-16" />
           <div className="flex flex-1 mt-4 space-x-3">
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => navigate("/login", { state: { from: `${location.pathname}${location.search}` } })}
               className="flex-1 border border-customRichBrown text-customRichBrown rounded-full py-1 text-sm font-opensans"
             >
               Login
             </button>
             <button
-              onClick={() => navigate("/signup")}
+              onClick={() => navigate("/signup", { state: { from: `${location.pathname}${location.search}` } })}
               className="flex-1 bg-customOrange text-white rounded-full py-1 text-sm font-opensans"
             >
               Sign Up

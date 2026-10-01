@@ -255,7 +255,7 @@ export default function UserWalletPage() {
       <div className="p-4 w-full mx-auto font-opensans text-center">
         <p className="text-red-600">{pageError}</p>
         <button
-          onClick={() => navigate("/login")}
+          onClick={() => navigate("/login", { state: { from: `${location.pathname}${location.search}` } })}
           className="mt-4 bg-customOrange text-white rounded-full py-2.5 px-6 font-opensans font-medium"
         >
           Go to Login

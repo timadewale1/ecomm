@@ -114,7 +114,7 @@ export default function UserOffers() {
     return TABS.some(([key]) => key === saved) ? saved : "countered";
   });
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
   const uid = currentUser?.uid;
   const offers = uid && offerOwner === uid ? cachedOffers : EMPTY_ITEMS;
   const offersStatus = uid && offerOwner === uid ? cachedOffersStatus : "connecting";
@@ -141,10 +141,10 @@ export default function UserOffers() {
   }, []);
 
   useEffect(() => {
-    if (!currentUser) {
-      navigate("/login");
+    if (!authLoading && !currentUser) {
+      navigate("/login", { replace: true, state: { from: `${location.pathname}${location.search}` } });
     }
-  }, [currentUser, navigate]);
+  }, [authLoading, currentUser, navigate, location.pathname, location.search]);
 
   useEffect(() => {
     if (

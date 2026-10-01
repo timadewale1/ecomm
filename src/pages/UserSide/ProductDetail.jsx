@@ -55,8 +55,8 @@ import { LuCopyCheck, LuCopy } from "react-icons/lu";
 import toast from "react-hot-toast";
 import { shareContent } from "../../services/nativeLinks";
 import { appHaptics } from "../../services/haptics";
-import { takeAuthIntent } from "../../services/authIntent";
-import { beginAuthTransition } from "../../services/authTransition.mjs";
+import { pendingAuthIntent, authCartReady, pauseAuthIntentForProfile } from "../../services/authIntent";
+import useAuthContinuation from "../../custom-hooks/useAuthContinuation";
 import { FiPlus } from "react-icons/fi";
 import { buildCartKey } from "../../services/cartKey";
 import { FiMinus } from "react-icons/fi";
@@ -108,7 +108,7 @@ import { usePriceLock } from "../../services/usePriceLock";
 import Productnotofund from "../../components/Loading/Productnotofund";
 import { decreaseQuantity, increaseQuantity } from "../../redux/actions/action";
 import { AiOutlineHome } from "react-icons/ai";
-import { db } from "../../firebase.config";
+import { auth, db } from "../../firebase.config";
 import { IoShareSocialOutline } from "react-icons/io5";
 import IkImage from "../../services/IkImage";
 import SEO from "../../components/Helmet/SEO";
@@ -632,9 +632,9 @@ const [variantSheetMode, setVariantSheetMode] = useState("add"); // "add" | "buy
   const [showQuickAuth, setShowQuickAuth] = useState(false);
   const [quickAuthIntent, setQuickAuthIntent] = useState("offer");
   const pendingBuyNowRef = useRef(null);
-  const authResumeHandledRef = useRef(false);
   const variantSelectionInitializedForRef = useRef(null);
   const { currentUser } = useAuth();
+  const authCartSync = useSelector((state) => state.cartSync);
   const userData = useSelector((state) => state.user.userData);
   const [isAskModalOpen, setIsAskModalOpen] = useState(false);
   const [conditionInfoOpen, setConditionInfoOpen] = useState(false);
@@ -719,7 +719,6 @@ const openVariantSheet = useCallback((mode) => {
     setAvailableSizes([]);
     setSelectedVariantStock(0);
     setQuantity(1);
-    authResumeHandledRef.current = false;
   }, [id]);
 
   // Local Favorites Context
@@ -892,7 +891,7 @@ const ensureProfileCompleteBeforeCheckout = React.useCallback(async (authUser = 
   let userLoc = canUseCurrentProfileState ? userData?.location : undefined;
 
   // If we don’t have it locally, fetch from Firestore like Cart does
-  if (profileComplete === undefined || userLoc === undefined) {
+  if (profileComplete === undefined || userLoc === undefined || pendingAuthIntent()?.uid === authUser.uid) {
     try {
       const userSnap = await getDoc(doc(db, "users", authUser.uid));
       if (userSnap.exists()) {
@@ -907,7 +906,9 @@ const ensureProfileCompleteBeforeCheckout = React.useCallback(async (authUser = 
     }
   }
 
+  if (auth.currentUser?.uid !== authUser.uid) return false;
   if (!profileComplete) {
+    pauseAuthIntentForProfile(authUser.uid);
     toast.error("Please complete your profile before proceeding to checkout.");
     navigate("/account-info", {
       state: { highlightIncomplete: true, returnTo },
@@ -919,6 +920,7 @@ const ensureProfileCompleteBeforeCheckout = React.useCallback(async (authUser = 
     typeof userLoc?.lat !== "number" ||
     typeof userLoc?.lng !== "number"
   ) {
+    pauseAuthIntentForProfile(authUser.uid);
     toast.error("Please update your delivery address before checking out.");
     navigate("/account-info", {
       state: { highlightIncomplete: true, returnTo },
@@ -2309,9 +2311,11 @@ useEffect(() => {
     setShowDisclaimerModal(true);
   };
 
-const handleBuyNow = useCallback(async (override = {}, authUser = currentUser) => {
+const handleBuyNow = useCallback(async (override = {}, authUser = currentUser, stillCurrent = () => true) => {
+  if (!stillCurrent()) return "blocked";
+  const stop = (message) => { toast.error(message); return "blocked"; };
   if (!product) return;
-  if (productSoldOut) return toast.error("This item has sold.");
+  if (productSoldOut) return stop("This item has sold.");
 
   const finalSize = override.size ?? selectedSize;
   const finalColor = override.color ?? selectedColor;
@@ -2321,11 +2325,11 @@ const handleBuyNow = useCallback(async (override = {}, authUser = currentUser) =
   // ✅ Require selection ONLY when variants exist (same as your UI)
   if (hasVariants && !selectedSubProduct) {
     if (hideVariantSize) {
-      if (!finalColor) return toast.error("Please select a color first!");
-      if (!finalSize) return toast.error("This color option is not available.");
+      if (!finalColor) return stop("Please select a color first!");
+      if (!finalSize) return stop("This color option is not available.");
     } else {
-      if (!finalSize) return toast.error("Please select a size first!");
-      if (!finalColor) return toast.error("Please select a color first!");
+      if (!finalSize) return stop("Please select a size first!");
+      if (!finalColor) return stop("Please select a color first!");
     }
   }
 
@@ -2336,15 +2340,15 @@ const handleBuyNow = useCallback(async (override = {}, authUser = currentUser) =
     stock = Number(selectedSubProduct.stock || 0);
   } else if (hasVariants) {
     const v = findVariant({ variants }, finalSize, finalColor);
-    if (!v) return toast.error("Selected variant is not available!");
+    if (!v) return stop("Selected variant is not available!");
     stock = Number(v?.stock || 0);
   } else {
     stock = Number(product?.stockQuantity ?? product?.stock ?? 0);
   }
 
-  if (stock <= 0) return toast.error("This item is out of stock.");
+  if (stock <= 0) return stop("This item is out of stock.");
   if (finalQty > stock)
-    return toast.error("Selected quantity exceeds stock availability!");
+    return stop("Selected quantity exceeds stock availability!");
 
   // Keep the exact Buy Now selection while the user authenticates. Do this
   // before mutating the cart so the post-auth resume adds the item only once.
@@ -2408,6 +2412,7 @@ const handleBuyNow = useCallback(async (override = {}, authUser = currentUser) =
   if (!ok) return;
 
   const cartSynced = await cartSyncPromise;
+  if (!stillCurrent()) return "blocked";
   if (!cartSynced) {
     console.warn(
       "Buy Now cart addition is queued locally and will retry in the background.",
@@ -2417,7 +2422,7 @@ const handleBuyNow = useCallback(async (override = {}, authUser = currentUser) =
   // ✅ QUICK MODE: use StoreBasket flow (auth + delivery)
   if (quickMode && product.vendorId === basketVendorId) {
     setPendingBuyNow(true);
-    return;
+    return true;
   }
 
   // A Buy Now action must use the same cross-vendor repile guard as Cart.
@@ -2429,13 +2434,14 @@ const handleBuyNow = useCallback(async (override = {}, authUser = currentUser) =
         checkoutVendorId: product.vendorId,
       },
     });
-    return;
+    return true;
   }
 
   // ✅ NORMAL MODE: go straight to vendor checkout
   navigate(`/newcheckout/${product.vendorId}`, {
     state: { fromProductDetail: true, buyNow: true },
   });
+  return true;
 }, [
   product,
   quantity,
@@ -2459,39 +2465,24 @@ const handleBuyNow = useCallback(async (override = {}, authUser = currentUser) =
   productSoldOut,
 ]);
 
-  useEffect(() => {
-    if (!currentUser?.uid) {
-      authResumeHandledRef.current = false;
-      return;
-    }
-    if (authResumeHandledRef.current || !currentUser?.uid || !product?.id) return;
-    const intent = takeAuthIntent({
-      types: ["product-offer", "product-buy-now"],
-      pathname: location.pathname,
-    });
-    if (!intent) return;
-    if (String(intent.payload?.productId || "") !== String(product.id)) return;
-    authResumeHandledRef.current = true;
+  useAuthContinuation({
+    types: ["product-offer", "product-buy-now"],
+    ready: !loading && Boolean(product?.id) && String(product.id) === String(id) &&
+      (pendingAuthIntent()?.type !== "product-buy-now" || authCartReady(authCartSync, currentUser?.uid)),
+    match: (intent) => String(intent.payload?.productId) === String(product?.id),
+    run: (intent, user, stillCurrent) => {
+      if (intent.type === "product-offer") {
+        setSelectedSize(intent.payload.size || "");
+        setSelectedColor(intent.payload.color || "");
+        setOfferModalOpen(true);
+        viewSignals?.markOfferOpen?.();
+        return true;
+      }
+      return handleBuyNow(intent.payload, user, stillCurrent);
+    },
+  });
 
-    if (intent.type === "product-offer") {
-      setOfferModalOpen(true);
-      viewSignals?.markOfferOpen?.();
-      return;
-    }
-
-    const transition = beginAuthTransition();
-    void handleBuyNow(
-      {
-        size: intent.payload?.size,
-        color: intent.payload?.color,
-        qty: intent.payload?.qty,
-        imageUrl: intent.payload?.imageUrl,
-      },
-      currentUser,
-    ).finally(() => transition.finish());
-  }, [currentUser?.uid, handleBuyNow, location.pathname, product?.id, viewSignals]);
-
-  if (loading) {
+  if (loading && !showQuickAuth) {
     return <Loading />;
   }
   const getAvailableStock = () => {
@@ -3524,33 +3515,6 @@ const requestHd = async (idx) => {
             setQuickAuthIntent("offer");
             setShowQuickAuth(false);
           }}
-          onComplete={async (user) => {
-            const completedIntent = quickAuthIntent;
-            const pendingSelection = pendingBuyNowRef.current || {};
-            pendingBuyNowRef.current = null;
-            setQuickAuthIntent("offer");
-            setShowQuickAuth(false);
-            if (completedIntent === "checkout") {
-              if (
-                !pendingSelection.productId ||
-                String(pendingSelection.productId) !== String(id)
-              ) {
-                return;
-              }
-              await handleBuyNow(
-                {
-                  size: pendingSelection.size,
-                  color: pendingSelection.color,
-                  qty: pendingSelection.qty,
-                  imageUrl: pendingSelection.imageUrl,
-                },
-                user,
-              );
-              return;
-            }
-
-            setOfferModalOpen(true);
-          }}
           mergeCart={(uid) => fetchAndMergeCart(db, uid, dispatch)}
           openDisclaimer={openDisclaimer}
           headerText={
@@ -3569,7 +3533,7 @@ const requestHd = async (idx) => {
               productId: product?.id || id,
               ...(quickAuthIntent === "checkout"
                 ? pendingBuyNowRef.current || {}
-                : {}),
+                : {size: selectedSize, color: selectedColor}),
             },
           }}
         />

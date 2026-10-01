@@ -116,7 +116,7 @@ import QuickAuthModal from "../components/PwaModals/AuthModal";
 import Badge from "../components/Badge/Badge";
 import { track } from "../services/signals";
 import { appHaptics } from "../services/haptics";
-import { takeAuthIntent } from "../services/authIntent";
+import useAuthContinuation from "../custom-hooks/useAuthContinuation";
 import useNativePageRefresh from "../custom-hooks/useNativePageRefresh";
 Modal.setAppElement("#root"); // For accessibility
 
@@ -1279,7 +1279,7 @@ const openSearch = useCallback(() => {
     ? moment(stockpileExpiry).format("ddd, MMM Do YYYY")
     : null;
 
-  const performFollow = async (authUser) => {
+  const performFollow = async (authUser, desiredState) => {
     if (!authUser?.uid) {
       setAuthOpen(true);
       return;
@@ -1295,14 +1295,14 @@ const openSearch = useCallback(() => {
     const prevState = isFollowing;
     followMutationRef.current = true;
     setIsFollowLoading(true);
-    setIsFollowing(!prevState);
+    setIsFollowing(desiredState ?? !prevState);
     appHaptics.medium();
 
     try {
       const result = await setVendorFollowState({
         userId: authUser.uid,
         vendorId: vendor.id,
-        shouldFollow: !prevState,
+        shouldFollow: desiredState ?? !prevState,
       });
       setIsFollowing(result.followed);
       try {
@@ -1311,6 +1311,7 @@ const openSearch = useCallback(() => {
       } catch (countError) {
         console.error("Follow changed but exact count refresh failed:", countError);
       }
+      return true;
     } catch (err) {
       console.error("Follow/unfollow failed:", err.message);
       setIsFollowing(prevState);
@@ -1329,12 +1330,12 @@ const openSearch = useCallback(() => {
     void performFollow(currentUser);
   };
 
-  useEffect(() => {
-    if (!currentUser?.uid || !vendor?.id) return;
-    const intent = takeAuthIntent({types: "follow-vendor", pathname: location.pathname});
-    if (!intent || String(intent.payload?.vendorId || "") !== String(vendor.id)) return;
-    void performFollow(currentUser);
-  }, [currentUser?.uid, location.pathname, vendor?.id]);
+  useAuthContinuation({
+    types: "follow-vendor",
+    ready: Boolean(vendor?.id),
+    match: (intent) => String(intent.payload?.vendorId) === String(vendor?.id),
+    run: (intent, user) => performFollow(user, true),
+  });
   const hasFlashSale = vendor?.flashSale === true;
   const handleFavoriteToggle = (productId) => {
     setFavorites((prevFavorites) => {
@@ -1688,10 +1689,6 @@ const openSearch = useCallback(() => {
         open={authOpen}
         onClose={() => setAuthOpen(false)}
         headerText="Let’s set you up to follow"
-        onComplete={(user) => {
-          setAuthOpen(false);
-          void performFollow(user);
-        }}
         openDisclaimer={openDisclaimer}
         authIntent={{
           type: "follow-vendor",

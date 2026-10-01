@@ -16,7 +16,7 @@ import SafeImg from "../../services/safeImg";
 import ProductCard from "../../components/Products/ProductCard";
 import { IoMdArrowBack, IoMdArrowForward } from "react-icons/io";
 import { fetchVendorStoreProducts } from "../../services/vendorStoreSearch";
-import { takeAuthIntent } from "../../services/authIntent";
+import useAuthContinuation from "../../custom-hooks/useAuthContinuation";
 import { useAuth } from "../../custom-hooks/useAuth";
 import { appHaptics } from "../../services/haptics";
 
@@ -232,7 +232,7 @@ export default function VendorProfileMoreFromSeller({
     return (sum / count).toFixed(1);
   }, [vendor]);
 
-  const performFollow = useCallback(async (authUser) => {
+  const performFollow = useCallback(async (authUser, desiredState) => {
     if (!vendorId) return;
 
     if (!authUser?.uid) {
@@ -247,16 +247,17 @@ export default function VendorProfileMoreFromSeller({
     const prevState = isFollowing;
     followMutationRef.current = true;
     setIsFollowLoading(true);
-    setIsFollowing(!prevState);
+    setIsFollowing(desiredState ?? !prevState);
     appHaptics.medium();
 
     try {
       const result = await setVendorFollowState({
         userId: authUser.uid,
         vendorId: vendor.id,
-        shouldFollow: !prevState,
+        shouldFollow: desiredState ?? !prevState,
       });
       setIsFollowing(result.followed);
+      return true;
     } catch (err) {
       console.error("Follow/unfollow failed:", err?.message);
       setIsFollowing(prevState);
@@ -271,12 +272,12 @@ export default function VendorProfileMoreFromSeller({
     void performFollow(currentUser);
   }, [currentUser, performFollow]);
 
-  useEffect(() => {
-    if (!uid || !vendor?.id) return;
-    const intent = takeAuthIntent({types: "follow-vendor", pathname: location.pathname});
-    if (!intent || String(intent.payload?.vendorId || "") !== String(vendor.id)) return;
-    void performFollow(currentUser);
-  }, [currentUser, location.pathname, performFollow, uid, vendor?.id]);
+  useAuthContinuation({
+    types: "follow-vendor",
+    ready: Boolean(vendor?.id),
+    match: (intent) => String(intent.payload?.vendorId) === String(vendor?.id),
+    run: (intent, user) => performFollow(user, true),
+  });
 
   const goToStore = () => {
     if (!vendorId) return;
@@ -389,10 +390,6 @@ export default function VendorProfileMoreFromSeller({
         open={authOpen}
         onClose={() => setAuthOpen(false)}
         headerText="Let’s set you up to follow"
-        onComplete={(user) => {
-          setAuthOpen(false);
-          void performFollow(user);
-        }}
         openDisclaimer={openDisclaimer}
         authIntent={{
           type: "follow-vendor",

@@ -4,4 +4,4 @@ Disallow:
 
 Allow: /
 
-Sitemap: https://www.shopmythrift.store/sitemap.xml
+Sitemap: https://app.shopmythrift.com/sitemap.xml

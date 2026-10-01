@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { db } from "../firebase.config";
 import { toast } from "react-hot-toast";
 import {
@@ -34,10 +34,8 @@ import {
   setUserData,
   updateUserData,
 } from "../redux/actions/useractions";
-import { takeAuthIntent } from "../services/authIntent";
-import { beginAuthTransition } from "../services/authTransition.mjs";
-import { useAppExperience } from "../components/Context/AppExperienceContext";
-import { APP_EXPERIENCE } from "../services/appExperience";
+import { pauseAuthIntentForProfile } from "../services/authIntent";
+import useAuthContinuation from "../custom-hooks/useAuthContinuation";
 import "./profile.css";
 
 const ProfileMenuRow = ({
@@ -82,7 +80,6 @@ const Profile = () => {
   const location = useLocation();
   const { currentUser } = useAuth();
   const dispatch = useDispatch();
-  const { selectExperience } = useAppExperience();
   const userData = useSelector((state) => state.user.userData);
   const hasUnreadOffers = useSelector(
     (state) => state.buyerOffers.ids.some(
@@ -93,7 +90,6 @@ const Profile = () => {
   const [showQuickAuth, setShowQuickAuth] = useState(false);
   const [authReturnTo, setAuthReturnTo] = useState(null);
   const [profileAuthAction, setProfileAuthAction] = useState("account");
-  const authResumeHandledRef = useRef(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [profileComplete, setProfileComplete] = useState(false);
 
@@ -144,7 +140,6 @@ const Profile = () => {
   }, [currentUser?.uid, location.search, location.state, navigate]);
 
   const openQuickAuth = (returnTo = null, action = "account") => {
-    authResumeHandledRef.current = false;
     setAuthReturnTo(returnTo);
     setProfileAuthAction(action);
     setShowQuickAuth(true);
@@ -164,7 +159,7 @@ const Profile = () => {
     action();
   };
 
-  const openWallet = useCallback(async (authenticatedUser = null) => {
+  const openWallet = useCallback(async (authenticatedUser = null, stillCurrent = () => true) => {
     // QuickAuthModal completes before AuthProvider's onAuthStateChanged render
     // is guaranteed to reach this component. Use the user returned by the
     // successful auth operation so the resumed wallet action never evaluates
@@ -179,7 +174,9 @@ const Profile = () => {
         // Fall back to the live profile state already rendered on this page.
       }
     }
+    if (!stillCurrent()) return;
     if (!complete) {
+      pauseAuthIntentForProfile(authenticatedUid);
       toast.error("Please complete your personal information first.");
       navigate("/account-info", {
         state: { highlightIncomplete: true, from: "/profile" },
@@ -201,6 +198,7 @@ const Profile = () => {
     action,
     destination,
     authenticatedUser = null,
+    stillCurrent = () => true,
   ) => {
     // The main Profile sign-in entry is authentication-only. It must not
     // inherit the Account Information destination used by profile editing.
@@ -210,25 +208,19 @@ const Profile = () => {
       return;
     }
     if (action === "wallet") {
-      await openWallet(authenticatedUser);
+      await openWallet(authenticatedUser, stillCurrent);
       return;
     }
     if (destination) navigate(destination);
   }, [navigate, openWallet]);
 
-  useEffect(() => {
-    if (!currentUser?.uid) {
-      authResumeHandledRef.current = false;
-      return;
-    }
-    if (authResumeHandledRef.current || !currentUser?.uid) return;
-    const intent = takeAuthIntent({types: "profile-action", pathname: location.pathname});
-    if (!intent) return;
-    authResumeHandledRef.current = true;
-    const transition = beginAuthTransition();
-    void resumeProfileAction(intent.payload?.action, intent.payload?.destination)
-      .finally(() => transition.finish());
-  }, [currentUser?.uid, location.pathname, resumeProfileAction]);
+  useAuthContinuation({
+    types: "profile-action",
+    run: async (intent, user, stillCurrent) => {
+      await resumeProfileAction(intent.payload?.action, intent.payload?.destination, user, stillCurrent);
+      return true;
+    },
+  });
 
   const handleAvatarChange = (newAvatar) => {
     dispatch(updateUserData({ photoURL: newAvatar }));
@@ -256,15 +248,6 @@ const Profile = () => {
     }
   };
 
-  const handleAuthComplete = async (authenticatedUser) => {
-    await selectExperience(APP_EXPERIENCE.CUSTOMER);
-    const destination = authReturnTo;
-    const action = profileAuthAction;
-    setShowQuickAuth(false);
-    setAuthReturnTo(null);
-    setProfileAuthAction("account");
-    await resumeProfileAction(action, destination, authenticatedUser);
-  };
 
   const displayName =
     userData?.username ||
@@ -401,7 +384,6 @@ const Profile = () => {
       <QuickAuthModal
         open={showQuickAuth}
         onClose={closeQuickAuth}
-        onComplete={handleAuthComplete}
         mergeCart={mergeCartAfterLogin}
         headerText="Let’s set up your account"
         returnTo={authReturnTo}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Container, Row, Form, FormGroup } from "reactstrap";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
 import { auth, db, functions } from "../firebase.config";
 import { isBuyerUsernameAvailable } from "../services/accountLookups";
@@ -36,6 +36,7 @@ import {
   socialAuthErrorMessage,
 } from "../services/buyerSocialAuth";
 import { isNativeApp } from "../services/platform";
+import { activateAuthIntent, authDestinationFromState, pendingAuthReturnTo } from "../services/authIntent";
 const Signup = () => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -50,6 +51,8 @@ const Signup = () => {
   const [showPasswordCriteria, setShowPasswordCriteria] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = authDestinationFromState(location.state, pendingAuthReturnTo());
   const dispatch = useDispatch();
   const { selectExperience } = useAppExperience();
   const showAppleAuth =
@@ -68,7 +71,7 @@ const Signup = () => {
     setEmail("");
     setPassword("");
     setConfirmPassword("");
-    navigate("/login"); // Redirect to login page
+    navigate("/login", { state: { from: returnTo } });
   };
 
   // Debounced hint only; no private profile is downloaded or cached.
@@ -186,7 +189,7 @@ const Signup = () => {
         auth,
         db,
         providerId,
-        redirectContext: { source: "signup", returnTo: "/" },
+        redirectContext: { source: "signup", returnTo },
       });
       const { user, isNewUser } = authResult;
       transition = authResult.transition;
@@ -197,7 +200,9 @@ const Signup = () => {
           ? `Signed up with ${providerLabel} successfully!`
           : `Signed in with ${providerLabel} successfully!`,
       );
-      navigate("/", { replace: true });
+      if (auth.currentUser?.uid !== user.uid) return;
+      activateAuthIntent(user, returnTo);
+      navigate(returnTo, { replace: true });
     } catch (error) {
       console.error(`${providerLabel} Sign-Up Error:`, error);
       const message = socialAuthErrorMessage(error, providerLabel);
@@ -486,7 +491,7 @@ const Signup = () => {
                   <p className="text-gray-700 text-sm">
                     Already have an account?{" "}
                     <span className="text-customOrange text-sm">
-                      <Link to="/login">Sign In</Link>
+                      <Link to="/login" state={{ from: returnTo }}>Sign In</Link>
                     </span>
                   </p>
                 </div>

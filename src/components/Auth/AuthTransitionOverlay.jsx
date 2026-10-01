@@ -5,8 +5,9 @@ import { useAuth } from "../../custom-hooks/useAuth";
 import { acquireScrollLock } from "../../services/scrollLock";
 import { authTransitionSnapshot, subscribeAuthTransition, releaseAuthTransition } from "../../services/authTransition.mjs";
 import "./auth-transition.css";
+import { authIntentRevision, subscribeAuthIntent, pendingAuthIntent, clearAuthIntent } from "../../services/authIntent";
 
-export function AuthTransitionSurface({ label = "Finishing sign-in…" }) {
+export function AuthTransitionSurface({ label = "Finishing sign-in…", onContinue }) {
   const element = useRef(null);
   const [slow, setSlow] = useState(false);
   useEffect(() => {
@@ -33,6 +34,7 @@ export function AuthTransitionSurface({ label = "Finishing sign-in…" }) {
       {slow && <div className="auth-transition__recovery">
         <p>This is taking longer than expected. Check your connection.</p>
         <button type="button" onClick={() => window.location.reload()}>Reload and try again</button>
+        {onContinue && <button type="button" onClick={onContinue}>Continue browsing</button>}
       </div>}
     </div>, document.body,
   );
@@ -40,15 +42,18 @@ export function AuthTransitionSurface({ label = "Finishing sign-in…" }) {
 
 export default function AuthTransitionOverlay() {
   const transition = useSyncExternalStore(subscribeAuthTransition, authTransitionSnapshot);
-  const { loading } = useAuth();
+  const { loading, currentUser } = useAuth();
   const location = useLocation();
+  useSyncExternalStore(subscribeAuthIntent, authIntentRevision);
+  const pending = pendingAuthIntent();
+  const waitingForAction = pending?.phase === "ready" && pending.uid === currentUser?.uid && pending.returnTo?.split(/[?#]/)[0] === location.pathname;
   useEffect(() => {
-    if (!transition?.finishing || transition.routeLoading || loading) return undefined;
+    if (!transition?.finishing || transition.routeLoading || loading || waitingForAction) return undefined;
     let secondFrame;
     const firstFrame = requestAnimationFrame(() => {
       secondFrame = requestAnimationFrame(() => releaseAuthTransition(transition.id));
     });
     return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame); };
-  }, [transition, loading, location.key]);
-  return transition ? <AuthTransitionSurface label={transition.label} /> : null;
+  }, [transition, loading, location.key, waitingForAction]);
+  return transition ? <AuthTransitionSurface label={transition.label} onContinue={transition.finishing ? () => { clearAuthIntent(pending?.id); releaseAuthTransition(transition.id); } : undefined} /> : null;
 }

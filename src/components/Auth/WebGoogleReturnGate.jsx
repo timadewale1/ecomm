@@ -5,7 +5,7 @@ import { Toaster } from "react-hot-toast";
 import { auth, db } from "../../firebase.config";
 import { isNativeApp } from "../../services/platform";
 import { readWebAuthAttempt, updateWebAuthAttempt, clearWebAuthAttempt, WEB_AUTH_HOSTS } from "../../services/webAuthRedirectState.mjs";
-import { clearAuthIntent } from "../../services/authIntent";
+import { activateAuthIntent, clearAuthIntent } from "../../services/authIntent";
 import { completeBuyerProviderSignIn, socialAuthErrorMessage } from "../../services/buyerSocialAuth";
 import { stageAnonymousCartAsGuest, cartOwnerKey } from "../../services/cartPersistence";
 import { fetchAndMergeCart } from "../../services/cartMerge";
@@ -85,6 +85,7 @@ export default function WebGoogleReturnGate({ children }) {
         const attempt = readWebAuthAttempt(sessionStorage);
         await auth.authStateReady();
         if (attempt?.phase === "complete" && attempt.uid === auth.currentUser?.uid) {
+          activateAuthIntent(auth.currentUser, attempt.returnTo, attempt.intentId);
           if (attempt.source === "quick-basket") {
             sessionStorage.setItem("mythrift:quick-google-resume:v1", JSON.stringify(attempt));
           }

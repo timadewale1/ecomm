@@ -24,7 +24,7 @@ import {
   fetchEligibleReviewOrders,
   findRequestedReviewOrder,
 } from "../../components/Reviews/reviewOrders";
-import { takeAuthIntent } from "../../services/authIntent";
+import useAuthContinuation from "../../custom-hooks/useAuthContinuation";
 import { acquireScrollLock } from "../../services/scrollLock";
 import {getPublicVendor} from "../../services/publicVendors";
 
@@ -41,7 +41,6 @@ const VendorRatings = () => {
   const [eligibleOrdersLoading, setEligibleOrdersLoading] = useState(false);
   const [eligibleOrdersReady, setEligibleOrdersReady] = useState(false);
   const [selectedReviewOrder, setSelectedReviewOrder] = useState(null);
-  const [pendingReviewOpen, setPendingReviewOpen] = useState(false);
   const requestedOrderHandled = useRef("");
   const [allReviews, setAllReviews] = useState([]);
   const [reviewsLoaded, setReviewsLoaded] = useState(false);
@@ -245,34 +244,13 @@ const VendorRatings = () => {
     id,
   ]);
 
-  useEffect(() => {
-    if (!currentUser?.uid) return;
-    const intent = takeAuthIntent({types: "open-vendor-review", pathname: location.pathname});
-    if (!intent || String(intent.payload?.vendorId || "") !== String(id)) return;
-    setPendingReviewOpen(true);
-  }, [currentUser?.uid, id, location.pathname]);
+  useAuthContinuation({
+    types: "open-vendor-review",
+    ready: Boolean(currentUser?.uid && reviewsLoaded && reviewsVendorId === id && eligibleOrdersReady && !eligibleOrdersLoading),
+    match: (intent) => String(intent.payload?.vendorId) === String(id),
+    run: () => { setShowOrderPicker(true); return true; },
+  });
 
-  useEffect(() => {
-    if (
-      !pendingReviewOpen ||
-      !currentUser?.uid ||
-      !reviewsLoaded ||
-      reviewsVendorId !== id ||
-      !eligibleOrdersReady ||
-      eligibleOrdersLoading
-    )
-      return;
-    setPendingReviewOpen(false);
-    setShowOrderPicker(true);
-  }, [
-    pendingReviewOpen,
-    currentUser?.uid,
-    eligibleOrdersLoading,
-    eligibleOrdersReady,
-    reviewsLoaded,
-    reviewsVendorId,
-    id,
-  ]);
 
   const openReviewFlow = () => {
     if (!currentUser) {
@@ -543,10 +521,6 @@ const VendorRatings = () => {
         <QuickAuthModal
           open={showQuickAuth}
           onClose={() => setShowQuickAuth(false)}
-          onComplete={(user) => {
-            setShowQuickAuth(false);
-            setPendingReviewOpen(true);
-          }}
           headerText="Let’s set up your review"
           openDisclaimer={openDisclaimer}
           authIntent={{

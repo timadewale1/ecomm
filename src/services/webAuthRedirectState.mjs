@@ -41,6 +41,7 @@ export function writeWebAuthAttempt(storage, context, now = Date.now()) {
     providerId: "google.com",
     returnTo: safeAuthReturnPath(context.returnTo),
     source: context.source || "login",
+    intentId: context.intentId || null,
     phase: "start",
     requiresCheckoutDetails: context.requiresCheckoutDetails === true,
     anonymousUid: context.anonymousUid || null,

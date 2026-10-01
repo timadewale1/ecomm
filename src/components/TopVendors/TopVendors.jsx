@@ -22,7 +22,8 @@ import { FaStar } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import RotatingCategoryPill from "./CategoryPills";
 import LoginRequiredSheet from "../PwaModals/LoginRequiredSheet";
-import { rememberAuthIntent, takeAuthIntent } from "../../services/authIntent";
+import { rememberAuthIntent } from "../../services/authIntent";
+import useAuthContinuation from "../../custom-hooks/useAuthContinuation";
 
 export default function TopVendors() {
   const dispatch = useDispatch();
@@ -86,27 +87,26 @@ export default function TopVendors() {
     }
   };
 
-  useEffect(() => {
-    if (!currentUser?.uid) return;
-    const intent = takeAuthIntent({types: "follow-vendor", pathname: location.pathname});
+  useAuthContinuation({ types: "follow-vendor", run: async (intent, user) => {
     const vendorId = intent?.payload?.vendorId;
     if (!vendorId || pendingFollowsRef.current.has(vendorId)) return;
     pendingFollowsRef.current.add(vendorId);
     setFollowed((current) => ({...current, [vendorId]: true}));
-    setVendorFollowState({
-      userId: currentUser.uid,
+    return setVendorFollowState({
+      userId: user.uid,
       vendorId,
       shouldFollow: true,
     })
       .then((result) => {
         setFollowed((current) => ({...current, [vendorId]: result.followed}));
+        return true;
       })
       .catch((error) => {
         setFollowed((current) => ({...current, [vendorId]: false}));
         toast.error(error.message || "Could not follow this vendor.");
       })
       .finally(() => pendingFollowsRef.current.delete(vendorId));
-  }, [currentUser?.uid, location.pathname]);
+  } });
 
   if (status === "loading") {
     return (
@@ -230,20 +230,20 @@ export default function TopVendors() {
         title="Let’s set you up to follow"
         description="Sign in to follow vendors and receive their latest updates, or create an account to continue."
         onSignUp={() => {
-          rememberAuthIntent({
+          try { rememberAuthIntent({
             type: "follow-vendor",
             returnTo: `${location.pathname}${location.search}`,
             payload: {vendorId: pendingVendorId},
-          });
+          }); } catch { toast.error("Allow site storage to continue signing in."); return; }
           navigate("/signup", {state: {from: `${location.pathname}${location.search}`}});
           setShowLogin(false);
         }}
         onLogin={() => {
-          rememberAuthIntent({
+          try { rememberAuthIntent({
             type: "follow-vendor",
             returnTo: `${location.pathname}${location.search}`,
             payload: {vendorId: pendingVendorId},
-          });
+          }); } catch { toast.error("Allow site storage to continue signing in."); return; }
           navigate("/login", {state: {from: `${location.pathname}${location.search}`}});
           setShowLogin(false);
         }}

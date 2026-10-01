@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { LiaTimesSolid } from "react-icons/lia";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple, FaXTwitter } from "react-icons/fa6";
@@ -21,7 +21,7 @@ import { canUseBuyerContactEmail, CONTACT_SIGN_IN_MESSAGE, assertCurrentAccount 
 import LocationPicker from "../Location/LocationPicker";
 import { AiOutlineMail } from "react-icons/ai";
 import AppBottomSheet from "../layout/AppBottomSheet";
-import { clearAuthIntent, rememberAuthIntent } from "../../services/authIntent";
+import { activateAuthIntent, clearAuthIntent, rememberAuthIntent } from "../../services/authIntent";
 import { fetchAndMergeCart } from "../../services/cartMerge";
 import { useAppExperience } from "../Context/AppExperienceContext";
 import { APP_EXPERIENCE } from "../../services/appExperience";
@@ -117,6 +117,7 @@ export default function QuickAuthModal({
 
   const [loading, setLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState(null);
+  const savedActionRef = useRef(null);
 
   // confirm modal state
   const [showConfirm, setShowConfirm] = useState(false);
@@ -157,14 +158,26 @@ export default function QuickAuthModal({
 
   const preserveInitialAction = () => {
     if (!authIntent?.type) return;
-    rememberAuthIntent({
+    savedActionRef.current = rememberAuthIntent({
       ...authIntent,
       returnTo: authIntent.returnTo || safeReturnDestination(),
     });
   };
 
   const completeInitialAction = (user, mergeResult) => {
-    if (!retainAuthIntentOnComplete) clearAuthIntent();
+    assertCurrentAccount(user);
+    if (!retainAuthIntentOnComplete && savedActionRef.current) {
+      // All providers use the same consumer; never run a stale mounted callback
+      // as well as the persisted continuation. Closing can safely clear UI refs.
+      const savedAction = savedActionRef.current;
+      savedActionRef.current = null;
+      if (!activateAuthIntent(user, savedAction.returnTo, savedAction.id)) {
+        clearAuthIntent(savedAction.id);
+        toast("You're signed in. Please select that action again.");
+      }
+      onClose?.();
+      return;
+    }
     return onComplete?.(user, mergeResult);
   };
 
@@ -273,11 +286,7 @@ export default function QuickAuthModal({
       setAddress("");
       setCoords({ lat: null, lng: null });
 
-      Promise.resolve().then(() => {
-        if (typeof onComplete === "function") {
-          completeInitialAction(pendingUser, mergeResult);
-        }
-      });
+      await completeInitialAction(pendingUser, mergeResult);
     } catch (err) {
       console.error(err);
       toast.error("Could not save details. Please try again.");
@@ -300,7 +309,7 @@ export default function QuickAuthModal({
     setCoords({ lat: null, lng: null });
 
     const mergeResult = user?.uid ? await mergeEligibleCart(user.uid) : null;
-    if (typeof onComplete === "function" && user) {
+    if (user) {
       completeInitialAction(user, mergeResult);
     }
   };
@@ -311,13 +320,14 @@ export default function QuickAuthModal({
     try {
       setLoading(true);
       setLoadingProvider(providerId);
-      if (!isNativeApp && providerId === "google.com") preserveInitialAction();
+      preserveInitialAction();
       const authResult = await authenticateBuyerWithProvider({
         auth,
         db,
         providerId,
         redirectContext: {
           source: "modal", requiresCheckoutDetails,
+          intentId: savedActionRef.current?.id,
           returnTo: authIntent?.returnTo || safeReturnDestination(),
         },
       });
@@ -327,7 +337,6 @@ export default function QuickAuthModal({
 
       if (profile?.profileComplete || !requiresCheckoutDetails) {
         const mergeResult = await mergeEligibleCart(user.uid);
-        onClose?.();
         await completeInitialAction(user, mergeResult);
         return;
       }
@@ -350,6 +359,7 @@ export default function QuickAuthModal({
       });
       setShowConfirm(true);
     } catch (error) {
+      if (savedActionRef.current) clearAuthIntent(savedActionRef.current.id);
       console.error(`[social-auth:${providerId}]`, error);
       const message = socialAuthErrorMessage(error, providerLabel);
       if (message) toast.error(message);
@@ -370,16 +380,22 @@ export default function QuickAuthModal({
     handleSocialSignIn("twitter.com", "X");
 
   const confirmCanClose = !saving;
+  const cancelSignIn = () => {
+    if (loading || saving) return;
+    if (savedActionRef.current) clearAuthIntent(savedActionRef.current.id);
+    savedActionRef.current = null;
+    onClose?.();
+  };
   const closeConfirm = () => {
     if (confirmCanClose && resumeSession) { void handleConfirmSkip(); return; }
-    if (confirmCanClose) setShowConfirm(false);
+    if (confirmCanClose) { setShowConfirm(false); cancelSignIn(); }
   };
 
   return (
     <>
       <AppBottomSheet
         open={open && !showConfirm}
-        onClose={() => !loading && onClose?.()}
+        onClose={cancelSignIn}
         closeOnBackdrop={!loading}
         dismissible={!loading}
         height="65dvh"
@@ -393,7 +409,7 @@ export default function QuickAuthModal({
         compactTop={compactTop}
       >
         <button
-          onClick={() => !loading && onClose?.()}
+          onClick={cancelSignIn}
           disabled={loading}
           className={`absolute bg-gray-200 rounded-full p-1 right-3 text-2xl ${
             compactTop ? "top-5" : "top-9"
@@ -488,9 +504,10 @@ export default function QuickAuthModal({
         {/* Continue with Email -> /login, return to this page after */}
         <button
           onClick={() => {
+            try { preserveInitialAction(); }
+            catch (error) { toast.error(socialAuthErrorMessage(error, "Email")); return; }
             markBuyerMode();
-            preserveInitialAction();
-            const destination = safeReturnDestination();
+            const destination = authIntent?.returnTo || safeReturnDestination();
             navigate("/login", { state: { from: destination } });
             onClose?.();
           }}
